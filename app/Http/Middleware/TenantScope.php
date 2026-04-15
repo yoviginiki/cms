@@ -13,9 +13,11 @@ class TenantScope
     {
         $user = $request->user();
 
-        if ($user && $user->tenant_id) {
-            DB::statement("SET app.current_tenant_id = ?", [$user->tenant_id]);
+        if (!$user || !$user->tenant_id) {
+            abort(403, 'No tenant context.');
         }
+
+        DB::statement("SET app.current_tenant_id = ?", [$user->tenant_id]);
 
         return $next($request);
     }

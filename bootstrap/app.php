@@ -15,7 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'tenant.scope' => \App\Http\Middleware\TenantScope::class,
+            'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
+
+        $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

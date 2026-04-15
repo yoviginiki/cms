@@ -1,0 +1,54 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Page extends Model
+{
+    use HasFactory, HasUuids, SoftDeletes;
+
+    protected $fillable = [
+        'site_id', 'parent_id', 'title', 'slug',
+        'status', 'seo_meta', 'sort_order', 'published_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'seo_meta' => 'array',
+            'published_at' => 'datetime',
+        ];
+    }
+
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Page::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(Page::class, 'parent_id');
+    }
+
+    public function blocks(): MorphMany
+    {
+        return $this->morphMany(Block::class, 'blockable');
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(PageVersion::class);
+    }
+}
