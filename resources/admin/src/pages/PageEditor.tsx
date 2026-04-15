@@ -7,6 +7,7 @@ import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useEditorStore } from '@/stores/editorStore';
 import { BuilderCanvas } from '@/components/editor/BuilderCanvas';
 import { BuilderSidebar } from '@/components/editor/BuilderSidebar';
+import { PublishButton } from '@/components/editor/PublishButton';
 import { blocks as blocksApi } from '@/lib/api';
 
 import '@/components/blocks';
@@ -73,6 +74,7 @@ export default function PageEditor() {
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             {isSaving ? 'Saving...' : 'Save'}
           </button>
+          <PublishButton siteId={siteId} />
         </div>
       </div>
       <div className="flex flex-1 overflow-hidden">

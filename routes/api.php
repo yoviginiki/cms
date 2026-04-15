@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\BlockController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\PageController;
 use App\Http\Controllers\Api\V1\PostController;
+use App\Http\Controllers\Api\V1\PublishController;
 use App\Http\Controllers\Api\V1\SiteController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,5 +48,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Assets
         Route::apiResource('sites.assets', AssetController::class)->except(['update']);
         Route::get('sites/{site}/assets/{asset}/serve/{variant?}', [AssetServeController::class, 'serve']);
+
+        // Publishing
+        Route::post('sites/{site}/publish', [PublishController::class, 'publish']);
+        Route::get('sites/{site}/deployments', [PublishController::class, 'history']);
+        Route::get('sites/{site}/deployments/{deployment}', [PublishController::class, 'status']);
+        Route::post('sites/{site}/deployments/{deployment}/rollback', [PublishController::class, 'rollback']);
     });
 });
