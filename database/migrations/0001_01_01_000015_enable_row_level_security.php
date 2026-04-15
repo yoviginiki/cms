@@ -26,8 +26,8 @@ return new class extends Migration
         DB::statement("
             CREATE POLICY tenant_isolation ON sites
             FOR ALL
-            USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
-            WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid)
+            USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+            WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
         ");
 
         // Enable RLS on site-scoped tables
@@ -37,8 +37,8 @@ return new class extends Migration
             DB::statement("
                 CREATE POLICY tenant_isolation ON {$table}
                 FOR ALL
-                USING (site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid))
-                WITH CHECK (site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid))
+                USING (site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid))
+                WITH CHECK (site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid))
             ");
         }
 
@@ -51,26 +51,26 @@ return new class extends Migration
             USING (
                 (blockable_type = 'page' AND blockable_id IN (
                     SELECT id FROM pages WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
                 OR
                 (blockable_type = 'post' AND blockable_id IN (
                     SELECT id FROM posts WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
             )
             WITH CHECK (
                 (blockable_type = 'page' AND blockable_id IN (
                     SELECT id FROM pages WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
                 OR
                 (blockable_type = 'post' AND blockable_id IN (
                     SELECT id FROM posts WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
             )
@@ -85,26 +85,26 @@ return new class extends Migration
             USING (
                 (page_id IS NOT NULL AND page_id IN (
                     SELECT id FROM pages WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
                 OR
                 (post_id IS NOT NULL AND post_id IN (
                     SELECT id FROM posts WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
             )
             WITH CHECK (
                 (page_id IS NOT NULL AND page_id IN (
                     SELECT id FROM pages WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
                 OR
                 (post_id IS NOT NULL AND post_id IN (
                     SELECT id FROM posts WHERE site_id IN (
-                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                        SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                     )
                 ))
             )
@@ -118,12 +118,12 @@ return new class extends Migration
             FOR ALL
             USING (deployment_id IN (
                 SELECT id FROM deployments WHERE site_id IN (
-                    SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                    SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                 )
             ))
             WITH CHECK (deployment_id IN (
                 SELECT id FROM deployments WHERE site_id IN (
-                    SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid
+                    SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
                 )
             ))
         ");

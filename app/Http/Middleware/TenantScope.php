@@ -17,7 +17,8 @@ class TenantScope
             abort(403, 'No tenant context.');
         }
 
-        DB::statement("SET app.current_tenant_id = ?", [$user->tenant_id]);
+        $tenantId = preg_replace('/[^a-f0-9\-]/', '', $user->tenant_id);
+        DB::unprepared("SET app.current_tenant_id = '{$tenantId}'");
 
         return $next($request);
     }

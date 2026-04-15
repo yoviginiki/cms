@@ -1,0 +1,64 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Domain\Blocks\Services\BlockRegistry;
+use App\Domain\Blocks\Services\BlockService;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\SyncBlocksRequest;
+use App\Models\Page;
+use App\Models\Post;
+use App\Models\Site;
+use Illuminate\Http\JsonResponse;
+
+class BlockController extends Controller
+{
+    public function __construct(
+        private BlockService $blockService,
+        private BlockRegistry $blockRegistry,
+    ) {
+    }
+
+    public function indexForPage(Site $site, Page $page): JsonResponse
+    {
+        $this->authorize('view', $page);
+
+        return response()->json([
+            'data' => $this->blockService->getBlockTree($page),
+        ]);
+    }
+
+    public function syncForPage(SyncBlocksRequest $request, Site $site, Page $page): JsonResponse
+    {
+        $this->authorize('update', $page);
+
+        $tree = $this->blockService->syncBlocks($page, $request->validated('blocks'));
+
+        return response()->json(['data' => $tree]);
+    }
+
+    public function indexForPost(Site $site, Post $post): JsonResponse
+    {
+        $this->authorize('view', $post);
+
+        return response()->json([
+            'data' => $this->blockService->getBlockTree($post),
+        ]);
+    }
+
+    public function syncForPost(SyncBlocksRequest $request, Site $site, Post $post): JsonResponse
+    {
+        $this->authorize('update', $post);
+
+        $tree = $this->blockService->syncBlocks($post, $request->validated('blocks'));
+
+        return response()->json(['data' => $tree]);
+    }
+
+    public function types(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->blockRegistry->getAllTypes(),
+        ]);
+    }
+}
