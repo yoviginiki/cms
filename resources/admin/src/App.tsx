@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AdminLayout } from './components/layout/AdminLayout';
+import { ToastProvider } from './components/ui/Toast';
 import Dashboard from './pages/Dashboard';
 import PagesList from './pages/PagesList';
 import PageEditor from './pages/PageEditor';
@@ -18,20 +20,30 @@ const queryClient = new QueryClient({
   },
 });
 
+function LayoutRoute({ children }: { children: React.ReactNode }) {
+  return <AdminLayout>{children}</AdminLayout>;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/sites/:siteId/pages" element={<PagesList />} />
-        <Route path="/sites/:siteId/pages/:pageId/edit" element={<PageEditor />} />
-        <Route path="/sites/:siteId/posts" element={<PostsList />} />
-        <Route path="/sites/:siteId/posts/:postId/edit" element={<PostEditor />} />
-        <Route path="/sites/:siteId/categories" element={<Categories />} />
-        <Route path="/sites/:siteId/assets" element={<Assets />} />
-        <Route path="/sites/:siteId/settings" element={<SiteSettings />} />
-      </Routes>
+      <ToastProvider>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Pages with sidebar layout */}
+          <Route path="/dashboard" element={<LayoutRoute><Dashboard /></LayoutRoute>} />
+          <Route path="/sites/:siteId/pages" element={<LayoutRoute><PagesList /></LayoutRoute>} />
+          <Route path="/sites/:siteId/posts" element={<LayoutRoute><PostsList /></LayoutRoute>} />
+          <Route path="/sites/:siteId/categories" element={<LayoutRoute><Categories /></LayoutRoute>} />
+          <Route path="/sites/:siteId/assets" element={<LayoutRoute><Assets /></LayoutRoute>} />
+          <Route path="/sites/:siteId/settings" element={<LayoutRoute><SiteSettings /></LayoutRoute>} />
+
+          {/* Full-screen editors (no sidebar) */}
+          <Route path="/sites/:siteId/pages/:pageId/edit" element={<PageEditor />} />
+          <Route path="/sites/:siteId/posts/:postId/edit" element={<PostEditor />} />
+        </Routes>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
