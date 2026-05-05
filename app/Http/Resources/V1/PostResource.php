@@ -11,11 +11,21 @@ class PostResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'short_id' => substr($this->id, 0, 8),
             'title' => $this->title,
             'slug' => $this->slug,
             'status' => $this->status,
+            'editor_mode' => $this->editor_mode,
+            'layout_id' => $this->layout_id,
+            'category_id' => $this->category_id,
             'excerpt' => $this->excerpt,
             'featured_image' => $this->featured_image,
+            'grid_id' => $this->grid_id,
+            'grid' => $this->whenLoaded('grid', fn() => [
+                'id' => $this->grid->id,
+                'name' => $this->grid->name,
+                'slug' => $this->grid->slug,
+            ]),
             'category' => $this->whenLoaded('category'),
             'seo_meta' => $this->seo_meta,
             'blocks' => $this->whenLoaded('blocks'),

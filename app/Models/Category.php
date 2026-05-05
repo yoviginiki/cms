@@ -14,7 +14,11 @@ class Category extends Model
 
     protected $fillable = [
         'site_id', 'parent_id', 'name', 'slug',
-        'description', 'sort_order',
+        'description', 'sort_order', 'is_public', 'grid_id',
+    ];
+
+    protected $casts = [
+        'is_public' => 'boolean',
     ];
 
     public function site(): BelongsTo
@@ -35,5 +39,10 @@ class Category extends Model
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
+    }
+
+    public function grid(): BelongsTo
+    {
+        return $this->belongsTo(Grid::class);
     }
 }

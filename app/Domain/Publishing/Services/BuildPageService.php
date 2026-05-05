@@ -1,7 +1,13 @@
 <?php
 namespace App\Domain\Publishing\Services;
 
-use App\Domain\Blocks\Services\BlockRegistry;
+use App\Domain\Grid\Services\GridRenderer;
+use App\Domain\Grid\Services\GridResolver;
+use App\Domain\Hooks\HookDispatcher;
+use App\Domain\Menus\Services\MenuRenderer;
+use App\Domain\Theme\Services\DesignTokenGenerator;
+use App\Domain\Publishing\Services\AssetPublisher;
+use App\Models\Asset;
 use App\Models\Block;
 use App\Models\Page;
 use App\Models\Post;
@@ -11,61 +17,227 @@ use Illuminate\Support\Facades\View;
 
 class BuildPageService
 {
+    private int $imageIndex = 0;
+
     public function __construct(
         private SanitizationService $sanitizer,
         private SeoService $seoService,
         private HtmlMinifier $minifier,
+        private OutputValidator $validator,
+        private MenuRenderer $menuRenderer,
+        private GridResolver $gridResolver,
+        private GridRenderer $gridRenderer,
+        private DesignTokenGenerator $tokenGenerator,
+        private HookDispatcher $hooks,
+        private MagazineRenderer $magazineRenderer,
     ) {}
 
     public function build(Page|Post $content, ?Theme $theme, Site $site): string
     {
-        $blocks = $content->blocks()
-            ->whereNull('parent_block_id')
-            ->orderBy('order')
-            ->with('children')
-            ->get();
-
-        $renderedBlocks = '';
-        foreach ($blocks as $block) {
-            $renderedBlocks .= $this->renderBlock($block, $site);
-        }
+        $this->imageIndex = 0;
 
         $headContent = $this->seoService->generatePageHead($content, $site);
         $themeConfig = $theme?->config ?? [];
 
-        // Site-level script injection
+        // Script injection
         $settings = $site->settings ?? [];
-        $headScripts = $settings['head_scripts'] ?? '';
-        $bodyScripts = $settings['body_scripts'] ?? '';
-        $customCss = $settings['custom_css'] ?? '';
+        $headScripts = ($settings['head_scripts'] ?? '') . ($content->seo_meta['head_scripts'] ?? '');
+        $bodyScripts = ($settings['body_scripts'] ?? '') . ($content->seo_meta['body_scripts'] ?? '');
+        $customCss = ($settings['custom_css'] ?? '') . ($content->seo_meta['custom_css'] ?? '');
 
-        // Page/post-level script injection
-        $seoMeta = $content->seo_meta ?? [];
-        $headScripts .= $seoMeta['head_scripts'] ?? '';
-        $bodyScripts .= $seoMeta['body_scripts'] ?? '';
-        $customCss .= $seoMeta['custom_css'] ?? '';
+        $criticalCss = $this->buildCriticalCss($themeConfig);
+        $fontPreloads = $this->buildFontPreloads($themeConfig);
+        $rssUrl = ($site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu") . '/feed.xml';
 
-        $html = View::make('publishing.layout', [
-            'headContent' => $headContent,
-            'headScripts' => $headScripts,
-            'bodyScripts' => $bodyScripts,
-            'customCss' => $customCss,
-            'renderedBlocks' => $renderedBlocks,
-            'site' => $site,
-            'themeConfig' => $themeConfig,
-            'content' => $content,
-        ])->render();
+        // Design tokens CSS
+        $designTokensCss = $this->tokenGenerator->generate($site);
+
+        // Hook outputs
+        $hookHeadScripts = $this->hooks->collectAction('head_scripts', $content, $site);
+        $hookBodyOpen = $this->hooks->collectAction('body_open', $content, $site);
+        $hookBodyClose = $this->hooks->collectAction('body_close', $content, $site);
+
+        // Magazine editor mode
+        if ($content instanceof Page && $content->editor_mode === 'magazine') {
+            $magazineHtml = $this->magazineRenderer->render($content, $site);
+
+            // Resolve layout for magazine pages too
+            $layout = $this->resolveLayout($content);
+            $layoutSlug = $layout?->slug ?? 'standard';
+
+            if ($layout && $layoutSlug !== 'standard' && $content->layout_id && $layout->wrapper_blade_view && View::exists($layout->wrapper_blade_view)) {
+                $bodyContent = View::make($layout->wrapper_blade_view, [
+                    'blocksHtml' => $magazineHtml,
+                    'layout' => $layout,
+                    'site' => $site,
+                    'content' => $content,
+                ])->render();
+            } else {
+                $headerNav = $this->menuRenderer->renderByLocation($site, 'header');
+                $footerNav = $this->menuRenderer->renderByLocation($site, 'footer');
+                $bodyContent = ($headerNav ?: ($themeConfig['navigation_html'] ?? ''))
+                    . $magazineHtml
+                    . ($footerNav ?? '');
+            }
+
+            $html = View::make('publishing.layout', [
+                'headContent' => $headContent,
+                'headScripts' => $headScripts,
+                'bodyScripts' => $bodyScripts,
+                'customCss' => $customCss,
+                'criticalCss' => $criticalCss,
+                'fontPreloads' => $fontPreloads,
+                'cssFile' => $themeConfig['css_file'] ?? null,
+                'navigation' => '',
+                'footerNavigation' => '',
+                'renderedBlocks' => $bodyContent,
+                'designTokensCss' => $designTokensCss ?? '',
+                'hookHeadScripts' => $hookHeadScripts,
+                'hookBodyOpen' => $hookBodyOpen,
+                'hookBodyClose' => $hookBodyClose,
+                'site' => $site,
+                'rssUrl' => $rssUrl,
+                'content' => $content,
+                'themeConfig' => $themeConfig,
+                'lang' => $themeConfig['lang'] ?? 'en',
+            ])->render();
+
+            $html = $this->hooks->applyFilter('page_render', $html, $content, $site);
+            $html = AssetPublisher::rewriteHtml($html);
+
+            return $this->minifier->minify($html);
+        }
+
+        // Check if content has an explicit non-standard layout — if so, skip grid
+        $explicitLayout = $content->layout_id ? \App\Models\Layout::find($content->layout_id) : null;
+        $useLayout = $explicitLayout && $explicitLayout->slug !== 'standard';
+
+        // Try grid-based rendering (only if no explicit layout override)
+        $grid = !$useLayout ? $this->gridResolver->resolve($content, $site) : null;
+
+        if ($grid) {
+            $gridResult = $this->gridRenderer->render($grid, $content, $site);
+
+            $html = View::make('publishing.grid-layout', [
+                'headContent' => $headContent,
+                'headScripts' => $headScripts,
+                'bodyScripts' => $bodyScripts,
+                'customCss' => $customCss,
+                'criticalCss' => $criticalCss,
+                'fontPreloads' => $fontPreloads,
+                'cssFile' => $themeConfig['css_file'] ?? null,
+                'gridCss' => $gridResult['css'],
+                'gridHtml' => $gridResult['html'],
+                'designTokensCss' => $designTokensCss,
+                'hookHeadScripts' => $hookHeadScripts,
+                'hookBodyOpen' => $hookBodyOpen,
+                'hookBodyClose' => $hookBodyClose,
+                'site' => $site,
+                'rssUrl' => $rssUrl,
+                'lang' => $themeConfig['lang'] ?? 'en',
+            ])->render();
+        } else {
+            // Render blocks
+            $blocks = $content->blocks()
+                ->whereNull('parent_block_id')
+                ->orderBy('order')
+                ->with('children')
+                ->get();
+
+            $renderedBlocks = '';
+            foreach ($blocks as $block) {
+                $renderedBlocks .= $this->renderBlock($block, $site);
+            }
+
+            // Use the already-resolved layout from the grid check above
+            $layout = $explicitLayout;
+            $layoutSlug = $layout?->slug ?? 'standard';
+
+            // Use layout wrapper if not standard
+            if ($layout && $layoutSlug !== 'standard' && $layout->wrapper_blade_view && View::exists($layout->wrapper_blade_view)) {
+                $bodyContent = View::make($layout->wrapper_blade_view, [
+                    'blocksHtml' => $renderedBlocks,
+                    'layout' => $layout,
+                    'site' => $site,
+                    'content' => $content,
+                ])->render();
+            } else {
+                // Standard: header + max-width content + footer
+                $headerNav = $this->menuRenderer->renderByLocation($site, 'header');
+                $footerNav = $this->menuRenderer->renderByLocation($site, 'footer');
+                $bodyContent = ($headerNav ?: ($themeConfig['navigation_html'] ?? ''))
+                    . '<main style="max-width:' . ($layout?->supports['maxWidthValue'] ?? '48rem') . ';margin:0 auto;padding:0 1.5rem;">'
+                    . $renderedBlocks . '</main>'
+                    . ($footerNav ?? '');
+            }
+
+            $html = View::make('publishing.layout', [
+                'headContent' => $headContent,
+                'headScripts' => $headScripts,
+                'bodyScripts' => $bodyScripts,
+                'customCss' => $customCss,
+                'criticalCss' => $criticalCss,
+                'fontPreloads' => $fontPreloads,
+                'cssFile' => $themeConfig['css_file'] ?? null,
+                'navigation' => '',
+                'footerNavigation' => '',
+                'renderedBlocks' => $bodyContent,
+                'designTokensCss' => $designTokensCss ?? '',
+                'hookHeadScripts' => $hookHeadScripts,
+                'hookBodyOpen' => $hookBodyOpen,
+                'hookBodyClose' => $hookBodyClose,
+                'site' => $site,
+                'rssUrl' => $rssUrl,
+                'content' => $content,
+                'themeConfig' => $themeConfig,
+                'lang' => $themeConfig['lang'] ?? 'en',
+            ])->render();
+        }
+
+        // Apply page_render filter hook
+        $html = $this->hooks->applyFilter('page_render', $html, $content, $site);
+
+        // Rewrite all /api/v1/.../assets/.../serve URLs to static public paths
+        // This ensures images and files work on the static site without the backend running
+        $html = AssetPublisher::rewriteHtml($html);
 
         return $this->minifier->minify($html);
     }
 
-    private function renderBlock(Block $block, Site $site): string
+    /**
+     * Validate built HTML against Lighthouse constraints.
+     */
+    public function buildAndValidate(Page|Post $content, ?Theme $theme, Site $site): array
+    {
+        $html = $this->build($content, $theme, $site);
+        $validation = $this->validator->validate($html, $content, $site);
+
+        return [
+            'html' => $html,
+            'validation' => $validation,
+        ];
+    }
+
+    public function renderBlock(Block $block, Site $site): string
     {
         $sanitizedData = $this->sanitizer->sanitizeBlock($block);
         $childrenHtml = '';
+        $childrenArray = [];
 
         foreach ($block->children()->orderBy('order')->get() as $child) {
-            $childrenHtml .= $this->renderBlock($child, $site);
+            $rendered = $this->renderBlock($child, $site);
+            $childrenHtml .= $rendered;
+            $childrenArray[] = $rendered;
+        }
+
+        // Enrich image blocks with asset data
+        if ($block->type === 'image') {
+            $sanitizedData = $this->enrichImageData($sanitizedData, $site);
+        }
+
+        // Enrich flipbook blocks — resolve PDF asset to a public URL
+        if ($block->type === 'flipbook' && !empty($sanitizedData['pdf_asset_id'])) {
+            $sanitizedData = $this->enrichFlipbookData($sanitizedData, $site);
         }
 
         $viewName = "blocks.{$block->type}";
@@ -76,7 +248,148 @@ class BuildPageService
         return View::make($viewName, [
             'data' => $sanitizedData,
             'children' => $childrenHtml,
+            'childrenArray' => $childrenArray,
             'site' => $site,
         ])->render();
+    }
+
+    /**
+     * Resolve the layout for a page or post.
+     */
+    private function resolveLayout(Page|Post $content): ?\App\Models\Layout
+    {
+        try {
+            $resolver = app(\App\Services\Layout\LayoutResolver::class);
+            $layout = $content instanceof Post
+                ? $resolver->resolveForPost($content)
+                : $resolver->resolveForPage($content);
+            return $layout;
+        } catch (\Throwable $e) {
+            logger()->warning('Layout resolve failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Resolve asset_id to full variant URLs and dimensions for image blocks.
+     */
+    private function enrichImageData(array $data, Site $site): array
+    {
+        $this->imageIndex++;
+        $data['_is_first_image'] = $this->imageIndex === 1;
+
+        if (!empty($data['asset_id'])) {
+            $asset = Asset::find($data['asset_id']);
+            if ($asset) {
+                $baseUrl = "/api/v1/sites/{$site->id}/assets/{$asset->id}/serve";
+                $data['url'] = $data['url'] ?: $baseUrl;
+
+                // Dimensions
+                if ($asset->dimensions) {
+                    $data['width'] = $data['width'] ?? ($asset->dimensions['width'] ?? null);
+                    $data['height'] = $data['height'] ?? ($asset->dimensions['height'] ?? null);
+                }
+
+                // Variant URLs
+                $variants = [];
+                foreach ($asset->variants as $variantName => $path) {
+                    $variants[$variantName] = "{$baseUrl}/{$variantName}";
+                }
+                $data['variants'] = $variants;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Resolve flipbook PDF asset to a publicly accessible URL.
+     * Copies the PDF to public_html so it's served statically.
+     */
+    private function enrichFlipbookData(array $data, Site $site): array
+    {
+        $asset = Asset::find($data['pdf_asset_id']);
+        if (!$asset || !$asset->storage_path) {
+            return $data;
+        }
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('assets');
+        if (!$disk->exists($asset->storage_path)) {
+            return $data;
+        }
+
+        // Copy PDF to a public path: /assets/pdf/{checksum}.pdf
+        // public_html is the web-facing document root
+        $publicDir = base_path('../../public_html/assets/pdf');
+        if (!is_dir($publicDir)) {
+            mkdir($publicDir, 0755, true);
+        }
+
+        $publicFilename = ($asset->checksum ?: md5($asset->id)) . '.pdf';
+        $publicPath = $publicDir . '/' . $publicFilename;
+
+        if (!file_exists($publicPath)) {
+            $contents = $disk->get($asset->storage_path);
+            file_put_contents($publicPath, $contents);
+        }
+
+        $data['pdf_url'] = '/assets/pdf/' . $publicFilename;
+
+        return $data;
+    }
+
+    private function buildCriticalCss(array $themeConfig): string
+    {
+        $css = $themeConfig['critical_css'] ?? '';
+        if (empty($css)) {
+            // Default minimal critical CSS for common blocks
+            $css = '
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;line-height:1.6;color:#1a1a1a}
+main{max-width:1200px;margin:0 auto;padding:1rem}
+img{max-width:100%;height:auto;display:block}
+.hero-section{position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;color:#fff;background-size:cover;background-position:center}
+.hero-content{position:relative;z-index:1}
+.text-block{margin-bottom:1.5rem}
+.prose{max-width:65ch}
+.prose p{margin:0 0 1em}
+.prose h2,.prose h3,.prose h4{margin:1.5em 0 0.5em}
+.prose ul,.prose ol{padding-left:1.5em}
+.columns-block{margin-bottom:1.5rem}
+.image-block{margin-bottom:1.5rem}
+.image-block figcaption{font-size:0.875rem;color:#666;margin-top:0.5rem;text-align:center}
+.quote-block{border-left:4px solid #3b82f6;padding:1rem 1.5rem;margin:1.5rem 0;font-style:italic}
+.quote-block cite{display:block;font-style:normal;font-weight:600;margin-top:0.5rem}
+.divider-block{border:none;border-top:1px solid #e5e7eb;margin:2rem 0}
+';
+        }
+
+        return trim($css);
+    }
+
+    private function buildFontPreloads(array $themeConfig): string
+    {
+        $fonts = $themeConfig['fonts'] ?? [];
+        $html = '';
+
+        foreach ($fonts as $font) {
+            if (!empty($font['woff2_url'])) {
+                $html .= '<link rel="preload" href="' . e($font['woff2_url']) . '" as="font" type="font/woff2" crossorigin>' . "\n";
+            }
+        }
+
+        // Add font-display: swap @font-face rules
+        if (!empty($fonts)) {
+            $html .= '<style>';
+            foreach ($fonts as $font) {
+                if (!empty($font['woff2_url']) && !empty($font['family'])) {
+                    $weight = $font['weight'] ?? '400';
+                    $html .= "@font-face{font-family:'{$font['family']}';src:url('{$font['woff2_url']}') format('woff2');font-weight:{$weight};font-style:normal;font-display:swap}";
+                }
+            }
+            $html .= '</style>' . "\n";
+        }
+
+        return $html;
     }
 }

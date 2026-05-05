@@ -85,7 +85,7 @@ class CategoryService
 
     private function generateUniqueSlug(string $text, Site $site, ?string $excludeId = null): string
     {
-        $slug = Str::slug($text);
+        $slug = \App\Support\Slugify::slug($text);
         $original = $slug;
         $count = 1;
 

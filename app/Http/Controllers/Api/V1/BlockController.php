@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Blocks\Services\BlockRegistry;
 use App\Domain\Blocks\Services\BlockService;
+use App\Domain\Publishing\Services\AutoPublishService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SyncBlocksRequest;
 use App\Models\Page;
@@ -16,6 +17,7 @@ class BlockController extends Controller
     public function __construct(
         private BlockService $blockService,
         private BlockRegistry $blockRegistry,
+        private AutoPublishService $autoPublish,
     ) {
     }
 
@@ -34,6 +36,11 @@ class BlockController extends Controller
 
         $tree = $this->blockService->syncBlocks($page, $request->validated('blocks'));
 
+        // Smart auto-publish — only rebuild this page
+        if ($page->status === 'published') {
+            $this->autoPublish->triggerIfEnabled($site, $request->user(), 'page_blocks', $page->id);
+        }
+
         return response()->json(['data' => $tree]);
     }
 
@@ -51,6 +58,11 @@ class BlockController extends Controller
         $this->authorize('update', $post);
 
         $tree = $this->blockService->syncBlocks($post, $request->validated('blocks'));
+
+        // Smart auto-publish — rebuild post + its archives
+        if ($post->status === 'published') {
+            $this->autoPublish->triggerIfEnabled($site, $request->user(), 'post_updated', $post->id);
+        }
 
         return response()->json(['data' => $tree]);
     }

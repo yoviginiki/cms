@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cms.ensodo.eu/schemas/theme-document.v1.schema.json",
+  "title": "W3C Design Tokens Theme Document",
+  "description": "Schema for ensodo CMS theme documents following the W3C Design Tokens Community Group spec with three-tier architecture.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "$metadata": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "modes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "primitive": {
+      "type": "object",
+      "description": "Tier 1 — Raw values. No references allowed."
+    },
+    "semantic": {
+      "type": "object",
+      "description": "Tier 2 — Role-based references to primitives."
+    },
+    "component": {
+      "type": "object",
+      "description": "Tier 3 — Component-scoped references to semantics."
+    }
+  },
+  "additionalProperties": true
+}

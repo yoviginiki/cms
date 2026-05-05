@@ -8,6 +8,9 @@ export const columnsDefinition: BlockDefinition = {
   defaultData: {
     columnCount: 2,
     gap: 'medium',
+    ratio: 'equal',
+    stackBelow: 'mobile',
+    stackOrder: 'normal',
   },
   allowsChildren: true,
 };

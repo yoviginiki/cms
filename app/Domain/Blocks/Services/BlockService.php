@@ -39,13 +39,30 @@ class BlockService
         foreach ($blocksData as $blockData) {
             $children = $blockData['children'] ?? [];
 
+            // Merge style/animation/responsive/advanced into data if present
+            $data = $blockData['data'] ?? [];
+            $style = $blockData['style'] ?? null;
+            if ($style) {
+                $data['__style'] = $style;
+            }
+            if (!empty($blockData['animation'])) {
+                $data['__animation'] = $blockData['animation'];
+            }
+            if (!empty($blockData['responsive'])) {
+                $data['__responsive'] = $blockData['responsive'];
+            }
+            if (!empty($blockData['advanced'])) {
+                $data['__advanced'] = $blockData['advanced'];
+            }
+
             $block = Block::create([
                 'id' => $blockData['id'] ?? Str::uuid()->toString(),
                 'blockable_type' => $blockable->getMorphClass(),
                 'blockable_id' => $blockable->getKey(),
                 'parent_block_id' => $parentId,
                 'type' => $blockData['type'],
-                'data' => $blockData['data'] ?? [],
+                'data' => $data,
+                'style' => $style,
                 'order' => $blockData['order'],
             ]);
 
@@ -60,13 +77,32 @@ class BlockService
         $tree = [];
 
         foreach ($blocks->where('parent_block_id', $parentId) as $block) {
+            $data = $block->data ?? [];
+
             $node = [
                 'id' => $block->id,
                 'type' => $block->type,
-                'data' => $block->data,
+                'data' => $data,
                 'order' => $block->order,
                 'children' => $this->buildTree($blocks, $block->id),
             ];
+
+            // Restore style/animation/responsive/advanced from data or style column
+            if ($block->style) {
+                $node['style'] = $block->style;
+            } elseif (!empty($data['__style'])) {
+                $node['style'] = $data['__style'];
+            }
+            if (!empty($data['__animation'])) {
+                $node['animation'] = $data['__animation'];
+            }
+            if (!empty($data['__responsive'])) {
+                $node['responsive'] = $data['__responsive'];
+            }
+            if (!empty($data['__advanced'])) {
+                $node['advanced'] = $data['__advanced'];
+            }
+
             $tree[] = $node;
         }
 

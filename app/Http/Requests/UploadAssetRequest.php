@@ -52,12 +52,22 @@ class UploadAssetRequest extends FormRequest
                     return;
                 }
 
-                // Check MIME matches extension
+                // Check MIME matches extension (images are cross-accepted)
                 $mime = $file->getMimeType();
-                $allowedExts = $this->mimeToExtension[$mime] ?? null;
-                if (!$allowedExts || !in_array($extension, $allowedExts)) {
-                    $validator->errors()->add('file', 'File MIME type does not match extension.');
-                    return;
+                $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                $isImageExt = in_array($extension, $imageExts);
+                $isImageMime = str_starts_with($mime, 'image/') && $mime !== 'image/svg+xml';
+
+                if ($isImageExt && $isImageMime) {
+                    // Any real image MIME is OK with any image extension
+                } elseif ($extension === 'svg' && $mime === 'image/svg+xml') {
+                    // SVG matches
+                } else {
+                    $allowedExts = $this->mimeToExtension[$mime] ?? null;
+                    if (!$allowedExts || !in_array($extension, $allowedExts)) {
+                        $validator->errors()->add('file', 'File MIME type does not match extension.');
+                        return;
+                    }
                 }
 
                 // Validate real images

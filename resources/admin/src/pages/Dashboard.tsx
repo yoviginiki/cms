@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Globe, FileText, Newspaper, Loader2 } from 'lucide-react';
+import { Plus, Globe, FileText, Newspaper } from 'lucide-react';
 import { sites } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
@@ -22,80 +22,64 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">Manage your sites</p>
+      <div className="mb-6">
+        <h1 className="text-lg font-medium text-base-content/90">Dashboard</h1>
+        <p className="mt-0.5 text-[13px] text-base-content/40">Manage your sites</p>
       </div>
 
       {isLoading && (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <span className="loading loading-spinner loading-sm text-base-content/20"></span>
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-          Failed to load sites. Please try again.
-        </div>
+        <div className="alert alert-error text-[13px]">Failed to load sites. Please try again.</div>
       )}
 
       {data && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.map((site) => (
-            <div
-              key={site.id}
-              onClick={() => navigate(`/sites/${site.id}/pages`)}
-              className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <Globe className="h-5 w-5 text-blue-600" />
+            <div key={site.id} onClick={() => navigate(`/sites/${site.id}/pages`)}
+              className="card bg-base-100 border border-base-300/40 hover:border-base-300/70 cursor-pointer transition-all">
+              <div className="card-body p-5 gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Globe className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-base-content/90">{site.name}</h3>
+                      <p className="text-[11px] text-base-content/30">/{site.slug}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{site.name}</h3>
-                    <p className="text-sm text-gray-500">/{site.slug}</p>
-                  </div>
+                  <StatusBadge status={site.status} />
                 </div>
-                <StatusBadge status={site.status} />
-              </div>
 
-              <div className="flex items-center gap-6 mb-4 text-sm text-gray-600">
-                <div className="flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                  <span>{site.pages_count ?? 0} pages</span>
+                <div className="flex items-center gap-5 text-[12px] text-base-content/40">
+                  <span className="flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    {site.pages_count ?? 0} pages
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Newspaper className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    {site.posts_count ?? 0} posts
+                  </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Newspaper className="h-4 w-4 text-gray-400" />
-                  <span>{site.posts_count ?? 0} posts</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/pages`); }}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Pages
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/posts`); }}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Posts
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/settings`); }}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Settings
-                </button>
+                <div className="flex items-center gap-3 pt-3 border-t border-base-300/20">
+                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/pages`); }}
+                    className="text-[12px] text-primary hover:text-primary/80 font-medium">Pages</button>
+                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/posts`); }}
+                    className="text-[12px] text-primary hover:text-primary/80 font-medium">Posts</button>
+                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/settings`); }}
+                    className="text-[12px] text-primary hover:text-primary/80 font-medium">Settings</button>
+                </div>
               </div>
             </div>
           ))}
 
-          <div
-            onClick={() => {
+          <div onClick={() => {
               const name = window.prompt('Site name:');
               if (name) {
                 sites.create({ name, slug: name.toLowerCase().replace(/\s+/g, '-') }).then((r) => {
@@ -103,10 +87,11 @@ export default function Dashboard() {
                 });
               }
             }}
-            className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-6 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-all min-h-[200px]"
-          >
-            <Plus className="h-10 w-10 text-gray-400 mb-3" />
-            <span className="text-sm font-medium text-gray-600">Create New Site</span>
+            className="card border-2 border-dashed border-base-300/40 hover:border-base-300/70 cursor-pointer transition-all min-h-[180px] flex items-center justify-center">
+            <div className="card-body items-center justify-center text-center p-5">
+              <Plus className="h-8 w-8 text-base-content/15 mb-2" strokeWidth={1.5} />
+              <span className="text-[13px] font-medium text-base-content/40">Create new site</span>
+            </div>
           </div>
         </div>
       )}

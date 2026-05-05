@@ -10,4 +10,5 @@ export const headingDefinition: BlockDefinition = {
     level: 'h2',
   },
   allowsChildren: false,
+  hasTypography: true,
 };

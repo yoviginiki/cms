@@ -41,4 +41,9 @@ class PageVersion extends Model
     {
         return $this->belongsTo(User::class, 'published_by');
     }
+
+    public function publishedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'published_by');
+    }
 }

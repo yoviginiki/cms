@@ -41,9 +41,39 @@ class Site extends Model
         return $this->hasMany(Post::class);
     }
 
+    public function magazines(): HasMany
+    {
+        return $this->hasMany(Magazine::class);
+    }
+
+    public function issues(): HasMany
+    {
+        return $this->hasMany(\App\Domain\IssueComposer\Models\MagazineIssue::class);
+    }
+
     public function categories(): HasMany
     {
         return $this->hasMany(Category::class);
+    }
+
+    public function tags(): HasMany
+    {
+        return $this->hasMany(Tag::class);
+    }
+
+    public function menus(): HasMany
+    {
+        return $this->hasMany(Menu::class);
+    }
+
+    public function grids(): HasMany
+    {
+        return $this->hasMany(Grid::class);
+    }
+
+    public function gridAssignments(): HasMany
+    {
+        return $this->hasMany(GridAssignment::class)->orderBy('priority');
     }
 
     public function assets(): HasMany

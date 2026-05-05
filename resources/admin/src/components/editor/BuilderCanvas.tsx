@@ -78,7 +78,7 @@ export function BuilderCanvas() {
         className="flex-1 overflow-y-auto bg-gray-50 p-6"
         onClick={() => selectBlock(null)}
       >
-        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 min-h-[60vh] p-6">
+        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 min-h-[60vh] p-6 editor-canvas-light">
           <SortableContext
             items={blocks.map((b) => b.id)}
             strategy={verticalListSortingStrategy}

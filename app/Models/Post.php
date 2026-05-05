@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -15,8 +16,8 @@ class Post extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'site_id', 'category_id', 'title', 'slug', 'excerpt',
-        'featured_image', 'status', 'seo_meta', 'published_at',
+        'site_id', 'category_id', 'author_id', 'title', 'slug', 'excerpt', 'layout_id',
+        'featured_image', 'status', 'editor_mode', 'seo_meta', 'grid_id', 'published_at', 'scheduled_at',
     ];
 
     protected function casts(): array
@@ -24,6 +25,7 @@ class Post extends Model
         return [
             'seo_meta' => 'array',
             'published_at' => 'datetime',
+            'scheduled_at' => 'datetime',
         ];
     }
 
@@ -37,6 +39,21 @@ class Post extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function grid(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Grid::class);
+    }
+
+    public function tags(): MorphToMany
+    {
+        return $this->morphToMany(Tag::class, 'taggable');
+    }
+
     public function blocks(): MorphMany
     {
         return $this->morphMany(Block::class, 'blockable');
@@ -45,5 +62,16 @@ class Post extends Model
     public function versions(): HasMany
     {
         return $this->hasMany(PageVersion::class);
+    }
+
+    /**
+     * Get the public URL path for this post (e.g. /category-slug/post-slug).
+     */
+    public function getUrlPathAttribute(): string
+    {
+        if ($this->category && $this->category->slug) {
+            return "/{$this->category->slug}/{$this->slug}";
+        }
+        return "/{$this->slug}";
     }
 }

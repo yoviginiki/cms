@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flipbook Demo — Mode Comparison</title>
+  <link rel="stylesheet" href="../dist/flipbook.css">
+  <style>
+    body { font-family: system-ui, sans-serif; background: #111; color: #fff; padding: 20px; }
+    h1 { text-align: center; font-size: 18px; margin-bottom: 8px; opacity: 0.7; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1200px; margin: 0 auto; }
+    .col { text-align: center; }
+    .col h2 { font-size: 14px; opacity: 0.5; margin-bottom: 8px; }
+    .book { width: 100%; }
+    .page { padding: 32px 20px; font-size: 14px; line-height: 1.6; color: #333; }
+    .page:nth-child(odd) { background: #fff; }
+    .page:nth-child(even) { background: #f8f7f5; }
+    .page:first-child { background: #4a5568; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; }
+    .page:last-child { background: #2d3748; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; }
+    #controls { text-align: center; margin-top: 16px; }
+    #controls button { padding: 8px 24px; margin: 0 6px; cursor: pointer; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Side-by-Side: Realistic vs Minimal</h1>
+  <div class="row">
+    <div class="col">
+      <h2>Realistic</h2>
+      <div class="book" id="book-r">
+        <div class="page">Cover</div>
+        <div class="page">Page 2 — Realistic mode uses perspective, curl gradients, and cast shadows for a paper-like feel.</div>
+        <div class="page">Page 3 — The curl shading shifts dynamically based on flip progress.</div>
+        <div class="page">Page 4 — Covers flip as rigid planes.</div>
+        <div class="page">Page 5 — Shadow intensity is configurable.</div>
+        <div class="page">Back</div>
+      </div>
+    </div>
+    <div class="col">
+      <h2>Minimal</h2>
+      <div class="book" id="book-m">
+        <div class="page">Cover</div>
+        <div class="page">Page 2 — Minimal mode uses a distant perspective for a clean, editorial feel.</div>
+        <div class="page">Page 3 — No curl gradients or shadow canvas.</div>
+        <div class="page">Page 4 — Just a subtle box-shadow lift.</div>
+        <div class="page">Page 5 — Faster default timing for snappier interaction.</div>
+        <div class="page">Back</div>
+      </div>
+    </div>
+  </div>
+  <div id="controls">
+    <button onclick="fr.flipPrev(); fm.flipPrev();">← Prev</button>
+    <span id="ind" style="color:rgba(255,255,255,0.4);font-size:13px;margin:0 12px;"></span>
+    <button onclick="fr.flipNext(); fm.flipNext();">Next →</button>
+  </div>
+  <script src="../dist/flipbook.iife.js"></script>
+  <script>
+    const fr = new EnsodoFlipbook.Flipbook(document.getElementById('book-r'), { mode: 'realistic' });
+    const fm = new EnsodoFlipbook.Flipbook(document.getElementById('book-m'), { mode: 'minimal' });
+    const ind = document.getElementById('ind');
+    const update = () => ind.textContent = `${fr.getCurrentPage() + 1} / ${fr.getPageCount()}`;
+    fr.on('flip', update); fr.on('ready', update);
+  </script>
+</body>
+</html>

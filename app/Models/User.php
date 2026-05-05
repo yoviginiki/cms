@@ -15,11 +15,8 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'tenant_id',
-        'role',
+        'name', 'email', 'password', 'tenant_id', 'role',
+        'last_login_at', 'invitation_token', 'invitation_expires_at', 'invited_by',
     ];
 
     protected $hidden = [
@@ -31,6 +28,7 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'last_login_at' => 'datetime',
+            'invitation_expires_at' => 'datetime',
         ];
     }
 
@@ -56,7 +54,7 @@ class User extends Authenticatable
 
     public function hasMinimumRole(string $role): bool
     {
-        $hierarchy = ['editor' => 1, 'admin' => 2, 'owner' => 3];
+        $hierarchy = ['viewer' => 0, 'author' => 1, 'editor' => 2, 'admin' => 3, 'owner' => 4];
         $userLevel = $hierarchy[$this->role] ?? 0;
         $requiredLevel = $hierarchy[$role] ?? 0;
 

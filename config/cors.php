@@ -21,7 +21,7 @@ return [
 
     'allowed_origins' => [env('APP_URL', 'https://sys.ensodo.eu')],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => ['/https?:\/\/(.*\.)?ensodo\.eu$/'],
 
     'allowed_headers' => ['*'],
 

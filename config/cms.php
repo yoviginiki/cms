@@ -2,6 +2,8 @@
 
 return [
 
+    'version' => env('CMS_VERSION', '1.0.0'),
+
     'redis_enabled' => env('REDIS_ENABLED', false),
 
     'redis' => [
@@ -20,6 +22,23 @@ return [
         'session' => env('REDIS_ENABLED', false) ? 'redis' : 'database',
         'queue' => env('REDIS_ENABLED', false) ? 'redis' : 'database',
         'broadcast' => env('REDIS_ENABLED', false) ? 'reverb' : null,
+    ],
+
+    'ai' => [
+        'enabled' => env('AI_ENABLED', false),
+        'api_key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('AI_MODEL', 'claude-sonnet-4-20250514'),
+        'max_tokens' => (int) env('AI_MAX_TOKENS', 2000),
+    ],
+
+    'database' => [
+        'rls_enabled' => env('DB_CONNECTION') === 'pgsql',
+        'driver' => env('DB_CONNECTION', 'mysql'),
+    ],
+
+    'updates' => [
+        'server' => env('CMS_UPDATE_SERVER', 'https://updates.ensodo.eu'),
+        'check_interval' => 86400, // 24 hours
     ],
 
 ];

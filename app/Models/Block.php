@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,17 +11,18 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Block extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'blockable_id', 'blockable_type', 'parent_block_id',
-        'type', 'data', 'order',
+        'type', 'data', 'style', 'order',
     ];
 
     protected function casts(): array
     {
         return [
             'data' => 'array',
+            'style' => 'array',
         ];
     }
 

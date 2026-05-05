@@ -26,13 +26,13 @@ export function usePostData(siteId: string, postId: string) {
   const postQuery = useQuery({
     queryKey: ['post', siteId, postId],
     queryFn: () => posts.get(siteId, postId).then((r) => r.data.data),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 
   const blocksQuery = useQuery({
     queryKey: ['blocks', 'posts', siteId, postId],
     queryFn: () => blocks.get(siteId, 'posts', postId).then((r) => r.data.data),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 
   return {

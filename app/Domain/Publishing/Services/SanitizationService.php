@@ -13,13 +13,24 @@ class SanitizationService
 
     public function __construct(private BlockRegistry $registry)
     {
+        // Suppress HTMLPurifier's E_USER_WARNING for unsupported elements
+        $previousHandler = set_error_handler(function ($severity, $message) use (&$previousHandler) {
+            if ($severity === E_USER_WARNING && str_contains($message, 'is not supported')) {
+                return true; // Suppress
+            }
+            if ($previousHandler) {
+                return $previousHandler($severity, $message);
+            }
+            return false;
+        });
+
         // Rich text purifier
         $config = HTMLPurifier_Config::createDefault();
-        $config->set('HTML.Allowed', 'p,br,strong,em,u,a[href|target|rel],ul,ol,li,h1,h2,h3,h4,h5,h6,blockquote,code,pre,table,thead,tbody,tr,th,td,figure,figcaption,img[src|alt],span[class]');
+        $config->set('HTML.Allowed', 'p,br,strong,em,u,a[href|target|rel],ul,ol,li,h1,h2,h3,h4,h5,h6,blockquote,code,pre,table,thead,tbody,tr,th,td,img[src|alt|width|height],span[class],hr');
         $config->set('HTML.TargetBlank', true);
         $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true, 'tel' => true]);
         $config->set('Attr.AllowedFrameTargets', ['_blank']);
-        $config->set('AutoFormat.RemoveEmpty', true);
+        $config->set('AutoFormat.RemoveEmpty', false);
         $config->set('Cache.DefinitionImpl', null);
         $this->purifier = new HTMLPurifier($config);
 
@@ -28,6 +39,9 @@ class SanitizationService
         $strictConfig->set('HTML.Allowed', '');
         $strictConfig->set('Cache.DefinitionImpl', null);
         $this->strictPurifier = new HTMLPurifier($strictConfig);
+
+        // Restore original error handler
+        restore_error_handler();
     }
 
     public function sanitizeBlock(Block $block): array
@@ -36,7 +50,7 @@ class SanitizationService
         $definition = $this->registry->get($block->type);
 
         // Get per-block sanitization config
-        $sanitizeConfig = $definition?->definition->sanitizationConfig ?? [];
+        $sanitizeConfig = $definition?->sanitizationConfig() ?? [];
         $allowedHtml = $sanitizeConfig['HTML.Allowed'] ?? '';
 
         $sanitized = [];
@@ -48,10 +62,10 @@ class SanitizationService
 
             // Fields that should allow rich HTML
             if ($key === 'content' && $allowedHtml !== '') {
-                $sanitized[$key] = $this->purifier->purify($value);
+                $sanitized[$key] = @$this->purifier->purify($value);
             } else {
                 // Strip all HTML for plain text fields
-                $sanitized[$key] = $this->strictPurifier->purify($value);
+                $sanitized[$key] = @$this->strictPurifier->purify($value);
             }
         }
 

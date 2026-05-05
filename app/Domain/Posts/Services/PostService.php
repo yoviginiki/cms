@@ -4,6 +4,7 @@ namespace App\Domain\Posts\Services;
 
 use App\Models\Post;
 use App\Models\Site;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class PostService
@@ -11,9 +12,21 @@ class PostService
     public function createPost(array $data, Site $site): Post
     {
         $data['site_id'] = $site->id;
-        $data['slug'] = $data['slug'] ?? $this->generateUniqueSlug($data['title'], $site);
+        $data['slug'] = $this->generateUniqueSlug(
+            $data['slug'] ?? $data['title'], $site
+        );
+        $data['author_id'] = $data['author_id'] ?? Auth::id();
 
-        return Post::create($data);
+        $tagIds = $data['tag_ids'] ?? null;
+        unset($data['tag_ids']);
+
+        $post = Post::create($data);
+
+        if ($tagIds !== null) {
+            $post->tags()->sync($tagIds);
+        }
+
+        return $post->load('tags');
     }
 
     public function updatePost(Post $post, array $data): Post
@@ -22,14 +35,21 @@ class PostService
             $data['slug'] = $this->generateUniqueSlug($data['slug'], $post->site, $post->id);
         }
 
+        $tagIds = $data['tag_ids'] ?? null;
+        unset($data['tag_ids']);
+
         $post->update($data);
 
-        return $post->fresh();
+        if ($tagIds !== null) {
+            $post->tags()->sync($tagIds);
+        }
+
+        return $post->fresh('tags');
     }
 
     private function generateUniqueSlug(string $text, Site $site, ?string $excludeId = null): string
     {
-        $slug = Str::slug($text);
+        $slug = \App\Support\Slugify::slug($text);
         $original = $slug;
         $count = 1;
 

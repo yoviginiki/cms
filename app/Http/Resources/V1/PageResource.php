@@ -14,6 +14,8 @@ class PageResource extends JsonResource
             'title' => $this->title,
             'slug' => $this->slug,
             'status' => $this->status,
+            'editor_mode' => $this->editor_mode,
+            'layout_id' => $this->layout_id,
             'seo_meta' => $this->seo_meta,
             'sort_order' => $this->sort_order,
             'parent_id' => $this->parent_id,

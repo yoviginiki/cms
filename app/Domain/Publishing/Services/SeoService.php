@@ -25,8 +25,10 @@ class SeoService
 
         // Canonical URL
         $baseUrl = $site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu";
+        $homepageId = $site->settings['homepage_id'] ?? null;
+        $isHomepage = ($homepageId && !$isPost && $content->id === $homepageId) || (!$homepageId && $content->slug === 'home');
         $path = $isPost ? "/blog/{$content->slug}" : "/{$content->slug}";
-        $canonicalUrl = rtrim($baseUrl, '/') . ($content->slug === 'home' ? '/' : $path);
+        $canonicalUrl = rtrim($baseUrl, '/') . ($isHomepage ? '/' : $path);
 
         // OG Image
         $ogImage = $seoMeta['og_image'] ?? ($isPost ? $content->featured_image : null) ?? $siteDefaults['og_image'] ?? '';

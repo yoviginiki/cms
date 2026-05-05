@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flipbook Demo — Realistic Mode</title>
+  <link rel="stylesheet" href="../dist/flipbook.css">
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f0f23; color: #fff; padding: 40px 20px; }
+    h1 { text-align: center; font-size: 18px; margin-bottom: 20px; opacity: 0.7; }
+    #book { max-width: 900px; margin: 0 auto; }
+    .page { padding: 48px 32px; font-size: 16px; line-height: 1.7; color: #333; }
+    .page h2 { font-size: 22px; margin-bottom: 16px; color: #1a1a1a; }
+    .page p { margin-bottom: 12px; }
+    .page:nth-child(1) { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; }
+    .page:nth-child(12) { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; }
+    .page:nth-child(even):not(:first-child):not(:last-child) { background: #fafaf8; }
+    .page:nth-child(odd):not(:first-child):not(:last-child) { background: #fff; }
+    #controls { text-align: center; margin-top: 16px; }
+    #controls button { padding: 8px 20px; margin: 0 6px; cursor: pointer; font-size: 14px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; }
+    #controls button:hover { background: rgba(255,255,255,0.15); }
+    #indicator { color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 12px; }
+  </style>
+</head>
+<body>
+  <h1>Flipbook — Realistic 3D Page Turn</h1>
+  <div id="book">
+    <div class="page">Front Cover</div>
+    <div class="page"><h2>Preface</h2><p>This is a demonstration of the ensodo flipbook library with realistic 3D page turns, curl gradients, and cast shadows.</p></div>
+    <div class="page"><h2>Chapter 1</h2><p>The pages are real HTML elements. Links and buttons inside them remain interactive. The content is fully SEO-indexable.</p></div>
+    <div class="page"><h2>Illustrations</h2><p>Any block type can be a page — text, images, columns, grids. The flipbook just wraps them in the turn animation.</p><p>Try clicking the left or right half of the book to flip.</p></div>
+    <div class="page"><h2>Chapter 2</h2><p>The curl gradient shifts based on animation progress, creating a realistic paper shading effect.</p></div>
+    <div class="page"><h2>Chapter 3</h2><p>Cast shadows fall on the underlying page, adding depth. Shadow intensity is configurable.</p></div>
+    <div class="page"><h2>Chapter 4</h2><p>Cover pages (first and last) animate as rigid planes without curl — like hardback card stock.</p></div>
+    <div class="page"><h2>Interactive Test</h2><p>Try this link: <a href="#clicked" onclick="alert('Link clicked!'); return false;" style="color:blue;text-decoration:underline;">Click me</a> — it should fire without triggering a page flip.</p></div>
+    <div class="page"><h2>Chapter 5</h2><p>The animation uses requestAnimationFrame for smooth 60fps rendering. All transforms are GPU-compositable.</p></div>
+    <div class="page"><h2>Responsive</h2><p>Resize the window below 720px to see single-page mode. The book adapts without destroying and recreating.</p></div>
+    <div class="page"><h2>Keyboard</h2><p>Click the book to focus it, then use Arrow keys, PageUp/Down, Home/End to navigate.</p></div>
+    <div class="page">Back Cover</div>
+  </div>
+  <div id="controls">
+    <button onclick="fb.flipPrev()">← Prev</button>
+    <span id="indicator"></span>
+    <button onclick="fb.flipNext()">Next →</button>
+  </div>
+  <script src="../dist/flipbook.iife.js"></script>
+  <script>
+    const fb = new EnsodoFlipbook.Flipbook(document.getElementById('book'), {
+      mode: 'realistic',
+      flipping_time_ms: 800,
+      show_cover: true,
+      max_shadow_opacity: 0.5,
+    });
+    const ind = document.getElementById('indicator');
+    const update = () => ind.textContent = `${fb.getCurrentPage() + 1} / ${fb.getPageCount()}`;
+    fb.on('flip', update);
+    fb.on('ready', update);
+  </script>
+</body>
+</html>

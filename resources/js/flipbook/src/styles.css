@@ -1,0 +1,199 @@
+/* ═══════════════════════════════════════════
+   Ensodo Flipbook — Runtime Styles
+   ═══════════════════════════════════════════ */
+
+.ef-root {
+  position: relative;
+  margin: 0 auto;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+.ef-root:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 4px;
+}
+
+.ef-viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Spread container: holds both page wells side by side */
+.ef-spread {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* Single-page mode */
+.ef-root.ef-single .ef-spread {
+  display: block;
+}
+
+/* Page wells: left and right halves of the spread */
+.ef-well {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ef-root.ef-single .ef-well {
+  width: 100%;
+}
+
+.ef-well-left {
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.ef-well-right {
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Individual page */
+.ef-page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.ef-page[aria-hidden='true'] {
+  display: none;
+}
+
+/* ─── Flip animation container ─── */
+.ef-flip-container {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  z-index: 10;
+}
+
+.ef-flip-front,
+.ef-flip-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  background: #fff;
+}
+
+.ef-flip-back {
+  transform: rotateY(180deg);
+}
+
+/* ─── Curl gradient overlay ─── */
+.ef-curl-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ─── Cast shadow ─── */
+.ef-cast-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ─── Controls ─── */
+.ef-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.ef-controls button {
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  padding: 6px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ef-controls button:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+.ef-controls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.ef-indicator {
+  font-size: 13px;
+  min-width: 60px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+/* ─── Screen-reader only ─── */
+.ef-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Cover pages ─── */
+.ef-page.ef-cover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ─── Spine shadow ─── */
+.ef-well-left::after,
+.ef-well-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.ef-well-left::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.04), transparent);
+}
+
+.ef-well-right::after {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.04), transparent);
+}

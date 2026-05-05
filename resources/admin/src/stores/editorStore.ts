@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BlockData } from '@/types/blocks';
+import type { BlockData, BlockStyleProps } from '@/types/blocks';
 import { blockRegistry } from '@/components/blocks/registry';
 
 interface EditorState {
@@ -7,11 +7,13 @@ interface EditorState {
   selectedBlockId: string | null;
   isDirty: boolean;
   isSaving: boolean;
+  editorMode: 'block' | 'magazine';
   undoStack: BlockData[][];
   redoStack: BlockData[][];
   maxUndoSteps: number;
 
   setBlocks: (blocks: BlockData[]) => void;
+  setEditorMode: (mode: 'block' | 'magazine') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
   updateBlock: (blockId: string, data: Partial<Record<string, unknown>>) => void;
   removeBlock: (blockId: string) => void;
@@ -73,12 +75,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedBlockId: null,
   isDirty: false,
   isSaving: false,
+  editorMode: 'block',
   undoStack: [],
   redoStack: [],
   maxUndoSteps: 50,
 
   setBlocks: (blocks) => {
     set({ blocks, isDirty: false, undoStack: [], redoStack: [] });
+  },
+
+  setEditorMode: (mode) => {
+    set({ editorMode: mode });
   },
 
   addBlock: (type, parentId, index) => {
@@ -93,6 +100,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       children: [],
       order: 0,
     };
+
+    // In magazine mode, auto-assign freeform positioning
+    if (state.editorMode === 'magazine') {
+      // Cascade position so new blocks don't stack on top of each other
+      const existingCount = state.blocks.length;
+      const offsetX = 40 + (existingCount % 5) * 30;
+      const offsetY = 40 + (existingCount % 5) * 30;
+
+      newBlock.style = {
+        layout: {
+          position: 'absolute',
+          x: offsetX,
+          y: offsetY,
+          width: '300px',
+          minHeight: '100px',
+          zIndex: existingCount + 1,
+        },
+      };
+    }
 
     const undoStack = [
       ...state.undoStack.slice(-(state.maxUndoSteps - 1)),
@@ -134,7 +160,28 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const found = findInTree(newBlocks, blockId);
     if (!found) return;
 
-    found.block.data = { ...found.block.data, ...data };
+    // Handle special __style, __animation, __responsive, __advanced keys from property panels
+    if (data.__style) {
+      found.block.style = data.__style as BlockStyleProps;
+      delete data.__style;
+    }
+    if (data.__animation) {
+      found.block.animation = data.__animation as BlockData['animation'];
+      delete data.__animation;
+    }
+    if (data.__responsive) {
+      found.block.responsive = data.__responsive as BlockData['responsive'];
+      delete data.__responsive;
+    }
+    if (data.__advanced) {
+      found.block.advanced = data.__advanced as BlockData['advanced'];
+      delete data.__advanced;
+    }
+
+    // Merge remaining keys into block.data
+    if (Object.keys(data).length > 0) {
+      found.block.data = { ...found.block.data, ...data };
+    }
 
     set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
   },
@@ -208,6 +255,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!found) return;
 
     const clone = deepCloneWithNewIds(found.block);
+
+    // In magazine mode, offset the duplicate so it's visible
+    if (state.editorMode === 'magazine' && clone.style?.layout) {
+      clone.style.layout = {
+        ...clone.style.layout,
+        x: ((clone.style.layout.x as number) ?? 0) + 20,
+        y: ((clone.style.layout.y as number) ?? 0) + 20,
+      };
+    }
+
     found.parent.splice(found.index + 1, 0, clone);
 
     for (let i = 0; i < found.parent.length; i++) {

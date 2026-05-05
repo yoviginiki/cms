@@ -19,11 +19,13 @@ export function ConfirmDialog({
   confirmText = 'Delete',
   variant = 'danger',
 }: ConfirmDialogProps) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (open) {
-      cancelRef.current?.focus();
+      dialogRef.current?.showModal();
+    } else {
+      dialogRef.current?.close();
     }
   }, [open]);
 
@@ -39,40 +41,27 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  const confirmButtonStyles =
-    variant === 'danger'
-      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white'
-      : 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-400 text-white';
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    <dialog ref={dialogRef} className="modal" onClose={onClose}>
+      <div className="modal-box bg-base-100 border border-base-300/50 max-w-sm">
+        <h3 className="text-sm font-medium text-base-content">{title}</h3>
+        <p className="mt-2 text-[13px] text-base-content/50 leading-relaxed">{message}</p>
 
-      {/* Dialog */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="mt-2 text-sm text-gray-500">{message}</p>
-
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            ref={cancelRef}
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
-          >
+        <div className="modal-action mt-6">
+          <button onClick={onClose} className="btn btn-ghost btn-sm text-[12px]">
             Cancel
           </button>
           <button
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-            className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${confirmButtonStyles}`}
+            onClick={() => { onConfirm(); onClose(); }}
+            className={`btn btn-sm text-[12px] ${variant === 'danger' ? 'btn-error' : 'btn-warning'}`}
           >
             {confirmText}
           </button>
         </div>
       </div>
-    </div>
+      <form method="dialog" className="modal-backdrop">
+        <button onClick={onClose}>close</button>
+      </form>
+    </dialog>
   );
 }

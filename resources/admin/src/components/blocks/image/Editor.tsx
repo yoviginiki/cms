@@ -1,12 +1,10 @@
 import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { AssetField } from '@/components/ui/AssetPicker';
 
 export const ImageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const { url, alt, caption, size } = block.data as {
-    url: string;
-    alt: string;
-    caption: string;
-    size: string;
+    url: string; alt: string; caption: string; size: string;
   };
 
   const update = (field: string, value: string) => {
@@ -14,41 +12,22 @@ export const ImageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      <AssetField label="Image" value={url || ''} onChange={(v) => update('url', v)} accept="image" />
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-        <input
-          type="text"
-          value={url || ''}
-          onChange={(e) => update('url', e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <label className="text-[11px] text-base-content/50 mb-1 block">Alt text</label>
+        <input value={alt || ''} onChange={(e) => update('alt', e.target.value)}
+          className="input input-bordered input-sm w-full text-[12px]" placeholder="Describe the image" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Alt Text</label>
-        <input
-          type="text"
-          value={alt || ''}
-          onChange={(e) => update('alt', e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <label className="text-[11px] text-base-content/50 mb-1 block">Caption</label>
+        <input value={caption || ''} onChange={(e) => update('caption', e.target.value)}
+          className="input input-bordered input-sm w-full text-[12px]" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>
-        <input
-          type="text"
-          value={caption || ''}
-          onChange={(e) => update('caption', e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
-        <select
-          value={size || 'full'}
-          onChange={(e) => update('size', e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
+        <label className="text-[11px] text-base-content/50 mb-1 block">Size</label>
+        <select value={size || 'full'} onChange={(e) => update('size', e.target.value)}
+          className="select select-bordered select-sm w-full text-[12px]">
           <option value="small">Small</option>
           <option value="medium">Medium</option>
           <option value="large">Large</option>

@@ -11,7 +11,9 @@ class PageService
     public function createPage(array $data, Site $site): Page
     {
         $data['site_id'] = $site->id;
-        $data['slug'] = $data['slug'] ?? $this->generateUniqueSlug($data['title'], $site);
+        $data['slug'] = $this->generateUniqueSlug(
+            $data['slug'] ?? $data['title'], $site
+        );
 
         return Page::create($data);
     }
@@ -63,7 +65,7 @@ class PageService
 
     private function generateUniqueSlug(string $text, Site $site, ?string $excludeId = null): string
     {
-        $slug = Str::slug($text);
+        $slug = \App\Support\Slugify::slug($text);
         $original = $slug;
         $count = 1;
 

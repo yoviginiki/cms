@@ -14,20 +14,43 @@ use App\Policies\CategoryPolicy;
 use App\Policies\PagePolicy;
 use App\Policies\PostPolicy;
 use App\Policies\SitePolicy;
+use App\Policies\TagPolicy;
+use App\Models\Tag;
 use App\Domain\Blocks\Definitions\ColumnsBlockDefinition;
+use App\Domain\Blocks\Definitions\DividerBlockDefinition;
 use App\Domain\Blocks\Definitions\HeadingBlockDefinition;
 use App\Domain\Blocks\Definitions\HeroBlockDefinition;
 use App\Domain\Blocks\Definitions\ImageBlockDefinition;
+use App\Domain\Blocks\Definitions\QuoteBlockDefinition;
 use App\Domain\Blocks\Definitions\TextBlockDefinition;
+use App\Domain\Blocks\Definitions\ButtonBlockDefinition;
+use App\Domain\Blocks\Definitions\SectionBlockDefinition;
+use App\Domain\Blocks\Definitions\SpacerBlockDefinition;
+use App\Domain\Blocks\Definitions\VideoBlockDefinition;
+use App\Domain\Blocks\Definitions\HtmlEmbedBlockDefinition;
+use App\Domain\Blocks\Definitions\TabsBlockDefinition;
+use App\Domain\Blocks\Definitions\AccordionBlockDefinition;
+use App\Domain\Blocks\Definitions\CodeBlockDefinition;
+use App\Domain\Blocks\Definitions\ContactFormBlockDefinition;
+use App\Domain\Blocks\Definitions\RichTextBlockDefinition;
+use App\Domain\Blocks\Definitions\FlipbookBlockDefinition;
+use App\Domain\Blocks\Definitions\ScrollPageBlockDefinition;
 use App\Domain\Blocks\Services\BlockRegistry;
+use App\Domain\Hooks\HookDispatcher;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(HookDispatcher::class);
+
         $this->app->singleton(BlockRegistry::class, function () {
             $registry = new BlockRegistry();
             $registry->register(new HeroBlockDefinition());
@@ -35,6 +58,20 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new ImageBlockDefinition());
             $registry->register(new ColumnsBlockDefinition());
             $registry->register(new HeadingBlockDefinition());
+            $registry->register(new DividerBlockDefinition());
+            $registry->register(new QuoteBlockDefinition());
+            $registry->register(new ButtonBlockDefinition());
+            $registry->register(new SectionBlockDefinition());
+            $registry->register(new SpacerBlockDefinition());
+            $registry->register(new VideoBlockDefinition());
+            $registry->register(new HtmlEmbedBlockDefinition());
+            $registry->register(new TabsBlockDefinition());
+            $registry->register(new AccordionBlockDefinition());
+            $registry->register(new CodeBlockDefinition());
+            $registry->register(new ContactFormBlockDefinition());
+            $registry->register(new RichTextBlockDefinition());
+            $registry->register(new FlipbookBlockDefinition());
+            $registry->register(new ScrollPageBlockDefinition());
 
             return $registry;
         });
@@ -42,6 +79,22 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('uploads', function (Request $request) {
+            return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('publish', function (Request $request) {
+            return Limit::perMinute(5);
+        });
+
+        RateLimiter::for('block-sync', function (Request $request) {
+            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
+        });
+
         if (!config('cms.redis_enabled')) {
             config([
                 'cache.default' => 'file',
@@ -56,11 +109,18 @@ class AppServiceProvider extends ServiceProvider
             'post' => Post::class,
         ]);
 
+        // Explicit route model bindings for non-standard model locations
+        Route::model('issue', \App\Domain\IssueComposer\Models\MagazineIssue::class);
+        Route::model('item', \App\Domain\IssueComposer\Models\IssueContentItem::class);
+        Route::model('session', \App\Models\Magazine\WizardSession::class);
+
         Gate::policy(Site::class, SitePolicy::class);
         Gate::policy(Page::class, PagePolicy::class);
         Gate::policy(Post::class, PostPolicy::class);
         Gate::policy(Category::class, CategoryPolicy::class);
         Gate::policy(Asset::class, AssetPolicy::class);
         Gate::policy(Block::class, BlockPolicy::class);
+        Gate::policy(Tag::class, TagPolicy::class);
+        Gate::policy(\App\Models\Magazine\WizardSession::class, \App\Policies\Magazine\WizardSessionPolicy::class);
     }
 }

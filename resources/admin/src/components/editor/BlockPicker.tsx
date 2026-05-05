@@ -1,17 +1,21 @@
 import { useState, useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Square, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { blockRegistry } from '@/components/blocks/registry';
 import { useEditorStore } from '@/stores/editorStore';
 import type { BlockCategory, BlockDefinition } from '@/types/blocks';
 
-const CATEGORY_ORDER: BlockCategory[] = [
-  'layout',
-  'content',
-  'media',
-  'interactive',
-  'commerce',
-  'forms',
+const CATEGORY_ORDER: { key: BlockCategory; label: string }[] = [
+  { key: 'typography', label: 'Typography' },
+  { key: 'content', label: 'Content' },
+  { key: 'layout', label: 'Layout' },
+  { key: 'media', label: 'Media' },
+  { key: 'blog', label: 'Blog & editorial' },
+  { key: 'interactive', label: 'Interactive' },
+  { key: 'data', label: 'Data & content' },
+  { key: 'commerce', label: 'Commerce' },
+  { key: 'forms', label: 'Forms' },
+  { key: 'embed', label: 'Embeds' },
 ];
 
 function DraggableBlockItem({ definition }: { definition: BlockDefinition }) {
@@ -27,12 +31,11 @@ function DraggableBlockItem({ definition }: { definition: BlockDefinition }) {
       {...attributes}
       {...listeners}
       onClick={() => addBlock(definition.type)}
-      className={`flex w-full items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-grab border border-transparent hover:border-gray-200 text-left ${
-        isDragging ? 'opacity-50' : ''
-      }`}
+      className={`flex w-full items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors
+        hover:bg-base-300/20 cursor-grab border border-transparent hover:border-base-300/30
+        ${isDragging ? 'opacity-40' : ''}`}
     >
-      <Square className="h-4 w-4 shrink-0 text-gray-500" />
-      <span className="text-sm text-gray-700">{definition.label}</span>
+      <span className="text-[12px] text-base-content/70">{definition.label}</span>
     </button>
   );
 }
@@ -46,7 +49,7 @@ export function BlockPicker() {
 
     for (const reg of all.values()) {
       const def = reg.definition;
-      if (search && !def.label.toLowerCase().includes(search.toLowerCase())) {
+      if (search && !def.label.toLowerCase().includes(search.toLowerCase()) && !def.type.toLowerCase().includes(search.toLowerCase())) {
         continue;
       }
       if (!groups.has(def.category)) {
@@ -60,29 +63,24 @@ export function BlockPicker() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-gray-200">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search blocks..."
-            className="w-full border border-gray-300 rounded-md pl-8 pr-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
+      <div className="p-2 border-b border-base-300/20">
+        <label className="input input-bordered input-sm flex items-center gap-2 text-[12px]">
+          <Search className="h-3.5 w-3.5 text-base-content/30" />
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search blocks..." className="grow bg-transparent" />
+        </label>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {CATEGORY_ORDER.map((category) => {
-          const definitions = grouped.get(category);
+      <div className="flex-1 overflow-y-auto p-2 space-y-3">
+        {CATEGORY_ORDER.map(({ key, label }) => {
+          const definitions = grouped.get(key);
           if (!definitions || definitions.length === 0) return null;
 
           return (
-            <div key={category}>
-              <h3 className="text-xs font-semibold uppercase text-gray-500 mb-2">
-                {category}
+            <div key={key}>
+              <h3 className="text-[10px] font-medium uppercase tracking-wider text-base-content/30 mb-1 px-1">
+                {label} <span className="text-base-content/15">({definitions.length})</span>
               </h3>
-              <div className="space-y-0.5">
+              <div className="space-y-0">
                 {definitions.map((def) => (
                   <DraggableBlockItem key={def.type} definition={def} />
                 ))}
@@ -90,8 +88,26 @@ export function BlockPicker() {
             </div>
           );
         })}
+
+        {/* Show any blocks in categories not listed above */}
+        {Array.from(grouped.entries())
+          .filter(([cat]) => !CATEGORY_ORDER.some(c => c.key === cat))
+          .map(([cat, defs]) => (
+            <div key={cat}>
+              <h3 className="text-[10px] font-medium uppercase tracking-wider text-base-content/30 mb-1 px-1">
+                {cat} <span className="text-base-content/15">({defs.length})</span>
+              </h3>
+              <div className="space-y-0">
+                {defs.map((def) => (
+                  <DraggableBlockItem key={def.type} definition={def} />
+                ))}
+              </div>
+            </div>
+          ))
+        }
+
         {grouped.size === 0 && (
-          <p className="text-sm text-gray-400 text-center py-4">No blocks found</p>
+          <p className="text-[12px] text-base-content/30 text-center py-8">No blocks found</p>
         )}
       </div>
     </div>

@@ -41,39 +41,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
 
-      {/* Toast container */}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+      <div className="toast toast-end toast-bottom z-[100]">
         {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-in-right ${
-              t.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-            }`}
-          >
-            {t.type === 'success' ? <CheckCircle size={18} /> : <XCircle size={18} />}
+          <div key={t.id} className={`alert ${t.type === 'success' ? 'alert-success' : 'alert-error'} shadow-elev-2 py-2 px-3 text-[13px] animate-slide-in-right`}>
+            {t.type === 'success' ? <CheckCircle size={15} /> : <XCircle size={15} />}
             <span>{t.message}</span>
-            <button onClick={() => removeToast(t.id)} className="ml-2 hover:opacity-75">
-              <X size={14} />
+            <button onClick={() => removeToast(t.id)} className="btn btn-ghost btn-xs btn-square opacity-60 hover:opacity-100">
+              <X size={12} />
             </button>
           </div>
         ))}
       </div>
 
-      {/* Inline keyframes for the slide-in animation */}
       <style>{`
         @keyframes slide-in-right {
-          from {
-            opacity: 0;
-            transform: translateX(100%);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
+          from { opacity: 0; transform: translateX(16px); }
+          to { opacity: 1; transform: translateX(0); }
         }
-        .animate-slide-in-right {
-          animation: slide-in-right 0.25s ease-out;
-        }
+        .animate-slide-in-right { animation: slide-in-right 200ms ease-out; }
       `}</style>
     </ToastContext.Provider>
   );

@@ -34,6 +34,15 @@ class SiteService
 
     public function updateSite(Site $site, array $data): Site
     {
+        // Merge settings rather than replace — prevents tabs from overwriting each other
+        if (isset($data['settings']) && is_array($data['settings'])) {
+            $existing = $site->settings ?? [];
+            $incoming = $data['settings'];
+            $data['settings'] = array_merge($existing, $incoming);
+            // Remove keys explicitly set to null (intentional unset)
+            $data['settings'] = array_filter($data['settings'], fn ($v) => $v !== null);
+        }
+
         $site->update($data);
 
         return $site->fresh(['theme']);

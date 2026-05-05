@@ -1,11 +1,39 @@
-<section class="hero-section" style="background-image: url('{{ $data['background_image'] ?? '' }}'); background-size: cover; background-position: center;">
-    <div class="hero-content" style="padding: 4rem 2rem; text-align: center;">
-        <h1 style="font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem;">{{ $data['title'] ?? '' }}</h1>
+@php
+    $bgType = $data['bg_type'] ?? 'none';
+    $style = 'position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;color:#fff;';
+
+    if ($bgType === 'color' && !empty($data['bg_color'])) {
+        $style .= "background-color:{$data['bg_color']};";
+    } elseif ($bgType === 'gradient' && !empty($data['bg_gradient_stops'])) {
+        $stops = collect($data['bg_gradient_stops'])->map(fn($s) => "{$s['color']} {$s['position']}%")->join(', ');
+        $type = $data['bg_gradient_type'] ?? 'linear';
+        $angle = $data['bg_gradient_angle'] ?? 180;
+        $gradient = $type === 'radial' ? "radial-gradient(circle, {$stops})" : "linear-gradient({$angle}deg, {$stops})";
+        $style .= "background:{$gradient};";
+    } elseif ($bgType === 'image' && !empty($data['bg_image'])) {
+        $size = $data['bg_image_size'] ?? 'cover';
+        $pos = $data['bg_image_position'] ?? 'center center';
+        $scroll = $data['bg_scroll_effect'] ?? 'none';
+        $style .= "background-image:url('{$data['bg_image']}');background-size:{$size};background-position:{$pos};background-repeat:no-repeat;";
+        if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
+    } elseif (!empty($data['backgroundImage'])) {
+        $style .= "background-image:url('{$data['backgroundImage']}');background-size:cover;background-position:center;";
+    }
+
+    $overlayOpacity = (float) ($data['bg_overlay_opacity'] ?? 0);
+    $overlayColor = $data['bg_overlay_color'] ?? '#000';
+@endphp
+<section class="hero-section" style="{{ $style }}">
+    @if($bgType === 'image' && $overlayOpacity > 0)
+    <div style="position:absolute;inset:0;background-color:{{ $overlayColor }};opacity:{{ $overlayOpacity }};pointer-events:none;z-index:0;"></div>
+    @endif
+    <div class="hero-content" style="position:relative;z-index:1;text-align:center;max-width:800px;padding:2rem;">
+        <h1 style="font-size:2.5rem;font-weight:700;margin-bottom:1rem;">{{ $data['title'] ?? '' }}</h1>
         @if(!empty($data['subtitle']))
-            <p style="font-size: 1.25rem; opacity: 0.9; margin-bottom: 2rem;">{{ $data['subtitle'] }}</p>
+            <p style="font-size:1.25rem;opacity:0.9;margin-bottom:2rem;">{{ $data['subtitle'] }}</p>
         @endif
-        @if(!empty($data['cta_text']) && !empty($data['cta_url']))
-            <a href="{{ $data['cta_url'] }}" style="display: inline-block; padding: 0.75rem 2rem; background: #3b82f6; color: #fff; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">{{ $data['cta_text'] }}</a>
+        @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
+            <a href="{{ $data['ctaUrl'] }}" style="display:inline-block;padding:0.75rem 2rem;background:rgba(255,255,255,0.2);color:#fff;border:2px solid #fff;border-radius:0.375rem;text-decoration:none;font-weight:600;">{{ $data['ctaText'] }}</a>
         @endif
     </div>
 </section>

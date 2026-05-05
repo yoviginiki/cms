@@ -18,6 +18,8 @@ class UpdatePageRequest extends FormRequest
             'slug' => ['sometimes', 'string', 'max:255'],
             'parent_id' => ['sometimes', 'nullable', 'uuid', 'exists:pages,id'],
             'status' => ['sometimes', 'in:draft,published,archived'],
+            'editor_mode' => ['sometimes', 'in:block,magazine'],
+            'layout_id' => ['sometimes', 'nullable', 'uuid'],
             'seo_meta' => ['sometimes', 'array'],
             'seo_meta.head_scripts' => ['sometimes', 'nullable', 'string', 'max:65536'],
             'seo_meta.body_scripts' => ['sometimes', 'nullable', 'string', 'max:65536'],

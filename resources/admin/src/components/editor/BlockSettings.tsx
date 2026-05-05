@@ -1,10 +1,15 @@
-import { X } from 'lucide-react';
+import { useState } from 'react';
+import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
-import { TextField } from '@/components/editor/fields/TextField';
-import { SelectField } from '@/components/editor/fields/SelectField';
-import { NumberField } from '@/components/editor/fields/NumberField';
-import type { BlockData } from '@/types/blocks';
+import type { BlockData, BlockStyleProps } from '@/types/blocks';
+import { TypographyPanel } from './properties/TypographyPanel';
+import { SpacingPanel } from './properties/SpacingPanel';
+import { VisualPanel } from './properties/VisualPanel';
+import { LayoutPanel } from './properties/LayoutPanel';
+import { AnimationPanel } from './properties/AnimationPanel';
+import { AdvancedPanel } from './properties/AdvancedPanel';
+import { ResponsivePanel } from './properties/ResponsivePanel';
 
 function findBlock(blocks: BlockData[], id: string): BlockData | null {
   for (const block of blocks) {
@@ -15,6 +20,20 @@ function findBlock(blocks: BlockData[], id: string): BlockData | null {
   return null;
 }
 
+function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-base-300/20">
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-1.5 py-2 text-[10px] font-medium text-base-content/40 uppercase tracking-wider hover:text-base-content/60">
+        {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        {title}
+      </button>
+      {open && <div className="pb-3">{children}</div>}
+    </div>
+  );
+}
+
 export function BlockSettings() {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const blocks = useEditorStore((s) => s.blocks);
@@ -23,7 +42,7 @@ export function BlockSettings() {
 
   if (!selectedBlockId) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-gray-400">
+      <div className="flex items-center justify-center h-full text-[12px] text-base-content/30">
         Select a block to edit
       </div>
     );
@@ -32,7 +51,7 @@ export function BlockSettings() {
   const block = findBlock(blocks, selectedBlockId);
   if (!block) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-gray-400">
+      <div className="flex items-center justify-center h-full text-[12px] text-base-content/30">
         Block not found
       </div>
     );
@@ -41,90 +60,78 @@ export function BlockSettings() {
   const registration = blockRegistry.get(block.type);
   if (!registration) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-gray-400">
+      <div className="flex items-center justify-center h-full text-[12px] text-base-content/30">
         Unknown block type
       </div>
     );
   }
 
   const { Editor } = registration;
+  const style: BlockStyleProps = block.style || {};
 
   const handleUpdate = (data: Record<string, unknown>) => {
     updateBlock(selectedBlockId, data);
   };
 
+  const updateStyle = (section: keyof BlockStyleProps, value: unknown) => {
+    // Store style in block.data.__style for now (until store supports style field)
+    handleUpdate({ __style: { ...style, [section]: value } });
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-3 border-b border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-800">
+      <div className="flex items-center justify-between p-3 border-b border-base-300/20">
+        <h3 className="text-[12px] font-medium text-base-content/80">
           {registration.definition.label}
         </h3>
-        <button
-          onClick={() => selectBlock(null)}
-          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-        >
-          <X className="h-4 w-4" />
+        <button onClick={() => selectBlock(null)}
+          className="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-base-content/60">
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
-        <Editor
-          block={block}
-          isSelected={true}
-          onUpdate={handleUpdate}
-          onSelect={() => {}}
-        />
+      <div className="flex-1 overflow-y-auto p-3 space-y-1">
+        {/* Block-specific settings */}
+        <Section title="Content" defaultOpen={true}>
+          <Editor block={block} isSelected={true} onUpdate={handleUpdate} onSelect={() => {}} />
+        </Section>
 
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3">
-            Common Settings
-          </h4>
+        {/* Typography — for text-containing blocks */}
+        {registration.definition.hasTypography !== false && (
+          <Section title="Typography">
+            <TypographyPanel value={style.typography || {}} onChange={v => updateStyle('typography', v)} />
+          </Section>
+        )}
 
-          <TextField
-            label="CSS Class"
-            value={(block.data.cssClass as string) ?? ''}
-            onChange={(val) => handleUpdate({ cssClass: val })}
-            placeholder="e.g. my-custom-class"
-          />
+        {/* Spacing */}
+        <Section title="Spacing">
+          <SpacingPanel value={style.spacing || {}} onChange={v => updateStyle('spacing', v)} />
+        </Section>
 
-          <SelectField
-            label="Visibility"
-            value={(block.data.visibility as string) ?? 'visible'}
-            onChange={(val) => handleUpdate({ visibility: val })}
-            options={[
-              { value: 'visible', label: 'Visible' },
-              { value: 'hidden', label: 'Hidden' },
-            ]}
-          />
+        {/* Visual */}
+        <Section title="Background & borders">
+          <VisualPanel value={style.visual || {}} onChange={v => updateStyle('visual', v)} />
+        </Section>
 
-          <NumberField
-            label="Margin Top (px)"
-            value={(block.data.marginTop as number) ?? 0}
-            onChange={(val) => handleUpdate({ marginTop: val })}
-            min={0}
-          />
+        {/* Layout */}
+        <Section title="Layout">
+          <LayoutPanel value={style.layout || {}} onChange={v => updateStyle('layout', v)} />
+        </Section>
 
-          <NumberField
-            label="Margin Bottom (px)"
-            value={(block.data.marginBottom as number) ?? 0}
-            onChange={(val) => handleUpdate({ marginBottom: val })}
-            min={0}
-          />
+        {/* Animation */}
+        <Section title="Animation">
+          <AnimationPanel value={block.animation || {}} onChange={v => handleUpdate({ __animation: v })} />
+        </Section>
 
-          <NumberField
-            label="Padding Top (px)"
-            value={(block.data.paddingTop as number) ?? 0}
-            onChange={(val) => handleUpdate({ paddingTop: val })}
-            min={0}
-          />
+        {/* Responsive */}
+        <Section title="Responsive">
+          <ResponsivePanel value={block.responsive || {}} onChange={v => handleUpdate({ __responsive: v })} />
+        </Section>
 
-          <NumberField
-            label="Padding Bottom (px)"
-            value={(block.data.paddingBottom as number) ?? 0}
-            onChange={(val) => handleUpdate({ paddingBottom: val })}
-            min={0}
-          />
-        </div>
+        {/* Advanced */}
+        <Section title="Advanced">
+          <AdvancedPanel value={block.advanced || {}} onChange={v => handleUpdate({ __advanced: v })} />
+        </Section>
       </div>
     </div>
   );

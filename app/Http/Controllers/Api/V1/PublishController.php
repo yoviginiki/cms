@@ -36,6 +36,34 @@ class PublishController extends Controller
         }
     }
 
+    /**
+     * Clear all published static files (wipe the public site).
+     */
+    public function clear(Request $request, Site $site): JsonResponse
+    {
+        $this->authorize('publish', $site);
+
+        $publicPath = config('publishing.public_path');
+        if (!$publicPath || !is_dir($publicPath)) {
+            return response()->json(['message' => 'No published content to clear.']);
+        }
+
+        // Remove all generated content but keep vendor/ and other non-CMS dirs
+        $keep = ['vendor', 'assets', '.htaccess'];
+        foreach (scandir($publicPath) as $entry) {
+            if ($entry === '.' || $entry === '..') continue;
+            if (in_array($entry, $keep)) continue;
+            $path = $publicPath . '/' . $entry;
+            if (is_dir($path)) {
+                \Illuminate\Support\Facades\File::deleteDirectory($path);
+            } else {
+                unlink($path);
+            }
+        }
+
+        return response()->json(['message' => 'Published content cleared.']);
+    }
+
     public function status(Site $site, Deployment $deployment): JsonResponse
     {
         return response()->json(['data' => $deployment]);

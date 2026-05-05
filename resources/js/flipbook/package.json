@@ -1,0 +1,15 @@
+{
+  "name": "@ensodo/flipbook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/flipbook.iife.js",
+  "module": "dist/flipbook.esm.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

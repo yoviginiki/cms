@@ -15,8 +15,8 @@ class Page extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'site_id', 'parent_id', 'title', 'slug',
-        'status', 'seo_meta', 'sort_order', 'published_at',
+        'site_id', 'parent_id', 'title', 'slug', 'layout_id',
+        'status', 'editor_mode', 'seo_meta', 'sort_order', 'grid_id', 'published_at', 'scheduled_at',
     ];
 
     protected function casts(): array
@@ -24,6 +24,7 @@ class Page extends Model
         return [
             'seo_meta' => 'array',
             'published_at' => 'datetime',
+            'scheduled_at' => 'datetime',
         ];
     }
 
