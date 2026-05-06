@@ -75,7 +75,7 @@ export default function Dashboard() {
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Posts</button>
                   <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/settings`); }}
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Settings</button>
-                  <a href={site.custom_domain ? `https://${site.custom_domain}` : '/site'}
+                  <a href={site.custom_domain ? `https://${site.custom_domain}` : `/sites/${site.slug}`}
                     target="_blank" rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
                     className="ml-auto flex items-center gap-1 text-[12px] text-base-content/40 hover:text-primary font-medium">

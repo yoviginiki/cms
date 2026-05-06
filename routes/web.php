@@ -16,7 +16,7 @@ Route::get('/login', function () {
 
 // ─── Dynamic site preview (auth-protected) ───
 // Serves pages/posts dynamically with admin toolbar
-Route::middleware(['auth', \App\Http\Middleware\SetTenantFromAuth::class])->prefix('site')->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\SetTenantFromAuth::class])->prefix('sites/{siteSlug}')->group(function () {
     Route::get('/', [DynamicSiteController::class, 'home'])->name('site.home');
     Route::get('/blog', [DynamicSiteController::class, 'blogIndex'])->name('site.blog');
     Route::get('/blog/{slug}', [DynamicSiteController::class, 'post'])->name('site.post');

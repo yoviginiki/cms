@@ -21,9 +21,9 @@ class DynamicSiteController extends Controller
     /**
      * Serve the site homepage dynamically.
      */
-    public function home(Request $request): Response
+    public function home(Request $request, string $siteSlug): Response
     {
-        $site = $this->resolveSite();
+        $site = $this->resolveSite($siteSlug);
         $settings = $site->settings ?? [];
         $homepageType = $settings['homepage_type'] ?? 'page';
 
@@ -52,9 +52,9 @@ class DynamicSiteController extends Controller
     /**
      * Serve a page by slug.
      */
-    public function page(Request $request, string $slug): Response
+    public function page(Request $request, string $siteSlug, string $slug): Response
     {
-        $site = $this->resolveSite();
+        $site = $this->resolveSite($siteSlug);
         $page = Page::where('site_id', $site->id)->where('slug', $slug)->first();
 
         if (!$page) {
@@ -67,9 +67,9 @@ class DynamicSiteController extends Controller
     /**
      * Serve a blog post by slug.
      */
-    public function post(Request $request, string $slug): Response
+    public function post(Request $request, string $siteSlug, string $slug): Response
     {
-        $site = $this->resolveSite();
+        $site = $this->resolveSite($siteSlug);
         $post = Post::where('site_id', $site->id)->where('slug', $slug)->first();
 
         if (!$post) {
@@ -82,9 +82,9 @@ class DynamicSiteController extends Controller
     /**
      * Blog index — list all published posts.
      */
-    public function blogIndex(Request $request): Response
+    public function blogIndex(Request $request, string $siteSlug): Response
     {
-        $site = $this->resolveSite();
+        $site = $this->resolveSite($siteSlug);
         $posts = Post::where('site_id', $site->id)
             ->where('status', 'published')
             ->orderByDesc('published_at')
@@ -198,7 +198,7 @@ HTML;
     {$catBadge}
     <span style="font-size:11px;padding:2px 8px;border-radius:999px;background:{$statusBg};">{$status}</span>
   </div>
-  <a href="/site/blog/{$slug}" style="font-size:1.25rem;font-weight:600;color:var(--color-text,#1e293b);text-decoration:none;">{$title}</a>
+  <a href="/sites/{$site->slug}/blog/{$slug}" style="font-size:1.25rem;font-weight:600;color:var(--color-text,#1e293b);text-decoration:none;">{$title}</a>
   {$excerptHtml}
 </article>
 HTML;
@@ -225,17 +225,18 @@ HTML;
     }
 
     /**
-     * Resolve the current site for this domain.
+     * Resolve site by slug (must belong to user's tenant).
      */
-    private function resolveSite(): Site
+    private function resolveSite(string $siteSlug): Site
     {
         $user = Auth::user();
 
-        // Get first site for user's tenant
-        $site = Site::where('tenant_id', $user->tenant_id)->first();
+        $site = Site::where('tenant_id', $user->tenant_id)
+            ->where('slug', $siteSlug)
+            ->first();
 
         if (!$site) {
-            abort(404, 'No site found for your account.');
+            abort(404, "Site not found: {$siteSlug}");
         }
 
         return $site;
