@@ -22,8 +22,6 @@ use App\Http\Controllers\Api\V1\MenuController;
 use App\Http\Controllers\Api\V1\EditorPresenceController;
 use App\Http\Controllers\Api\V1\MagEditorController;
 use App\Http\Controllers\Api\V1\MagStyleController;
-use App\Http\Controllers\Api\V1\MagazineIssueController;
-use App\Http\Controllers\Api\V1\IssueContentItemController;
 use App\Http\Controllers\Magazine\WizardController;
 use Illuminate\Support\Facades\Route;
 
@@ -114,14 +112,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sites.magazine-styles', MagStyleController::class)->parameters(['magazine-styles' => 'style']);
 
         // Issue Composer
-        Route::apiResource('sites.magazine-issues', MagazineIssueController::class)->parameters(['magazine-issues' => 'issue']);
-        Route::post('sites/{site}/magazine-issues/{issue}/curation/run', [MagazineIssueController::class, 'runCuration']);
-        Route::get('sites/{site}/magazine-issues/{issue}/curation/latest', [MagazineIssueController::class, 'latestCuration']);
-        Route::post('sites/{site}/magazine-issues/{issue}/layout/run', [MagazineIssueController::class, 'runLayout']);
-        Route::post('sites/{site}/magazine-issues/{issue}/handoff', [MagazineIssueController::class, 'handoff']);
-        Route::post('sites/{site}/magazine-issues/{issue}/content-items', [IssueContentItemController::class, 'store']);
-        Route::patch('sites/{site}/magazine-issues/{issue}/content-items/{item}', [IssueContentItemController::class, 'update']);
-        Route::delete('sites/{site}/magazine-issues/{issue}/content-items/{item}', [IssueContentItemController::class, 'destroy']);
 
         // Magazine Wizard
         Route::post('magazine/wizard/sessions', [WizardController::class, 'store']);
@@ -209,20 +199,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/import/{importId}/execute', [ImportController::class, 'execute']);
         Route::get('sites/{site}/import/{importId}/status', [ImportController::class, 'status']);
 
-        // Theme Management (upload/activate/delete like WordPress)
-        Route::get('sites/{site}/themes', [\App\Http\Controllers\Api\V1\ThemeController::class, 'index']);
-        Route::post('sites/{site}/themes/upload', [\App\Http\Controllers\Api\V1\ThemeController::class, 'upload']);
-        Route::post('sites/{site}/themes/{theme}/activate', [\App\Http\Controllers\Api\V1\ThemeController::class, 'activate']);
-        Route::get('sites/{site}/themes/{theme}/export', [\App\Http\Controllers\Api\V1\ThemeController::class, 'export']);
-        Route::delete('sites/{site}/themes/{theme}', [\App\Http\Controllers\Api\V1\ThemeController::class, 'destroy']);
-
-        // Theme Customizer
-        Route::get('sites/{site}/theme/tokens', [\App\Http\Controllers\Api\V1\ThemeCustomizerController::class, 'index']);
-        Route::post('sites/{site}/theme/tokens', [\App\Http\Controllers\Api\V1\ThemeCustomizerController::class, 'store']);
-        Route::delete('sites/{site}/theme/tokens', [\App\Http\Controllers\Api\V1\ThemeCustomizerController::class, 'reset']);
-        Route::get('sites/{site}/theme/export', [\App\Http\Controllers\Api\V1\ThemeCustomizerController::class, 'export']);
-        Route::post('sites/{site}/theme/import', [\App\Http\Controllers\Api\V1\ThemeCustomizerController::class, 'import']);
-        Route::get('sites/{site}/theme/preview-css', [\App\Http\Controllers\Api\V1\ThemeCustomizerController::class, 'previewCss']);
 
         // AI Content Assistant
         Route::post('ai/generate', [AiController::class, 'generate'])->middleware('throttle:20,1');

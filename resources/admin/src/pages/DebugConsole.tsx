@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { RefreshCw, Trash2, Loader2, AlertTriangle, CheckCircle, XCircle, Server, Database, HardDrive, Activity, Zap, AlertOctagon, ChevronDown, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -35,9 +36,17 @@ interface LogEntry { timestamp: string; channel: string; level: string; message:
 
 export default function DebugConsole() {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>('health');
+  const [searchParams] = useSearchParams();
+  const sinceParam = searchParams.get('since');
+  const sinceTs = sinceParam ? parseInt(sinceParam, 10) : null;
+
+  const [tab, setTab] = useState<Tab>(() => sinceParam ? 'logs' : 'health');
   const [logLevel, setLogLevel] = useState('all');
   const [expandedError, setExpandedError] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (sinceParam) setTab('logs');
+  }, [sinceParam]);
 
   const { data, isLoading, refetch } = useQuery<HealthData>({
     queryKey: ['debug'],
@@ -210,8 +219,16 @@ export default function DebugConsole() {
               <Trash2 className="h-3 w-3" /> Clear
             </button>
           </div>
+          {sinceTs && (
+            <div className="mb-2 px-2 py-1.5 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+              Showing entries since {new Date(sinceTs * 1000).toLocaleString()}
+              <button onClick={() => window.history.replaceState({}, '', window.location.pathname)} className="ml-2 underline hover:text-yellow-900">Clear filter</button>
+            </div>
+          )}
           <div className="bg-gray-900 rounded-xl p-3 font-mono text-xs max-h-[65vh] overflow-y-auto space-y-0.5">
-            {logData?.entries?.map((e, i) => (
+            {(logData?.entries ?? [])
+              .filter(e => !sinceTs || new Date(e.timestamp).getTime() / 1000 >= sinceTs)
+              .map((e, i) => (
               <div key={i}>
                 <div className="flex gap-2 cursor-pointer hover:bg-gray-800 rounded px-1" onClick={() => setExpandedError(expandedError === i ? null : i)}>
                   <span className="text-gray-500 shrink-0 w-36">{e.timestamp}</span>
@@ -226,7 +243,7 @@ export default function DebugConsole() {
                 )}
               </div>
             ))}
-            {(!logData?.entries || logData.entries.length === 0) && <p className="text-gray-500 text-center py-4">No log entries</p>}
+            {(!logData?.entries || (logData.entries.filter(e => !sinceTs || new Date(e.timestamp).getTime() / 1000 >= sinceTs)).length === 0) && <p className="text-gray-500 text-center py-4">No log entries{sinceTs ? ' after the specified time' : ''}</p>}
           </div>
         </div>
       )}

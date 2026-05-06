@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2 } from 'lucide-react';
-import { publishing } from '@/lib/api';
+import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users } from 'lucide-react';
+import { publishing, api } from '@/lib/api';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -10,10 +10,23 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const { siteId } = useParams();
+  const { siteId: routeSiteId } = useParams();
   const location = useLocation();
+
+  // Persist last visited siteId so the Publish button stays visible on non-site pages
+  const [lastSiteId, setLastSiteId] = useState<string | undefined>(
+    () => localStorage.getItem('last-site-id') || undefined
+  );
+  useEffect(() => {
+    if (routeSiteId) {
+      setLastSiteId(routeSiteId);
+      localStorage.setItem('last-site-id', routeSiteId);
+    }
+  }, [routeSiteId]);
+  const siteId = routeSiteId || lastSiteId;
   const [publishStatus, setPublishStatus] = useState<'idle' | 'publishing' | 'success' | 'error'>('idle');
   const [publishMsg, setPublishMsg] = useState('');
+  const [publishErrorTime, setPublishErrorTime] = useState<number | null>(null);
   const [adminTheme, setAdminTheme] = useState<'cms-admin' | 'cms-admin-light'>(() => {
     return (localStorage.getItem('admin-theme') as 'cms-admin' | 'cms-admin-light') || 'cms-admin';
   });
@@ -41,8 +54,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       setPublishStatus('error');
       const msg = err.response?.data?.message || 'Publish failed';
       setPublishMsg(msg);
+      setPublishErrorTime(Math.floor(Date.now() / 1000));
       setTimeout(() => setPublishStatus('idle'), 5000);
     },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: () => api.post('/auth/logout'),
+    onSuccess: () => { window.location.href = '/admin/login'; },
+    onError: () => { window.location.href = '/admin/login'; },
   });
 
   const navItems = siteId
@@ -93,6 +113,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             }`}>
             <LayoutDashboard size={15} strokeWidth={1.5} />
             {!collapsed && 'Dashboard'}
+          </Link>
+          <Link to="/users"
+            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+              location.pathname.startsWith('/admin/users')
+                ? 'bg-primary/10 text-primary'
+                : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
+            }`}>
+            <Users size={15} strokeWidth={1.5} />
+            {!collapsed && 'Users'}
           </Link>
 
           {navItems.length > 0 && (
@@ -161,7 +190,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Bug size={15} strokeWidth={1.5} />
             {!collapsed && 'Debug'}
           </Link>
-          <button className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[13px] text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors">
+          <button onClick={() => logoutMutation.mutate()} className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[13px] text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors">
             <LogOut size={15} strokeWidth={1.5} />
             {!collapsed && 'Logout'}
           </button>
@@ -179,7 +208,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <span className="text-success flex items-center gap-1.5"><CheckCircle size={13} /> {publishMsg}</span>
               )}
               {publishStatus === 'error' && publishMsg && (
-                <span className="text-error flex items-center gap-1.5"><XCircle size={13} /> {publishMsg}</span>
+                <span className="text-error flex items-center gap-1.5">
+                  <XCircle size={13} /> {publishMsg}
+                  {publishErrorTime && (
+                    <Link to={`/debug?since=${publishErrorTime}`} className="underline opacity-70 hover:opacity-100 ml-1">View logs</Link>
+                  )}
+                </span>
               )}
             </div>
             <button

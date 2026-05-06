@@ -146,9 +146,12 @@ export default function SiteSettings() {
   });
 
   const saveSeo = () => updateMutation.mutate({
-    seo_title_template: seoTitleTemplate,
-    seo_description: seoDescription,
-    og_image_url: ogImageUrl,
+    seo_defaults: {
+      ...(site?.seo_defaults || {}),
+      title_template: seoTitleTemplate,
+      description: seoDescription,
+      og_image: ogImageUrl,
+    },
   });
 
   const saveCustomCode = () => updateMutation.mutate({

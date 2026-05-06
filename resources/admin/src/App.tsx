@@ -10,11 +10,6 @@ import PostEditor from './pages/PostEditor';
 import Categories from './pages/Categories';
 import MagazineList from './pages/MagazineList';
 import MagazineEditorV2 from './pages/MagazineEditorV2';
-import Step1BriefScreen from './pages/Step1BriefScreen';
-import Step2IntakeScreen from './pages/Step2IntakeScreen';
-import Step3CurationScreen from './pages/Step3CurationScreen';
-import Step5LayoutScreen from './pages/Step5LayoutScreen';
-import Step7HandoffScreen from './pages/Step7HandoffScreen';
 import Assets from './pages/Assets';
 import SiteSettings from './pages/SiteSettings';
 import ImportPage from './pages/ImportPage';
@@ -25,8 +20,6 @@ import Users from './pages/Users';
 import Grids from './pages/Grids';
 import GridEditor from './pages/GridEditor';
 import GridAssignments from './pages/GridAssignments';
-import Themes from './pages/Themes';
-import ThemeCustomizer from './pages/ThemeCustomizer';
 import Analytics from './pages/Analytics';
 import ContentGraph from './pages/ContentGraph';
 import DebugConsole from './pages/DebugConsole';
@@ -66,12 +59,6 @@ export default function App() {
           <Route path="/sites/:siteId/magazine/wizard" element={<LayoutRoute><SessionsListPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/magazine/wizard/:id" element={<WizardPage />} />
           <Route path="/sites/:siteId/magazines/:magazineId/edit" element={<MagazineEditorV2 />} />
-          <Route path="/sites/:siteId/issue-composer/new" element={<Step1BriefScreen />} />
-          <Route path="/sites/:siteId/issue-composer/:issueId" element={<Step1BriefScreen />} />
-          <Route path="/sites/:siteId/issue-composer/:issueId/intake" element={<Step2IntakeScreen />} />
-          <Route path="/sites/:siteId/issue-composer/:issueId/curation" element={<Step3CurationScreen />} />
-          <Route path="/sites/:siteId/issue-composer/:issueId/layout" element={<Step5LayoutScreen />} />
-          <Route path="/sites/:siteId/issue-composer/:issueId/handoff" element={<Step7HandoffScreen />} />
           <Route path="/sites/:siteId/categories" element={<LayoutRoute><Categories /></LayoutRoute>} />
           <Route path="/sites/:siteId/tags" element={<LayoutRoute><Tags /></LayoutRoute>} />
           <Route path="/sites/:siteId/menus" element={<LayoutRoute><Menus /></LayoutRoute>} />
@@ -80,8 +67,6 @@ export default function App() {
           <Route path="/sites/:siteId/grids/assignments" element={<LayoutRoute><GridAssignments /></LayoutRoute>} />
           <Route path="/sites/:siteId/grids/:gridId/edit" element={<GridEditor />} />
           <Route path="/sites/:siteId/assets" element={<LayoutRoute><Assets /></LayoutRoute>} />
-          <Route path="/sites/:siteId/themes" element={<LayoutRoute><Themes /></LayoutRoute>} />
-          <Route path="/sites/:siteId/theme" element={<LayoutRoute><ThemeCustomizer /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-engine" element={<LayoutRoute><ThemeEngine /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-engine/:themeId" element={<ThemeEditorPage />} />
           <Route path="/sites/:siteId/theme-engine/:themeId/studio" element={<ThemeStudio />} />

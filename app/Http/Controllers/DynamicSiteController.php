@@ -246,6 +246,12 @@ HTML;
      */
     private function findHomePage(Site $site): ?Page
     {
+        $configuredId = $site->settings['homepage_id'] ?? null;
+        if ($configuredId) {
+            $page = Page::where('site_id', $site->id)->where('id', $configuredId)->first();
+            if ($page) return $page;
+        }
+
         return Page::where('site_id', $site->id)->where('slug', 'home')->first()
             ?? Page::where('site_id', $site->id)->orderBy('sort_order')->first();
     }

@@ -39,8 +39,6 @@ class SiteService
             $existing = $site->settings ?? [];
             $incoming = $data['settings'];
             $data['settings'] = array_merge($existing, $incoming);
-            // Remove keys explicitly set to null (intentional unset)
-            $data['settings'] = array_filter($data['settings'], fn ($v) => $v !== null);
         }
 
         $site->update($data);
