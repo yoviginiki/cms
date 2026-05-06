@@ -35,6 +35,8 @@ class MagazineController extends Controller
 
     public function store(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
+
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
@@ -71,6 +73,8 @@ class MagazineController extends Controller
 
     public function update(Request $request, Site $site, Magazine $magazine): JsonResponse
     {
+        $this->authorize('update', $site);
+
         $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'slug' => ['sometimes', 'string', 'max:255'],
@@ -109,6 +113,8 @@ class MagazineController extends Controller
      */
     public function savePages(Request $request, Site $site, Magazine $magazine): JsonResponse
     {
+        $this->authorize('update', $site);
+
         $request->validate([
             'pages' => ['required', 'array'],
             'pages.*.id' => ['sometimes', 'nullable', 'string'],

@@ -100,6 +100,22 @@ class MagazineTest extends TestCase
         $this->assertNotContains('Winter Edition', $titles);
     }
 
+    public function test_editor_cannot_create_magazine(): void
+    {
+        $this->actingAsEditor()
+            ->postJson("/api/v1/sites/{$this->site->id}/magazines", ['title' => 'Sneaky'])
+            ->assertStatus(403);
+    }
+
+    public function test_editor_cannot_update_magazine(): void
+    {
+        $magazine = $this->makeMagazine();
+
+        $this->actingAsEditor()
+            ->putJson("/api/v1/sites/{$this->site->id}/magazines/{$magazine->id}", ['title' => 'Hijacked'])
+            ->assertStatus(403);
+    }
+
     public function test_editor_cannot_delete_magazine(): void
     {
         $magazine = $this->makeMagazine();
