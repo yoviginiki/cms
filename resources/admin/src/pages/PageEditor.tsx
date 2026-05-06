@@ -687,7 +687,7 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'page' && (
           <PageSettingsPanel page={page} siteId={siteId} pageId={pageId}
-            layouts={layouts} publicBase={publicBase} />
+            layouts={layouts} publicBase={publicBase} siteSlug={siteSlug} />
         )}
         {activeTab === 'block' && <BlockSettings />}
         {activeTab === 'add' && <BlockPicker />}
@@ -696,9 +696,9 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
   );
 }
 
-function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase }: {
+function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug }: {
   page: any; siteId: string; pageId: string;
-  layouts: any[]; publicBase: string;
+  layouts: any[]; publicBase: string; siteSlug: string;
 }) {
   const [saving, setSaving] = useState(false);
 
