@@ -137,6 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Publishing
         Route::post('sites/{site}/publish', [PublishController::class, 'publish']);
         Route::post('sites/{site}/publish/clear', [PublishController::class, 'clear']);
+        Route::get('sites/{site}/download-zip', [PublishController::class, 'downloadZip']);
         Route::get('sites/{site}/deployments', [PublishController::class, 'history']);
         Route::get('sites/{site}/deployments/{deployment}', [PublishController::class, 'status']);
         Route::post('sites/{site}/deployments/{deployment}/rollback', [PublishController::class, 'rollback']);

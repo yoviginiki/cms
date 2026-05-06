@@ -8,6 +8,8 @@ use App\Models\Deployment;
 use App\Models\Site;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PublishController extends Controller
 {
@@ -78,6 +80,51 @@ class PublishController extends Controller
             ->paginate($request->integer('per_page', 15));
 
         return response()->json($deployments);
+    }
+
+    /**
+     * Download the latest build as a ZIP file.
+     */
+    public function downloadZip(Site $site): BinaryFileResponse|JsonResponse
+    {
+        $this->authorize('view', $site);
+
+        // Find latest successful deployment with an artifact
+        $deployment = Deployment::where('site_id', $site->id)
+            ->where('status', 'live')
+            ->whereNotNull('artifact_path')
+            ->orderByDesc('completed_at')
+            ->first();
+
+        if (!$deployment || !is_dir($deployment->artifact_path)) {
+            return response()->json(['message' => 'No build available. Publish the site first.'], 404);
+        }
+
+        $zipName = $site->slug . '-' . now()->format('Y-m-d-His') . '.zip';
+        $zipPath = storage_path("app/tmp/{$zipName}");
+        File::ensureDirectoryExists(dirname($zipPath));
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return response()->json(['message' => 'Failed to create ZIP file.'], 500);
+        }
+
+        $basePath = realpath($deployment->artifact_path);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($basePath, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+
+        foreach ($iterator as $file) {
+            $relativePath = substr($file->getPathname(), strlen($basePath) + 1);
+            $zip->addFile($file->getPathname(), $relativePath);
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath, $zipName, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
     }
 
     public function rollback(Request $request, Site $site, Deployment $deployment): JsonResponse

@@ -1,7 +1,9 @@
 <?php
+
 namespace App\Domain\Publishing\Services;
 
 use App\Domain\Publishing\Services\Deploy\RenameDeployStrategy;
+use App\Domain\Publishing\Services\Deploy\SshDeployStrategy;
 use App\Domain\Publishing\Services\Deploy\SymlinkDeployStrategy;
 use App\Models\Deployment;
 use Illuminate\Support\Facades\File;
@@ -11,34 +13,77 @@ class DeployService
     public function deploy(Deployment $deployment, string $stagingPath): void
     {
         $site = $deployment->site;
-        $basePath = config('publishing.public_path');
+        $settings = $site->settings ?? [];
+        $method = $settings['deploy_method'] ?? 'local';
 
-        if ($site->custom_domain) {
-            // Custom domain: copy files directly to the public path root
-            $this->copyDeploy($stagingPath, $basePath, $deployment);
-        } else {
-            // Subdomain: symlink/rename into a subdirectory
-            $publicPath = $basePath . '/' . $site->slug;
-            $strategy = $this->resolveStrategy();
-            $strategy->deploy($stagingPath, $publicPath, $deployment);
-        }
+        match ($method) {
+            'ssh' => $this->deploySsh($deployment, $stagingPath, $settings),
+            'zip_only' => $this->deployZipOnly($deployment, $stagingPath),
+            default => $this->deployLocal($deployment, $stagingPath),
+        };
     }
 
     public function rollback(Deployment $deployment): void
     {
-        $strategy = $this->resolveStrategy();
+        $strategy = $this->resolveLocalStrategy();
         $strategy->rollback($deployment);
     }
 
     /**
+     * Deploy locally (copy/symlink to public_path).
+     */
+    private function deployLocal(Deployment $deployment, string $stagingPath): void
+    {
+        $site = $deployment->site;
+        $basePath = config('publishing.public_path');
+
+        if ($site->custom_domain) {
+            $this->copyDeploy($stagingPath, $basePath, $deployment);
+        } else {
+            $publicPath = $basePath . '/' . $site->slug;
+            $strategy = $this->resolveLocalStrategy();
+            $strategy->deploy($stagingPath, $publicPath, $deployment);
+        }
+    }
+
+    /**
+     * Deploy via rsync over SSH.
+     */
+    private function deploySsh(Deployment $deployment, string $stagingPath, array $settings): void
+    {
+        $sshConfig = [
+            'host' => $settings['deploy_ssh_host'] ?? '',
+            'user' => $settings['deploy_ssh_user'] ?? '',
+            'path' => $settings['deploy_ssh_path'] ?? '',
+            'port' => $settings['deploy_ssh_port'] ?? 22,
+            'key_path' => $settings['deploy_ssh_key'] ?? null,
+        ];
+
+        $strategy = new SshDeployStrategy();
+        $strategy->deploy($stagingPath, $sshConfig, $deployment);
+    }
+
+    /**
+     * ZIP-only: just keep the build, no deploy. Users download the ZIP manually.
+     */
+    private function deployZipOnly(Deployment $deployment, string $stagingPath): void
+    {
+        $deployment->update([
+            'artifact_path' => $stagingPath,
+            'metadata' => array_merge($deployment->metadata ?? [], [
+                'deploy_method' => 'zip_only',
+                'zip_ready' => true,
+            ]),
+        ]);
+    }
+
+    /**
      * Direct copy deploy for custom domain sites.
-     * Copies built files into the document root, preserving non-CMS files.
      */
     private function copyDeploy(string $stagingPath, string $targetPath, Deployment $deployment): void
     {
         File::ensureDirectoryExists($targetPath);
 
-        // Copy all built files to target
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($stagingPath, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST
@@ -50,10 +95,8 @@ class DeployService
 
             if ($item->isDir()) {
                 File::ensureDirectoryExists($dest);
-                // Ensure writable by web server group
                 @chmod($dest, 0775);
             } else {
-                // If target exists but isn't writable, fix permissions first
                 if (file_exists($dest) && !is_writable($dest)) {
                     @chmod($dest, 0664);
                 }
@@ -65,14 +108,13 @@ class DeployService
         $deployment->update(['artifact_path' => $stagingPath]);
     }
 
-    private function resolveStrategy(): SymlinkDeployStrategy|RenameDeployStrategy
+    private function resolveLocalStrategy(): SymlinkDeployStrategy|RenameDeployStrategy
     {
         $configured = config('publishing.deploy_strategy');
 
         if ($configured === 'symlink') return new SymlinkDeployStrategy();
         if ($configured === 'rename') return new RenameDeployStrategy();
 
-        // Auto-detect
         $testDir = config('publishing.public_path');
         if (!is_dir($testDir)) @mkdir($testDir, 0755, true);
 

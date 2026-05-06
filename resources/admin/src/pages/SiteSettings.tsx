@@ -21,7 +21,7 @@ interface PageItem {
   status: string;
 }
 
-type Tab = 'general' | 'front-page' | 'seo' | 'custom-code' | 'ai' | 'magazine' | 'danger';
+type Tab = 'general' | 'front-page' | 'seo' | 'deploy' | 'custom-code' | 'ai' | 'magazine' | 'danger';
 
 declare global {
   interface Window {
@@ -70,6 +70,14 @@ export default function SiteSettings() {
   const [magPnSize, setMagPnSize] = useState('9');
   const [openaiKey, setOpenaiKey] = useState('');
 
+  // Deploy
+  const [deployMethod, setDeployMethod] = useState<'local' | 'ssh' | 'zip_only'>('local');
+  const [sshHost, setSshHost] = useState('');
+  const [sshUser, setSshUser] = useState('');
+  const [sshPath, setSshPath] = useState('');
+  const [sshPort, setSshPort] = useState(22);
+  const [sshKey, setSshKey] = useState('');
+
   const userRole = window.__APP__?.user?.role;
   const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
 
@@ -113,6 +121,12 @@ export default function SiteSettings() {
       setMagPnAlign((site.settings?.mag_pn_align as string) ?? 'outer');
       setMagPnSize((site.settings?.mag_pn_size as string) ?? '9');
       setOpenaiKey((site.settings?.openai_api_key as string) ?? '');
+      setDeployMethod((site.settings?.deploy_method as 'local' | 'ssh' | 'zip_only') ?? 'local');
+      setSshHost((site.settings?.deploy_ssh_host as string) ?? '');
+      setSshUser((site.settings?.deploy_ssh_user as string) ?? '');
+      setSshPath((site.settings?.deploy_ssh_path as string) ?? '');
+      setSshPort(Number(site.settings?.deploy_ssh_port) || 22);
+      setSshKey((site.settings?.deploy_ssh_key as string) ?? '');
     }
   }, [site]);
 
@@ -185,10 +199,23 @@ export default function SiteSettings() {
     },
   });
 
+  const saveDeploy = () => updateMutation.mutate({
+    settings: {
+      ...(site?.settings || {}),
+      deploy_method: deployMethod,
+      deploy_ssh_host: deployMethod === 'ssh' ? sshHost : null,
+      deploy_ssh_user: deployMethod === 'ssh' ? sshUser : null,
+      deploy_ssh_path: deployMethod === 'ssh' ? sshPath : null,
+      deploy_ssh_port: deployMethod === 'ssh' ? sshPort : null,
+      deploy_ssh_key: deployMethod === 'ssh' ? (sshKey || null) : null,
+    },
+  });
+
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: 'general', label: 'General', show: true },
     { key: 'front-page', label: 'Front Page', show: true },
     { key: 'seo', label: 'SEO', show: true },
+    { key: 'deploy', label: 'Deploy', show: isAdminOrOwner },
     { key: 'custom-code', label: 'Custom Code', show: isAdminOrOwner },
     { key: 'ai', label: 'AI', show: isAdminOrOwner },
     { key: 'danger', label: 'Danger Zone', show: true },
@@ -414,6 +441,86 @@ export default function SiteSettings() {
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deploy */}
+      {activeTab === 'deploy' && isAdminOrOwner && (
+        <div className="max-w-2xl space-y-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Deploy method</label>
+              <div className="space-y-2">
+                {([
+                  { value: 'local', label: 'Local', desc: 'Copy files to a directory on this server. For sites hosted on the same machine.' },
+                  { value: 'ssh', label: 'SSH (rsync)', desc: 'Sync files to a remote server via SSH. Secure, fast, sends only changes.' },
+                  { value: 'zip_only', label: 'ZIP download only', desc: 'No auto-deploy. Download a ZIP file with the full site and upload it yourself.' },
+                ] as const).map(opt => (
+                  <label key={opt.value}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${deployMethod === opt.value ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <input type="radio" name="deploy_method" value={opt.value} checked={deployMethod === opt.value}
+                      onChange={() => setDeployMethod(opt.value)} className="radio radio-sm radio-primary mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{opt.label}</p>
+                      <p className="text-xs text-gray-500">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {deployMethod === 'ssh' && (
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-sm font-medium text-gray-800">SSH connection</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Host</label>
+                    <input type="text" className="input input-bordered input-sm w-full" placeholder="example.com"
+                      value={sshHost} onChange={(e) => setSshHost(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Port</label>
+                    <input type="number" className="input input-bordered input-sm w-full" placeholder="22"
+                      value={sshPort} onChange={(e) => setSshPort(Number(e.target.value))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">User</label>
+                  <input type="text" className="input input-bordered input-sm w-full" placeholder="deploy"
+                    value={sshUser} onChange={(e) => setSshUser(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Remote path</label>
+                  <input type="text" className="input input-bordered input-sm w-full" placeholder="/var/www/mysite/public_html/"
+                    value={sshPath} onChange={(e) => setSshPath(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">SSH key path (on this server)</label>
+                  <input type="text" className="input input-bordered input-sm w-full" placeholder="/root/.ssh/id_ed25519"
+                    value={sshKey} onChange={(e) => setSshKey(e.target.value)} />
+                  <p className="text-[10px] text-gray-400 mt-1">Path to the private key file on the CMS server. Leave empty to use the default SSH key.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-gray-100 flex items-center gap-3">
+              <button onClick={saveDeploy} disabled={updateMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Deploy Settings
+              </button>
+            </div>
+          </div>
+
+          {/* ZIP Download — always available */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h3 className="text-sm font-medium text-gray-800 mb-2">Download site as ZIP</h3>
+            <p className="text-xs text-gray-500 mb-4">Download the latest published build as a ZIP file. Contains all HTML pages, assets, sitemap, and RSS feed.</p>
+            <a href={`/api/v1/sites/${siteId}/download-zip`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-900">
+              Download ZIP
+            </a>
           </div>
         </div>
       )}

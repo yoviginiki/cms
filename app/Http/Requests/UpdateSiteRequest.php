@@ -43,6 +43,12 @@ class UpdateSiteRequest extends FormRequest
             'settings.mag_pn_position' => ['sometimes', 'string', 'max:20'],
             'settings.mag_pn_align' => ['sometimes', 'string', 'max:20'],
             'settings.mag_pn_size' => ['sometimes', 'string', 'max:10'],
+            'settings.deploy_method' => ['sometimes', 'in:local,ssh,zip_only'],
+            'settings.deploy_ssh_host' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'settings.deploy_ssh_user' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'settings.deploy_ssh_path' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'settings.deploy_ssh_port' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:65535'],
+            'settings.deploy_ssh_key' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }
 
