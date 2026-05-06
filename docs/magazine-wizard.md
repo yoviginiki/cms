@@ -4,6 +4,10 @@ AI-guided magazine planning that walks the user through 7 editorial
 steps with a conversational art director. Produces a structured magazine
 issue ready for the Magazine Editor canvas.
 
+> **Note:** The Issue Composer (multi-screen form flow, `Step1–Step7Screen` components)
+> has been removed. The Wizard (chat-style, this document) is the only magazine
+> planning system.
+
 ## Flow
 
 ```
@@ -11,11 +15,11 @@ Step 1 (Brief) ──> Step 2 (Structure) ──> Step 3 (Select) ──> Step 4
                                                                       │
 Step 7 (Review) <── Step 6 (Thumbnails) <── Step 5 (Directions) <─────┘
        │
-       └──> Provision ──> Magazine Issue + Pages in Editor
+       └──> Provision ──> Magazine + MagazinePages in Editor
 ```
 
 Each step has:
-- A **chat panel** (conversational AI with streaming)
+- A **chat panel** (conversational AI with streaming SSE)
 - An **artifact panel** (structured deliverable, editable by user)
 - A **lock** action that commits the artifact and advances
 
@@ -48,7 +52,7 @@ mag_wizard_messages          # Chat history
 └── created_at
 
 On provision:
-magazine_issues              # Created from wizard
+magazine_issues              # Created by WizardProvisioner (internal — no UI controller)
 ├── wizard_brief (jsonb)     # Step 1 data
 
 mag_articles                 # One per article in structure
