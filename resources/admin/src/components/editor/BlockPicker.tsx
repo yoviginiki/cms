@@ -9,6 +9,7 @@ const CATEGORY_ORDER: { key: BlockCategory; label: string }[] = [
   { key: 'typography', label: 'Typography' },
   { key: 'content', label: 'Content' },
   { key: 'layout', label: 'Layout' },
+  { key: 'navigation', label: 'Navigation' },
   { key: 'media', label: 'Media' },
   { key: 'blog', label: 'Blog & editorial' },
   { key: 'interactive', label: 'Interactive' },

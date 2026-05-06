@@ -75,5 +75,8 @@ import './newsletter';
 import './sharebuttons';
 import './flipbook';
 import './scroll_page';
+import './menu';
+import './breadcrumbs';
+import './anchormenu';
 
 export { blockRegistry } from './registry';

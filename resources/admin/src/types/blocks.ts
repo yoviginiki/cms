@@ -137,4 +137,5 @@ export type BlockCategory =
   | 'typography'
   | 'data'
   | 'blog'
-  | 'embed';
+  | 'embed'
+  | 'navigation';
