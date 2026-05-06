@@ -30,7 +30,7 @@
     <ul style="list-style:none;padding:0;margin:0;">
         @foreach($posts as $post)
             <li style="padding:0.5rem 0;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:0.5rem;">
-                <a href="/sites/{{ $site->slug }}/blog/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;font-size:0.875rem;flex:1;">{{ $post->title }}</a>
+                <a href="/sites/{{ $site->slug }}/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;font-size:0.875rem;flex:1;">{{ $post->title }}</a>
                 @if($showDate)
                     <span style="font-size:0.75rem;color:#9ca3af;">{{ $post->published_at?->format('M j') }}</span>
                 @endif
@@ -49,7 +49,7 @@
                         <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $post->category->name }}</span>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:600;font-size:1rem;">
-                        <a href="/sites/{{ $site->slug }}/blog/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
+                        <a href="/sites/{{ $site->slug }}/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
                     </h3>
                     @if($showExcerpt && $post->excerpt)
                         <p style="margin:0.25rem 0 0;color:#6b7280;font-size:0.8125rem;line-height:1.4;">{{ \Illuminate\Support\Str::limit($post->excerpt, 120) }}</p>
@@ -75,7 +75,7 @@
                     <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $first->category->name }}</span>
                 @endif
                 <h2 style="margin:0.25rem 0;font-weight:700;font-size:1.5rem;">
-                    <a href="/sites/{{ $site->slug }}/blog/{{ $first->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
+                    <a href="/sites/{{ $site->slug }}/{{ $first->category?->slug ?? 'uncategorized' }}/{{ $first->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
                 </h2>
                 @if($showExcerpt && $first->excerpt)
                     <p style="color:#6b7280;font-size:0.875rem;margin-top:0.5rem;">{{ $first->excerpt }}</p>
@@ -99,7 +99,7 @@
                         <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $post->category->name }}</span>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:600;">
-                        <a href="/sites/{{ $site->slug }}/blog/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
+                        <a href="/sites/{{ $site->slug }}/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
                     </h3>
                     @if($showExcerpt && $post->excerpt)
                         <p style="color:#6b7280;font-size:0.8125rem;margin-top:0.25rem;">{{ \Illuminate\Support\Str::limit($post->excerpt, 80) }}</p>

@@ -18,8 +18,7 @@ Route::get('/login', function () {
 // Serves pages/posts dynamically with admin toolbar
 Route::middleware(['auth', \App\Http\Middleware\SetTenantFromAuth::class])->prefix('sites/{siteSlug}')->group(function () {
     Route::get('/', [DynamicSiteController::class, 'home'])->name('site.home');
-    Route::get('/blog', [DynamicSiteController::class, 'blogIndex'])->name('site.blog');
-    Route::get('/blog/{slug}', [DynamicSiteController::class, 'post'])->name('site.post');
+    Route::get('/{categorySlug}/{postSlug}', [DynamicSiteController::class, 'post'])->name('site.post');
     Route::get('/{slug}', [DynamicSiteController::class, 'page'])->name('site.page');
 });
 

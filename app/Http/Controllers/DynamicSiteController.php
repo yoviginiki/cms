@@ -28,7 +28,7 @@ class DynamicSiteController extends Controller
         $homepageType = $settings['homepage_type'] ?? 'page';
 
         if ($homepageType === 'blog') {
-            return $this->blogIndex($request);
+            return $this->blogIndex($request, $siteSlug);
         }
 
         if ($homepageType === 'grid' && !empty($settings['homepage_grid_id'])) {
@@ -65,15 +65,15 @@ class DynamicSiteController extends Controller
     }
 
     /**
-     * Serve a blog post by slug.
+     * Serve a blog post by category/post slug.
      */
-    public function post(Request $request, string $siteSlug, string $slug): Response
+    public function post(Request $request, string $siteSlug, string $categorySlug, string $postSlug): Response
     {
         $site = $this->resolveSite($siteSlug);
-        $post = Post::where('site_id', $site->id)->where('slug', $slug)->first();
+        $post = Post::where('site_id', $site->id)->where('slug', $postSlug)->first();
 
         if (!$post) {
-            abort(404, "Post not found: {$slug}");
+            abort(404, "Post not found: {$postSlug}");
         }
 
         return $this->renderContent($post, $site);
@@ -183,6 +183,7 @@ HTML;
         foreach ($posts as $post) {
             $date = $post->published_at?->format('M j, Y') ?? '';
             $cat = $post->category_id ? ($post->category?->name ?? '') : '';
+            $catSlug = $post->category?->slug ?? 'uncategorized';
             $shortId = substr($post->id, 0, 8);
             $catBadge = $cat ? '<span style="font-size:11px;padding:2px 8px;background:#f1f5f9;border-radius:999px;color:#475569;">' . e($cat) . '</span>' : '';
             $statusBg = $post->status === 'published' ? '#dcfce7;color:#166534' : '#fef9c3;color:#854d0e';
@@ -198,7 +199,7 @@ HTML;
     {$catBadge}
     <span style="font-size:11px;padding:2px 8px;border-radius:999px;background:{$statusBg};">{$status}</span>
   </div>
-  <a href="/sites/{$site->slug}/blog/{$slug}" style="font-size:1.25rem;font-weight:600;color:var(--color-text,#1e293b);text-decoration:none;">{$title}</a>
+  <a href="/sites/{$site->slug}/{$catSlug}/{$slug}" style="font-size:1.25rem;font-weight:600;color:var(--color-text,#1e293b);text-decoration:none;">{$title}</a>
   {$excerptHtml}
 </article>
 HTML;
