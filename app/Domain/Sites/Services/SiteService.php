@@ -2,6 +2,7 @@
 
 namespace App\Domain\Sites\Services;
 
+use App\Domain\Grid\Services\GridPresetSeeder;
 use App\Models\Site;
 use App\Models\Tenant;
 use App\Models\Theme;
@@ -9,6 +10,10 @@ use Illuminate\Support\Str;
 
 class SiteService
 {
+    public function __construct(
+        private GridPresetSeeder $gridPresetSeeder,
+    ) {}
+
     public function createSite(array $data, Tenant $tenant): Site
     {
         $data['tenant_id'] = $tenant->id;
@@ -28,6 +33,9 @@ class SiteService
         ]);
 
         $site->update(['active_theme_id' => $theme->id]);
+
+        // Seed default grid presets for the new site
+        $this->gridPresetSeeder->seed($site);
 
         return $site->load('theme');
     }

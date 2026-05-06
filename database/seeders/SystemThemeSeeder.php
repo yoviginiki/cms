@@ -10,6 +10,11 @@ class SystemThemeSeeder extends Seeder
 {
     public function run(): void
     {
+        // Temporarily disable RLS for system themes (site_id = NULL)
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE themes DISABLE ROW LEVEL SECURITY');
+        }
+
         $themes = [
             $this->editorial(),
             $this->commerce(),
@@ -53,6 +58,10 @@ class SystemThemeSeeder extends Seeder
                     'updated_at' => now(),
                 ]);
             }
+        }
+
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE themes ENABLE ROW LEVEL SECURITY');
         }
     }
 
