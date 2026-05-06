@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Globe, FileText, Newspaper } from 'lucide-react';
+import { Plus, Globe, FileText, Newspaper, ExternalLink } from 'lucide-react';
 import { sites } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
@@ -8,6 +8,7 @@ interface Site {
   id: string;
   name: string;
   slug: string;
+  custom_domain?: string;
   status: string;
   pages_count?: number;
   posts_count?: number;
@@ -74,6 +75,13 @@ export default function Dashboard() {
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Posts</button>
                   <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/settings`); }}
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Settings</button>
+                  <a href={site.custom_domain ? `https://${site.custom_domain}` : '/site'}
+                    target="_blank" rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="ml-auto flex items-center gap-1 text-[12px] text-base-content/40 hover:text-primary font-medium">
+                    <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
+                    View Site
+                  </a>
                 </div>
               </div>
             </div>
