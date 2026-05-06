@@ -23,7 +23,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       localStorage.setItem('last-site-id', routeSiteId);
     }
   }, [routeSiteId]);
-  const siteId = routeSiteId || lastSiteId;
+  // Only show site nav when actively viewing a site, not on dashboard/users/debug
+  const isOnSitePage = location.pathname.includes('/sites/');
+  const siteId = isOnSitePage ? (routeSiteId || lastSiteId) : undefined;
+  // But keep lastSiteId for the Publish button on non-site pages
+  const publishSiteId = routeSiteId || lastSiteId;
   const [publishStatus, setPublishStatus] = useState<'idle' | 'publishing' | 'success' | 'error'>('idle');
   const [publishMsg, setPublishMsg] = useState('');
   const [publishErrorTime, setPublishErrorTime] = useState<number | null>(null);
@@ -40,10 +44,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const publishMutation = useMutation({
     mutationFn: () => {
-      if (!siteId) return Promise.reject('No site');
+      if (!publishSiteId) return Promise.reject('No site');
       setPublishStatus('publishing');
       setPublishMsg('');
-      return publishing.publish(siteId);
+      return publishing.publish(publishSiteId!);
     },
     onSuccess: () => {
       setPublishStatus('success');
@@ -200,7 +204,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        {siteId && (
+        {publishSiteId && (
           <div className="flex items-center justify-between h-12 px-4 bg-base-100 border-b border-base-300/30 shrink-0">
             {/* Status */}
             <div className="text-[13px]">

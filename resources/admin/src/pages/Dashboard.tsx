@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Globe, FileText, Newspaper, ExternalLink } from 'lucide-react';
+import { Plus, Globe, FileText, Newspaper, ExternalLink, Download } from 'lucide-react';
 import { sites } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
@@ -75,6 +75,12 @@ export default function Dashboard() {
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Posts</button>
                   <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/settings`); }}
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Settings</button>
+                  <a href={`/api/v1/sites/${site.id}/download-zip`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1 text-[12px] text-base-content/40 hover:text-primary font-medium">
+                    <Download className="h-3 w-3" strokeWidth={1.5} />
+                    ZIP
+                  </a>
                   <a href={site.custom_domain ? `https://${site.custom_domain}` : `/sites/${site.slug}`}
                     target="_blank" rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
