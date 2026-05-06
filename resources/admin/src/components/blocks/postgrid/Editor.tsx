@@ -21,6 +21,7 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
       <div>
         <label className="text-[11px] text-base-content/50 mb-1 block">Columns</label>
         <select className="select select-bordered select-sm w-full" value={data.columns || 3} onChange={(e) => update('columns', Number(e.target.value))}>
+          <option value={1}>1</option>
           <option value={2}>2</option>
           <option value={3}>3</option>
           <option value={4}>4</option>

@@ -13,6 +13,8 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
       <div>
         <label className="text-[11px] text-base-content/50 mb-1 block">Limit</label>
         <select className="select select-bordered select-sm w-full" value={data.limit || 5} onChange={(e) => update('limit', Number(e.target.value))}>
+          <option value={1}>1</option>
+          <option value={2}>2</option>
           <option value={3}>3</option>
           <option value={5}>5</option>
           <option value={10}>10</option>

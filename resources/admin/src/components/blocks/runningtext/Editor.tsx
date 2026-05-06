@@ -27,6 +27,7 @@ export const RunningtextEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
           onChange={(e) => onUpdate({ ...block.data, columns: Number(e.target.value) })}
           className="select select-bordered select-sm w-full text-[12px]"
         >
+          <option value={1}>1 Column</option>
           <option value={2}>2 Columns</option>
           <option value={3}>3 Columns</option>
           <option value={4}>4 Columns</option>

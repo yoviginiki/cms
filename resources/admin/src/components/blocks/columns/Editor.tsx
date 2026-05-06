@@ -20,6 +20,7 @@ export const ColumnsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) =
           onChange={(e) => update('columnCount', parseInt(e.target.value, 10))}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
+          <option value={1}>1</option>
           <option value={2}>2</option>
           <option value={3}>3</option>
           <option value={4}>4</option>

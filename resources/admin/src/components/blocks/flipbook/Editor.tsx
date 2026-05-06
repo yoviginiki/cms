@@ -87,7 +87,7 @@ export const FlipbookEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
           </div>
           <div>
             <label className="text-[11px] text-base-content/50 mb-1 block">Max articles</label>
-            <input type="number" min={2} max={200} value={data.posts_limit ?? 50}
+            <input type="number" min={1} max={200} value={data.posts_limit ?? 50}
               onChange={(e) => update('posts_limit', Number(e.target.value))}
               className="input input-bordered input-sm w-full text-[12px]" />
           </div>
