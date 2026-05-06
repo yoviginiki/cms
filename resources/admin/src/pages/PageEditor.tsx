@@ -324,7 +324,7 @@ export default function PageEditor() {
           <>
             <BuilderCanvas />
             <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
-              layouts={layoutsList || []} publicBase={publicBase} />
+              layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''} />
           </>
         ) : (
           <>
@@ -656,9 +656,9 @@ export default function PageEditor() {
 // ═══════════════════════════════════════════
 // Page Editor Sidebar — Page settings + Block settings + Add blocks
 // ═══════════════════════════════════════════
-function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase }: {
+function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug }: {
   page: any; siteId: string; pageId: string;
-  layouts: any[]; publicBase: string;
+  layouts: any[]; publicBase: string; siteSlug: string;
 }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add'>('page');
@@ -828,7 +828,7 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase }: {
 
       {/* View link */}
       <div className="border-t border-gray-100 pt-3">
-        <a href={`/sites/${siteData?.slug || ''}/${page?.slug || ''}`} target="_blank" rel="noopener"
+        <a href={`/sites/${siteSlug}/${page?.slug || ''}`} target="_blank" rel="noopener"
           className="btn btn-ghost btn-sm w-full text-[12px] gap-1">
           <Eye size={12} /> Preview page
         </a>
