@@ -304,9 +304,9 @@ export default function PageEditor() {
             {page?.status === 'published' ? 'Unpublish' : 'Set Published'}
           </button>
 
-          <a href={`${publicBase}/${page?.slug || ''}`} target="_blank" rel="noopener"
-            className="btn btn-sm btn-ghost text-[12px] gap-1" title="View page">
-            <Eye size={13} /> View
+          <a href={`/sites/${siteData?.slug || ''}/${page?.slug || ''}`} target="_blank" rel="noopener"
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="Preview page (dynamic)">
+            <Eye size={13} /> Preview
           </a>
 
           <button onClick={handleSave} disabled={isSaving || (!isDirty && !magStore.isDirty)}
@@ -828,9 +828,9 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase }: {
 
       {/* View link */}
       <div className="border-t border-gray-100 pt-3">
-        <a href={`${publicBase}/${page?.slug || ''}`} target="_blank" rel="noopener"
+        <a href={`/sites/${siteData?.slug || ''}/${page?.slug || ''}`} target="_blank" rel="noopener"
           className="btn btn-ghost btn-sm w-full text-[12px] gap-1">
-          <Eye size={12} /> View published page
+          <Eye size={12} /> Preview page
         </a>
       </div>
     </div>
