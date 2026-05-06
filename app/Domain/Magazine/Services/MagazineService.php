@@ -52,25 +52,28 @@ class MagazineService
 
             // Insert new mag_pages
             foreach ($pagesData as $pd) {
-                MagPage::create([
+                $pageAttrs = [
                     'page_id' => $page->id,
                     'page_number' => $pd['page_number'],
                     'page_size' => $pd['page_size'] ?? ['width' => 595, 'height' => 842],
                     'margins' => $pd['margins'] ?? ['top' => 36, 'right' => 36, 'bottom' => 36, 'left' => 36],
-                    'bleed' => $pd['bleed'] ?? null,
-                    'columns' => $pd['columns'] ?? null,
-                    'baseline_grid' => $pd['baseline_grid'] ?? null,
-                    'master_page_id' => $pd['master_page_id'] ?? null,
                     'is_master' => $pd['is_master'] ?? false,
+                    'master_page_id' => $pd['master_page_id'] ?? null,
                     'spread_with' => $pd['spread_with'] ?? null,
                     'background_color' => $pd['background_color'] ?? null,
                     'background_asset_id' => $pd['background_asset_id'] ?? null,
-                ]);
+                ];
+                // Only set jsonb fields if provided (DB has NOT NULL defaults)
+                if (isset($pd['bleed'])) $pageAttrs['bleed'] = $pd['bleed'];
+                if (isset($pd['columns'])) $pageAttrs['columns'] = $pd['columns'];
+                if (isset($pd['baseline_grid'])) $pageAttrs['baseline_grid'] = $pd['baseline_grid'];
+
+                MagPage::create($pageAttrs);
             }
 
             // Insert new mag_elements
             foreach ($elementsData as $el) {
-                MagElement::create([
+                $elAttrs = [
                     'page_id' => $page->id,
                     'parent_id' => $el['parent_id'] ?? null,
                     'type' => $el['type'],
@@ -88,15 +91,18 @@ class MagazineService
                     'visible' => $el['visible'] ?? true,
                     'layer_name' => $el['layer_name'] ?? null,
                     'style' => $el['style'] ?? [],
-                    'typography' => $el['typography'] ?? null,
-                    'text_wrap' => $el['text_wrap'] ?? null,
                     'thread_id' => $el['thread_id'] ?? null,
                     'thread_order' => $el['thread_order'] ?? null,
                     'page_number' => $el['page_number'],
                     'on_master' => $el['on_master'] ?? false,
-                    'responsive_overrides' => $el['responsive_overrides'] ?? null,
                     'created_by' => $el['created_by'] ?? null,
-                ]);
+                ];
+                // Only set jsonb fields if provided (DB has NOT NULL defaults)
+                if (isset($el['typography'])) $elAttrs['typography'] = $el['typography'];
+                if (isset($el['text_wrap'])) $elAttrs['text_wrap'] = $el['text_wrap'];
+                if (isset($el['responsive_overrides'])) $elAttrs['responsive_overrides'] = $el['responsive_overrides'];
+
+                MagElement::create($elAttrs);
             }
         });
     }
