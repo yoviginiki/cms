@@ -98,6 +98,8 @@ class MagazineController extends Controller
 
     public function destroy(Site $site, Magazine $magazine): JsonResponse
     {
+        $this->authorize('update', $site);
+
         $magazine->delete();
         return response()->json(null, 204);
     }

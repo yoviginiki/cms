@@ -100,14 +100,12 @@ class MagazineTest extends TestCase
         $this->assertNotContains('Winter Edition', $titles);
     }
 
-    // NOTE: MagazineController::destroy has no authorize() call — editors can currently delete.
-    // This is a known gap; the test documents actual behaviour, not desired behaviour.
-    public function test_destroy_has_no_role_restriction(): void
+    public function test_editor_cannot_delete_magazine(): void
     {
         $magazine = $this->makeMagazine();
 
         $this->actingAsEditor()
             ->deleteJson("/api/v1/sites/{$this->site->id}/magazines/{$magazine->id}")
-            ->assertStatus(204);
+            ->assertStatus(403);
     }
 }
