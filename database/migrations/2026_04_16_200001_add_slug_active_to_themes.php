@@ -17,10 +17,16 @@ return new class extends Migration
             }
         });
 
-        // Set slug for existing themes
-        \App\Models\Theme::whereNull('slug')->each(function ($theme) {
-            $theme->update(['slug' => \Illuminate\Support\Str::slug($theme->name)]);
-        });
+        // Set slug for existing themes (use DB facade — Theme model has SoftDeletes
+        // which references deleted_at, added in a later migration)
+        \Illuminate\Support\Facades\DB::table('themes')
+            ->whereNull('slug')
+            ->orderBy('id')
+            ->each(function ($theme) {
+                \Illuminate\Support\Facades\DB::table('themes')
+                    ->where('id', $theme->id)
+                    ->update(['slug' => \Illuminate\Support\Str::slug($theme->name)]);
+            });
     }
 
     public function down(): void
