@@ -5,7 +5,11 @@ import { categories as categoriesApi } from '@/lib/api';
 import type { BlockEditorProps } from '@/types/blocks';
 
 export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const data = block.data as { limit: number; layout: string; showImage: boolean; categoryId: string; columns: number };
+  const data = block.data as {
+    categoryId: string; limit: number; columns: number;
+    layout: string; orderBy: string; showImage: boolean;
+    showExcerpt: boolean; showDate: boolean; showCategory: boolean;
+  };
   const { siteId = '' } = useParams();
 
   const { data: cats } = useQuery<Array<{ id: string; name: string }>>({
@@ -28,13 +32,17 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
         </select>
       </div>
       <div>
-        <label className="text-[11px] text-base-content/50 mb-1 block">Limit</label>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Number of posts</label>
         <select className="select select-bordered select-sm w-full" value={data.limit || 5} onChange={(e) => update('limit', Number(e.target.value))}>
           <option value={1}>1</option>
           <option value={2}>2</option>
           <option value={3}>3</option>
+          <option value={4}>4</option>
           <option value={5}>5</option>
+          <option value={6}>6</option>
+          <option value={8}>8</option>
           <option value={10}>10</option>
+          <option value={12}>12</option>
         </select>
       </div>
       <div>
@@ -48,16 +56,40 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
       </div>
       <div>
         <label className="text-[11px] text-base-content/50 mb-1 block">Layout</label>
-        <select className="select select-bordered select-sm w-full" value={data.layout || 'list'} onChange={(e) => update('layout', e.target.value)}>
+        <select className="select select-bordered select-sm w-full" value={data.layout || 'cards'} onChange={(e) => update('layout', e.target.value)}>
           <option value="cards">Cards</option>
           <option value="list">List</option>
           <option value="compact">Compact</option>
+          <option value="featured">Featured (first large)</option>
         </select>
       </div>
-      <label className="flex items-center gap-2">
-        <input type="checkbox" className="checkbox checkbox-sm" checked={!!data.showImage} onChange={(e) => update('showImage', e.target.checked)} />
-        <span className="text-[11px] text-base-content/50">Show Image</span>
-      </label>
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Order by</label>
+        <select className="select select-bordered select-sm w-full" value={data.orderBy || 'latest'} onChange={(e) => update('orderBy', e.target.value)}>
+          <option value="latest">Latest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="title">Title A-Z</option>
+          <option value="random">Random</option>
+        </select>
+      </div>
+      <div className="space-y-2 pt-2 border-t border-base-300/20">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="checkbox checkbox-sm" checked={data.showImage !== false} onChange={(e) => update('showImage', e.target.checked)} />
+          <span className="text-[11px] text-base-content/50">Show image</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="checkbox checkbox-sm" checked={data.showExcerpt !== false} onChange={(e) => update('showExcerpt', e.target.checked)} />
+          <span className="text-[11px] text-base-content/50">Show excerpt</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="checkbox checkbox-sm" checked={data.showDate !== false} onChange={(e) => update('showDate', e.target.checked)} />
+          <span className="text-[11px] text-base-content/50">Show date</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="checkbox checkbox-sm" checked={data.showCategory !== false} onChange={(e) => update('showCategory', e.target.checked)} />
+          <span className="text-[11px] text-base-content/50">Show category badge</span>
+        </label>
+      </div>
     </div>
   );
 };
