@@ -2,6 +2,7 @@
 
 namespace App\Domain\Posts\Services;
 
+use App\Models\Category;
 use App\Models\Post;
 use App\Models\Site;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,13 @@ class PostService
             $data['slug'] ?? $data['title'], $site
         );
         $data['author_id'] = $data['author_id'] ?? Auth::id();
+
+        // Assign default category if none specified
+        if (empty($data['category_id'])) {
+            $data['category_id'] = Category::where('site_id', $site->id)
+                ->orderBy('sort_order')
+                ->value('id');
+        }
 
         $tagIds = $data['tag_ids'] ?? null;
         unset($data['tag_ids']);
