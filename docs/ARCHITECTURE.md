@@ -4,14 +4,14 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Laravel 11 (PHP 8.3) |
+| Backend | Laravel 13 (PHP 8.3+) |
 | Database | PostgreSQL (primary) / MySQL (supported) |
 | Auth | Laravel Sanctum (cookie-based SPA auth) |
 | Queue | Database or Redis (configurable via `config/cms.php`) |
 | Cache | File or Redis |
-| Frontend Admin | React 18 SPA (TypeScript, Vite) |
-| State Management | Zustand (stores) |
-| CSS (admin) | Tailwind CSS 4 |
+| Frontend Admin | React 19 SPA (TypeScript 5.8, Vite 6) — separate project in `resources/admin/` |
+| State Management | Zustand 5 (stores), TanStack Query 5 (API) |
+| CSS (admin) | TailwindCSS 4, DaisyUI 5, Lucide icons |
 | Publishing Output | Static HTML files (SSG-style) |
 | Real-time | Laravel Reverb / SSE (optional) |
 | AI Integration | Anthropic Claude API |
@@ -66,13 +66,13 @@ cms-platform/
 │   ├── magazine_templates.php
 │   └── system-layouts.php
 ├── database/
-│   ├── migrations/              ← 40+ migrations
+│   ├── migrations/              ← 44 migrations
 │   └── seeders/
 ├── docs/                        ← This documentation
 ├── resources/
 │   ├── admin/src/               ← React SPA source
 │   │   ├── components/
-│   │   │   ├── blocks/          ← 60+ block editor components
+│   │   │   ├── blocks/          ← 68 block editor components
 │   │   │   ├── editor/          ← Builder canvas, sidebar, block picker
 │   │   │   ├── layout/          ← AdminLayout shell
 │   │   │   ├── magazine/
@@ -98,6 +98,19 @@ cms-platform/
 └── public/
     └── build/                   ← Compiled Vite assets
 ```
+
+## Two Vite Contexts
+
+This project has two separate npm/Vite setups. They are independent and should not be confused:
+
+| Context | Location | Purpose | Vite Version |
+|---------|----------|---------|--------------|
+| Root | `package.json` + `vite.config.js` | Laravel default asset pipeline (CSS/JS for public-facing pages) | Vite 8 |
+| Admin SPA | `resources/admin/package.json` + `resources/admin/vite.config.ts` | React 19 admin application | Vite 6 |
+
+The admin SPA is a fully self-contained React project. Its `vite.config.ts` builds to `public/admin-assets/` and uses `@vitejs/plugin-react`. The root Vite config uses `laravel-vite-plugin` for standard Laravel asset compilation.
+
+When developing the admin SPA, always run `npm` commands from `resources/admin/`, not from the project root.
 
 ## Request Lifecycle
 

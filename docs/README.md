@@ -4,36 +4,36 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 
 ## Architecture & Setup
 
-- [Architecture](ARCHITECTURE.md) — tech stack, folder structure, request lifecycle, multi-tenancy model
-- [Auth & Permissions](AUTH.md) — Sanctum auth, role hierarchy, policies, PostgreSQL RLS
+- [Architecture](ARCHITECTURE.md) -- tech stack, folder structure, two Vite contexts, request lifecycle, multi-tenancy model
+- [Auth & Permissions](AUTH.md) -- Sanctum auth, role hierarchy, policies, PostgreSQL RLS
 
 ## API & Data
 
-- [API Reference](API-REFERENCE.md) — all ~150 REST endpoints grouped by controller
-- [Models](MODELS.md) — 33 Eloquent models with fields, types, and relationships
+- [API Reference](API-REFERENCE.md) -- all ~150 REST endpoints grouped by controller (32 controllers)
+- [Models](MODELS.md) -- 30 Eloquent models with fields, types, and relationships
 
 ## Backend Services
 
-- [Services](SERVICES.md) — all domain services with method signatures (Publishing, Grid, Theme, etc.)
-- [Publishing Pipeline](PUBLISHING.md) — build flow, deploy strategies (local/SSH/ZIP), rollback
+- [Services](SERVICES.md) -- all domain services with method signatures (Publishing, Grid, Theme, etc.)
+- [Publishing Pipeline](PUBLISHING.md) -- build flow, deploy strategies (local/SSH/ZIP), rollback
 
 ## Frontend
 
-- [Admin SPA](ADMIN-SPA.md) — React architecture, pages, stores, routing, API client
-- [Block System](BLOCKS.md) — 69 block types, rendering pipeline, development checklist
+- [Admin SPA](ADMIN-SPA.md) -- React 19 architecture, pages, stores, routing, API client
+- [Block System](BLOCKS.md) -- 68 frontend blocks, three-layer model, known gaps, audit script
 
 ## Design Systems
 
-- [Theme Engine](THEME-ENGINE.md) — W3C Design Tokens, resolver, compiler, overrides
-- [Theme Spec](THEME-SPEC.md) — token format specification
-- [Grid System](GRID-SYSTEM.md) — CSS Grid layouts, positions, assignments, presets
+- [Theme Engine](THEME-ENGINE.md) -- W3C Design Tokens, resolver, compiler, overrides
+- [Theme Spec](THEME-SPEC.md) -- token format specification
+- [Grid System](GRID-SYSTEM.md) -- CSS Grid layouts, positions, assignments, presets
 
 ## Features
 
-- [Site Settings](SITE-SETTINGS.md) — all JSONB settings fields, SEO defaults, deploy config
-- [Magazine Editor](MAGAZINE-EDITOR.md) — freeform InDesign-like page layout editor
-- [Magazine Wizard](magazine-wizard.md) — AI-powered magazine creation workflow
+- [Site Settings](SITE-SETTINGS.md) -- all JSONB settings fields, SEO defaults, deploy config
+- [Magazine Editor](MAGAZINE-EDITOR.md) -- freeform InDesign-like page layout editor
+- [Magazine Wizard](magazine-wizard.md) -- AI-powered magazine creation workflow
 
 ## Recovery & Quality
 
-- [Project Recovery Plan](PROJECT-RECOVERY-PLAN.md) — technical debt assessment, verified counts, priority phases, definition of done
+- [Project Recovery Plan](PROJECT-RECOVERY-PLAN.md) -- technical debt assessment, verified counts, priority phases, definition of done

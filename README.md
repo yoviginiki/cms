@@ -35,7 +35,7 @@ app/
   Http/Controllers/    # API v1 controllers (32)
   Http/Requests/       # Form request validation
   Http/Resources/      # API resource transformers
-  Models/              # Eloquent models (33)
+  Models/              # Eloquent models (30)
   Services/            # Cross-domain services (Theme resolver, compiler, etc.)
   Policies/            # Authorization policies
 
@@ -138,7 +138,7 @@ php artisan queue:work               # For publish jobs
 |------|-------|-------|
 | Frontend block folders | 68 | All have definition.ts, Editor.tsx, Preview.tsx, index.ts |
 | Blade block templates | 69 | 1 orphan (`quote.blade.php` — frontend uses `pullquote`) |
-| PHP BlockDefinition classes | 20 | **48 blocks lack server-side validation** |
+| PHP BlockDefinition classes | 19 concrete + 1 base | **50 blocks lack server-side validation** |
 | Feature test files | 41 | Backend only, ~180+ passing assertions |
 | API controllers | 32 | |
 | Documentation files | 16 | |
@@ -151,7 +151,7 @@ php artisan queue:work               # For publish jobs
 |-------|-------|---------|
 | Frontend (React) | 68 | 100% |
 | Rendering (Blade) | 68 | 100% (excluding orphan) |
-| Backend (PHP Definition) | 20 | **29%** |
+| Backend (PHP Definition) | 19 (18 match frontend) | **26%** |
 
 ## Block System
 
@@ -168,7 +168,7 @@ components/blocks/hero/   Domain/Blocks/Defs/     views/blocks/hero.blade.php
 
 **68 block types** across 11 categories: Typography, Content, Layout, Navigation, Media, Blog, Interactive, Data, Commerce, Forms, Embeds.
 
-**Important:** While all 68 blocks have frontend components and Blade templates, only 20 have PHP backend definitions with validation rules. The remaining 48 accept any JSON payload without server-side schema enforcement.
+**Important:** While all 68 blocks have frontend components and Blade templates, only 19 have PHP backend definitions with validation rules (and one of those, `QuoteBlockDefinition`, maps to an orphan blade with no frontend component). The remaining 50 frontend blocks accept any JSON payload without server-side schema enforcement.
 
 **Registration:** Each block's `index.ts` calls `blockRegistry.register(definition, Preview, Editor)`. All blocks are imported in `components/blocks/index.ts`.
 
@@ -247,12 +247,12 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
 ## Known Architectural Gaps
 
-1. **Setup/build script mismatch** — `composer setup` runs npm at root, not in `resources/admin/`. Root `npm run build` builds Laravel default Vite, not the admin SPA.
-2. **Incomplete backend block definitions** — 48/68 blocks have no PHP BlockDefinition. No server-side validation for most block data.
+1. **Two Vite contexts** — `composer setup` is fixed to target `resources/admin/`, but `composer dev` still runs `npm run dev` from root (Laravel default Vite, not admin SPA). Run admin dev server separately from `resources/admin/`.
+2. **Incomplete backend block definitions** — 50/68 frontend blocks have no PHP BlockDefinition. No server-side validation for most block data.
 3. **Inconsistent editor field controls** — 7 shared fields exist but many blocks use inline `<input>` elements instead.
 4. **Raw URL inputs** — 6 blocks use text/url inputs where AssetPicker should be used (button, ctabanner, customform, newsletter, socialembed, video).
 5. **VisualPanel limitations** — BackgroundEditor exists but gradient/background-image controls need visual builders.
-6. **Missing automated block audit** — no script verifies all layers (frontend + blade + PHP definition) are consistent.
+6. **Block audit exists but not in CI** — `scripts/block-audit.sh` verifies all layers (run via `composer audit-blocks`) but is not integrated into any CI pipeline.
 7. **Missing frontend tests** — 0 React component tests. Backend has ~180+ passing assertions.
 8. **No CI/CD** — no automated pipeline for test + build + deploy.
 9. **TypeScript errors in wizard module** — `npm run build` fails; must use `npx vite build` to skip type checking.
@@ -262,12 +262,12 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
 See [Project Recovery Plan](docs/PROJECT-RECOVERY-PLAN.md) for full details.
 
-1. **Fix setup/build scripts** — make `composer setup` work end-to-end
-2. **Add block audit script** — automated check for layer completeness
+1. ~~**Fix setup/build scripts**~~ — done (`composer setup` targets `resources/admin/`)
+2. ~~**Add block audit script**~~ — done (`scripts/block-audit.sh`, run via `composer audit-blocks`)
 3. **Define block quality contract** — what "done" means for a block
 4. **Create shared field controls** — AssetSelectField, GradientField, LinkField, DimensionField, AlignmentField
 5. **Refactor VisualPanel/ImageField** — use shared controls consistently
-6. **Complete backend definitions** — add PHP definitions for 48 missing blocks
+6. **Complete backend definitions** — add PHP definitions for 50 missing blocks
 7. **Improve blocks by category** — audit and fix each group
 8. **Add CI** — GitHub Actions for test + build + block audit
 
@@ -277,9 +277,9 @@ Full documentation at `https://sys.ensodo.eu/docs` (requires login) or in `docs/
 
 - [Architecture](docs/ARCHITECTURE.md) — tech stack, folder structure, request lifecycle
 - [API Reference](docs/API-REFERENCE.md) — all ~150 API endpoints
-- [Models](docs/MODELS.md) — 33 Eloquent models with fields and relationships
+- [Models](docs/MODELS.md) — 30 Eloquent models with fields and relationships
 - [Services](docs/SERVICES.md) — all domain services with method signatures
-- [Blocks](docs/BLOCKS.md) — block types, rendering pipeline
+- [Blocks](docs/BLOCKS.md) — 68 block types, three-layer model, known gaps, audit script
 - [Publishing](docs/PUBLISHING.md) — build and deploy pipeline
 - [Theme Engine](docs/THEME-ENGINE.md) — design tokens, resolver, compiler
 - [Grid System](docs/GRID-SYSTEM.md) — CSS Grid layouts, positions, presets

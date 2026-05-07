@@ -8,7 +8,7 @@
 
 ### Backend (Laravel 13, PHP 8.3)
 - **Status: Functional but incomplete.** 32 API controllers under `Api/V1/`, domain services for Sites, Posts, Publishing, Theme, Magazine, Blocks. Sanctum auth, Spatie permissions, PostgreSQL multi-tenancy. Horizon for queues.
-- **Risk:** Only 19 of 68+ blocks have PHP `BlockDefinition` classes. The `BlockRegistry` and `BlockService` exist but operate on an incomplete definition set. This means server-side validation and rendering defaults are missing for ~49 block types.
+- **Risk:** Only 19 of 68 blocks have PHP `BlockDefinition` classes (and only 18 of those map to a frontend component -- `QuoteBlockDefinition` maps to the orphan `quote.blade.php`). The `BlockRegistry` and `BlockService` exist but operate on an incomplete definition set. This means server-side validation and rendering defaults are missing for 50 block types.
 
 ### Frontend SPA (React 19, Vite, TailwindCSS 4, DaisyUI 5)
 - **Status: Feature-rich but inconsistent.** 68 block editor components with Preview/Editor pairs. Zustand state management. TanStack Query for API calls. TipTap WYSIWYG. dnd-kit drag-and-drop. Magazine freeform editor. Theme engine UI.
@@ -45,7 +45,7 @@
 | PHP BlockDefinition classes | **19** concrete + 1 base | `app/Domain/Blocks/Definitions/` |
 | API controllers | **32** | `app/Http/Controllers/Api/V1/` |
 | Test files | **41** | `tests/` |
-| Documentation files | **15** | `docs/*.md` |
+| Documentation files | **16** | `docs/*.md` |
 | Shared editor fields | **7** | `resources/admin/src/components/editor/fields/` |
 | Shared property panels | **7** | `resources/admin/src/components/editor/properties/` |
 | Block-related services | **3** | `app/Domain/Blocks/Services/` |
@@ -74,12 +74,12 @@ _(None found -- all 68 frontend blocks have corresponding blade templates.)_
 ### Anomalies
 - `scroll_page` has BOTH a `scroll_page.blade.php` file AND a `scroll_page/` directory (with `pages/` subfolder). This is unusual and may cause rendering conflicts.
 
-### Blocks missing PHP BlockDefinition (49 of 68)
+### Blocks missing PHP BlockDefinition (50 of 68 frontend blocks)
 The following blocks have frontend + blade but NO PHP definition class:
 
-`anchormenu`, `audio`, `authorbox`, `beforeafter`, `breadcrumbs`, `caption`, `categorylist`, `chart`, `container`, `ctabanner`, `customform`, `dropcap`, `featurecomparison`, `featuregrid`, `footnote`, `fullbleed`, `gallery`, `grid`, `group`, `icon`, `imagecaption`, `latestposts`, `list`, `logostrip`, `map`, `menu`, `modal`, `newsletter`, `overlap`, `paragraph`, `paywall`, `postcard`, `postgrid`, `pricingcard`, `pricingtable`, `pullquote`, `readingprogress`, `relatedposts`, `rich-text` (has RichTextBlockDefinition -- CHECK key match), `runningtext`, `sharebuttons`, `sidenote`, `socialembed`, `stats`, `stickysidebar`, `testimonial`, `textdivider`, `timeline`, `toc`, `tooltip`
+`anchormenu`, `audio`, `authorbox`, `beforeafter`, `breadcrumbs`, `caption`, `categorylist`, `chart`, `container`, `ctabanner`, `customform`, `dropcap`, `featurecomparison`, `featuregrid`, `footnote`, `fullbleed`, `gallery`, `grid`, `group`, `icon`, `imagecaption`, `latestposts`, `list`, `logostrip`, `map`, `menu`, `modal`, `newsletter`, `overlap`, `paragraph`, `paywall`, `postcard`, `postgrid`, `pricingcard`, `pricingtable`, `pullquote`, `readingprogress`, `relatedposts`, `runningtext`, `sharebuttons`, `sidenote`, `socialembed`, `stats`, `stickysidebar`, `table`, `testimonial`, `textdivider`, `timeline`, `toc`, `tooltip`
 
-*(Note: `contact-form` maps to `ContactFormBlockDefinition`, `html-embed` maps to `HtmlEmbedBlockDefinition` -- these exist. The 19 that DO have definitions: accordion, button, code, columns, contact-form, divider, flipbook, heading, hero, html-embed, image, quote/pullquote, rich-text, scroll_page, section, spacer, tabs, text, video.)*
+*(The 19 PHP definitions are: accordion, button, code, columns, contact-form, divider, flipbook, heading, hero, html-embed, image, quote, rich-text, scroll_page, section, spacer, tabs, text, video. Of these, `QuoteBlockDefinition` maps to the orphan `quote.blade.php` -- the frontend uses `pullquote` instead, so only 18 definitions align with a frontend component.)*
 
 ---
 
@@ -118,8 +118,9 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 ## Main Problems
 
 ### 1. Setup/Build Script Issues
-- `composer.json` `setup` script runs `npm install` and `npm run build` from root, but `package.json` is in `resources/admin/`. The script will fail unless run from the correct directory or paths are adjusted.
-- `composer dev` uses `npx concurrently` which requires `concurrently` to be installed globally or in root `node_modules`.
+- `composer setup` has been fixed to use `--prefix resources/admin` for npm commands, so it correctly targets the admin SPA.
+- `composer dev` uses `npx concurrently` which requires `concurrently` to be installed at root (`npm install` in project root).
+- `composer dev` runs `npm run dev` which uses the root Vite config (not the admin SPA). To develop the admin SPA, run `npm run dev` from `resources/admin/` separately.
 - No `.nvmrc` or `engines` field to pin Node version.
 
 ### 2. README / Documentation Accuracy
@@ -130,7 +131,7 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 ### 3. Frontend/Backend/Blade Block Mismatch
 - `quote` blade vs `pullquote` frontend -- naming inconsistency.
 - `scroll_page` has both a file and directory in `views/blocks/`.
-- 49 blocks have no PHP definition class.
+- 50 frontend blocks have no PHP definition class.
 
 ### 4. Incomplete Backend Block Definitions
 - Only 19/68 blocks have `BlockDefinition` PHP classes.
@@ -151,10 +152,10 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 - Other blocks that could benefit (e.g., `fullbleed`, `overlap`, `stats`) have no background configuration.
 - Not a critical bug, but a missed consistency opportunity.
 
-### 8. Missing Automated Block Audit
-- No script or test verifies that all three layers (React, Blade, PHP) are synchronized.
-- Block data keys can drift between layers without detection.
-- Adding a new block requires touching 3+ files with no checklist enforcement.
+### 8. Block Audit Script Exists but Not in CI
+- `scripts/block-audit.sh` exists and verifies all three layers (React, Blade, PHP). Run via `composer audit-blocks`.
+- However, it is not integrated into any CI pipeline or pre-commit hook.
+- Block data keys can still drift between layers without automated detection on every push.
 
 ### 9. Missing Frontend Tests
 - Zero frontend test files. No Jest, Vitest, or React Testing Library configured.
@@ -170,21 +171,18 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 
 ## Priority Order
 
-### Phase 1: Setup & Documentation Fix (1-2 days)
-- Fix `composer setup` script to handle npm paths correctly.
-- Add `.nvmrc` with required Node version.
-- Correct block counts in `docs/BLOCKS.md`.
-- Add a "Known Gaps" section to README.
-- Verify `composer dev` works end-to-end on a fresh checkout.
+### Phase 1: Setup & Documentation Fix (1-2 days) -- PARTIALLY DONE
+- [x] `composer setup` fixed to use `--prefix resources/admin`.
+- [x] Block counts corrected in `docs/BLOCKS.md` and `README.md`.
+- [x] "Known Gaps" / "Known Problems" sections added to README.
+- [ ] Add `.nvmrc` with required Node version.
+- [ ] Fix `composer dev` to also start admin SPA Vite (currently starts root Vite only).
+- [ ] Verify `composer dev` works end-to-end on a fresh checkout.
 
-### Phase 2: Block Audit Script (1 day)
-- Create `scripts/audit-blocks.sh` (or PHP artisan command) that:
-  - Lists all frontend block folders.
-  - Lists all blade templates.
-  - Lists all PHP definitions.
-  - Reports mismatches (missing layers, naming inconsistencies).
-  - Reports blocks using raw inputs vs shared fields.
-- Run it in CI (when CI exists).
+### Phase 2: Block Audit Script (1 day) -- DONE
+- [x] `scripts/block-audit.sh` exists and checks all three layers.
+- [x] Available via `composer audit-blocks` and `composer audit-blocks-verbose`.
+- [ ] Integrate into CI pipeline (when CI exists).
 
 ### Phase 3: Quality Contract (1 day)
 - Define "Definition of Done" for blocks (see below).
@@ -203,7 +201,7 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 - Each refactor is a single commit, tested manually.
 
 ### Phase 6: Backend Block Definitions (5-7 days, incremental)
-- Create `BlockDefinition` classes for all 49 missing blocks.
+- Create `BlockDefinition` classes for all 50 missing blocks.
 - Each definition specifies: type key, default data, validation rules, allowed children.
 - Register all in `BlockRegistry`.
 - Add PHPUnit test per definition.

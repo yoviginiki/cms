@@ -4,6 +4,24 @@
 
 Blocks are the fundamental content units. Each page/post stores a tree of blocks (polymorphic via `blockable_type`/`blockable_id`). Blocks can be nested (parent/child via `parent_block_id`).
 
+## Three-Layer Model
+
+Every block type can exist across three independent layers. Not all blocks are complete across all layers.
+
+| Layer | Location | Count | Purpose |
+|-------|----------|-------|---------|
+| Frontend (React) | `resources/admin/src/components/blocks/{type}/` | **68** | Editor UI + canvas preview |
+| Rendering (Blade) | `resources/views/blocks/{type}.blade.php` | **69** | Server-side HTML for publishing |
+| Backend (PHP) | `app/Domain/Blocks/Definitions/{Type}BlockDefinition.php` | **19** concrete + 1 base | Validation rules + sanitization |
+
+### Coverage Summary
+
+- **18 blocks** are fully complete across all three layers.
+- **50 blocks** have frontend + blade but NO PHP definition (no server-side validation).
+- **1 orphan blade** (`quote.blade.php`) has no matching frontend component (frontend uses `pullquote` instead).
+
+Run `composer audit-blocks` or `bash scripts/block-audit.sh` to check current layer coverage.
+
 ## Architecture
 
 ### Backend Components
@@ -66,9 +84,9 @@ interface BlockDefinition
 | `text` | content | no | `TextBlockDefinition.php` |
 | `video` | media | no | `VideoBlockDefinition.php` |
 
-### All Blade Templates (69 block types)
+### All Blade Templates (69 files)
 
-These are the renderable block types in `resources/views/blocks/`:
+These are the renderable block types in `resources/views/blocks/`. Note that 68 of these map to frontend components; 1 (`quote`) is an orphan with no frontend counterpart:
 
 **Content:** paragraph, heading, rich-text, text, quote, pullquote, code, button, divider, spacer, list, dropcap, caption, footnote, sidenote, textdivider, runningtext
 
@@ -174,3 +192,26 @@ The `PUT /sites/{site}/pages/{page}/blocks` endpoint replaces the entire block t
 ```
 
 `BlockService::syncBlocks()` deletes all existing blocks and recreates from the payload within a transaction.
+
+## Known Gaps
+
+### 50 Blocks Missing PHP Definitions
+
+The following frontend blocks have no corresponding `BlockDefinition` PHP class. This means no server-side validation or sanitization rules exist for them:
+
+`anchormenu`, `audio`, `authorbox`, `beforeafter`, `breadcrumbs`, `caption`, `categorylist`, `chart`, `container`, `ctabanner`, `customform`, `dropcap`, `featurecomparison`, `featuregrid`, `footnote`, `fullbleed`, `gallery`, `grid`, `group`, `icon`, `imagecaption`, `latestposts`, `list`, `logostrip`, `map`, `menu`, `modal`, `newsletter`, `overlap`, `paragraph`, `paywall`, `postcard`, `postgrid`, `pricingcard`, `pricingtable`, `pullquote`, `readingprogress`, `relatedposts`, `runningtext`, `sharebuttons`, `sidenote`, `socialembed`, `stats`, `stickysidebar`, `table`, `testimonial`, `textdivider`, `timeline`, `toc`, `tooltip`
+
+### Naming Mismatch: quote vs pullquote
+
+- `quote.blade.php` exists but has no frontend component.
+- The frontend uses `pullquote` instead.
+- `QuoteBlockDefinition.php` exists in PHP but maps to the orphan blade.
+
+### Block Audit Script
+
+A shell script at `scripts/block-audit.sh` checks consistency across all three layers. Run it via:
+
+```bash
+composer audit-blocks          # summary
+composer audit-blocks-verbose  # per-block detail
+```
