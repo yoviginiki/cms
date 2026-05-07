@@ -5,7 +5,8 @@
     "scripts": {
         "dev": "npm run dev --prefix resources/admin",
         "build": "npm run build --prefix resources/admin",
-        "build:vite": "cd resources/admin && npx vite build"
+        "build:vite": "cd resources/admin && npx vite build",
+        "blocks:audit": "node scripts/audit-blocks.mjs"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

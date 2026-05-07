@@ -131,7 +131,8 @@ php artisan queue:work       # For publish jobs
 | `composer setup` | Full install (composer, env, migrate, admin build) | |
 | `composer dev` | Start server + queue + logs + admin Vite (parallel) | Requires root `npm install` first |
 | `composer test` | Run PHPUnit tests | Clears config cache first |
-| `composer audit-blocks` | Check block layer completeness | Frontend + Blade + PHP definition |
+| `composer audit-blocks` | Quick block layer check (bash) | Frontend + Blade + PHP definition |
+| `npm run blocks:audit` | Full block audit with JSON report | Outputs to storage/app/block-audit.json |
 | `npm run dev` | Admin Vite dev server with HMR | Routes to resources/admin/ |
 | `npm run build` | Admin production build (tsc + vite) | Currently fails — TypeScript errors in wizard |
 | `npm run build:vite` | Admin Vite build (skip tsc) | Passes — use this for asset builds |

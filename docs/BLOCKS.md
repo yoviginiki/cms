@@ -207,11 +207,52 @@ The following frontend blocks have no corresponding `BlockDefinition` PHP class.
 - The frontend uses `pullquote` instead.
 - `QuoteBlockDefinition.php` exists in PHP but maps to the orphan blade.
 
-### Block Audit Script
+### Block Audit Scripts
 
-A shell script at `scripts/block-audit.sh` checks consistency across all three layers. Run it via:
+Two audit tools are available:
 
+**Node.js audit** (recommended — detailed JSON report):
+```bash
+npm run blocks:audit           # Full table + JSON report
+node scripts/audit-blocks.mjs --json-only   # JSON only
+node scripts/audit-blocks.mjs --no-color    # CI-friendly
+```
+
+**Bash audit** (quick summary):
 ```bash
 composer audit-blocks          # summary
 composer audit-blocks-verbose  # per-block detail
 ```
+
+#### Statuses
+
+| Status | Meaning |
+|--------|---------|
+| `COMPLETE` | All 3 layers present (frontend + blade + PHP definition) |
+| `MISSING_BACKEND` | Frontend + blade exist, but no PHP BlockDefinition class |
+| `MISSING_BLADE` | Frontend exists, but no blade template |
+| `MISSING_FRONTEND_FILE` | Frontend folder exists but missing required files |
+| `NOT_REGISTERED` | Frontend folder exists but not imported in blocks/index.ts |
+| `ORPHAN_BLADE` | Blade template exists with no matching frontend component |
+| `ORPHAN_BACKEND` | PHP definition exists with no matching frontend component |
+
+#### JSON Output
+
+Written to `storage/app/block-audit.json` with structure:
+```json
+{
+  "generatedAt": "2026-05-08T...",
+  "summary": { "total": 69, "complete": 18, "incomplete": 51, "byStatus": {...} },
+  "blocks": [{ "type": "hero", "status": "COMPLETE", ... }]
+}
+```
+
+#### Exit Code
+
+`npm run blocks:audit` exits with code 1 if any block is not COMPLETE. This is intentional — it can be used as a CI gate once all blocks are complete.
+
+#### Current State (as of last audit)
+
+- 18 COMPLETE
+- 50 MISSING_BACKEND
+- 1 ORPHAN_BACKEND (`quote` — PHP def exists but frontend uses `pullquote`)
