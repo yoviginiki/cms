@@ -30,6 +30,28 @@ class DocsController extends Controller
         return redirect("/docs/{$docs[0]['slug']}");
     }
 
+    public function download()
+    {
+        $zipName = 'cms-docs-' . now()->format('Y-m-d') . '.zip';
+        $zipPath = storage_path("app/tmp/{$zipName}");
+        File::ensureDirectoryExists(dirname($zipPath));
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'Failed to create ZIP');
+        }
+
+        foreach (File::glob("{$this->docsPath}/*.md") as $file) {
+            $zip->addFile($file, basename($file));
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath, $zipName, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
+    }
+
     public function show(string $slug)
     {
         $docs = $this->listDocs();

@@ -73,6 +73,11 @@
             @foreach($docs as $doc)
                 <a href="/docs/{{ $doc['slug'] }}" class="{{ ($current ?? '') === $doc['slug'] ? 'active' : '' }}">{{ $doc['title'] }}</a>
             @endforeach
+            <div style="margin-top:24px;padding-top:16px;border-top:1px solid oklch(0.25 0.01 260 / 0.3);">
+                <a href="/docs/download" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:oklch(0.25 0.01 260);border-radius:6px;font-size:12px;color:oklch(0.7 0.01 260);text-decoration:none;">
+                    &#x1F4E5; Download all (ZIP)
+                </a>
+            </div>
         </nav>
         <main class="docs-content">
             {!! $content !!}

@@ -30,6 +30,7 @@ Route::get('/issue/{slug}', [MagazineViewController::class, 'showPage'])->name('
 // ─── Documentation (auth-protected) ───
 Route::middleware(['auth'])->prefix('docs')->group(function () {
     Route::get('/', [DocsController::class, 'index'])->name('docs.index');
+    Route::get('/download', [DocsController::class, 'download'])->name('docs.download');
     Route::get('/{slug}', [DocsController::class, 'show'])->name('docs.show');
 });
 
