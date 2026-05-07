@@ -8,7 +8,8 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
   const data = block.data as {
     categoryId: string; limit: number; columns: number;
     layout: string; orderBy: string; showImage: boolean;
-    showExcerpt: boolean; showDate: boolean; showCategory: boolean;
+    showContent: boolean; showExcerpt: boolean; excerptLength: number;
+    showDate: boolean; showCategory: boolean;
   };
   const { siteId = '' } = useParams();
 
@@ -78,9 +79,21 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
           <span className="text-[11px] text-base-content/50">Show image</span>
         </label>
         <label className="flex items-center gap-2">
+          <input type="checkbox" className="checkbox checkbox-sm" checked={!!data.showContent} onChange={(e) => update('showContent', e.target.checked)} />
+          <span className="text-[11px] text-base-content/50">Show full content</span>
+        </label>
+        <label className="flex items-center gap-2">
           <input type="checkbox" className="checkbox checkbox-sm" checked={data.showExcerpt !== false} onChange={(e) => update('showExcerpt', e.target.checked)} />
           <span className="text-[11px] text-base-content/50">Show excerpt</span>
         </label>
+        {data.showExcerpt !== false && !data.showContent && (
+          <div className="pl-6">
+            <label className="text-[10px] text-base-content/40 mb-0.5 block">Excerpt length (characters)</label>
+            <input type="number" className="input input-bordered input-xs w-24" min={0} max={1000}
+              value={data.excerptLength ?? 120} onChange={(e) => update('excerptLength', Number(e.target.value))} />
+            <span className="text-[10px] text-base-content/30 ml-1">0 = full excerpt</span>
+          </div>
+        )}
         <label className="flex items-center gap-2">
           <input type="checkbox" className="checkbox checkbox-sm" checked={data.showDate !== false} onChange={(e) => update('showDate', e.target.checked)} />
           <span className="text-[11px] text-base-content/50">Show date</span>

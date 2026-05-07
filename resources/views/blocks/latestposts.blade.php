@@ -5,7 +5,9 @@
     $orderBy = $data['orderBy'] ?? 'latest';
     $categoryId = $data['categoryId'] ?? '';
     $showImage = $data['showImage'] ?? true;
+    $showContent = $data['showContent'] ?? false;
     $showExcerpt = $data['showExcerpt'] ?? true;
+    $excerptLength = $data['excerptLength'] ?? 120;
     $showDate = $data['showDate'] ?? true;
     $showCategory = $data['showCategory'] ?? true;
 
@@ -14,6 +16,9 @@
     if ($categoryId) {
         $query->where('category_id', $categoryId);
     }
+    if ($showContent) {
+        $query->with(['blocks' => fn($q) => $q->whereNull('parent_block_id')->orderBy('order')]);
+    }
     switch ($orderBy) {
         case 'oldest': $query->orderBy('published_at', 'asc'); break;
         case 'title': $query->orderBy('title', 'asc'); break;
@@ -21,6 +26,24 @@
         default: $query->orderByDesc('published_at');
     }
     $posts = $query->limit($limit)->get();
+
+    // Helper: render post content from blocks
+    $renderContent = function($post) use ($site) {
+        $buildService = app(\App\Domain\Publishing\Services\BuildPageService::class);
+        $html = '';
+        foreach ($post->blocks as $block) {
+            $html .= $buildService->renderBlock($block, $site);
+        }
+        return $html;
+    };
+
+    // Helper: get excerpt text
+    $getExcerpt = function($post) use ($excerptLength) {
+        $text = $post->excerpt ?: '';
+        if (!$text) return '';
+        if ($excerptLength > 0) return \Illuminate\Support\Str::limit($text, $excerptLength);
+        return $text;
+    };
 @endphp
 @if($posts->isEmpty())
     <div style="padding:2rem;text-align:center;color:#9ca3af;font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:0.5rem;">
@@ -51,8 +74,10 @@
                     <h3 style="margin:0.25rem 0;font-weight:600;font-size:1rem;">
                         <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
                     </h3>
-                    @if($showExcerpt && $post->excerpt)
-                        <p style="margin:0.25rem 0 0;color:#6b7280;font-size:0.8125rem;line-height:1.4;">{{ \Illuminate\Support\Str::limit($post->excerpt, 120) }}</p>
+                    @if($showContent)
+                        <div style="margin:0.5rem 0 0;font-size:0.875rem;line-height:1.6;">{!! $renderContent($post) !!}</div>
+                    @elseif($showExcerpt && $getExcerpt($post))
+                        <p style="margin:0.25rem 0 0;color:#6b7280;font-size:0.8125rem;line-height:1.4;">{{ $getExcerpt($post) }}</p>
                     @endif
                     @if($showDate)
                         <span style="font-size:0.7rem;color:#9ca3af;">{{ $post->published_at?->format('M j, Y') }}</span>
@@ -77,8 +102,10 @@
                 <h2 style="margin:0.25rem 0;font-weight:700;font-size:1.5rem;">
                     <a href="/{{ $first->category?->slug ?? 'uncategorized' }}/{{ $first->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
                 </h2>
-                @if($showExcerpt && $first->excerpt)
-                    <p style="color:#6b7280;font-size:0.875rem;margin-top:0.5rem;">{{ $first->excerpt }}</p>
+                @if($showContent)
+                    <div style="margin-top:0.75rem;font-size:0.9375rem;line-height:1.7;">{!! $renderContent($first) !!}</div>
+                @elseif($showExcerpt && $getExcerpt($first))
+                    <p style="color:#6b7280;font-size:0.875rem;margin-top:0.5rem;">{{ $getExcerpt($first) }}</p>
                 @endif
                 @if($showDate)
                     <span style="font-size:0.75rem;color:#9ca3af;">{{ $first->published_at?->format('M j, Y') }}</span>
@@ -101,8 +128,10 @@
                     <h3 style="margin:0.25rem 0;font-weight:600;">
                         <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
                     </h3>
-                    @if($showExcerpt && $post->excerpt)
-                        <p style="color:#6b7280;font-size:0.8125rem;margin-top:0.25rem;">{{ \Illuminate\Support\Str::limit($post->excerpt, 80) }}</p>
+                    @if($showContent)
+                        <div style="margin-top:0.5rem;font-size:0.8125rem;line-height:1.5;">{!! $renderContent($post) !!}</div>
+                    @elseif($showExcerpt && $getExcerpt($post))
+                        <p style="color:#6b7280;font-size:0.8125rem;margin-top:0.25rem;">{{ $getExcerpt($post) }}</p>
                     @endif
                     @if($showDate)
                         <span style="font-size:0.7rem;color:#9ca3af;">{{ $post->published_at?->format('M j, Y') }}</span>
