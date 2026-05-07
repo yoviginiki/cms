@@ -33,3 +33,7 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 - [Site Settings](SITE-SETTINGS.md) — all JSONB settings fields, SEO defaults, deploy config
 - [Magazine Editor](MAGAZINE-EDITOR.md) — freeform InDesign-like page layout editor
 - [Magazine Wizard](magazine-wizard.md) — AI-powered magazine creation workflow
+
+## Recovery & Quality
+
+- [Project Recovery Plan](PROJECT-RECOVERY-PLAN.md) — technical debt assessment, verified counts, priority phases, definition of done
