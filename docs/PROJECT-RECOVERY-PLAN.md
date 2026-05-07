@@ -173,15 +173,18 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 
 ## Priority Order
 
-### Phase 1: Setup & Documentation Fix (1-2 days) -- DONE
-- [x] `composer setup` fixed to use `--prefix resources/admin`.
-- [x] `composer dev` fixed to run admin Vite (`npm run dev --prefix resources/admin`).
-- [x] Root `package.json` scripts proxy to `resources/admin/`.
+### Phase 1: Setup & Documentation Fix (1-2 days) -- ROUTING DONE, FULL BUILD PENDING
+- [x] `composer setup` targets `resources/admin/` for npm install and Vite build.
+- [x] `composer dev` runs admin Vite (`npm run dev --prefix resources/admin`).
+- [x] Root `package.json` scripts route to `resources/admin/` (`dev`, `build`, `build:vite`).
+- [x] Root `build:vite` correctly uses `cd resources/admin && npx vite build`.
+- [x] Root `package-lock.json` matches `package.json`.
 - [x] Block counts corrected in `docs/BLOCKS.md` and `README.md`.
 - [x] "Known Gaps" / "Known Problems" sections added to README.
-- [x] `npx vite build` passes (admin SPA builds successfully).
+- [x] Vite-only build passes (`npm run build:vite` → 15s, assets output correctly).
+- [ ] `npm run build` (tsc + vite) still fails — TypeScript errors in wizard module.
 - [ ] Add `.nvmrc` with required Node version.
-- [ ] Fix TypeScript errors in wizard module so `npm run build` (with tsc) passes.
+- **Note:** Script routing is complete. Full TypeScript build health requires fixing application errors (Phase 9 or dedicated TypeScript cleanup).
 
 ### Phase 2: Block Audit Script (1 day) -- DONE
 - [x] `scripts/block-audit.sh` exists and checks all three layers.

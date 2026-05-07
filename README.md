@@ -97,7 +97,7 @@ php artisan migrate --seed    # Creates system themes, layouts
 
 # Admin SPA (either from root or from resources/admin/)
 npm install --prefix resources/admin
-npm run build                 # Proxies to resources/admin
+npm run build:vite            # Vite-only build (skips TypeScript check)
 
 # Start
 php artisan serve             # Backend at http://localhost:8000
@@ -132,9 +132,9 @@ php artisan queue:work       # For publish jobs
 | `composer dev` | Start server + queue + logs + admin Vite (parallel) | Requires root `npm install` first |
 | `composer test` | Run PHPUnit tests | Clears config cache first |
 | `composer audit-blocks` | Check block layer completeness | Frontend + Blade + PHP definition |
-| `npm run dev` | Admin Vite dev server with HMR | Proxies to resources/admin/ |
-| `npm run build` | Admin production build | Runs tsc + vite build |
-| `npm run build:vite` | Admin build (skip TypeScript) | Use if tsc fails |
+| `npm run dev` | Admin Vite dev server with HMR | Routes to resources/admin/ |
+| `npm run build` | Admin production build (tsc + vite) | Currently fails — TypeScript errors in wizard |
+| `npm run build:vite` | Admin Vite build (skip tsc) | Passes — use this for asset builds |
 | `php artisan db:seed --class=SystemThemeSeeder` | Seed 3 system themes | |
 | `php artisan db:seed --class=SystemLayoutsSeeder` | Seed 7 system layouts | |
 
@@ -253,7 +253,7 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
 ## Known Architectural Gaps
 
-1. **Root scripts proxy to admin** — root `package.json` scripts now proxy to `resources/admin/`. Root `vite.config.js` (Laravel default) is unused but kept for reference.
+1. **Root scripts route to admin** — root `package.json` `dev`/`build`/`build:vite` all target `resources/admin/`. Root `vite.config.js` (Laravel boilerplate) and its deps are kept but unused — the admin SPA at `resources/admin/` is the source of truth.
 2. **Incomplete backend block definitions** — 50/68 frontend blocks have no PHP BlockDefinition. No server-side validation for most block data.
 3. **Inconsistent editor field controls** — 7 shared fields exist but many blocks use inline `<input>` elements instead.
 4. **Raw URL inputs** — 6 blocks use text/url inputs where AssetPicker should be used (button, ctabanner, customform, newsletter, socialembed, video).
@@ -268,7 +268,7 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
 See [Project Recovery Plan](docs/PROJECT-RECOVERY-PLAN.md) for full details.
 
-1. ~~**Fix setup/build scripts**~~ — done (all scripts target `resources/admin/`, `npm run build` works via proxy, TypeScript errors in wizard remain but `build:vite` skips them)
+1. **Fix setup/build scripts** — routing fixed (all scripts target `resources/admin/`), but `npm run build` still fails on TypeScript errors in wizard module. Use `npm run build:vite` for asset builds.
 2. ~~**Add block audit script**~~ — done (`scripts/block-audit.sh`, run via `composer audit-blocks`)
 3. **Define block quality contract** — what "done" means for a block
 4. **Create shared field controls** — AssetSelectField, GradientField, LinkField, DimensionField, AlignmentField
