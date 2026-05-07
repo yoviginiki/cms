@@ -184,7 +184,7 @@ Every block should have (currently not all do):
 
 **Backend** (`app/Domain/Blocks/Definitions/`):
 - `{Type}BlockDefinition.php` — validation rules, sanitization config, allowed keys
-- *Currently only 20 of 68 blocks have this*
+- *Currently only 19 of 68 blocks have this*
 
 **Rendering**:
 - `resources/views/blocks/{type}.blade.php` — server-side HTML

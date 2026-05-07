@@ -3,6 +3,8 @@
 .env
 .env.backup
 .env.production
+$COOKIES
+public/install.php
 .phpactor.json
 .phpunit.result.cache
 /.cursor/
