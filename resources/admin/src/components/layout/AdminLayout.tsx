@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users } from 'lucide-react';
+import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive } from 'lucide-react';
 import { publishing, api } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -178,6 +178,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors">
             <BookOpen size={15} strokeWidth={1.5} />
             {!collapsed && 'Docs'}
+          </a>
+          <a href="/api/v1/cms-export"
+            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors">
+            <Archive size={15} strokeWidth={1.5} />
+            {!collapsed && 'Export CMS'}
           </a>
           <button onClick={toggleAdminTheme}
             className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[13px] text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30 transition-colors"
