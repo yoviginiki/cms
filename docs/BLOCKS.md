@@ -18,7 +18,7 @@ Every block type can exist across three independent layers. Not all blocks are c
 
 - **18 blocks** are fully complete across all three layers.
 - **50 blocks** have frontend + blade but NO PHP definition (no server-side validation).
-- **1 orphan blade** (`quote.blade.php`) has no matching frontend component (frontend uses `pullquote` instead).
+- **1 orphan** (`quote`) — PHP `QuoteBlockDefinition` + `quote.blade.php` exist, but frontend uses `pullquote`. Audit reports this as `ORPHAN_BACKEND`.
 
 Run `composer audit-blocks` or `bash scripts/block-audit.sh` to check current layer coverage.
 
@@ -205,7 +205,7 @@ The following frontend blocks have no corresponding `BlockDefinition` PHP class.
 
 - `quote.blade.php` exists but has no frontend component.
 - The frontend uses `pullquote` instead.
-- `QuoteBlockDefinition.php` exists in PHP but maps to the orphan blade.
+- `QuoteBlockDefinition.php` (type `quote`) exists in PHP + blade but has no frontend component. Audit status: `ORPHAN_BACKEND`.
 
 ### Block Audit Scripts
 
