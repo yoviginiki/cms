@@ -41,8 +41,14 @@ class DocsController extends Controller
             abort(500, 'Failed to create ZIP');
         }
 
+        // Include README.md from project root
+        $readme = base_path('README.md');
+        if (File::exists($readme)) {
+            $zip->addFile($readme, 'README.md');
+        }
+
         foreach (File::glob("{$this->docsPath}/*.md") as $file) {
-            $zip->addFile($file, basename($file));
+            $zip->addFile($file, 'docs/' . basename($file));
         }
 
         $zip->close();
