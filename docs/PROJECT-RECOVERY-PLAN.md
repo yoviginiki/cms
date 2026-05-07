@@ -124,9 +124,9 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 - No `.nvmrc` or `engines` field to pin Node version.
 
 ### 2. README / Documentation Accuracy
-- `docs/BLOCKS.md` claims "69 block types" but there are 68 frontend + 69 blade (with a `quote`/`pullquote` naming mismatch).
-- No documentation covers the block definition gap (19 vs 68).
-- No documentation mentions which blocks lack `AssetPicker` integration.
+- ~~`docs/BLOCKS.md` claims "69 block types"~~ — **Fixed.** Now correctly documents 68 frontend + 69 blade + 19 PHP defs.
+- ~~No documentation covers the block definition gap~~ — **Fixed.** `docs/BLOCKS.md` and `README.md` now document the 50-block gap.
+- No documentation mentions which blocks lack `AssetPicker` integration (6 blocks identified in README but not in BLOCKS.md).
 
 ### 3. Frontend/Backend/Blade Block Mismatch
 - `quote` blade vs `pullquote` frontend -- naming inconsistency.

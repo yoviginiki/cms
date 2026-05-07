@@ -116,7 +116,7 @@ php artisan queue:work               # For publish jobs
 | Issue | Workaround |
 |-------|-----------|
 | `npm run build` in `resources/admin/` fails (TypeScript errors in wizard) | Use `npx vite build` directly |
-| `composer dev` requires `concurrently` globally | Install at root: `npm install` (root package.json has it) |
+| `composer dev` requires `concurrently` | Run `npm install` at project root first (it's a root devDependency) |
 
 ## Available Commands
 
@@ -262,7 +262,7 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
 See [Project Recovery Plan](docs/PROJECT-RECOVERY-PLAN.md) for full details.
 
-1. ~~**Fix setup/build scripts**~~ — done (`composer setup` targets `resources/admin/`)
+1. **Fix setup/build scripts** — partially done (`composer setup` fixed, but `composer dev` still uses root Vite, `npm run build` still fails on TypeScript)
 2. ~~**Add block audit script**~~ — done (`scripts/block-audit.sh`, run via `composer audit-blocks`)
 3. **Define block quality contract** — what "done" means for a block
 4. **Create shared field controls** — AssetSelectField, GradientField, LinkField, DimensionField, AlignmentField
