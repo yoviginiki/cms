@@ -6,7 +6,7 @@ Multi-tenant, block-based content management system with static site generation,
 
 - **Laravel 13 backend** with PostgreSQL row-level security for multi-tenancy
 - **React 19 / TypeScript admin SPA** with block-based page editor
-- **68 block types** with drag-and-drop, inline editing, and style controls
+- **68 registered block types** — completeness varies (see [Current State](#current-verified-state))
 - **Static site generator** — builds HTML, deploys via local copy, SSH rsync, or ZIP download
 - **Theme engine** — W3C Design Tokens format, per-site overrides, dark mode
 - **CSS Grid layout system** — 6 preset grids with responsive breakpoints
@@ -25,14 +25,14 @@ Multi-tenant, block-based content management system with static site generation,
 | State | Zustand (editor), TanStack Query (API) |
 | Database | PostgreSQL with RLS policies |
 | Queue | Redis / database driver |
-| Testing | PHPUnit, Pest conventions |
+| Testing | PHPUnit (backend only — no frontend tests) |
 
 ## Repository Structure
 
 ```
 app/
   Domain/              # Domain services (Publishing, Grid, Theme, Magazine, AI, etc.)
-  Http/Controllers/    # API v1 controllers (30+)
+  Http/Controllers/    # API v1 controllers (32)
   Http/Requests/       # Form request validation
   Http/Resources/      # API resource transformers
   Models/              # Eloquent models (33)
@@ -48,11 +48,11 @@ database/
   seeders/             # SystemThemeSeeder, SystemLayoutsSeeder, DatabaseSeeder
 
 resources/
-  admin/               # React admin SPA
+  admin/               # React admin SPA (separate Vite project)
     src/
       components/
-        blocks/        # 68 block components (definition + editor + preview)
-        editor/        # Block picker, canvas, settings, toolbar
+        blocks/        # 68 block folders (definition + editor + preview)
+        editor/        # Block picker, canvas, settings, toolbar, shared fields
         layout/        # AdminLayout with sidebar navigation
         magazine/      # Magazine editor canvas and panels
       pages/           # Page components (Dashboard, PageEditor, PostEditor, etc.)
@@ -65,32 +65,22 @@ resources/
     docs/              # Documentation viewer layout
 
 tests/
-  Feature/Api/         # 25 feature test files (~120 tests)
-  Feature/             # DynamicSiteTest (URL routing integration tests)
+  Feature/Api/         # 25 API feature test files
+  Feature/             # DynamicSiteTest, Security tests
 
-docs/                  # 14 markdown documentation files
-config/
-  publishing.php       # Deploy strategy, public path, staging path
-  system-layouts.php   # 7 system layout definitions
+docs/                  # 16 markdown documentation files
 ```
 
 ## Local Development Setup
 
+> **Note:** The project has two npm contexts. The root `package.json` is for Laravel's default Vite (unused by admin SPA). The admin SPA lives in `resources/admin/` with its own `package.json` and `vite.config.ts`.
+
 ```bash
-# Clone and install
+# Clone
 git clone git@github.com:yoviginiki/cms.git
 cd cms
 
-# Full setup (composer install, .env, key, migrate, npm install, build)
-composer setup
-
-# Start all services (server + queue + logs + vite)
-composer dev
-```
-
-Or step by step:
-
-```bash
+# Backend
 composer install
 cp .env.example .env
 php artisan key:generate
@@ -100,43 +90,67 @@ php artisan key:generate
 # DB_DATABASE=cms_saas_platform
 
 php artisan migrate --seed    # Creates system themes, layouts
-npm install --prefix resources/admin
-npm run build --prefix resources/admin
-php artisan serve
+
+# Admin SPA
+cd resources/admin
+npm install
+npx vite build               # Note: `npm run build` runs tsc first which may fail
+cd ../..                     # due to TypeScript errors in wizard module
+
+# Start
+php artisan serve             # Backend at http://localhost:8000
 ```
 
 Admin SPA: `http://localhost:8000/admin`
 
+For development with HMR:
+```bash
+cd resources/admin && npm run dev    # Vite dev server
+# In another terminal:
+php artisan serve
+php artisan queue:work               # For publish jobs
+```
+
+### Known Setup Issues
+
+| Issue | Workaround |
+|-------|-----------|
+| `composer setup` runs `npm install` at root, not `resources/admin/` | Use manual steps above |
+| `npm run build` in `resources/admin/` fails (TypeScript errors in wizard) | Use `npx vite build` directly |
+| `composer dev` requires `concurrently` globally | Install at root: `npm install` (root package.json has it) |
+
 ## Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `composer setup` | Full install (composer, env, migrate, npm, build) |
-| `composer dev` | Start server + queue + logs + Vite dev (parallel) |
-| `composer test` | Clear config cache and run PHPUnit tests |
-| `php artisan db:seed --class=SystemThemeSeeder` | Seed 3 system themes |
-| `php artisan db:seed --class=SystemLayoutsSeeder` | Seed 7 system layouts |
-| `npm run dev` (in resources/admin) | Vite dev server with HMR |
-| `npm run build` (in resources/admin) | Production build to public/admin-assets |
+| Command | Description | Notes |
+|---------|-------------|-------|
+| `composer install` | Install PHP dependencies | |
+| `composer test` | Run PHPUnit tests | Clears config cache first |
+| `composer dev` | Start server + queue + logs + Vite (parallel) | Requires root `npm install` first |
+| `php artisan db:seed --class=SystemThemeSeeder` | Seed 3 system themes | |
+| `php artisan db:seed --class=SystemLayoutsSeeder` | Seed 7 system layouts | |
+| `npx vite build` (in resources/admin/) | Production build to public/admin-assets | Reliable build command |
+| `npm run dev` (in resources/admin/) | Vite dev server with HMR | |
 
-## Admin Interface
+## Current Verified State
 
-The admin SPA is a React app at `resources/admin/src/`.
+| Item | Count | Notes |
+|------|-------|-------|
+| Frontend block folders | 68 | All have definition.ts, Editor.tsx, Preview.tsx, index.ts |
+| Blade block templates | 69 | 1 orphan (`quote.blade.php` — frontend uses `pullquote`) |
+| PHP BlockDefinition classes | 20 | **48 blocks lack server-side validation** |
+| Feature test files | 41 | Backend only, ~180+ passing assertions |
+| API controllers | 32 | |
+| Documentation files | 16 | |
+| Shared editor field components | 7 | ColorField, ImageField, NumberField, SelectField, TextArea, TextField, ToggleField |
+| Shared property panels | 7 | Advanced, Animation, Layout, Responsive, Spacing, Typography, Visual |
 
-**Routing:** React Router v7 — routes defined in page components, served by Laravel catch-all `/admin/{any?}`.
+### Block Layer Coverage
 
-**Key pages:**
-- `Dashboard.tsx` — site cards with pages/posts counts, ZIP download, view site links
-- `PageEditor.tsx` — block editor with drag-and-drop canvas, magazine mode toggle
-- `PostEditor.tsx` — post editor with category, tags, excerpt, featured image
-- `SiteSettings.tsx` — 8 tabs (General, Front Page, SEO, Deploy, Custom Code, AI, Magazine, Danger Zone)
-
-**Layout:** `AdminLayout.tsx` — collapsible sidebar with site-scoped navigation, publish button, theme toggle.
-
-**State management:**
-- `editorStore` (Zustand) — block tree, selection, dirty state, undo history
-- `magazineStore` (Zustand) — magazine pages, elements, selection
-- TanStack Query — all API data fetching and caching
+| Layer | Count | % of 68 |
+|-------|-------|---------|
+| Frontend (React) | 68 | 100% |
+| Rendering (Blade) | 68 | 100% (excluding orphan) |
+| Backend (PHP Definition) | 20 | **29%** |
 
 ## Block System
 
@@ -144,20 +158,22 @@ Three-layer architecture:
 
 ```
 Frontend (React)          Backend (PHP)           Rendering (Blade)
-components/blocks/hero/   BlockController          views/blocks/hero.blade.php
-  definition.ts           SanitizationService      
-  Editor.tsx              BuildPageService         
-  Preview.tsx                                      
-  index.ts (registers)                             
+components/blocks/hero/   Domain/Blocks/Defs/     views/blocks/hero.blade.php
+  definition.ts           HeroBlockDefinition.php
+  Editor.tsx              (validation + sanitize)
+  Preview.tsx
+  index.ts (registers)
 ```
 
 **68 block types** across 11 categories: Typography, Content, Layout, Navigation, Media, Blog, Interactive, Data, Commerce, Forms, Embeds.
+
+**Important:** While all 68 blocks have frontend components and Blade templates, only 20 have PHP backend definitions with validation rules. The remaining 48 accept any JSON payload without server-side schema enforcement.
 
 **Registration:** Each block's `index.ts` calls `blockRegistry.register(definition, Preview, Editor)`. All blocks are imported in `components/blocks/index.ts`.
 
 ### Block Development Checklist
 
-Every new block needs:
+Every block should have (currently not all do):
 
 **Frontend** (`resources/admin/src/components/blocks/{type}/`):
 - `definition.ts` — type, category, label, icon, defaultData, allowsChildren
@@ -165,12 +181,13 @@ Every new block needs:
 - `Preview.tsx` — canvas preview (props: block, isSelected)
 - `index.ts` — registers with blockRegistry
 
-**Backend**:
-- Add to `resources/views/blocks/{type}.blade.php` — server-side HTML rendering
-- Variables available: `$data`, `$children`, `$childrenArray`, `$site`
-- Sanitization handled by `SanitizationService` automatically
+**Backend** (`app/Domain/Blocks/Definitions/`):
+- `{Type}BlockDefinition.php` — validation rules, sanitization config, allowed keys
+- *Currently only 20 of 68 blocks have this*
 
-**Register**: Import in `resources/admin/src/components/blocks/index.ts`
+**Rendering**:
+- `resources/views/blocks/{type}.blade.php` — server-side HTML
+- Variables: `$data`, `$children`, `$childrenArray`, `$site`
 
 ## Publishing Pipeline
 
@@ -192,8 +209,9 @@ Homepage: `index.html` (from configured homepage_id or slug "home")
 
 - Upload: `AssetController` handles multipart uploads with variant generation
 - Storage: local disk with `/api/v1/sites/{id}/assets/{id}/serve` endpoint
-- Asset picker: `AssetField` / `AssetPicker` components for block editors
+- Asset picker: `AssetField` / `AssetPicker` components exist for block editors
 - Publishing: `AssetPublisher::rewriteHtml()` converts API URLs to static paths
+- **Gap:** 6 blocks still use raw URL text inputs instead of AssetPicker (button, ctabanner, customform, newsletter, socialembed, video)
 
 ## Testing
 
@@ -208,7 +226,7 @@ php artisan test --filter=DynamicSiteTest
 php artisan test --filter="DynamicSiteTest::test_homepage_returns_200"
 ```
 
-**25 test files** covering: Auth, Sites, Pages, Posts, Blocks, Categories, Tags, Menus, Redirects, Users, Grids, MagStyles, Versions, Analytics, Debug, EditorPresence, ThemeEngine, Diff, Preview, SiteReset, SiteClone, AI, Import, MagEditor, Magazines, DynamicSite URL routing.
+**Backend tests only.** No frontend tests exist.
 
 **Test database:** `cms_saas_platform_test` (PostgreSQL). Tests use `RefreshDatabase` trait.
 
@@ -226,15 +244,41 @@ Per-site deploy method in Settings → Deploy:
 
 ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
+## Known Architectural Gaps
+
+1. **Setup/build script mismatch** — `composer setup` runs npm at root, not in `resources/admin/`. Root `npm run build` builds Laravel default Vite, not the admin SPA.
+2. **Incomplete backend block definitions** — 48/68 blocks have no PHP BlockDefinition. No server-side validation for most block data.
+3. **Inconsistent editor field controls** — 7 shared fields exist but many blocks use inline `<input>` elements instead.
+4. **Raw URL inputs** — 6 blocks use text/url inputs where AssetPicker should be used (button, ctabanner, customform, newsletter, socialembed, video).
+5. **VisualPanel limitations** — BackgroundEditor exists but gradient/background-image controls need visual builders.
+6. **Missing automated block audit** — no script verifies all layers (frontend + blade + PHP definition) are consistent.
+7. **Missing frontend tests** — 0 React component tests. Backend has ~180+ passing assertions.
+8. **No CI/CD** — no automated pipeline for test + build + deploy.
+9. **TypeScript errors in wizard module** — `npm run build` fails; must use `npx vite build` to skip type checking.
+10. **User role enum mismatch** — controller validates `['viewer','author','editor','admin']` but DB enum is `['owner','admin','editor']`.
+
+## Recommended Development Order
+
+See [Project Recovery Plan](docs/PROJECT-RECOVERY-PLAN.md) for full details.
+
+1. **Fix setup/build scripts** — make `composer setup` work end-to-end
+2. **Add block audit script** — automated check for layer completeness
+3. **Define block quality contract** — what "done" means for a block
+4. **Create shared field controls** — AssetSelectField, GradientField, LinkField, DimensionField, AlignmentField
+5. **Refactor VisualPanel/ImageField** — use shared controls consistently
+6. **Complete backend definitions** — add PHP definitions for 48 missing blocks
+7. **Improve blocks by category** — audit and fix each group
+8. **Add CI** — GitHub Actions for test + build + block audit
+
 ## Documentation
 
-Full documentation available at `https://sys.ensodo.eu/docs` (requires login) or in the `docs/` folder:
+Full documentation at `https://sys.ensodo.eu/docs` (requires login) or in `docs/`:
 
 - [Architecture](docs/ARCHITECTURE.md) — tech stack, folder structure, request lifecycle
 - [API Reference](docs/API-REFERENCE.md) — all ~150 API endpoints
 - [Models](docs/MODELS.md) — 33 Eloquent models with fields and relationships
 - [Services](docs/SERVICES.md) — all domain services with method signatures
-- [Blocks](docs/BLOCKS.md) — 69 block types, rendering pipeline
+- [Blocks](docs/BLOCKS.md) — block types, rendering pipeline
 - [Publishing](docs/PUBLISHING.md) — build and deploy pipeline
 - [Theme Engine](docs/THEME-ENGINE.md) — design tokens, resolver, compiler
 - [Grid System](docs/GRID-SYSTEM.md) — CSS Grid layouts, positions, presets
@@ -244,23 +288,15 @@ Full documentation available at `https://sys.ensodo.eu/docs` (requires login) or
 - [Magazine Editor](docs/MAGAZINE-EDITOR.md) — freeform layout editor
 - [Magazine Wizard](docs/magazine-wizard.md) — AI-powered magazine creation
 - [Theme Spec](docs/THEME-SPEC.md) — W3C Design Tokens specification
-
-## Known Gaps
-
-- No frontend tests (React components untested)
-- Some blocks may lack complete Editor/Preview/Blade coverage
-- No CI/CD pipeline configured
-- `composer dev` requires `concurrently` npm package globally
-- User role validation mismatch: controller accepts `['viewer','author','editor','admin']` but DB enum is `['owner','admin','editor']`
-- Magazine Issue Composer routes registered but controller methods are stubs
+- [Project Recovery Plan](docs/PROJECT-RECOVERY-PLAN.md) — technical debt and priority phases
 
 ## Contributing
 
 1. Create a feature branch from `master`
-2. Run `composer setup` if fresh clone
+2. Install: `composer install` + `cd resources/admin && npm install`
 3. Make changes
 4. Run `composer test` — all tests must pass
-5. Run `npm run build --prefix resources/admin` — must build without errors
+5. Run `cd resources/admin && npx vite build` — must build without errors
 6. Update docs if adding blocks, endpoints, or settings
 7. Commit and push, open PR
 
@@ -272,7 +308,9 @@ Full documentation available at `https://sys.ensodo.eu/docs` (requires login) or
 | 500 on API calls | Check `storage/logs/laravel.log`, ensure RLS tenant scope is set |
 | Missing .env | `cp .env.example .env && php artisan key:generate` |
 | DB connection error | Ensure PostgreSQL is running, check `DB_*` in `.env` |
-| Vite not loading | Run `npm run dev --prefix resources/admin` or `npm run build` |
+| Vite not loading | `cd resources/admin && npm run dev` or `npx vite build` |
+| `npm run build` fails | TypeScript errors in wizard — use `npx vite build` instead |
 | Migration fails | Check for RLS-related errors, may need `--env=testing` for test DB |
 | Queue jobs not processing | Run `php artisan queue:work` or use `composer dev` |
 | Publish fails | Check deploy_method in site settings, verify SSH keys/paths |
+| `composer setup` fails at npm | Run admin install manually: `cd resources/admin && npm install && npx vite build` |
