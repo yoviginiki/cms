@@ -117,10 +117,12 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 
 ## Main Problems
 
-### 1. Setup/Build Script Issues
-- `composer setup` has been fixed to use `--prefix resources/admin` for npm commands, so it correctly targets the admin SPA.
-- `composer dev` uses `npx concurrently` which requires `concurrently` to be installed at root (`npm install` in project root).
-- `composer dev` runs `npm run dev` which uses the root Vite config (not the admin SPA). To develop the admin SPA, run `npm run dev` from `resources/admin/` separately.
+### 1. Setup/Build Script Issues — MOSTLY FIXED
+- `composer setup` targets `resources/admin/` for npm install and build.
+- `composer dev` now runs admin Vite via `npm run dev --prefix resources/admin`.
+- Root `package.json` scripts proxy to `resources/admin/` (`npm run dev`, `npm run build`, `npm run build:vite`).
+- `concurrently` is a root devDependency — run `npm install` at root before `composer dev`.
+- `npm run build` runs `tsc` first which fails on wizard TypeScript errors — use `npm run build:vite` to skip type checking.
 - No `.nvmrc` or `engines` field to pin Node version.
 
 ### 2. README / Documentation Accuracy
@@ -171,13 +173,15 @@ All other blocks that render visual backgrounds use hardcoded CSS gradient strin
 
 ## Priority Order
 
-### Phase 1: Setup & Documentation Fix (1-2 days) -- PARTIALLY DONE
+### Phase 1: Setup & Documentation Fix (1-2 days) -- DONE
 - [x] `composer setup` fixed to use `--prefix resources/admin`.
+- [x] `composer dev` fixed to run admin Vite (`npm run dev --prefix resources/admin`).
+- [x] Root `package.json` scripts proxy to `resources/admin/`.
 - [x] Block counts corrected in `docs/BLOCKS.md` and `README.md`.
 - [x] "Known Gaps" / "Known Problems" sections added to README.
+- [x] `npx vite build` passes (admin SPA builds successfully).
 - [ ] Add `.nvmrc` with required Node version.
-- [ ] Fix `composer dev` to also start admin SPA Vite (currently starts root Vite only).
-- [ ] Verify `composer dev` works end-to-end on a fresh checkout.
+- [ ] Fix TypeScript errors in wizard module so `npm run build` (with tsc) passes.
 
 ### Phase 2: Block Audit Script (1 day) -- DONE
 - [x] `scripts/block-audit.sh` exists and checks all three layers.

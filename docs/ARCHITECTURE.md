@@ -99,18 +99,16 @@ cms-platform/
     └── build/                   ← Compiled Vite assets
 ```
 
-## Two Vite Contexts
+## Vite Setup
 
-This project has two separate npm/Vite setups. They are independent and should not be confused:
+The admin SPA is a React 19 project at `resources/admin/` with its own `package.json` and `vite.config.ts` (Vite 6). It builds to `public/admin-assets/`.
 
-| Context | Location | Purpose | Vite Version |
-|---------|----------|---------|--------------|
-| Root | `package.json` + `vite.config.js` | Laravel default asset pipeline (CSS/JS for public-facing pages) | Vite 8 |
-| Admin SPA | `resources/admin/package.json` + `resources/admin/vite.config.ts` | React 19 admin application | Vite 6 |
+Root `package.json` scripts proxy to `resources/admin/`:
+- `npm run dev` → admin Vite dev server
+- `npm run build` → admin tsc + vite build
+- `npm run build:vite` → admin vite build (skips tsc)
 
-The admin SPA is a fully self-contained React project. Its `vite.config.ts` builds to `public/admin-assets/` and uses `@vitejs/plugin-react`. The root Vite config uses `laravel-vite-plugin` for standard Laravel asset compilation.
-
-When developing the admin SPA, always run `npm` commands from `resources/admin/`, not from the project root.
+A legacy `vite.config.js` exists at root (Laravel default, Vite 8) for `resources/css/app.css` — it is unused by the admin SPA and can be ignored.
 
 ## Request Lifecycle
 

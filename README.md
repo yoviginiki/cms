@@ -73,14 +73,18 @@ docs/                  # 16 markdown documentation files
 
 ## Local Development Setup
 
-> **Note:** The project has two npm contexts. The root `package.json` is for Laravel's default Vite (unused by admin SPA). The admin SPA lives in `resources/admin/` with its own `package.json` and `vite.config.ts`.
+> **Note:** The admin SPA lives in `resources/admin/` with its own `package.json` and `vite.config.ts`. Root `package.json` scripts proxy to `resources/admin/`, so `npm run dev` and `npm run build` work from the project root.
 
 ```bash
-# Clone
+# Clone and full setup
 git clone git@github.com:yoviginiki/cms.git
 cd cms
+composer setup    # Installs PHP deps, .env, migrate, admin npm install + build
+```
 
-# Backend
+Or step by step:
+
+```bash
 composer install
 cp .env.example .env
 php artisan key:generate
@@ -91,11 +95,9 @@ php artisan key:generate
 
 php artisan migrate --seed    # Creates system themes, layouts
 
-# Admin SPA
-cd resources/admin
-npm install
-npx vite build               # Note: `npm run build` runs tsc first which may fail
-cd ../..                     # due to TypeScript errors in wizard module
+# Admin SPA (either from root or from resources/admin/)
+npm install --prefix resources/admin
+npm run build                 # Proxies to resources/admin
 
 # Start
 php artisan serve             # Backend at http://localhost:8000
@@ -105,32 +107,36 @@ Admin SPA: `http://localhost:8000/admin`
 
 For development with HMR:
 ```bash
-cd resources/admin && npm run dev    # Vite dev server
-# In another terminal:
-php artisan serve
-php artisan queue:work               # For publish jobs
+composer dev    # Starts server + queue + logs + admin Vite (all parallel)
+```
+
+Or manually:
+```bash
+npm run dev                  # Admin Vite dev server (proxied from root)
+php artisan serve            # In another terminal
+php artisan queue:work       # For publish jobs
 ```
 
 ### Known Setup Issues
 
 | Issue | Workaround |
 |-------|-----------|
-| `npm run build` in `resources/admin/` fails (TypeScript errors in wizard) | Use `npx vite build` directly |
-| `composer dev` requires `concurrently` | Run `npm install` at project root first (it's a root devDependency) |
+| `npm run build` runs `tsc` first which may fail (TypeScript errors in wizard) | Use `npm run build:vite` or `cd resources/admin && npx vite build` |
+| `composer dev` requires `concurrently` | Run `npm install` at project root first (root devDependency) |
 
 ## Available Commands
 
 | Command | Description | Notes |
 |---------|-------------|-------|
-| `composer setup` | Full install (composer, env, migrate, admin build) | Fixed to target resources/admin/ |
+| `composer setup` | Full install (composer, env, migrate, admin build) | |
+| `composer dev` | Start server + queue + logs + admin Vite (parallel) | Requires root `npm install` first |
 | `composer test` | Run PHPUnit tests | Clears config cache first |
 | `composer audit-blocks` | Check block layer completeness | Frontend + Blade + PHP definition |
-| `composer audit-blocks-verbose` | Detailed block audit | Shows each block status |
-| `composer dev` | Start server + queue + logs + Vite (parallel) | Requires root `npm install` first |
+| `npm run dev` | Admin Vite dev server with HMR | Proxies to resources/admin/ |
+| `npm run build` | Admin production build | Runs tsc + vite build |
+| `npm run build:vite` | Admin build (skip TypeScript) | Use if tsc fails |
 | `php artisan db:seed --class=SystemThemeSeeder` | Seed 3 system themes | |
 | `php artisan db:seed --class=SystemLayoutsSeeder` | Seed 7 system layouts | |
-| `npx vite build` (in resources/admin/) | Production build to public/admin-assets | Reliable build command |
-| `npm run dev` (in resources/admin/) | Vite dev server with HMR | |
 
 ## Current Verified State
 
@@ -247,7 +253,7 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
 ## Known Architectural Gaps
 
-1. **Two Vite contexts** — `composer setup` is fixed to target `resources/admin/`, but `composer dev` still runs `npm run dev` from root (Laravel default Vite, not admin SPA). Run admin dev server separately from `resources/admin/`.
+1. **Root scripts proxy to admin** — root `package.json` scripts now proxy to `resources/admin/`. Root `vite.config.js` (Laravel default) is unused but kept for reference.
 2. **Incomplete backend block definitions** — 50/68 frontend blocks have no PHP BlockDefinition. No server-side validation for most block data.
 3. **Inconsistent editor field controls** — 7 shared fields exist but many blocks use inline `<input>` elements instead.
 4. **Raw URL inputs** — 6 blocks use text/url inputs where AssetPicker should be used (button, ctabanner, customform, newsletter, socialembed, video).
@@ -262,7 +268,7 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 
 See [Project Recovery Plan](docs/PROJECT-RECOVERY-PLAN.md) for full details.
 
-1. **Fix setup/build scripts** — partially done (`composer setup` fixed, but `composer dev` still uses root Vite, `npm run build` still fails on TypeScript)
+1. ~~**Fix setup/build scripts**~~ — done (all scripts target `resources/admin/`, `npm run build` works via proxy, TypeScript errors in wizard remain but `build:vite` skips them)
 2. ~~**Add block audit script**~~ — done (`scripts/block-audit.sh`, run via `composer audit-blocks`)
 3. **Define block quality contract** — what "done" means for a block
 4. **Create shared field controls** — AssetSelectField, GradientField, LinkField, DimensionField, AlignmentField
