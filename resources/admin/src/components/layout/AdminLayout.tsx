@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive } from 'lucide-react';
+import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download } from 'lucide-react';
 import { publishing, api } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -31,6 +31,34 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [publishStatus, setPublishStatus] = useState<'idle' | 'publishing' | 'success' | 'error'>('idle');
   const [publishMsg, setPublishMsg] = useState('');
   const [publishErrorTime, setPublishErrorTime] = useState<number | null>(null);
+  const [exportState, setExportState] = useState<'idle' | 'generating' | 'ready'>('idle');
+  const [exportInfo, setExportInfo] = useState<{ size?: number; generated_at?: string }>({});
+
+  // Check export status on mount
+  useEffect(() => {
+    api.get('/cms-export/status').then(r => {
+      const d = r.data?.data;
+      if (d?.status === 'ready') {
+        setExportState('ready');
+        setExportInfo({ size: d.size, generated_at: d.generated_at });
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleGenerateExport = async () => {
+    setExportState('generating');
+    try {
+      const r = await api.post('/cms-export/generate');
+      if (r.data?.data?.status === 'ready') {
+        const st = await api.get('/cms-export/status');
+        setExportState('ready');
+        setExportInfo({ size: st.data?.data?.size, generated_at: st.data?.data?.generated_at });
+      }
+    } catch {
+      setExportState('idle');
+    }
+  };
+
   const [adminTheme, setAdminTheme] = useState<'cms-admin' | 'cms-admin-light'>(() => {
     return (localStorage.getItem('admin-theme') as 'cms-admin' | 'cms-admin-light') || 'cms-admin';
   });
@@ -179,11 +207,28 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <BookOpen size={15} strokeWidth={1.5} />
             {!collapsed && 'Docs'}
           </a>
-          <a href="/api/v1/cms-export"
-            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors">
-            <Archive size={15} strokeWidth={1.5} />
-            {!collapsed && 'Export CMS'}
-          </a>
+          {!collapsed ? (
+            <div className="px-2.5 py-1.5 space-y-1">
+              <button onClick={handleGenerateExport} disabled={exportState === 'generating'}
+                className="flex items-center gap-2 w-full px-2 py-1 rounded-md text-[12px] text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30 transition-colors disabled:opacity-50">
+                {exportState === 'generating' ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} strokeWidth={1.5} />}
+                {exportState === 'generating' ? 'Generating...' : 'Generate Export'}
+              </button>
+              {exportState === 'ready' && (
+                <a href="/api/v1/cms-export/download"
+                  className="flex items-center gap-2 w-full px-2 py-1 rounded-md text-[11px] text-success hover:bg-success/10 transition-colors">
+                  <Download size={12} strokeWidth={1.5} />
+                  Download ({exportInfo.size ? (exportInfo.size / 1024 / 1024).toFixed(1) + ' MB' : '...'})
+                </a>
+              )}
+            </div>
+          ) : (
+            <button onClick={handleGenerateExport} disabled={exportState === 'generating'}
+              className="flex items-center justify-center w-full px-2.5 py-1.5 rounded-md text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors"
+              title="Generate CMS Export">
+              {exportState === 'generating' ? <Loader2 size={15} className="animate-spin" /> : <Archive size={15} strokeWidth={1.5} />}
+            </button>
+          )}
           <button onClick={toggleAdminTheme}
             className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[13px] text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30 transition-colors"
             title={adminTheme === 'cms-admin' ? 'Switch to light mode' : 'Switch to dark mode'}>

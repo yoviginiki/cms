@@ -58,36 +58,93 @@ class SystemController extends Controller
     }
 
     /**
-     * Download the entire CMS platform as a ZIP for migration.
-     * Serves a pre-built ZIP if available, otherwise builds one on-the-fly.
+     * Trigger CMS export ZIP generation.
      */
-    public function exportCms(Request $request): BinaryFileResponse|JsonResponse
+    public function generateExport(Request $request): JsonResponse
     {
         if (!$request->user()?->hasMinimumRole('admin')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $prebuilt = storage_path('app/cms-export.zip');
-        if (file_exists($prebuilt)) {
-            return response()->download($prebuilt, 'cms-platform-' . date('Y-m-d') . '.zip', [
-                'Content-Type' => 'application/zip',
-            ]);
+        $lockFile = storage_path('app/cms-export.lock');
+        if (file_exists($lockFile) && (time() - filemtime($lockFile)) < 120) {
+            return response()->json(['data' => ['status' => 'generating']], 202);
         }
 
-        // Build on the fly
-        $zipPath = storage_path('app/tmp/cms-export-' . now()->format('Ymd-His') . '.zip');
-        File::ensureDirectoryExists(dirname($zipPath));
+        // Mark as generating
+        File::put($lockFile, (string) time());
+
+        // Build in the same request (fast enough for ~1.5MB)
+        $this->buildExportZip();
+
+        // Remove lock
+        @unlink($lockFile);
+
+        return response()->json(['data' => ['status' => 'ready']]);
+    }
+
+    /**
+     * Check export status and file info.
+     */
+    public function exportStatus(Request $request): JsonResponse
+    {
+        if (!$request->user()?->hasMinimumRole('admin')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $zipPath = storage_path('app/cms-export.zip');
+        $lockFile = storage_path('app/cms-export.lock');
+        $generating = file_exists($lockFile) && (time() - filemtime($lockFile)) < 120;
+
+        if ($generating) {
+            return response()->json(['data' => ['status' => 'generating']]);
+        }
+
+        if (file_exists($zipPath)) {
+            return response()->json(['data' => [
+                'status' => 'ready',
+                'size' => filesize($zipPath),
+                'generated_at' => date('c', filemtime($zipPath)),
+            ]]);
+        }
+
+        return response()->json(['data' => ['status' => 'none']]);
+    }
+
+    /**
+     * Download the CMS export ZIP.
+     */
+    public function downloadExport(Request $request): BinaryFileResponse|JsonResponse
+    {
+        if (!$request->user()?->hasMinimumRole('admin')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $zipPath = storage_path('app/cms-export.zip');
+        if (!file_exists($zipPath)) {
+            return response()->json(['message' => 'No export available. Generate one first.'], 404);
+        }
+
+        return response()->download($zipPath, 'cms-platform-' . date('Y-m-d') . '.zip', [
+            'Content-Type' => 'application/zip',
+        ]);
+    }
+
+    private function buildExportZip(): void
+    {
+        $zipPath = storage_path('app/cms-export.zip');
+        $tmpPath = storage_path('app/tmp/cms-export-build.zip');
+        File::ensureDirectoryExists(dirname($tmpPath));
 
         $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-            return response()->json(['message' => 'Failed to create ZIP'], 500);
+        if ($zip->open($tmpPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Failed to create ZIP');
         }
 
         $basePath = base_path();
         $include = ['app', 'config', 'database', 'resources', 'routes', 'docs', 'public/admin-assets', 'tests'];
         $rootFiles = ['composer.json', 'composer.lock', 'package.json', 'artisan', '.env.example', 'README.md', 'phpunit.xml'];
 
-        // Add root files
         foreach ($rootFiles as $file) {
             $full = $basePath . '/' . $file;
             if (file_exists($full)) {
@@ -95,7 +152,6 @@ class SystemController extends Controller
             }
         }
 
-        // Add directories
         foreach ($include as $dir) {
             $dirPath = $basePath . '/' . $dir;
             if (!is_dir($dirPath)) continue;
@@ -107,7 +163,6 @@ class SystemController extends Controller
 
             foreach ($iterator as $file) {
                 $relative = substr($file->getPathname(), strlen($basePath) + 1);
-                // Skip vendor, node_modules, .git, storage
                 if (preg_match('#(vendor|node_modules|\.git)/#', $relative)) continue;
                 $zip->addFile($file->getPathname(), $relative);
             }
@@ -115,8 +170,7 @@ class SystemController extends Controller
 
         $zip->close();
 
-        return response()->download($zipPath, 'cms-platform-' . date('Y-m-d') . '.zip', [
-            'Content-Type' => 'application/zip',
-        ])->deleteFileAfterSend(true);
+        // Atomic replace
+        rename($tmpPath, $zipPath);
     }
 }

@@ -223,7 +223,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // System (admin only)
         Route::get('system/updates', [SystemController::class, 'checkUpdate']);
         Route::post('system/updates/apply', [SystemController::class, 'applyUpdate']);
-        Route::get('cms-export', [SystemController::class, 'exportCms']);
+        Route::post('cms-export/generate', [SystemController::class, 'generateExport']);
+        Route::get('cms-export/status', [SystemController::class, 'exportStatus']);
+        Route::get('cms-export/download', [SystemController::class, 'downloadExport']);
 
         // Site Reset (owner only — destructive)
         Route::get('sites/{site}/reset/preview', [\App\Http\Controllers\Api\V1\SiteResetController::class, 'preview']);
