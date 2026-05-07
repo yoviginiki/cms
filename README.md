@@ -115,7 +115,6 @@ php artisan queue:work               # For publish jobs
 
 | Issue | Workaround |
 |-------|-----------|
-| `composer setup` runs `npm install` at root, not `resources/admin/` | Use manual steps above |
 | `npm run build` in `resources/admin/` fails (TypeScript errors in wizard) | Use `npx vite build` directly |
 | `composer dev` requires `concurrently` globally | Install at root: `npm install` (root package.json has it) |
 
@@ -123,8 +122,10 @@ php artisan queue:work               # For publish jobs
 
 | Command | Description | Notes |
 |---------|-------------|-------|
-| `composer install` | Install PHP dependencies | |
+| `composer setup` | Full install (composer, env, migrate, admin build) | Fixed to target resources/admin/ |
 | `composer test` | Run PHPUnit tests | Clears config cache first |
+| `composer audit-blocks` | Check block layer completeness | Frontend + Blade + PHP definition |
+| `composer audit-blocks-verbose` | Detailed block audit | Shows each block status |
 | `composer dev` | Start server + queue + logs + Vite (parallel) | Requires root `npm install` first |
 | `php artisan db:seed --class=SystemThemeSeeder` | Seed 3 system themes | |
 | `php artisan db:seed --class=SystemLayoutsSeeder` | Seed 7 system layouts | |

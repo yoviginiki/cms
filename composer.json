@@ -46,8 +46,8 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@php artisan migrate --force",
-            "npm install --ignore-scripts",
-            "npm run build"
+            "npm install --prefix resources/admin",
+            "npx --prefix resources/admin vite build"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
@@ -56,6 +56,12 @@
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"
+        ],
+        "audit-blocks": [
+            "bash scripts/block-audit.sh"
+        ],
+        "audit-blocks-verbose": [
+            "bash scripts/block-audit.sh --verbose"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
