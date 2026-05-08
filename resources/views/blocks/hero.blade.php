@@ -2,6 +2,8 @@
     // Sanitize CSS values to prevent style injection
     $cssVal = fn($v) => preg_replace('/[^a-zA-Z0-9#(),.\s%\/\-]/', '', (string) $v);
     $cssUrl = fn($v) => preg_match('#^(https?://|/)[^\'"<>]*$#i', (string) $v) ? (string) $v : '';
+    // Sanitize href values: block javascript:, data:, vbscript: schemes
+    $safeUrl = fn($v) => preg_match('/^(javascript|data|vbscript):/i', trim((string) $v)) ? '#' : (string) $v;
 
     $bgType = $data['bg_type'] ?? 'none';
     $hasBg = $bgType !== 'none' || !empty($data['backgroundImage']);
@@ -48,7 +50,7 @@
         @endif
         @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
             @php $ctaBg = $hasBg ? 'background:rgba(255,255,255,0.2);color:#fff;border:2px solid #fff;' : 'background:#333;color:#fff;border:2px solid #333;'; @endphp
-            <a href="{{ $data['ctaUrl'] }}" style="display:inline-block;padding:0.75rem 2rem;{{ $ctaBg }}border-radius:0.375rem;text-decoration:none;font-weight:600;">{{ $data['ctaText'] }}</a>
+            <a href="{{ $safeUrl($data['ctaUrl']) }}" style="display:inline-block;padding:0.75rem 2rem;{{ $ctaBg }}border-radius:0.375rem;text-decoration:none;font-weight:600;">{{ $data['ctaText'] }}</a>
         @endif
     </div>
 </section>

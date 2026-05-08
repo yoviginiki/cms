@@ -33,7 +33,7 @@ class HeroBlockDefinition implements BlockDefinition
 
             // CTA / Link fields
             'ctaText'            => ['sometimes', 'nullable', 'string', 'max:100'],
-            'ctaUrl'             => ['sometimes', 'nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|mailto:|tel:|\/).*/i'],
+            'ctaUrl'             => ['sometimes', 'nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|mailto:|tel:|\/|\.\/|\.\.\/#|\?|[a-zA-Z0-9])/i', 'not_regex:/^(javascript|data|vbscript):/i'],
 
             // Accessibility fields
             'alt'                => ['sometimes', 'nullable', 'string', 'max:255'],

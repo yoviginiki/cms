@@ -7,7 +7,6 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const title = (data.title as string) || '';
   const subtitle = (data.subtitle as string) || '';
   const ctaText = (data.ctaText as string) || '';
-  const bgType = (data.bg_type as string) || 'none';
 
   // Legacy fallback: old hero blocks saved backgroundImage instead of bg_image
   const legacyImage = (data.backgroundImage as string) || '';
