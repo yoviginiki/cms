@@ -2,7 +2,7 @@
 
 Comprehensive standard for developing, repairing, and evaluating blocks in the Ensodo CMS.
 
-Every block MUST comply with this contract before being considered production-ready. Existing blocks should be repaired toward compliance using the Repair Workflow (Section P).
+Every block MUST comply with this contract before being considered production-ready. Existing blocks should be repaired toward compliance using the Repair Workflow (Section Q).
 
 ---
 
@@ -23,7 +23,8 @@ Every block MUST comply with this contract before being considered production-re
 - [M. Testing Standard](#m-testing-standard)
 - [N. Block Readiness Levels](#n-block-readiness-levels)
 - [O. Block Category Requirements](#o-block-category-requirements)
-- [P. Repair Workflow](#p-repair-workflow)
+- [P. Block Deprecation and Removal](#p-block-deprecation-and-removal)
+- [Q. Repair Workflow](#q-repair-workflow)
 
 ---
 
@@ -91,6 +92,23 @@ defaultData: {
 }
 ```
 
+### Standard Field Length Limits
+
+Use these defaults unless the block has a specific reason to deviate:
+
+| Field Type | Max Length | Example Fields |
+|-----------|-----------|----------------|
+| Title / label | 255 | `title`, `label`, `buttonText`, `ctaText` |
+| Subtitle / short text | 500 | `subtitle`, `citation`, `author`, `role` |
+| Description / medium text | 2000 | `description`, `caption`, `summary` |
+| Rich text / content | 65535 | `content`, `quote`, `body` |
+| URL | 2048 | `ctaUrl`, `href`, `src` |
+| Asset path | 2048 | `backgroundImage`, `image`, `video` |
+| CSS value | 100 | `backgroundColor`, `textAlign`, `fontSize` |
+| CSS class | 255 | `cssClass` |
+| Anchor / ID | 100 | `anchor`, `id` |
+| Alt text | 255 | `alt`, `ariaLabel` |
+
 ### Data Versioning (Future)
 
 When a block's data shape changes, increment `schemaVersion` in the definition. Provide a migration function from the previous version. Never silently drop or rename fields.
@@ -118,8 +136,34 @@ Every block MUST have four files in `resources/admin/src/components/blocks/{type
 | `Preview.tsx` | Canvas preview rendered in the page editor | yes |
 | `index.ts` | Registers definition + Preview + Editor with `blockRegistry` | yes |
 
+### BlockDefinition TypeScript Interface
+
+Every `definition.ts` must export an object conforming to the `BlockDefinition` interface defined in `resources/admin/src/types/blocks.ts`:
+
+```typescript
+// Source: resources/admin/src/types/blocks.ts
+export interface BlockDefinition {
+  type: string;
+  category: BlockCategory;
+  label: string;
+  icon: string;
+  description?: string;
+  defaultData: Record<string, unknown>;
+  allowsChildren: boolean;
+  maxChildren?: number;
+  hasTypography?: boolean;
+  tier?: 'core' | 'advanced' | 'pro';
+}
+
+// BlockCategory = 'content' | 'media' | 'layout' | 'navigation'
+//               | 'interactive' | 'marketing' | 'data' | 'advanced'
+```
+
+Related types in the same file: `BlockData`, `BlockComponentProps`, `BlockEditorProps`, `BlockStyleProps`, `ResponsiveOverrides`, `AnimationProps`, `AdvancedProps`.
+
 ### definition.ts Requirements
 
+- Must satisfy the `BlockDefinition` interface (use `satisfies BlockDefinition` or type annotation)
 - `defaultData` must contain every field the Editor and Preview reference
 - Default values must be meaningful: a title should be `'Hero Title'` not `''`
 - No field in Editor/Preview should be absent from defaultData (prevents undefined access)
@@ -154,7 +198,9 @@ blockRegistry.register(heroDefinition, HeroPreview, HeroEditor);
 
 ### Use Shared Field Controls
 
-Blocks MUST use the shared field components from `@/components/editor/fields/` instead of inline `<input>` elements wherever possible:
+Blocks MUST use the shared field components instead of inline `<input>` elements wherever possible.
+
+**Source:** `resources/admin/src/components/editor/fields/` — barrel-exported from `index.ts`.
 
 | Existing Control | Import | Use For |
 |-----------------|--------|---------|
@@ -166,16 +212,20 @@ Blocks MUST use the shared field components from `@/components/editor/fields/` i
 | `ColorField` | `@/components/editor/fields` | Color pickers |
 | `ImageField` | `@/components/editor/fields` | Image selection with asset picker |
 
-| Planned Control | Use For |
-|----------------|---------|
-| `AssetSelectField` | Generic asset selection (images, PDFs, videos) |
-| `GradientField` | Visual gradient builder |
-| `LinkField` | URL + target + label combined control |
-| `DimensionField` | Width/height/padding with unit selection |
-| `AlignmentField` | Text/content alignment picker |
-| `TypographyField` | Font family/size/weight/style combined control |
-| `SpacingField` | Margin/padding visual editor |
-| `RepeaterField` | Dynamic lists (gallery items, accordion items, tabs) |
+These 7 components are verified to exist and are exported from `@/components/editor/fields`. Any new block editor MUST use them instead of raw HTML inputs.
+
+| Planned Control | Status | Use For |
+|----------------|--------|---------|
+| `AssetSelectField` | not implemented | Generic asset selection (images, PDFs, videos) |
+| `GradientField` | not implemented | Visual gradient builder |
+| `LinkField` | not implemented | URL + target + label combined control |
+| `DimensionField` | not implemented | Width/height/padding with unit selection |
+| `AlignmentField` | not implemented | Text/content alignment picker |
+| `TypographyField` | not implemented | Font family/size/weight/style combined control |
+| `SpacingField` | not implemented | Margin/padding visual editor |
+| `RepeaterField` | not implemented | Dynamic lists (gallery items, accordion items, tabs) |
+
+Until planned controls are implemented, use the existing controls as close approximations (e.g., `TextField` for URLs until `LinkField` exists, `TextField` + manual gradient syntax until `GradientField` exists).
 
 ### UX Requirements
 
@@ -250,6 +300,54 @@ These always live in the right sidebar:
 - Animation settings
 - Responsive overrides
 
+### Dual Editing Modes
+
+Inline editing must NOT remove the right-side settings/content panel. The editor supports two complementary editing modes:
+
+**1. Canvas Editing (inline)**
+- Used for normal visible content: title, subtitle, paragraph, quote, button label, card text, CTA text
+- Gives the user direct visual feedback inside the page body
+- Content appears exactly where it will be published
+
+**2. Side Panel Editing (form-based)**
+- Remains available as **fallback** for the same content fields edited inline
+- Is **required** for settings fields (layout, spacing, colors, backgrounds, media selection)
+- Is **required** for advanced fields (CSS classes, anchors, custom code)
+- Is **required** for accessibility fields (alt text, aria labels, heading levels)
+- Is **required** for link targets and media metadata
+- Is **required** for responsive settings
+- May include raw HTML or embed input **only** for blocks that explicitly allow it
+
+The side panel is useful for:
+- Editing content in form mode (some users prefer it)
+- Copying/pasting longer text
+- Pasting allowed sanitized HTML into explicit rich-text fields
+- Link URL and target configuration
+- Media metadata (alt text, caption, dimensions)
+- Layout and spacing controls
+- Responsive settings
+- Accessibility metadata
+- Advanced settings (CSS class, anchor ID)
+
+### HTML / Embed Paste Rules
+
+Raw HTML input is a special case that must be handled explicitly:
+
+1. **Raw HTML must be an explicit advanced mode** — it must never be silently enabled for every block
+2. **Only blocks that explicitly declare HTML/embed support** may accept raw HTML input (e.g., `html-embed`, `socialembed`, and rich-text blocks with HTML mode)
+3. **Raw HTML fields must be clearly marked** as advanced/risky in the editor UI (e.g., warning icon, "Advanced: raw HTML" label)
+4. **Backend sanitization is mandatory** — all HTML input must pass through `sanitizationConfig()` with appropriate HTMLPurifier rules
+5. **The block contract must declare each field's content type**: plain text, rich text, sanitized HTML, embed, or raw HTML
+6. **Editor, Preview, Blade, validation, and sanitization must all agree** on the same data field and its content type
+
+| Content Type | Canvas Editing | Side Panel Editing | Backend Handling |
+|-------------|---------------|-------------------|-----------------|
+| **Plain text** | inline contentEditable (text only) | TextField / TextArea | strip_tags, max length |
+| **Rich text** | inline contentEditable (formatted) | TextArea with formatting hints | HTMLPurifier with limited tags |
+| **Sanitized HTML** | not inline editable | TextArea with HTML mode toggle | HTMLPurifier with allowed tags |
+| **Embed code** | not inline editable | TextArea in explicit advanced section | HTMLPurifier with iframe whitelist |
+| **Raw HTML** | not inline editable | TextArea in explicit advanced section, warning shown | HTMLPurifier with strict config, CSP |
+
 ### Rules
 
 1. **Content-first**: After the user enters content, the canvas must show that actual content, not a placeholder
@@ -258,6 +356,8 @@ These always live in the right sidebar:
 4. **Immediate preview**: Edits in any location (inline or panel) must immediately reflect in the canvas
 5. **Side panel as fallback**: Every inline-editable field must also be editable from the settings panel as a fallback
 6. **Normal text content must not live only in the side panel** unless inline editing is impractical for that field
+7. **Never enable raw HTML globally**: Raw HTML/embed is opt-in per block/field, never a default behavior
+8. **HTML fields require backend sanitization**: Any field accepting HTML must have matching `sanitizationConfig()` rules in the PHP definition
 
 ### Inline Editing Implementation Strategy (Future)
 
@@ -294,6 +394,10 @@ When implementing inline editing, follow these guidelines:
 6. **Undo/redo**: Inline edits must integrate with the editor's undo/redo system. Each debounced commit should be one undo step.
 
 7. **Right-side panel fallback**: Always keep the field editable in the settings panel. Some users prefer panel editing; inline is an enhancement, not a replacement.
+
+8. **Never enable raw HTML in inline editing**: Inline contentEditable must produce plain text or structured rich text only. Raw HTML paste is only allowed through the side panel in explicit advanced fields with backend sanitization.
+
+9. **Rich text inline editing**: For fields declared as rich text, inline editing may support basic formatting (bold, italic, links) but must sanitize output. The side panel provides the full-featured text input as fallback.
 
 ---
 
@@ -494,6 +598,24 @@ Every block must have a Blade template at `resources/views/blocks/{type}.blade.p
 
 7. **Accessible markup**: Include `alt` attributes on images, `aria-label` on interactive elements, proper heading hierarchy.
 
+8. **External assets with `@once` / `@push`**: Blocks that require external CSS or JS (e.g., `chart`, `map`, `socialembed`, `code` with syntax highlighting) must use `@once` or `@push`/`@pushOnce` to avoid duplicating resources when multiple instances of the same block appear on one page:
+   ```blade
+   {{-- Load Chart.js only once, even if multiple chart blocks exist --}}
+   @pushOnce('scripts')
+     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+   @endPushOnce
+
+   {{-- Block-specific inline script (runs per instance) --}}
+   @push('scripts')
+     <script>
+       document.addEventListener('DOMContentLoaded', () => {
+         new Chart(document.getElementById('chart-{{ $data['id'] ?? uniqid() }}'), { /* ... */ });
+       });
+     </script>
+   @endpush
+   ```
+   The page layout template must include `@stack('styles')` in `<head>` and `@stack('scripts')` before `</body>`.
+
 ---
 
 ## J. Security and Sanitization
@@ -598,6 +720,16 @@ public function sanitizationConfig(): array
 
 7. **Hide on breakpoint**: Support `__responsive.mobile.hidden`, `__responsive.tablet.hidden` flags for hiding blocks at specific breakpoints (handled by the rendering pipeline).
 
+8. **Prefer container queries where applicable**: Blocks are rendered inside varying layout contexts (full-width sections, columns, sidebars). Media queries respond to viewport width, but a block inside a 3-column grid is effectively narrow even on a wide screen. Use CSS container queries (`@container`) for layout-dependent styles in Blade output:
+   ```css
+   .block-wrapper { container-type: inline-size; }
+
+   @container (max-width: 400px) {
+     .feature-grid { grid-template-columns: 1fr; }
+   }
+   ```
+   Tailwind CSS v3.2+ supports container queries via the `@container` variant (`@container/sm:grid-cols-1`). Use media queries as fallback for browsers without container query support.
+
 ---
 
 ## M. Testing Standard
@@ -627,11 +759,55 @@ For every block with a PHP definition, there should be:
 
 ### Frontend Checks (Future)
 
-When frontend testing is adopted:
+**Recommended framework:** Vitest + React Testing Library. Vitest integrates natively with the existing Vite build (`resources/admin/vite.config.ts`) and requires minimal configuration. No frontend testing framework is configured yet.
 
-1. **Preview render test**: Mount Preview with empty data, verify no crash
-2. **Preview render test**: Mount Preview with complete data, verify content appears
-3. **Editor render test**: Mount Editor, simulate field input, verify onUpdate is called with correct data
+**Setup (when adopted):**
+```bash
+npm install -D vitest @testing-library/react @testing-library/jest-dom jsdom
+```
+
+Add to `resources/admin/vite.config.ts`:
+```typescript
+/// <reference types="vitest" />
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.ts',
+  },
+});
+```
+
+**Minimum tests per block:**
+
+1. **Preview render test — empty data**: Mount Preview with `defaultData`, verify no crash and empty state is shown
+2. **Preview render test — complete data**: Mount Preview with filled data, verify content text appears in the DOM
+3. **Editor render test**: Mount Editor, simulate field input, verify `onUpdate` is called with correct data keys
+
+**Example test** (`resources/admin/src/components/blocks/hero/__tests__/Preview.test.tsx`):
+```tsx
+import { render, screen } from '@testing-library/react';
+import { HeroPreview } from '../Preview';
+
+const defaultBlock = {
+  id: 'test-1',
+  type: 'hero',
+  data: { title: '', subtitle: '', backgroundImage: null, ctaText: '', ctaUrl: '' },
+  style: {},
+  order: 0,
+};
+
+test('renders empty state when no content', () => {
+  render(<HeroPreview block={defaultBlock} isSelected={false} />);
+  expect(screen.getByText(/click to configure/i)).toBeInTheDocument();
+});
+
+test('renders title when provided', () => {
+  const block = { ...defaultBlock, data: { ...defaultBlock.data, title: 'Welcome' } };
+  render(<HeroPreview block={block} isSelected={false} />);
+  expect(screen.getByText('Welcome')).toBeInTheDocument();
+});
+```
 
 ### Schema Consistency Test (Future)
 
@@ -681,6 +857,7 @@ All Level 2 requirements, plus:
 
 - [ ] Content fields are visible and editable in the canvas (not hidden in sidebar only)
 - [ ] Inline editing supported where appropriate (or planned with clear field classification)
+- [ ] Side panel fallback remains available for content fields, settings, and advanced options
 - [ ] Preview reflects saved data immediately, not stale placeholders
 - [ ] Editor readable in both light and dark admin themes
 - [ ] Empty states are readable and informative (not broken layouts)
@@ -690,6 +867,7 @@ All Level 2 requirements, plus:
 - [ ] Semantic HTML in Blade output
 - [ ] Alt text / accessibility fields present where applicable
 - [ ] No raw URL inputs for assets (uses ImageField or AssetSelectField)
+- [ ] Raw HTML/embed input, if supported, is explicitly marked as advanced, uses a dedicated field, and has backend sanitization configured
 
 ### Level 4: Premium CMS Block
 
@@ -762,14 +940,56 @@ All Level 3 requirements, plus:
 
 ### Advanced / Design Blocks (`html-embed`, `icon`, `divider`, `spacer`, `button`)
 
-- HTML embed must sanitize content aggressively
+- HTML embed must sanitize content aggressively via `sanitizationConfig()`
+- HTML embed must present raw HTML input in an explicit advanced section with a warning label
+- HTML embed is one of the few blocks where raw HTML paste is allowed in the side panel
 - Icon blocks must support accessible labels
 - Divider/spacer are visual-only but must render valid HTML
 - Button must use LinkField for URL, not raw input
 
 ---
 
-## P. Repair Workflow
+## P. Block Deprecation and Removal
+
+### When to Deprecate
+
+A block should be deprecated when:
+- It duplicates another block's functionality (e.g., `quote` vs `pullquote`)
+- It was experimental and will not be promoted
+- Its functionality has been absorbed into another block
+
+### Deprecation Process
+
+1. **Mark as deprecated** in `definition.ts`: add `deprecated: true` and `deprecatedMessage: 'Use {replacement} instead'`
+2. **Hide from BlockPicker** — deprecated blocks should not appear when adding new blocks
+3. **Keep rendering** — existing pages using the block must continue to render correctly in Blade
+4. **Provide migration path** — document which block replaces it and how to convert data
+5. **Do not delete files** until all existing content has been migrated
+
+### Removal Process
+
+1. Verify no pages reference the block type (query `blocks` table)
+2. Remove frontend files (`definition.ts`, `Editor.tsx`, `Preview.tsx`, `index.ts`)
+3. Remove from frontend index imports
+4. Remove Blade template
+5. Remove PHP BlockDefinition
+6. Remove from BlockRegistry
+7. Run full audit + build to confirm clean removal
+
+### Known Issue: `quote` vs `pullquote`
+
+The `quote` type has a PHP definition (`QuoteBlockDefinition.php` returning type `quote`) and a Blade template (`quote.blade.php`), but no frontend component. The frontend uses `pullquote` instead.
+
+**Resolution options** (choose one during repair):
+- **Option A: Rename `pullquote` to `quote`** — rename frontend folder, update all imports, keep existing PHP + Blade. Requires migrating existing `pullquote` block data in the database to type `quote`.
+- **Option B: Add `quote` frontend** — create a new `quote` frontend component matching the existing PHP/Blade, keep `pullquote` as a separate block with different styling.
+- **Option C: Deprecate `quote` backend** — remove `QuoteBlockDefinition.php`, rename `quote.blade.php` to `pullquote.blade.php`, add `PullquoteBlockDefinition.php`.
+
+This must be resolved before either block can reach Level 2 (Validated).
+
+---
+
+## Q. Repair Workflow
 
 When repairing an existing block to comply with this contract, follow this order. Do not skip steps. Each step builds on the previous.
 
@@ -804,36 +1024,44 @@ Ensure the same field names are used in:
 
 Fix any mismatches. This is the most common source of bugs.
 
-### Step 6: Add Backend Definition
+### Step 6: Preserve Side Panel Fallback
+
+Ensure the right-side settings panel remains available:
+- Content fields editable inline MUST also be editable in the side panel as fallback
+- Settings, accessibility, and advanced fields remain in the side panel
+- If the block supports HTML/embed, ensure it is in an explicit advanced section with backend sanitization
+- Do not remove side panel fields when adding inline editing
+
+### Step 7: Add Backend Definition
 
 If missing, create `{Type}BlockDefinition.php` with validation rules for every field in the data contract.
 
-### Step 7: Add Validation and Sanitization
+### Step 8: Add Validation and Sanitization
 
-Ensure every field has appropriate validation rules (Section J) and sanitization config.
+Ensure every field has appropriate validation rules (Section J) and sanitization config. Pay special attention to fields accepting HTML — they must have explicit `sanitizationConfig()` rules.
 
-### Step 8: Improve Editor UX
+### Step 9: Improve Editor UX
 
 - Replace raw `<input>` elements with shared field components
 - Add helper text, clear buttons, empty states
 - Group fields logically (content, design, accessibility, advanced)
 - Replace raw URL inputs with ImageField/LinkField
 
-### Step 9: Add Inline Editing Support
+### Step 10: Add Inline Editing Support
 
-Mark fields for inline editing (Section E). Implement inline editing for content fields when the InlineTextField component is available.
+Mark fields for inline editing (Section E). Implement inline editing for content fields when the InlineTextField component is available. Keep side panel fallback for all inline-editable fields.
 
-### Step 10: Verify Light/Dark Theme
+### Step 11: Verify Light/Dark Theme
 
 Check the block in all six states from Section G, Step 5. Fix hardcoded colors.
 
-### Step 11: Add Tests
+### Step 12: Add Tests
 
 - Backend validation test
 - Blade render test with sample data
 - Schema consistency check
 
-### Step 12: Re-run Audit and Build
+### Step 13: Re-run Audit and Build
 
 ```bash
 npm run blocks:audit    # Must show COMPLETE

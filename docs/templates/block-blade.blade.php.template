@@ -11,15 +11,27 @@
     $site           - Site    - Current site model
 
   Checklist:
-  - [ ] Same data keys as definition.ts, Editor.tsx, Preview.tsx
+  - [ ] Same data keys as definition.ts defaultData, Editor.tsx, Preview.tsx, and PHP validationRules()
   - [ ] All user content escaped: {{ }} for text, {!! !!} only after sanitization
   - [ ] Null-safe access: $data['field'] ?? '' on every field
   - [ ] Semantic HTML elements (<section>, <figure>, <blockquote>, <nav>, etc.)
-  - [ ] Alt text on all <img> elements
-  - [ ] aria-label on interactive elements
+  - [ ] Alt text on all <img> elements (accessibility field from editor)
+  - [ ] aria-label on interactive elements (accessibility field from editor)
   - [ ] Empty/fallback: renders valid HTML even when all content fields empty
   - [ ] No hidden dependencies on fields not in the data contract
   - [ ] Responsive: works on mobile/tablet/desktop
+
+  Field categories (see BLOCK-CONTRACT.md Section E):
+  - Content fields (inline editable in editor): rendered as main visible content here
+  - Settings fields (settings panel in editor): affect styling, layout, spacing
+  - Accessibility fields (a11y section in editor): used in alt, aria-label, heading level
+  - Advanced fields (advanced section in editor): cssClass, anchor, custom styles
+  - HTML/embed fields: ONLY render with {!! !!} if sanitized via sanitizationConfig()
+
+  Theme notes:
+  - Blade templates render the published site (not admin), so admin theme tokens (bg-base-*) do NOT apply
+  - Use the site's own CSS/design system for published output
+  - The admin Preview.tsx is where theme-safe admin tokens are required
 --}}
 
 {{-- ── Data extraction with safe defaults ── --}}

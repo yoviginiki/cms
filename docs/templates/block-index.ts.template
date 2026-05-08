@@ -11,6 +11,14 @@
  * - [ ] Definition, Preview, and Editor imports match the exported names
  * - [ ] Block is imported in components/blocks/index.ts
  * - [ ] npm run blocks:audit no longer shows NOT_REGISTERED for this type
+ *
+ * Contract responsibilities for this file (see BLOCK-CONTRACT.md):
+ * - definition.ts provides defaultData with all content, settings, a11y, and advanced fields
+ * - Editor.tsx provides side panel editing (content fallback + settings + a11y + advanced)
+ * - Editor.tsx provides HTML/embed fields ONLY if block explicitly allows it
+ * - Preview.tsx provides canvas display with theme-safe classes, empty states, and inline editing slots
+ * - All three must use the same data keys
+ * - Validation/sanitization is handled by the PHP BlockDefinition (same keys)
  */
 
 import { blockRegistry } from '../registry';

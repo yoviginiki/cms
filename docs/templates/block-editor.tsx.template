@@ -12,6 +12,8 @@
  * - [ ] No raw URL inputs for images (use ImageField)
  * - [ ] Theme-safe: uses text-base-content, bg-base-*, border-base-300
  * - [ ] Empty state is usable (all fields work even when block is new)
+ * - [ ] Side panel fallback: inline-editable content fields are also editable here
+ * - [ ] HTML/embed fields: only if block explicitly allows it, with warning + backend sanitization
  */
 
 import React from 'react';
@@ -174,6 +176,34 @@ export const {BLOCK_STUDLY}Editor: React.FC<BlockEditorProps> = ({ block, onUpda
             value={(data.anchor as string) || ''}
             onChange={(value) => update('anchor', value)}
             placeholder="section-anchor"
+          />
+        </div>
+      </details> */}
+
+
+      {/* ── HTML / Embed Fields (ONLY for blocks that explicitly allow it) ── */}
+      {/* See BLOCK-CONTRACT.md Section E — HTML / Embed Paste Rules. */}
+      {/* Most blocks should NOT include this section. */}
+      {/* Only html-embed, socialembed, and rich-text with HTML mode need it. */}
+      {/* Raw HTML must be: */}
+      {/*   - in an explicit advanced section with a warning */}
+      {/*   - sanitized on backend via sanitizationConfig() */}
+      {/*   - never enabled silently or globally */}
+
+      {/* <details className="collapse collapse-arrow bg-base-200/50 rounded-lg border border-warning/30">
+        <summary className="collapse-title text-[11px] font-medium text-warning min-h-0 py-2">
+          ⚠ Raw HTML (Advanced)
+        </summary>
+        <div className="collapse-content space-y-2">
+          <p className="text-[10px] text-warning/80">
+            Paste HTML or embed code below. Content will be sanitized on save.
+          </p>
+          <TextArea
+            label="HTML Content"
+            value={(data.embedCode as string) || ''}
+            onChange={(value) => update('embedCode', value)}
+            placeholder="<iframe src=&quot;...&quot;></iframe>"
+            rows={6}
           />
         </div>
       </details> */}

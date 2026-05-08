@@ -5,14 +5,20 @@
  * See docs/BLOCK-CONTRACT.md Section F (Preview) and G (Theme-safe).
  *
  * Checklist:
- * - [ ] Same data keys as Editor.tsx and definition.ts
+ * - [ ] Same data keys as Editor.tsx, definition.ts defaultData, Blade template, and PHP validationRules()
  * - [ ] Empty state when no content is set (dashed border + helpful message)
  * - [ ] Does not crash on partial/missing data (optional chaining, fallbacks)
- * - [ ] Theme-safe: uses text-base-content, bg-base-*, border-base-300
+ * - [ ] Theme-safe: uses text-base-content, bg-base-*, border-base-300 (see Section G)
  * - [ ] No hardcoded colors that break in light/dark themes
  * - [ ] Shows entered content immediately (not stale placeholders)
  * - [ ] Media shows actual thumbnails when available
  * - [ ] Interactive elements visible but non-functional (no navigation on click)
+ * - [ ] Content fields marked as inline editable show actual data, not just placeholders (see Section E)
+ * - [ ] Settings fields (layout, spacing, colors, background) affect preview rendering
+ * - [ ] Accessibility fields (alt, ariaLabel) are used where applicable (e.g., img alt)
+ * - [ ] Advanced fields (cssClass, anchor) can be applied if relevant
+ * - [ ] If block accepts sanitized HTML/embed, preview renders it safely (dangerouslySetInnerHTML only for sanitized content)
+ * - [ ] Readable in both light and dark admin themes, including blocks with custom backgrounds
  */
 
 import React from 'react';

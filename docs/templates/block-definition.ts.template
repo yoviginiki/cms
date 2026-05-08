@@ -11,6 +11,12 @@
  * - [ ] Required content fields have meaningful defaults (not empty string)
  * - [ ] Optional fields default to '' or null (never undefined)
  * - [ ] allowsChildren matches PHP BlockDefinition::allowsChildren()
+ * - [ ] Every defaultData key has a matching validationRules() key in the PHP definition
+ * - [ ] Content fields are categorized as inline editable candidates (see Section E)
+ * - [ ] Settings/design fields are categorized as settings panel (see Section E)
+ * - [ ] If block accepts HTML/embed, the field is clearly marked and defaultData uses '' (see Section E HTML rules)
+ * - [ ] Preview.tsx uses theme-safe classes for all defaultData-driven content (see Section G)
+ * - [ ] Editor.tsx and Preview.tsx handle empty defaultData gracefully (empty state)
  */
 
 import type { BlockDefinition } from '@/types/blocks';

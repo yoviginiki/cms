@@ -10,9 +10,15 @@
  * - [ ] category() matches frontend definition.ts category
  * - [ ] validationRules() covers every field in the data contract
  * - [ ] Every key in validationRules() matches the keys in definition.ts defaultData
+ * - [ ] Content fields (inline editable in editor) have appropriate validation rules
+ * - [ ] Settings fields (settings panel in editor) have appropriate validation rules
+ * - [ ] Accessibility fields (alt, ariaLabel, headingLevel) have validation rules
  * - [ ] sanitizationConfig() appropriate for the content types used
+ * - [ ] If block accepts HTML/embed, sanitizationConfig() has explicit HTMLPurifier rules (see Section E HTML rules)
+ * - [ ] If block does NOT accept HTML, sanitizationConfig() strips all HTML tags
  * - [ ] allowsChildren() matches frontend definition.ts allowsChildren
  * - [ ] Class is registered in BlockRegistry (app/Domain/Blocks/Services/BlockRegistry.php)
+ * - [ ] Blade template renders valid HTML even when all content fields are empty (empty state)
  *
  * Data type → validation rule reference (see BLOCK-CONTRACT.md Section J):
  *   Plain text:     ['string', 'max:255']
@@ -77,19 +83,35 @@ class {BLOCK_STUDLY}BlockDefinition implements BlockDefinition
     /**
      * HTMLPurifier sanitization config.
      *
-     * Plain text blocks: ['HTML.Allowed' => '']
-     * Rich text blocks:  ['HTML.Allowed' => 'p,br,strong,em,a[href|target],ul,ol,li,...']
-     * Embed blocks:      ['HTML.Allowed' => 'iframe[src|width|height|frameborder|allowfullscreen]']
+     * IMPORTANT: Match this to the field content types declared in the data contract.
+     * See BLOCK-CONTRACT.md Section E (HTML / Embed Paste Rules) and Section J (Security).
+     *
+     * Content type → config:
+     *   Plain text:      ['HTML.Allowed' => '']
+     *   Rich text:       ['HTML.Allowed' => 'p,br,strong,em,a[href|target],ul,ol,li,...']
+     *   Sanitized HTML:  ['HTML.Allowed' => '...allowed tags...']
+     *   Embed code:      ['HTML.Allowed' => 'iframe[src|width|height|frameborder|allowfullscreen]']
+     *   Raw HTML:        Strict HTMLPurifier config — only for blocks that explicitly allow it
+     *
+     * If the block does NOT accept HTML/embed input, use the plain text config.
+     * If it does, the frontend editor must show the HTML field in an explicit
+     * advanced section with a warning (see block-editor.tsx.template).
      */
     public function sanitizationConfig(): array
     {
-        // Plain text only — no HTML tags allowed
+        // Plain text only — no HTML tags allowed (default for most blocks)
         return ['HTML.Allowed' => ''];
 
         // Rich text example:
         // return [
         //     'HTML.Allowed' => 'p,br,strong,em,a[href|target],ul,ol,li,h2,h3,h4,blockquote,code,pre',
         //     'URI.AllowedSchemes' => ['http', 'https', 'mailto'],
+        // ];
+
+        // Embed example (html-embed, socialembed):
+        // return [
+        //     'HTML.Allowed' => 'iframe[src|width|height|frameborder|allowfullscreen],blockquote,a[href],p,br',
+        //     'URI.AllowedSchemes' => ['https'],
         // ];
     }
 
