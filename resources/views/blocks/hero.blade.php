@@ -23,7 +23,7 @@
     $overlayOpacity = (float) ($data['bg_overlay_opacity'] ?? 0);
     $overlayColor = $data['bg_overlay_color'] ?? '#000';
 @endphp
-<section class="hero-section" style="{{ $style }}">
+<section class="hero-section" style="{{ $style }}"@if($bgType === 'image' && !empty($data['alt'])) role="img" aria-label="{{ $data['alt'] }}"@endif>
     @if($bgType === 'image' && $overlayOpacity > 0)
     <div style="position:absolute;inset:0;background-color:{{ $overlayColor }};opacity:{{ $overlayOpacity }};pointer-events:none;z-index:0;"></div>
     @endif

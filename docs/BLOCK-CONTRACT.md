@@ -13,6 +13,8 @@ Every block MUST comply with this contract before being considered production-re
 - [C. Frontend Structure](#c-frontend-structure)
 - [D. Editor UX Standard](#d-editor-ux-standard)
 - [E. Inline / In-place Editing Standard](#e-inline--in-place-editing-standard)
+  - [E.1 Side Panel and Content Fallback Standard](#dual-editing-modes)
+  - [E.2 HTML / Embed Paste Rules](#html--embed-paste-rules)
 - [F. Preview Standard](#f-preview-standard)
 - [G. Theme-safe Admin Editor Standard](#g-theme-safe-admin-editor-standard)
 - [H. Backend Definition Standard](#h-backend-definition-standard)
@@ -225,7 +227,7 @@ These 7 components are verified to exist and are exported from `@/components/edi
 | `SpacingField` | not implemented | Margin/padding visual editor |
 | `RepeaterField` | not implemented | Dynamic lists (gallery items, accordion items, tabs) |
 
-Until planned controls are implemented, use the existing controls as close approximations (e.g., `TextField` for URLs until `LinkField` exists, `TextField` + manual gradient syntax until `GradientField` exists).
+Until planned controls are implemented, use the existing controls as close approximations (e.g., `TextField` for URLs until `LinkField` exists). For gradients, use `BackgroundEditor` which already provides a visual gradient builder — do not expose raw CSS gradient strings in a plain `TextField` unless the field is explicitly marked as advanced.
 
 ### UX Requirements
 
@@ -300,6 +302,10 @@ These always live in the right sidebar:
 - Animation settings
 - Responsive overrides
 
+### E.1 Side Panel and Content Fallback Standard {#dual-editing-modes}
+
+> **This is a standalone standard.** Inline editing must never remove the right-side settings/content panel. Both editing modes coexist.
+
 ### Dual Editing Modes
 
 Inline editing must NOT remove the right-side settings/content panel. The editor supports two complementary editing modes:
@@ -329,7 +335,7 @@ The side panel is useful for:
 - Accessibility metadata
 - Advanced settings (CSS class, anchor ID)
 
-### HTML / Embed Paste Rules
+### E.2 HTML / Embed Paste Rules {#html--embed-paste-rules}
 
 Raw HTML input is a special case that must be handled explicitly:
 

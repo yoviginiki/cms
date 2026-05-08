@@ -3,19 +3,21 @@ interface TextFieldProps {
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
+  helperText?: string;
 }
 
-export function TextField({ label, value, onChange, placeholder }: TextFieldProps) {
+export function TextField({ label, value, onChange, placeholder, helperText }: TextFieldProps) {
   return (
-    <div className="mb-3">
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <div>
+      <label className="block text-[11px] font-medium text-base-content/50 mb-1">{label}</label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+        className="input input-bordered input-sm w-full text-[12px]"
       />
+      {helperText && <p className="text-[10px] text-base-content/40 mt-0.5">{helperText}</p>}
     </div>
   );
 }
