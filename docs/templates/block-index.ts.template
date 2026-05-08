@@ -1,0 +1,21 @@
+/**
+ * Block Index (Registration) Template
+ *
+ * This file registers the block with the frontend block registry.
+ * Replace {BLOCK_TYPE} and {BLOCK_STUDLY} with actual values.
+ *
+ * After creating this file, add an import in resources/admin/src/components/blocks/index.ts:
+ *   import './{BLOCK_TYPE}';
+ *
+ * Checklist:
+ * - [ ] Definition, Preview, and Editor imports match the exported names
+ * - [ ] Block is imported in components/blocks/index.ts
+ * - [ ] npm run blocks:audit no longer shows NOT_REGISTERED for this type
+ */
+
+import { blockRegistry } from '../registry';
+import { {BLOCK_TYPE}Definition } from './definition';
+import { {BLOCK_STUDLY}Preview } from './Preview';
+import { {BLOCK_STUDLY}Editor } from './Editor';
+
+blockRegistry.register({BLOCK_TYPE}Definition, {BLOCK_STUDLY}Preview, {BLOCK_STUDLY}Editor);

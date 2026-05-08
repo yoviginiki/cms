@@ -1,0 +1,75 @@
+{{--
+  Block Blade Template: {BLOCK_TYPE}
+
+  Replace all {BLOCK_*} placeholders with actual values.
+  See docs/BLOCK-CONTRACT.md Section I (Blade Rendering) and J (Security).
+
+  Available variables:
+    $data           - array   - Sanitized block data (same keys as definition.ts defaultData)
+    $children       - string  - Pre-rendered children HTML (empty string if no children)
+    $childrenArray  - array   - Individual child HTML strings
+    $site           - Site    - Current site model
+
+  Checklist:
+  - [ ] Same data keys as definition.ts, Editor.tsx, Preview.tsx
+  - [ ] All user content escaped: {{ }} for text, {!! !!} only after sanitization
+  - [ ] Null-safe access: $data['field'] ?? '' on every field
+  - [ ] Semantic HTML elements (<section>, <figure>, <blockquote>, <nav>, etc.)
+  - [ ] Alt text on all <img> elements
+  - [ ] aria-label on interactive elements
+  - [ ] Empty/fallback: renders valid HTML even when all content fields empty
+  - [ ] No hidden dependencies on fields not in the data contract
+  - [ ] Responsive: works on mobile/tablet/desktop
+--}}
+
+{{-- ── Data extraction with safe defaults ── --}}
+@php
+    $title = $data['title'] ?? '';
+    // $subtitle = $data['subtitle'] ?? '';
+    // $content = $data['content'] ?? '';
+    // $image = $data['image'] ?? '';
+    // $alt = $data['alt'] ?? '';
+    // $ctaText = $data['ctaText'] ?? '';
+    // $ctaUrl = $data['ctaUrl'] ?? '#';
+    // $backgroundColor = $data['backgroundColor'] ?? '';
+    // $textAlign = $data['textAlign'] ?? 'left';
+@endphp
+
+{{-- ── Empty check: render nothing or minimal structure if all content empty ── --}}
+@if(!empty($title))
+<section class="{block-type}-section">
+
+    {{-- ── Title: plain text, auto-escaped ── --}}
+    <h2>{{ $title }}</h2>
+
+    {{-- ── Subtitle (optional) ── --}}
+    {{-- @if(!empty($subtitle))
+        <p class="{block-type}-subtitle">{{ $subtitle }}</p>
+    @endif --}}
+
+    {{-- ── Rich content (only use {!! !!} for sanitized HTML) ── --}}
+    {{-- @if(!empty($content))
+        <div class="{block-type}-content">{!! $content !!}</div>
+    @endif --}}
+
+    {{-- ── Image with alt text ── --}}
+    {{-- @if(!empty($image))
+        <figure>
+            <img src="{{ $image }}" alt="{{ $alt }}" loading="lazy" />
+        </figure>
+    @endif --}}
+
+    {{-- ── CTA / Button ── --}}
+    {{-- @if(!empty($ctaText))
+        <a href="{{ $ctaUrl }}" class="{block-type}-cta">{{ $ctaText }}</a>
+    @endif --}}
+
+    {{-- ── Children (for layout blocks with allowsChildren: true) ── --}}
+    {{-- @if(!empty($children))
+        <div class="{block-type}-children">
+            {!! $children !!}
+        </div>
+    @endif --}}
+
+</section>
+@endif

@@ -179,6 +179,10 @@ components/blocks/hero/   Domain/Blocks/Defs/     views/blocks/hero.blade.php
 
 **Registration:** Each block's `index.ts` calls `blockRegistry.register(definition, Preview, Editor)`. All blocks are imported in `components/blocks/index.ts`.
 
+### Block Quality Contract
+
+All future block development and repair must follow the [Block Quality Contract](docs/BLOCK-CONTRACT.md). The contract defines data contracts, editor UX standards, inline editing classification, theme-safe admin UI requirements, backend validation, Blade rendering, security, accessibility, responsive behavior, testing, and block readiness levels (0-4). Starter templates are in [docs/templates/](docs/templates/).
+
 ### Block Development Checklist
 
 Every block should have (currently not all do):

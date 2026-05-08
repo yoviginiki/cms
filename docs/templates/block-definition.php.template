@@ -1,0 +1,134 @@
+<?php
+/**
+ * Block Definition Template: {BLOCK_TYPE}
+ *
+ * Replace all {BLOCK_*} placeholders with actual values.
+ * See docs/BLOCK-CONTRACT.md Section H (Backend Definition) and J (Security).
+ *
+ * Checklist:
+ * - [ ] type() matches frontend definition.ts type and blade filename
+ * - [ ] category() matches frontend definition.ts category
+ * - [ ] validationRules() covers every field in the data contract
+ * - [ ] Every key in validationRules() matches the keys in definition.ts defaultData
+ * - [ ] sanitizationConfig() appropriate for the content types used
+ * - [ ] allowsChildren() matches frontend definition.ts allowsChildren
+ * - [ ] Class is registered in BlockRegistry (app/Domain/Blocks/Services/BlockRegistry.php)
+ *
+ * Data type → validation rule reference (see BLOCK-CONTRACT.md Section J):
+ *   Plain text:     ['string', 'max:255']
+ *   Rich text:      ['string'] (sanitized via HTMLPurifier)
+ *   URL:            ['url', 'max:2048']
+ *   Asset URL:      ['string', 'max:2048']
+ *   CSS color:      ['string', 'regex:/^#[0-9a-fA-F]{3,8}$/']
+ *   CSS dimension:  ['string', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/']
+ *   Integer:        ['integer', 'min:0', 'max:100']
+ *   Boolean:        ['boolean']
+ *   Enum:           ['in:value1,value2,value3']
+ */
+
+namespace App\Domain\Blocks\Definitions;
+
+class {BLOCK_STUDLY}BlockDefinition implements BlockDefinition
+{
+    public function type(): string
+    {
+        return '{BLOCK_TYPE}';
+    }
+
+    public function category(): string
+    {
+        return '{BLOCK_CATEGORY}'; // content | media | layout | navigation | interactive | marketing | data | advanced
+    }
+
+    /**
+     * Validation rules for block data.
+     *
+     * Must cover every field in the data contract.
+     * Keys must match definition.ts defaultData and Editor.tsx/Preview.tsx field names.
+     */
+    public function validationRules(): array
+    {
+        return [
+            // ── Content fields ──
+            'title' => ['required', 'string', 'max:255'],
+            // 'subtitle' => ['sometimes', 'nullable', 'string', 'max:500'],
+            // 'content' => ['sometimes', 'nullable', 'string'],
+
+            // ── Design / Settings fields ──
+            // 'backgroundColor' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9a-fA-F]{3,8}$/'],
+            // 'textAlign' => ['sometimes', 'in:left,center,right,justify'],
+            // 'columns' => ['sometimes', 'integer', 'min:1', 'max:12'],
+
+            // ── Link fields ──
+            // 'ctaText' => ['sometimes', 'nullable', 'string', 'max:100'],
+            // 'ctaUrl' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            // 'linkTarget' => ['sometimes', 'in:_self,_blank'],
+
+            // ── Media fields ──
+            // 'image' => ['sometimes', 'nullable', 'string', 'max:2048'],
+
+            // ── Accessibility fields ──
+            // 'alt' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // 'ariaLabel' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // 'headingLevel' => ['sometimes', 'in:h1,h2,h3,h4,h5,h6'],
+        ];
+    }
+
+    /**
+     * HTMLPurifier sanitization config.
+     *
+     * Plain text blocks: ['HTML.Allowed' => '']
+     * Rich text blocks:  ['HTML.Allowed' => 'p,br,strong,em,a[href|target],ul,ol,li,...']
+     * Embed blocks:      ['HTML.Allowed' => 'iframe[src|width|height|frameborder|allowfullscreen]']
+     */
+    public function sanitizationConfig(): array
+    {
+        // Plain text only — no HTML tags allowed
+        return ['HTML.Allowed' => ''];
+
+        // Rich text example:
+        // return [
+        //     'HTML.Allowed' => 'p,br,strong,em,a[href|target],ul,ol,li,h2,h3,h4,blockquote,code,pre',
+        //     'URI.AllowedSchemes' => ['http', 'https', 'mailto'],
+        // ];
+    }
+
+    public function allowsChildren(): bool
+    {
+        return false; // true for layout blocks (columns, section, tabs, accordion, etc.)
+    }
+
+    public function maxChildren(): ?int
+    {
+        return null; // null = unlimited, set integer for fixed layouts
+    }
+
+    // ── Future methods (not yet in interface, planned) ──
+
+    // public function defaultData(): array
+    // {
+    //     return [
+    //         'title' => '{BLOCK_LABEL}',
+    //     ];
+    // }
+
+    // public function schemaVersion(): int
+    // {
+    //     return 1;
+    // }
+
+    // public function allowedParents(): ?array
+    // {
+    //     return null; // null = any parent, or ['section', 'columns'] to restrict
+    // }
+
+    // public function allowedChildren(): ?array
+    // {
+    //     return null; // null = any child, or ['text', 'image'] to restrict
+    // }
+
+    // public function renderHints(): array
+    // {
+    //     return [];
+    // }
+}

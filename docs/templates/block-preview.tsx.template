@@ -1,0 +1,86 @@
+/**
+ * Block Preview Template
+ *
+ * Replace all {BLOCK_*} placeholders with actual values.
+ * See docs/BLOCK-CONTRACT.md Section F (Preview) and G (Theme-safe).
+ *
+ * Checklist:
+ * - [ ] Same data keys as Editor.tsx and definition.ts
+ * - [ ] Empty state when no content is set (dashed border + helpful message)
+ * - [ ] Does not crash on partial/missing data (optional chaining, fallbacks)
+ * - [ ] Theme-safe: uses text-base-content, bg-base-*, border-base-300
+ * - [ ] No hardcoded colors that break in light/dark themes
+ * - [ ] Shows entered content immediately (not stale placeholders)
+ * - [ ] Media shows actual thumbnails when available
+ * - [ ] Interactive elements visible but non-functional (no navigation on click)
+ */
+
+import React from 'react';
+import type { BlockComponentProps } from '@/types/blocks';
+
+export const {BLOCK_STUDLY}Preview: React.FC<BlockComponentProps> = ({ block }) => {
+  const data = block.data as Record<string, unknown>;
+
+  // ── Read data with fallbacks ──
+  const title = (data.title as string) || '';
+  // const subtitle = (data.subtitle as string) || '';
+  // const content = (data.content as string) || '';
+  // const image = (data.image as string) || '';
+
+  // ── Empty state ──────────────────────────────────────────────────
+  // Show a clear, theme-safe empty state when all content fields are empty.
+  // Use border-base-300 and text-base-content/40 for theme safety.
+  if (!title) {
+    return (
+      <div className="border-2 border-dashed border-base-300 rounded-lg p-8 text-center">
+        <p className="text-base-content/40 text-sm">
+          {/* Empty state message: describe what this block does */}
+          {'{BLOCK_LABEL}'} block — click to configure
+        </p>
+      </div>
+    );
+  }
+
+  // ── Filled state ─────────────────────────────────────────────────
+  // Render content that visually approximates the published (Blade) output.
+  // Use theme-safe classes throughout:
+  //   text-base-content (not text-black/text-gray-900)
+  //   bg-base-100/bg-base-200 (not bg-white/bg-gray-100)
+  //   border-base-300 (not border-gray-200)
+  return (
+    <div className="bg-base-100 rounded-lg p-6">
+      {/* ── Title ── */}
+      <h2 className="text-2xl font-bold text-base-content mb-2">
+        {title}
+      </h2>
+
+      {/* ── Subtitle (optional) ── */}
+      {/* {subtitle && (
+        <p className="text-base-content/70 text-lg mb-4">{subtitle}</p>
+      )} */}
+
+      {/* ── Content (optional) ── */}
+      {/* {content && (
+        <div className="text-base-content/80 text-sm">{content}</div>
+      )} */}
+
+      {/* ── Image (optional, show thumbnail) ── */}
+      {/* {image && (
+        <div className="mt-4">
+          <img
+            src={image}
+            alt=""
+            className="w-full h-48 object-cover rounded-lg"
+          />
+        </div>
+      )} */}
+
+      {/* ── CTA / Button (visible but non-functional) ── */}
+      {/* {ctaText && (
+        <span className="inline-block mt-4 px-4 py-2 bg-primary text-primary-content rounded-lg text-sm font-medium">
+          {ctaText}
+        </span>
+      )} */}
+    </div>
+  );
+};

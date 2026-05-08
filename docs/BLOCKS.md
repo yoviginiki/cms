@@ -235,6 +235,7 @@ composer audit-blocks-verbose  # per-block detail
 | `NOT_REGISTERED` | Frontend folder exists but not imported in blocks/index.ts |
 | `ORPHAN_BLADE` | Blade template exists with no matching frontend component |
 | `ORPHAN_BACKEND` | PHP definition exists with no matching frontend component |
+| `UNKNOWN` | Block does not match any known status pattern (fallback) |
 
 #### JSON Output
 

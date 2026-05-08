@@ -1,0 +1,59 @@
+/**
+ * Block Definition Template
+ *
+ * Replace all {BLOCK_*} placeholders with actual values.
+ * See docs/BLOCK-CONTRACT.md Section A (Identity) and B (Data Contract).
+ *
+ * Checklist:
+ * - [ ] type matches PHP BlockDefinition::type() and blade filename
+ * - [ ] category matches PHP BlockDefinition::category()
+ * - [ ] defaultData contains every field used in Editor.tsx and Preview.tsx
+ * - [ ] Required content fields have meaningful defaults (not empty string)
+ * - [ ] Optional fields default to '' or null (never undefined)
+ * - [ ] allowsChildren matches PHP BlockDefinition::allowsChildren()
+ */
+
+import type { BlockDefinition } from '@/types/blocks';
+
+export const {BLOCK_TYPE}Definition: BlockDefinition = {
+  type: '{BLOCK_TYPE}',        // kebab-case, must match blade filename and PHP type()
+  category: '{BLOCK_CATEGORY}', // content | media | layout | navigation | interactive | marketing | data | advanced
+  label: '{BLOCK_LABEL}',      // Human-readable name shown in BlockPicker
+  icon: '{LUCIDE_ICON}',       // Lucide icon name (e.g., 'Layout', 'Type', 'Image')
+
+  // ── Default Data ──────────────────────────────────────────────────
+  // Every field the Editor and Preview reference MUST be listed here.
+  // Group fields by category (see BLOCK-CONTRACT.md Section B).
+  defaultData: {
+    // ── Content fields (inline editable candidates) ──
+    title: '{BLOCK_LABEL}',     // Required: meaningful default
+    // subtitle: '',            // Optional: empty string
+    // content: '',             // Optional: empty string
+
+    // ── Design / Settings fields (settings panel) ──
+    // backgroundColor: null,
+    // textAlign: 'left',
+    // columns: 1,
+
+    // ── Link fields (settings panel) ──
+    // ctaText: '',
+    // ctaUrl: '',
+    // linkTarget: '_self',
+
+    // ── Media fields (settings panel, use AssetPicker) ──
+    // image: null,             // Asset ID or URL, never raw text input
+    // videoUrl: '',
+
+    // ── Accessibility fields (a11y section in settings panel) ──
+    // alt: '',                 // Alt text for images
+    // ariaLabel: '',           // ARIA label for interactive elements
+    // headingLevel: 'h2',     // Heading level selection
+
+    // ── Advanced fields (collapsed/advanced section) ──
+    // cssClass: '',
+    // anchor: '',
+  },
+
+  allowsChildren: false,       // true for layout blocks (columns, section, tabs, etc.)
+  // maxChildren: null,        // null = unlimited, set number for fixed layouts
+};

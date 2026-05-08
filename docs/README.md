@@ -37,3 +37,5 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 ## Recovery & Quality
 
 - [Project Recovery Plan](PROJECT-RECOVERY-PLAN.md) -- technical debt assessment, verified counts, priority phases, definition of done
+- [Block Quality Contract](BLOCK-CONTRACT.md) -- comprehensive standard for block development, repair, and evaluation. Covers data contracts, editor UX, inline editing, theme safety, accessibility, security, testing, and readiness levels.
+- [Block Templates](templates/) -- starter templates for new block development (`definition.ts`, `Editor.tsx`, `Preview.tsx`, `index.ts`, Blade template, PHP BlockDefinition). All templates follow the Block Quality Contract.

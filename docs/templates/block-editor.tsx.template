@@ -1,0 +1,183 @@
+/**
+ * Block Editor Template
+ *
+ * Replace all {BLOCK_*} placeholders with actual values.
+ * See docs/BLOCK-CONTRACT.md Section D (Editor UX) and E (Inline Editing).
+ *
+ * Checklist:
+ * - [ ] Uses shared field components (TextField, SelectField, etc.), not raw <input>
+ * - [ ] Every field name matches definition.ts defaultData keys exactly
+ * - [ ] Fields grouped: Content, Design, Links, Accessibility, Advanced
+ * - [ ] Helper text on non-obvious fields
+ * - [ ] No raw URL inputs for images (use ImageField)
+ * - [ ] Theme-safe: uses text-base-content, bg-base-*, border-base-300
+ * - [ ] Empty state is usable (all fields work even when block is new)
+ */
+
+import React from 'react';
+import type { BlockEditorProps } from '@/types/blocks';
+// ── Import shared field components (see BLOCK-CONTRACT.md Section D) ──
+// Use these instead of raw <input> elements:
+import { TextField, TextArea, SelectField, NumberField, ToggleField, ColorField, ImageField } from '@/components/editor/fields';
+// import BackgroundEditor from '@/components/editor/BackgroundEditor';
+
+export const {BLOCK_STUDLY}Editor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
+  const data = block.data as Record<string, unknown>;
+
+  // Helper to update a single field while preserving other data
+  const update = (field: string, value: unknown) => {
+    onUpdate({ ...block.data, [field]: value });
+  };
+
+  return (
+    <div className="space-y-4">
+
+      {/* ── Content Fields ──────────────────────────────────────────── */}
+      {/* These are inline-editable candidates (see BLOCK-CONTRACT.md Section E). */}
+      {/* Even if inline editing is not yet implemented, these should be the */}
+      {/* most prominent fields in the editor panel. */}
+
+      <div>
+        <TextField
+          label="Title"
+          value={(data.title as string) || ''}
+          onChange={(value) => update('title', value)}
+          placeholder="Add title"
+        />
+        {/* Helper text for non-obvious fields: */}
+        {/* <p className="text-[10px] text-base-content/40 mt-0.5">Main heading displayed prominently</p> */}
+      </div>
+
+      {/* <div>
+        <TextArea
+          label="Content"
+          value={(data.content as string) || ''}
+          onChange={(value) => update('content', value)}
+          placeholder="Write content..."
+          rows={4}
+        />
+      </div> */}
+
+
+      {/* ── Design / Settings Fields ────────────────────────────────── */}
+      {/* These always live in the settings panel, never inline. */}
+
+      {/* <div className="divider text-[10px] text-base-content/40">Design</div> */}
+
+      {/* <div>
+        <SelectField
+          label="Alignment"
+          value={(data.textAlign as string) || 'left'}
+          onChange={(value) => update('textAlign', value)}
+          options={[
+            { value: 'left', label: 'Left' },
+            { value: 'center', label: 'Center' },
+            { value: 'right', label: 'Right' },
+          ]}
+        />
+      </div> */}
+
+      {/* <div>
+        <ColorField
+          label="Background Color"
+          value={(data.backgroundColor as string) || ''}
+          onChange={(value) => update('backgroundColor', value)}
+        />
+      </div> */}
+
+      {/* ── Background (use BackgroundEditor for image/gradient/color) ── */}
+      {/* <BackgroundEditor data={data} onChange={(updates) => onUpdate(updates)} /> */}
+
+
+      {/* ── Media Fields ────────────────────────────────────────────── */}
+      {/* Always use ImageField or AssetSelectField, never raw URL inputs. */}
+
+      {/* <div>
+        <ImageField
+          label="Image"
+          value={(data.image as string) || ''}
+          onChange={(value) => update('image', value)}
+        />
+      </div> */}
+
+
+      {/* ── Link Fields ─────────────────────────────────────────────── */}
+      {/* Use LinkField when available. For now, TextField with URL placeholder. */}
+
+      {/* <div>
+        <TextField
+          label="Button Text"
+          value={(data.ctaText as string) || ''}
+          onChange={(value) => update('ctaText', value)}
+          placeholder="Learn More"
+        />
+      </div>
+      <div>
+        <TextField
+          label="Button URL"
+          value={(data.ctaUrl as string) || ''}
+          onChange={(value) => update('ctaUrl', value)}
+          placeholder="https://..."
+        />
+      </div> */}
+
+
+      {/* ── Accessibility Fields ─────────────────────────────────────── */}
+      {/* Group these in an "Accessibility" section. */}
+      {/* See BLOCK-CONTRACT.md Section K. */}
+
+      {/* <div className="divider text-[10px] text-base-content/40">Accessibility</div> */}
+
+      {/* <div>
+        <TextField
+          label="Alt Text"
+          value={(data.alt as string) || ''}
+          onChange={(value) => update('alt', value)}
+          placeholder="Describe the image for screen readers"
+        />
+        <p className="text-[10px] text-base-content/40 mt-0.5">Required for images. Describe what the image shows.</p>
+      </div> */}
+
+      {/* <div>
+        <SelectField
+          label="Heading Level"
+          value={(data.headingLevel as string) || 'h2'}
+          onChange={(value) => update('headingLevel', value)}
+          options={[
+            { value: 'h1', label: 'H1' },
+            { value: 'h2', label: 'H2' },
+            { value: 'h3', label: 'H3' },
+            { value: 'h4', label: 'H4' },
+            { value: 'h5', label: 'H5' },
+            { value: 'h6', label: 'H6' },
+          ]}
+        />
+      </div> */}
+
+
+      {/* ── Advanced Fields ──────────────────────────────────────────── */}
+      {/* Collapse these by default. Power-user options only. */}
+
+      {/* <details className="collapse collapse-arrow bg-base-200/50 rounded-lg">
+        <summary className="collapse-title text-[11px] font-medium text-base-content/50 min-h-0 py-2">
+          Advanced
+        </summary>
+        <div className="collapse-content space-y-2">
+          <TextField
+            label="CSS Class"
+            value={(data.cssClass as string) || ''}
+            onChange={(value) => update('cssClass', value)}
+            placeholder="custom-class"
+          />
+          <TextField
+            label="Anchor ID"
+            value={(data.anchor as string) || ''}
+            onChange={(value) => update('anchor', value)}
+            placeholder="section-anchor"
+          />
+        </div>
+      </details> */}
+
+    </div>
+  );
+};

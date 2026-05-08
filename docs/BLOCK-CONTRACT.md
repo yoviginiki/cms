@@ -1,0 +1,861 @@
+# Block Quality Contract
+
+Comprehensive standard for developing, repairing, and evaluating blocks in the Ensodo CMS.
+
+Every block MUST comply with this contract before being considered production-ready. Existing blocks should be repaired toward compliance using the Repair Workflow (Section P).
+
+---
+
+## Table of Contents
+
+- [A. Block Identity](#a-block-identity)
+- [B. Data Contract](#b-data-contract)
+- [C. Frontend Structure](#c-frontend-structure)
+- [D. Editor UX Standard](#d-editor-ux-standard)
+- [E. Inline / In-place Editing Standard](#e-inline--in-place-editing-standard)
+- [F. Preview Standard](#f-preview-standard)
+- [G. Theme-safe Admin Editor Standard](#g-theme-safe-admin-editor-standard)
+- [H. Backend Definition Standard](#h-backend-definition-standard)
+- [I. Blade Rendering Standard](#i-blade-rendering-standard)
+- [J. Security and Sanitization](#j-security-and-sanitization)
+- [K. Accessibility Standard](#k-accessibility-standard)
+- [L. Responsive Standard](#l-responsive-standard)
+- [M. Testing Standard](#m-testing-standard)
+- [N. Block Readiness Levels](#n-block-readiness-levels)
+- [O. Block Category Requirements](#o-block-category-requirements)
+- [P. Repair Workflow](#p-repair-workflow)
+
+---
+
+## A. Block Identity
+
+Every block must declare the following identity metadata in its `definition.ts`:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | yes | Unique kebab-case identifier (e.g., `hero`, `rich-text`, `pricing-card`) |
+| `name` / `label` | string | yes | Human-readable display name shown in BlockPicker |
+| `category` | string | yes | One of: `content`, `media`, `layout`, `navigation`, `interactive`, `marketing`, `data`, `advanced` |
+| `icon` | string | yes | Lucide icon name (e.g., `Layout`, `Type`, `Image`) |
+| `description` | string | recommended | Short sentence describing what this block does, shown in BlockPicker tooltip |
+| `purpose` | string | recommended | Internal note on when to use this block vs alternatives |
+| `tier` | string | optional | `core` (ships with every site), `extended`, `premium`, or `experimental` |
+| `allowsChildren` | boolean | yes | Whether this block can contain nested child blocks |
+
+The `type` value must be identical across all three layers: frontend `definition.ts`, backend `BlockDefinition::type()`, and Blade template filename (`{type}.blade.php`).
+
+---
+
+## B. Data Contract
+
+### Canonical Data Shape
+
+Every block must define a single canonical data shape used consistently across:
+
+1. `definition.ts` `defaultData`
+2. `Editor.tsx` (reads/writes fields)
+3. `Preview.tsx` (reads fields for display)
+4. `{type}.blade.php` (reads `$data` for rendering)
+5. `BlockDefinition::validationRules()` (validates fields)
+6. `BlockDefinition::sanitizationConfig()` (sanitizes fields)
+
+**Same data keys everywhere.** If the editor writes `ctaText`, the preview reads `ctaText`, the Blade reads `$data['ctaText']`, and validation validates `ctaText`. No silent renaming between layers.
+
+### Field Categories
+
+Every data field falls into one of these categories:
+
+| Category | Description | Examples |
+|----------|-------------|---------|
+| **Content** | User-visible text/media that appears in the published output | `title`, `subtitle`, `content`, `quote`, `caption`, `image` |
+| **Design/Settings** | Visual configuration that affects appearance | `backgroundColor`, `textAlign`, `columns`, `spacing`, `gradient` |
+| **Link** | Navigation targets | `ctaUrl`, `href`, `linkTarget` |
+| **Accessibility** | A11y metadata | `alt`, `ariaLabel`, `headingLevel` |
+| **Advanced** | Power-user options | `cssClass`, `anchor`, `customCss` |
+
+### Required vs Optional Fields
+
+```typescript
+// In definition.ts defaultData:
+defaultData: {
+  // Required: meaningful defaults, never undefined
+  title: 'Hero Title',
+  headingLevel: 'h1',
+
+  // Optional: null or empty string, never undefined
+  subtitle: '',
+  backgroundImage: null,
+  ctaText: '',
+  ctaUrl: '',
+  alt: '',
+}
+```
+
+### Data Versioning (Future)
+
+When a block's data shape changes, increment `schemaVersion` in the definition. Provide a migration function from the previous version. Never silently drop or rename fields.
+
+```typescript
+schemaVersion: 2,
+migrateData: (oldData, fromVersion) => {
+  if (fromVersion === 1) {
+    return { ...oldData, headingLevel: oldData.level || 'h1' };
+  }
+  return oldData;
+}
+```
+
+---
+
+## C. Frontend Structure
+
+Every block MUST have four files in `resources/admin/src/components/blocks/{type}/`:
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `definition.ts` | Type metadata, category, icon, defaultData, allowsChildren | yes |
+| `Editor.tsx` | Settings panel rendered in BuilderSidebar when block is selected | yes |
+| `Preview.tsx` | Canvas preview rendered in the page editor | yes |
+| `index.ts` | Registers definition + Preview + Editor with `blockRegistry` | yes |
+
+### definition.ts Requirements
+
+- `defaultData` must contain every field the Editor and Preview reference
+- Default values must be meaningful: a title should be `'Hero Title'` not `''`
+- No field in Editor/Preview should be absent from defaultData (prevents undefined access)
+
+### Editor.tsx Requirements
+
+- Must import from `@/types/blocks` for type safety
+- No raw URL input for images; use `ImageField` or future `AssetSelectField`
+- No raw CSS gradient strings; use `BackgroundEditor` or future `GradientField`
+- All field updates go through `onUpdate({ ...block.data, [field]: value })`
+
+### Preview.tsx Requirements
+
+- Must handle missing/partial data without crashing
+- Must show empty state when no content is set
+- Must display entered content immediately (not placeholders after data exists)
+
+### index.ts Pattern
+
+```typescript
+import { blockRegistry } from '../registry';
+import { heroDefinition } from './definition';
+import { HeroPreview } from './Preview';
+import { HeroEditor } from './Editor';
+
+blockRegistry.register(heroDefinition, HeroPreview, HeroEditor);
+```
+
+---
+
+## D. Editor UX Standard
+
+### Use Shared Field Controls
+
+Blocks MUST use the shared field components from `@/components/editor/fields/` instead of inline `<input>` elements wherever possible:
+
+| Existing Control | Import | Use For |
+|-----------------|--------|---------|
+| `TextField` | `@/components/editor/fields` | Short text inputs (titles, labels, URLs) |
+| `TextArea` | `@/components/editor/fields` | Multi-line text (descriptions, content) |
+| `SelectField` | `@/components/editor/fields` | Dropdowns (heading level, alignment, size) |
+| `NumberField` | `@/components/editor/fields` | Numeric values (columns, spacing, dimensions) |
+| `ToggleField` | `@/components/editor/fields` | Boolean switches (show/hide, enable/disable) |
+| `ColorField` | `@/components/editor/fields` | Color pickers |
+| `ImageField` | `@/components/editor/fields` | Image selection with asset picker |
+
+| Planned Control | Use For |
+|----------------|---------|
+| `AssetSelectField` | Generic asset selection (images, PDFs, videos) |
+| `GradientField` | Visual gradient builder |
+| `LinkField` | URL + target + label combined control |
+| `DimensionField` | Width/height/padding with unit selection |
+| `AlignmentField` | Text/content alignment picker |
+| `TypographyField` | Font family/size/weight/style combined control |
+| `SpacingField` | Margin/padding visual editor |
+| `RepeaterField` | Dynamic lists (gallery items, accordion items, tabs) |
+
+### UX Requirements
+
+1. **Helper text**: Every non-obvious field should have a brief description below it
+2. **Clear/reset buttons**: Optional fields should allow clearing to default
+3. **Empty states**: Editors must be usable when the block has no content yet
+4. **Presets**: Complex blocks (hero, pricing, feature grid) should offer preset configurations
+5. **Responsive controls**: Fields that affect layout must indicate which breakpoints they affect
+6. **Accessibility fields**: Alt text for images, aria labels for interactive elements, heading levels for headings
+
+### Field Labels
+
+- Use `text-[11px] font-medium text-base-content/50 mb-1` for labels (matches existing pattern)
+- Use `input-sm` sizing for inputs (matches existing pattern)
+- Group related fields with dividers or collapsible sections
+
+---
+
+## E. Inline / In-place Editing Standard
+
+### Principle
+
+Content-first blocks must allow editing content directly in the canvas preview, not only through the settings panel. The goal: what you see in the canvas IS what you edit.
+
+### Field Classification
+
+Every block data field belongs to one of these editing classes:
+
+| Class | Where Edited | Description |
+|-------|-------------|-------------|
+| **Inline Editable** | Directly in canvas | Text content the user sees in the published output |
+| **Quick Editable** | Popover/tooltip on canvas interaction | Short text or toggles that benefit from in-context editing |
+| **Settings Panel** | Right sidebar | Layout, design, spacing, media, colors, links |
+| **Advanced** | Collapsed/tabbed section in sidebar | CSS classes, anchors, custom code |
+| **Accessibility** | Dedicated a11y section in sidebar | Alt text, aria labels, heading levels |
+
+### Inline Editable Fields by Block Type
+
+These fields SHOULD support inline editing when the capability is implemented:
+
+| Block | Inline Editable Fields |
+|-------|----------------------|
+| `hero` | `title`, `subtitle` |
+| `heading` | `content` |
+| `paragraph` | `content` |
+| `rich-text` | `content` |
+| `text` | `content` |
+| `pullquote` / `quote` | `quote`, `citation` |
+| `caption` | `content` |
+| `dropcap` | `content` |
+| `button` | `label` |
+| `ctabanner` | `title`, `subtitle`, `buttonText` |
+| `testimonial` | `quote`, `author`, `role` |
+| `pricingcard` | `title`, `price`, `features` |
+| `featuregrid` | item `title`, item `description` |
+| `accordion` | item `title`, item `content` |
+| `tabs` | tab `title`, tab `content` |
+| `sidenote` | `content` |
+| `footnote` | `content` |
+| `runningtext` | `content` |
+
+### Settings Panel Fields (Never Inline)
+
+These always live in the right sidebar:
+
+- Background image/color/gradient (`backgroundImage`, `backgroundColor`, `bgGradient`)
+- Layout settings (`columns`, `gap`, `alignment`, `textAlign`)
+- Spacing (`padding`, `margin`)
+- Media configuration (`aspectRatio`, `objectFit`, `autoplay`)
+- Link targets (`ctaUrl`, `href`, `linkTarget`)
+- Typography overrides (`fontSize`, `fontWeight`, `fontFamily`)
+- Animation settings
+- Responsive overrides
+
+### Rules
+
+1. **Content-first**: After the user enters content, the canvas must show that actual content, not a placeholder
+2. **No placeholder traps**: Empty fields show readable editable placeholders like "Add hero title", "Write paragraph", "Add quote", "Choose image"
+3. **Consistent data keys**: Whether the user edits inline or in the settings panel, the same data key is updated
+4. **Immediate preview**: Edits in any location (inline or panel) must immediately reflect in the canvas
+5. **Side panel as fallback**: Every inline-editable field must also be editable from the settings panel as a fallback
+6. **Normal text content must not live only in the side panel** unless inline editing is impractical for that field
+
+### Inline Editing Implementation Strategy (Future)
+
+When implementing inline editing, follow these guidelines:
+
+1. **Reusable Component**: Create a shared `InlineTextField` or `EditableText` component that wraps `contentEditable` with controlled updates:
+   ```typescript
+   // Planned: @/components/editor/InlineTextField.tsx
+   interface InlineTextFieldProps {
+     value: string;
+     placeholder: string;
+     onChange: (value: string) => void;
+     tag?: 'h1' | 'h2' | 'h3' | 'p' | 'span' | 'blockquote';
+     multiline?: boolean;
+     className?: string;
+   }
+   ```
+
+2. **Controlled contentEditable**: Use `contentEditable` with careful state management:
+   - Sync from React state to DOM only when the source of truth changes externally
+   - Read from DOM on blur or debounced input events
+   - Avoid re-rendering on every keystroke (use refs for the DOM element)
+
+3. **Preserve data format**: If the block stores plain text, inline editing must produce plain text. If it stores HTML (rich-text), inline editing must produce valid HTML.
+
+4. **Keyboard behavior**:
+   - `Enter` in single-line fields: commit and blur
+   - `Enter` in multi-line fields: insert newline
+   - `Escape`: revert to last saved value and blur
+   - `Tab`: move to next editable field if applicable
+
+5. **Debounce updates**: Debounce `onUpdate` calls (200-300ms) to avoid excessive re-renders and state updates
+
+6. **Undo/redo**: Inline edits must integrate with the editor's undo/redo system. Each debounced commit should be one undo step.
+
+7. **Right-side panel fallback**: Always keep the field editable in the settings panel. Some users prefer panel editing; inline is an enhancement, not a replacement.
+
+---
+
+## F. Preview Standard
+
+The Preview component (`Preview.tsx`) is rendered in the editor canvas. It must:
+
+1. **Visual fidelity**: Be visually close to the published (Blade) output. Use similar structure, sizing, and proportions.
+
+2. **Same data keys**: Read the exact same field names as Editor and Blade. No mapping, no renaming.
+
+3. **Empty state**: When all content fields are empty, show a clear empty state:
+   ```tsx
+   if (!title && !subtitle) {
+     return (
+       <div className="border-2 border-dashed border-base-300 rounded-lg p-8 text-center">
+         <p className="text-base-content/40 text-sm">Hero block - click to configure</p>
+       </div>
+     );
+   }
+   ```
+
+4. **Partial data resilience**: Must not crash or show errors when only some fields are filled. Use optional chaining and fallbacks.
+
+5. **Media representation**: Images show actual thumbnails, videos show placeholder with play icon, audio shows waveform placeholder.
+
+6. **Typography and spacing**: Reflect heading levels, font sizes, alignment, and spacing reasonably. Does not need pixel-perfect Blade match, but must be representative.
+
+7. **Immediate content reflection**: When the user types in the editor panel (or inline), the preview updates immediately with the entered content. No stale placeholders.
+
+8. **Interactive elements**: Buttons, links, and CTAs are visible but non-functional in preview (no navigation on click).
+
+---
+
+## G. Theme-safe Admin Editor Standard
+
+The admin SPA supports light and dark themes (DaisyUI theme switching). Every editor component and block preview MUST be readable and functional in both themes.
+
+### 1. No Hardcoded Low-Contrast Colors
+
+Forbidden patterns:
+
+```tsx
+// BAD: hardcoded colors that break in one theme
+<p className="text-gray-400">...</p>           // invisible on dark backgrounds
+<div className="bg-white border-gray-200">     // invisible in dark theme
+<span style={{ color: '#666' }}>...</span>      // may have insufficient contrast
+<div className="bg-gray-100">                   // disappears in dark theme
+```
+
+### 2. Use Admin Theme Tokens
+
+Always use DaisyUI/Tailwind theme-aware classes:
+
+| Purpose | Use | Do Not Use |
+|---------|-----|------------|
+| Editor background | `bg-base-100` | `bg-white`, `bg-gray-50` |
+| Surface/card | `bg-base-200`, `bg-base-300` | `bg-gray-100`, `bg-gray-200` |
+| Muted surface | `bg-base-200/50` | `bg-gray-50` |
+| Primary text | `text-base-content` | `text-black`, `text-gray-900` |
+| Muted text | `text-base-content/60` | `text-gray-500`, `text-gray-400` |
+| Placeholder text | `text-base-content/40` | `text-gray-300` |
+| Borders | `border-base-300` | `border-gray-200`, `border-gray-300` |
+| Focus ring | `ring-primary` | `ring-blue-500` |
+| Accent/action | `text-primary`, `bg-primary` | `text-blue-600`, `bg-blue-500` |
+| Danger | `text-error` | `text-red-500` |
+| Warning | `text-warning` | `text-yellow-500` |
+| Success | `text-success` | `text-green-500` |
+
+### 3. Preview Contrast Responsibility
+
+Block previews must remain readable regardless of:
+
+- Admin theme (light or dark)
+- Block's own background color (light or dark)
+- Block using an image or gradient background
+
+Rules:
+- Dark block backgrounds default to light text (`text-white` or `text-base-content` with appropriate contrast)
+- Light block backgrounds default to dark text
+- Image backgrounds must support overlay controls for readability
+
+### 4. Contrast Defaults
+
+When a block has configurable background:
+- If background is dark (detected by color or explicitly set), text defaults to light
+- If background is light, text defaults to dark
+- Image/video backgrounds must render a semi-transparent overlay to ensure text readability
+
+### 5. Admin Theme Test Checklist
+
+Every block must be visually checked in ALL of these states:
+
+- [ ] Light admin theme, empty state
+- [ ] Light admin theme, filled state
+- [ ] Dark admin theme, empty state
+- [ ] Dark admin theme, filled state
+- [ ] Light admin theme, block selected/focused
+- [ ] Dark admin theme, block selected/focused
+
+### 6. Focus and Selection States
+
+- Selected block outline must be visible in both light and dark admin themes
+- Use `ring-primary` or `border-primary` for selection indicators
+- Avoid `ring-blue-500` or `border-gray-300` which may be invisible in one theme
+
+---
+
+## H. Backend Definition Standard
+
+Every block MUST have a PHP class in `app/Domain/Blocks/Definitions/` implementing the `BlockDefinition` interface.
+
+### Required Methods (Current Interface)
+
+```php
+interface BlockDefinition
+{
+    public function type(): string;           // Must match frontend type and blade filename
+    public function category(): string;       // Must match frontend category
+    public function validationRules(): array;  // Laravel validation rules for block data
+    public function sanitizationConfig(): array; // HTMLPurifier configuration
+    public function allowsChildren(): bool;    // Must match frontend allowsChildren
+    public function maxChildren(): ?int;       // null = unlimited
+}
+```
+
+### Validation Rules
+
+Must cover every field in the block's data contract:
+
+```php
+public function validationRules(): array
+{
+    return [
+        'title'            => ['required', 'string', 'max:255'],
+        'subtitle'         => ['sometimes', 'nullable', 'string', 'max:500'],
+        'backgroundImage'  => ['sometimes', 'nullable', 'string', 'max:2048'],
+        'ctaText'          => ['sometimes', 'nullable', 'string', 'max:100'],
+        'ctaUrl'           => ['sometimes', 'nullable', 'url', 'max:2048'],
+        'alt'              => ['sometimes', 'nullable', 'string', 'max:255'],
+    ];
+}
+```
+
+### Recommended Future Methods
+
+These methods are not yet in the interface but should be added when the interface evolves:
+
+| Method | Return | Purpose |
+|--------|--------|---------|
+| `defaultData(): array` | Default data shape | Single source of truth for defaults (replaces frontend-only defaultData) |
+| `schemaVersion(): int` | Version number | Tracks data shape changes for migration |
+| `allowedParents(): ?array` | Array of type strings or null | Restricts which blocks can contain this one |
+| `allowedChildren(): ?array` | Array of type strings or null | Restricts which blocks can be nested inside |
+| `renderHints(): array` | Key-value hints | Metadata for the rendering pipeline (e.g., `['fullWidth' => true]`) |
+
+---
+
+## I. Blade Rendering Standard
+
+Every block must have a Blade template at `resources/views/blocks/{type}.blade.php`.
+
+### Variables Available
+
+| Variable | Type | Always Present |
+|----------|------|----------------|
+| `$data` | array | yes |
+| `$children` | string | yes (empty string if no children) |
+| `$childrenArray` | array | yes (empty array if no children) |
+| `$site` | Site model | yes |
+
+### Requirements
+
+1. **Same data keys**: `$data['title']`, `$data['ctaText']`, `$data['backgroundImage']` must match the keys used in `definition.ts`, `Editor.tsx`, and `Preview.tsx`.
+
+2. **Safe escaping**: All user content must be escaped:
+   ```blade
+   {{-- Plain text: auto-escaped --}}
+   <h1>{{ $data['title'] ?? '' }}</h1>
+
+   {{-- Rich HTML: use {!! !!} only after sanitization --}}
+   <div class="rich-content">{!! $data['content'] ?? '' !!}</div>
+
+   {{-- URLs in attributes: always escape --}}
+   <a href="{{ $data['ctaUrl'] ?? '#' }}">{{ $data['ctaText'] ?? '' }}</a>
+
+   {{-- Background images: escape in style attribute --}}
+   <div style="background-image: url('{{ $data['backgroundImage'] ?? '' }}')">
+   ```
+
+3. **Null-safe access**: Always use `$data['field'] ?? ''` or `$data['field'] ?? null`. Never assume a field exists.
+
+4. **Semantic HTML**: Use appropriate elements (`<section>`, `<article>`, `<figure>`, `<blockquote>`, `<nav>`, etc.)
+
+5. **Empty/fallback rendering**: If all content fields are empty, render either nothing or a minimal valid HTML structure. Never render broken HTML.
+
+6. **No hidden dependencies**: If the Blade template uses a field, it must be in the data contract. No reading fields that only exist in some blocks or were added informally.
+
+7. **Accessible markup**: Include `alt` attributes on images, `aria-label` on interactive elements, proper heading hierarchy.
+
+---
+
+## J. Security and Sanitization
+
+### Data Type Handling
+
+| Data Type | Validation | Sanitization | Storage | Rendering |
+|-----------|-----------|--------------|---------|-----------|
+| **Plain text** | `string`, `max:N` | Strip HTML tags | Raw string | `{{ }}` (auto-escaped) |
+| **Rich text (HTML)** | `string` | HTMLPurifier with allowed tags | Sanitized HTML | `{!! !!}` after sanitization |
+| **URL** | `url`, `max:2048` | Validate protocol (http/https) | Raw string | `{{ }}` in href/src attributes |
+| **Asset URL** | `string`, `max:2048` | Validate against known asset paths | Asset reference | Resolved by AssetPublisher |
+| **CSS color** | `regex:/^#[0-9a-fA-F]{3,8}$/` or named | Whitelist format | Raw string | Inline style or CSS variable |
+| **CSS dimension** | `regex:/^\d+(\.\d+)?(px\|rem\|em\|%\|vh\|vw)$/` | Whitelist units | Raw string | Inline style |
+| **CSS gradient** | `string` | Parse and validate stops/angles | Structured JSON | Reconstructed in Blade |
+| **Embed/custom HTML** | `string` | HTMLPurifier with iframe whitelist | Sanitized HTML | `{!! !!}` with strict CSP |
+| **Integer** | `integer`, `min:N`, `max:N` | Cast to int | Integer | Direct output |
+| **Boolean** | `boolean` | Cast to bool | Boolean | Conditional rendering |
+| **Enum/select** | `in:value1,value2,...` | Validate against allowed values | String | Direct output |
+
+### Sanitization Config Examples
+
+```php
+// Plain text only (no HTML allowed)
+public function sanitizationConfig(): array
+{
+    return ['HTML.Allowed' => ''];
+}
+
+// Rich text with limited formatting
+public function sanitizationConfig(): array
+{
+    return [
+        'HTML.Allowed' => 'p,br,strong,em,a[href|target],ul,ol,li,h2,h3,h4,blockquote,code,pre',
+        'URI.AllowedSchemes' => ['http', 'https', 'mailto'],
+    ];
+}
+
+// Embed content (strict)
+public function sanitizationConfig(): array
+{
+    return [
+        'HTML.Allowed' => 'iframe[src|width|height|frameborder|allowfullscreen]',
+        'URI.AllowedSchemes' => ['https'],
+    ];
+}
+```
+
+---
+
+## K. Accessibility Standard
+
+### Required Accessibility Features
+
+1. **Alt text for images**: Every block with an image field must have a corresponding `alt` field in the data contract and an alt text input in the editor.
+
+2. **Heading levels**: Heading blocks must allow the user to choose the heading level (h1-h6). The chosen level must be used in both Preview and Blade.
+
+3. **ARIA labels**: Interactive elements (buttons, links, accordions, tabs, modals) must support `aria-label` in the data contract when the visible text may be insufficient.
+
+4. **Keyboard navigation**: Interactive block previews (accordion expand/collapse, tab switching) must be operable via keyboard.
+
+5. **Focus states**: All interactive elements in Preview and Blade must have visible focus indicators.
+
+6. **Semantic HTML**: Blade templates must use semantic elements:
+   - `<section>` for page sections (hero, CTA)
+   - `<article>` for content blocks (blog post cards)
+   - `<figure>` + `<figcaption>` for images with captions
+   - `<blockquote>` + `<cite>` for quotes
+   - `<nav>` for navigation blocks
+   - `<details>` / `<summary>` for accordions (or proper ARIA roles)
+
+7. **Meaningful labels in editor**: Editor field labels must clearly describe what the field controls. "Text" is insufficient; use "Hero Title", "CTA Button Label", "Quote Attribution".
+
+8. **Accessibility fields in editor UI**: Group alt text, aria labels, and heading levels in a clearly labeled "Accessibility" section in the editor sidebar.
+
+---
+
+## L. Responsive Standard
+
+### Layout Expectations
+
+| Viewport | Behavior |
+|----------|----------|
+| **Desktop** (1024px+) | Full layout: multi-column grids, side-by-side content, full-width heroes |
+| **Tablet** (768-1023px) | Reduced columns (3->2, 4->2), adjusted spacing |
+| **Mobile** (<768px) | Single column, stacked content, reduced padding/margins |
+
+### Requirements
+
+1. **Column collapse**: Multi-column blocks (columns, grid, feature grid, pricing table) must collapse gracefully at smaller viewports.
+
+2. **Spacing adaptation**: Large desktop padding/margins should reduce on mobile. Blade templates should use responsive CSS or utility classes.
+
+3. **Media aspect ratio**: Images and videos must maintain aspect ratio. Use `aspect-ratio` or padding-based techniques.
+
+4. **Typography scaling**: Heading sizes should scale down on mobile. Use `clamp()` or responsive font-size utilities.
+
+5. **Touch targets**: Interactive elements in Blade output must be at least 44x44px on mobile.
+
+6. **Responsive preview**: The editor preview should approximate responsive behavior. Blocks should not overflow the canvas at narrow widths.
+
+7. **Hide on breakpoint**: Support `__responsive.mobile.hidden`, `__responsive.tablet.hidden` flags for hiding blocks at specific breakpoints (handled by the rendering pipeline).
+
+---
+
+## M. Testing Standard
+
+### Automated Checks (Current)
+
+These commands must pass for a block to be considered valid:
+
+```bash
+# Block layer audit: checks frontend files, blade, PHP definition exist
+npm run blocks:audit
+
+# PHP dependency and autoload validation
+composer validate
+
+# Vite build: ensures no import errors or missing modules
+npm run build:vite
+```
+
+### Backend Tests
+
+For every block with a PHP definition, there should be:
+
+1. **Validation test**: Submit block data through the API and verify validation rules are enforced
+2. **Sanitization test**: Submit block data with malicious HTML and verify it is sanitized
+3. **Blade render test**: Render the Blade template with sample data and verify HTML output
+
+### Frontend Checks (Future)
+
+When frontend testing is adopted:
+
+1. **Preview render test**: Mount Preview with empty data, verify no crash
+2. **Preview render test**: Mount Preview with complete data, verify content appears
+3. **Editor render test**: Mount Editor, simulate field input, verify onUpdate is called with correct data
+
+### Schema Consistency Test (Future)
+
+Automated check that:
+- Every key in `definition.ts` `defaultData` has a validation rule in the PHP definition
+- Every key validated in PHP exists in `defaultData`
+- Every key used in `blade.php` exists in the data contract
+
+### Visual Checks (Manual)
+
+Every block must be visually inspected in:
+
+- [ ] Light admin theme with empty data
+- [ ] Light admin theme with filled data
+- [ ] Dark admin theme with empty data
+- [ ] Dark admin theme with filled data
+
+---
+
+## N. Block Readiness Levels
+
+### Level 0: Placeholder
+
+- Frontend folder exists with minimal/stub files
+- May not render anything useful
+- Not usable in production
+
+### Level 1: Functional
+
+- All four frontend files present (definition.ts, Editor.tsx, Preview.tsx, index.ts)
+- Registered in frontend index
+- Blade template exists
+- Block renders something meaningful in preview and published output
+- May have incomplete fields, no validation, no a11y
+
+### Level 2: Validated
+
+- All Level 1 requirements
+- PHP BlockDefinition exists with validation rules and sanitization
+- Data keys consistent across all three layers
+- Passes `npm run blocks:audit` as COMPLETE
+- Empty states handled (no crashes on missing data)
+
+### Level 3: Production-ready
+
+All Level 2 requirements, plus:
+
+- [ ] Content fields are visible and editable in the canvas (not hidden in sidebar only)
+- [ ] Inline editing supported where appropriate (or planned with clear field classification)
+- [ ] Preview reflects saved data immediately, not stale placeholders
+- [ ] Editor readable in both light and dark admin themes
+- [ ] Empty states are readable and informative (not broken layouts)
+- [ ] Audit passes (`npm run blocks:audit` reports COMPLETE)
+- [ ] Backend definition exists with comprehensive validation rules
+- [ ] Blade template uses the same data keys as frontend
+- [ ] Semantic HTML in Blade output
+- [ ] Alt text / accessibility fields present where applicable
+- [ ] No raw URL inputs for assets (uses ImageField or AssetSelectField)
+
+### Level 4: Premium CMS Block
+
+All Level 3 requirements, plus:
+
+- [ ] Presets available (e.g., "Centered hero", "Left-aligned hero with image")
+- [ ] Responsive preview approximation
+- [ ] Responsive Blade output with mobile/tablet/desktop breakpoints
+- [ ] Full keyboard accessibility in published output
+- [ ] ARIA roles and labels for interactive elements
+- [ ] Animation support via `__animation` data
+- [ ] Performance optimized (lazy loading images, deferred scripts)
+- [ ] Documentation in block definition (description, purpose, usage notes)
+
+---
+
+## O. Block Category Requirements
+
+### Layout Blocks (`columns`, `section`, `container`, `group`, `grid`, `tabs`, `accordion`, `fullbleed`, `overlap`, `stickysidebar`, `modal`)
+
+- Must set `allowsChildren: true`
+- Must render `$children` or `$childrenArray` in Blade
+- Must handle zero children gracefully (empty state)
+- Grid/columns blocks must specify responsive column collapse behavior
+- Must validate `maxChildren` if applicable
+
+### Text / Editorial Blocks (`paragraph`, `heading`, `rich-text`, `text`, `pullquote`, `quote`, `dropcap`, `caption`, `footnote`, `sidenote`, `runningtext`, `textdivider`, `code`, `list`)
+
+- Content must be inline-editable (or marked for future inline editing)
+- Heading blocks must support heading level selection (h1-h6)
+- Rich-text blocks must use sanitized HTML rendering in Blade
+- Code blocks must support syntax highlighting language selection
+- Must use semantic HTML (`<p>`, `<h1>`-`<h6>`, `<blockquote>`, `<code>`, `<pre>`, `<ul>`, `<ol>`)
+
+### Media Blocks (`image`, `imagecaption`, `video`, `audio`, `gallery`, `flipbook`, `beforeafter`, `map`, `socialembed`)
+
+- Must use AssetPicker/ImageField, not raw URL inputs
+- Must require alt text for images
+- Must handle missing/broken media gracefully
+- Video/audio blocks must not autoplay by default
+- Gallery blocks must support accessible navigation
+- Must preserve aspect ratio
+
+### Marketing Blocks (`hero`, `ctabanner`, `newsletter`, `pricingcard`, `pricingtable`, `featuregrid`, `featurecomparison`, `logostrip`, `testimonial`, `stats`, `timeline`, `chart`, `paywall`, `sharebuttons`)
+
+- Titles and key text should be inline-editable
+- Must have strong empty states (these are high-visibility blocks)
+- Must be responsive (pricing tables collapse, feature grids reflow)
+- CTA buttons must use link fields, not raw URL inputs
+- Testimonials must support attribution
+
+### Interactive Blocks (`accordion`, `tabs`, `modal`, `tooltip`, `customform`, `contact-form`)
+
+- Must use proper ARIA roles and states
+- Must be keyboard navigable
+- Must handle open/closed states in preview
+- Forms must validate inputs and show error states
+
+### Data / Dynamic Blocks (`latestposts`, `postgrid`, `postcard`, `relatedposts`, `categorylist`, `authorbox`)
+
+- Must handle "no data" state (no posts, no categories)
+- Must show placeholder content in preview (since real data is not available in editor)
+- Must indicate data source in editor (which category, how many posts, sort order)
+
+### Navigation Blocks (`menu`, `anchormenu`, `breadcrumbs`, `toc`, `readingprogress`)
+
+- Must use `<nav>` element with `aria-label`
+- Must support keyboard navigation in published output
+- Must handle empty state (no menu items, no anchors found)
+
+### Advanced / Design Blocks (`html-embed`, `icon`, `divider`, `spacer`, `button`)
+
+- HTML embed must sanitize content aggressively
+- Icon blocks must support accessible labels
+- Divider/spacer are visual-only but must render valid HTML
+- Button must use LinkField for URL, not raw input
+
+---
+
+## P. Repair Workflow
+
+When repairing an existing block to comply with this contract, follow this order. Do not skip steps. Each step builds on the previous.
+
+### Step 1: Audit
+
+```bash
+npm run blocks:audit
+```
+
+Identify the block's current status (COMPLETE, MISSING_BACKEND, etc.).
+
+### Step 2: Classify Block
+
+Determine the block's category (Section O) and note category-specific requirements.
+
+### Step 3: Define Data Contract
+
+List every field the block uses across Editor, Preview, and Blade. Identify inconsistencies in field names. Define the canonical field list.
+
+### Step 4: Classify Fields
+
+For each field, assign an editing class (Section E): inline editable, settings panel, advanced, or accessibility.
+
+### Step 5: Align Data Keys
+
+Ensure the same field names are used in:
+- `definition.ts` `defaultData`
+- `Editor.tsx` field access
+- `Preview.tsx` field access
+- `{type}.blade.php` `$data` access
+- PHP `validationRules()` keys
+
+Fix any mismatches. This is the most common source of bugs.
+
+### Step 6: Add Backend Definition
+
+If missing, create `{Type}BlockDefinition.php` with validation rules for every field in the data contract.
+
+### Step 7: Add Validation and Sanitization
+
+Ensure every field has appropriate validation rules (Section J) and sanitization config.
+
+### Step 8: Improve Editor UX
+
+- Replace raw `<input>` elements with shared field components
+- Add helper text, clear buttons, empty states
+- Group fields logically (content, design, accessibility, advanced)
+- Replace raw URL inputs with ImageField/LinkField
+
+### Step 9: Add Inline Editing Support
+
+Mark fields for inline editing (Section E). Implement inline editing for content fields when the InlineTextField component is available.
+
+### Step 10: Verify Light/Dark Theme
+
+Check the block in all six states from Section G, Step 5. Fix hardcoded colors.
+
+### Step 11: Add Tests
+
+- Backend validation test
+- Blade render test with sample data
+- Schema consistency check
+
+### Step 12: Re-run Audit and Build
+
+```bash
+npm run blocks:audit    # Must show COMPLETE
+composer validate       # Must pass
+npm run build:vite      # Must build without errors
+```
+
+---
+
+## Appendix: Template Files
+
+Starter templates for new blocks are in `docs/templates/`:
+
+| Template | Purpose |
+|----------|---------|
+| `block-definition.ts.template` | Frontend block definition with documented fields |
+| `block-editor.tsx.template` | Editor component using shared field controls |
+| `block-preview.tsx.template` | Preview component with empty state and theme safety |
+| `block-index.ts.template` | Registry file |
+| `block-blade.blade.php.template` | Blade template with escaping and a11y |
+| `block-definition.php.template` | PHP BlockDefinition with validation and sanitization |
+
+---
+
+*This contract is a living document. Update it as the block system evolves, new shared components are created, and inline editing capabilities are implemented.*

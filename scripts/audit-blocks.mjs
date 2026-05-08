@@ -36,12 +36,18 @@ function toStudly(type) {
     .join('');
 }
 
+// ─── Strip JS comments ───
+function stripComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
 // ─── Read frontend index imports ───
 function getRegisteredImports() {
   if (!existsSync(FRONTEND_INDEX)) return new Set();
-  const content = readFileSync(FRONTEND_INDEX, 'utf8');
+  const raw = readFileSync(FRONTEND_INDEX, 'utf8');
+  const content = stripComments(raw);
   const imports = new Set();
-  for (const match of content.matchAll(/import\s+['"]\.\/([\w-]+)['"]/g)) {
+  for (const match of content.matchAll(/^\s*import\s+['"]\.\/([\w-]+)['"]\s*;?\s*$/gm)) {
     imports.add(match[1]);
   }
   return imports;
