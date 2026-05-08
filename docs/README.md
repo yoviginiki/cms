@@ -34,6 +34,12 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 - [Magazine Editor](MAGAZINE-EDITOR.md) -- freeform InDesign-like page layout editor
 - [Magazine Wizard](magazine-wizard.md) -- AI-powered magazine creation workflow
 
+## Block Properties Audit
+
+- [Block Properties Audit](BLOCK-PROPERTIES-AUDIT.md) — comprehensive audit of shared block property system
+- [Hero Properties Demo Data](fixtures/hero-properties-demo-data.json) — test fixtures for Hero block properties
+- [Block Properties Manual Checklist](BLOCK-PROPERTIES-MANUAL-CHECKLIST.md) — manual QA checklist for property verification
+
 ## Recovery & Quality
 
 - [Project Recovery Plan](PROJECT-RECOVERY-PLAN.md) -- technical debt assessment, verified counts, priority phases, definition of done

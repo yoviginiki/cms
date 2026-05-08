@@ -1,0 +1,309 @@
+{
+  "description": "Hero block demo/test data for property verification",
+  "generatedAt": "2026-05-08",
+  "variants": [
+    {
+      "name": "1. Neutral — no background",
+      "data": {
+        "title": "Welcome to Our Site",
+        "subtitle": "A great place to start",
+        "ctaText": "Get Started",
+        "ctaUrl": "/get-started",
+        "bg_type": "none",
+        "alt": ""
+      },
+      "style": {},
+      "animation": {},
+      "expected": {
+        "preview": "neutral bg (oklch(var(--b3))), dark text",
+        "blade": "neutral bg (#f5f5f5), dark text (#333)"
+      }
+    },
+    {
+      "name": "2. Background color",
+      "data": {
+        "title": "Solid Color Hero",
+        "subtitle": "Clean and simple",
+        "ctaText": "Learn More",
+        "ctaUrl": "https://example.com",
+        "bg_type": "color",
+        "bg_color": "#1e40af",
+        "alt": ""
+      },
+      "style": {},
+      "animation": {},
+      "expected": {
+        "preview": "blue background, white text",
+        "blade": "blue background (#1e40af), white text"
+      }
+    },
+    {
+      "name": "3. Gradient background",
+      "data": {
+        "title": "Gradient Hero",
+        "subtitle": "Purple to blue",
+        "ctaText": "Explore",
+        "ctaUrl": "#features",
+        "bg_type": "gradient",
+        "bg_gradient_type": "linear",
+        "bg_gradient_angle": 135,
+        "bg_gradient_stops": [
+          { "color": "#667eea", "position": 0 },
+          { "color": "#764ba2", "position": 100 }
+        ],
+        "alt": ""
+      },
+      "style": {},
+      "animation": {},
+      "expected": {
+        "preview": "purple-blue gradient, white text",
+        "blade": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+      }
+    },
+    {
+      "name": "4. Image background with overlay",
+      "data": {
+        "title": "Image Hero",
+        "subtitle": "With dark overlay for readability",
+        "ctaText": "Contact Us",
+        "ctaUrl": "mailto:hello@example.com",
+        "bg_type": "image",
+        "bg_image": "/assets/hero-bg.jpg",
+        "bg_image_size": "cover",
+        "bg_image_position": "center center",
+        "bg_image_repeat": "no-repeat",
+        "bg_overlay_color": "#000000",
+        "bg_overlay_opacity": 0.5,
+        "bg_scroll_effect": "none",
+        "alt": "Mountain landscape at sunset"
+      },
+      "style": {},
+      "animation": {},
+      "expected": {
+        "preview": "image bg with 50% black overlay, white text",
+        "blade": "image bg with overlay div, role=img aria-label set"
+      }
+    },
+    {
+      "name": "5. Image with repeat and position",
+      "data": {
+        "title": "Tiled Background",
+        "subtitle": "Pattern repeat demo",
+        "ctaText": "",
+        "ctaUrl": "",
+        "bg_type": "image",
+        "bg_image": "/assets/pattern.png",
+        "bg_image_size": "auto",
+        "bg_image_position": "top center",
+        "bg_image_repeat": "repeat",
+        "bg_overlay_color": "#000000",
+        "bg_overlay_opacity": 0,
+        "bg_scroll_effect": "fixed",
+        "alt": "Decorative pattern"
+      },
+      "style": {},
+      "animation": {},
+      "expected": {
+        "preview": "tiled image bg, fixed attachment",
+        "blade": "background-repeat:repeat, background-attachment:fixed"
+      }
+    },
+    {
+      "name": "6. Large padding/spacing (DEAD CONTROL)",
+      "data": {
+        "title": "Spacing Test",
+        "subtitle": "Padding should be visible",
+        "ctaText": "",
+        "ctaUrl": "",
+        "bg_type": "color",
+        "bg_color": "#059669",
+        "alt": ""
+      },
+      "style": {
+        "spacing": {
+          "paddingTop": "80px",
+          "paddingBottom": "80px",
+          "paddingLeft": "40px",
+          "paddingRight": "40px"
+        }
+      },
+      "animation": {},
+      "expected": {
+        "preview": "DEAD CONTROL — padding NOT applied in preview",
+        "blade": "DEAD CONTROL — padding NOT applied in blade",
+        "status": "DEAD_CONTROL"
+      }
+    },
+    {
+      "name": "7. Border and radius (DEAD CONTROL)",
+      "data": {
+        "title": "Bordered Hero",
+        "subtitle": "Should have rounded corners and border",
+        "ctaText": "",
+        "ctaUrl": "",
+        "bg_type": "color",
+        "bg_color": "#7c3aed",
+        "alt": ""
+      },
+      "style": {
+        "visual": {
+          "borderWidth": "2px",
+          "borderColor": "#fbbf24",
+          "borderStyle": "solid",
+          "borderRadius": "16px",
+          "boxShadow": "lg"
+        }
+      },
+      "animation": {},
+      "expected": {
+        "preview": "DEAD CONTROL — border/radius NOT applied",
+        "blade": "DEAD CONTROL — border/radius NOT applied",
+        "status": "DEAD_CONTROL"
+      }
+    },
+    {
+      "name": "8. Fade-in animation (DEAD CONTROL)",
+      "data": {
+        "title": "Animated Hero",
+        "subtitle": "Should fade in",
+        "ctaText": "",
+        "ctaUrl": "",
+        "bg_type": "gradient",
+        "bg_gradient_type": "linear",
+        "bg_gradient_angle": 180,
+        "bg_gradient_stops": [
+          { "color": "#3b82f6", "position": 0 },
+          { "color": "#8b5cf6", "position": 100 }
+        ],
+        "alt": ""
+      },
+      "style": {},
+      "animation": {
+        "entrance": "fade",
+        "duration": 600,
+        "delay": 0,
+        "trigger": "on-load"
+      },
+      "expected": {
+        "preview": "DEAD CONTROL — no fade animation in preview",
+        "blade": "DEAD CONTROL — no animation in blade, no @keyframes exist",
+        "status": "DEAD_CONTROL"
+      }
+    },
+    {
+      "name": "9. Slide-in animation (DEAD CONTROL)",
+      "data": {
+        "title": "Sliding Hero",
+        "subtitle": "Should slide up into view",
+        "ctaText": "",
+        "ctaUrl": "",
+        "bg_type": "none",
+        "alt": ""
+      },
+      "style": {},
+      "animation": {
+        "entrance": "slide-up",
+        "duration": 800,
+        "delay": 200,
+        "trigger": "on-scroll"
+      },
+      "expected": {
+        "preview": "DEAD CONTROL — no slide animation",
+        "blade": "DEAD CONTROL — no animation, no scroll observer",
+        "status": "DEAD_CONTROL"
+      }
+    },
+    {
+      "name": "10. Delayed animation (DEAD CONTROL)",
+      "data": {
+        "title": "Delayed Hero",
+        "subtitle": "1 second delay before animation",
+        "ctaText": "",
+        "ctaUrl": "",
+        "bg_type": "color",
+        "bg_color": "#dc2626",
+        "alt": ""
+      },
+      "style": {},
+      "animation": {
+        "entrance": "zoom",
+        "duration": 500,
+        "delay": 1000,
+        "trigger": "on-load"
+      },
+      "expected": {
+        "preview": "DEAD CONTROL",
+        "blade": "DEAD CONTROL",
+        "status": "DEAD_CONTROL"
+      }
+    },
+    {
+      "name": "11. Text alignment variants",
+      "data": {
+        "title": "Left Aligned Hero",
+        "subtitle": "Text should be left-aligned",
+        "ctaText": "CTA",
+        "ctaUrl": "/cta",
+        "bg_type": "color",
+        "bg_color": "#0f172a",
+        "alt": ""
+      },
+      "style": {
+        "typography": {
+          "textAlign": "left"
+        }
+      },
+      "animation": {},
+      "expected": {
+        "preview": "DEAD CONTROL — text alignment from typography panel NOT applied (hero Preview hardcodes text-center)",
+        "blade": "DEAD CONTROL — typography not passed to blade",
+        "status": "DEAD_CONTROL"
+      }
+    },
+    {
+      "name": "12. Security test — malicious CSS/URL",
+      "data": {
+        "title": "Security Test",
+        "subtitle": "",
+        "ctaText": "Click Me",
+        "ctaUrl": "javascript:alert(1)",
+        "bg_type": "color",
+        "bg_color": "#ff0000;position:fixed;top:0;left:0;width:100vw;height:100vh",
+        "alt": "\" onload=\"alert(1)"
+      },
+      "style": {
+        "visual": {
+          "backgroundColor": "#ff0000;position:fixed",
+          "backgroundImage": "url(javascript:alert(1))"
+        },
+        "spacing": {
+          "paddingTop": "expression(alert(1))"
+        }
+      },
+      "animation": {},
+      "expected": {
+        "preview": "bg_color sanitized by cssVal(), ctaUrl blocked by safeUrl()",
+        "blade": "bg_color sanitized, ctaUrl falls back to #, alt escaped by Blade {{ }}",
+        "note": "Global style.visual is DEAD_CONTROL so injection via style props is moot for now, but must be validated before connecting"
+      }
+    },
+    {
+      "name": "13. Legacy data — old backgroundImage field",
+      "data": {
+        "title": "Legacy Hero",
+        "subtitle": "Uses old backgroundImage key",
+        "ctaText": "",
+        "ctaUrl": "",
+        "backgroundImage": "/old-assets/legacy-bg.jpg",
+        "bg_type": "none",
+        "alt": ""
+      },
+      "style": {},
+      "animation": {},
+      "expected": {
+        "preview": "Legacy fallback applies — shows image bg via backgroundImage → bg_image migration in Preview",
+        "blade": "Blade has elseif(!empty($data['backgroundImage'])) fallback"
+      }
+    }
+  ]
+}
