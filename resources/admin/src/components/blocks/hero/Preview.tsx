@@ -9,9 +9,15 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const ctaText = (data.ctaText as string) || '';
   const bgType = (data.bg_type as string) || 'none';
 
-  const bgStyle = buildBackgroundStyle(data);
-  const overlayStyle = buildOverlayStyle(data);
-  const hasBg = bgType !== 'none';
+  // Legacy fallback: old hero blocks saved backgroundImage instead of bg_image
+  const legacyImage = (data.backgroundImage as string) || '';
+  const effectiveData = (bgType === 'none' && legacyImage)
+    ? { ...data, bg_type: 'image', bg_image: legacyImage }
+    : data;
+
+  const bgStyle = buildBackgroundStyle(effectiveData);
+  const overlayStyle = buildOverlayStyle(effectiveData);
+  const hasBg = bgType !== 'none' || !!legacyImage;
 
   // Empty state
   if (!title && !subtitle) {
@@ -31,22 +37,22 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
         alignItems: 'center',
         justifyContent: 'center',
         ...bgStyle,
-        ...(!hasBg ? { background: 'linear-gradient(135deg, oklch(var(--p)) 0%, oklch(var(--s)) 100%)' } : {}),
+        ...(!hasBg ? { backgroundColor: 'oklch(var(--b3))' } : {}),
       }}
     >
       {overlayStyle && <div style={overlayStyle} />}
 
       <div className="relative z-10 text-center px-6 py-8 max-w-2xl">
-        <h1 className="text-3xl font-bold mb-2 text-white drop-shadow-sm">
+        <h1 className={`text-3xl font-bold mb-2 ${hasBg ? 'text-white drop-shadow-sm' : 'text-base-content'}`}>
           {title}
         </h1>
         {subtitle && (
-          <p className="text-lg text-white/85 mb-5 drop-shadow-sm">
+          <p className={`text-lg mb-5 ${hasBg ? 'text-white/85 drop-shadow-sm' : 'text-base-content/70'}`}>
             {subtitle}
           </p>
         )}
         {ctaText && (
-          <span className="inline-block px-5 py-2.5 bg-white/20 text-white border-2 border-white/60 rounded-lg text-sm font-semibold backdrop-blur-sm">
+          <span className={`inline-block px-5 py-2.5 rounded-lg text-sm font-semibold ${hasBg ? 'bg-white/20 text-white border-2 border-white/60 backdrop-blur-sm' : 'bg-primary text-primary-content'}`}>
             {ctaText}
           </span>
         )}

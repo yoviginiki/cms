@@ -138,4 +138,6 @@ export type BlockCategory =
   | 'data'
   | 'blog'
   | 'embed'
-  | 'navigation';
+  | 'navigation'
+  | 'marketing'
+  | 'advanced';

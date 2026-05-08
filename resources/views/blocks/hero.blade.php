@@ -14,7 +14,8 @@
         $size = $data['bg_image_size'] ?? 'cover';
         $pos = $data['bg_image_position'] ?? 'center center';
         $scroll = $data['bg_scroll_effect'] ?? 'none';
-        $style .= "background-image:url('{$data['bg_image']}');background-size:{$size};background-position:{$pos};background-repeat:no-repeat;";
+        $repeat = $data['bg_image_repeat'] ?? 'no-repeat';
+        $style .= "background-image:url('{$data['bg_image']}');background-size:{$size};background-position:{$pos};background-repeat:{$repeat};";
         if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
     } elseif (!empty($data['backgroundImage'])) {
         $style .= "background-image:url('{$data['backgroundImage']}');background-size:cover;background-position:center;";
