@@ -1,28 +1,41 @@
 @php
+    // Sanitize CSS values to prevent style injection
+    $cssVal = fn($v) => preg_replace('/[^a-zA-Z0-9#(),.\s%\/\-]/', '', (string) $v);
+    $cssUrl = fn($v) => preg_match('#^(https?://|/)[^\'"<>]*$#i', (string) $v) ? (string) $v : '';
+
     $bgType = $data['bg_type'] ?? 'none';
-    $style = 'position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;color:#fff;';
+    $hasBg = $bgType !== 'none' || !empty($data['backgroundImage']);
+    $textColor = $hasBg ? '#fff' : '#333';
+    $baseBg = $hasBg ? '' : 'background-color:#f5f5f5;';
+    $style = "position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;color:{$textColor};{$baseBg}";
 
     if ($bgType === 'color' && !empty($data['bg_color'])) {
-        $style .= "background-color:{$data['bg_color']};";
+        $style .= "background-color:{$cssVal($data['bg_color'])};";
     } elseif ($bgType === 'gradient' && !empty($data['bg_gradient_stops'])) {
-        $stops = collect($data['bg_gradient_stops'])->map(fn($s) => "{$s['color']} {$s['position']}%")->join(', ');
-        $type = $data['bg_gradient_type'] ?? 'linear';
-        $angle = $data['bg_gradient_angle'] ?? 180;
+        $stops = collect($data['bg_gradient_stops'])->map(fn($s) => $cssVal($s['color']) . ' ' . ((int) $s['position']) . '%')->join(', ');
+        $type = in_array($data['bg_gradient_type'] ?? 'linear', ['linear', 'radial']) ? ($data['bg_gradient_type'] ?? 'linear') : 'linear';
+        $angle = (int) ($data['bg_gradient_angle'] ?? 180);
         $gradient = $type === 'radial' ? "radial-gradient(circle, {$stops})" : "linear-gradient({$angle}deg, {$stops})";
         $style .= "background:{$gradient};";
     } elseif ($bgType === 'image' && !empty($data['bg_image'])) {
-        $size = $data['bg_image_size'] ?? 'cover';
-        $pos = $data['bg_image_position'] ?? 'center center';
+        $imgUrl = $cssUrl($data['bg_image']);
+        $size = in_array($data['bg_image_size'] ?? 'cover', ['cover', 'contain', 'auto']) ? ($data['bg_image_size'] ?? 'cover') : 'cover';
+        $pos = $cssVal($data['bg_image_position'] ?? 'center center');
         $scroll = $data['bg_scroll_effect'] ?? 'none';
-        $repeat = $data['bg_image_repeat'] ?? 'no-repeat';
-        $style .= "background-image:url('{$data['bg_image']}');background-size:{$size};background-position:{$pos};background-repeat:{$repeat};";
-        if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
+        $repeat = in_array($data['bg_image_repeat'] ?? 'no-repeat', ['no-repeat', 'repeat', 'repeat-x', 'repeat-y']) ? ($data['bg_image_repeat'] ?? 'no-repeat') : 'no-repeat';
+        if ($imgUrl) {
+            $style .= "background-image:url('{$imgUrl}');background-size:{$size};background-position:{$pos};background-repeat:{$repeat};";
+            if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
+        }
     } elseif (!empty($data['backgroundImage'])) {
-        $style .= "background-image:url('{$data['backgroundImage']}');background-size:cover;background-position:center;";
+        $legacyUrl = $cssUrl($data['backgroundImage']);
+        if ($legacyUrl) {
+            $style .= "background-image:url('{$legacyUrl}');background-size:cover;background-position:center;";
+        }
     }
 
-    $overlayOpacity = (float) ($data['bg_overlay_opacity'] ?? 0);
-    $overlayColor = $data['bg_overlay_color'] ?? '#000';
+    $overlayOpacity = max(0, min(1, (float) ($data['bg_overlay_opacity'] ?? 0)));
+    $overlayColor = $cssVal($data['bg_overlay_color'] ?? '#000');
 @endphp
 <section class="hero-section" style="{{ $style }}"@if($bgType === 'image' && !empty($data['alt'])) role="img" aria-label="{{ $data['alt'] }}"@endif>
     @if($bgType === 'image' && $overlayOpacity > 0)
@@ -34,7 +47,8 @@
             <p style="font-size:1.25rem;opacity:0.9;margin-bottom:2rem;">{{ $data['subtitle'] }}</p>
         @endif
         @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
-            <a href="{{ $data['ctaUrl'] }}" style="display:inline-block;padding:0.75rem 2rem;background:rgba(255,255,255,0.2);color:#fff;border:2px solid #fff;border-radius:0.375rem;text-decoration:none;font-weight:600;">{{ $data['ctaText'] }}</a>
+            @php $ctaBg = $hasBg ? 'background:rgba(255,255,255,0.2);color:#fff;border:2px solid #fff;' : 'background:#333;color:#fff;border:2px solid #333;'; @endphp
+            <a href="{{ $data['ctaUrl'] }}" style="display:inline-block;padding:0.75rem 2rem;{{ $ctaBg }}border-radius:0.375rem;text-decoration:none;font-weight:600;">{{ $data['ctaText'] }}</a>
         @endif
     </div>
 </section>

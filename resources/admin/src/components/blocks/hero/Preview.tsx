@@ -11,13 +11,15 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   // Legacy fallback: old hero blocks saved backgroundImage instead of bg_image
   const legacyImage = (data.backgroundImage as string) || '';
-  const effectiveData = (bgType === 'none' && legacyImage)
+  const hasBgImage = !!(data.bg_image as string);
+  const effectiveData = (!hasBgImage && legacyImage)
     ? { ...data, bg_type: 'image', bg_image: legacyImage }
     : data;
 
   const bgStyle = buildBackgroundStyle(effectiveData);
   const overlayStyle = buildOverlayStyle(effectiveData);
-  const hasBg = bgType !== 'none' || !!legacyImage;
+  const effectiveBgType = (effectiveData.bg_type as string) || 'none';
+  const hasBg = effectiveBgType !== 'none';
 
   // Empty state
   if (!title && !subtitle) {
