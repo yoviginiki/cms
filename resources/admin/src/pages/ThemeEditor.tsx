@@ -206,7 +206,7 @@ export default function ThemeEditor() {
             {tree.map(tier => (
               <TierSection key={tier.path} tier={tier} tokens={tokens} selectedPath={selectedPath}
                 onSelect={setSelectedPath} isSystem={isSystem}
-                onEditValue={(path, value) => {
+                onEditValue={(path: string, value: Record<string, string>) => {
                   if (!editDoc) return;
                   const updated = JSON.parse(JSON.stringify(editDoc));
                   setTokenValue(updated, path, value);
@@ -227,7 +227,7 @@ export default function ThemeEditor() {
             <TokenDetailPanel path={selectedPath} tokens={tokens}
               rawToken={findToken(editDoc || {}, selectedPath)}
               isSystem={isSystem}
-              onUpdate={(value) => {
+              onUpdate={(value: Record<string, string>) => {
                 if (!editDoc) return;
                 const updated = JSON.parse(JSON.stringify(editDoc));
                 setTokenValue(updated, selectedPath, value);

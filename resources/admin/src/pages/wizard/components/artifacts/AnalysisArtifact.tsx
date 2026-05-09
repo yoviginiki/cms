@@ -36,11 +36,6 @@ export default function AnalysisArtifact({ data, onChange, readOnly }: Props) {
 
   const toggle = useCallback((key: string) => setOpenSections(s => ({ ...s, [key]: !s[key] })), []);
 
-  // Use a stable update function that merges into the current analysis
-  const update = useCallback((patch: Partial<Step4Analysis>) => {
-    onChange({ ...analysis, ...patch });
-  }, [analysis, onChange]);
-
   // Voice field handler — stable per field
   const handleVoiceChange = useCallback((field: string, value: string) => {
     onChange({ ...analysis, voice: { ...analysis.voice, [field]: value } });

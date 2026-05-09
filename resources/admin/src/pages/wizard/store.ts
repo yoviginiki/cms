@@ -20,28 +20,10 @@ interface WizardActions {
   lock: () => Promise<void>;
   unlock: (toStep: number) => Promise<void>;
   provision: () => Promise<string | null>;
+  autoStartStep: () => void;
   clearError: () => void;
 }
 
-const stepToColumn = (step: number): string | null => {
-  const map: Record<number, string> = {
-    1: 'step1_brief', 2: 'step2_structure', 3: 'step3_article_selection',
-    4: 'step4_analyses', 5: 'step5_directions', 6: 'step6_thumbnails',
-  };
-  return map[step] || null;
-};
-
-const getLockedArtifact = (session: WizardSession, step: number): unknown => {
-  switch (step) {
-    case 1: return session.step1_brief;
-    case 2: return session.step2_structure;
-    case 3: return session.step3_article_selection;
-    case 4: return session.step4_analyses;
-    case 5: return session.step5_directions;
-    case 6: return session.step6_thumbnails;
-    default: return null;
-  }
-};
 
 export const useWizardStore = create<WizardState & WizardActions>((set, get) => ({
   session: null,

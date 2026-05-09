@@ -83,7 +83,6 @@ export default function StructureArtifact({ data, onChange, readOnly, siteId }: 
     const slug = post.slug || post.id.substring(0, 8);
     if (addedSlugs.has(slug)) return;
 
-    const wordCount = 0; // We don't have word count from list API, estimate pages
     const newArticle: StructureArticle = {
       slug,
       title: post.title || 'Untitled',

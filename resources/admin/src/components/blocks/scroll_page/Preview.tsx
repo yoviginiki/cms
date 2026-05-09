@@ -223,7 +223,7 @@ const PageFieldEditor: React.FC<{
           <div><label className={labelCls} style={labelStyle}>Eyebrow</label>
             <input className={inputCls} style={fieldStyle} value={d.eyebrow || ''} onChange={e => updatePageField(idx, 'data.eyebrow', e.target.value)} placeholder="e.g. A magazine for what does not shout" /></div>
           <div><label className={labelCls} style={labelStyle}>Masthead</label>
-            <input className={inputCls} style={fieldStyle} value={d.masthead || ''} onChange={e => updatePageField(idx, 'data.masthead', e.target.value)} placeholder="e.g. ENSŌDŌ" style={{ fontSize: '14px', fontWeight: 500 }} /></div>
+            <input className={inputCls} style={{ ...fieldStyle, fontSize: '14px', fontWeight: 500 }} value={d.masthead || ''} onChange={e => updatePageField(idx, 'data.masthead', e.target.value)} placeholder="e.g. ENSŌDŌ" /></div>
           <div><label className={labelCls} style={labelStyle}>Masthead Meta</label>
             <input className={inputCls} style={fieldStyle} value={d.mastheadMeta || ''} onChange={e => updatePageField(idx, 'data.mastheadMeta', e.target.value)} placeholder="e.g. Issue No. 01" /></div>
           <div><label className={labelCls} style={labelStyle}>Divider</label>
@@ -280,7 +280,7 @@ const PageFieldEditor: React.FC<{
           <div><label className={labelCls} style={labelStyle}>Chapter Label</label>
             <input className={inputCls} style={fieldStyle} value={d.chapterLabel || ''} onChange={e => updatePageField(idx, 'data.chapterLabel', e.target.value)} placeholder="e.g. Editorial" /></div>
           <div><label className={labelCls} style={labelStyle}>Chapter Title</label>
-            <input className={inputCls} style={fieldStyle} value={d.chapterTitle || ''} onChange={e => updatePageField(idx, 'data.chapterTitle', e.target.value)} placeholder="e.g. The First Echo" style={{ fontSize: '14px', fontWeight: 500 }} /></div>
+            <input className={inputCls} style={{ ...fieldStyle, fontSize: '14px', fontWeight: 500 }} value={d.chapterTitle || ''} onChange={e => updatePageField(idx, 'data.chapterTitle', e.target.value)} placeholder="e.g. The First Echo" /></div>
           <label className="flex items-center gap-1 text-[10px]" style={labelStyle}>
             <input type="checkbox" checked={d.showDotMark ?? false}
               onChange={e => updatePageField(idx, 'data.showDotMark', e.target.checked)} className="checkbox checkbox-xs" />
@@ -368,9 +368,9 @@ const PageFieldEditor: React.FC<{
       return (
         <div className="space-y-1.5">
           <div><label className={labelCls} style={labelStyle}>Closing Line</label>
-            <input className={inputCls} style={fieldStyle} value={d.line || ''}
+            <input className={inputCls} style={{ ...fieldStyle, fontStyle: 'italic' }} value={d.line || ''}
               onChange={e => updatePageField(idx, 'data.line', e.target.value)}
-              placeholder="Stay with what does not shout." style={{ fontStyle: 'italic' }} /></div>
+              placeholder="Stay with what does not shout." /></div>
         </div>
       );
 

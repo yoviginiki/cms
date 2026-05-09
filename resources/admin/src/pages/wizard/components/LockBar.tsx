@@ -8,7 +8,7 @@ import type { Step2Structure, Step5Directions } from '../types';
 
 export default function LockBar() {
   const navigate = useNavigate();
-  const { session, currentArtifact, lock, unlock, isStreaming, error } = useWizardStore();
+  const { session, currentArtifact, lock, unlock, isStreaming } = useWizardStore();
   const [locking, setLocking] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string | null>(null);
@@ -26,10 +26,10 @@ export default function LockBar() {
 
     switch (step) {
       case 1: return !!a.feeling;
-      case 2: return Array.isArray((a as Step2Structure).articles) && (a as Step2Structure).articles.length > 0;
+      case 2: return Array.isArray((a as unknown as Step2Structure).articles) && (a as unknown as Step2Structure).articles.length > 0;
       case 3: return !!a.selected_slug;
       case 4: return Array.isArray(a.beats) && (a.beats as unknown[]).length > 0;
-      case 5: return !!(a as Step5Directions).chosen;
+      case 5: return !!(a as unknown as Step5Directions).chosen;
       case 6: return Array.isArray(a.spreads) && (a.spreads as unknown[]).length > 0;
       default: return false;
     }

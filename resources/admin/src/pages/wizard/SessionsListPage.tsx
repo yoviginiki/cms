@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Wand2, Trash2 } from 'lucide-react';
 import { wizardApi } from './api';
 import { STEP_LABELS } from './types';
-import type { WizardSession } from './types';
+
 
 export default function SessionsListPage() {
   const { siteId = '' } = useParams();

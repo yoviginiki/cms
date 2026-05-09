@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, FileText, Loader2, Home, RefreshCw, Eraser, Globe } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Loader2, Home, RefreshCw, Eraser } from 'lucide-react';
 import { pages, sites, publishing } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';

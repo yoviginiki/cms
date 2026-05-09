@@ -1,5 +1,5 @@
 import { Flag } from 'lucide-react';
-import type { Step6Thumbnails, ThumbnailSpread } from '../../types';
+import type { Step6Thumbnails } from '../../types';
 
 interface Props {
   data: Step6Thumbnails | null;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { Plus, Edit, Trash2, FolderTree, Loader2, Check, X, ChevronRight, ChevronDown, GripVertical, CornerDownRight, Eye, EyeOff, LayoutGrid } from 'lucide-react';
+import { Plus, Edit, Trash2, FolderTree, Loader2, Check, X, ChevronRight, ChevronDown, CornerDownRight, Eye, EyeOff, LayoutGrid } from 'lucide-react';
 import { categories } from '@/lib/api';
 import api from '@/lib/api';
 import { slugify } from '@/lib/slugify';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Palette, Plus, Copy, Loader2, Check, Download, Upload, Eye } from 'lucide-react';
+import { Palette, Copy, Loader2, Check, Upload, Eye } from 'lucide-react';
 import { themeEngine } from '@/lib/api';
 
 interface ThemeItem {
@@ -159,7 +159,7 @@ export default function ThemeEngine() {
   );
 }
 
-function ThemeCard({ theme, siteId, onFork, onAssign, onEdit }: {
+function ThemeCard({ theme, siteId: _siteId, onFork, onAssign, onEdit }: {
   theme: ThemeItem; siteId: string;
   onFork: () => void; onAssign: () => void; onEdit: () => void;
 }) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image as ImageIcon, Paintbrush, Layers, Move, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { AssetField } from '@/components/ui/AssetPicker';
 
 export interface BackgroundData {

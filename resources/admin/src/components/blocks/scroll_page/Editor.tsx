@@ -2,12 +2,6 @@ import React, { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { AssetField } from '@/components/ui/AssetPicker';
 
-const PAGE_TYPES = ['cover', 'quote', 'editorial_title', 'editorial_body', 'pull_quote', 'closing', 'footer'];
-const PAGE_LABELS: Record<string, string> = {
-  cover: 'Cover', quote: 'Quote', editorial_title: 'Editorial Title',
-  editorial_body: 'Editorial Body', pull_quote: 'Pull Quote', closing: 'Closing', footer: 'Footer',
-};
-
 export const ScrollPageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as any;
   const pages = data.pages || [];
@@ -24,8 +18,6 @@ export const ScrollPageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
     obj[keys[keys.length - 1]] = value;
     onUpdate(newData);
   };
-
-  const updatePages = (newPages: any[]) => updateField('pages', newPages);
 
   const tabs = [
     { key: 'palette', label: 'Colors' },

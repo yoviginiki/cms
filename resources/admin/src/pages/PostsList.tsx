@@ -13,7 +13,7 @@ interface Post {
   title: string;
   slug: string;
   status: string;
-  category?: { id: string; name: string };
+  category?: { id: string; name: string; slug?: string };
   grid_id?: string | null;
   grid?: { id: string; name: string; slug: string } | null;
   published_at: string | null;
