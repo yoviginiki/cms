@@ -8,10 +8,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 class Site extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
+
+    /**
+     * Scope route model binding to the authenticated user's tenant.
+     * Returns 404 instead of 403 for cross-tenant access attempts,
+     * preventing resource existence leakage.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $user = Auth::user();
+        $query = $this->resolveRouteBindingQuery($this, $value, $field);
+
+        if ($user && $user->tenant_id) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        return $query->first();
+    }
 
     protected $fillable = [
         'tenant_id', 'name', 'slug', 'custom_domain',

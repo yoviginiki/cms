@@ -245,11 +245,19 @@ class BuildPageService
             return "<!-- Unknown block type: {$block->type} -->";
         }
 
+        // Extract shared properties stored in data.__style, __animation, __advanced
+        $blockStyle = $block->style ?? $sanitizedData['__style'] ?? [];
+        $blockAnimation = $sanitizedData['__animation'] ?? [];
+        $blockAdvanced = $sanitizedData['__advanced'] ?? [];
+
         return View::make($viewName, [
             'data' => $sanitizedData,
             'children' => $childrenHtml,
             'childrenArray' => $childrenArray,
             'site' => $site,
+            'blockStyle' => $blockStyle,
+            'blockAnimation' => $blockAnimation,
+            'blockAdvanced' => $blockAdvanced,
         ])->render();
     }
 
@@ -363,6 +371,16 @@ img{max-width:100%;height:auto;display:block}
 .divider-block{border:none;border-top:1px solid #e5e7eb;margin:2rem 0}
 ';
         }
+
+        // Block entrance animations
+        $css .= '
+@keyframes block-fade{from{opacity:0}to{opacity:1}}
+@keyframes block-slide-up{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes block-slide-left{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes block-slide-right{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes block-zoom{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){[data-animation]{animation:none!important}}
+';
 
         return trim($css);
     }

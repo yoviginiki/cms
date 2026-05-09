@@ -236,3 +236,73 @@ If a property panel control is visible, it MUST either:
 9. **Hover effects** — Implement or remove from AnimationPanel
 10. **Responsive overrides** — Only hideOn is partially defined; no responsive style override capability
 11. **Custom CSS scoping** — If custom CSS is kept, scope it to the block
+
+---
+
+## P0 Fix Status (Hero-first implementation)
+
+### What was fixed
+
+The shared property pipeline was connected end-to-end:
+
+#### Editor Preview (all blocks)
+- **SortableBlock.tsx** now applies `block.style`, `block.animation`, and `block.advanced` to a wrapper div around every block Preview
+- Helper module `resources/admin/src/lib/blockStyles.ts` provides:
+  - `buildBlockWrapperStyle()` — spacing, border, radius, shadow, opacity
+  - `buildAnimationStyle()` — entrance animation with duration/delay
+  - `buildBlockClasses()` — sanitized custom class
+- CSS `@keyframes` for `block-fade`, `block-slide-up`, `block-slide-left`, `block-slide-right`, `block-zoom` added to `index.css`
+
+#### Published Blade (all blocks)
+- **BuildPageService::renderBlock()** now passes `$blockStyle`, `$blockAnimation`, `$blockAdvanced` to every Blade template
+- Animation `@keyframes` added to `buildCriticalCss()` so they're available in published output
+- Respects `prefers-reduced-motion: reduce`
+
+#### Hero Blade (Hero-specific)
+- Hero Blade reads `$blockStyle`, `$blockAnimation`, `$blockAdvanced` and applies:
+  - Spacing (padding/margin) with `cssDim()` sanitization
+  - Border (width/color/style) with safe validation
+  - Border radius with `cssDim()` sanitization
+  - Shadow presets (sm/md/lg)
+  - Opacity
+  - Animation name/duration/delay with `data-animation` attribute
+  - Custom class (sanitized to safe tokens)
+  - HTML ID (sanitized)
+  - ARIA label
+
+### Properties now WORKING for Hero
+
+| Property | Preview | Blade | Status |
+|----------|---------|-------|--------|
+| Spacing (padding/margin) | Yes (via SortableBlock wrapper) | Yes | WORKING |
+| Border width/color/style | Yes (via wrapper) | Yes | WORKING |
+| Border radius | Yes (via wrapper) | Yes | WORKING |
+| Shadow (sm/md/lg) | Yes (via wrapper) | Yes | WORKING |
+| Opacity | Yes (via wrapper) | Yes | WORKING |
+| Animation entrance (fade/slide/zoom) | Yes (via wrapper) | Yes | WORKING |
+| Animation duration | Yes | Yes | WORKING |
+| Animation delay | Yes | Yes | WORKING |
+| Custom class | Yes (via wrapper) | Yes | WORKING |
+| HTML ID | N/A (preview) | Yes | WORKING |
+| ARIA label | N/A (preview) | Yes | WORKING |
+
+### Properties still PARTIAL or DEAD_CONTROL
+
+| Property | Status | Reason |
+|----------|--------|--------|
+| Animation trigger (on-scroll) | PARTIAL | on-load works; on-scroll needs Intersection Observer JS (not implemented) |
+| Hover effects (opacity/lift/glow) | DEAD_CONTROL | No CSS/JS implementation |
+| Responsive hide on device | DEAD_CONTROL | Not connected in SortableBlock or Blade |
+| Custom CSS | DEAD_CONTROL | Security risk — not rendered |
+| Global VisualPanel bg color/gradient/image | DEAD_CONTROL for Hero | Hero uses its own BackgroundEditor; global bg ignored |
+| Typography panel overrides | DEAD_CONTROL | Not applied in SortableBlock wrapper or Blade |
+| Layout panel (width/height/display) | DEAD_CONTROL | Not applied in SortableBlock wrapper |
+
+### Pattern for other blocks
+
+Other Blade templates can now access `$blockStyle`, `$blockAnimation`, `$blockAdvanced` — they just need to apply them. The Hero Blade implementation serves as the reference. The SortableBlock wrapper already applies shared properties to ALL block previews automatically.
+
+### This fix is Hero-first
+- SortableBlock + BuildPageService changes benefit all blocks
+- Only Hero Blade currently renders the shared properties
+- Other blocks will gain Blade support as they're repaired per the Block Quality Contract

@@ -6,6 +6,7 @@ import { useEditorStore } from '@/stores/editorStore';
 import { BlockToolbar } from './BlockToolbar';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
+import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses } from '@/lib/blockStyles';
 
 interface SortableBlockProps {
   block: BlockData;
@@ -84,7 +85,13 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         />
       )}
 
-      <div className="relative">
+      <div
+        className={`relative ${buildBlockClasses(block.advanced)}`}
+        style={{
+          ...buildBlockWrapperStyle(block.style),
+          ...buildAnimationStyle(block.animation),
+        }}
+      >
         <Preview
           block={block}
           isSelected={isSelected}
