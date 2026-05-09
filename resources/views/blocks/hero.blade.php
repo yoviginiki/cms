@@ -16,7 +16,6 @@
     $sectionHeightMap = ['auto' => 'auto', 'sm' => '300px', 'md' => '400px', 'lg' => '600px', 'fullscreen' => '100vh'];
     $sectionHeightVal = $data['sectionHeight'] ?? 'md';
     $minHeight = $sectionHeightMap[$sectionHeightVal] ?? '400px';
-    if ($sectionHeightVal === 'auto') { $minHeight = '200px'; }
 
     // Vertical position
     $vertMap = ['top' => 'flex-start', 'center' => 'center', 'bottom' => 'flex-end'];
