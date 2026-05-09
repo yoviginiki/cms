@@ -29,12 +29,29 @@ export const heroDefinition: BlockDefinition = {
     bg_scroll_effect: 'none',
     bg_parallax_speed: 0.5,
 
+    // Layout fields
+    headlineTag: 'h1',          // h1 | h2 | h3
+    textAlignment: 'center',    // left | center | right
+    verticalPosition: 'center', // top | center | bottom
+    sectionHeight: 'md',        // auto | sm | md | lg | fullscreen
+    contentMaxWidth: '800px',
+
+    // Typography fields
+    headlineSize: '2.5rem',
+    headlineWeight: '700',
+    headlineColor: '',           // empty = auto-derive from bg
+    subheadlineSize: '1.25rem',
+    adaptiveTextColor: true,
+
     // CTA / Link fields (settings panel)
     ctaText: '',
     ctaUrl: '',
 
     // Accessibility fields
     alt: '',
+
+    // Performance fields
+    mediaLoading: 'eager',       // eager | lazy
   },
   allowsChildren: false,
 };

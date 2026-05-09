@@ -92,6 +92,15 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
           ...buildAnimationStyle(block.animation),
         }}
       >
+        {block.responsive?.hideOn && block.responsive.hideOn.length > 0 && (
+          <div className="absolute top-1 right-1 z-20 flex gap-0.5">
+            {block.responsive.hideOn.map((device) => (
+              <span key={device} className="px-1 py-0.5 bg-warning/80 text-warning-content text-[9px] rounded font-medium">
+                Hidden on {device}
+              </span>
+            ))}
+          </div>
+        )}
         <Preview
           block={block}
           isSelected={isSelected}

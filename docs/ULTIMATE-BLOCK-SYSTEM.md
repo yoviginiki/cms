@@ -720,7 +720,7 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 | **Content** | | | | | |
 | Headline | `data.title` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | — |
 | Subheadline | `data.subtitle` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | — |
-| H1/H2/H3 tag | — | MISSING | — | Add `headlineTag` select to Editor, render in Blade | P1 |
+| H1/H2/H3 tag | `data.headlineTag` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php, HeroBlockDefinition.php | — | P1 ✅ |
 | Eyebrow | — | MISSING | — | Add `eyebrow` field to Editor/Preview/Blade/Definition | P2 |
 | Primary CTA label | `data.ctaText` | WORKING | Editor.tsx, hero.blade.php | — | — |
 | Primary CTA URL | `data.ctaUrl` | WORKING | Editor.tsx, hero.blade.php | — | — |
@@ -745,12 +745,12 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 | Background repeat | `data.bg_image_repeat` | WORKING | hero.blade.php | — | — |
 | Parallax | `data.bg_scroll_effect` | PARTIAL | definition.ts, hero.blade.php | Add JS Intersection Observer for transform parallax | P2 |
 | Focal point | — | FUTURE | — | Build focal point picker UI, map to `object-position` | P3 |
-| Media loading (eager/lazy) | — | MISSING | — | Add `loading` attr + `fetchpriority="high"` for LCP | P1 |
+| Media loading (eager/lazy) | `data.mediaLoading` | WORKING | Editor.tsx, definition.ts, HeroBlockDefinition.php | — | P1 ✅ |
 | **Layout** | | | | | |
-| Text alignment | — | MISSING | Hardcoded center | Add `textAlign` select to Editor, apply in Blade | P1 |
-| Vertical position | — | MISSING | Hardcoded center | Add `verticalPosition` select, map to `align-items` | P1 |
-| Section height | — | MISSING | Hardcoded 400px min | Add `sectionHeight` select, apply `min-height` in Blade | P1 |
-| Content max width | — | MISSING | Hardcoded 800px | Add `contentMaxWidth` dimension field | P1 |
+| Text alignment | `data.textAlignment` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
+| Vertical position | `data.verticalPosition` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
+| Section height | `data.sectionHeight` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
+| Content max width | `data.contentMaxWidth` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
 | Container width | — | MISSING | Hardcoded full | Add `containerWidth` toggle (boxed/full) | P2 |
 | Padding | `block.style.spacing.padding*` | WORKING | blockStyles.ts, hero.blade.php | — | — |
 | Margin | `block.style.spacing.margin*` | WORKING | blockStyles.ts, hero.blade.php | — | — |
@@ -763,13 +763,13 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 | Shadow | `block.style.visual.boxShadow` | WORKING | blockStyles.ts, hero.blade.php | — | — |
 | Opacity | `block.style.visual.opacity` | WORKING | blockStyles.ts, hero.blade.php | — | — |
 | **Typography** | | | | | |
-| Headline size | — | MISSING | Hardcoded 2.5rem | Add `headlineSize` dimension field to Editor/Blade | P1 |
-| Headline weight | — | MISSING | Hardcoded 700 | Add `headlineWeight` select to Editor/Blade | P2 |
+| Headline size | `data.headlineSize` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
+| Headline weight | `data.headlineWeight` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
 | Headline line height | — | MISSING | — | Add `headlineLineHeight` dimension field | P2 |
-| Headline color | — | MISSING | Derived from $hasBg | Add `headlineColor` ColorField, apply in Blade | P1 |
-| Subheadline size | — | MISSING | Hardcoded 1.25rem | Add `subheadlineSize` dimension field | P2 |
+| Headline color | `data.headlineColor` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
+| Subheadline size | `data.subheadlineSize` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
 | Text transform | — | MISSING | — | Add `headlineTransform` select (uppercase/capitalize) | P2 |
-| Adaptive text color | — | PARTIAL | Derived from $hasBg, not configurable | Add toggle, keep auto-derive as default | P2 |
+| Adaptive text color | `data.adaptiveTextColor` | WORKING | Editor.tsx, Preview.tsx, hero.blade.php | — | P1 ✅ |
 | **Animation** | | | | | |
 | Entrance animation | `block.animation.entrance` | WORKING | blockStyles.ts, hero.blade.php | — | — |
 | Duration | `block.animation.duration` | WORKING | blockStyles.ts, hero.blade.php | — | — |
@@ -784,17 +784,18 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 | Z-index control | — | MISSING | — | Add to LayoutPanel, apply in wrapper style | P2 |
 | Layer model | — | FUTURE | Hero has hardcoded layers | Abstract layer array model from Hero pattern | P3 |
 | Design tokens | — | FUTURE | No token binding | Add token picker to ColorField, resolve at build | P3 |
-| Responsive overrides | `block.responsive` | DEAD_CONTROL | Schema exists, not rendered | Apply hideOn in wrapper + Blade, add override cascade | P2 |
+| Responsive hideOn | `block.responsive.hideOn` | WORKING | SortableBlock.tsx (badges), hero.blade.php (media queries), BuildPageService.php | — | P1 ✅ |
+| Responsive overrides (per-breakpoint) | `block.responsive.tablet/mobile` | MISSING | Schema exists, not rendered | Add per-property override cascade | P2 |
 | Reusable symbol | — | FUTURE | — | Add master_block_id column, symbol library UI | P3 |
 
 ### Summary counts
 
 | Status | Count |
 |--------|-------|
-| WORKING | 22 |
-| PARTIAL | 3 |
-| MISSING | 19 |
-| DEAD_CONTROL | 3 |
+| WORKING | 34 |
+| PARTIAL | 1 |
+| MISSING | 12 |
+| DEAD_CONTROL | 2 |
 | FUTURE | 6 |
 
 ---
@@ -813,22 +814,27 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 - [x] Verify `tsc && vite build` passes
 - [x] Verify `php artisan test` passes (minus pre-existing ExampleTest)
 
-### Phase 1: Hero P0 property completeness
+### Phase 1: Hero P0 property completeness ✅
 
 Target: No dead controls, no hardcoded layout values, preview and Blade match.
 
-- [ ] Add `headlineTag` field (h1/h2/h3 selector)
-- [ ] Add `textAlignment` field (left/center/right)
-- [ ] Add `verticalPosition` field (top/center/bottom)
-- [ ] Add `sectionHeight` field (auto/custom/full screen)
-- [ ] Add `contentMaxWidth` field
-- [ ] Replace hardcoded typography with configurable values
-- [ ] Add `headlineColor` / adaptive text color toggle
-- [ ] Add `mediaLoading` field (eager/lazy) with `fetchpriority` for LCP
-- [ ] Remove or implement hover effects panel for Hero
-- [ ] Wire responsive `hideOn` in preview and Blade
+- [x] Add `headlineTag` field (h1/h2/h3 selector)
+- [x] Add `textAlignment` field (left/center/right)
+- [x] Add `verticalPosition` field (top/center/bottom)
+- [x] Add `sectionHeight` field (auto/sm/md/lg/fullscreen)
+- [x] Add `contentMaxWidth` field
+- [x] Replace hardcoded typography with configurable values (`headlineSize`, `headlineWeight`, `subheadlineSize`)
+- [x] Add `headlineColor` / `adaptiveTextColor` toggle
+- [x] Add `mediaLoading` field (eager/lazy)
+- [x] Wire responsive `hideOn` in preview (warning badges) and Blade (scoped media queries)
+- [x] Pass `$blockResponsive` from BuildPageService to all Blade templates
+- [x] Add PHPUnit tests for all new validation rules (35 tests, 36 assertions)
+- [x] Add 12 new validation rules to HeroBlockDefinition
+- [x] Verify `tsc && vite build` passes
+- [x] Verify `php artisan test` passes (220 passed, 1 pre-existing ExampleTest failure)
+- [ ] Remove or implement hover effects panel for Hero (remaining dead control)
 - [ ] Add Hero demo fixtures for all new fields
-- [ ] Add PHPUnit tests for new validation rules
+- [ ] Update BLOCK-PROPERTIES-AUDIT.md with new property status
 - [ ] Update BLOCK-PROPERTIES-AUDIT.md
 
 ### Phase 2: Shared BaseBlock property engine

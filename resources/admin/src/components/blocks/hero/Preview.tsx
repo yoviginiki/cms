@@ -8,6 +8,34 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const subtitle = (data.subtitle as string) || '';
   const ctaText = (data.ctaText as string) || '';
 
+  // Configurable fields with sensible defaults matching previous hardcoded values
+  const headlineTag = (data.headlineTag as string) || 'h1';
+  const textAlignment = (data.textAlignment as string) || 'center';
+  const verticalPosition = (data.verticalPosition as string) || 'center';
+  const sectionHeight = (data.sectionHeight as string) || 'md';
+  const contentMaxWidth = (data.contentMaxWidth as string) || '800px';
+  const headlineSize = (data.headlineSize as string) || '2.5rem';
+  const headlineWeight = (data.headlineWeight as string) || '700';
+  const headlineColor = (data.headlineColor as string) || '';
+  const subheadlineSize = (data.subheadlineSize as string) || '1.25rem';
+  const adaptiveTextColor = data.adaptiveTextColor !== false;
+
+  // Map sectionHeight to minHeight
+  const heightMap: Record<string, number | string> = {
+    auto: 'auto',
+    sm: 300,
+    md: 400,
+    lg: 600,
+    fullscreen: '100vh',
+  };
+  const minHeight = heightMap[sectionHeight] ?? 400;
+
+  // Map verticalPosition to alignItems
+  const alignMap: Record<string, string> = { top: 'flex-start', center: 'center', bottom: 'flex-end' };
+
+  // Dynamic heading tag
+  const HeadingTag = headlineTag as 'h1' | 'h2' | 'h3';
+
   // Legacy fallback: old hero blocks saved backgroundImage instead of bg_image
   const legacyImage = (data.backgroundImage as string) || '';
   const hasBgImage = !!(data.bg_image as string);
@@ -19,6 +47,13 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const overlayStyle = buildOverlayStyle(effectiveData);
   const effectiveBgType = (effectiveData.bg_type as string) || 'none';
   const hasBg = effectiveBgType !== 'none';
+
+  // Derive text colors
+  const resolvedHeadlineColor = headlineColor
+    || (adaptiveTextColor && hasBg ? 'white' : 'inherit');
+  const resolvedSubtitleColor = adaptiveTextColor && hasBg
+    ? 'rgba(255,255,255,0.85)'
+    : 'inherit';
 
   // Empty state
   if (!title && !subtitle) {
@@ -33,9 +68,9 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
     <div
       className="relative rounded-lg overflow-hidden"
       style={{
-        minHeight: 280,
+        minHeight,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: alignMap[verticalPosition] || 'center',
         justifyContent: 'center',
         ...bgStyle,
         ...(!hasBg ? { backgroundColor: 'oklch(var(--b3))' } : {}),
@@ -43,12 +78,28 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block }) => {
     >
       {overlayStyle && <div style={overlayStyle} />}
 
-      <div className="relative z-10 text-center px-6 py-8 max-w-2xl">
-        <h1 className={`text-3xl font-bold mb-2 ${hasBg ? 'text-white drop-shadow-sm' : 'text-base-content'}`}>
+      <div
+        className="relative z-10 px-6 py-8"
+        style={{ textAlign: textAlignment as React.CSSProperties['textAlign'], maxWidth: contentMaxWidth }}
+      >
+        <HeadingTag
+          className={`mb-2 ${hasBg ? 'drop-shadow-sm' : ''} ${!headlineColor && !adaptiveTextColor ? 'text-base-content' : ''}`}
+          style={{
+            fontSize: headlineSize,
+            fontWeight: headlineWeight,
+            color: resolvedHeadlineColor || undefined,
+          }}
+        >
           {title}
-        </h1>
+        </HeadingTag>
         {subtitle && (
-          <p className={`text-lg mb-5 ${hasBg ? 'text-white/85 drop-shadow-sm' : 'text-base-content/70'}`}>
+          <p
+            className={`mb-5 ${hasBg ? 'drop-shadow-sm' : ''} ${!adaptiveTextColor && !hasBg ? 'text-base-content/70' : ''}`}
+            style={{
+              fontSize: subheadlineSize,
+              color: resolvedSubtitleColor || undefined,
+            }}
+          >
             {subtitle}
           </p>
         )}

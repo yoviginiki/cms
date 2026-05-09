@@ -249,6 +249,7 @@ class BuildPageService
         $blockStyle = $block->style ?? $sanitizedData['__style'] ?? [];
         $blockAnimation = $sanitizedData['__animation'] ?? [];
         $blockAdvanced = $sanitizedData['__advanced'] ?? [];
+        $blockResponsive = $sanitizedData['__responsive'] ?? [];
 
         return View::make($viewName, [
             'data' => $sanitizedData,
@@ -258,6 +259,7 @@ class BuildPageService
             'blockStyle' => $blockStyle,
             'blockAnimation' => $blockAnimation,
             'blockAdvanced' => $blockAdvanced,
+            'blockResponsive' => $blockResponsive,
         ])->render();
     }
 

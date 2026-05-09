@@ -31,6 +31,23 @@ class HeroBlockDefinition implements BlockDefinition
             'bg_scroll_effect'   => ['sometimes', 'in:none,fixed,parallax,zoom'],
             'bg_parallax_speed'  => ['sometimes', 'numeric', 'min:0.1', 'max:1'],
 
+            // Layout fields
+            'headlineTag'       => ['sometimes', 'in:h1,h2,h3'],
+            'textAlignment'     => ['sometimes', 'in:left,center,right'],
+            'verticalPosition'  => ['sometimes', 'in:top,center,bottom'],
+            'sectionHeight'     => ['sometimes', 'in:auto,sm,md,lg,fullscreen'],
+            'contentMaxWidth'   => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+
+            // Typography fields
+            'headlineSize'      => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'headlineWeight'    => ['sometimes', 'in:400,500,600,700,800,900'],
+            'headlineColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'subheadlineSize'   => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'adaptiveTextColor' => ['sometimes', 'boolean'],
+
+            // Performance
+            'mediaLoading'      => ['sometimes', 'in:eager,lazy'],
+
             // CTA / Link fields
             'ctaText'            => ['sometimes', 'nullable', 'string', 'max:100'],
             'ctaUrl'             => ['sometimes', 'nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|mailto:|tel:|\/|\.\/|\.\.\/#|\?|[a-zA-Z0-9])/i', 'not_regex:/^(javascript|data|vbscript):/i'],
