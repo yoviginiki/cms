@@ -1,7 +1,7 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { buildBackgroundStyle, buildOverlayStyle } from '@/components/editor/BackgroundEditor';
-import { InlineTextField } from '@/components/editor/fields';
+import { InlineTextField, InlineLinkPopover } from '@/components/editor/fields';
 
 // ── Safe CSS value helpers (preview-only; Blade has its own sanitizers) ──
 const safeDim = (v: string) =>
@@ -238,9 +238,13 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
                 ...((ctaIsPartial && ctaVariant !== 'link' && ctaVariant !== 'ghost') ? { borderStyle: 'dashed', borderWidth: ctaBorderWidth || '2px', borderColor: ctaBorderColor || (hasBg ? 'rgba(255,255,255,0.4)' : '#999') } : {}),
               }}
             />
-            {ctaIsPartial && ctaText && !ctaUrl && (
-              <span className="block text-xs mt-1 opacity-50">Add a URL in the side panel to publish this button</span>
-            )}
+            <InlineLinkPopover
+              url={ctaUrl}
+              onChangeUrl={(v) => update('ctaUrl', v)}
+              placeholder="https://..."
+              compact
+              className="mt-1"
+            />
             {ctaIsPartial && ctaUrl && !ctaText && (
               <span className="block text-xs mt-1 opacity-50">Add button text to publish this button</span>
             )}

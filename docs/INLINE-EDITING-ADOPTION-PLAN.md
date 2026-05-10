@@ -31,7 +31,7 @@ This document defines the adoption order for inline editing across all content b
 | Subtitle | `subtitle` | `text` | `p` |
 | CTA Text | `ctaText` | `text` | `span` |
 
-**Status**: Implemented. All three fields are inline-editable on the canvas with side panel fallback.
+**Status**: Implemented. All three fields are inline-editable on the canvas with side panel fallback. CTA URL is editable via `InlineLinkPopover` on the canvas.
 
 ---
 
@@ -86,7 +86,7 @@ This document defines the adoption order for inline editing across all content b
 |-------|----------|------|-----|
 | Button text | `text` | `text` | `span` |
 
-**Status**: Implemented. Single inline-editable field. URL, style, size, and target remain in side panel. Side panel fallback preserved in Editor.tsx.
+**Status**: Implemented. Button text inline-editable, URL editable via `InlineLinkPopover`. Style, size, and target remain in side panel. Side panel fallback preserved in Editor.tsx.
 
 ---
 

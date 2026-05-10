@@ -6,3 +6,5 @@ export { ToggleField } from './ToggleField';
 export { ColorField } from './ColorField';
 export { ImageField } from './ImageField';
 export { InlineTextField } from './InlineTextField';
+export { InlineLinkPopover } from './InlineLinkPopover';
+export { isSafeUrl, getUrlError, isExternalUrl, normalizeUrl } from './urlHelpers';

@@ -109,7 +109,8 @@ Every block data field belongs to one editing class:
 ### Which fields should be inline editable?
 
 - Text content visible in the published output: **YES** (where practical)
-- URLs, colors, dimensions, enum selectors: **NO** — settings panel
+- CTA/button URLs: **YES** via `InlineLinkPopover` (popover near the element)
+- Colors, dimensions, enum selectors: **NO** — settings panel
 - Alt text, ARIA labels: **NO** — accessibility section
 - Custom CSS, HTML IDs: **NO** — advanced section
 
@@ -120,7 +121,7 @@ Every block data field belongs to one editing class:
 | Plain text (single-line) | **Supported now** | `type: 'text'` |
 | Plain text (multi-line) | **Supported now** | `type: 'multiline'` |
 | Rich text (bold/italic/links) | **Future** | Requires TipTap integration |
-| URLs | No | Settings panel only |
+| CTA/button URLs | **Supported now** | Via `InlineLinkPopover` popover |
 | Colors | No | ColorField in settings panel |
 | Images | No | ImageField in settings panel |
 | Enums/selectors | No | SelectField in settings panel |
@@ -331,15 +332,72 @@ See `docs/INLINE-EDITING-ADOPTION-PLAN.md` for the full adoption schedule.
 - **No undo/redo** — relies on browser's built-in contentEditable undo (Cmd+Z / Ctrl+Z)
 - **No character count** — validation limits enforced server-side only
 - **No inline image replacement** — future enhancement
-- **No inline link editing** — URLs edited in side panel only
+---
+
+## 12. Inline Link Editing
+
+URL editing for CTA/button elements is done through an `InlineLinkPopover` component that appears near the element on the editor canvas.
+
+### How it works
+
+1. A small link icon appears next to inline-editable CTA/button text
+2. Clicking the icon opens a compact popover with a URL input field
+3. The popover validates URLs in real-time against the same scheme policy as the backend:
+   - **Allowed**: `https://`, `http://`, `mailto:`, `tel:`, `/relative`, `#anchor`, `./`, `../`
+   - **Rejected**: `javascript:`, `data:`, `vbscript:` (including obfuscated variants with whitespace/control chars) — shows error, refuses to save
+4. Enter commits the URL; Escape cancels
+5. "Remove" clears the URL; "Open" tests external URLs in a new tab
+6. The right-side panel URL field remains available and stays synced (same data key)
+
+### Blocks with inline link editing
+
+| Block | URL Key | Status |
+|-------|---------|--------|
+| Hero CTA | `data.ctaUrl` | Implemented |
+| Button | `data.url` | Implemented |
+
+### Components
+
+- **`InlineLinkPopover`** (`@/components/editor/fields/InlineLinkPopover.tsx`) — reusable popover component
+- **`urlHelpers.ts`** (`@/components/editor/fields/urlHelpers.ts`) — `isSafeUrl()`, `getUrlError()`, `isExternalUrl()`, `normalizeUrl()`
+
+### What inline link editing is NOT
+
+- It is NOT rich text link editing (inserting `<a>` tags inside paragraphs). That requires TipTap and is a future phase.
+- It is NOT inline image replacement. That is also future.
+- The popover edits the URL of a block-level link/button element, not inline text links.
 
 ---
 
-## 12. Future Roadmap
+### Testing
+
+The admin React app does not currently have a frontend test runner (no vitest/jest setup). URL safety is validated:
+- **Frontend**: `urlHelpers.ts` strips control characters and whitespace before scheme detection, matching the backend pattern
+- **Backend**: `HeroBlockDefinition.php` uses `not_regex:/^(javascript|data|vbscript):/i` on `ctaUrl`
+- **Blade**: `$safeUrl()` blocks dangerous schemes in published output (Hero and Button)
+- **Gap**: Frontend URL helper tests should be added when a test runner is set up
+
+---
+
+## 13. Limitations
+
+- **Plain text only** — no bold, italic, or formatting within inline fields
+- **Rich text inline editing** — future phase, likely via TipTap integration
+- **Rich text link editing** — inserting links inside paragraphs/rich text is future (TipTap)
+- **Array item fields** — not yet supported (feature grid, testimonial, accordion, gallery)
+- **No inline editing for settings** — layout, background, typography controls stay in side panel
+- **No undo/redo** — relies on browser's built-in contentEditable undo (Cmd+Z / Ctrl+Z)
+- **No character count** — validation limits enforced server-side only
+- **No inline image replacement** — future enhancement
+
+---
+
+## 14. Future Roadmap
 
 1. **Rich text inline editing** — TipTap integration for `paragraph`, `rich-text`, and similar blocks
-2. **Inline image replacement** — click to swap images on canvas
-3. **Inline link editing** — popover for CTA/button URLs
+2. **Rich text link editing** — inline `<a>` insertion inside rich text (requires TipTap)
+3. **Inline image replacement** — click to swap images on canvas
 4. **Undo/redo integration** — editor-level undo stack for inline edits
 5. **Character count overlay** — visual indicator approaching server-side limits
-6. **Adopt across all content blocks** — see `docs/INLINE-EDITING-ADOPTION-PLAN.md`
+6. **Extend inline link popover** — target (_blank), rel attributes, page/anchor picker
+7. **Adopt across all content blocks** — see `docs/INLINE-EDITING-ADOPTION-PLAN.md`

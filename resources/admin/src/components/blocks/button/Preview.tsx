@@ -1,6 +1,6 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-import { InlineTextField } from '@/components/editor/fields';
+import { InlineTextField, InlineLinkPopover } from '@/components/editor/fields';
 
 const styleMap: Record<string, string> = {
   primary: 'bg-blue-600 text-white hover:bg-blue-700',
@@ -36,9 +36,13 @@ export const ButtonPreview: React.FC<BlockComponentProps> = ({ block, onUpdate }
         onChange={(v) => onUpdate({ ...block.data, text: v })}
         className={`rounded-md font-medium ${styleClass} ${sizeClass}`}
       />
-      {data.url && data.url !== '#' && (
-        <span className="ml-2 text-xs text-gray-400">{data.url}</span>
-      )}
+      <InlineLinkPopover
+        url={data.url || ''}
+        onChangeUrl={(v) => onUpdate({ ...block.data, url: v })}
+        placeholder="https://..."
+        compact
+        className="ml-1"
+      />
     </div>
   );
 };

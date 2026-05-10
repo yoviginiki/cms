@@ -5,7 +5,8 @@
     $cssDim = fn($v) => preg_match('/^-?\d+(\.\d+)?(px|rem|em|%|vh|vw|auto|0)$/i', trim((string) $v)) ? trim((string) $v) : '';
     $cssUrl = fn($v) => preg_match('#^(https?://|/|\.\.?/)[^\'"<>]*$#i', (string) $v) ? (string) $v : '';
     // Sanitize href values: block javascript:, data:, vbscript: schemes
-    $safeUrl = fn($v) => preg_match('/^(javascript|data|vbscript):/i', trim((string) $v)) ? '#' : (string) $v;
+    // Strip control chars and whitespace before checking to prevent obfuscation (e.g. "java script:")
+    $safeUrl = fn($v) => preg_match('/^(javascript|data|vbscript)\s*:/i', preg_replace('/[\x00-\x1f\x7f\s]/', '', (string) $v)) ? '#' : (string) $v;
 
     // ── Background (block-specific, from block.data) ──
     $bgType = $data['bg_type'] ?? 'none';
