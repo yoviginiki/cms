@@ -43,6 +43,7 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 ## Block Architecture
 
 - [Ultimate Block System](ULTIMATE-BLOCK-SYSTEM.md) — architecture specification for the Base Block model, professional Hero spec, proposed JSON schema, current-vs-target mapping, and phased roadmap
+- [Base Block Property Engine](BASE-BLOCK-PROPERTY-ENGINE.md) — shared property engine contract, supported properties, security rules, adoption guide
 
 ## Recovery & Quality
 

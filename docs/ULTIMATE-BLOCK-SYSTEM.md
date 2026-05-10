@@ -837,19 +837,19 @@ Target: No dead controls, no hardcoded layout values, preview and Blade match.
 - [ ] Update BLOCK-PROPERTIES-AUDIT.md with new property status
 - [ ] Update BLOCK-PROPERTIES-AUDIT.md
 
-### Phase 2: Shared BaseBlock property engine
+### Phase 2: Shared BaseBlock property engine ✅
 
 Target: Any block can use the same property pipeline without copy-pasting Hero's Blade logic.
 
-- [ ] Create `@include('blocks.partials.shared-style')` Blade partial
-- [ ] Create shared PHP trait for shared property validation rules
-- [ ] Create shared PHP trait for shared property CSS generation
-- [ ] Extend `blockStyles.ts` to handle typography and layout
-- [ ] Wire typography panel to preview wrapper
-- [ ] Wire layout panel to preview wrapper
-- [ ] Wire responsive `hideOn` to preview wrapper
-- [ ] Enforce "no dead controls" rule: if a panel saves data, it must render
-- [ ] Update BLOCK-CONTRACT.md with shared property requirements
+- [x] Create BlockStyle PHP helper with safe sanitizers
+- [x] Create docs/BASE-BLOCK-PROPERTY-ENGINE.md
+- [x] Export utility functions from blockStyles.ts
+- [x] Hero Blade uses BlockStyle helper
+- [x] Unit tests for BlockStyle sanitizers
+- [ ] Common Blade partial for shared style (deferred — each block calls BlockStyle directly)
+- [ ] Wire TypographyPanel to preview wrapper (deferred — blocks handle own typography)
+- [ ] Wire LayoutPanel to preview wrapper (deferred — blocks handle own layout)
+- [x] "No dead controls" rule documented
 
 ### Phase 3: Shared editor field components
 

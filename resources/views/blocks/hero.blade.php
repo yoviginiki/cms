@@ -1,3 +1,4 @@
+@use('App\Support\Blocks\BlockStyle')
 @php
     // Sanitize CSS values to prevent style injection
     $cssVal = fn($v) => preg_replace('/[^a-zA-Z0-9#(),.\s%\/\-]/', '', (string) $v);
@@ -77,94 +78,24 @@
     $overlayOpacity = max(0, min(1, (float) ($data['bg_overlay_opacity'] ?? 0)));
     $overlayColor = $cssVal($data['bg_overlay_color'] ?? '#000');
 
-    // ── Shared properties (from block.style/animation/advanced via BuildPageService) ──
+    // ── Shared properties (via BlockStyle helper) ──
     $bs = $blockStyle ?? [];
     $ba = $blockAnimation ?? [];
     $badv = $blockAdvanced ?? [];
-
-    // Spacing
-    $sp = $bs['spacing'] ?? [];
-    foreach (['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft'] as $prop) {
-        $v = $cssDim($sp[$prop] ?? '');
-        if ($v) {
-            $kebab = strtolower(preg_replace('/[A-Z]/', '-$0', $prop));
-            $style .= "{$kebab}:{$v};";
-        }
-    }
-
-    // Border
-    $vis = $bs['visual'] ?? [];
-    if (!empty($vis['borderWidth']) && !empty($vis['borderColor'])) {
-        $bw = $cssDim($vis['borderWidth']);
-        $bc = $cssVal($vis['borderColor']);
-        $bst = in_array($vis['borderStyle'] ?? 'solid', ['solid', 'dashed', 'dotted']) ? ($vis['borderStyle'] ?? 'solid') : 'solid';
-        if ($bw && $bc) $style .= "border:{$bw} {$bst} {$bc};";
-    }
-    if (!empty($vis['borderRadius'])) {
-        $br = $cssDim($vis['borderRadius']);
-        if ($br) $style .= "border-radius:{$br};overflow:hidden;";
-    }
-
-    // Shadow
-    $shadowMap = ['sm' => '0 1px 2px rgba(0,0,0,0.04)', 'md' => '0 4px 12px rgba(0,0,0,0.06)', 'lg' => '0 12px 32px rgba(0,0,0,0.10)'];
-    if (!empty($vis['boxShadow']) && isset($shadowMap[$vis['boxShadow']])) {
-        $style .= "box-shadow:{$shadowMap[$vis['boxShadow']]};";
-    }
-
-    // Opacity
-    if (isset($vis['opacity']) && (float) $vis['opacity'] < 1) {
-        $op = max(0, min(1, (float) $vis['opacity']));
-        $style .= "opacity:{$op};";
-    }
-
-    // Animation
-    $animEntrance = $ba['entrance'] ?? 'none';
-    $animNames = ['fade' => 'block-fade', 'slide-up' => 'block-slide-up', 'slide-left' => 'block-slide-left', 'slide-right' => 'block-slide-right', 'zoom' => 'block-zoom'];
-    $animStyle = '';
-    $animAttr = '';
-    if ($animEntrance !== 'none' && isset($animNames[$animEntrance])) {
-        $dur = max(50, min(3000, (int) ($ba['duration'] ?? 400)));
-        $del = max(0, min(5000, (int) ($ba['delay'] ?? 0)));
-        $animStyle = "animation-name:{$animNames[$animEntrance]};animation-duration:{$dur}ms;animation-delay:{$del}ms;animation-fill-mode:both;";
-        $animAttr = $animEntrance;
-    }
-
-    // Custom class
-    $customClass = '';
-    if (!empty($badv['customClass'])) {
-        $customClass = preg_replace('/[^a-zA-Z0-9_\-\s]/', '', $badv['customClass']);
-    }
-
-    // HTML ID
-    $htmlId = '';
-    if (!empty($badv['htmlId'])) {
-        $htmlId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $badv['htmlId']);
-    }
-
-    // Responsive hideOn
     $bResp = $blockResponsive ?? [];
-    $hideOn = $bResp['hideOn'] ?? [];
-    $hideStyle = '';
-    $scopeClass = '';
-    if (!empty($hideOn)) {
-        $scopeClass = 'blk-' . substr(md5($htmlId ?: uniqid('', true)), 0, 8);
-        if (in_array('desktop', $hideOn)) {
-            $hideStyle .= '@media(min-width:1025px){.' . $scopeClass . '{display:none!important}}';
-        }
-        if (in_array('tablet', $hideOn)) {
-            $hideStyle .= '@media(min-width:769px) and (max-width:1024px){.' . $scopeClass . '{display:none!important}}';
-        }
-        if (in_array('mobile', $hideOn)) {
-            $hideStyle .= '@media(max-width:768px){.' . $scopeClass . '{display:none!important}}';
-        }
-    }
+
+    $sharedStyle = BlockStyle::buildStyle($bs, $ba);
+    $customClass = BlockStyle::safeClass($badv['customClass'] ?? '');
+    $htmlId = BlockStyle::safeId($badv['htmlId'] ?? '');
+    $animAttr = BlockStyle::animationAttr($ba);
+    $hideOn = BlockStyle::buildHideOnCss($bResp, $htmlId);
 @endphp
-@if($hideStyle)
-<style>{{ $hideStyle }}</style>
+@if($hideOn['css'])
+<style>{{ $hideOn['css'] }}</style>
 @endif
 <section
-    class="hero-section {{ $customClass }} {{ $scopeClass }}"
-    style="{{ $style }}{{ $animStyle }}"
+    class="hero-section {{ $customClass }} {{ $hideOn['scopeClass'] }}"
+    style="{{ $style }}{{ $sharedStyle ? ";{$sharedStyle}" : '' }}"
     @if($htmlId) id="{{ $htmlId }}" @endif
     @if($animAttr) data-animation="{{ $animAttr }}" @endif
     @if($bgType === 'image' && !empty($data['alt']) && empty($badv['ariaLabel'])) role="img" aria-label="{{ $data['alt'] }}" @endif

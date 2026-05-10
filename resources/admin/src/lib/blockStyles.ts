@@ -12,14 +12,14 @@ import type { BlockStyleProps, AnimationProps, AdvancedProps } from '@/types/blo
 import type React from 'react';
 
 /** Sanitize a raw CSS dimension value — keep only safe characters. */
-function safeDim(v: unknown): string | undefined {
+export function safeDim(v: unknown): string | undefined {
   if (!v) return undefined;
   const s = String(v).trim();
   return /^-?\d+(\.\d+)?(px|rem|em|%|vh|vw|auto|0)$/i.test(s) ? s : undefined;
 }
 
 /** Sanitize a CSS color value — hex, rgb, oklch, named. */
-function safeColor(v: unknown): string | undefined {
+export function safeColor(v: unknown): string | undefined {
   if (!v) return undefined;
   const s = String(v).trim();
   if (/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;
@@ -90,8 +90,10 @@ export function buildAnimationStyle(animation?: AnimationProps): React.CSSProper
   if (!animation?.entrance || animation.entrance === 'none') return {};
   const name = ANIMATION_NAMES[animation.entrance];
   if (!name) return {};
-  const dur = Math.max(50, Math.min(3000, animation.duration ?? 400));
-  const del = Math.max(0, Math.min(5000, animation.delay ?? 0));
+  const rawDur = Number(animation.duration ?? 400);
+  const rawDel = Number(animation.delay ?? 0);
+  const dur = Number.isFinite(rawDur) ? Math.max(50, Math.min(3000, rawDur)) : 400;
+  const del = Number.isFinite(rawDel) ? Math.max(0, Math.min(5000, rawDel)) : 0;
   return {
     animationName: name,
     animationDuration: `${dur}ms`,
@@ -107,4 +109,38 @@ export function buildBlockClasses(advanced?: AdvancedProps): string {
   if (!advanced?.customClass) return '';
   // Only allow safe class tokens
   return advanced.customClass.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
+}
+
+/** Validate and normalize a CSS dimension value. Returns empty string if invalid. */
+export function normalizeDimension(v: unknown): string {
+  const d = safeDim(v);
+  return d ?? '';
+}
+
+/** Check if a value is a safe CSS dimension. */
+export function isSafeCssDimension(v: unknown): boolean {
+  return safeDim(v) !== undefined;
+}
+
+/** Check if a value is a safe CSS color. */
+export function isSafeCssColor(v: unknown): boolean {
+  return safeColor(v) !== undefined;
+}
+
+/** Normalize a shadow value to a CSS box-shadow string. Returns empty string if invalid. */
+export function normalizeShadow(v: unknown): string {
+  if (!v || v === 'none') return '';
+  return SHADOW_MAP[String(v)] ?? '';
+}
+
+/** Normalize an animation entrance type. Returns empty string if not allowlisted. */
+export function normalizeAnimation(v: unknown): string {
+  if (!v || v === 'none') return '';
+  return ANIMATION_NAMES[String(v)] ?? '';
+}
+
+/** Normalize a custom class string. Removes all unsafe characters. */
+export function normalizeCustomClass(v: unknown): string {
+  if (!v) return '';
+  return String(v).replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
 }
