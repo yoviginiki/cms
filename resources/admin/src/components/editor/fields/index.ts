@@ -7,4 +7,5 @@ export { ColorField } from './ColorField';
 export { ImageField } from './ImageField';
 export { InlineTextField } from './InlineTextField';
 export { InlineLinkPopover } from './InlineLinkPopover';
+export { InlineMediaReplace } from './InlineMediaReplace';
 export { isSafeUrl, getUrlError, isExternalUrl, normalizeUrl } from './urlHelpers';

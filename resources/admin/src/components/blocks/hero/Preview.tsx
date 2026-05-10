@@ -1,7 +1,7 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { buildBackgroundStyle, buildOverlayStyle } from '@/components/editor/BackgroundEditor';
-import { InlineTextField, InlineLinkPopover } from '@/components/editor/fields';
+import { InlineTextField, InlineLinkPopover, InlineMediaReplace } from '@/components/editor/fields';
 
 // ── Safe CSS value helpers (preview-only; Blade has its own sanitizers) ──
 const safeDim = (v: string) =>
@@ -30,6 +30,28 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   // Update helper — merges into existing block data
   const update = (field: string, value: string) => {
     onUpdate({ ...block.data, [field]: value });
+  };
+
+  // Inline background image replacement handler
+  const handleBgImageChange = (url: string, assetId?: string) => {
+    if (url) {
+      // Set image and switch bg_type to image
+      onUpdate({
+        ...block.data,
+        bg_image: url,
+        bg_type: 'image',
+        ...(assetId ? { bg_asset_id: assetId } : {}),
+      });
+    } else {
+      // Clear: reset bg_image, legacy backgroundImage, and bg_type
+      onUpdate({
+        ...block.data,
+        bg_image: '',
+        bg_asset_id: '',
+        backgroundImage: '',
+        bg_type: 'none',
+      });
+    }
   };
 
   // Configurable fields with sensible defaults matching previous hardcoded values
@@ -194,6 +216,17 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
       }}
     >
       {overlayStyle && <div style={overlayStyle} />}
+
+      {/* Inline background image replacement — visible on hover */}
+      {isSelected && (
+        <InlineMediaReplace
+          value={effectiveBgImage}
+          onChange={handleBgImageChange}
+          accept="image"
+          label="background"
+          overlay
+        />
+      )}
 
       <div
         className="relative z-10 px-6 py-8 w-full"

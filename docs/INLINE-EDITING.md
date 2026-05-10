@@ -420,16 +420,68 @@ The admin React app does not currently have a frontend test runner (no vitest/je
 - **No inline editing for settings** — layout, background, typography controls stay in side panel
 - **No undo/redo** — relies on browser's built-in contentEditable undo (Cmd+Z / Ctrl+Z)
 - **Character counters** — implemented for Hero and Button; not yet on all blocks
-- **No inline image replacement** — future enhancement
+- **Inline image replacement** — implemented for Hero background and Image block; not yet on all media blocks
 
 ---
 
-## 15. Future Roadmap
+## 15. Inline Media Replacement
+
+Visible images can be replaced directly from the editor canvas using `InlineMediaReplace`.
+
+### How it works
+
+1. When a block with an image is selected, a subtle overlay appears with "Change" / "Add" / "Clear" controls
+2. Clicking "Change" or "Add" opens the `AssetPicker` modal (same library used by side panel)
+3. The user can upload, drag-drop, search, or select from existing assets
+4. Selecting an asset updates the image URL and optional asset ID
+5. "Clear" removes the image
+6. Side panel image controls remain available and stay synced (same data keys)
+
+### Blocks with inline media replacement
+
+| Block | Image Key | Status |
+|-------|-----------|--------|
+| Hero | `data.bg_image` (background) | Implemented — overlay on selected block |
+| Image | `data.url` | Implemented — overlay on selected block, always visible when empty |
+
+### Components
+
+- **`InlineMediaReplace`** (`@/components/editor/fields/InlineMediaReplace.tsx`) — reusable overlay/inline component
+- Uses existing **`AssetPicker`** modal from `@/components/ui/AssetPicker`
+
+### What stays in the side panel
+
+- Image alt text (accessibility)
+- Image caption
+- Background size, position, repeat, scroll effect
+- Overlay color/opacity
+- Image cropping / focal point (future)
+- Responsive image variants (future)
+
+---
+
+## 16. Limitations
+
+- **Plain text only** — no bold, italic, or formatting within inline fields
+- **Rich text inline editing** — future phase, likely via TipTap integration
+- **Rich text link editing** — inserting links inside paragraphs/rich text is future (TipTap)
+- **Array item fields** — not yet supported (feature grid, testimonial, accordion, gallery)
+- **No inline editing for settings** — layout, background, typography controls stay in side panel
+- **No undo/redo** — relies on browser's built-in contentEditable undo (Cmd+Z / Ctrl+Z)
+- **Character counters** — implemented for Hero and Button; not yet on all blocks
+- **Inline media** — Hero background and Image block only; gallery/card/video not yet adopted
+- **No focal point / cropping** — future enhancement
+- **No responsive image srcset** — future enhancement
+
+---
+
+## 17. Future Roadmap
 
 1. **Rich text inline editing** — TipTap integration for `paragraph`, `rich-text`, and similar blocks
 2. **Rich text link editing** — inline `<a>` insertion inside rich text (requires TipTap)
-3. **Inline image replacement** — click to swap images on canvas
-4. **Undo/redo integration** — editor-level undo stack for inline edits
-5. **Character count overlay** — visual indicator approaching server-side limits
-6. **Extend inline link popover** — target (_blank), rel attributes, page/anchor picker
-7. **Adopt across all content blocks** — see `docs/INLINE-EDITING-ADOPTION-PLAN.md`
+3. **Undo/redo integration** — editor-level undo stack for inline edits
+4. **Extend inline link popover** — target (_blank), rel attributes, page/anchor picker
+5. **Focal point / cropping** — inline image editing tools
+6. **Gallery inline replacement** — swap individual gallery images on canvas
+7. **Video background** — inline video replacement for Hero
+8. **Adopt across all content blocks** — see `docs/INLINE-EDITING-ADOPTION-PLAN.md`
