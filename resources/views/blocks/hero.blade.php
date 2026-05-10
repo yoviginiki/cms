@@ -102,12 +102,59 @@
     $htmlId = BlockStyle::safeId($badv['htmlId'] ?? '');
     $animAttr = BlockStyle::animationAttr($ba);
     $hideOn = BlockStyle::buildHideOnCss($bResp, $htmlId);
+
+    // ── Responsive overrides (block.data.responsive) ──
+    $resp = is_array($data['responsive'] ?? null) ? $data['responsive'] : [];
+    $respTablet = is_array($resp['tablet'] ?? null) ? $resp['tablet'] : [];
+    $respMobile = is_array($resp['mobile'] ?? null) ? $resp['mobile'] : [];
+    $hasResponsive = !empty($respTablet) || !empty($respMobile);
+    // Unique scoped class for responsive CSS
+    $respScopeClass = $hasResponsive ? 'hero-resp-' . substr(md5(json_encode($data['title'] ?? '') . ($htmlId ?: uniqid())), 0, 8) : '';
+
+    // Build responsive CSS rules
+    $respCss = '';
+    if ($hasResponsive && $respScopeClass) {
+        $respRules = [];
+        // Tablet: max-width 1024px
+        $tabletRules = [];
+        if (!empty($respTablet['textAlignment'])) {
+            $ta = in_array($respTablet['textAlignment'], ['left','center','right']) ? $respTablet['textAlignment'] : null;
+            if ($ta) $tabletRules[] = ".{$respScopeClass} .hero-content{text-align:{$ta}}";
+        }
+        if (!empty($respTablet['sectionHeight'])) {
+            $sh = $sectionHeightMap[$respTablet['sectionHeight']] ?? null;
+            if ($sh) $tabletRules[] = ".{$respScopeClass}{min-height:{$sh}}";
+        }
+        if (!empty($respTablet['contentMaxWidth'])) {
+            $cmw = $cssDim($respTablet['contentMaxWidth']);
+            if ($cmw) $tabletRules[] = ".{$respScopeClass} .hero-content{max-width:{$cmw}}";
+        }
+        if ($tabletRules) $respRules[] = '@media(max-width:1024px){' . implode('', $tabletRules) . '}';
+
+        // Mobile: max-width 640px
+        $mobileRules = [];
+        if (!empty($respMobile['textAlignment'])) {
+            $ta = in_array($respMobile['textAlignment'], ['left','center','right']) ? $respMobile['textAlignment'] : null;
+            if ($ta) $mobileRules[] = ".{$respScopeClass} .hero-content{text-align:{$ta}}";
+        }
+        if (!empty($respMobile['sectionHeight'])) {
+            $sh = $sectionHeightMap[$respMobile['sectionHeight']] ?? null;
+            if ($sh) $mobileRules[] = ".{$respScopeClass}{min-height:{$sh}}";
+        }
+        if (!empty($respMobile['contentMaxWidth'])) {
+            $cmw = $cssDim($respMobile['contentMaxWidth']);
+            if ($cmw) $mobileRules[] = ".{$respScopeClass} .hero-content{max-width:{$cmw}}";
+        }
+        if ($mobileRules) $respRules[] = '@media(max-width:640px){' . implode('', $mobileRules) . '}';
+
+        $respCss = implode('', $respRules);
+    }
 @endphp
-@if($hideOn['css'])
-<style>{{ $hideOn['css'] }}</style>
+@if($hideOn['css'] || $respCss)
+<style>{{ $hideOn['css'] }}{{ $respCss }}</style>
 @endif
 <section
-    class="hero-section {{ $customClass }} {{ $hideOn['scopeClass'] }}"
+    class="hero-section {{ $customClass }} {{ $hideOn['scopeClass'] }} {{ $respScopeClass }}"
     style="{{ $style }}{{ $sharedStyle ? ";{$sharedStyle}" : '' }}"
     @if($htmlId) id="{{ $htmlId }}" @endif
     @if($animAttr) data-animation="{{ $animAttr }}" @endif

@@ -785,7 +785,7 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 | Layer model | — | FUTURE | Hero has hardcoded layers | Abstract layer array model from Hero pattern | P3 |
 | Design tokens | — | FUTURE | No token binding | Add token picker to ColorField, resolve at build | P3 |
 | Responsive hideOn | `block.responsive.hideOn` | WORKING | SortableBlock.tsx (badges), hero.blade.php (media queries), BuildPageService.php | — | P1 ✅ |
-| Responsive overrides (per-breakpoint) | `block.responsive.tablet/mobile` | MISSING | Schema exists, not rendered | Add per-property override cascade | P2 |
+| Responsive overrides (per-breakpoint) | `block.data.responsive.tablet/mobile` | WORKING (Hero pilot) | Hero Editor + Blade scoped CSS for textAlignment, sectionHeight, contentMaxWidth | Extend to more properties and blocks | Phase 4 ✅ |
 | Reusable symbol | — | FUTURE | — | Add master_block_id column, symbol library UI | P3 |
 
 ### Summary counts
@@ -890,18 +890,24 @@ Target: Professional field components that any block Editor can use.
 - [ ] `AnimationField` — entrance type + preview
 - [ ] `RepeaterField` — add/remove/reorder items
 
-### Phase 4: Responsive overrides
+### Phase 4: Responsive overrides ✅ (foundation/pilot)
 
 Target: Blocks have per-breakpoint property overrides with visual indicators.
 
-- [ ] Define breakpoint model: desktop (≥1024), tablet (768–1023), mobile (<768)
-- [ ] Store responsive overrides as `{ tablet: { spacing: { paddingTop: '1rem' } } }`
-- [ ] Cascade behavior: desktop → tablet → mobile (inherit unless overridden)
-- [ ] Visual indicator in property panels for overridden values
-- [ ] "Reset to inherited" action per property
-- [ ] Preview viewport switcher (desktop/tablet/mobile)
-- [ ] Blade rendering with `@media` queries for overrides
+- [x] Define breakpoint model: desktop (base), tablet (≤1024px), mobile (≤640px)
+- [x] Store responsive overrides in `block.data.responsive.{tablet,mobile}` — backward compatible
+- [x] Cascade behavior: desktop → tablet → mobile (inherit unless overridden)
+- [x] Visual indicator in property panels for overridden values (ResponsiveField component)
+- [x] "Reset to inherited" action per property
+- [x] Blade rendering with scoped `@media` queries for overrides (Hero pilot)
+- [x] Backend validation for responsive overrides (HeroBlockDefinition)
+- [x] Hero pilot: textAlignment, sectionHeight, contentMaxWidth responsive-enabled
+- [x] Responsive helper utilities (`lib/responsiveValues.ts`)
+- [x] Documentation (`docs/RESPONSIVE-OVERRIDES.md`)
+- [ ] Preview viewport switcher (desktop/tablet/mobile preview in editor)
 - [ ] Fluid/clamp values as optional enhancement
+- [ ] Extend to more Hero properties (typography, padding, background)
+- [ ] Adopt for other blocks
 
 ### Phase 5: Animations and interactions
 

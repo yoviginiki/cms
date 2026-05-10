@@ -54,7 +54,9 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
     }
   };
 
-  // Configurable fields with sensible defaults matching previous hardcoded values
+  // Configurable fields with sensible defaults matching previous hardcoded values.
+  // Preview always uses desktop/base values — the editor canvas is desktop-width.
+  // Responsive overrides (tablet/mobile) take effect in published Blade output only.
   const headlineTag = (data.headlineTag as string) || 'h1';
   const textAlignment = (data.textAlignment as string) || 'center';
   const verticalPosition = (data.verticalPosition as string) || 'center';

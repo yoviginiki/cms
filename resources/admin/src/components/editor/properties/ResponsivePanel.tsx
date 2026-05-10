@@ -33,9 +33,9 @@ export function ResponsivePanel({ value, onChange }: Props) {
       </div>
 
       <div className="p-2 bg-base-200/50 rounded text-[10px] text-base-content/30">
-        <p>Responsive overrides let you change spacing, typography, and layout per breakpoint.</p>
-        <p className="mt-1">Tablet: ≤1024px | Mobile: ≤768px</p>
-        <p className="mt-1">Use the property panels above — changes apply to the current breakpoint when previewing at that size.</p>
+        <p>Responsive overrides let you change selected layout properties per breakpoint.</p>
+        <p className="mt-1">Tablet: ≤1024px | Mobile: ≤640px</p>
+        <p className="mt-1">Currently supported for Hero block pilot: text alignment, section height, content max width. More properties and blocks coming soon.</p>
       </div>
     </div>
   );

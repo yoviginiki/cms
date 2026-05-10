@@ -83,6 +83,9 @@ export const heroDefinition: BlockDefinition = {
     ctaBorderWidth: '',         // safe CSS dimension e.g. 2px
     ctaBorderRadius: '',        // safe CSS dimension e.g. 0.375rem
 
+    // Responsive overrides (optional — tablet/mobile inherit from desktop base)
+    // responsive: { tablet: {}, mobile: {} }
+
     // Accessibility fields
     alt: '',
 

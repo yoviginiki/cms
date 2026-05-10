@@ -102,7 +102,8 @@ AnimationPanel exposes opacity/lift/glow hover effects, but no CSS or JavaScript
 | Trigger | AnimationPanel | animation.trigger | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
 | Hover effect | AnimationPanel | animation.hoverEffect | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
 | **Responsive** | | | | | | |
-| Hide on device | ResponsivePanel | responsive.hideOn | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
+| Hide on device | ResponsivePanel | responsive.hideOn | SortableBlock badges | hero.blade.php | None | WORKING (Hero) |
+| Per-breakpoint overrides | ResponsiveField | data.responsive.tablet/mobile | N/A (desktop canvas) | hero.blade.php scoped CSS | Validated | WORKING (Hero pilot: textAlignment, sectionHeight, contentMaxWidth) |
 | **Advanced** | | | | | | |
 | Custom class | AdvancedPanel | advanced.customClass | NOT APPLIED | NOT APPLIED | Escaped | DEAD_CONTROL |
 | Custom CSS | AdvancedPanel | advanced.customCss | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |

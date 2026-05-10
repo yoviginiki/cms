@@ -63,6 +63,17 @@ class HeroBlockDefinition implements BlockDefinition
             'ctaBorderWidth'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
             'ctaBorderRadius'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
 
+            // Responsive overrides (optional — tablet/mobile inherit from desktop)
+            'responsive'                        => ['sometimes', 'nullable', 'array'],
+            'responsive.tablet'                 => ['sometimes', 'nullable', 'array'],
+            'responsive.tablet.textAlignment'   => ['sometimes', 'in:left,center,right'],
+            'responsive.tablet.sectionHeight'   => ['sometimes', 'in:auto,sm,md,lg,fullscreen'],
+            'responsive.tablet.contentMaxWidth' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'responsive.mobile'                 => ['sometimes', 'nullable', 'array'],
+            'responsive.mobile.textAlignment'   => ['sometimes', 'in:left,center,right'],
+            'responsive.mobile.sectionHeight'   => ['sometimes', 'in:auto,sm,md,lg,fullscreen'],
+            'responsive.mobile.contentMaxWidth' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+
             // Accessibility fields
             'alt'                => ['sometimes', 'nullable', 'string', 'max:255'],
         ];

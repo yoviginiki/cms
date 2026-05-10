@@ -396,4 +396,80 @@ class HeroValidationTest extends TestCase
         ]);
         $this->assertTrue($v->passes());
     }
+
+    // ── responsive overrides ────────────────────────────────────
+
+    public function test_valid_responsive_tablet_overrides_pass(): void
+    {
+        $v = $this->validate([
+            'responsive' => [
+                'tablet' => [
+                    'textAlignment' => 'left',
+                    'sectionHeight' => 'sm',
+                    'contentMaxWidth' => '600px',
+                ],
+            ],
+        ]);
+        $this->assertTrue($v->passes());
+    }
+
+    public function test_valid_responsive_mobile_overrides_pass(): void
+    {
+        $v = $this->validate([
+            'responsive' => [
+                'mobile' => [
+                    'textAlignment' => 'center',
+                    'sectionHeight' => 'auto',
+                ],
+            ],
+        ]);
+        $this->assertTrue($v->passes());
+    }
+
+    public function test_invalid_responsive_tablet_alignment_fails(): void
+    {
+        $v = $this->validate([
+            'responsive' => [
+                'tablet' => ['textAlignment' => 'justify'],
+            ],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_invalid_responsive_mobile_height_fails(): void
+    {
+        $v = $this->validate([
+            'responsive' => [
+                'mobile' => ['sectionHeight' => 'huge'],
+            ],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_invalid_responsive_contentMaxWidth_fails(): void
+    {
+        $v = $this->validate([
+            'responsive' => [
+                'tablet' => ['contentMaxWidth' => 'javascript:alert(1)'],
+            ],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_empty_responsive_object_passes(): void
+    {
+        $v = $this->validate([
+            'responsive' => [],
+        ]);
+        $this->assertTrue($v->passes());
+    }
+
+    public function test_old_hero_data_without_responsive_passes(): void
+    {
+        $v = $this->validate([
+            'textAlignment' => 'center',
+            'sectionHeight' => 'md',
+        ]);
+        $this->assertTrue($v->passes(), 'Old Hero data without responsive object must pass');
+    }
 }
