@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState, useId } from 'react';
 
 interface InlineTextFieldProps {
   value: string;
@@ -14,6 +14,14 @@ interface InlineTextFieldProps {
   multiline?: boolean;
   /** Prevent drag events from propagating while editing. Default: true. */
   preventDrag?: boolean;
+  /** Show character count indicator. Default: false. */
+  showCharacterCount?: boolean;
+  /** Recommended character length — shows warning when exceeded. */
+  recommendedLength?: number;
+  /** Hard max character length — prevents input beyond this when warnOnly=false. */
+  maxLength?: number;
+  /** If true, exceeding limits shows warning only without blocking. Default: true. */
+  warnOnly?: boolean;
 }
 
 /**
@@ -28,6 +36,7 @@ interface InlineTextFieldProps {
  * - Strips all HTML from pasted content
  * - Emits only plain text via onChange
  * - Admin-only component — not rendered in published Blade output
+ * - Character count is editor-only UI — not saved to block data
  */
 export function InlineTextField({
   value,
@@ -38,9 +47,15 @@ export function InlineTextField({
   style,
   multiline = false,
   preventDrag = true,
+  showCharacterCount = false,
+  recommendedLength,
+  maxLength,
+  warnOnly = true,
 }: InlineTextFieldProps) {
   const ref = useRef<HTMLElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [liveLength, setLiveLength] = useState(value.length);
+  const uniqueId = useId();
 
   // Set initial textContent and sync when value changes externally
   useEffect(() => {
@@ -50,16 +65,22 @@ export function InlineTextField({
         ref.current.textContent = value || '';
       }
     }
+    setLiveLength(value.length);
   }, [value, isEditing]);
 
   const commit = useCallback(() => {
     if (!ref.current) return;
-    const text = (ref.current.textContent ?? '').trim();
+    let text = (ref.current.textContent ?? '').trim();
+    // Enforce hard max on commit if not warn-only
+    if (maxLength && !warnOnly && text.length > maxLength) {
+      text = text.slice(0, maxLength);
+      ref.current.textContent = text;
+    }
     if (text !== value) {
       onChange(text);
     }
     setIsEditing(false);
-  }, [value, onChange]);
+  }, [value, onChange, maxLength, warnOnly]);
 
   const handleFocus = useCallback(() => {
     setIsEditing(true);
@@ -68,6 +89,13 @@ export function InlineTextField({
   const handleBlur = useCallback(() => {
     commit();
   }, [commit]);
+
+  // Track live character count during editing
+  const handleInput = useCallback(() => {
+    if (ref.current) {
+      setLiveLength((ref.current.textContent ?? '').length);
+    }
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -105,6 +133,10 @@ export function InlineTextField({
       selection.removeAllRanges();
       selection.addRange(range);
     }
+    // Update live count after paste
+    if (ref.current) {
+      setLiveLength((ref.current.textContent ?? '').length);
+    }
   }, []);
 
   // Prevent drag events while editing to avoid block drag
@@ -119,31 +151,72 @@ export function InlineTextField({
 
   const showPlaceholder = !value && !isEditing;
 
+  // Character count display logic
+  const displayCount = isEditing ? liveLength : value.length;
+  const limit = recommendedLength || maxLength;
+  const isOverRecommended = recommendedLength ? displayCount > recommendedLength : false;
+  const isOverMax = maxLength ? displayCount > maxLength : false;
+  const showCounter = showCharacterCount && (isEditing || displayCount > 0);
+  const counterId = showCounter ? `char-count-${uniqueId}` : undefined;
+
+  // Shared props for the editable element
+  const editableProps = {
+    ref: ref as React.RefObject<never>,
+    contentEditable: true,
+    suppressContentEditableWarning: true,
+    role: 'textbox' as const,
+    'aria-placeholder': placeholder,
+    'aria-label': placeholder,
+    'aria-multiline': multiline || undefined,
+    'aria-describedby': counterId,
+    tabIndex: 0,
+    className: `inline-editable outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-1 rounded-sm cursor-text ${className}`,
+    style: {
+      ...style,
+      minWidth: '2rem',
+      display: Tag === 'span' ? ('inline-block' as const) : undefined,
+    },
+    onFocus: handleFocus,
+    onBlur: handleBlur,
+    onInput: handleInput,
+    onKeyDown: handleKeyDown,
+    onPaste: handlePaste,
+    onMouseDown: handleMouseDown,
+    onDragStart: (e: React.DragEvent) => { if (preventDrag) e.preventDefault(); },
+    'data-placeholder': showPlaceholder ? placeholder : undefined,
+  };
+
+  // When counter is not shown, render the editable element directly
+  // (no wrapper) to preserve original DOM structure and valid HTML.
+  if (!showCounter) {
+    return <Tag {...editableProps} />;
+  }
+
+  // When counter is shown, wrap in a positioned container for the counter overlay.
   return (
-    <Tag
-      ref={ref as React.RefObject<never>}
-      contentEditable
-      suppressContentEditableWarning
-      role="textbox"
-      aria-placeholder={placeholder}
-      aria-label={placeholder}
-      aria-multiline={multiline || undefined}
-      tabIndex={0}
-      className={`inline-editable outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-1 rounded-sm cursor-text ${className}`}
-      style={{
-        ...style,
-        minWidth: '2rem',
-        display: Tag === 'span' ? 'inline-block' : undefined,
-      }}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
-      onPaste={handlePaste}
-      onMouseDown={handleMouseDown}
-      onDragStart={(e: React.DragEvent) => {
-        if (preventDrag) e.preventDefault();
-      }}
-      data-placeholder={showPlaceholder ? placeholder : undefined}
-    />
+    <span
+      className="inline-editable-wrapper"
+      style={{ position: 'relative', display: Tag === 'span' ? 'inline-block' : 'block' }}
+    >
+      <Tag {...editableProps} />
+      <span
+        id={counterId}
+        className={`inline-char-count pointer-events-none select-none ${
+          isOverMax ? 'text-error' : isOverRecommended ? 'text-warning' : 'text-base-content/30'
+        }`}
+        style={{
+          position: 'absolute',
+          right: 0,
+          bottom: '-1.1rem',
+          fontSize: '9px',
+          lineHeight: 1,
+          whiteSpace: 'nowrap',
+        }}
+        aria-live="polite"
+        aria-atomic
+      >
+        {displayCount}{limit ? ` / ${limit}` : ''}
+      </span>
+    </span>
   );
 }

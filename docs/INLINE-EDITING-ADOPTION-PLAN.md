@@ -208,6 +208,8 @@ This document defines the adoption order for inline editing across all content b
 - [x] Hero pilot validated
 - [x] Add `h4`/`h5`/`h6` to `InlineTextField` `as` prop (for heading block)
 - [x] Heading, Pullquote, Button, CTA Banner implemented
+- [x] Character count guidance for Hero (title: 80, subtitle: 180, CTA: 30) and Button (text: 40)
+- [x] Inline link popover for Hero CTA and Button URL
 
 ### Phase B
 - [ ] Establish array item inline editing pattern (helper or convention)

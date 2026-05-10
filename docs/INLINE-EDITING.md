@@ -323,15 +323,6 @@ See `docs/INLINE-EDITING-ADOPTION-PLAN.md` for the full adoption schedule.
 
 ---
 
-## 11. Limitations
-
-- **Plain text only** — no bold, italic, links, or formatting within inline fields
-- **Rich text inline editing** — future phase, likely via TipTap integration
-- **Array item fields** — not yet supported (feature grid, testimonial, accordion, gallery)
-- **No inline editing for settings** — layout, background, typography controls stay in side panel
-- **No undo/redo** — relies on browser's built-in contentEditable undo (Cmd+Z / Ctrl+Z)
-- **No character count** — validation limits enforced server-side only
-- **No inline image replacement** — future enhancement
 ---
 
 ## 12. Inline Link Editing
@@ -379,7 +370,48 @@ The admin React app does not currently have a frontend test runner (no vitest/je
 
 ---
 
-## 13. Limitations
+## 13. Character Count and Content Guidance
+
+`InlineTextField` supports optional character count indicators that guide authors without blocking content.
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `showCharacterCount` | `boolean` | `false` | Show character count below the field |
+| `recommendedLength` | `number` | — | Shows `42 / 80` format; warns visually when exceeded |
+| `maxLength` | `number` | — | Hard limit; enforced on commit only when `warnOnly=false` |
+| `warnOnly` | `boolean` | `true` | When true, exceeding limits shows warning but does not block |
+
+### Visual states
+
+- **Under limit**: subtle muted counter (`text-base-content/30`)
+- **Over recommended**: warning color (`text-warning`)
+- **Over max**: error color (`text-error`)
+- Counter appears only when editing or when content exists
+- Counter uses `aria-live="polite"` for screen reader updates
+- Counter is positioned below the editable field, does not overlap content
+
+### Fields with counters
+
+| Block | Field | Recommended | Hard Max |
+|-------|-------|-------------|----------|
+| Hero | Title | 80 | — |
+| Hero | Subtitle | 180 | — |
+| Hero | CTA Text | 30 | — |
+| Button | Text | 40 | — |
+
+### Key principles
+
+- Counters are **editor-only** — not saved to block data, not rendered in Blade
+- Recommended limits **warn but do not block** — existing long content is not rejected
+- Saved data is **unchanged** — no schema modifications
+- Published output is **unaffected**
+- Hard limits (when used with `warnOnly=false`) truncate on commit only, never during typing
+
+---
+
+## 14. Limitations
 
 - **Plain text only** — no bold, italic, or formatting within inline fields
 - **Rich text inline editing** — future phase, likely via TipTap integration
@@ -387,12 +419,12 @@ The admin React app does not currently have a frontend test runner (no vitest/je
 - **Array item fields** — not yet supported (feature grid, testimonial, accordion, gallery)
 - **No inline editing for settings** — layout, background, typography controls stay in side panel
 - **No undo/redo** — relies on browser's built-in contentEditable undo (Cmd+Z / Ctrl+Z)
-- **No character count** — validation limits enforced server-side only
+- **Character counters** — implemented for Hero and Button; not yet on all blocks
 - **No inline image replacement** — future enhancement
 
 ---
 
-## 14. Future Roadmap
+## 15. Future Roadmap
 
 1. **Rich text inline editing** — TipTap integration for `paragraph`, `rich-text`, and similar blocks
 2. **Rich text link editing** — inline `<a>` insertion inside rich text (requires TipTap)

@@ -210,6 +210,8 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
             fontWeight: headlineWeight,
             color: resolvedHeadlineColor || undefined,
           }}
+          showCharacterCount
+          recommendedLength={80}
         />
         <InlineTextField
           as="p"
@@ -221,6 +223,8 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
             fontSize: subheadlineSize,
             color: resolvedSubtitleColor || undefined,
           }}
+          showCharacterCount
+          recommendedLength={180}
         />
         {/* CTA: visible when block is selected or CTA is partially configured.
              Blade only renders when both ctaText and ctaUrl are set.
@@ -233,6 +237,8 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
               placeholder="Add button text"
               onChange={(v) => update('ctaText', v)}
               className={`inline-block font-semibold ${sizeClass} ${!ctaBorderRadius ? 'rounded-lg' : ''} ${hasBg && ctaVariant !== 'link' ? 'backdrop-blur-sm' : ''} ${!ctaIsPublishable ? 'opacity-60' : ''} ${ctaIsPartial && ctaVariant !== 'link' ? 'border-dashed' : ''} ${!ctaText && !ctaUrl ? 'opacity-30' : ''}`}
+              showCharacterCount
+              recommendedLength={30}
               style={{
                 ...ctaStyle,
                 ...((ctaIsPartial && ctaVariant !== 'link' && ctaVariant !== 'ghost') ? { borderStyle: 'dashed', borderWidth: ctaBorderWidth || '2px', borderColor: ctaBorderColor || (hasBg ? 'rgba(255,255,255,0.4)' : '#999') } : {}),

@@ -35,6 +35,8 @@ export const ButtonPreview: React.FC<BlockComponentProps> = ({ block, onUpdate }
         placeholder="Button text"
         onChange={(v) => onUpdate({ ...block.data, text: v })}
         className={`rounded-md font-medium ${styleClass} ${sizeClass}`}
+        showCharacterCount
+        recommendedLength={40}
       />
       <InlineLinkPopover
         url={data.url || ''}

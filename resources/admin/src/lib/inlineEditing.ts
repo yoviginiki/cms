@@ -49,6 +49,12 @@ export interface InlineEditableField {
    * Default: 'span'
    */
   as?: 'span' | 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'div';
+  /** Recommended character length — shows warning when exceeded. */
+  recommendedLength?: number;
+  /** Hard max character length. */
+  maxLength?: number;
+  /** Show character count indicator in the editor. Default: false. */
+  showCharacterCount?: boolean;
 }
 
 // ── Per-block config ────────────────────────────────────────────────────
