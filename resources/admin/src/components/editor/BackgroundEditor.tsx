@@ -9,7 +9,7 @@ export interface BackgroundData {
   bg_gradient_angle?: number;
   bg_gradient_stops?: Array<{ color: string; position: number }>;
   bg_image?: string;
-  bg_image_size?: 'cover' | 'contain' | 'auto' | 'custom';
+  bg_image_size?: 'cover' | 'contain' | 'auto';
   bg_image_position?: string;
   bg_image_repeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y';
   bg_overlay_color?: string;
@@ -167,7 +167,9 @@ export default function BackgroundEditor({ data, onChange }: Props) {
           {bg.bg_type === 'image' && (
             <div className="space-y-2">
               <AssetField label="Background Image" value={bg.bg_image || ''} accept="image"
-                onChange={(url) => update('bg_image', url)} />
+                onChange={(url, assetId) => {
+                  onChange({ ...data, bg_image: url, ...(assetId ? { bg_asset_id: assetId } : {}) });
+                }} />
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -214,8 +216,6 @@ export default function BackgroundEditor({ data, onChange }: Props) {
                   {([
                     { value: 'none', label: 'None', desc: 'Normal scroll' },
                     { value: 'fixed', label: 'Fixed', desc: 'Image stays, content scrolls over' },
-                    { value: 'parallax', label: 'Parallax', desc: 'Image scrolls slower than content' },
-                    { value: 'zoom', label: 'Zoom', desc: 'Image zooms as you scroll' },
                   ] as const).map(fx => (
                     <button key={fx.value} onClick={() => update('bg_scroll_effect', fx.value)}
                       className={`px-2 py-1.5 rounded text-left transition-colors ${
@@ -259,7 +259,8 @@ export function buildBackgroundStyle(data: Record<string, unknown>): React.CSSPr
 
   if (bg.bg_type === 'image' && bg.bg_image) {
     style.backgroundImage = `url(${bg.bg_image})`;
-    style.backgroundSize = bg.bg_image_size || 'cover';
+    const validSizes = ['cover', 'contain', 'auto'];
+    style.backgroundSize = validSizes.includes(bg.bg_image_size || '') ? bg.bg_image_size! : 'cover';
     style.backgroundPosition = bg.bg_image_position || 'center center';
     style.backgroundRepeat = bg.bg_image_repeat || 'no-repeat';
 
@@ -285,7 +286,8 @@ export function buildOverlayStyle(data: Record<string, unknown>): React.CSSPrope
 }
 
 function buildGradientCss(bg: BackgroundData): string {
-  const stops = (bg.bg_gradient_stops || []).map(s => `${s.color} ${s.position}%`).join(', ');
+  const raw = bg.bg_gradient_stops;
+  const stops = (Array.isArray(raw) ? raw : []).map(s => `${s.color} ${s.position}%`).join(', ');
   if (bg.bg_gradient_type === 'radial') return `radial-gradient(circle, ${stops})`;
   return `linear-gradient(${bg.bg_gradient_angle || 180}deg, ${stops})`;
 }

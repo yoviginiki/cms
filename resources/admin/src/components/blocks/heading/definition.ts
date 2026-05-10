@@ -1,4 +1,18 @@
 import type { BlockDefinition } from '@/types/blocks';
+import type { InlineEditingConfig } from '@/lib/inlineEditing';
+import { defineInlineField } from '@/lib/inlineEditing';
+
+export const headingInlineEditing: InlineEditingConfig = {
+  blockType: 'heading',
+  fields: [
+    defineInlineField({
+      key: 'text',
+      label: 'Heading Text',
+      placeholder: 'Add heading',
+      as: 'h2',
+    }),
+  ],
+};
 
 export const headingDefinition: BlockDefinition = {
   type: 'heading',

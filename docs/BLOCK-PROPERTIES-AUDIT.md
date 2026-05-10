@@ -126,6 +126,14 @@ Hero has TWO background systems:
 | subtitle | TextField | Yes | Yes | Yes (max:500) | WORKING |
 | ctaText | TextField | Yes | Yes | Yes (max:100) | WORKING |
 | ctaUrl | TextField | Yes | Yes | Yes (regex+not_regex) | WORKING |
+| ctaVariant | SelectField | Yes | Yes | Yes (enum) | WORKING |
+| ctaSize | SelectField | Yes | Yes | Yes (enum) | WORKING |
+| ctaAlign | SelectField | Yes | Yes | Yes (enum) | WORKING |
+| ctaBgColor | ColorField | Yes | Yes | Yes (regex) | WORKING |
+| ctaTextColor | ColorField | Yes | Yes | Yes (regex) | WORKING |
+| ctaBorderColor | ColorField | Yes | Yes | Yes (regex) | WORKING |
+| ctaBorderWidth | TextField | Yes | Yes | Yes (regex) | WORKING |
+| ctaBorderRadius | TextField | Yes | Yes | Yes (regex) | WORKING |
 | alt | TextField | Yes (aria) | Yes (aria-label) | Yes (max:255) | WORKING |
 | **Background (block.data via BackgroundEditor)** | | | | | |
 | bg_type | BackgroundEditor | Yes | Yes | Yes (enum) | WORKING |

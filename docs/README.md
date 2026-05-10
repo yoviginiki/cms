@@ -44,6 +44,8 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 
 - [Ultimate Block System](ULTIMATE-BLOCK-SYSTEM.md) — architecture specification for the Base Block model, professional Hero spec, proposed JSON schema, current-vs-target mapping, and phased roadmap
 - [Base Block Property Engine](BASE-BLOCK-PROPERTY-ENGINE.md) — shared property engine contract, supported properties, security rules, adoption guide
+- [Inline Editing](INLINE-EDITING.md) — general inline editing system: InlineTextField component, InlineEditingConfig contract, safety rules, adoption guide
+- [Inline Editing Adoption Plan](INLINE-EDITING-ADOPTION-PLAN.md) — block-by-block adoption schedule for inline editing with fields, risks, and phased rollout
 
 ## Recovery & Quality
 

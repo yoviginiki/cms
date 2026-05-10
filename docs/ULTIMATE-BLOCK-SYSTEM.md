@@ -69,7 +69,7 @@ The CMS has a three-layer block architecture:
 
 ### What is missing
 
-- No inline editing (contentEditable) for block content fields
+- Plain text inline editing foundation implemented (Hero pilot); rich text inline editing not yet available
 - No responsive breakpoint override system (only hideOn toggle)
 - No design token binding in block properties
 - No reusable symbol / master block / pattern system
@@ -445,7 +445,7 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 | urlValidation | rule | — | Allow: `http`, `https`, `mailto`, `tel`, relative, anchor. Reject: `javascript:`, `data:`, `vbscript:` |
 | iconSupport | boolean | `false` | Future |
 
-**Current**: Hero renders one CTA with hardcoded styles. `safeUrl()` validates URL scheme. No variant, radius, size, or color token controls. No secondary CTA.
+**Current**: Hero CTA now has configurable variant (filled/outline/ghost/link), size (sm/md/lg), alignment, background color, text color, border color, border width, and border radius. `safeUrl()` validates URL scheme. All style values are validated via regex in `HeroBlockDefinition`. No secondary CTA. No design token binding (future). No hover state engine (future).
 
 ### F. Responsive
 
@@ -724,7 +724,7 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 | Eyebrow | — | MISSING | — | Add `eyebrow` field to Editor/Preview/Blade/Definition | P2 |
 | Primary CTA label | `data.ctaText` | WORKING | Editor.tsx, hero.blade.php | — | — |
 | Primary CTA URL | `data.ctaUrl` | WORKING | Editor.tsx, hero.blade.php | — | — |
-| Primary CTA style | — | MISSING | — | Add `ctaStyle` select, update Blade button rendering | P2 |
+| Primary CTA style | `data.ctaVariant`, `ctaSize`, `ctaAlign`, `ctaBgColor`, `ctaTextColor`, `ctaBorderColor`, `ctaBorderWidth`, `ctaBorderRadius` | WORKING | Editor, Preview, Blade, validated | Hover states, design tokens: future | — |
 | Secondary CTA label | — | MISSING | — | Add `secondaryCtaText` field, render second button | P2 |
 | Secondary CTA URL | — | MISSING | — | Add `secondaryCtaUrl` field with safeUrl validation | P2 |
 | Caption/credit | — | MISSING | — | Add `caption` field to Editor/Blade below content | P3 |
@@ -851,11 +851,36 @@ Target: Any block can use the same property pipeline without copy-pasting Hero's
 - [ ] Wire LayoutPanel to preview wrapper (deferred — blocks handle own layout)
 - [x] "No dead controls" rule documented
 
+### Phase 2.5: Inline editing foundation ✅ (pilot)
+
+Target: General inline editing system for all blocks. Hero is the first pilot.
+
+This is a **general system requirement**, not a Hero-specific feature. Every content block should adopt inline editing for visible text fields as it reaches Level 3.
+
+- [x] Create `InlineTextField` reusable plain-text contentEditable primitive
+- [x] Create `InlineEditingConfig` typed contract (`@/lib/inlineEditing.ts`)
+- [x] Define `InlineEditableField`, `InlineEditableFieldType`, `defineInlineField()` types
+- [x] Hero pilot: `title`, `subtitle`, `ctaText` inline-editable on canvas
+- [x] Side panel fallback remains for all Hero content fields
+- [x] Same data keys used across inline edit, side panel, preview, and Blade
+- [x] Placeholder styling for empty inline fields (CSS `::before`)
+- [x] Drag/selection safety (stopPropagation on mouse/drag/keyboard)
+- [x] Plain text only — no raw HTML, no `dangerouslySetInnerHTML`
+- [x] Documentation: `docs/INLINE-EDITING.md` (general system doc)
+- [x] Documentation: `docs/INLINE-EDITING-ADOPTION-PLAN.md` (block adoption schedule)
+- [x] BLOCK-CONTRACT.md updated with field classification requirement for Level 3
+- [ ] Adopt inline editing for `heading` block (next pilot)
+- [ ] Adopt inline editing for `paragraph` block (requires rich text — future)
+- [ ] Adopt inline editing for remaining content blocks (see adoption plan)
+- [ ] Rich text inline editing via TipTap (separate initiative)
+- [ ] Undo/redo integration with editor undo stack
+
 ### Phase 3: Shared editor field components
 
 Target: Professional field components that any block Editor can use.
 
-- [ ] `AssetSelectField` — media picker with preview, alt, focal point
+- [x] `AssetField` — media picker with preview, upload, drag-drop, URL fallback (exists in `@/components/ui/AssetPicker`; Hero BackgroundEditor uses it)
+- [ ] `AssetSelectField` — extend AssetField with alt text, focal point, responsive srcset
 - [ ] `ColorField` (exists) — add token picker integration
 - [ ] `GradientField` — visual gradient builder
 - [ ] `LinkField` — URL input with scheme validation, anchor picker, page picker
@@ -954,7 +979,7 @@ Each block repair follows the process in BLOCK-CONTRACT.md §15 (Repair Workflow
 | Custom CSS rendering | Security risk. Requires CSS scoping (shadow DOM or class prefixing) to prevent style injection. Keep as BLOCKED. |
 | Background video | Requires video upload pipeline, poster frame extraction, autoplay policies, accessibility (pause button, captions). Phase 3+ dependency. |
 | Shape dividers | SVG generation, responsive sizing, many edge cases. Nice-to-have, not structural. |
-| Inline editing (contentEditable) | Requires TipTap integration per field, cursor management, selection handling, undo/redo sync. Major effort. Separate initiative. |
+| Rich text inline editing (TipTap) | Plain text inline editing is implemented (foundation + Hero pilot). Rich text requires TipTap integration per field, cursor management, selection handling, undo/redo sync. Separate initiative after plain text adoption across core blocks. |
 | Generic layer model | Current hardcoded layers work. Abstracting to a generic system is over-engineering until more blocks need it. |
 
 ### Too risky before tests

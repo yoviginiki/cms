@@ -178,4 +178,179 @@ class HeroValidationTest extends TestCase
     {
         $this->assertTrue($this->validate(['mediaLoading' => 'auto'])->fails());
     }
+
+    // ── ctaVariant ──────────────────────────────────────────────
+
+    #[DataProvider('validCtaVariantProvider')]
+    public function test_valid_ctaVariant_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaVariant' => $val])->passes());
+    }
+
+    public static function validCtaVariantProvider(): array
+    {
+        return [['filled'], ['outline'], ['ghost'], ['link']];
+    }
+
+    #[DataProvider('invalidCtaVariantProvider')]
+    public function test_invalid_ctaVariant_fails(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaVariant' => $val])->fails());
+    }
+
+    public static function invalidCtaVariantProvider(): array
+    {
+        return [['primary'], ['danger'], ['<script>']];
+    }
+
+    // ── ctaSize ─────────────────────────────────────────────────
+
+    #[DataProvider('validCtaSizeProvider')]
+    public function test_valid_ctaSize_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaSize' => $val])->passes());
+    }
+
+    public static function validCtaSizeProvider(): array
+    {
+        return [['sm'], ['md'], ['lg']];
+    }
+
+    public function test_invalid_ctaSize_fails(): void
+    {
+        $this->assertTrue($this->validate(['ctaSize' => 'xl'])->fails());
+    }
+
+    // ── ctaAlign ────────────────────────────────────────────────
+
+    #[DataProvider('validCtaAlignProvider')]
+    public function test_valid_ctaAlign_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaAlign' => $val])->passes());
+    }
+
+    public static function validCtaAlignProvider(): array
+    {
+        return [['left'], ['center'], ['right'], ['']];
+    }
+
+    public function test_invalid_ctaAlign_fails(): void
+    {
+        $this->assertTrue($this->validate(['ctaAlign' => 'justify'])->fails());
+    }
+
+    // ── ctaBgColor ──────────────────────────────────────────────
+
+    #[DataProvider('validCtaColorProvider')]
+    public function test_valid_ctaBgColor_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaBgColor' => $val])->passes());
+    }
+
+    public static function validCtaColorProvider(): array
+    {
+        return [['#fff'], ['#3b82f6'], ['rgba(0,0,0,0.5)']];
+    }
+
+    #[DataProvider('invalidCtaColorProvider')]
+    public function test_invalid_ctaBgColor_fails(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaBgColor' => $val])->fails());
+    }
+
+    public static function invalidCtaColorProvider(): array
+    {
+        return [['<script>'], ['expression()'], ['url(evil)']];
+    }
+
+    // ── ctaTextColor ────────────────────────────────────────────
+
+    public function test_valid_ctaTextColor_passes(): void
+    {
+        $this->assertTrue($this->validate(['ctaTextColor' => '#ffffff'])->passes());
+    }
+
+    public function test_invalid_ctaTextColor_fails(): void
+    {
+        $this->assertTrue($this->validate(['ctaTextColor' => 'javascript:void'])->fails());
+    }
+
+    // ── ctaBorderColor ──────────────────────────────────────────
+
+    public function test_valid_ctaBorderColor_passes(): void
+    {
+        $this->assertTrue($this->validate(['ctaBorderColor' => '#000'])->passes());
+    }
+
+    public function test_invalid_ctaBorderColor_fails(): void
+    {
+        $this->assertTrue($this->validate(['ctaBorderColor' => '<img src=x>'])->fails());
+    }
+
+    // ── ctaBorderWidth ──────────────────────────────────────────
+
+    #[DataProvider('validCtaDimensionProvider')]
+    public function test_valid_ctaBorderWidth_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaBorderWidth' => $val])->passes());
+    }
+
+    public static function validCtaDimensionProvider(): array
+    {
+        return [['2px'], ['0.5rem'], ['1em']];
+    }
+
+    #[DataProvider('invalidCtaDimensionProvider')]
+    public function test_invalid_ctaBorderWidth_fails(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaBorderWidth' => $val])->fails());
+    }
+
+    public static function invalidCtaDimensionProvider(): array
+    {
+        return [['javascript:'], ['expression(1)'], ['10']];
+    }
+
+    // ── ctaBorderRadius ─────────────────────────────────────────
+
+    #[DataProvider('validCtaBorderRadiusProvider')]
+    public function test_valid_ctaBorderRadius_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['ctaBorderRadius' => $val])->passes());
+    }
+
+    public static function validCtaBorderRadiusProvider(): array
+    {
+        return [['8px'], ['0.375rem'], ['50%']];
+    }
+
+    public function test_invalid_ctaBorderRadius_fails(): void
+    {
+        $this->assertTrue($this->validate(['ctaBorderRadius' => 'url(x)'])->fails());
+    }
+
+    // ── backward compatibility ──────────────────────────────────
+
+    public function test_old_hero_data_without_cta_style_fields_passes(): void
+    {
+        // Simulate old data that has no CTA style fields at all
+        $v = $this->validate([
+            'ctaText' => 'Learn More',
+            'ctaUrl' => 'https://example.com',
+        ]);
+        $this->assertTrue($v->passes(), 'Old Hero data without CTA style fields must pass validation');
+    }
+
+    public function test_empty_cta_style_fields_pass(): void
+    {
+        $v = $this->validate([
+            'ctaBgColor' => '',
+            'ctaTextColor' => '',
+            'ctaBorderColor' => '',
+            'ctaBorderWidth' => '',
+            'ctaBorderRadius' => '',
+        ]);
+        // Nullable fields accept empty strings
+        $this->assertTrue($v->passes());
+    }
 }

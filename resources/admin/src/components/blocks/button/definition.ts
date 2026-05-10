@@ -1,4 +1,17 @@
 import type { BlockDefinition } from '@/types/blocks';
+import type { InlineEditingConfig } from '@/lib/inlineEditing';
+import { defineInlineField } from '@/lib/inlineEditing';
+
+export const buttonInlineEditing: InlineEditingConfig = {
+  blockType: 'button',
+  fields: [
+    defineInlineField({
+      key: 'text',
+      label: 'Button Text',
+      placeholder: 'Button text',
+    }),
+  ],
+};
 
 export const buttonDefinition: BlockDefinition = {
   type: 'button',

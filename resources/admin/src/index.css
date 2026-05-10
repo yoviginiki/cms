@@ -323,6 +323,33 @@ button, a, input, select, textarea {
 }
 
 /* ═══════════════════════════════════════════
+   Opt-out: blocks that control their own colors
+   (e.g. Hero with dark background + white text)
+   ═══════════════════════════════════════════ */
+.block-controls-own-colors h1,
+.block-controls-own-colors h2,
+.block-controls-own-colors h3,
+.block-controls-own-colors h4,
+.block-controls-own-colors h5,
+.block-controls-own-colors h6,
+.block-controls-own-colors p,
+.block-controls-own-colors span,
+.block-controls-own-colors a,
+.block-controls-own-colors blockquote {
+  color: inherit !important;
+}
+
+/* ═══════════════════════════════════════════
+   Inline editable field placeholder
+   Shows placeholder text when the field is empty
+   ═══════════════════════════════════════════ */
+.inline-editable[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════
    Block entrance animations
    Used by SortableBlock wrapper and published output
    ═══════════════════════════════════════════ */

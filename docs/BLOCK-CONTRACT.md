@@ -365,45 +365,57 @@ Raw HTML input is a special case that must be handled explicitly:
 7. **Never enable raw HTML globally**: Raw HTML/embed is opt-in per block/field, never a default behavior
 8. **HTML fields require backend sanitization**: Any field accepting HTML must have matching `sanitizationConfig()` rules in the PHP definition
 
-### Inline Editing Implementation Strategy (Future)
+### Inline Editing Implementation (Active)
 
-When implementing inline editing, follow these guidelines:
+The inline editing foundation is implemented and available for all blocks. Hero is the first pilot.
 
-1. **Reusable Component**: Create a shared `InlineTextField` or `EditableText` component that wraps `contentEditable` with controlled updates:
-   ```typescript
-   // Planned: @/components/editor/InlineTextField.tsx
-   interface InlineTextFieldProps {
-     value: string;
-     placeholder: string;
-     onChange: (value: string) => void;
-     tag?: 'h1' | 'h2' | 'h3' | 'p' | 'span' | 'blockquote';
-     multiline?: boolean;
-     className?: string;
-   }
-   ```
+See `docs/INLINE-EDITING.md` for the full system documentation and `docs/INLINE-EDITING-ADOPTION-PLAN.md` for the block adoption schedule.
 
-2. **Controlled contentEditable**: Use `contentEditable` with careful state management:
-   - Sync from React state to DOM only when the source of truth changes externally
-   - Read from DOM on blur or debounced input events
-   - Avoid re-rendering on every keystroke (use refs for the DOM element)
+#### Required components
 
-3. **Preserve data format**: If the block stores plain text, inline editing must produce plain text. If it stores HTML (rich-text), inline editing must produce valid HTML.
+- **`InlineTextField`** (`@/components/editor/fields/InlineTextField.tsx`) — reusable plain-text contentEditable primitive. Reads `textContent` only, strips pasted HTML, emits plain text.
+- **`InlineEditingConfig`** (`@/lib/inlineEditing.ts`) — typed contract for declaring which fields in a block are inline-editable.
 
-4. **Keyboard behavior**:
+#### Implementation rules
+
+1. **Use `InlineTextField`** in the block's `Preview.tsx` for visible content fields. Never create raw `contentEditable` elements.
+
+2. **Declare an `InlineEditingConfig`** in the block's `definition.ts` using `defineInlineField()`. This documents which fields are inline-editable and ensures consistent metadata.
+
+3. **Preserve data keys**: The `key` in `InlineEditableField` must match `definition.defaultData`, `Editor.tsx`, `Preview.tsx`, and Blade template. No renames.
+
+4. **Preserve data format**: If the block stores plain text, inline editing must produce plain text. If it stores HTML (rich-text), inline editing must produce valid HTML.
+
+5. **Keyboard behavior** (handled by `InlineTextField`):
    - `Enter` in single-line fields: commit and blur
-   - `Enter` in multi-line fields: insert newline
+   - `Shift+Enter` in multi-line fields: insert newline
    - `Escape`: revert to last saved value and blur
-   - `Tab`: move to next editable field if applicable
 
-5. **Debounce updates**: Debounce `onUpdate` calls (200-300ms) to avoid excessive re-renders and state updates
+6. **Right-side panel fallback**: Every inline-editable field must also be editable from the settings panel. Inline is an enhancement, never a replacement.
 
-6. **Undo/redo**: Inline edits must integrate with the editor's undo/redo system. Each debounced commit should be one undo step.
+7. **Never enable raw HTML in inline editing**: `InlineTextField` produces plain text only. Raw HTML paste is only allowed through the side panel in explicit advanced fields with backend sanitization.
 
-7. **Right-side panel fallback**: Always keep the field editable in the settings panel. Some users prefer panel editing; inline is an enhancement, not a replacement.
+8. **Rich text inline editing** (future): For fields declared as rich text, inline editing will support basic formatting (bold, italic, links) via TipTap, but must sanitize output. The side panel provides the full-featured text input as fallback.
 
-8. **Never enable raw HTML in inline editing**: Inline contentEditable must produce plain text or structured rich text only. Raw HTML paste is only allowed through the side panel in explicit advanced fields with backend sanitization.
+9. **Canvas safety**: `InlineTextField` stops mouse/drag/keyboard propagation to avoid interfering with block selection and drag-and-drop. Block drag handles and toolbar remain functional.
 
-9. **Rich text inline editing**: For fields declared as rich text, inline editing may support basic formatting (bold, italic, links) but must sanitize output. The side panel provides the full-featured text input as fallback.
+### Field Classification Requirement
+
+Every production-ready block (Level 3+) MUST classify all its data fields into these categories:
+
+| Category | Where Edited | Examples |
+|----------|-------------|----------|
+| **Inline editable content** | Canvas via `InlineTextField` | `title`, `subtitle`, `content`, `quote`, `ctaText` |
+| **Side panel content fallback** | Right sidebar `TextField`/`TextArea` | Same fields as inline, always available as fallback |
+| **Settings** | Right sidebar selectors/pickers | Layout, background, colors, URLs, typography |
+| **Accessibility** | Sidebar a11y section | Alt text, ARIA labels, heading level |
+| **Advanced** | Collapsed sidebar section | CSS classes, HTML IDs, custom code |
+
+A block cannot be Level 3 (Production-ready) unless:
+- Visible content fields are inline-editable on the canvas where appropriate, **or**
+- The reason they are not inline-editable is documented (e.g., rich text not yet supported, complex structured content)
+
+This classification must be declared via `InlineEditingConfig` in the block's `definition.ts`.
 
 ---
 
@@ -861,9 +873,10 @@ Every block must be visually inspected in:
 
 All Level 2 requirements, plus:
 
-- [ ] Content fields are visible and editable in the canvas (not hidden in sidebar only)
-- [ ] Inline editing supported where appropriate (or planned with clear field classification)
-- [ ] Side panel fallback remains available for content fields, settings, and advanced options
+- [ ] All data fields classified as inline-editable / settings / accessibility / advanced in `InlineEditingConfig`
+- [ ] Visible content fields are inline-editable on the canvas via `InlineTextField` (or reason documented)
+- [ ] Side panel fallback remains available for all content fields, settings, and advanced options
+- [ ] Inline edits and side panel edits update the same `block.data` keys
 - [ ] Preview reflects saved data immediately, not stale placeholders
 - [ ] Editor readable in both light and dark admin themes
 - [ ] Empty states are readable and informative (not broken layouts)

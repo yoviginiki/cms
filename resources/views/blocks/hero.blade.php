@@ -3,13 +3,19 @@
     // Sanitize CSS values to prevent style injection
     $cssVal = fn($v) => preg_replace('/[^a-zA-Z0-9#(),.\s%\/\-]/', '', (string) $v);
     $cssDim = fn($v) => preg_match('/^-?\d+(\.\d+)?(px|rem|em|%|vh|vw|auto|0)$/i', trim((string) $v)) ? trim((string) $v) : '';
-    $cssUrl = fn($v) => preg_match('#^(https?://|/)[^\'"<>]*$#i', (string) $v) ? (string) $v : '';
+    $cssUrl = fn($v) => preg_match('#^(https?://|/|\.\.?/)[^\'"<>]*$#i', (string) $v) ? (string) $v : '';
     // Sanitize href values: block javascript:, data:, vbscript: schemes
     $safeUrl = fn($v) => preg_match('/^(javascript|data|vbscript):/i', trim((string) $v)) ? '#' : (string) $v;
 
     // ── Background (block-specific, from block.data) ──
     $bgType = $data['bg_type'] ?? 'none';
-    $hasBg = $bgType !== 'none' || !empty($data['backgroundImage']);
+    // hasBg must check actual usable values, not just bg_type
+    $hasBg = match($bgType) {
+        'color'    => !empty($data['bg_color']),
+        'gradient' => is_array($data['bg_gradient_stops'] ?? null) && !empty($data['bg_gradient_stops']),
+        'image'    => !empty($data['bg_image']),
+        default    => false,
+    } || !empty($data['backgroundImage']); // legacy fallback
     $textColor = $hasBg ? '#fff' : '#333';
     $baseBg = $hasBg ? '' : 'background-color:#f5f5f5;';
 
@@ -52,8 +58,8 @@
 
     if ($bgType === 'color' && !empty($data['bg_color'])) {
         $style .= "background-color:{$cssVal($data['bg_color'])};";
-    } elseif ($bgType === 'gradient' && !empty($data['bg_gradient_stops'])) {
-        $stops = collect($data['bg_gradient_stops'])->map(fn($s) => $cssVal($s['color']) . ' ' . ((int) $s['position']) . '%')->join(', ');
+    } elseif ($bgType === 'gradient' && is_array($data['bg_gradient_stops'] ?? null) && !empty($data['bg_gradient_stops'])) {
+        $stops = collect($data['bg_gradient_stops'])->map(fn($s) => $cssVal($s['color'] ?? '') . ' ' . ((int) ($s['position'] ?? 0)) . '%')->join(', ');
         $type = in_array($data['bg_gradient_type'] ?? 'linear', ['linear', 'radial']) ? ($data['bg_gradient_type'] ?? 'linear') : 'linear';
         $angle = (int) ($data['bg_gradient_angle'] ?? 180);
         $gradient = $type === 'radial' ? "radial-gradient(circle, {$stops})" : "linear-gradient({$angle}deg, {$stops})";
@@ -111,8 +117,64 @@
             <p style="font-size:{{ $subSize }};opacity:0.9;margin-bottom:2rem;">{{ $data['subtitle'] }}</p>
         @endif
         @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
-            @php $ctaBg = $hasBg ? 'background:rgba(255,255,255,0.2);color:#fff;border:2px solid #fff;' : 'background:#333;color:#fff;border:2px solid #333;'; @endphp
-            <a href="{{ $safeUrl($data['ctaUrl']) }}" style="display:inline-block;padding:0.75rem 2rem;{{ $ctaBg }}border-radius:0.375rem;text-decoration:none;font-weight:600;">{{ $data['ctaText'] }}</a>
+            @php
+                // CTA style properties (all optional, backward compatible)
+                $ctaVariant = in_array($data['ctaVariant'] ?? 'filled', ['filled','outline','ghost','link']) ? ($data['ctaVariant'] ?? 'filled') : 'filled';
+                $ctaSize = in_array($data['ctaSize'] ?? 'md', ['sm','md','lg']) ? ($data['ctaSize'] ?? 'md') : 'md';
+                $ctaAlignVal = in_array($data['ctaAlign'] ?? '', ['left','center','right','']) ? ($data['ctaAlign'] ?? '') : '';
+                $ctaBgColorVal = $cssVal($data['ctaBgColor'] ?? '');
+                $ctaTextColorVal = $cssVal($data['ctaTextColor'] ?? '');
+                $ctaBorderColorVal = $cssVal($data['ctaBorderColor'] ?? '');
+                $ctaBorderWidthVal = $cssDim($data['ctaBorderWidth'] ?? '');
+                $ctaBorderRadiusVal = $cssDim($data['ctaBorderRadius'] ?? '');
+
+                // Size → padding
+                $ctaSizeMap = ['sm' => '0.375rem 1rem', 'md' => '0.75rem 2rem', 'lg' => '1rem 2.5rem'];
+                $ctaPadding = $ctaSizeMap[$ctaSize] ?? $ctaSizeMap['md'];
+
+                // Size → font-size
+                $ctaFontMap = ['sm' => '0.75rem', 'md' => '0.875rem', 'lg' => '1rem'];
+                $ctaFontSize = $ctaFontMap[$ctaSize] ?? $ctaFontMap['md'];
+
+                // Build CTA inline style
+                $ctaStyle = "display:inline-block;padding:{$ctaPadding};font-size:{$ctaFontSize};font-weight:600;text-decoration:none;";
+
+                // Border radius
+                $ctaStyle .= 'border-radius:' . ($ctaBorderRadiusVal ?: '0.375rem') . ';';
+
+                // Variant-specific defaults
+                if ($ctaVariant === 'outline') {
+                    $ctaStyle .= 'background:' . ($ctaBgColorVal ?: 'transparent') . ';';
+                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
+                    $ctaStyle .= 'border:' . ($ctaBorderWidthVal ?: '2px') . ' solid ' . ($ctaBorderColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
+                } elseif ($ctaVariant === 'ghost') {
+                    $ctaStyle .= 'background:' . ($ctaBgColorVal ?: 'transparent') . ';';
+                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
+                    $ctaStyle .= 'border:none;';
+                } elseif ($ctaVariant === 'link') {
+                    $ctaStyle .= 'background:transparent;';
+                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
+                    $ctaStyle .= 'border:none;text-decoration:underline;padding:0;';
+                } else {
+                    // filled (default + backward compatible)
+                    $defaultBg = $hasBg ? 'rgba(255,255,255,0.2)' : '#333';
+                    $defaultColor = '#fff';
+                    $defaultBorder = $hasBg ? '#fff' : '#333';
+                    $ctaStyle .= 'background:' . ($ctaBgColorVal ?: $defaultBg) . ';';
+                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: $defaultColor) . ';';
+                    if ($ctaBorderWidthVal || $ctaBorderColorVal) {
+                        $ctaStyle .= 'border:' . ($ctaBorderWidthVal ?: '2px') . ' solid ' . ($ctaBorderColorVal ?: $defaultBorder) . ';';
+                    } else {
+                        $ctaStyle .= 'border:2px solid ' . $defaultBorder . ';';
+                    }
+                }
+
+                // CTA alignment wrapper
+                $ctaWrapAlign = $ctaAlignVal ?: $textAlign;
+            @endphp
+            <div style="text-align:{{ $ctaWrapAlign }};">
+                <a href="{{ $safeUrl($data['ctaUrl']) }}" style="{{ $ctaStyle }}">{{ $data['ctaText'] }}</a>
+            </div>
         @endif
     </div>
 </section>

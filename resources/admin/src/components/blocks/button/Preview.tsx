@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { InlineTextField } from '@/components/editor/fields';
 
 const styleMap: Record<string, string> = {
   primary: 'bg-blue-600 text-white hover:bg-blue-700',
@@ -14,7 +15,7 @@ const sizeMap: Record<string, string> = {
   lg: 'px-7 py-3.5 text-lg',
 };
 
-export const ButtonPreview: React.FC<BlockComponentProps> = ({ block }) => {
+export const ButtonPreview: React.FC<BlockComponentProps> = ({ block, onUpdate }) => {
   const data = block.data as {
     text: string;
     url: string;
@@ -28,11 +29,13 @@ export const ButtonPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <div className="py-2">
-      <span
-        className={`inline-block rounded-md font-medium cursor-pointer ${styleClass} ${sizeClass}`}
-      >
-        {data.text || 'Click Me'}
-      </span>
+      <InlineTextField
+        as="span"
+        value={data.text || ''}
+        placeholder="Button text"
+        onChange={(v) => onUpdate({ ...block.data, text: v })}
+        className={`rounded-md font-medium ${styleClass} ${sizeClass}`}
+      />
       {data.url && data.url !== '#' && (
         <span className="ml-2 text-xs text-gray-400">{data.url}</span>
       )}

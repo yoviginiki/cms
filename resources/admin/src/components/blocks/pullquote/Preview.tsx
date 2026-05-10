@@ -1,20 +1,17 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { InlineTextField } from '@/components/editor/fields';
 
-export const PullquotePreview: React.FC<BlockComponentProps> = ({ block }) => {
+export const PullquotePreview: React.FC<BlockComponentProps> = ({ block, onUpdate }) => {
   const { text, attribution, style } = block.data as {
     text: string;
     attribution: string;
     style: string;
   };
 
-  if (!text) {
-    return (
-      <div className="text-base-content/40 italic py-4">
-        Click to add a pull quote...
-      </div>
-    );
-  }
+  const update = (field: string, value: string) => {
+    onUpdate({ ...block.data, [field]: value });
+  };
 
   const styleClasses: Record<string, string> = {
     'border-left': 'border-l-4 border-base-content/20 pl-4',
@@ -24,14 +21,25 @@ export const PullquotePreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <figure className={`pullquote py-4 ${styleClasses[style] || styleClasses['large-text']}`}>
-      <blockquote className="text-base-content/80">
-        {text}
+      <blockquote>
+        <InlineTextField
+          as="p"
+          value={text || ''}
+          placeholder="Add a quote..."
+          onChange={(v) => update('text', v)}
+          multiline
+          className="text-base-content/80"
+        />
       </blockquote>
-      {attribution && (
-        <figcaption className="text-sm text-base-content/50 mt-2">
-          {attribution}
-        </figcaption>
-      )}
+      <figcaption className="mt-2">
+        <InlineTextField
+          as="span"
+          value={attribution || ''}
+          placeholder="Author or source"
+          onChange={(v) => update('attribution', v)}
+          className="text-sm text-base-content/50"
+        />
+      </figcaption>
     </figure>
   );
 };

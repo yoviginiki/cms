@@ -136,6 +136,70 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         helperText="Leave empty to hide the button"
       />
 
+      {/* ── CTA Button Style ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">CTA Button Style</div>
+      <SelectField
+        label="Variant"
+        value={(data.ctaVariant as string) || 'filled'}
+        onChange={(v) => update('ctaVariant', v)}
+        options={[
+          { value: 'filled', label: 'Filled' },
+          { value: 'outline', label: 'Outline' },
+          { value: 'ghost', label: 'Ghost' },
+          { value: 'link', label: 'Link' },
+        ]}
+      />
+      <SelectField
+        label="Size"
+        value={(data.ctaSize as string) || 'md'}
+        onChange={(v) => update('ctaSize', v)}
+        options={[
+          { value: 'sm', label: 'Small' },
+          { value: 'md', label: 'Medium' },
+          { value: 'lg', label: 'Large' },
+        ]}
+      />
+      <SelectField
+        label="Alignment"
+        value={(data.ctaAlign as string) || ''}
+        onChange={(v) => update('ctaAlign', v)}
+        options={[
+          { value: '', label: 'Follow Text Alignment' },
+          { value: 'left', label: 'Left' },
+          { value: 'center', label: 'Center' },
+          { value: 'right', label: 'Right' },
+        ]}
+      />
+      <ColorField
+        label="Background Color"
+        value={(data.ctaBgColor as string) || ''}
+        onChange={(v) => update('ctaBgColor', v)}
+      />
+      <ColorField
+        label="Text Color"
+        value={(data.ctaTextColor as string) || ''}
+        onChange={(v) => update('ctaTextColor', v)}
+      />
+      <ColorField
+        label="Border Color"
+        value={(data.ctaBorderColor as string) || ''}
+        onChange={(v) => update('ctaBorderColor', v)}
+      />
+      <TextField
+        label="Border Width"
+        value={(data.ctaBorderWidth as string) || ''}
+        onChange={(v) => update('ctaBorderWidth', v)}
+        placeholder="e.g. 2px"
+        helperText="Leave empty for default"
+      />
+      <TextField
+        label="Border Radius"
+        value={(data.ctaBorderRadius as string) || ''}
+        onChange={(v) => update('ctaBorderRadius', v)}
+        placeholder="e.g. 0.375rem, 8px"
+        helperText="Leave empty for default"
+      />
+
       {/* ── Accessibility Fields ── */}
       <div className="divider text-[10px] text-base-content/40 my-1">Accessibility</div>
       <TextField
@@ -143,20 +207,10 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         value={(data.alt as string) || ''}
         onChange={(v) => update('alt', v)}
         placeholder="Describe the background image for screen readers"
-        helperText="Required when using a background image"
+        helperText="Recommended when using a background image"
       />
 
-      {/* ── Performance ── */}
-      <div className="divider text-[10px] text-base-content/40 my-1">Performance</div>
-      <SelectField
-        label="Image Loading"
-        value={(data.mediaLoading as string) || 'eager'}
-        onChange={(v) => update('mediaLoading', v)}
-        options={[
-          { value: 'eager', label: 'Eager (above fold)' },
-          { value: 'lazy', label: 'Lazy' },
-        ]}
-      />
+      {/* mediaLoading: reserved for future <img>/<video> element; Hero uses CSS background */}
 
     </div>
   );

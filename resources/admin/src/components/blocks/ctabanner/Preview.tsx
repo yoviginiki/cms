@@ -1,7 +1,8 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { InlineTextField } from '@/components/editor/fields';
 
-export const CtabannerPreview: React.FC<BlockComponentProps> = ({ block }) => {
+export const CtabannerPreview: React.FC<BlockComponentProps> = ({ block, onUpdate }) => {
   const data = block.data as {
     heading: string;
     text: string;
@@ -10,6 +11,10 @@ export const CtabannerPreview: React.FC<BlockComponentProps> = ({ block }) => {
     backgroundStyle: string;
     backgroundColor: string;
     backgroundImage: string;
+  };
+
+  const update = (field: string, value: string) => {
+    onUpdate({ ...block.data, [field]: value });
   };
 
   const bgColor = data.backgroundColor || '#3b82f6';
@@ -25,11 +30,28 @@ export const CtabannerPreview: React.FC<BlockComponentProps> = ({ block }) => {
       className="rounded-lg p-6 text-center text-white"
       style={{ ...bgStyle, minHeight: 80 }}
     >
-      <h3 className="text-lg font-bold mb-1">{data.heading || 'Ready to get started?'}</h3>
-      {data.text && <p className="text-sm opacity-90 mb-3">{data.text}</p>}
-      <span className="inline-block px-4 py-1.5 bg-white/20 rounded text-sm font-medium">
-        {data.buttonText || 'Get started'}
-      </span>
+      <InlineTextField
+        as="h3"
+        value={data.heading || ''}
+        placeholder="Add heading"
+        onChange={(v) => update('heading', v)}
+        className="text-lg font-bold mb-1 block"
+      />
+      <InlineTextField
+        as="p"
+        value={data.text || ''}
+        placeholder="Add description..."
+        onChange={(v) => update('text', v)}
+        multiline
+        className="text-sm opacity-90 mb-3 block"
+      />
+      <InlineTextField
+        as="span"
+        value={data.buttonText || ''}
+        placeholder="Button text"
+        onChange={(v) => update('buttonText', v)}
+        className="inline-block px-4 py-1.5 bg-white/20 rounded text-sm font-medium"
+      />
       {data.buttonUrl && data.buttonUrl !== '#' && (
         <span className="block mt-1 text-xs opacity-60">{data.buttonUrl}</span>
       )}

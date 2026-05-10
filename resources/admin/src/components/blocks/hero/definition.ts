@@ -1,4 +1,29 @@
 import type { BlockDefinition } from '@/types/blocks';
+import type { InlineEditingConfig } from '@/lib/inlineEditing';
+import { defineInlineField } from '@/lib/inlineEditing';
+
+export const heroInlineEditing: InlineEditingConfig = {
+  blockType: 'hero',
+  fields: [
+    defineInlineField({
+      key: 'title',
+      label: 'Hero Title',
+      placeholder: 'Add hero title',
+      as: 'h1',
+    }),
+    defineInlineField({
+      key: 'subtitle',
+      label: 'Subtitle',
+      placeholder: 'Add subtitle',
+      as: 'p',
+    }),
+    defineInlineField({
+      key: 'ctaText',
+      label: 'Button Text',
+      placeholder: 'Add button text',
+    }),
+  ],
+};
 
 export const heroDefinition: BlockDefinition = {
   type: 'hero',
@@ -21,6 +46,7 @@ export const heroDefinition: BlockDefinition = {
       { color: '#8b5cf6', position: 100 },
     ],
     bg_image: '',
+    bg_asset_id: '',            // optional asset library reference
     bg_image_size: 'cover',
     bg_image_position: 'center center',
     bg_image_repeat: 'no-repeat',
@@ -46,6 +72,16 @@ export const heroDefinition: BlockDefinition = {
     // CTA / Link fields (settings panel)
     ctaText: '',
     ctaUrl: '',
+
+    // CTA button style fields (optional — safe defaults when empty)
+    ctaVariant: 'filled',       // filled | outline | ghost | link
+    ctaSize: 'md',              // sm | md | lg
+    ctaAlign: '',               // '' (follow textAlignment) | left | center | right
+    ctaBgColor: '',             // safe CSS color
+    ctaTextColor: '',           // safe CSS color
+    ctaBorderColor: '',         // safe CSS color
+    ctaBorderWidth: '',         // safe CSS dimension e.g. 2px
+    ctaBorderRadius: '',        // safe CSS dimension e.g. 0.375rem
 
     // Accessibility fields
     alt: '',
