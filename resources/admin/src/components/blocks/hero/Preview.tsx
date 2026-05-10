@@ -177,9 +177,13 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const ctaIsPartial = !!(ctaText || ctaUrl) && !ctaIsPublishable;
   const showCtaEditor = ctaIsPublishable || isSelected;
 
+  // Opt out of editor canvas color forcing when Hero controls its own colors.
+  // This must be true whenever ANY custom color is set — not just when hasBg.
+  const controlsOwnColors = hasBg || !!headlineColor || !!ctaBgColor || !!ctaTextColor || !!ctaBorderColor;
+
   return (
     <div
-      className={`relative rounded-lg overflow-hidden ${hasBg ? 'block-controls-own-colors' : ''}`}
+      className={`relative rounded-lg overflow-hidden ${controlsOwnColors ? 'block-controls-own-colors' : ''}`}
       style={{
         minHeight,
         display: 'flex',

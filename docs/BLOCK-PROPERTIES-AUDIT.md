@@ -294,6 +294,41 @@ The shared property pipeline was connected end-to-end:
 | HTML ID | N/A (preview) | Yes | WORKING |
 | ARIA label | N/A (preview) | Yes | WORKING |
 
+### Hero Editor Preview Parity
+
+The admin editor canvas preview now reflects all Hero design settings that the side panel controls edit. This is achieved by:
+
+1. **Inline styles on InlineTextField elements** — title color, subtitle color, font size, font weight are passed via `style={{ color, fontSize, fontWeight }}` directly to the rendered heading/paragraph elements.
+2. **Editor canvas CSS without `!important` on text colors** — the `.editor-canvas-light` rules provide readable default colors for all blocks but do NOT use `!important`, so any block that sets explicit inline `style={{ color: ... }}` (like Hero with custom headlineColor) naturally overrides the default. The `.block-controls-own-colors` class is applied for semantic clarity but is not required for the cascade to work.
+3. **CTA style computation** — variant, size, alignment, background/text/border colors, border width, border radius are all computed from `block.data` and applied as inline styles on the CTA InlineTextField.
+4. **Background rendering** — `buildBackgroundStyle()` and `buildOverlayStyle()` produce CSS from `block.data.bg_*` keys matching published Blade output.
+
+| Setting | Editor Canvas | Published (Blade) | Status |
+|---------|--------------|-------------------|--------|
+| Title color (`headlineColor`) | Inline style on `<h1>` | Inline style on `<h1>` | WORKING |
+| Subtitle color (adaptive) | Inline style on `<p>` | Inline style on `<p>` | WORKING |
+| Title size (`headlineSize`) | Inline style | Inline style | WORKING |
+| Title weight (`headlineWeight`) | Inline style | Inline style | WORKING |
+| Subtitle size (`subheadlineSize`) | Inline style | Inline style | WORKING |
+| Auto text color (`adaptiveTextColor`) | Computed from `hasBg` | Computed from `$hasBg` | WORKING |
+| CTA background color (`ctaBgColor`) | Inline style | Inline style | WORKING |
+| CTA text color (`ctaTextColor`) | Inline style | Inline style | WORKING |
+| CTA border color (`ctaBorderColor`) | Inline style | Inline style | WORKING |
+| CTA border width (`ctaBorderWidth`) | Inline style | Inline style | WORKING |
+| CTA border radius (`ctaBorderRadius`) | Inline style | Inline style | WORKING |
+| CTA variant (`ctaVariant`) | Style computation | Style computation | WORKING |
+| CTA size (`ctaSize`) | Tailwind classes | Inline padding/font-size | WORKING |
+| CTA alignment (`ctaAlign`) | Wrapper text-align | Wrapper text-align | WORKING |
+| Background color/gradient/image | `buildBackgroundStyle()` | Inline CSS | WORKING |
+| Overlay color/opacity | `buildOverlayStyle()` | Inline div | WORKING |
+| Text alignment | Inline `textAlign` | Inline `text-align` | WORKING |
+| Vertical position | Flex `alignItems` | Flex `align-items` | WORKING |
+| Section height | Inline `minHeight` | Inline `min-height` | WORKING |
+| Content max width | Inline `maxWidth` | Inline `max-width` | WORKING |
+| Heading tag (h1/h2/h3) | Dynamic `as` prop | Dynamic `<$headlineTag>` | WORKING |
+
+**How it works**: Editor canvas CSS uses selector-based color defaults (no `!important` on text elements), so inline `style={{ color }}` set by Hero Preview naturally overrides them. The `.block-controls-own-colors` wrapper class is applied for semantic clarity when `hasBg || headlineColor || ctaBgColor || ctaTextColor || ctaBorderColor`. Blocks that don't set explicit inline colors get readable editor canvas defaults automatically.
+
 ### Properties still PARTIAL or DEAD_CONTROL
 
 | Property | Status | Reason |

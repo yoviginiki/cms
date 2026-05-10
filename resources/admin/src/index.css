@@ -288,8 +288,14 @@ button, a, input, select, textarea {
   --tw-prose-quotes: #333;
   --tw-prose-code: #111;
 }
+/* Editor canvas color forcing for light theme readability.
+   Uses high specificity but NO !important on text elements, so blocks
+   that set explicit inline style={{ color: ... }} (like Hero with custom
+   headlineColor) can override these defaults naturally.
+   The .block-controls-own-colors class is no longer needed for color
+   override — inline styles win automatically without !important. */
 .editor-canvas-light {
-  color: #1a1a1a !important;
+  color: #1a1a1a;
 }
 .editor-canvas-light h1,
 .editor-canvas-light h2,
@@ -297,7 +303,7 @@ button, a, input, select, textarea {
 .editor-canvas-light h4,
 .editor-canvas-light h5,
 .editor-canvas-light h6 {
-  color: #111 !important;
+  color: #111;
 }
 .editor-canvas-light p,
 .editor-canvas-light li,
@@ -306,10 +312,10 @@ button, a, input, select, textarea {
 .editor-canvas-light th,
 .editor-canvas-light label,
 .editor-canvas-light blockquote {
-  color: #1a1a1a !important;
+  color: #1a1a1a;
 }
 .editor-canvas-light a {
-  color: #2563eb !important;
+  color: #2563eb;
 }
 .editor-canvas-light .text-gray-400,
 .editor-canvas-light .text-gray-500,
@@ -320,23 +326,6 @@ button, a, input, select, textarea {
 /* Placeholder text stays muted */
 .editor-canvas-light [data-placeholder]::before {
   color: #9ca3af !important;
-}
-
-/* ═══════════════════════════════════════════
-   Opt-out: blocks that control their own colors
-   (e.g. Hero with dark background + white text)
-   ═══════════════════════════════════════════ */
-.block-controls-own-colors h1,
-.block-controls-own-colors h2,
-.block-controls-own-colors h3,
-.block-controls-own-colors h4,
-.block-controls-own-colors h5,
-.block-controls-own-colors h6,
-.block-controls-own-colors p,
-.block-controls-own-colors span,
-.block-controls-own-colors a,
-.block-controls-own-colors blockquote {
-  color: inherit !important;
 }
 
 /* ═══════════════════════════════════════════
