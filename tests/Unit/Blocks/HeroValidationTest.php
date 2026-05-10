@@ -353,4 +353,47 @@ class HeroValidationTest extends TestCase
         // Nullable fields accept empty strings
         $this->assertTrue($v->passes());
     }
+
+    // ── bg_gradient_stops validation ────────────────────────────
+
+    public function test_valid_gradient_stops_pass(): void
+    {
+        $v = $this->validate([
+            'bg_type' => 'gradient',
+            'bg_gradient_stops' => [
+                ['color' => '#3b82f6', 'position' => 0],
+                ['color' => '#8b5cf6', 'position' => 100],
+            ],
+        ]);
+        $this->assertTrue($v->passes());
+    }
+
+    public function test_gradient_stops_with_invalid_color_fails(): void
+    {
+        $v = $this->validate([
+            'bg_gradient_stops' => [
+                ['color' => '<script>', 'position' => 0],
+            ],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_gradient_stops_with_missing_color_fails(): void
+    {
+        $v = $this->validate([
+            'bg_gradient_stops' => [
+                ['position' => 50],
+            ],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_empty_gradient_stops_array_passes(): void
+    {
+        $v = $this->validate([
+            'bg_type' => 'gradient',
+            'bg_gradient_stops' => [],
+        ]);
+        $this->assertTrue($v->passes());
+    }
 }

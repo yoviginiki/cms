@@ -253,7 +253,7 @@ export function buildBackgroundStyle(data: Record<string, unknown>): React.CSSPr
     style.backgroundColor = bg.bg_color;
   }
 
-  if (bg.bg_type === 'gradient') {
+  if (bg.bg_type === 'gradient' && Array.isArray(bg.bg_gradient_stops) && bg.bg_gradient_stops.length > 0) {
     style.background = buildGradientCss(bg);
   }
 

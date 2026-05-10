@@ -59,11 +59,17 @@
     if ($bgType === 'color' && !empty($data['bg_color'])) {
         $style .= "background-color:{$cssVal($data['bg_color'])};";
     } elseif ($bgType === 'gradient' && is_array($data['bg_gradient_stops'] ?? null) && !empty($data['bg_gradient_stops'])) {
-        $stops = collect($data['bg_gradient_stops'])->map(fn($s) => $cssVal($s['color'] ?? '') . ' ' . ((int) ($s['position'] ?? 0)) . '%')->join(', ');
-        $type = in_array($data['bg_gradient_type'] ?? 'linear', ['linear', 'radial']) ? ($data['bg_gradient_type'] ?? 'linear') : 'linear';
-        $angle = (int) ($data['bg_gradient_angle'] ?? 180);
-        $gradient = $type === 'radial' ? "radial-gradient(circle, {$stops})" : "linear-gradient({$angle}deg, {$stops})";
-        $style .= "background:{$gradient};";
+        $stops = collect($data['bg_gradient_stops'])
+            ->map(fn($s) => ['color' => $cssVal($s['color'] ?? ''), 'position' => (int) ($s['position'] ?? 0)])
+            ->filter(fn($s) => $s['color'] !== '')
+            ->map(fn($s) => $s['color'] . ' ' . $s['position'] . '%')
+            ->join(', ');
+        if ($stops) {
+            $type = in_array($data['bg_gradient_type'] ?? 'linear', ['linear', 'radial']) ? ($data['bg_gradient_type'] ?? 'linear') : 'linear';
+            $angle = (int) ($data['bg_gradient_angle'] ?? 180);
+            $gradient = $type === 'radial' ? "radial-gradient(circle, {$stops})" : "linear-gradient({$angle}deg, {$stops})";
+            $style .= "background:{$gradient};";
+        }
     } elseif ($bgType === 'image' && !empty($data['bg_image'])) {
         $imgUrl = $cssUrl($data['bg_image']);
         $size = in_array($data['bg_image_size'] ?? 'cover', ['cover', 'contain', 'auto']) ? ($data['bg_image_size'] ?? 'cover') : 'cover';
