@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\View;
 class BuildPageService
 {
     private int $imageIndex = 0;
+    private bool $isPreview = false;
 
     public function __construct(
         private SanitizationService $sanitizer,
@@ -32,9 +33,10 @@ class BuildPageService
         private MagazineRenderer $magazineRenderer,
     ) {}
 
-    public function build(Page|Post $content, ?Theme $theme, Site $site): string
+    public function build(Page|Post $content, ?Theme $theme, Site $site, bool $isPreview = false): string
     {
         $this->imageIndex = 0;
+        $this->isPreview = $isPreview;
 
         $headContent = $this->seoService->generatePageHead($content, $site);
         $themeConfig = $theme?->config ?? [];
@@ -103,7 +105,9 @@ class BuildPageService
             ])->render();
 
             $html = $this->hooks->applyFilter('page_render', $html, $content, $site);
-            $html = AssetPublisher::rewriteHtml($html);
+            if (!$this->isPreview) {
+                $html = AssetPublisher::rewriteHtml($html);
+            }
 
             return $this->minifier->minify($html);
         }
@@ -374,14 +378,16 @@ img{max-width:100%;height:auto;display:block}
 ';
         }
 
-        // Block entrance animations
+        // Block entrance animations (must match BlockStyle::ANIMATION_NAMES)
         $css .= '
 @keyframes block-fade{from{opacity:0}to{opacity:1}}
 @keyframes block-slide-up{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes block-slide-down{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
 @keyframes block-slide-left{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
 @keyframes block-slide-right{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 @keyframes block-zoom{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
-@media(prefers-reduced-motion:reduce){[data-animation]{animation:none!important}}
+@keyframes block-scale-in{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){[style*="animation-name"],[data-animation]{animation:none!important}}
 ';
 
         return trim($css);

@@ -106,7 +106,9 @@ class BlockStyleTest extends TestCase
     {
         $this->assertSame('block-fade', BlockStyle::safeAnimationName('fade'));
         $this->assertSame('block-slide-up', BlockStyle::safeAnimationName('slide-up'));
+        $this->assertSame('block-slide-down', BlockStyle::safeAnimationName('slide-down'));
         $this->assertSame('block-zoom', BlockStyle::safeAnimationName('zoom'));
+        $this->assertSame('block-scale-in', BlockStyle::safeAnimationName('scale-in'));
     }
 
     public function test_safe_animation_rejects_unknown(): void
@@ -158,6 +160,29 @@ class BlockStyleTest extends TestCase
         $this->assertStringContainsString('animation-name:block-fade', $style);
         $this->assertStringContainsString('animation-duration:600ms', $style);
         $this->assertStringContainsString('animation-delay:100ms', $style);
+        $this->assertStringContainsString('animation-timing-function:ease-out', $style);
+    }
+
+    public function test_build_style_with_custom_easing(): void
+    {
+        $style = BlockStyle::buildStyle([], ['entrance' => 'slide-up', 'easing' => 'ease-in-out']);
+        $this->assertStringContainsString('animation-timing-function:ease-in-out', $style);
+    }
+
+    public function test_build_style_rejects_unsafe_easing(): void
+    {
+        $style = BlockStyle::buildStyle([], ['entrance' => 'fade', 'easing' => 'expression(alert(1))']);
+        $this->assertStringContainsString('animation-timing-function:ease-out', $style);
+        $this->assertStringNotContainsString('expression', $style);
+    }
+
+    public function test_build_style_with_new_animations(): void
+    {
+        $style = BlockStyle::buildStyle([], ['entrance' => 'slide-down']);
+        $this->assertStringContainsString('animation-name:block-slide-down', $style);
+
+        $style = BlockStyle::buildStyle([], ['entrance' => 'scale-in']);
+        $this->assertStringContainsString('animation-name:block-scale-in', $style);
     }
 
     public function test_build_style_clamps_duration(): void

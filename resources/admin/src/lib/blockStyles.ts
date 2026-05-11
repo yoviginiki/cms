@@ -78,10 +78,14 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
 const ANIMATION_NAMES: Record<string, string> = {
   fade: 'block-fade',
   'slide-up': 'block-slide-up',
+  'slide-down': 'block-slide-down',
   'slide-left': 'block-slide-left',
   'slide-right': 'block-slide-right',
   zoom: 'block-zoom',
+  'scale-in': 'block-scale-in',
 };
+
+const VALID_EASINGS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
 
 /**
  * Build animation inline style from block.animation.
@@ -90,14 +94,16 @@ export function buildAnimationStyle(animation?: AnimationProps): React.CSSProper
   if (!animation?.entrance || animation.entrance === 'none') return {};
   const name = ANIMATION_NAMES[animation.entrance];
   if (!name) return {};
-  const rawDur = Number(animation.duration ?? 400);
+  const rawDur = Number(animation.duration ?? 600);
   const rawDel = Number(animation.delay ?? 0);
-  const dur = Number.isFinite(rawDur) ? Math.max(50, Math.min(3000, rawDur)) : 400;
+  const dur = Number.isFinite(rawDur) ? Math.max(50, Math.min(3000, rawDur)) : 600;
   const del = Number.isFinite(rawDel) ? Math.max(0, Math.min(5000, rawDel)) : 0;
+  const easing = VALID_EASINGS.includes(animation.easing || '') ? animation.easing! : 'ease-out';
   return {
     animationName: name,
     animationDuration: `${dur}ms`,
     animationDelay: `${del}ms`,
+    animationTimingFunction: easing,
     animationFillMode: 'both' as const,
   };
 }

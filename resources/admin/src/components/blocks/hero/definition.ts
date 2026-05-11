@@ -83,6 +83,16 @@ export const heroDefinition: BlockDefinition = {
     ctaBorderWidth: '',         // safe CSS dimension e.g. 2px
     ctaBorderRadius: '',        // safe CSS dimension e.g. 0.375rem
 
+    // Content box / text readability layer (optional)
+    contentBoxEnabled: false,
+    contentBoxBgColor: '#ffffff',
+    contentBoxOpacity: 80,           // 0-100
+    contentBoxBorderRadius: '0.75rem',
+    contentBoxBorderColor: '',
+    contentBoxBorderWidth: '',
+    contentBoxShadow: '',            // none | sm | md | lg
+    contentBoxPadding: '2rem',
+
     // Responsive overrides (optional — tablet/mobile inherit from desktop base)
     // responsive: { tablet: {}, mobile: {} }
 

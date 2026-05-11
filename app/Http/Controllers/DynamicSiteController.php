@@ -104,7 +104,7 @@ class DynamicSiteController extends Controller
     private function renderContent(Page|Post $content, Site $site): Response
     {
         $site->load('theme');
-        $html = $this->buildService->build($content, $site->theme, $site);
+        $html = $this->buildService->build($content, $site->theme, $site, isPreview: true);
 
         // Resolve grid for toolbar info
         $grid = $this->gridResolver->resolve($content, $site);

@@ -74,6 +74,16 @@ class HeroBlockDefinition implements BlockDefinition
             'responsive.mobile.sectionHeight'   => ['sometimes', 'in:auto,sm,md,lg,fullscreen'],
             'responsive.mobile.contentMaxWidth' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
 
+            // Content box / text readability layer (all optional — backward compatible)
+            'contentBoxEnabled'      => ['sometimes', 'boolean'],
+            'contentBoxBgColor'      => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'contentBoxOpacity'      => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'contentBoxBorderRadius' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'contentBoxBorderColor'  => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'contentBoxBorderWidth'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
+            'contentBoxShadow'       => ['sometimes', 'nullable', 'in:,sm,md,lg'],
+            'contentBoxPadding'      => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+
             // Accessibility fields
             'alt'                => ['sometimes', 'nullable', 'string', 'max:255'],
         ];

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
-import { TextField, SelectField, ToggleField, ColorField, ResponsiveField } from '@/components/editor/fields';
+import { TextField, SelectField, ToggleField, ColorField } from '@/components/editor/fields';
+import { ResponsiveField } from '@/components/editor/fields/ResponsiveField';
 import type { Breakpoint } from '@/lib/responsiveValues';
 import { getResponsiveValue, setResponsiveValue, clearResponsiveValue } from '@/lib/responsiveValues';
 
@@ -246,6 +247,70 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         placeholder="e.g. 0.375rem, 8px"
         helperText="Leave empty for default"
       />
+
+      {/* ── Content Box / Text Readability ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">Content Box</div>
+      <ToggleField
+        label="Enable Content Box"
+        value={data.contentBoxEnabled === true}
+        onChange={(v) => update('contentBoxEnabled', v)}
+      />
+      {data.contentBoxEnabled === true && (
+        <>
+          <ColorField
+            label="Background Color"
+            value={(data.contentBoxBgColor as string) || '#ffffff'}
+            onChange={(v) => update('contentBoxBgColor', v)}
+          />
+          <div>
+            <label className="block text-[11px] font-medium text-base-content/50 mb-1">
+              Opacity: {Number(data.contentBoxOpacity ?? 80)}%
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Number(data.contentBoxOpacity ?? 80)}
+              onChange={(e) => update('contentBoxOpacity', Number(e.target.value))}
+              className="range range-xs range-primary w-full"
+            />
+          </div>
+          <TextField
+            label="Border Radius"
+            value={(data.contentBoxBorderRadius as string) || '0.75rem'}
+            onChange={(v) => update('contentBoxBorderRadius', v)}
+            placeholder="e.g. 0.75rem, 8px"
+          />
+          <ColorField
+            label="Border Color"
+            value={(data.contentBoxBorderColor as string) || ''}
+            onChange={(v) => update('contentBoxBorderColor', v)}
+          />
+          <TextField
+            label="Border Width"
+            value={(data.contentBoxBorderWidth as string) || ''}
+            onChange={(v) => update('contentBoxBorderWidth', v)}
+            placeholder="e.g. 1px"
+          />
+          <SelectField
+            label="Shadow"
+            value={(data.contentBoxShadow as string) || ''}
+            onChange={(v) => update('contentBoxShadow', v)}
+            options={[
+              { value: '', label: 'None' },
+              { value: 'sm', label: 'Small' },
+              { value: 'md', label: 'Medium' },
+              { value: 'lg', label: 'Large' },
+            ]}
+          />
+          <TextField
+            label="Padding"
+            value={(data.contentBoxPadding as string) || '2rem'}
+            onChange={(v) => update('contentBoxPadding', v)}
+            placeholder="e.g. 2rem, 32px"
+          />
+        </>
+      )}
 
       {/* ── Accessibility Fields ── */}
       <div className="divider text-[10px] text-base-content/40 my-1">Accessibility</div>

@@ -75,9 +75,10 @@ export interface ResponsiveOverrides {
 
 // ─── Animation ───
 export interface AnimationProps {
-  entrance?: 'none' | 'fade' | 'slide-up' | 'slide-left' | 'slide-right' | 'zoom';
+  entrance?: 'none' | 'fade' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'zoom' | 'scale-in';
   duration?: number;
   delay?: number;
+  easing?: 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
   trigger?: 'on-load' | 'on-scroll';
   hoverEffect?: 'none' | 'opacity' | 'lift' | 'glow';
 }

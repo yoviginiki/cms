@@ -65,14 +65,18 @@ export function InlineMediaReplace({
   const hasValue = !!value.trim();
 
   if (overlay) {
-    // Overlay mode: renders controls that float over parent content
+    // Overlay mode: small toolbar in the bottom-right corner.
+    // Uses pointer-events-none on the positioning wrapper so clicks
+    // pass through to content (title/subtitle) beneath.
     return (
       <>
         <div
-          className={`absolute inset-0 z-20 flex items-center justify-center opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity ${className}`}
-          onMouseDown={(e) => e.stopPropagation()}
+          className={`absolute bottom-2 right-2 z-20 pointer-events-none ${className}`}
         >
-          <div className="flex gap-1.5 bg-base-100/90 backdrop-blur-sm rounded-lg p-1.5 shadow-lg border border-base-300/30">
+          <div
+            className="flex gap-1 bg-base-100/90 backdrop-blur-sm rounded-lg p-1 shadow-lg border border-base-300/30 pointer-events-auto"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               onClick={handleOpen}

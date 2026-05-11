@@ -472,4 +472,51 @@ class HeroValidationTest extends TestCase
         ]);
         $this->assertTrue($v->passes(), 'Old Hero data without responsive object must pass');
     }
+
+    // ── content box validation ──────────────────────────────────
+
+    public function test_valid_content_box_fields_pass(): void
+    {
+        $v = $this->validate([
+            'contentBoxEnabled' => true,
+            'contentBoxBgColor' => '#ffffff',
+            'contentBoxOpacity' => 80,
+            'contentBoxBorderRadius' => '0.75rem',
+            'contentBoxBorderColor' => '#000000',
+            'contentBoxBorderWidth' => '1px',
+            'contentBoxShadow' => 'md',
+            'contentBoxPadding' => '2rem',
+        ]);
+        $this->assertTrue($v->passes());
+    }
+
+    public function test_content_box_opacity_out_of_range_fails(): void
+    {
+        $v = $this->validate(['contentBoxOpacity' => 150]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_content_box_unsafe_color_fails(): void
+    {
+        $v = $this->validate(['contentBoxBgColor' => '<script>']);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_content_box_unsafe_dimension_fails(): void
+    {
+        $v = $this->validate(['contentBoxPadding' => 'expression(alert(1))']);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_content_box_invalid_shadow_fails(): void
+    {
+        $v = $this->validate(['contentBoxShadow' => 'xl']);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_old_hero_data_without_content_box_passes(): void
+    {
+        $v = $this->validate([]);
+        $this->assertTrue($v->passes(), 'Old Hero data without contentBox fields must pass');
+    }
 }

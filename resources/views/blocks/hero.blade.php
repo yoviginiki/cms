@@ -1,4 +1,5 @@
 @use('App\Support\Blocks\BlockStyle')
+@use('App\Domain\Publishing\Services\AssetPublisher')
 @php
     // Sanitize CSS values to prevent style injection
     $cssVal = fn($v) => preg_replace('/[^a-zA-Z0-9#(),.\s%\/\-]/', '', (string) $v);
@@ -72,6 +73,10 @@
             $style .= "background:{$gradient};";
         }
     } elseif ($bgType === 'image' && !empty($data['bg_image'])) {
+        // Use bg_image URL as-is. For published output, BuildPageService::rewriteHtml()
+        // converts API serve URLs to static asset paths. For preview, the API URL works
+        // because the user is authenticated. AssetPublisher::resolveUrl() is NOT called here
+        // because it generates static paths that may not be accessible on the admin domain.
         $imgUrl = $cssUrl($data['bg_image']);
         $size = in_array($data['bg_image_size'] ?? 'cover', ['cover', 'contain', 'auto']) ? ($data['bg_image_size'] ?? 'cover') : 'cover';
         $pos = $cssVal($data['bg_image_position'] ?? 'center center');
@@ -165,7 +170,29 @@
     <div style="position:absolute;inset:0;background-color:{{ $overlayColor }};opacity:{{ $overlayOpacity }};pointer-events:none;z-index:0;"></div>
     @endif
     {{-- Media loading: bg_type=image uses CSS background; loading/fetchpriority attrs reserved for future <picture> element --}}
-    <div class="hero-content" style="position:relative;z-index:1;text-align:{{ $textAlign }};max-width:{{ $maxWidth }};padding:2rem;">
+    @php
+        // ── Content box / text readability layer (optional) ──
+        $cbEnabled = !empty($data['contentBoxEnabled']);
+        $cbBgColor = $cbEnabled ? $cssVal($data['contentBoxBgColor'] ?? '#ffffff') : '';
+        $cbOpacity = $cbEnabled ? max(0, min(100, (int) ($data['contentBoxOpacity'] ?? 80))) : 0;
+        $cbBorderRadius = $cbEnabled ? ($cssDim($data['contentBoxBorderRadius'] ?? '0.75rem') ?: '0.75rem') : '';
+        $cbBorderColor = $cbEnabled ? $cssVal($data['contentBoxBorderColor'] ?? '') : '';
+        $cbBorderWidth = $cbEnabled ? $cssDim($data['contentBoxBorderWidth'] ?? '') : '';
+        $cbShadowMap = ['sm' => '0 1px 2px rgba(0,0,0,0.04)', 'md' => '0 4px 12px rgba(0,0,0,0.06)', 'lg' => '0 12px 32px rgba(0,0,0,0.10)'];
+        $cbShadow = $cbEnabled ? ($cbShadowMap[$data['contentBoxShadow'] ?? ''] ?? '') : '';
+        $cbPadding = $cbEnabled ? ($cssDim($data['contentBoxPadding'] ?? '2rem') ?: '2rem') : '2rem';
+
+        $contentStyle = "position:relative;z-index:1;text-align:{$textAlign};max-width:{$maxWidth};padding:{$cbPadding};";
+        if ($cbEnabled) {
+            if ($cbBorderRadius) $contentStyle .= "border-radius:{$cbBorderRadius};";
+            if ($cbBorderWidth && $cbBorderColor) $contentStyle .= "border:{$cbBorderWidth} solid {$cbBorderColor};";
+            if ($cbShadow) $contentStyle .= "box-shadow:{$cbShadow};";
+        }
+    @endphp
+    <div class="hero-content" style="{{ $contentStyle }}">
+        @if($cbEnabled && $cbBgColor)
+        <div style="position:absolute;inset:0;background-color:{{ $cbBgColor }};opacity:{{ $cbOpacity / 100 }};border-radius:{{ $cbBorderRadius }};pointer-events:none;z-index:0;"></div>
+        @endif
         <{{ $headlineTag }} style="font-size:{{ $headlineSize }};font-weight:{{ $headlineWeight }};margin-bottom:1rem;@if($headlineColor)color:{{ $headlineColor }};@endif">{{ $data['title'] ?? '' }}</{{ $headlineTag }}>
         @if(!empty($data['subtitle']))
             <p style="font-size:{{ $subSize }};opacity:0.9;margin-bottom:2rem;">{{ $data['subtitle'] }}</p>

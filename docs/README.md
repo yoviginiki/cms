@@ -47,6 +47,7 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 - [Inline Editing](INLINE-EDITING.md) — general inline editing system: InlineTextField component, InlineEditingConfig contract, safety rules, adoption guide
 - [Inline Editing Adoption Plan](INLINE-EDITING-ADOPTION-PLAN.md) — block-by-block adoption schedule for inline editing with fields, risks, and phased rollout
 - [Responsive Overrides](RESPONSIVE-OVERRIDES.md) — responsive breakpoint override system: data model, inheritance, Hero pilot, published CSS scoping
+- [Animations & Interactions](ANIMATIONS-INTERACTIONS.md) — CSS entrance animations: supported types, timing, easing, reduced motion, security
 
 ## Recovery & Quality
 

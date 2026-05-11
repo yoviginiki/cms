@@ -17,9 +17,11 @@ export function AnimationPanel({ value, onChange }: Props) {
           <option value="none">None</option>
           <option value="fade">Fade in</option>
           <option value="slide-up">Slide up</option>
+          <option value="slide-down">Slide down</option>
           <option value="slide-left">Slide from left</option>
           <option value="slide-right">Slide from right</option>
           <option value="zoom">Zoom in</option>
+          <option value="scale-in">Scale in</option>
         </select>
       </div>
 
@@ -28,7 +30,7 @@ export function AnimationPanel({ value, onChange }: Props) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] text-base-content/40">Duration (ms)</label>
-              <input type="number" min={100} max={2000} step={50} value={value.duration ?? 400}
+              <input type="number" min={100} max={2000} step={50} value={value.duration ?? 600}
                 onChange={e => update('duration', Number(e.target.value))}
                 className="input input-bordered input-xs w-full text-[11px]" />
             </div>
@@ -40,26 +42,26 @@ export function AnimationPanel({ value, onChange }: Props) {
             </div>
           </div>
           <div>
-            <label className="text-[10px] text-base-content/40">Trigger</label>
-            <select value={value.trigger || 'on-scroll'} onChange={e => update('trigger', e.target.value)}
+            <label className="text-[10px] text-base-content/40">Easing</label>
+            <select value={value.easing || 'ease-out'} onChange={e => update('easing', e.target.value)}
               className="select select-bordered select-xs w-full text-[11px]">
-              <option value="on-load">On page load</option>
-              <option value="on-scroll">On scroll into view</option>
+              <option value="ease-out">Ease out (default)</option>
+              <option value="ease-in">Ease in</option>
+              <option value="ease-in-out">Ease in-out</option>
+              <option value="ease">Ease</option>
+              <option value="linear">Linear</option>
             </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-base-content/40">Trigger</label>
+            <select value="on-load" disabled
+              className="select select-bordered select-xs w-full text-[11px] opacity-50">
+              <option value="on-load">On page load</option>
+            </select>
+            <p className="text-[9px] text-base-content/25 mt-0.5">Scroll-triggered animations coming soon</p>
           </div>
         </>
       )}
-
-      <div>
-        <label className="text-[10px] text-base-content/40">Hover effect</label>
-        <select value={value.hoverEffect || 'none'} onChange={e => update('hoverEffect', e.target.value === 'none' ? undefined : e.target.value)}
-          className="select select-bordered select-xs w-full text-[11px]">
-          <option value="none">None</option>
-          <option value="opacity">Opacity fade</option>
-          <option value="lift">Lift (shadow + translate)</option>
-          <option value="glow">Glow</option>
-        </select>
-      </div>
     </div>
   );
 }

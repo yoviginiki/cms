@@ -253,7 +253,7 @@ effects:
     fallback:      'instant' (show immediately without animation)
 ```
 
-**Current state**: Only entrance animation (5 types) with duration/delay works. On-scroll trigger, hover, parallax, stagger, reveal, transform are all MISSING or DEAD_CONTROL.
+**Current state**: 8 entrance animations (fade, slide-up/down/left/right, zoom, scale-in) with duration, delay, and easing. On-load trigger works in editor preview and published output. On-scroll trigger, hover effects, parallax, stagger, reveal, and transform are MISSING or DEAD_CONTROL.
 
 ### F. Layers
 
@@ -466,7 +466,7 @@ The Hero is the pilot block for the Ultimate Base Block model. This section defi
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
-| entrance | enum | `'none'` | `none` \| `fade` \| `slide-up` \| `slide-left` \| `slide-right` \| `zoom` \| `reveal` |
+| entrance | enum | `'none'` | `none` \| `fade` \| `slide-up` \| `slide-down` \| `slide-left` \| `slide-right` \| `zoom` \| `scale-in` \| `reveal` (future) |
 | trigger | enum | `'on-load'` | `on-load` \| `on-scroll` |
 | duration | integer | `400` | ms, clamped 50–3000 |
 | delay | integer | `0` | ms, clamped 0–5000 |
@@ -909,18 +909,24 @@ Target: Blocks have per-breakpoint property overrides with visual indicators.
 - [ ] Extend to more Hero properties (typography, padding, background)
 - [ ] Adopt for other blocks
 
-### Phase 5: Animations and interactions
+### Phase 5: Animations and interactions ✅ (basic engine)
 
 Target: Reliable entrance animations, scroll-triggered effects, reduced motion.
 
+- [x] 8 entrance animations: fade, slide-up/down/left/right, zoom, scale-in
+- [x] Easing control: linear, ease, ease-in, ease-out, ease-in-out
+- [x] Duration (50–3000ms) and delay (0–5000ms) with clamping
+- [x] AnimationPanel UI for all blocks (via BlockSettings)
+- [x] Published CSS keyframes in resources/css/app.css
+- [x] Admin CSS keyframes in resources/admin/src/index.css
+- [x] `prefers-reduced-motion` respected in both admin and published CSS
+- [x] Allowlisted animation names and easing in TS and PHP
+- [x] Documentation: docs/ANIMATIONS-INTERACTIONS.md
 - [ ] Implement Intersection Observer for `on-scroll` trigger
-- [ ] Add easing control (ease, ease-in, ease-out, ease-in-out, linear)
-- [ ] Implement hover effects CSS (opacity, lift, glow, scale)
+- [ ] Implement hover effects CSS (opacity, lift, glow)
 - [ ] Add `reveal` entrance type (clip-path reveal)
 - [ ] Add stagger option for container blocks with children
-- [ ] Parallax implementation (transform-based, not background-attachment)
-- [ ] Performance: `will-change`, `contain`, avoid layout thrash
-- [ ] `prefers-reduced-motion` respected everywhere
+- [ ] Parallax implementation (transform-based)
 
 ### Phase 6: Design tokens
 

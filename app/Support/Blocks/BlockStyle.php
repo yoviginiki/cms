@@ -66,10 +66,14 @@ class BlockStyle
     private const ANIMATION_NAMES = [
         'fade' => 'block-fade',
         'slide-up' => 'block-slide-up',
+        'slide-down' => 'block-slide-down',
         'slide-left' => 'block-slide-left',
         'slide-right' => 'block-slide-right',
         'zoom' => 'block-zoom',
+        'scale-in' => 'block-scale-in',
     ];
+
+    private const VALID_EASINGS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
 
     public static function safeAnimationName(mixed $v): string
     {
@@ -135,11 +139,13 @@ class BlockStyle
         $entrance = $blockAnimation['entrance'] ?? 'none';
         $animName = self::safeAnimationName($entrance);
         if ($animName) {
-            $dur = max(50, min(3000, (int) ($blockAnimation['duration'] ?? 400)));
+            $dur = max(50, min(3000, (int) ($blockAnimation['duration'] ?? 600)));
             $del = max(0, min(5000, (int) ($blockAnimation['delay'] ?? 0)));
+            $easing = in_array($blockAnimation['easing'] ?? '', self::VALID_EASINGS) ? $blockAnimation['easing'] : 'ease-out';
             $parts[] = "animation-name:{$animName}";
             $parts[] = "animation-duration:{$dur}ms";
             $parts[] = "animation-delay:{$del}ms";
+            $parts[] = "animation-timing-function:{$easing}";
             $parts[] = "animation-fill-mode:both";
         }
 

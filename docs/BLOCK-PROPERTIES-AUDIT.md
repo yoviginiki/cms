@@ -49,9 +49,9 @@ BlockSettings.tsx renders expandable property panels for every selected block:
 
 **Result**: All global property panel settings are saved to the database but completely ignored in published output.
 
-#### 3. Animation System Has No CSS
+#### 3. Animation System — FIXED
 
-No CSS `@keyframes` are defined for: `fade`, `slide-up`, `slide-left`, `slide-right`, `zoom`. BlockStyleResolver generates `animation-duration` and `animation-delay` CSS but never sets `animation-name`. Even if the pipeline was connected, animations would not work.
+CSS `@keyframes` are defined for 8 entrance animations in both admin (`index.css`) and published (`app.css`) CSS. `BlockStyle::buildStyle()` generates `animation-name`, `animation-duration`, `animation-delay`, `animation-timing-function`, and `animation-fill-mode`. `buildAnimationStyle()` in TypeScript does the same for editor preview. Animations now work in both admin and published output.
 
 #### 4. Hover Effects Not Implemented
 
@@ -96,10 +96,11 @@ AnimationPanel exposes opacity/lift/glow hover effects, but no CSS or JavaScript
 | Align items | LayoutPanel | style.layout.alignItems | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
 | Z-index | LayoutPanel | style.layout.zIndex | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
 | **Animation** | | | | | | |
-| Entrance (fade/slide/zoom) | AnimationPanel | animation.entrance | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Duration | AnimationPanel | animation.duration | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Delay | AnimationPanel | animation.delay | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Trigger | AnimationPanel | animation.trigger | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
+| Entrance (8 types) | AnimationPanel | animation.entrance | SortableBlock wrapper | BlockStyle::buildStyle | Allowlisted | WORKING |
+| Duration | AnimationPanel | animation.duration | SortableBlock wrapper | BlockStyle::buildStyle | Clamped 50-3000ms | WORKING |
+| Delay | AnimationPanel | animation.delay | SortableBlock wrapper | BlockStyle::buildStyle | Clamped 0-5000ms | WORKING |
+| Easing | AnimationPanel | animation.easing | SortableBlock wrapper | BlockStyle::buildStyle | Allowlisted | WORKING |
+| Trigger | AnimationPanel | animation.trigger | on-load only | on-load only | N/A | PARTIAL (on-scroll future) |
 | Hover effect | AnimationPanel | animation.hoverEffect | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
 | **Responsive** | | | | | | |
 | Hide on device | ResponsivePanel | responsive.hideOn | SortableBlock badges | hero.blade.php | None | WORKING (Hero) |

@@ -205,6 +205,20 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   // This must be true whenever ANY custom color is set — not just when hasBg.
   const controlsOwnColors = hasBg || !!headlineColor || !!ctaBgColor || !!ctaTextColor || !!ctaBorderColor;
 
+  // ── Content box / text readability layer ──
+  const contentBoxEnabled = data.contentBoxEnabled === true;
+  const contentBoxBgColor = safeColor((data.contentBoxBgColor as string) || '') || '#ffffff';
+  const contentBoxOpacity = Math.max(0, Math.min(100, Number(data.contentBoxOpacity ?? 80)));
+  const contentBoxBorderRadius = safeDim((data.contentBoxBorderRadius as string) || '') || '0.75rem';
+  const contentBoxBorderColor = safeColor((data.contentBoxBorderColor as string) || '');
+  const contentBoxBorderWidth = safeDim((data.contentBoxBorderWidth as string) || '');
+  const contentBoxShadow = (data.contentBoxShadow as string) || '';
+  const contentBoxPadding = safeDim((data.contentBoxPadding as string) || '') || '2rem';
+  const shadowMap: Record<string, string> = {
+    sm: '0 1px 2px rgba(0,0,0,0.04)',
+    md: '0 4px 12px rgba(0,0,0,0.06)',
+    lg: '0 12px 32px rgba(0,0,0,0.10)',
+  };
   return (
     <div
       className={`relative rounded-lg overflow-hidden ${controlsOwnColors ? 'block-controls-own-colors' : ''}`}
@@ -231,9 +245,33 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
       )}
 
       <div
-        className="relative z-10 px-6 py-8 w-full"
-        style={{ textAlign: textAlignment as React.CSSProperties['textAlign'], maxWidth: contentMaxWidth }}
+        className="relative z-10 w-full"
+        style={{
+          textAlign: textAlignment as React.CSSProperties['textAlign'],
+          maxWidth: contentMaxWidth,
+          padding: contentBoxEnabled ? contentBoxPadding : '2rem 1.5rem',
+          borderRadius: contentBoxEnabled ? contentBoxBorderRadius : undefined,
+          ...(contentBoxEnabled && contentBoxBorderWidth && contentBoxBorderColor ? {
+            border: `${contentBoxBorderWidth} solid ${contentBoxBorderColor}`,
+          } : {}),
+          ...(contentBoxEnabled && shadowMap[contentBoxShadow] ? { boxShadow: shadowMap[contentBoxShadow] } : {}),
+          position: 'relative',
+        }}
       >
+        {/* Content box background layer — separate so opacity doesn't affect text */}
+        {contentBoxEnabled && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: contentBoxBgColor,
+              opacity: contentBoxOpacity / 100,
+              borderRadius: contentBoxBorderRadius,
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+        )}
         <InlineTextField
           as={headingAs}
           value={title}
