@@ -203,7 +203,10 @@ class BuildPageService
 
         // Rewrite all /api/v1/.../assets/.../serve URLs to static public paths
         // This ensures images and files work on the static site without the backend running
-        $html = AssetPublisher::rewriteHtml($html);
+        // Skip during preview — API serve URLs work with auth cookie on the admin domain
+        if (!$this->isPreview) {
+            $html = AssetPublisher::rewriteHtml($html);
+        }
 
         return $this->minifier->minify($html);
     }
