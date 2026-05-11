@@ -130,12 +130,19 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
     : 'inherit';
 
   // ── CTA button style computation ──
-  const ctaSizeMap: Record<string, string> = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-5 py-2.5 text-sm',
-    lg: 'px-7 py-3.5 text-base',
+  // Padding and font-size aligned with Blade (hero.blade.php) for parity
+  const ctaSizePadding: Record<string, string> = {
+    sm: '0.375rem 1rem',
+    md: '0.75rem 2rem',
+    lg: '1rem 2.5rem',
   };
-  const sizeClass = ctaSizeMap[ctaSize] || ctaSizeMap.md;
+  const ctaSizeFontSize: Record<string, string> = {
+    sm: '0.75rem',
+    md: '0.875rem',
+    lg: '1rem',
+  };
+  const ctaPadding = ctaSizePadding[ctaSize] || ctaSizePadding.md;
+  const ctaFontSize = ctaSizeFontSize[ctaSize] || ctaSizeFontSize.md;
 
   // ── Fix #4: CTA defaults aligned with Blade ──
   const getDefaultCtaStyle = (): React.CSSProperties => {
@@ -249,7 +256,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
         style={{
           textAlign: textAlignment as React.CSSProperties['textAlign'],
           maxWidth: contentMaxWidth,
-          padding: contentBoxEnabled ? contentBoxPadding : '2rem 1.5rem',
+          padding: contentBoxEnabled ? contentBoxPadding : '2rem',
           borderRadius: contentBoxEnabled ? contentBoxBorderRadius : undefined,
           ...(contentBoxEnabled && contentBoxBorderWidth && contentBoxBorderColor ? {
             border: `${contentBoxBorderWidth} solid ${contentBoxBorderColor}`,
@@ -277,11 +284,12 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
           value={title}
           placeholder="Add hero title"
           onChange={(v) => update('title', v)}
-          className={`mb-2 block ${hasBg ? 'drop-shadow-sm' : ''} ${!headlineColor && !adaptiveTextColor ? 'text-base-content' : ''}`}
+          className={`block ${hasBg ? 'drop-shadow-sm' : ''} ${!headlineColor && !adaptiveTextColor ? 'text-base-content' : ''}`}
           style={{
             fontSize: headlineSize,
             fontWeight: headlineWeight,
             color: resolvedHeadlineColor || undefined,
+            marginBottom: '1rem',
           }}
           showCharacterCount
           recommendedLength={80}
@@ -291,10 +299,11 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
           value={subtitle}
           placeholder="Add subtitle"
           onChange={(v) => update('subtitle', v)}
-          className={`mb-5 block ${hasBg ? 'drop-shadow-sm' : ''} ${!adaptiveTextColor && !hasBg ? 'text-base-content/70' : ''}`}
+          className={`block ${hasBg ? 'drop-shadow-sm' : ''} ${!adaptiveTextColor && !hasBg ? 'text-base-content/70' : ''}`}
           style={{
             fontSize: subheadlineSize,
             color: resolvedSubtitleColor || undefined,
+            marginBottom: '2rem',
           }}
           showCharacterCount
           recommendedLength={180}
@@ -309,11 +318,13 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
               value={ctaText}
               placeholder="Add button text"
               onChange={(v) => update('ctaText', v)}
-              className={`inline-block font-semibold ${sizeClass} ${!ctaBorderRadius ? 'rounded-lg' : ''} ${hasBg && ctaVariant !== 'link' ? 'backdrop-blur-sm' : ''} ${!ctaIsPublishable ? 'opacity-60' : ''} ${ctaIsPartial && ctaVariant !== 'link' ? 'border-dashed' : ''} ${!ctaText && !ctaUrl ? 'opacity-30' : ''}`}
+              className={`inline-block font-semibold ${!ctaBorderRadius ? 'rounded-lg' : ''} ${hasBg && ctaVariant !== 'link' ? 'backdrop-blur-sm' : ''} ${!ctaIsPublishable ? 'opacity-60' : ''} ${ctaIsPartial && ctaVariant !== 'link' ? 'border-dashed' : ''} ${!ctaText && !ctaUrl ? 'opacity-30' : ''}`}
               showCharacterCount
               recommendedLength={30}
               style={{
                 ...ctaStyle,
+                padding: ctaVariant === 'link' ? '0' : ctaPadding,
+                fontSize: ctaFontSize,
                 ...((ctaIsPartial && ctaVariant !== 'link' && ctaVariant !== 'ghost') ? { borderStyle: 'dashed', borderWidth: ctaBorderWidth || '2px', borderColor: ctaBorderColor || (hasBg ? 'rgba(255,255,255,0.4)' : '#999') } : {}),
               }}
             />

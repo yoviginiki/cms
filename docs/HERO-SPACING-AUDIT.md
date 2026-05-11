@@ -1,7 +1,7 @@
 # Hero Spacing Audit
 
-> **Date**: 2026-05-10
-> **Status**: Audit complete. No code changes made.
+> **Date**: 2026-05-11
+> **Status**: Audit complete. P0 Preview/Blade parity mismatches fixed.
 
 ---
 
@@ -131,16 +131,20 @@ No eyebrow field exists in the Hero block. **N/A**.
 
 ---
 
-## 5. Preview vs Blade Mismatches
+## 5. Preview vs Blade Mismatches — P0 FIXED
 
-| Element | Preview | Blade | Severity |
-|---------|---------|-------|----------|
-| Content padding (no box) | `2rem 1.5rem` | `2rem` | Low |
-| Title margin-bottom | `mb-2` (0.5rem) | `1rem` | **Medium** |
-| Subtitle margin-bottom | `mb-5` (1.25rem) | `2rem` | **Medium** |
-| CTA sm padding | `px-3 py-1.5` | `0.375rem 1rem` | Medium |
-| CTA md padding | `px-5 py-2.5` | `0.75rem 2rem` | Medium |
-| CTA lg padding | `px-7 py-3.5` | `1rem 2.5rem` | Medium |
+All P0 mismatches have been aligned. Preview now uses the same values as Blade:
+
+| Element | Previous Preview | Blade | Aligned To | Status |
+|---------|-----------------|-------|-----------|--------|
+| Content padding (no box) | `2rem 1.5rem` | `2rem` | `2rem` | **FIXED** |
+| Title margin-bottom | `mb-2` (0.5rem) | `1rem` | `1rem` (inline style) | **FIXED** |
+| Subtitle margin-bottom | `mb-5` (1.25rem) | `2rem` | `2rem` (inline style) | **FIXED** |
+| CTA sm padding | `px-3 py-1.5` | `0.375rem 1rem` | `0.375rem 1rem` (inline) | **FIXED** |
+| CTA md padding | `px-5 py-2.5` | `0.75rem 2rem` | `0.75rem 2rem` (inline) | **FIXED** |
+| CTA lg padding | `px-7 py-3.5` | `1rem 2.5rem` | `1rem 2.5rem` (inline) | **FIXED** |
+
+Changes made in `Preview.tsx` only. No Blade, schema, or validation changes.
 
 ---
 
@@ -156,10 +160,10 @@ No eyebrow field exists in the Hero block. **N/A**.
 
 | Location | Value | What it controls |
 |----------|-------|-----------------|
-| Preview.tsx | `'2rem 1.5rem'` | Content area default padding (no content box) |
-| Preview.tsx | `mb-2` | Title bottom margin |
-| Preview.tsx | `mb-5` | Subtitle bottom margin |
-| Preview.tsx | `px-3 py-1.5` / `px-5 py-2.5` / `px-7 py-3.5` | CTA button padding by size |
+| Preview.tsx | `'2rem'` | Content area default padding (no content box) — aligned with Blade |
+| Preview.tsx | `marginBottom: '1rem'` | Title bottom margin — aligned with Blade |
+| Preview.tsx | `marginBottom: '2rem'` | Subtitle bottom margin — aligned with Blade |
+| Preview.tsx | `0.375rem 1rem` / `0.75rem 2rem` / `1rem 2.5rem` | CTA button padding by size — aligned with Blade |
 | hero.blade.php | `padding:2rem` | Content area default padding |
 | hero.blade.php | `margin-bottom:1rem` | Title bottom margin |
 | hero.blade.php | `margin-bottom:2rem` | Subtitle bottom margin |
