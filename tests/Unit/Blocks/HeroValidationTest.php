@@ -519,4 +519,81 @@ class HeroValidationTest extends TestCase
         $v = $this->validate([]);
         $this->assertTrue($v->passes(), 'Old Hero data without contentBox fields must pass');
     }
+
+    // ── section border & shadow validation ──────────────────────
+
+    public function test_valid_section_border_passes(): void
+    {
+        $v = $this->validate([
+            'sectionBorderWidth' => '2px',
+            'sectionBorderColor' => '#333333',
+            'sectionBorderStyle' => 'solid',
+            'sectionBorderRadius' => '0.75rem',
+        ]);
+        $this->assertTrue($v->passes());
+    }
+
+    public function test_unsafe_section_border_width_fails(): void
+    {
+        $v = $this->validate(['sectionBorderWidth' => 'expression(alert(1))']);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_unsafe_section_border_color_fails(): void
+    {
+        $v = $this->validate(['sectionBorderColor' => '<script>']);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_invalid_section_border_style_fails(): void
+    {
+        $v = $this->validate(['sectionBorderStyle' => 'double']);
+        $this->assertTrue($v->fails());
+    }
+
+    #[DataProvider('validSectionShadowProvider')]
+    public function test_valid_section_shadow_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['sectionShadow' => $val])->passes());
+    }
+
+    public static function validSectionShadowProvider(): array
+    {
+        return [['subtle'], ['medium'], ['large'], ['glow'], ['']];
+    }
+
+    public function test_invalid_section_shadow_fails(): void
+    {
+        $v = $this->validate(['sectionShadow' => 'xl']);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_old_hero_data_without_section_border_passes(): void
+    {
+        $v = $this->validate([]);
+        $this->assertTrue($v->passes(), 'Old Hero data without section border/shadow must pass');
+    }
+
+    // ── bg_scroll_effect validation ─────────────────────────────
+
+    #[DataProvider('validScrollEffectProvider')]
+    public function test_valid_scroll_effect_passes(string $val): void
+    {
+        $this->assertTrue($this->validate(['bg_scroll_effect' => $val])->passes());
+    }
+
+    public static function validScrollEffectProvider(): array
+    {
+        return [['none'], ['fixed'], ['parallax'], ['zoom']];
+    }
+
+    public function test_invalid_scroll_effect_fails(): void
+    {
+        $this->assertTrue($this->validate(['bg_scroll_effect' => 'bounce'])->fails());
+    }
+
+    public function test_section_shadow_none_passes(): void
+    {
+        $this->assertTrue($this->validate(['sectionShadow' => 'none'])->passes());
+    }
 }

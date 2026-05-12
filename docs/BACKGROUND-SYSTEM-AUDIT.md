@@ -274,8 +274,8 @@ This requires new validation regex and careful sanitization. Defer to Phase 2.
 ### P1: Background UX Improvements
 
 7. **Hide dead background controls** in VisualPanel for blocks that have their own background (Hero, etc.) — or split VisualPanel into "Border & Shadow" and "Background" sections
-8. **Add more shadow presets** (subtle, glow, inner) — safe, allowlisted, no schema change
-9. **Verify border/radius/shadow parity** between Preview and Blade — currently matching
+8. ~~**Add shadow presets**~~ — **DONE**: Hero has section-level shadow presets (subtle/medium/large/glow) in Editor, Preview, and Blade
+9. ~~**Verify border/radius/shadow parity**~~ — **DONE**: Hero has section-level border (width/color/style/radius) matching between Preview and Blade
 10. **Improve overlay controls** — overlay color picker + opacity slider already in BackgroundEditor
 
 ### P2: Advanced Features

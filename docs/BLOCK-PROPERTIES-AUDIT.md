@@ -33,9 +33,9 @@ BlockSettings.tsx renders expandable property panels for every selected block:
 - `resolveClasses(style, advanced)` — generate CSS class string including customClass
 - `isHiddenOnDevice(responsive, device)` — check responsive visibility
 
-### Current Status: BROKEN PIPELINE
+### Current Status: PARTIALLY FIXED
 
-**The property pipeline is broken at two critical points:**
+**The property pipeline was initially broken. Current state after P0/P1 fixes:**
 
 #### 1. Editor Preview Does Not Apply Global Properties
 
@@ -149,8 +149,8 @@ Hero has TWO background systems:
 | bg_image_repeat | BackgroundEditor | Yes | Yes | Yes (enum) | WORKING |
 | bg_overlay_color | BackgroundEditor | Yes | Yes | Yes (regex) | WORKING |
 | bg_overlay_opacity | BackgroundEditor | Yes | Yes | Yes (0-1) | WORKING |
-| bg_scroll_effect | BackgroundEditor | Yes | Yes | Yes (enum) | WORKING |
-| bg_parallax_speed | BackgroundEditor | Yes | Yes | Yes (0.1-1) | WORKING |
+| bg_scroll_effect | BackgroundEditor | Yes (none/fixed only) | Yes (none/fixed only) | Yes (enum) | PARTIAL (parallax/zoom not rendered; fixed unreliable on iOS) |
+| bg_parallax_speed | BackgroundEditor | No (disabled) | No | Yes (0.1-1) | DEAD_CONTROL (parallax not implemented) |
 | **Global style properties (block.style)** | | | | | |
 | Spacing (padding/margin) | SpacingPanel | No | No | No | DEAD_CONTROL |
 | Background color | VisualPanel | No | No | No | DEAD_CONTROL |

@@ -215,6 +215,26 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   // This must be true whenever ANY custom color is set — not just when hasBg.
   const controlsOwnColors = hasBg || !!headlineColor || !!ctaBgColor || !!ctaTextColor || !!ctaBorderColor;
 
+  // ── Section border & shadow ──
+  const sectionBorderWidth = safeDim((data.sectionBorderWidth as string) || '');
+  const sectionBorderColor = safeColor((data.sectionBorderColor as string) || '');
+  const sectionBorderStyle = (data.sectionBorderStyle as string) || '';
+  const sectionBorderRadius = safeDim((data.sectionBorderRadius as string) || '');
+  const sectionShadow = (data.sectionShadow as string) || '';
+  const sectionShadowMap: Record<string, string> = {
+    subtle: '0 1px 3px rgba(0,0,0,0.12)',
+    medium: '0 8px 24px rgba(0,0,0,0.18)',
+    large: '0 20px 40px rgba(0,0,0,0.24)',
+    glow: '0 0 30px rgba(255,255,255,0.35)',
+  };
+  const sectionBorderStyle_: React.CSSProperties = {};
+  if (sectionBorderWidth && sectionBorderColor) {
+    const bs = ['solid', 'dashed', 'dotted'].includes(sectionBorderStyle) ? sectionBorderStyle : 'solid';
+    sectionBorderStyle_.border = `${sectionBorderWidth} ${bs} ${sectionBorderColor}`;
+  }
+  if (sectionBorderRadius) sectionBorderStyle_.borderRadius = sectionBorderRadius;
+  if (sectionShadowMap[sectionShadow]) sectionBorderStyle_.boxShadow = sectionShadowMap[sectionShadow];
+
   // ── Content box / text readability layer ──
   const contentBoxEnabled = data.contentBoxEnabled === true;
   const contentBoxBgColor = safeColor((data.contentBoxBgColor as string) || '') || '#ffffff';
@@ -231,12 +251,13 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   };
   return (
     <div
-      className={`relative rounded-lg overflow-hidden ${controlsOwnColors ? 'block-controls-own-colors' : ''}`}
+      className={`relative ${!sectionBorderRadius ? 'rounded-lg' : ''} overflow-hidden ${controlsOwnColors ? 'block-controls-own-colors' : ''}`}
       style={{
         minHeight,
         display: 'flex',
         alignItems: alignMap[verticalPosition] || 'center',
         justifyContent: 'center',
+        ...sectionBorderStyle_,
         ...bgStyle,
         ...(!hasBg ? { backgroundColor: 'oklch(var(--b3))' } : {}),
       }}

@@ -248,6 +248,50 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         helperText="Leave empty for default"
       />
 
+      {/* ── Section Border & Shadow ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">Border & Shadow</div>
+      <TextField
+        label="Border Width"
+        value={(data.sectionBorderWidth as string) || ''}
+        onChange={(v) => update('sectionBorderWidth', v)}
+        placeholder="e.g. 1px, 2px"
+        helperText="Leave empty for no border"
+      />
+      <ColorField
+        label="Border Color"
+        value={(data.sectionBorderColor as string) || ''}
+        onChange={(v) => update('sectionBorderColor', v)}
+      />
+      <SelectField
+        label="Border Style"
+        value={(data.sectionBorderStyle as string) || ''}
+        onChange={(v) => update('sectionBorderStyle', v)}
+        options={[
+          { value: '', label: 'None' },
+          { value: 'solid', label: 'Solid' },
+          { value: 'dashed', label: 'Dashed' },
+          { value: 'dotted', label: 'Dotted' },
+        ]}
+      />
+      <TextField
+        label="Border Radius"
+        value={(data.sectionBorderRadius as string) || ''}
+        onChange={(v) => update('sectionBorderRadius', v)}
+        placeholder="e.g. 0.75rem, 12px"
+      />
+      <SelectField
+        label="Shadow"
+        value={(data.sectionShadow as string) || ''}
+        onChange={(v) => update('sectionShadow', v)}
+        options={[
+          { value: '', label: 'None' },
+          { value: 'subtle', label: 'Subtle' },
+          { value: 'medium', label: 'Medium' },
+          { value: 'large', label: 'Large' },
+          { value: 'glow', label: 'Glow' },
+        ]}
+      />
+
       {/* ── Content Box / Text Readability ── */}
       <div className="divider text-[10px] text-base-content/40 my-1">Content Box</div>
       <ToggleField

@@ -89,6 +89,7 @@
         $repeat = in_array($data['bg_image_repeat'] ?? 'no-repeat', ['no-repeat', 'repeat', 'repeat-x', 'repeat-y']) ? ($data['bg_image_repeat'] ?? 'no-repeat') : 'no-repeat';
         if ($imgUrl) {
             $style .= "background-image:url('{$imgUrl}');background-size:{$size};background-position:{$pos};background-repeat:{$repeat};";
+            // Note: background-attachment:fixed is unreliable on iOS Safari (falls back to scroll)
             if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
         }
     } elseif ($useLegacyFallback) {
@@ -100,6 +101,25 @@
 
     $overlayOpacity = max(0, min(1, (float) ($data['bg_overlay_opacity'] ?? 0)));
     $overlayColor = $cssVal($data['bg_overlay_color'] ?? '#000');
+
+    // ── Section border & shadow (Hero-specific) ──
+    $secBorderWidth = $cssDim($data['sectionBorderWidth'] ?? '');
+    $secBorderColor = $cssVal($data['sectionBorderColor'] ?? '');
+    $secBorderStyle = in_array($data['sectionBorderStyle'] ?? '', ['solid', 'dashed', 'dotted']) ? $data['sectionBorderStyle'] : '';
+    $secBorderRadius = $cssDim($data['sectionBorderRadius'] ?? '');
+    $secShadowMap = [
+        'subtle' => '0 1px 3px rgba(0,0,0,0.12)',
+        'medium' => '0 8px 24px rgba(0,0,0,0.18)',
+        'large'  => '0 20px 40px rgba(0,0,0,0.24)',
+        'glow'   => '0 0 30px rgba(255,255,255,0.35)',
+    ];
+    $secShadow = $secShadowMap[$data['sectionShadow'] ?? ''] ?? '';
+    if ($secBorderWidth && $secBorderColor) {
+        $bs_ = $secBorderStyle ?: 'solid';
+        $style .= "border:{$secBorderWidth} {$bs_} {$secBorderColor};";
+    }
+    if ($secBorderRadius) $style .= "border-radius:{$secBorderRadius};";
+    if ($secShadow) $style .= "box-shadow:{$secShadow};";
 
     // ── Shared properties (via BlockStyle helper) ──
     $bs = $blockStyle ?? [];

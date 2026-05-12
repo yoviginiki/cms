@@ -74,6 +74,13 @@ class HeroBlockDefinition implements BlockDefinition
             'responsive.mobile.sectionHeight'   => ['sometimes', 'in:auto,sm,md,lg,fullscreen'],
             'responsive.mobile.contentMaxWidth' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
 
+            // Section border & shadow (all optional — backward compatible)
+            'sectionBorderWidth'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
+            'sectionBorderColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'sectionBorderStyle'     => ['sometimes', 'nullable', 'in:,solid,dashed,dotted'],
+            'sectionBorderRadius'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'sectionShadow'          => ['sometimes', 'nullable', 'in:,none,subtle,medium,large,glow'],
+
             // Content box / text readability layer (all optional — backward compatible)
             'contentBoxEnabled'      => ['sometimes', 'boolean'],
             'contentBoxBgColor'      => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],

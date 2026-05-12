@@ -83,6 +83,13 @@ export const heroDefinition: BlockDefinition = {
     ctaBorderWidth: '',         // safe CSS dimension e.g. 2px
     ctaBorderRadius: '',        // safe CSS dimension e.g. 0.375rem
 
+    // Section border & shadow (optional — Hero-specific, complements shared style)
+    sectionBorderWidth: '',        // safe CSS dimension
+    sectionBorderColor: '',        // safe CSS color
+    sectionBorderStyle: '',        // solid | dashed | dotted | none
+    sectionBorderRadius: '',       // safe CSS dimension
+    sectionShadow: '',             // none | subtle | medium | large | glow
+
     // Content box / text readability layer (optional)
     contentBoxEnabled: false,
     contentBoxBgColor: '#ffffff',

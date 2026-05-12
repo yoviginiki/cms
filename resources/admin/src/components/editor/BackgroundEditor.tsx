@@ -226,14 +226,10 @@ export default function BackgroundEditor({ data, onChange }: Props) {
                     </button>
                   ))}
                 </div>
-                {bg.bg_scroll_effect === 'parallax' && (
-                  <div className="mt-2">
-                    <label className="text-[10px] text-base-content/40 mb-0.5 block">Speed: {bg.bg_parallax_speed}</label>
-                    <input type="range" min={0.1} max={1} step={0.1} value={bg.bg_parallax_speed || 0.5}
-                      onChange={e => update('bg_parallax_speed', Number(e.target.value))}
-                      className="range range-xs range-primary w-full" />
-                    <div className="flex justify-between text-[9px] text-base-content/20"><span>Slow</span><span>Fast</span></div>
-                  </div>
+                {(bg.bg_scroll_effect === 'parallax' || bg.bg_scroll_effect === 'zoom') && (
+                  <p className="mt-1 text-[9px] text-warning/60">
+                    {bg.bg_scroll_effect === 'parallax' ? 'Parallax' : 'Zoom'} effect is not yet implemented. Choose None or Fixed.
+                  </p>
                 )}
               </div>
             </div>
