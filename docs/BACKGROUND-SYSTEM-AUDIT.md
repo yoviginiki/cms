@@ -280,7 +280,7 @@ This requires new validation regex and careful sanitization. Defer to Phase 2.
 
 ### P2: Advanced Features
 
-7. **Advanced shadow builder** — individual X/Y/blur/spread/color/inset controls with validation
+7. **Advanced shadow builder** — individual X/Y/blur/spread/color/inset controls with validation. See `docs/ADVANCED-SHADOW-BUILDER-AUDIT.md` for full architecture plan.
 8. **Background focal point** — click-to-set position on image
 9. **Responsive background** — different image/position for mobile
 10. **Background blend modes** — `mix-blend-mode` presets
