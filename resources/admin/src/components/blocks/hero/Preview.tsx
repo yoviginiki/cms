@@ -2,6 +2,8 @@ import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { buildBackgroundStyle, buildOverlayStyle } from '@/components/editor/BackgroundEditor';
 import { InlineTextField, InlineLinkPopover, InlineMediaReplace } from '@/components/editor/fields';
+import { buildShadowCss } from '@/lib/shadowStyles';
+import type { ShadowCustom } from '@/lib/shadowStyles';
 
 // ── Safe CSS value helpers (preview-only; Blade has its own sanitizers) ──
 const safeDim = (v: string) =>
@@ -221,19 +223,16 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const sectionBorderStyle = (data.sectionBorderStyle as string) || '';
   const sectionBorderRadius = safeDim((data.sectionBorderRadius as string) || '');
   const sectionShadow = (data.sectionShadow as string) || '';
-  const sectionShadowMap: Record<string, string> = {
-    subtle: '0 1px 3px rgba(0,0,0,0.12)',
-    medium: '0 8px 24px rgba(0,0,0,0.18)',
-    large: '0 20px 40px rgba(0,0,0,0.24)',
-    glow: '0 0 30px rgba(255,255,255,0.35)',
-  };
+  const sectionShadowMode = (data.sectionShadowMode as string) || 'preset';
+  const sectionShadowCustom = (data.sectionShadowCustom as ShadowCustom) || {};
+  const sectionShadowCss = buildShadowCss(sectionShadowMode, sectionShadow, sectionShadowCustom);
   const sectionBorderStyle_: React.CSSProperties = {};
   if (sectionBorderWidth && sectionBorderColor) {
     const bs = ['solid', 'dashed', 'dotted'].includes(sectionBorderStyle) ? sectionBorderStyle : 'solid';
     sectionBorderStyle_.border = `${sectionBorderWidth} ${bs} ${sectionBorderColor}`;
   }
   if (sectionBorderRadius) sectionBorderStyle_.borderRadius = sectionBorderRadius;
-  if (sectionShadowMap[sectionShadow]) sectionBorderStyle_.boxShadow = sectionShadowMap[sectionShadow];
+  if (sectionShadowCss) sectionBorderStyle_.boxShadow = sectionShadowCss;
 
   // ── Content box / text readability layer ──
   const contentBoxEnabled = data.contentBoxEnabled === true;

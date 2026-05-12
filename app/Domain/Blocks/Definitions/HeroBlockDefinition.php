@@ -80,6 +80,15 @@ class HeroBlockDefinition implements BlockDefinition
             'sectionBorderStyle'     => ['sometimes', 'nullable', 'in:,solid,dashed,dotted'],
             'sectionBorderRadius'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
             'sectionShadow'          => ['sometimes', 'nullable', 'in:,none,subtle,medium,large,glow'],
+            'sectionShadowMode'      => ['sometimes', 'in:preset,custom'],
+            'sectionShadowCustom'    => ['sometimes', 'nullable', 'array'],
+            'sectionShadowCustom.x'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'sectionShadowCustom.y'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'sectionShadowCustom.blur' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
+            'sectionShadowCustom.spread' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'sectionShadowCustom.color' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^#[0-9a-fA-F]{3,8}$/'],
+            'sectionShadowCustom.opacity' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'sectionShadowCustom.inset' => ['sometimes', 'boolean'],
 
             // Content box / text readability layer (all optional — backward compatible)
             'contentBoxEnabled'      => ['sometimes', 'boolean'],

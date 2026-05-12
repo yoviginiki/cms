@@ -1,7 +1,7 @@
 # Advanced Shadow Builder Audit
 
 > **Date**: 2026-05-12
-> **Status**: Architecture audit complete. Implementation planned as P2.
+> **Status**: P2 implemented. ShadowField, TS/PHP helpers, Hero pilot complete.
 
 ---
 
@@ -24,7 +24,7 @@ CSS values:
 
 | Key | Editor | Preview | Blade | Presets | Status |
 |-----|--------|---------|-------|---------|--------|
-| `data.sectionShadow` | Hero Editor (dropdown) | `sectionShadowMap` | `$secShadowMap` | subtle, medium, large, glow | **WORKING** |
+| `data.sectionShadow` | Hero Editor (ShadowField preset/custom) | `buildShadowCss()` | `BlockStyle::buildShadowCss()` | subtle, medium, large, glow + custom | **WORKING** |
 
 CSS values:
 - `subtle`: `0 1px 3px rgba(0,0,0,0.12)`
@@ -45,16 +45,20 @@ Same CSS values as shared sm/md/lg.
 | Key | Status | Notes |
 |-----|--------|-------|
 | `shadow` | **ALIAS** — maps to `boxShadow` in some docs; not a separate stored key | Not stored directly; referenced as canonical name in BACKGROUND-SYSTEM-AUDIT.md |
-| `shadowPreset` | **PLANNED / NOT CURRENT** | Proposed unified preset key for P2 schema |
-| `shadowMode` | **PLANNED / NOT CURRENT** | Proposed mode toggle (preset/custom) for P2 schema |
-| `shadowCustom` | **PLANNED / NOT CURRENT** | Proposed structured custom shadow object for P2 schema |
+| `sectionShadow` (Hero preset) | **IMPLEMENTED** | Hero section shadow preset key — used with `sectionShadowMode` |
+| `sectionShadowMode` | **IMPLEMENTED** | Hero section shadow mode toggle (preset/custom) |
+| `sectionShadowCustom` | **IMPLEMENTED** | Hero section structured custom shadow object |
+| `shadowPreset` (generic) | **PLANNED** | Future generic preset key for BaseBlock shadow |
+| `shadowMode` (generic) | **PLANNED** | Future generic mode toggle for BaseBlock shadow |
+| `shadowCustom` (generic) | **PLANNED** | Future generic custom shadow object for BaseBlock |
 
 ### Observations
 
 - Three different preset name sets: `sm/md/lg` (shared + content box), `subtle/medium/large/glow` (Hero section)
 - Two different CSS value scales: shared presets are very light (0.04–0.10 opacity), Hero section presets are stronger (0.12–0.24)
-- No raw CSS shadow input exists — all current shadows are preset-only (safe)
-- No custom X/Y/blur/spread/color controls exist
+- No raw CSS shadow input exists — all shadows are preset or structured custom (safe)
+- Hero section shadow supports custom X/Y/blur/spread/color/opacity/inset via ShadowField
+- Content box shadow still uses preset-only SelectField (sm/md/lg)
 
 ---
 
@@ -199,7 +203,7 @@ interface ShadowFieldProps {
 - Light/dark admin theme readable (DaisyUI tokens)
 - Keyboard accessible
 
-### Not implemented yet — this is the design only.
+### Implemented for Hero section shadow. Content box and BaseBlock VisualPanel remain on presets only.
 
 ---
 
@@ -300,7 +304,7 @@ Both TS and PHP should use the same presets:
 ### P2B: Apply custom shadow builder to Hero
 
 - Replace Hero section `sectionShadow` dropdown with `ShadowField`
-- Replace Hero content box `contentBoxShadow` dropdown with `ShadowField`
+- Replace Hero content box `contentBoxShadow` dropdown with `ShadowField` (not yet done — content box still uses SelectField)
 - Both support preset + custom modes
 - Add validation for `shadowCustom` fields in `HeroBlockDefinition`
 

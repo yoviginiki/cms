@@ -596,4 +596,78 @@ class HeroValidationTest extends TestCase
     {
         $this->assertTrue($this->validate(['sectionShadow' => 'none'])->passes());
     }
+
+    // ── advanced shadow custom validation ───────────────────────
+
+    public function test_valid_shadow_custom_passes(): void
+    {
+        $v = $this->validate([
+            'sectionShadowMode' => 'custom',
+            'sectionShadowCustom' => [
+                'x' => '0px',
+                'y' => '8px',
+                'blur' => '24px',
+                'spread' => '0px',
+                'color' => '#000000',
+                'opacity' => 18,
+                'inset' => false,
+            ],
+        ]);
+        $this->assertTrue($v->passes());
+    }
+
+    public function test_shadow_mode_preset_passes(): void
+    {
+        $this->assertTrue($this->validate(['sectionShadowMode' => 'preset'])->passes());
+    }
+
+    public function test_shadow_mode_custom_passes(): void
+    {
+        $this->assertTrue($this->validate(['sectionShadowMode' => 'custom'])->passes());
+    }
+
+    public function test_invalid_shadow_mode_fails(): void
+    {
+        $this->assertTrue($this->validate(['sectionShadowMode' => 'raw'])->fails());
+    }
+
+    public function test_unsafe_shadow_dimension_fails(): void
+    {
+        $v = $this->validate([
+            'sectionShadowCustom' => ['x' => 'expression(alert(1))'],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_unsafe_shadow_color_fails(): void
+    {
+        $v = $this->validate([
+            'sectionShadowCustom' => ['color' => '<script>'],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_shadow_opacity_out_of_range_fails(): void
+    {
+        $v = $this->validate([
+            'sectionShadowCustom' => ['opacity' => 150],
+        ]);
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_negative_shadow_blur_rejected(): void
+    {
+        // blur must be non-negative per CSS spec
+        $v = $this->validate([
+            'sectionShadowCustom' => ['blur' => '-10px'],
+        ]);
+        // The regex allows negative for x/y/spread but blur regex is non-negative
+        $this->assertTrue($v->fails());
+    }
+
+    public function test_old_hero_data_without_shadow_custom_passes(): void
+    {
+        $v = $this->validate(['sectionShadow' => 'medium']);
+        $this->assertTrue($v->passes(), 'Old Hero data with preset shadow must pass');
+    }
 }

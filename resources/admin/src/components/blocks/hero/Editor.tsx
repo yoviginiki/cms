@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
-import { TextField, SelectField, ToggleField, ColorField } from '@/components/editor/fields';
+import { TextField, SelectField, ToggleField, ColorField, ShadowField } from '@/components/editor/fields';
+import type { ShadowCustom } from '@/lib/shadowStyles';
 import { ResponsiveField } from '@/components/editor/fields/ResponsiveField';
 import type { Breakpoint } from '@/lib/responsiveValues';
 import { getResponsiveValue, setResponsiveValue, clearResponsiveValue } from '@/lib/responsiveValues';
@@ -279,17 +280,14 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         onChange={(v) => update('sectionBorderRadius', v)}
         placeholder="e.g. 0.75rem, 12px"
       />
-      <SelectField
+      <ShadowField
         label="Shadow"
-        value={(data.sectionShadow as string) || ''}
-        onChange={(v) => update('sectionShadow', v)}
-        options={[
-          { value: '', label: 'None' },
-          { value: 'subtle', label: 'Subtle' },
-          { value: 'medium', label: 'Medium' },
-          { value: 'large', label: 'Large' },
-          { value: 'glow', label: 'Glow' },
-        ]}
+        mode={(data.sectionShadowMode as string) || 'preset'}
+        preset={(data.sectionShadow as string) || ''}
+        custom={(data.sectionShadowCustom as ShadowCustom) || {}}
+        onChangeMode={(v) => update('sectionShadowMode', v)}
+        onChangePreset={(v) => update('sectionShadow', v)}
+        onChangeCustom={(v) => update('sectionShadowCustom', { ...((data.sectionShadowCustom as ShadowCustom) || {}), ...v })}
       />
 
       {/* ── Content Box / Text Readability ── */}

@@ -49,16 +49,59 @@ class BlockStyle
 
     // ── Shadow allowlist ──
 
+    // Unified shadow preset map — accepts both naming conventions
     private const SHADOW_MAP = [
         'sm' => '0 1px 2px rgba(0,0,0,0.04)',
         'md' => '0 4px 12px rgba(0,0,0,0.06)',
         'lg' => '0 12px 32px rgba(0,0,0,0.10)',
+        'subtle' => '0 1px 3px rgba(0,0,0,0.12)',
+        'medium' => '0 8px 24px rgba(0,0,0,0.18)',
+        'large'  => '0 20px 40px rgba(0,0,0,0.24)',
+        'glow'   => '0 0 30px rgba(255,255,255,0.35)',
     ];
 
     public static function safeShadow(mixed $v): string
     {
         if (!$v || $v === 'none') return '';
         return self::SHADOW_MAP[(string) $v] ?? '';
+    }
+
+    /**
+     * Build safe box-shadow CSS from structured shadow data.
+     * Supports preset mode (allowlisted map) and custom mode (validated fields).
+     */
+    public static function buildShadowCss(string $mode = 'preset', string $preset = '', ?array $custom = null): string
+    {
+        if ($mode === 'custom' && $custom) {
+            $x = self::safeDim($custom['x'] ?? '0px') ?: '0px';
+            $y = self::safeDim($custom['y'] ?? '4px') ?: '4px';
+            // Blur must be non-negative (CSS spec)
+            $rawBlur = self::safeDim($custom['blur'] ?? '12px') ?: '12px';
+            $blur = str_starts_with($rawBlur, '-') ? '12px' : $rawBlur;
+            $spread = self::safeDim($custom['spread'] ?? '0px') ?: '0px';
+            $color = self::safeColor($custom['color'] ?? '#000000') ?: '#000000';
+            $alpha = max(0, min(100, (int) ($custom['opacity'] ?? 15))) / 100;
+            $inset = !empty($custom['inset']) ? 'inset ' : '';
+
+            // Convert hex to rgba
+            $hex = ltrim($color, '#');
+            if (strlen($hex) === 3) {
+                $r = hexdec($hex[0] . $hex[0]);
+                $g = hexdec($hex[1] . $hex[1]);
+                $b = hexdec($hex[2] . $hex[2]);
+            } elseif (strlen($hex) >= 6) {
+                $r = hexdec(substr($hex, 0, 2));
+                $g = hexdec(substr($hex, 2, 2));
+                $b = hexdec(substr($hex, 4, 2));
+            } else {
+                $r = $g = $b = 0;
+            }
+            $rgba = "rgba({$r},{$g},{$b}," . number_format($alpha, 2) . ")";
+
+            return "{$inset}{$x} {$y} {$blur} {$spread} {$rgba}";
+        }
+
+        return self::safeShadow($preset);
     }
 
     // ── Animation allowlist ──

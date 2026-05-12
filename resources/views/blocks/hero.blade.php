@@ -107,13 +107,11 @@
     $secBorderColor = $cssVal($data['sectionBorderColor'] ?? '');
     $secBorderStyle = in_array($data['sectionBorderStyle'] ?? '', ['solid', 'dashed', 'dotted']) ? $data['sectionBorderStyle'] : '';
     $secBorderRadius = $cssDim($data['sectionBorderRadius'] ?? '');
-    $secShadowMap = [
-        'subtle' => '0 1px 3px rgba(0,0,0,0.12)',
-        'medium' => '0 8px 24px rgba(0,0,0,0.18)',
-        'large'  => '0 20px 40px rgba(0,0,0,0.24)',
-        'glow'   => '0 0 30px rgba(255,255,255,0.35)',
-    ];
-    $secShadow = $secShadowMap[$data['sectionShadow'] ?? ''] ?? '';
+    $secShadow = BlockStyle::buildShadowCss(
+        $data['sectionShadowMode'] ?? 'preset',
+        $data['sectionShadow'] ?? '',
+        is_array($data['sectionShadowCustom'] ?? null) ? $data['sectionShadowCustom'] : null
+    );
     if ($secBorderWidth && $secBorderColor) {
         $bs_ = $secBorderStyle ?: 'solid';
         $style .= "border:{$secBorderWidth} {$bs_} {$secBorderColor};";

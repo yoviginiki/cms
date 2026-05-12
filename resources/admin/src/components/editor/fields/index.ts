@@ -9,4 +9,5 @@ export { InlineTextField } from './InlineTextField';
 export { InlineLinkPopover } from './InlineLinkPopover';
 export { InlineMediaReplace } from './InlineMediaReplace';
 export { ResponsiveField } from './ResponsiveField';
+export { ShadowField } from './ShadowField';
 export { isSafeUrl, getUrlError, isExternalUrl, normalizeUrl } from './urlHelpers';

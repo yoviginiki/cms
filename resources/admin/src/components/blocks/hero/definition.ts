@@ -89,6 +89,8 @@ export const heroDefinition: BlockDefinition = {
     sectionBorderStyle: '',        // solid | dashed | dotted | none
     sectionBorderRadius: '',       // safe CSS dimension
     sectionShadow: '',             // none | subtle | medium | large | glow
+    sectionShadowMode: 'preset',   // preset | custom
+    sectionShadowCustom: {},       // { x, y, blur, spread, color, opacity, inset }
 
     // Content box / text readability layer (optional)
     contentBoxEnabled: false,
