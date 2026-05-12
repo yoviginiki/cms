@@ -17,6 +17,9 @@ export function VisualPanel({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
+      <p className="text-[9px] text-base-content/25 italic">
+        Background color/image/gradient below are for generic blocks. Hero and other blocks with their own background section use those instead.
+      </p>
       <div>
         <label className="text-[10px] text-base-content/40">Background color</label>
         <div className="flex gap-2">
@@ -81,11 +84,12 @@ export function VisualPanel({ value, onChange }: Props) {
       </div>
 
       <div>
-        <label className="text-[10px] text-base-content/40">Opacity</label>
+        <label className="text-[10px] text-base-content/40">Block Opacity</label>
         <input type="range" min={0} max={100} value={(value.opacity ?? 1) * 100}
           onChange={e => update('opacity', Number(e.target.value) / 100)}
           className="range range-xs w-full" />
         <span className="text-[10px] text-base-content/30">{Math.round((value.opacity ?? 1) * 100)}%</span>
+        <p className="text-[9px] text-warning/60 mt-0.5">Affects entire block including text. For background-only opacity, use the block&apos;s own overlay controls.</p>
       </div>
 
       <div>

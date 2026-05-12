@@ -1,7 +1,7 @@
 # Background System Audit
 
-> **Date**: 2026-05-11
-> **Status**: Audit complete. Fixes planned but not yet implemented.
+> **Date**: 2026-05-12
+> **Status**: Audit complete. P0 fixes implemented.
 
 ---
 
@@ -264,14 +264,12 @@ This requires new validation regex and careful sanitization. Defer to Phase 2.
 
 ### P0: Immediate Safety & Parity Fixes
 
-1. **Define source of truth**: Hero `block.data.bg_*` is the background source. VisualPanel background fields (backgroundColor, backgroundImage, backgroundGradient) are dead controls — label them or hide them.
-2. **Fix opacity bug**: VisualPanel `opacity` fades ALL content (text, buttons). Either:
-   - (a) Rename label to "Block Opacity (affects all content including text)" and add warning, OR
-   - (b) Remove wrapper opacity and replace with a background-only opacity layer (like Hero's overlay pattern)
-3. **Add helper text** to VisualPanel dead background fields: "Not active for blocks with their own background system (Hero, etc.)"
-4. **Verify Preview/Blade alignment** for all background properties — confirmed: Hero bg_* system matches between Preview and Blade
-5. **Preserve legacy fallback** — `backgroundImage` key continues to work for old saved Hero data
-6. **Verify scroll/fixed** works end-to-end — confirmed: normal scroll and fixed attachment both work
+1. ~~**Define source of truth**~~: Hero `block.data.bg_*` is the background source. VisualPanel background fields are dead controls — **DONE**: helper text added to VisualPanel.
+2. ~~**Fix opacity bug**~~: Wrapper opacity no longer applied to block elements in Preview or Blade. Label renamed to "Block Opacity" with warning text. Opacity value preserved in saved data for future background-layer implementation. **DONE**.
+3. ~~**Add helper text**~~ to VisualPanel dead background fields — **DONE**: added note explaining blocks with own background use their own controls.
+4. ~~**Verify Preview/Blade alignment**~~ — confirmed: Hero bg_* system matches between Preview and Blade. **DONE**.
+5. ~~**Preserve legacy fallback**~~ — `backgroundImage` key continues to work for old saved Hero data. **DONE** (unchanged).
+6. ~~**Verify scroll/fixed**~~ works end-to-end — confirmed: normal scroll and fixed attachment both work. **DONE**.
 
 ### P1: Background UX Improvements
 

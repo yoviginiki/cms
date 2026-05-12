@@ -129,11 +129,14 @@ class BlockStyle
         $shadow = self::safeShadow($vis['boxShadow'] ?? '');
         if ($shadow) $parts[] = "box-shadow:{$shadow}";
 
-        // Opacity
-        if (isset($vis['opacity']) && (float) $vis['opacity'] < 1) {
-            $op = max(0, min(1, (float) $vis['opacity']));
-            $parts[] = "opacity:{$op}";
-        }
+        // Block opacity is intentionally NOT applied to the wrapper element because
+        // it fades ALL content including text and buttons. Blocks that need
+        // background-only opacity should use a separate overlay layer (like Hero's
+        // bg_overlay_opacity). The opacity value is preserved in saved data.
+        // if (isset($vis['opacity']) && (float) $vis['opacity'] < 1) {
+        //     $op = max(0, min(1, (float) $vis['opacity']));
+        //     $parts[] = "opacity:{$op}";
+        // }
 
         // Animation
         $entrance = $blockAnimation['entrance'] ?? 'none';

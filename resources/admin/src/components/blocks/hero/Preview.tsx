@@ -96,14 +96,17 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
 
   // ── Legacy fallback + normalize for BackgroundEditor ──
   // Old hero blocks saved backgroundImage; new ones use bg_image.
-  // Normalize into effectiveData so buildBackgroundStyle works,
-  // and so BackgroundEditor sees the image when bg_type=image.
+  // Legacy fallback only activates when bg_type is absent, 'none', or 'image'
+  // AND bg_image is empty. It must NOT override an active color/gradient bg_type.
   const legacyImage = (data.backgroundImage as string) || '';
   const currentBgImage = (data.bg_image as string) || '';
-  const effectiveBgImage = currentBgImage || legacyImage;
+  const currentBgType = (data.bg_type as string) || 'none';
+  const useLegacyFallback = !currentBgImage && legacyImage
+    && (currentBgType === 'none' || currentBgType === 'image' || !currentBgType);
+  const effectiveBgImage = currentBgImage || (useLegacyFallback ? legacyImage : '');
 
   // Build effective data with legacy normalization
-  const effectiveData = (!currentBgImage && legacyImage)
+  const effectiveData = useLegacyFallback
     ? { ...data, bg_type: 'image', bg_image: legacyImage }
     : data;
 
@@ -116,7 +119,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const hasBg = (() => {
     switch (effectiveBgType) {
       case 'color':   return !!(data.bg_color as string);
-      case 'gradient': return Array.isArray(gradientStops) && gradientStops.length > 0;
+      case 'gradient': return Array.isArray(gradientStops) && gradientStops.some((s: any) => s?.color);
       case 'image':   return !!effectiveBgImage;
       default:        return false;
     }

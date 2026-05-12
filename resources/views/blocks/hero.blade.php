@@ -11,13 +11,18 @@
 
     // ── Background (block-specific, from block.data) ──
     $bgType = $data['bg_type'] ?? 'none';
+    // Legacy fallback: only when bg_type is none/image/absent AND bg_image is empty.
+    // Must NOT override an active color/gradient bg_type.
+    $legacyImage = $data['backgroundImage'] ?? '';
+    $useLegacyFallback = !empty($legacyImage) && empty($data['bg_image'])
+        && in_array($bgType, ['none', 'image']);
     // hasBg must check actual usable values, not just bg_type
     $hasBg = match($bgType) {
         'color'    => !empty($data['bg_color']),
-        'gradient' => is_array($data['bg_gradient_stops'] ?? null) && !empty($data['bg_gradient_stops']),
+        'gradient' => is_array($data['bg_gradient_stops'] ?? null) && collect($data['bg_gradient_stops'])->contains(fn($s) => !empty($s['color'] ?? '')),
         'image'    => !empty($data['bg_image']),
         default    => false,
-    } || !empty($data['backgroundImage']); // legacy fallback
+    } || ($useLegacyFallback && !empty($cssUrl($legacyImage)));
     $textColor = $hasBg ? '#fff' : '#333';
     $baseBg = $hasBg ? '' : 'background-color:#f5f5f5;';
 
@@ -86,8 +91,8 @@
             $style .= "background-image:url('{$imgUrl}');background-size:{$size};background-position:{$pos};background-repeat:{$repeat};";
             if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
         }
-    } elseif (!empty($data['backgroundImage'])) {
-        $legacyUrl = $cssUrl($data['backgroundImage']);
+    } elseif ($useLegacyFallback) {
+        $legacyUrl = $cssUrl($legacyImage);
         if ($legacyUrl) {
             $style .= "background-image:url('{$legacyUrl}');background-size:cover;background-position:center;";
         }

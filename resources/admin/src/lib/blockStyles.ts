@@ -67,9 +67,14 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
     if (vis.boxShadow && vis.boxShadow !== 'none') {
       css.boxShadow = SHADOW_MAP[vis.boxShadow] || undefined;
     }
-    if (vis.opacity !== undefined && vis.opacity < 1) {
-      css.opacity = Math.max(0, Math.min(1, vis.opacity));
-    }
+    // Block opacity is intentionally NOT applied to the wrapper div because
+    // it would fade ALL content including text and buttons. Blocks that need
+    // background-only opacity should use a separate overlay layer (like Hero's
+    // bg_overlay_opacity). The opacity value is preserved in saved data for
+    // future background-layer implementation.
+    // if (vis.opacity !== undefined && vis.opacity < 1) {
+    //   css.opacity = Math.max(0, Math.min(1, vis.opacity));
+    // }
   }
 
   return css;

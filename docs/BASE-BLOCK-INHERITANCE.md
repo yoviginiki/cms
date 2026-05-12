@@ -45,7 +45,7 @@ The CMS defines a set of **global shared properties** via the BaseBlock system. 
 | Border Style | `style.visual.borderStyle` | VisualPanel | `buildBlockWrapperStyle()` | `BlockStyle::buildStyle()` | allowlist | **WORKING** |
 | Border Radius | `style.visual.borderRadius` | VisualPanel | `buildBlockWrapperStyle()` | `BlockStyle::buildStyle()` | `safeDim()` | **WORKING** |
 | Box Shadow | `style.visual.boxShadow` | VisualPanel | `buildBlockWrapperStyle()` | `BlockStyle::buildStyle()` | preset allowlist | **WORKING** |
-| Opacity | `style.visual.opacity` | VisualPanel | `buildBlockWrapperStyle()` | `BlockStyle::buildStyle()` | clamped 0–1 | **WORKING** |
+| Opacity | `style.visual.opacity` | VisualPanel | DISABLED (was fading text) | DISABLED (was fading text) | clamped 0–1 | **DISABLED** — wrapper opacity fades all content; value saved but not rendered |
 | Background Color | `style.visual.backgroundColor` | VisualPanel | NOT consumed | NOT consumed | — | **DEAD_CONTROL** |
 | Background Image | `style.visual.backgroundImage` | VisualPanel | NOT consumed | NOT consumed | — | **DEAD_CONTROL** |
 | Background Gradient | `style.visual.backgroundGradient` | VisualPanel | NOT consumed | NOT consumed | — | **DEAD_CONTROL** |
