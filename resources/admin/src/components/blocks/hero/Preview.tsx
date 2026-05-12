@@ -68,6 +68,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const headlineWeight = (data.headlineWeight as string) || '700';
   const headlineColor = (data.headlineColor as string) || '';
   const subheadlineSize = (data.subheadlineSize as string) || '1.25rem';
+  const subtitleColor = safeColor((data.subtitleColor as string) || '');
   const adaptiveTextColor = data.adaptiveTextColor !== false;
 
   // CTA style fields
@@ -130,9 +131,8 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   // Derive text colors
   const resolvedHeadlineColor = headlineColor
     || (adaptiveTextColor && hasBg ? 'white' : 'inherit');
-  const resolvedSubtitleColor = adaptiveTextColor && hasBg
-    ? 'rgba(255,255,255,0.85)'
-    : 'inherit';
+  const resolvedSubtitleColor = subtitleColor
+    || (adaptiveTextColor && hasBg ? 'rgba(255,255,255,0.85)' : 'inherit');
 
   // ── CTA button style computation ──
   // Padding and font-size aligned with Blade (hero.blade.php) for parity

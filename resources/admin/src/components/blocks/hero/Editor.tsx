@@ -46,8 +46,8 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         placeholder="Add subtitle or tagline"
       />
 
-      {/* ── Layout (with responsive overrides) ── */}
-      <div className="divider text-[10px] text-base-content/40 my-1">Layout</div>
+      {/* ── Layout — Whole Hero Section ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">Layout — Whole Hero Section</div>
       <SelectField
         label="Heading Tag"
         value={(data.headlineTag as string) || 'h1'}
@@ -57,6 +57,7 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
           { value: 'h2', label: 'H2' },
           { value: 'h3', label: 'H3' },
         ]}
+        helperText="Use only one H1 per page. Use H2/H3 for additional Hero sections to avoid SEO penalties."
       />
 
       <ResponsiveField
@@ -128,11 +129,11 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         />
       </ResponsiveField>
 
-      {/* ── Background (settings panel — managed by BackgroundEditor) ── */}
+      {/* ── Background — Whole Hero Section ── */}
       <BackgroundEditor data={data} onChange={(updates) => onUpdate(updates)} />
 
-      {/* ── Typography ── */}
-      <div className="divider text-[10px] text-base-content/40 my-1">Typography</div>
+      {/* ── Typography — Title & Subtitle ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">Typography — Title & Subtitle</div>
       <TextField
         label="Headline Size"
         value={(data.headlineSize as string) || '2.5rem'}
@@ -163,14 +164,20 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         value={(data.headlineColor as string) || ''}
         onChange={(v) => update('headlineColor', v)}
       />
+      <ColorField
+        label="Subtitle Color"
+        value={(data.subtitleColor as string) || ''}
+        onChange={(v) => update('subtitleColor', v)}
+      />
       <ToggleField
         label="Auto Text Color"
         value={data.adaptiveTextColor !== false}
         onChange={(v) => update('adaptiveTextColor', v)}
+        helperText="When enabled, title and subtitle automatically use light text on dark backgrounds"
       />
 
-      {/* ── CTA / Link Fields ── */}
-      <div className="divider text-[10px] text-base-content/40 my-1">Call to Action</div>
+      {/* ── CTA / Link Fields — CTA Button ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">Call to Action — CTA Button</div>
       <TextField
         label="Button Text"
         value={(data.ctaText as string) || ''}
@@ -249,8 +256,8 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         helperText="Leave empty for default"
       />
 
-      {/* ── Section Border & Shadow ── */}
-      <div className="divider text-[10px] text-base-content/40 my-1">Border & Shadow</div>
+      {/* ── Section Border & Shadow — Whole Hero Section ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">Border & Shadow — Whole Hero Section</div>
       <TextField
         label="Border Width"
         value={(data.sectionBorderWidth as string) || ''}
@@ -290,8 +297,8 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         onChangeCustom={(v) => update('sectionShadowCustom', { ...((data.sectionShadowCustom as ShadowCustom) || {}), ...v })}
       />
 
-      {/* ── Content Box / Text Readability ── */}
-      <div className="divider text-[10px] text-base-content/40 my-1">Content Box</div>
+      {/* ── Content Box — Text Readability Layer ── */}
+      <div className="divider text-[10px] text-base-content/40 my-1">Content Box — Text Readability Layer</div>
       <ToggleField
         label="Enable Content Box"
         value={data.contentBoxEnabled === true}
@@ -350,6 +357,7 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
             value={(data.contentBoxPadding as string) || '2rem'}
             onChange={(v) => update('contentBoxPadding', v)}
             placeholder="e.g. 2rem, 32px"
+            helperText="Applies to Content Box only. Use CSS shorthand for per-side: e.g. 1rem 2rem 1rem 2rem"
           />
         </>
       )}

@@ -285,3 +285,19 @@ These are explicitly **not** part of BaseBlock inheritance:
 - Block-specific CTA styling (Hero's ctaVariant/ctaBgColor/etc.)
 
 These are managed by each block's own Editor.tsx, Preview.tsx, and Blade template.
+
+---
+
+## 9. Global Field Requirements (Planned)
+
+The following reusable field components are defined as global requirements for all blocks but are **not yet implemented**. They are specified in [HERO-CONTROLS-UX-AUDIT.md](./HERO-CONTROLS-UX-AUDIT.md) Section 4.
+
+| Field Component | Purpose | Priority | Status |
+|----------------|---------|----------|--------|
+| `BoxSpacingField` | Per-side padding/margin with linked/unlinked toggle | P1 | Not implemented |
+| `CornerRadiusField` | Per-corner border radius with presets (none/sm/md/lg/pill) | P1 | Not implemented |
+| `ShadowField` | Preset + custom shadow builder (x/y/blur/spread/color/opacity/inset) | Exists | Working (used by Hero section shadow) |
+| `TypographyField` | Unified typography: tag, size, weight, line-height, letter-spacing, color, transform | P2 | Not implemented |
+| `ResponsivePreview` | Editor canvas viewport preview (desktop/tablet/mobile) | P3 | Not implemented |
+
+Once implemented, these components will replace single-value text inputs currently used for padding, border-radius, and typography across all blocks.

@@ -44,6 +44,7 @@ class HeroBlockDefinition implements BlockDefinition
             'headlineWeight'    => ['sometimes', 'in:400,500,600,700,800,900'],
             'headlineColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'subheadlineSize'   => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'subtitleColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'adaptiveTextColor' => ['sometimes', 'boolean'],
 
             // Performance

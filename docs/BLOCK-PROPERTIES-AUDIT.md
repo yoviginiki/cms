@@ -351,3 +351,9 @@ Other Blade templates can now access `$blockStyle`, `$blockAnimation`, `$blockAd
 - SortableBlock + BuildPageService changes benefit all blocks
 - Only Hero Blade currently renders the shared properties
 - Other blocks will gain Blade support as they're repaired per the Block Quality Contract
+
+---
+
+## Related: Hero Controls UX Audit
+
+See [HERO-CONTROLS-UX-AUDIT.md](./HERO-CONTROLS-UX-AUDIT.md) for the detailed Hero-specific control inventory, misleading control analysis, missing controls, and P0/P1/P2/P3 implementation plan. The audit also defines the global field contract for `BoxSpacingField`, `CornerRadiusField`, `TypographyField`, `ShadowField`, and `ResponsivePreview` that all blocks should eventually adopt.

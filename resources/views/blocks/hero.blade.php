@@ -61,6 +61,15 @@
     // Subheadline size
     $subSize = $cssDim($data['subheadlineSize'] ?? '1.25rem') ?: '1.25rem';
 
+    // Subtitle color
+    $subtitleColor = '';
+    if (!empty($data['subtitleColor'])) {
+        $subtitleColor = $cssVal($data['subtitleColor']);
+    }
+    if (!$subtitleColor && $adaptiveTextColor) {
+        $subtitleColor = $hasBg ? 'rgba(255,255,255,0.85)' : '';
+    }
+
     $style = "position:relative;min-height:{$minHeight};display:flex;align-items:{$vertAlign};justify-content:center;color:{$textColor};{$baseBg}";
 
     if ($bgType === 'color' && !empty($data['bg_color'])) {
@@ -218,7 +227,7 @@
         @endif
         <{{ $headlineTag }} style="font-size:{{ $headlineSize }};font-weight:{{ $headlineWeight }};margin-bottom:1rem;@if($headlineColor)color:{{ $headlineColor }};@endif">{{ $data['title'] ?? '' }}</{{ $headlineTag }}>
         @if(!empty($data['subtitle']))
-            <p style="font-size:{{ $subSize }};opacity:0.9;margin-bottom:2rem;">{{ $data['subtitle'] }}</p>
+            <p style="font-size:{{ $subSize }};opacity:0.9;margin-bottom:2rem;@if($subtitleColor)color:{{ $subtitleColor }};@endif">{{ $data['subtitle'] }}</p>
         @endif
         @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
             @php

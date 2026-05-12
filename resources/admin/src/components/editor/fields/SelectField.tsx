@@ -3,9 +3,10 @@ interface SelectFieldProps {
   value: string;
   onChange: (val: string) => void;
   options: { value: string; label: string }[];
+  helperText?: string;
 }
 
-export function SelectField({ label, value, onChange, options }: SelectFieldProps) {
+export function SelectField({ label, value, onChange, options, helperText }: SelectFieldProps) {
   return (
     <div className="mb-3">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -20,6 +21,9 @@ export function SelectField({ label, value, onChange, options }: SelectFieldProp
           </option>
         ))}
       </select>
+      {helperText && (
+        <p className="mt-1 text-xs text-gray-500">{helperText}</p>
+      )}
     </div>
   );
 }
