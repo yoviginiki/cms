@@ -78,6 +78,7 @@
     $headlineLineHeight = $cssVal($data['headlineLineHeight'] ?? '');
     $headlineLetterSpacing = $cssVal($data['headlineLetterSpacing'] ?? '');
     $headlineTextTransform = in_array($data['headlineTextTransform'] ?? '', ['uppercase','lowercase','capitalize']) ? $data['headlineTextTransform'] : '';
+    $headlineTextShadow = $cssVal($data['headlineTextShadow'] ?? '');
 
     // Headline color
     $adaptiveTextColor = ($data['adaptiveTextColor'] ?? true) !== false;
@@ -95,6 +96,7 @@
     $subLineHeight = $cssVal($data['subheadlineLineHeight'] ?? '');
     $subLetterSpacing = $cssVal($data['subheadlineLetterSpacing'] ?? '');
     $subTextTransform = in_array($data['subheadlineTextTransform'] ?? '', ['uppercase','lowercase','capitalize']) ? $data['subheadlineTextTransform'] : '';
+    $subTextShadow = $cssVal($data['subheadlineTextShadow'] ?? '');
 
     // Subtitle color
     $subtitleColor = '';
@@ -201,6 +203,14 @@
             $cmw = $cssDim($respTablet['contentMaxWidth']);
             if ($cmw) $tabletRules[] = ".{$respScopeClass} .hero-content{max-width:{$cmw}}";
         }
+        if (!empty($respTablet['headlineSize'])) {
+            $hs = $cssDim($respTablet['headlineSize']);
+            if ($hs) $tabletRules[] = ".{$respScopeClass} .hero-title{font-size:{$hs}}";
+        }
+        if (!empty($respTablet['subheadlineSize'])) {
+            $ss = $cssDim($respTablet['subheadlineSize']);
+            if ($ss) $tabletRules[] = ".{$respScopeClass} .hero-subtitle{font-size:{$ss}}";
+        }
         if ($tabletRules) $respRules[] = '@media(max-width:1024px){' . implode('', $tabletRules) . '}';
 
         // Mobile: max-width 640px
@@ -216,6 +226,14 @@
         if (!empty($respMobile['contentMaxWidth'])) {
             $cmw = $cssDim($respMobile['contentMaxWidth']);
             if ($cmw) $mobileRules[] = ".{$respScopeClass} .hero-content{max-width:{$cmw}}";
+        }
+        if (!empty($respMobile['headlineSize'])) {
+            $hs = $cssDim($respMobile['headlineSize']);
+            if ($hs) $mobileRules[] = ".{$respScopeClass} .hero-title{font-size:{$hs}}";
+        }
+        if (!empty($respMobile['subheadlineSize'])) {
+            $ss = $cssDim($respMobile['subheadlineSize']);
+            if ($ss) $mobileRules[] = ".{$respScopeClass} .hero-subtitle{font-size:{$ss}}";
         }
         if ($mobileRules) $respRules[] = '@media(max-width:640px){' . implode('', $mobileRules) . '}';
 
@@ -263,9 +281,9 @@
         @if($cbEnabled && $cbBgColor)
         <div style="position:absolute;inset:0;background-color:{{ $cbBgColor }};opacity:{{ $cbOpacity / 100 }};border-radius:{{ $cbBorderRadius }};pointer-events:none;z-index:0;"></div>
         @endif
-        <{{ $headlineTag }} style="font-size:{{ $headlineSize }};font-weight:{{ $headlineWeight }};margin-bottom:1rem;@if($headlineColor)color:{{ $headlineColor }};@endif @if($headlineLineHeight)line-height:{{ $headlineLineHeight }};@endif @if($headlineLetterSpacing)letter-spacing:{{ $headlineLetterSpacing }};@endif @if($headlineTextTransform)text-transform:{{ $headlineTextTransform }};@endif">{{ $data['title'] ?? '' }}</{{ $headlineTag }}>
+        <{{ $headlineTag }} class="hero-title" style="font-size:{{ $headlineSize }};font-weight:{{ $headlineWeight }};margin-bottom:1rem;@if($headlineColor)color:{{ $headlineColor }};@endif @if($headlineLineHeight)line-height:{{ $headlineLineHeight }};@endif @if($headlineLetterSpacing)letter-spacing:{{ $headlineLetterSpacing }};@endif @if($headlineTextTransform)text-transform:{{ $headlineTextTransform }};@endif @if($headlineTextShadow)text-shadow:{{ $headlineTextShadow }};@endif">{{ $data['title'] ?? '' }}</{{ $headlineTag }}>
         @if(!empty($data['subtitle']))
-            <p style="font-size:{{ $subSize }};font-weight:{{ $subWeight }};opacity:0.9;margin-bottom:2rem;@if($subtitleColor)color:{{ $subtitleColor }};@endif @if($subLineHeight)line-height:{{ $subLineHeight }};@endif @if($subLetterSpacing)letter-spacing:{{ $subLetterSpacing }};@endif @if($subTextTransform)text-transform:{{ $subTextTransform }};@endif">{{ $data['subtitle'] }}</p>
+            <p class="hero-subtitle" style="font-size:{{ $subSize }};font-weight:{{ $subWeight }};opacity:0.9;margin-bottom:2rem;@if($subtitleColor)color:{{ $subtitleColor }};@endif @if($subLineHeight)line-height:{{ $subLineHeight }};@endif @if($subLetterSpacing)letter-spacing:{{ $subLetterSpacing }};@endif @if($subTextTransform)text-transform:{{ $subTextTransform }};@endif @if($subTextShadow)text-shadow:{{ $subTextShadow }};@endif">{{ $data['subtitle'] }}</p>
         @endif
         @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
             @php
@@ -328,11 +346,24 @@
                 );
                 if ($ctaShadowCss) $ctaStyle .= "box-shadow:{$ctaShadowCss};";
 
+                // CTA hover state (rendered via scoped CSS)
+                $ctaHoverBg = $cssVal($data['ctaHoverBgColor'] ?? '');
+                $ctaHoverText = $cssVal($data['ctaHoverTextColor'] ?? '');
+                $ctaHoverBorder = $cssVal($data['ctaHoverBorderColor'] ?? '');
+                $hasCtaHover = $ctaHoverBg || $ctaHoverText || $ctaHoverBorder;
+                $ctaStyle .= 'transition:background 0.2s,color 0.2s,border-color 0.2s;';
+
                 // CTA alignment wrapper
                 $ctaWrapAlign = $ctaAlignVal ?: $textAlign;
             @endphp
+            @if($hasCtaHover && $respScopeClass)
+            <style>.{{ $respScopeClass }} .hero-cta:hover{ @if($ctaHoverBg)background:{{ $ctaHoverBg }}!important;@endif @if($ctaHoverText)color:{{ $ctaHoverText }}!important;@endif @if($ctaHoverBorder)border-color:{{ $ctaHoverBorder }}!important;@endif }</style>
+            @elseif($hasCtaHover)
+            @php $ctaHoverClass = 'hero-cta-' . substr(md5(json_encode($data['title'] ?? '') . ($htmlId ?: uniqid())), 0, 8); @endphp
+            <style>.{{ $ctaHoverClass }}:hover{ @if($ctaHoverBg)background:{{ $ctaHoverBg }}!important;@endif @if($ctaHoverText)color:{{ $ctaHoverText }}!important;@endif @if($ctaHoverBorder)border-color:{{ $ctaHoverBorder }}!important;@endif }</style>
+            @endif
             <div style="text-align:{{ $ctaWrapAlign }};">
-                <a href="{{ $safeUrl($data['ctaUrl']) }}" style="{{ $ctaStyle }}">{{ $data['ctaText'] }}</a>
+                <a href="{{ $safeUrl($data['ctaUrl']) }}" class="hero-cta {{ $ctaHoverClass ?? '' }}" style="{{ $ctaStyle }}">{{ $data['ctaText'] }}</a>
             </div>
         @endif
     </div>

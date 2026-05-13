@@ -140,13 +140,22 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
 
       {/* ── Typography — Title & Subtitle ── */}
       <div className="divider text-[10px] text-base-content/40 my-1">Typography — Title & Subtitle</div>
-      <TextField
+      <ResponsiveField
+        data={data}
+        dataKey="headlineSize"
         label="Title Size"
-        value={(data.headlineSize as string) || '2.5rem'}
-        onChange={(v) => update('headlineSize', v)}
-        placeholder="e.g. 2.5rem, 48px"
-        helperText="Font size for the title heading"
-      />
+        breakpoint={responsiveBp}
+        onBreakpointChange={setResponsiveBp}
+        onClearOverride={clearOverride('headlineSize')}
+      >
+        <TextField
+          label=""
+          value={rv('headlineSize') || '2.5rem'}
+          onChange={(v) => updateResponsive('headlineSize', v)}
+          placeholder="e.g. 2.5rem, 48px"
+          helperText="Font size for the title heading"
+        />
+      </ResponsiveField>
       <SelectField
         label="Title Weight"
         value={(data.headlineWeight as string) || '700'}
@@ -191,12 +200,28 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         ]}
       />
       <TextField
-        label="Subtitle Size"
-        value={(data.subheadlineSize as string) || '1.25rem'}
-        onChange={(v) => update('subheadlineSize', v)}
-        placeholder="e.g. 1.25rem, 20px"
-        helperText="Font size for the subtitle text"
+        label="Title Text Shadow"
+        value={(data.headlineTextShadow as string) || ''}
+        onChange={(v) => update('headlineTextShadow', v)}
+        placeholder="e.g. 2px 2px 4px rgba(0,0,0,0.3)"
+        helperText="CSS text-shadow. Leave empty for none."
       />
+      <ResponsiveField
+        data={data}
+        dataKey="subheadlineSize"
+        label="Subtitle Size"
+        breakpoint={responsiveBp}
+        onBreakpointChange={setResponsiveBp}
+        onClearOverride={clearOverride('subheadlineSize')}
+      >
+        <TextField
+          label=""
+          value={rv('subheadlineSize') || '1.25rem'}
+          onChange={(v) => updateResponsive('subheadlineSize', v)}
+          placeholder="e.g. 1.25rem, 20px"
+          helperText="Font size for the subtitle text"
+        />
+      </ResponsiveField>
       <SelectField
         label="Subtitle Weight"
         value={(data.subheadlineWeight as string) || '400'}
@@ -239,6 +264,13 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
           { value: 'lowercase', label: 'lowercase' },
           { value: 'capitalize', label: 'Capitalize' },
         ]}
+      />
+      <TextField
+        label="Subtitle Text Shadow"
+        value={(data.subheadlineTextShadow as string) || ''}
+        onChange={(v) => update('subheadlineTextShadow', v)}
+        placeholder="e.g. 1px 1px 3px rgba(0,0,0,0.2)"
+        helperText="CSS text-shadow. Leave empty for none."
       />
       <ToggleField
         label="Auto Text Color"
@@ -333,6 +365,21 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         onChangeMode={(v) => update('ctaShadowMode', v)}
         onChangePreset={(v) => update('ctaShadow', v)}
         onChangeCustom={(v) => update('ctaShadowCustom', { ...((data.ctaShadowCustom as ShadowCustom) || {}), ...v })}
+      />
+      <ColorField
+        label="Hover Background"
+        value={(data.ctaHoverBgColor as string) || ''}
+        onChange={(v) => update('ctaHoverBgColor', v)}
+      />
+      <ColorField
+        label="Hover Text Color"
+        value={(data.ctaHoverTextColor as string) || ''}
+        onChange={(v) => update('ctaHoverTextColor', v)}
+      />
+      <ColorField
+        label="Hover Border Color"
+        value={(data.ctaHoverBorderColor as string) || ''}
+        onChange={(v) => update('ctaHoverBorderColor', v)}
       />
 
       {/* ── Section Border & Shadow — Whole Hero Section ── */}

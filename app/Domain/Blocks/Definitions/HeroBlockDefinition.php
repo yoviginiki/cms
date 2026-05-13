@@ -71,12 +71,14 @@ class HeroBlockDefinition implements BlockDefinition
             'headlineLineHeight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em|%)?$/'],
             'headlineLetterSpacing' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
             'headlineTextTransform' => ['sometimes', 'nullable', 'in:,uppercase,lowercase,capitalize'],
+            'headlineTextShadow'    => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9#(),.\s%\/\-]+$/'],
             'subheadlineSize'   => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
             'subheadlineWeight' => ['sometimes', 'in:400,500,600,700,800,900'],
             'subtitleColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'subheadlineLineHeight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em|%)?$/'],
             'subheadlineLetterSpacing' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
             'subheadlineTextTransform' => ['sometimes', 'nullable', 'in:,uppercase,lowercase,capitalize'],
+            'subheadlineTextShadow'    => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9#(),.\s%\/\-]+$/'],
             'adaptiveTextColor' => ['sometimes', 'boolean'],
 
             // Performance
@@ -113,16 +115,25 @@ class HeroBlockDefinition implements BlockDefinition
             'ctaShadowCustom.opacity' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'ctaShadowCustom.inset' => ['sometimes', 'boolean'],
 
+            // CTA hover state (all optional — rendered via scoped CSS in Blade)
+            'ctaHoverBgColor'    => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'ctaHoverTextColor'  => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'ctaHoverBorderColor'=> ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+
             // Responsive overrides (optional — tablet/mobile inherit from desktop)
             'responsive'                        => ['sometimes', 'nullable', 'array'],
             'responsive.tablet'                 => ['sometimes', 'nullable', 'array'],
             'responsive.tablet.textAlignment'   => ['sometimes', 'in:left,center,right'],
             'responsive.tablet.sectionHeight'   => ['sometimes', 'in:auto,sm,md,lg,fullscreen'],
             'responsive.tablet.contentMaxWidth' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'responsive.tablet.headlineSize'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'responsive.tablet.subheadlineSize' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
             'responsive.mobile'                 => ['sometimes', 'nullable', 'array'],
             'responsive.mobile.textAlignment'   => ['sometimes', 'in:left,center,right'],
             'responsive.mobile.sectionHeight'   => ['sometimes', 'in:auto,sm,md,lg,fullscreen'],
             'responsive.mobile.contentMaxWidth' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'responsive.mobile.headlineSize'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'responsive.mobile.subheadlineSize' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
 
             // Section border & shadow (all optional — backward compatible)
             'sectionBorderWidth'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],

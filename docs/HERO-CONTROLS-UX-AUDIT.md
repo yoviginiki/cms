@@ -196,7 +196,7 @@
 | Margin per side | — | MISSING (P1 via BoxSpacingField) |
 | Padding per side | — | MISSING (FUTURE) |
 | Background behind title | — | MISSING (FUTURE) |
-| Text shadow | — | MISSING (FUTURE) |
+| Text shadow | WORKING (P3: `headlineTextShadow`) | — |
 
 ### Subtitle (currently available → missing)
 
@@ -242,7 +242,7 @@
 | Margin per side | — | MISSING (FUTURE) |
 | Padding per side | — | MISSING (FUTURE — size presets cover most cases) |
 | Shadow (preset+custom) | WORKING (P2: `ctaShadow*` via ShadowField) | — |
-| Hover color | — | MISSING (FUTURE) |
+| Hover colors | WORKING (P3: `ctaHoverBgColor`, `ctaHoverTextColor`, `ctaHoverBorderColor`) | — |
 
 ### Whole Hero Block (currently available → missing)
 
@@ -260,7 +260,7 @@
 | Margin per side | — | MISSING (shared properties handle this via block.style) |
 | Padding per side | — | MISSING (shared properties handle this via block.style) |
 | Width / max-width | — | MISSING (FUTURE) |
-| Responsive preview | — | MISSING (P3) |
+| Responsive preview | WORKING (P3: BuilderCanvas device toggle) | — |
 
 ---
 
@@ -367,7 +367,7 @@ These field components should be implemented once and reused across all blocks.
 - Responsive data overrides are separate (already working for textAlignment, sectionHeight, contentMaxWidth)
 - Visual indicator showing current preview mode
 
-**Status**: Not implemented. P3 priority.
+**Status**: WORKING (P3). Implemented in `BuilderCanvas.tsx` with desktop/tablet/mobile toggle. Constrains canvas `max-width` with smooth transition. Does not change stored data.
 
 ---
 
@@ -408,12 +408,12 @@ These field components should be implemented once and reused across all blocks.
 
 ### P3 — Responsive and Advanced
 
-- [ ] Implement responsive editor canvas preview (desktop/tablet/mobile)
-- [ ] Per-element responsive overrides (font sizes, spacing at breakpoints)
+- [x] Implement responsive editor canvas preview (desktop/tablet/mobile) in BuilderCanvas
+- [x] Per-element responsive overrides (headlineSize, subheadlineSize at tablet/mobile breakpoints)
 - [ ] Title/subtitle individual background panels
-- [ ] Text shadow for title/subtitle
-- [ ] CTA hover state controls
-- [ ] Full BaseBlock adoption across all 69 blocks (phased rollout)
+- [x] Text shadow for title (`headlineTextShadow`) and subtitle (`subheadlineTextShadow`)
+- [x] CTA hover state controls (`ctaHoverBgColor`, `ctaHoverTextColor`, `ctaHoverBorderColor`) via scoped CSS
+- [ ] Full BaseBlock adoption across all 69 blocks (phased rollout — out of scope for Hero pilot)
 
 ---
 
@@ -427,3 +427,7 @@ These field components should be implemented once and reused across all blocks.
 - P1 fields (`sectionBorderRadius`, `contentBoxBorderRadius`, `ctaBorderRadius`, `contentBoxPadding`) accept both legacy string and new per-side/per-corner object via `dimOrArray()` validation
 - P2 typography fields (`headlineLineHeight`, `headlineLetterSpacing`, `headlineTextTransform`, `subheadlineLineHeight`, `subheadlineLetterSpacing`, `subheadlineTextTransform`) are all optional — absence means browser default
 - P2 shadow fields (`contentBoxShadowMode`, `contentBoxShadowCustom`, `ctaShadowMode`, `ctaShadow`, `ctaShadowCustom`) are all optional — old preset-only `contentBoxShadow` values still work
+- P3 text shadow fields (`headlineTextShadow`, `subheadlineTextShadow`) are optional CSS text-shadow strings, validated against safe character set
+- P3 CTA hover fields (`ctaHoverBgColor`, `ctaHoverTextColor`, `ctaHoverBorderColor`) are optional — rendered via scoped CSS `:hover` rules in Blade, not inline styles
+- P3 responsive font size overrides (`responsive.tablet.headlineSize`, `responsive.tablet.subheadlineSize`, `responsive.mobile.headlineSize`, `responsive.mobile.subheadlineSize`) follow existing responsive override pattern
+- P3 responsive canvas preview affects editor canvas width only, not stored data

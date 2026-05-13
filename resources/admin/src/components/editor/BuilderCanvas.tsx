@@ -12,10 +12,18 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useState } from 'react';
+import { Monitor, Tablet, Smartphone } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { DragOverlay } from './DragOverlay';
 import type { Active } from '@dnd-kit/core';
+
+type CanvasDevice = 'desktop' | 'tablet' | 'mobile';
+const canvasWidths: Record<CanvasDevice, string> = {
+  desktop: '100%',
+  tablet: '768px',
+  mobile: '375px',
+};
 
 export function BuilderCanvas() {
   const blocks = useEditorStore((s) => s.blocks);
@@ -24,6 +32,7 @@ export function BuilderCanvas() {
   const selectBlock = useEditorStore((s) => s.selectBlock);
 
   const [activeItem, setActiveItem] = useState<Active | null>(null);
+  const [canvasDevice, setCanvasDevice] = useState<CanvasDevice>('desktop');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -75,10 +84,40 @@ export function BuilderCanvas() {
       onDragEnd={handleDragEnd}
     >
       <div
-        className="flex-1 overflow-y-auto bg-gray-50 p-6"
+        className="flex-1 overflow-y-auto bg-gray-50"
         onClick={() => selectBlock(null)}
       >
-        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 min-h-[60vh] p-6 editor-canvas-light">
+        {/* Responsive canvas device toggle */}
+        <div className="flex items-center justify-center gap-1 py-2 bg-gray-50 border-b border-gray-200 sticky top-0 z-20">
+          {([
+            { device: 'desktop' as CanvasDevice, Icon: Monitor, label: 'Desktop' },
+            { device: 'tablet' as CanvasDevice, Icon: Tablet, label: 'Tablet (768px)' },
+            { device: 'mobile' as CanvasDevice, Icon: Smartphone, label: 'Mobile (375px)' },
+          ]).map(({ device, Icon, label }) => (
+            <button
+              key={device}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCanvasDevice(device); }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                canvasDevice === device
+                  ? 'bg-primary text-primary-content shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              }`}
+              title={label}
+            >
+              <Icon size={14} />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="p-6">
+        <div
+          className="mx-auto bg-white rounded-xl shadow-sm border border-gray-200 min-h-[60vh] p-6 editor-canvas-light"
+          style={{
+            maxWidth: canvasWidths[canvasDevice],
+            transition: 'max-width 0.3s ease',
+          }}
+        >
           <SortableContext
             items={blocks.map((b) => b.id)}
             strategy={verticalListSortingStrategy}
@@ -111,6 +150,7 @@ export function BuilderCanvas() {
               )}
             </div>
           </SortableContext>
+        </div>
         </div>
       </div>
 

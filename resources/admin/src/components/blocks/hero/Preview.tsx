@@ -71,12 +71,14 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const headlineLineHeight = (data.headlineLineHeight as string) || '';
   const headlineLetterSpacing = (data.headlineLetterSpacing as string) || '';
   const headlineTextTransform = (data.headlineTextTransform as string) || '';
+  const headlineTextShadow = (data.headlineTextShadow as string) || '';
   const subheadlineSize = (data.subheadlineSize as string) || '1.25rem';
   const subheadlineWeight = (data.subheadlineWeight as string) || '400';
   const subtitleColor = safeColor((data.subtitleColor as string) || '');
   const subheadlineLineHeight = (data.subheadlineLineHeight as string) || '';
   const subheadlineLetterSpacing = (data.subheadlineLetterSpacing as string) || '';
   const subheadlineTextTransform = (data.subheadlineTextTransform as string) || '';
+  const subheadlineTextShadow = (data.subheadlineTextShadow as string) || '';
   const adaptiveTextColor = data.adaptiveTextColor !== false;
 
   // CTA style fields
@@ -330,6 +332,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
             lineHeight: headlineLineHeight || undefined,
             letterSpacing: headlineLetterSpacing || undefined,
             textTransform: (headlineTextTransform as React.CSSProperties['textTransform']) || undefined,
+            textShadow: headlineTextShadow || undefined,
             marginBottom: '1rem',
           }}
           showCharacterCount
@@ -348,6 +351,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
             lineHeight: subheadlineLineHeight || undefined,
             letterSpacing: subheadlineLetterSpacing || undefined,
             textTransform: (subheadlineTextTransform as React.CSSProperties['textTransform']) || undefined,
+            textShadow: subheadlineTextShadow || undefined,
             marginBottom: '2rem',
           }}
           showCharacterCount
