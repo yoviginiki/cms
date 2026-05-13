@@ -4,6 +4,7 @@ import { buildBackgroundStyle, buildOverlayStyle } from '@/components/editor/Bac
 import { InlineTextField, InlineLinkPopover, InlineMediaReplace } from '@/components/editor/fields';
 import { buildShadowCss } from '@/lib/shadowStyles';
 import type { ShadowCustom } from '@/lib/shadowStyles';
+import { resolveBoxSpacing, resolveCornerRadius } from '@/lib/spacingHelpers';
 
 // ── Safe CSS value helpers (preview-only; Blade has its own sanitizers) ──
 const safeDim = (v: string) =>
@@ -66,8 +67,9 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const contentMaxWidth = (data.contentMaxWidth as string) || '800px';
   const headlineSize = (data.headlineSize as string) || '2.5rem';
   const headlineWeight = (data.headlineWeight as string) || '700';
-  const headlineColor = (data.headlineColor as string) || '';
+  const headlineColor = safeColor((data.headlineColor as string) || '');
   const subheadlineSize = (data.subheadlineSize as string) || '1.25rem';
+  const subheadlineWeight = (data.subheadlineWeight as string) || '400';
   const subtitleColor = safeColor((data.subtitleColor as string) || '');
   const adaptiveTextColor = data.adaptiveTextColor !== false;
 
@@ -79,7 +81,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const ctaTextColor = safeColor((data.ctaTextColor as string) || '');
   const ctaBorderColor = safeColor((data.ctaBorderColor as string) || '');
   const ctaBorderWidth = safeDim((data.ctaBorderWidth as string) || '');
-  const ctaBorderRadius = safeDim((data.ctaBorderRadius as string) || '');
+  const ctaBorderRadius = resolveCornerRadius(data.ctaBorderRadius);
 
   // Map sectionHeight to minHeight
   const heightMap: Record<string, number | string> = {
@@ -221,7 +223,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const sectionBorderWidth = safeDim((data.sectionBorderWidth as string) || '');
   const sectionBorderColor = safeColor((data.sectionBorderColor as string) || '');
   const sectionBorderStyle = (data.sectionBorderStyle as string) || '';
-  const sectionBorderRadius = safeDim((data.sectionBorderRadius as string) || '');
+  const sectionBorderRadius = resolveCornerRadius(data.sectionBorderRadius);
   const sectionShadow = (data.sectionShadow as string) || '';
   const sectionShadowMode = (data.sectionShadowMode as string) || 'preset';
   const sectionShadowCustom = (data.sectionShadowCustom as ShadowCustom) || {};
@@ -238,11 +240,11 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const contentBoxEnabled = data.contentBoxEnabled === true;
   const contentBoxBgColor = safeColor((data.contentBoxBgColor as string) || '') || '#ffffff';
   const contentBoxOpacity = Math.max(0, Math.min(100, Number(data.contentBoxOpacity ?? 80)));
-  const contentBoxBorderRadius = safeDim((data.contentBoxBorderRadius as string) || '') || '0.75rem';
+  const contentBoxBorderRadius = resolveCornerRadius(data.contentBoxBorderRadius, '0.75rem');
   const contentBoxBorderColor = safeColor((data.contentBoxBorderColor as string) || '');
   const contentBoxBorderWidth = safeDim((data.contentBoxBorderWidth as string) || '');
   const contentBoxShadow = (data.contentBoxShadow as string) || '';
-  const contentBoxPadding = safeDim((data.contentBoxPadding as string) || '') || '2rem';
+  const contentBoxPadding = resolveBoxSpacing(data.contentBoxPadding, '2rem');
   const shadowMap: Record<string, string> = {
     sm: '0 1px 2px rgba(0,0,0,0.04)',
     md: '0 4px 12px rgba(0,0,0,0.06)',
@@ -325,6 +327,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
           className={`block ${hasBg ? 'drop-shadow-sm' : ''} ${!adaptiveTextColor && !hasBg ? 'text-base-content/70' : ''}`}
           style={{
             fontSize: subheadlineSize,
+            fontWeight: subheadlineWeight,
             color: resolvedSubtitleColor || undefined,
             marginBottom: '2rem',
           }}

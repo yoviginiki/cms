@@ -7,6 +7,31 @@ class HeroBlockDefinition implements BlockDefinition
     public function type(): string { return 'hero'; }
     public function category(): string { return 'marketing'; }
 
+    /** Allowed keys for per-side and per-corner objects. */
+    private const SPACING_KEYS = ['top', 'right', 'bottom', 'left'];
+    private const CORNER_KEYS = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
+
+    /** Validate a field that accepts either a safe CSS dimension string or an array (per-side/per-corner). */
+    private static function dimOrArray(string $pattern = '/^\d+(\.\d+)?(px|rem|em|%)$/'): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($pattern) {
+            if (is_null($value) || $value === '') return;
+            if (is_array($value)) {
+                $allowed = array_merge(self::SPACING_KEYS, self::CORNER_KEYS);
+                foreach (array_keys($value) as $key) {
+                    if (!in_array($key, $allowed, true)) {
+                        $fail("The {$attribute} contains an invalid key: {$key}.");
+                        return;
+                    }
+                }
+                return; // sub-key values validated separately by dot-notation rules
+            }
+            if (!is_string($value) || strlen($value) > 20 || !preg_match($pattern, $value)) {
+                $fail("The {$attribute} must be a valid CSS dimension or a per-side/per-corner object.");
+            }
+        };
+    }
+
     public function validationRules(): array
     {
         return [
@@ -44,6 +69,7 @@ class HeroBlockDefinition implements BlockDefinition
             'headlineWeight'    => ['sometimes', 'in:400,500,600,700,800,900'],
             'headlineColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'subheadlineSize'   => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'subheadlineWeight' => ['sometimes', 'in:400,500,600,700,800,900'],
             'subtitleColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'adaptiveTextColor' => ['sometimes', 'boolean'],
 
@@ -62,7 +88,12 @@ class HeroBlockDefinition implements BlockDefinition
             'ctaTextColor'       => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'ctaBorderColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'ctaBorderWidth'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
-            'ctaBorderRadius'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            // CTA border radius: string (legacy) or per-corner object
+            'ctaBorderRadius'                => ['sometimes', 'nullable', self::dimOrArray()],
+            'ctaBorderRadius.topLeft'        => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'ctaBorderRadius.topRight'       => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'ctaBorderRadius.bottomRight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'ctaBorderRadius.bottomLeft'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
 
             // Responsive overrides (optional — tablet/mobile inherit from desktop)
             'responsive'                        => ['sometimes', 'nullable', 'array'],
@@ -79,7 +110,12 @@ class HeroBlockDefinition implements BlockDefinition
             'sectionBorderWidth'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
             'sectionBorderColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'sectionBorderStyle'     => ['sometimes', 'nullable', 'in:,solid,dashed,dotted'],
-            'sectionBorderRadius'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            // Section border radius: string (legacy) or per-corner object
+            'sectionBorderRadius'                => ['sometimes', 'nullable', self::dimOrArray()],
+            'sectionBorderRadius.topLeft'        => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'sectionBorderRadius.topRight'       => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'sectionBorderRadius.bottomRight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'sectionBorderRadius.bottomLeft'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
             'sectionShadow'          => ['sometimes', 'nullable', 'in:,none,subtle,medium,large,glow'],
             'sectionShadowMode'      => ['sometimes', 'in:preset,custom'],
             'sectionShadowCustom'    => ['sometimes', 'nullable', 'array'],
@@ -95,11 +131,21 @@ class HeroBlockDefinition implements BlockDefinition
             'contentBoxEnabled'      => ['sometimes', 'boolean'],
             'contentBoxBgColor'      => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'contentBoxOpacity'      => ['sometimes', 'integer', 'min:0', 'max:100'],
-            'contentBoxBorderRadius' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            // Content box border radius: string (legacy) or per-corner object
+            'contentBoxBorderRadius'                => ['sometimes', 'nullable', self::dimOrArray()],
+            'contentBoxBorderRadius.topLeft'        => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'contentBoxBorderRadius.topRight'       => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'contentBoxBorderRadius.bottomRight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'contentBoxBorderRadius.bottomLeft'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
             'contentBoxBorderColor'  => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'contentBoxBorderWidth'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
             'contentBoxShadow'       => ['sometimes', 'nullable', 'in:,sm,md,lg'],
-            'contentBoxPadding'      => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            // Content box padding: string (legacy) or per-side object
+            'contentBoxPadding'              => ['sometimes', 'nullable', self::dimOrArray()],
+            'contentBoxPadding.top'          => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'contentBoxPadding.right'        => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'contentBoxPadding.bottom'       => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'contentBoxPadding.left'         => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
 
             // Accessibility fields
             'alt'                => ['sometimes', 'nullable', 'string', 'max:255'],

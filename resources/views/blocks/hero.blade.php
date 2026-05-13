@@ -9,6 +9,34 @@
     // Strip control chars and whitespace before checking to prevent obfuscation (e.g. "java script:")
     $safeUrl = fn($v) => preg_match('/^(javascript|data|vbscript)\s*:/i', preg_replace('/[\x00-\x1f\x7f\s]/', '', (string) $v)) ? '#' : (string) $v;
 
+    // Resolve per-corner border-radius (object or legacy string)
+    $resolveCornerRadius = function($val, $fallback = '') use ($cssDim) {
+        if (is_array($val)) {
+            $tl = $cssDim($val['topLeft'] ?? '') ?: $cssDim($fallback);
+            $tr = $cssDim($val['topRight'] ?? '') ?: $cssDim($fallback);
+            $br = $cssDim($val['bottomRight'] ?? '') ?: $cssDim($fallback);
+            $bl = $cssDim($val['bottomLeft'] ?? '') ?: $cssDim($fallback);
+            if (!$tl && !$tr && !$br && !$bl) return '';
+            if ($tl === $tr && $tr === $br && $br === $bl) return $tl;
+            return ($tl ?: '0') . ' ' . ($tr ?: '0') . ' ' . ($br ?: '0') . ' ' . ($bl ?: '0');
+        }
+        return $cssDim((string)($val ?? '')) ?: $cssDim($fallback);
+    };
+
+    // Resolve per-side box spacing (object or legacy string)
+    $resolveBoxSpacing = function($val, $fallback = '') use ($cssDim) {
+        if (is_array($val)) {
+            $t = $cssDim($val['top'] ?? '') ?: $cssDim($fallback);
+            $r = $cssDim($val['right'] ?? '') ?: $cssDim($fallback);
+            $b = $cssDim($val['bottom'] ?? '') ?: $cssDim($fallback);
+            $l = $cssDim($val['left'] ?? '') ?: $cssDim($fallback);
+            if (!$t && !$r && !$b && !$l) return '';
+            if ($t === $r && $r === $b && $b === $l) return $t;
+            return ($t ?: '0') . ' ' . ($r ?: '0') . ' ' . ($b ?: '0') . ' ' . ($l ?: '0');
+        }
+        return $cssDim((string)($val ?? '')) ?: $cssDim($fallback);
+    };
+
     // ── Background (block-specific, from block.data) ──
     $bgType = $data['bg_type'] ?? 'none';
     // Legacy fallback: only when bg_type is none/image/absent AND bg_image is empty.
@@ -58,8 +86,9 @@
         $headlineColor = $hasBg ? '#fff' : '#333';
     }
 
-    // Subheadline size
+    // Subheadline size and weight
     $subSize = $cssDim($data['subheadlineSize'] ?? '1.25rem') ?: '1.25rem';
+    $subWeight = in_array((string)($data['subheadlineWeight'] ?? '400'), ['400','500','600','700','800','900']) ? ($data['subheadlineWeight'] ?? '400') : '400';
 
     // Subtitle color
     $subtitleColor = '';
@@ -115,7 +144,7 @@
     $secBorderWidth = $cssDim($data['sectionBorderWidth'] ?? '');
     $secBorderColor = $cssVal($data['sectionBorderColor'] ?? '');
     $secBorderStyle = in_array($data['sectionBorderStyle'] ?? '', ['solid', 'dashed', 'dotted']) ? $data['sectionBorderStyle'] : '';
-    $secBorderRadius = $cssDim($data['sectionBorderRadius'] ?? '');
+    $secBorderRadius = $resolveCornerRadius($data['sectionBorderRadius'] ?? '');
     $secShadow = BlockStyle::buildShadowCss(
         $data['sectionShadowMode'] ?? 'preset',
         $data['sectionShadow'] ?? '',
@@ -207,12 +236,12 @@
         $cbEnabled = !empty($data['contentBoxEnabled']);
         $cbBgColor = $cbEnabled ? $cssVal($data['contentBoxBgColor'] ?? '#ffffff') : '';
         $cbOpacity = $cbEnabled ? max(0, min(100, (int) ($data['contentBoxOpacity'] ?? 80))) : 0;
-        $cbBorderRadius = $cbEnabled ? ($cssDim($data['contentBoxBorderRadius'] ?? '0.75rem') ?: '0.75rem') : '';
+        $cbBorderRadius = $cbEnabled ? $resolveCornerRadius($data['contentBoxBorderRadius'] ?? '', '0.75rem') : '';
         $cbBorderColor = $cbEnabled ? $cssVal($data['contentBoxBorderColor'] ?? '') : '';
         $cbBorderWidth = $cbEnabled ? $cssDim($data['contentBoxBorderWidth'] ?? '') : '';
         $cbShadowMap = ['sm' => '0 1px 2px rgba(0,0,0,0.04)', 'md' => '0 4px 12px rgba(0,0,0,0.06)', 'lg' => '0 12px 32px rgba(0,0,0,0.10)'];
         $cbShadow = $cbEnabled ? ($cbShadowMap[$data['contentBoxShadow'] ?? ''] ?? '') : '';
-        $cbPadding = $cbEnabled ? ($cssDim($data['contentBoxPadding'] ?? '2rem') ?: '2rem') : '2rem';
+        $cbPadding = $cbEnabled ? ($resolveBoxSpacing($data['contentBoxPadding'] ?? '', '2rem') ?: '2rem') : '2rem';
 
         $contentStyle = "position:relative;z-index:1;text-align:{$textAlign};max-width:{$maxWidth};padding:{$cbPadding};";
         if ($cbEnabled) {
@@ -227,7 +256,7 @@
         @endif
         <{{ $headlineTag }} style="font-size:{{ $headlineSize }};font-weight:{{ $headlineWeight }};margin-bottom:1rem;@if($headlineColor)color:{{ $headlineColor }};@endif">{{ $data['title'] ?? '' }}</{{ $headlineTag }}>
         @if(!empty($data['subtitle']))
-            <p style="font-size:{{ $subSize }};opacity:0.9;margin-bottom:2rem;@if($subtitleColor)color:{{ $subtitleColor }};@endif">{{ $data['subtitle'] }}</p>
+            <p style="font-size:{{ $subSize }};font-weight:{{ $subWeight }};opacity:0.9;margin-bottom:2rem;@if($subtitleColor)color:{{ $subtitleColor }};@endif">{{ $data['subtitle'] }}</p>
         @endif
         @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
             @php
@@ -239,7 +268,7 @@
                 $ctaTextColorVal = $cssVal($data['ctaTextColor'] ?? '');
                 $ctaBorderColorVal = $cssVal($data['ctaBorderColor'] ?? '');
                 $ctaBorderWidthVal = $cssDim($data['ctaBorderWidth'] ?? '');
-                $ctaBorderRadiusVal = $cssDim($data['ctaBorderRadius'] ?? '');
+                $ctaBorderRadiusVal = $resolveCornerRadius($data['ctaBorderRadius'] ?? '');
 
                 // Size → padding
                 $ctaSizeMap = ['sm' => '0.375rem 1rem', 'md' => '0.75rem 2rem', 'lg' => '1rem 2.5rem'];

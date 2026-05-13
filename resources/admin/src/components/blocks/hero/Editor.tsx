@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
-import { TextField, SelectField, ToggleField, ColorField, ShadowField } from '@/components/editor/fields';
+import { TextField, SelectField, ToggleField, ColorField, ShadowField, BoxSpacingField, CornerRadiusField } from '@/components/editor/fields';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 import { ResponsiveField } from '@/components/editor/fields/ResponsiveField';
 import type { Breakpoint } from '@/lib/responsiveValues';
@@ -27,6 +27,12 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
 
   // Get effective value for current breakpoint
   const rv = (key: string) => getResponsiveValue(data, key, responsiveBp) as string;
+
+  // Normalize a value that may be a legacy string or a per-side/per-corner object.
+  // If it's a string, return an empty object so the field renders correctly;
+  // the string fallback is handled by Preview/Blade resolvers.
+  const asObj = (val: unknown): Record<string, string> =>
+    (typeof val === 'object' && val !== null) ? val as Record<string, string> : {};
 
   return (
     <div className="space-y-3">
@@ -135,13 +141,14 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
       {/* ── Typography — Title & Subtitle ── */}
       <div className="divider text-[10px] text-base-content/40 my-1">Typography — Title & Subtitle</div>
       <TextField
-        label="Headline Size"
+        label="Title Size"
         value={(data.headlineSize as string) || '2.5rem'}
         onChange={(v) => update('headlineSize', v)}
         placeholder="e.g. 2.5rem, 48px"
+        helperText="Font size for the title heading"
       />
       <SelectField
-        label="Headline Weight"
+        label="Title Weight"
         value={(data.headlineWeight as string) || '700'}
         onChange={(v) => update('headlineWeight', v)}
         options={[
@@ -153,16 +160,30 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
           { value: '900', label: 'Black (900)' },
         ]}
       />
+      <ColorField
+        label="Title Color"
+        value={(data.headlineColor as string) || ''}
+        onChange={(v) => update('headlineColor', v)}
+      />
       <TextField
-        label="Subheadline Size"
+        label="Subtitle Size"
         value={(data.subheadlineSize as string) || '1.25rem'}
         onChange={(v) => update('subheadlineSize', v)}
         placeholder="e.g. 1.25rem, 20px"
+        helperText="Font size for the subtitle text"
       />
-      <ColorField
-        label="Headline Color"
-        value={(data.headlineColor as string) || ''}
-        onChange={(v) => update('headlineColor', v)}
+      <SelectField
+        label="Subtitle Weight"
+        value={(data.subheadlineWeight as string) || '400'}
+        onChange={(v) => update('subheadlineWeight', v)}
+        options={[
+          { value: '400', label: 'Normal (400)' },
+          { value: '500', label: 'Medium (500)' },
+          { value: '600', label: 'Semibold (600)' },
+          { value: '700', label: 'Bold (700)' },
+          { value: '800', label: 'Extra Bold (800)' },
+          { value: '900', label: 'Black (900)' },
+        ]}
       />
       <ColorField
         label="Subtitle Color"
@@ -248,12 +269,11 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         placeholder="e.g. 2px"
         helperText="Leave empty for default"
       />
-      <TextField
+      <CornerRadiusField
         label="Border Radius"
-        value={(data.ctaBorderRadius as string) || ''}
+        value={asObj(data.ctaBorderRadius)}
         onChange={(v) => update('ctaBorderRadius', v)}
-        placeholder="e.g. 0.375rem, 8px"
-        helperText="Leave empty for default"
+        helperText="Applies to CTA button corners"
       />
 
       {/* ── Section Border & Shadow — Whole Hero Section ── */}
@@ -281,11 +301,11 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
           { value: 'dotted', label: 'Dotted' },
         ]}
       />
-      <TextField
+      <CornerRadiusField
         label="Border Radius"
-        value={(data.sectionBorderRadius as string) || ''}
+        value={asObj(data.sectionBorderRadius)}
         onChange={(v) => update('sectionBorderRadius', v)}
-        placeholder="e.g. 0.75rem, 12px"
+        helperText="Applies to whole Hero section. 50% creates a pill/circle shape."
       />
       <ShadowField
         label="Shadow"
@@ -324,11 +344,11 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
               className="range range-xs range-primary w-full"
             />
           </div>
-          <TextField
+          <CornerRadiusField
             label="Border Radius"
-            value={(data.contentBoxBorderRadius as string) || '0.75rem'}
+            value={asObj(data.contentBoxBorderRadius)}
             onChange={(v) => update('contentBoxBorderRadius', v)}
-            placeholder="e.g. 0.75rem, 8px"
+            helperText="Applies to Content Box corners"
           />
           <ColorField
             label="Border Color"
@@ -352,12 +372,12 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
               { value: 'lg', label: 'Large' },
             ]}
           />
-          <TextField
+          <BoxSpacingField
             label="Padding"
-            value={(data.contentBoxPadding as string) || '2rem'}
+            value={asObj(data.contentBoxPadding)}
             onChange={(v) => update('contentBoxPadding', v)}
-            placeholder="e.g. 2rem, 32px"
-            helperText="Applies to Content Box only. Use CSS shorthand for per-side: e.g. 1rem 2rem 1rem 2rem"
+            placeholder="2rem"
+            helperText="Applies to Content Box only"
           />
         </>
       )}

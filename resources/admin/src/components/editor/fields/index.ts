@@ -10,4 +10,6 @@ export { InlineLinkPopover } from './InlineLinkPopover';
 export { InlineMediaReplace } from './InlineMediaReplace';
 export { ResponsiveField } from './ResponsiveField';
 export { ShadowField } from './ShadowField';
+export { BoxSpacingField } from './BoxSpacingField';
+export { CornerRadiusField } from './CornerRadiusField';
 export { isSafeUrl, getUrlError, isExternalUrl, normalizeUrl } from './urlHelpers';
