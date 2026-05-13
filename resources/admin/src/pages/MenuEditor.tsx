@@ -43,7 +43,7 @@ type ItemType = 'custom' | 'page' | 'post' | 'category';
 // ── Constants ──
 
 const INDENT_PX = 32; // pixels per depth level
-const DEPTH_DRAG_PX = 40; // horizontal pixels to change one depth level during drag
+const DEPTH_DRAG_PX = 30; // horizontal pixels to change one depth level during drag
 
 // ── Helpers ──
 
@@ -220,8 +220,11 @@ function SortableMenuItem({ flatItem, isOver, projectedDepth, onUpdate, onRemove
     attributes, listeners, setNodeRef, transform, transition, isDragging,
   } = useSortable({ id: itemId, disabled: isDragOverlay });
 
+  // Lock transform to Y-axis only — horizontal movement is used for depth, not visual position
+  const yOnlyTransform = transform ? { ...transform, x: 0 } : null;
+
   const style = isDragOverlay ? {} : {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Transform.toString(yOnlyTransform),
     transition,
     opacity: isDragging ? 0.15 : 1,
   };
@@ -409,7 +412,7 @@ export default function MenuEditor() {
   const [dragDeltaX, setDragDeltaX] = useState(0);
   const dragDeltaRef = useRef(0); // ref for race-free read in handleDragEnd
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const { data: menuData, isLoading } = useQuery({
     queryKey: ['menu', siteId, menuId],
@@ -513,9 +516,11 @@ export default function MenuEditor() {
 
     const significantHorizontal = Math.abs(finalDeltaX) >= DEPTH_DRAG_PX;
     const sameItem = active.id === over.id;
+    // If primary direction is horizontal (more X than Y), treat as depth change even if over changed
+    const primaryHorizontal = significantHorizontal && Math.abs(finalDeltaX) > Math.abs(event.delta.y) * 1.5;
 
-    // Case 1: Dragged horizontally on the same item — indent/outdent in place
-    if (sameItem && significantHorizontal) {
+    // Case 1: Dragged primarily horizontally — indent/outdent in place
+    if ((sameItem || primaryHorizontal) && significantHorizontal) {
       const depthChange = Math.round(finalDeltaX / DEPTH_DRAG_PX);
       const targetDepth = activeFlat.depth + depthChange;
 
