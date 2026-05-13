@@ -620,8 +620,8 @@ export default function MenuEditor() {
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>;
 
-  const pagesList = filterBySearch((sitePages as Array<{ id: string; title: string; slug: string }>) || []);
-  const postsList = filterBySearch((sitePosts as Array<{ id: string; title: string; slug: string }>) || []);
+  const pagesList = filterBySearch(((sitePages as Array<{ id: string; title: string; slug: string; status: string }>) || []).filter(p => p.status === 'published'));
+  const postsList = filterBySearch(((sitePosts as Array<{ id: string; title: string; slug: string; status: string }>) || []).filter(p => p.status === 'published'));
   const catsList = filterBySearch((siteCats as Array<{ id: string; name: string; slug: string }>) || []);
 
   return (
