@@ -68,9 +68,15 @@ class HeroBlockDefinition implements BlockDefinition
             'headlineSize'      => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
             'headlineWeight'    => ['sometimes', 'in:400,500,600,700,800,900'],
             'headlineColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'headlineLineHeight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em|%)?$/'],
+            'headlineLetterSpacing' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'headlineTextTransform' => ['sometimes', 'nullable', 'in:,uppercase,lowercase,capitalize'],
             'subheadlineSize'   => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
             'subheadlineWeight' => ['sometimes', 'in:400,500,600,700,800,900'],
             'subtitleColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'subheadlineLineHeight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em|%)?$/'],
+            'subheadlineLetterSpacing' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'subheadlineTextTransform' => ['sometimes', 'nullable', 'in:,uppercase,lowercase,capitalize'],
             'adaptiveTextColor' => ['sometimes', 'boolean'],
 
             // Performance
@@ -94,6 +100,18 @@ class HeroBlockDefinition implements BlockDefinition
             'ctaBorderRadius.topRight'       => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
             'ctaBorderRadius.bottomRight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
             'ctaBorderRadius.bottomLeft'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+
+            // CTA shadow (all optional — backward compatible)
+            'ctaShadow'          => ['sometimes', 'nullable', 'in:,none,subtle,medium,large,glow,sm,md,lg'],
+            'ctaShadowMode'      => ['sometimes', 'in:preset,custom'],
+            'ctaShadowCustom'    => ['sometimes', 'nullable', 'array'],
+            'ctaShadowCustom.x'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'ctaShadowCustom.y'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'ctaShadowCustom.blur' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
+            'ctaShadowCustom.spread' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'ctaShadowCustom.color' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^#[0-9a-fA-F]{3,8}$/'],
+            'ctaShadowCustom.opacity' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'ctaShadowCustom.inset' => ['sometimes', 'boolean'],
 
             // Responsive overrides (optional — tablet/mobile inherit from desktop)
             'responsive'                        => ['sometimes', 'nullable', 'array'],
@@ -139,7 +157,16 @@ class HeroBlockDefinition implements BlockDefinition
             'contentBoxBorderRadius.bottomLeft'     => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
             'contentBoxBorderColor'  => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'contentBoxBorderWidth'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
-            'contentBoxShadow'       => ['sometimes', 'nullable', 'in:,sm,md,lg'],
+            'contentBoxShadow'       => ['sometimes', 'nullable', 'in:,none,subtle,medium,large,glow,sm,md,lg'],
+            'contentBoxShadowMode'   => ['sometimes', 'in:preset,custom'],
+            'contentBoxShadowCustom' => ['sometimes', 'nullable', 'array'],
+            'contentBoxShadowCustom.x'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'contentBoxShadowCustom.y'  => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'contentBoxShadowCustom.blur' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em)$/'],
+            'contentBoxShadowCustom.spread' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
+            'contentBoxShadowCustom.color' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^#[0-9a-fA-F]{3,8}$/'],
+            'contentBoxShadowCustom.opacity' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'contentBoxShadowCustom.inset' => ['sometimes', 'boolean'],
             // Content box padding: string (legacy) or per-side object
             'contentBoxPadding'              => ['sometimes', 'nullable', self::dimOrArray()],
             'contentBoxPadding.top'          => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],

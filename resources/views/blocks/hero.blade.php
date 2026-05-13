@@ -72,9 +72,12 @@
     // Heading tag
     $headlineTag = in_array($data['headlineTag'] ?? 'h1', ['h1', 'h2', 'h3']) ? ($data['headlineTag'] ?? 'h1') : 'h1';
 
-    // Headline size and weight
+    // Headline size, weight, and typography
     $headlineSize = $cssDim($data['headlineSize'] ?? '2.5rem') ?: '2.5rem';
     $headlineWeight = in_array((string)($data['headlineWeight'] ?? '700'), ['400','500','600','700','800','900']) ? ($data['headlineWeight'] ?? '700') : '700';
+    $headlineLineHeight = $cssVal($data['headlineLineHeight'] ?? '');
+    $headlineLetterSpacing = $cssVal($data['headlineLetterSpacing'] ?? '');
+    $headlineTextTransform = in_array($data['headlineTextTransform'] ?? '', ['uppercase','lowercase','capitalize']) ? $data['headlineTextTransform'] : '';
 
     // Headline color
     $adaptiveTextColor = ($data['adaptiveTextColor'] ?? true) !== false;
@@ -86,9 +89,12 @@
         $headlineColor = $hasBg ? '#fff' : '#333';
     }
 
-    // Subheadline size and weight
+    // Subheadline size, weight, and typography
     $subSize = $cssDim($data['subheadlineSize'] ?? '1.25rem') ?: '1.25rem';
     $subWeight = in_array((string)($data['subheadlineWeight'] ?? '400'), ['400','500','600','700','800','900']) ? ($data['subheadlineWeight'] ?? '400') : '400';
+    $subLineHeight = $cssVal($data['subheadlineLineHeight'] ?? '');
+    $subLetterSpacing = $cssVal($data['subheadlineLetterSpacing'] ?? '');
+    $subTextTransform = in_array($data['subheadlineTextTransform'] ?? '', ['uppercase','lowercase','capitalize']) ? $data['subheadlineTextTransform'] : '';
 
     // Subtitle color
     $subtitleColor = '';
@@ -239,8 +245,11 @@
         $cbBorderRadius = $cbEnabled ? $resolveCornerRadius($data['contentBoxBorderRadius'] ?? '', '0.75rem') : '';
         $cbBorderColor = $cbEnabled ? $cssVal($data['contentBoxBorderColor'] ?? '') : '';
         $cbBorderWidth = $cbEnabled ? $cssDim($data['contentBoxBorderWidth'] ?? '') : '';
-        $cbShadowMap = ['sm' => '0 1px 2px rgba(0,0,0,0.04)', 'md' => '0 4px 12px rgba(0,0,0,0.06)', 'lg' => '0 12px 32px rgba(0,0,0,0.10)'];
-        $cbShadow = $cbEnabled ? ($cbShadowMap[$data['contentBoxShadow'] ?? ''] ?? '') : '';
+        $cbShadow = $cbEnabled ? BlockStyle::buildShadowCss(
+            $data['contentBoxShadowMode'] ?? 'preset',
+            $data['contentBoxShadow'] ?? '',
+            is_array($data['contentBoxShadowCustom'] ?? null) ? $data['contentBoxShadowCustom'] : null
+        ) : '';
         $cbPadding = $cbEnabled ? ($resolveBoxSpacing($data['contentBoxPadding'] ?? '', '2rem') ?: '2rem') : '2rem';
 
         $contentStyle = "position:relative;z-index:1;text-align:{$textAlign};max-width:{$maxWidth};padding:{$cbPadding};";
@@ -254,9 +263,9 @@
         @if($cbEnabled && $cbBgColor)
         <div style="position:absolute;inset:0;background-color:{{ $cbBgColor }};opacity:{{ $cbOpacity / 100 }};border-radius:{{ $cbBorderRadius }};pointer-events:none;z-index:0;"></div>
         @endif
-        <{{ $headlineTag }} style="font-size:{{ $headlineSize }};font-weight:{{ $headlineWeight }};margin-bottom:1rem;@if($headlineColor)color:{{ $headlineColor }};@endif">{{ $data['title'] ?? '' }}</{{ $headlineTag }}>
+        <{{ $headlineTag }} style="font-size:{{ $headlineSize }};font-weight:{{ $headlineWeight }};margin-bottom:1rem;@if($headlineColor)color:{{ $headlineColor }};@endif @if($headlineLineHeight)line-height:{{ $headlineLineHeight }};@endif @if($headlineLetterSpacing)letter-spacing:{{ $headlineLetterSpacing }};@endif @if($headlineTextTransform)text-transform:{{ $headlineTextTransform }};@endif">{{ $data['title'] ?? '' }}</{{ $headlineTag }}>
         @if(!empty($data['subtitle']))
-            <p style="font-size:{{ $subSize }};font-weight:{{ $subWeight }};opacity:0.9;margin-bottom:2rem;@if($subtitleColor)color:{{ $subtitleColor }};@endif">{{ $data['subtitle'] }}</p>
+            <p style="font-size:{{ $subSize }};font-weight:{{ $subWeight }};opacity:0.9;margin-bottom:2rem;@if($subtitleColor)color:{{ $subtitleColor }};@endif @if($subLineHeight)line-height:{{ $subLineHeight }};@endif @if($subLetterSpacing)letter-spacing:{{ $subLetterSpacing }};@endif @if($subTextTransform)text-transform:{{ $subTextTransform }};@endif">{{ $data['subtitle'] }}</p>
         @endif
         @if(!empty($data['ctaText']) && !empty($data['ctaUrl']))
             @php
@@ -310,6 +319,14 @@
                         $ctaStyle .= 'border:2px solid ' . $defaultBorder . ';';
                     }
                 }
+
+                // CTA shadow
+                $ctaShadowCss = BlockStyle::buildShadowCss(
+                    $data['ctaShadowMode'] ?? 'preset',
+                    $data['ctaShadow'] ?? '',
+                    is_array($data['ctaShadowCustom'] ?? null) ? $data['ctaShadowCustom'] : null
+                );
+                if ($ctaShadowCss) $ctaStyle .= "box-shadow:{$ctaShadowCss};";
 
                 // CTA alignment wrapper
                 $ctaWrapAlign = $ctaAlignVal ?: $textAlign;

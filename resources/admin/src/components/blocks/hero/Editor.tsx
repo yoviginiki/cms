@@ -166,6 +166,31 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         onChange={(v) => update('headlineColor', v)}
       />
       <TextField
+        label="Title Line Height"
+        value={(data.headlineLineHeight as string) || ''}
+        onChange={(v) => update('headlineLineHeight', v)}
+        placeholder="e.g. 1.2, 1.5, 48px"
+        helperText="Leave empty for default"
+      />
+      <TextField
+        label="Title Letter Spacing"
+        value={(data.headlineLetterSpacing as string) || ''}
+        onChange={(v) => update('headlineLetterSpacing', v)}
+        placeholder="e.g. 0.02em, 1px, -0.5px"
+        helperText="Leave empty for default"
+      />
+      <SelectField
+        label="Title Text Transform"
+        value={(data.headlineTextTransform as string) || ''}
+        onChange={(v) => update('headlineTextTransform', v)}
+        options={[
+          { value: '', label: 'None' },
+          { value: 'uppercase', label: 'UPPERCASE' },
+          { value: 'lowercase', label: 'lowercase' },
+          { value: 'capitalize', label: 'Capitalize' },
+        ]}
+      />
+      <TextField
         label="Subtitle Size"
         value={(data.subheadlineSize as string) || '1.25rem'}
         onChange={(v) => update('subheadlineSize', v)}
@@ -189,6 +214,31 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         label="Subtitle Color"
         value={(data.subtitleColor as string) || ''}
         onChange={(v) => update('subtitleColor', v)}
+      />
+      <TextField
+        label="Subtitle Line Height"
+        value={(data.subheadlineLineHeight as string) || ''}
+        onChange={(v) => update('subheadlineLineHeight', v)}
+        placeholder="e.g. 1.4, 1.6, 28px"
+        helperText="Leave empty for default"
+      />
+      <TextField
+        label="Subtitle Letter Spacing"
+        value={(data.subheadlineLetterSpacing as string) || ''}
+        onChange={(v) => update('subheadlineLetterSpacing', v)}
+        placeholder="e.g. 0.02em, 1px"
+        helperText="Leave empty for default"
+      />
+      <SelectField
+        label="Subtitle Text Transform"
+        value={(data.subheadlineTextTransform as string) || ''}
+        onChange={(v) => update('subheadlineTextTransform', v)}
+        options={[
+          { value: '', label: 'None' },
+          { value: 'uppercase', label: 'UPPERCASE' },
+          { value: 'lowercase', label: 'lowercase' },
+          { value: 'capitalize', label: 'Capitalize' },
+        ]}
       />
       <ToggleField
         label="Auto Text Color"
@@ -274,6 +324,15 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         value={asObj(data.ctaBorderRadius)}
         onChange={(v) => update('ctaBorderRadius', v)}
         helperText="Applies to CTA button corners"
+      />
+      <ShadowField
+        label="Shadow"
+        mode={(data.ctaShadowMode as string) || 'preset'}
+        preset={(data.ctaShadow as string) || ''}
+        custom={(data.ctaShadowCustom as ShadowCustom) || {}}
+        onChangeMode={(v) => update('ctaShadowMode', v)}
+        onChangePreset={(v) => update('ctaShadow', v)}
+        onChangeCustom={(v) => update('ctaShadowCustom', { ...((data.ctaShadowCustom as ShadowCustom) || {}), ...v })}
       />
 
       {/* ── Section Border & Shadow — Whole Hero Section ── */}
@@ -361,16 +420,14 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
             onChange={(v) => update('contentBoxBorderWidth', v)}
             placeholder="e.g. 1px"
           />
-          <SelectField
+          <ShadowField
             label="Shadow"
-            value={(data.contentBoxShadow as string) || ''}
-            onChange={(v) => update('contentBoxShadow', v)}
-            options={[
-              { value: '', label: 'None' },
-              { value: 'sm', label: 'Small' },
-              { value: 'md', label: 'Medium' },
-              { value: 'lg', label: 'Large' },
-            ]}
+            mode={(data.contentBoxShadowMode as string) || 'preset'}
+            preset={(data.contentBoxShadow as string) || ''}
+            custom={(data.contentBoxShadowCustom as ShadowCustom) || {}}
+            onChangeMode={(v) => update('contentBoxShadowMode', v)}
+            onChangePreset={(v) => update('contentBoxShadow', v)}
+            onChangeCustom={(v) => update('contentBoxShadowCustom', { ...((data.contentBoxShadowCustom as ShadowCustom) || {}), ...v })}
           />
           <BoxSpacingField
             label="Padding"

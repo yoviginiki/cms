@@ -68,9 +68,15 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const headlineSize = (data.headlineSize as string) || '2.5rem';
   const headlineWeight = (data.headlineWeight as string) || '700';
   const headlineColor = safeColor((data.headlineColor as string) || '');
+  const headlineLineHeight = (data.headlineLineHeight as string) || '';
+  const headlineLetterSpacing = (data.headlineLetterSpacing as string) || '';
+  const headlineTextTransform = (data.headlineTextTransform as string) || '';
   const subheadlineSize = (data.subheadlineSize as string) || '1.25rem';
   const subheadlineWeight = (data.subheadlineWeight as string) || '400';
   const subtitleColor = safeColor((data.subtitleColor as string) || '');
+  const subheadlineLineHeight = (data.subheadlineLineHeight as string) || '';
+  const subheadlineLetterSpacing = (data.subheadlineLetterSpacing as string) || '';
+  const subheadlineTextTransform = (data.subheadlineTextTransform as string) || '';
   const adaptiveTextColor = data.adaptiveTextColor !== false;
 
   // CTA style fields
@@ -193,6 +199,9 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
     if (ctaBorderRadius) {
       style.borderRadius = ctaBorderRadius;
     }
+    if (ctaShadowCss) {
+      style.boxShadow = ctaShadowCss;
+    }
 
     return style;
   };
@@ -244,12 +253,16 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const contentBoxBorderColor = safeColor((data.contentBoxBorderColor as string) || '');
   const contentBoxBorderWidth = safeDim((data.contentBoxBorderWidth as string) || '');
   const contentBoxShadow = (data.contentBoxShadow as string) || '';
+  const contentBoxShadowMode = (data.contentBoxShadowMode as string) || 'preset';
+  const contentBoxShadowCustom = (data.contentBoxShadowCustom as ShadowCustom) || {};
+  const contentBoxShadowCss = buildShadowCss(contentBoxShadowMode, contentBoxShadow, contentBoxShadowCustom);
   const contentBoxPadding = resolveBoxSpacing(data.contentBoxPadding, '2rem');
-  const shadowMap: Record<string, string> = {
-    sm: '0 1px 2px rgba(0,0,0,0.04)',
-    md: '0 4px 12px rgba(0,0,0,0.06)',
-    lg: '0 12px 32px rgba(0,0,0,0.10)',
-  };
+
+  // CTA shadow
+  const ctaShadowMode = (data.ctaShadowMode as string) || 'preset';
+  const ctaShadow = (data.ctaShadow as string) || '';
+  const ctaShadowCustom = (data.ctaShadowCustom as ShadowCustom) || {};
+  const ctaShadowCss = buildShadowCss(ctaShadowMode, ctaShadow, ctaShadowCustom);
   return (
     <div
       className={`relative ${!sectionBorderRadius ? 'rounded-lg' : ''} overflow-hidden ${controlsOwnColors ? 'block-controls-own-colors' : ''}`}
@@ -286,7 +299,7 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
           ...(contentBoxEnabled && contentBoxBorderWidth && contentBoxBorderColor ? {
             border: `${contentBoxBorderWidth} solid ${contentBoxBorderColor}`,
           } : {}),
-          ...(contentBoxEnabled && shadowMap[contentBoxShadow] ? { boxShadow: shadowMap[contentBoxShadow] } : {}),
+          ...(contentBoxEnabled && contentBoxShadowCss ? { boxShadow: contentBoxShadowCss } : {}),
           position: 'relative',
         }}
       >
@@ -314,6 +327,9 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
             fontSize: headlineSize,
             fontWeight: headlineWeight,
             color: resolvedHeadlineColor || undefined,
+            lineHeight: headlineLineHeight || undefined,
+            letterSpacing: headlineLetterSpacing || undefined,
+            textTransform: (headlineTextTransform as React.CSSProperties['textTransform']) || undefined,
             marginBottom: '1rem',
           }}
           showCharacterCount
@@ -329,6 +345,9 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
             fontSize: subheadlineSize,
             fontWeight: subheadlineWeight,
             color: resolvedSubtitleColor || undefined,
+            lineHeight: subheadlineLineHeight || undefined,
+            letterSpacing: subheadlineLetterSpacing || undefined,
+            textTransform: (subheadlineTextTransform as React.CSSProperties['textTransform']) || undefined,
             marginBottom: '2rem',
           }}
           showCharacterCount
