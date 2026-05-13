@@ -11,13 +11,29 @@
   if (!$menu && isset($site)) {
       $menu = \App\Models\Menu::where('site_id', $site->id)->orderBy('created_at')->first();
   }
+  // Eager-load with status for draft filtering
+  $eagerRelations = ['page:id,title,slug,status', 'post:id,title,slug,status', 'category:id,name,slug'];
   $items = $menu
       ? $menu->items()->whereNull('parent_id')->orderBy('sort_order')
-          ->with(['children' => fn($q) => $q->orderBy('sort_order')->with(['page:id,title,slug', 'post:id,title,slug', 'category:id,name,slug',
-              'children' => fn($q2) => $q2->orderBy('sort_order')->with(['page:id,title,slug', 'post:id,title,slug', 'category:id,name,slug'])
-          ]), 'page:id,title,slug', 'post:id,title,slug', 'category:id,name,slug'])
+          ->with(['children' => fn($q) => $q->orderBy('sort_order')->with([...$eagerRelations,
+              'children' => fn($q2) => $q2->orderBy('sort_order')->with($eagerRelations)
+          ]), ...$eagerRelations])
           ->get()
       : collect();
+
+  // Hide menu items whose linked page/post is not published or was deleted.
+  // Custom links (no page_id/post_id) and category links are always visible.
+  $isVisible = function($item) {
+      if ($item->page_id) {
+          if (!$item->page) return false; // page was deleted
+          if (($item->page->status ?? '') !== 'published') return false;
+      }
+      if ($item->post_id) {
+          if (!$item->post) return false; // post was deleted
+          if (($item->post->status ?? '') !== 'published') return false;
+      }
+      return true;
+  };
 
   $navStyle = $sticky ? 'position:sticky;top:0;z-index:100;' : '';
   $isVertical = $style === 'vertical';
@@ -38,22 +54,29 @@
       <a href="/" style="font-weight:700;font-size:1.1rem;color:var(--color-text, #1e293b);text-decoration:none;">{{ $site->name }}</a>
     @endif
     @foreach($items as $item)
-      @php $hasChildren = $item->children && $item->children->count() > 0; @endphp
+      @if($isVisible($item))
+      @php
+        $visibleChildren = $item->children ? $item->children->filter($isVisible) : collect();
+        $hasChildren = $visibleChildren->count() > 0;
+      @endphp
       <div class="menu-item {{ $hasChildren ? 'has-children' : '' }}">
         <a href="{{ $item->resolveUrl() }}" class="menu-top-link" @if($item->target === '_blank') target="_blank" rel="noopener noreferrer" @endif style="font-size:0.875rem;color:var(--color-text-muted, #64748b);text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--color-primary, #3b82f6)'" onmouseout="this.style.color='var(--color-text-muted, #64748b)'">
           {{ $item->label }}
         </a>
         @if($hasChildren)
           <div class="submenu">
-            @foreach($item->children as $child)
-              @php $childHasChildren = $child->children && $child->children->count() > 0; @endphp
+            @foreach($visibleChildren as $child)
+              @php
+                $visibleGrandchildren = $child->children ? $child->children->filter($isVisible) : collect();
+                $childHasChildren = $visibleGrandchildren->count() > 0;
+              @endphp
               <div class="menu-item {{ $childHasChildren ? 'has-children' : '' }}">
                 <a href="{{ $child->resolveUrl() }}" class="menu-link" @if($child->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
                   {{ $child->label }}
                 </a>
                 @if($childHasChildren)
                   <div class="submenu">
-                    @foreach($child->children as $grandchild)
+                    @foreach($visibleGrandchildren as $grandchild)
                       <a href="{{ $grandchild->resolveUrl() }}" class="menu-link" @if($grandchild->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
                         {{ $grandchild->label }}
                       </a>
@@ -65,6 +88,7 @@
           </div>
         @endif
       </div>
+      @endif
     @endforeach
     @if($items->isEmpty())
       <span style="font-size:0.8rem;color:#9ca3af;font-style:italic;">No menu items configured</span>
