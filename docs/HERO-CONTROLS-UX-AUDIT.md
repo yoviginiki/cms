@@ -48,11 +48,18 @@
 
 | Label | Data Key | Applies To | Editor | Preview | Blade | Validation | Status |
 |-------|----------|------------|--------|---------|-------|------------|--------|
-| Headline Size | `headlineSize` | Title | yes | yes | yes | regex CSS dim | WORKING |
-| Headline Weight | `headlineWeight` | Title | yes | yes | yes | in:400–900 | WORKING |
-| Subheadline Size | `subheadlineSize` | Subtitle | yes | yes | yes | regex CSS dim | WORKING |
-| Headline Color | `headlineColor` | Title | yes | yes | yes | regex color | WORKING |
-| Subtitle Color | `subtitleColor` | Subtitle | yes (P0 added) | yes (P0 added) | yes (P0 added) | regex color | WORKING (P0) |
+| Title Size | `headlineSize` | Title | yes | yes | yes | regex CSS dim | WORKING |
+| Title Weight | `headlineWeight` | Title | yes | yes | yes | in:400–900 | WORKING |
+| Title Color | `headlineColor` | Title | yes | yes | yes | regex color | WORKING |
+| Title Line Height | `headlineLineHeight` | Title | yes (P2) | yes (P2) | yes (P2) | regex CSS dim (unitless ok) | WORKING (P2) |
+| Title Letter Spacing | `headlineLetterSpacing` | Title | yes (P2) | yes (P2) | yes (P2) | regex CSS dim | WORKING (P2) |
+| Title Text Transform | `headlineTextTransform` | Title | yes (P2) | yes (P2) | yes (P2) | in:uppercase,lowercase,capitalize | WORKING (P2) |
+| Subtitle Size | `subheadlineSize` | Subtitle | yes | yes | yes | regex CSS dim | WORKING |
+| Subtitle Weight | `subheadlineWeight` | Subtitle | yes (P1) | yes (P1) | yes (P1) | in:400–900 | WORKING (P1) |
+| Subtitle Color | `subtitleColor` | Subtitle | yes (P0) | yes (P0) | yes (P0) | regex color | WORKING (P0) |
+| Subtitle Line Height | `subheadlineLineHeight` | Subtitle | yes (P2) | yes (P2) | yes (P2) | regex CSS dim (unitless ok) | WORKING (P2) |
+| Subtitle Letter Spacing | `subheadlineLetterSpacing` | Subtitle | yes (P2) | yes (P2) | yes (P2) | regex CSS dim | WORKING (P2) |
+| Subtitle Text Transform | `subheadlineTextTransform` | Subtitle | yes (P2) | yes (P2) | yes (P2) | in:uppercase,lowercase,capitalize | WORKING (P2) |
 | Auto Text Color | `adaptiveTextColor` | Title + Subtitle | yes | yes | yes | boolean | WORKING |
 
 ### Call to Action (Section: "Call to Action — CTA Button")
@@ -73,7 +80,8 @@
 | Text Color | `ctaTextColor` | CTA button | yes | yes | yes | regex color | WORKING |
 | Border Color | `ctaBorderColor` | CTA button | yes | yes | yes | regex color | WORKING |
 | Border Width | `ctaBorderWidth` | CTA button | yes | yes | yes | regex CSS dim | WORKING |
-| Border Radius | `ctaBorderRadius` | CTA button | yes | yes | yes | regex CSS dim | WORKING |
+| Border Radius | `ctaBorderRadius` | CTA button | yes (P1: CornerRadiusField) | yes | yes | dimOrArray per-corner | WORKING (P1) |
+| Shadow | `ctaShadow*` | CTA button | yes (P2: ShadowField) | yes (P2) | yes (P2) | preset+custom validated | WORKING (P2) |
 
 ### Border & Shadow (Section: "Border & Shadow — Whole Hero Section")
 
@@ -92,11 +100,11 @@
 | Enable Content Box | `contentBoxEnabled` | Content box toggle | yes | yes | yes | boolean | WORKING |
 | Background Color | `contentBoxBgColor` | Content box | yes | yes | yes | regex color | WORKING |
 | Opacity | `contentBoxOpacity` | Content box bg | yes | yes | yes | integer 0–100 | WORKING |
-| Border Radius | `contentBoxBorderRadius` | Content box | yes | yes | yes | regex CSS dim | WORKING |
+| Border Radius | `contentBoxBorderRadius` | Content box | yes (P1: CornerRadiusField) | yes | yes | dimOrArray per-corner | WORKING (P1) |
 | Border Color | `contentBoxBorderColor` | Content box | yes | yes | yes | regex color | WORKING |
 | Border Width | `contentBoxBorderWidth` | Content box | yes | yes | yes | regex CSS dim | WORKING |
-| Shadow | `contentBoxShadow` | Content box | yes (preset only) | yes | yes | in:,sm,md,lg | WORKING |
-| Padding | `contentBoxPadding` | Content box | yes (single value) | yes | yes | regex CSS dim | WORKING |
+| Shadow | `contentBoxShadow*` | Content box | yes (P2: ShadowField preset+custom) | yes (P2) | yes (P2) | preset+custom validated | WORKING (P2) |
+| Padding | `contentBoxPadding` | Content box | yes (P1: BoxSpacingField per-side) | yes | yes | dimOrArray per-side | WORKING (P1) |
 
 ### Accessibility
 
@@ -162,13 +170,13 @@
 
 **Problem**: All border radius fields (`sectionBorderRadius`, `contentBoxBorderRadius`, `ctaBorderRadius`) accept a single CSS value. Users expect per-corner control. CSS shorthand like `10px 20px 0 0` works but is not discoverable.
 
-**Status**: Documented as limitation. P1 will implement CornerRadiusField with per-corner controls.
+**P1 Fix**: CornerRadiusField implemented with per-corner controls, presets (None/Small/Medium/Large/Pill), and linked/unlinked toggle. Applied to section, content box, and CTA border radius.
 
 ### 2.9 Content Box Shadow — Preset Only
 
-**Problem**: Content Box shadow uses preset-only SelectField (sm/md/lg), while Section Shadow has full custom shadow builder (ShadowField with x/y/blur/spread/color/opacity/inset). Inconsistent capability.
+**Problem**: Content Box shadow used preset-only SelectField (sm/md/lg), while Section Shadow had full custom shadow builder (ShadowField with x/y/blur/spread/color/opacity/inset). Inconsistent capability.
 
-**Status**: P2 will upgrade Content Box shadow to use ShadowField.
+**P2 Fix**: Content Box shadow upgraded to full ShadowField with preset+custom modes, matching section shadow.
 
 ---
 
@@ -182,9 +190,9 @@
 | Color | WORKING (`headlineColor`) | — |
 | Font size | WORKING (`headlineSize`) | — |
 | Font weight | WORKING (`headlineWeight`) | — |
-| Line height | — | MISSING (P2) |
-| Letter spacing | — | MISSING (P2) |
-| Text transform | — | MISSING (P2) |
+| Line height | WORKING (P2: `headlineLineHeight`) | — |
+| Letter spacing | WORKING (P2: `headlineLetterSpacing`) | — |
+| Text transform | WORKING (P2: `headlineTextTransform`) | — |
 | Margin per side | — | MISSING (P1 via BoxSpacingField) |
 | Padding per side | — | MISSING (FUTURE) |
 | Background behind title | — | MISSING (FUTURE) |
@@ -196,10 +204,10 @@
 |---------|-----------|---------|
 | Color | WORKING (P0: `subtitleColor`) | — |
 | Font size | WORKING (`subheadlineSize`) | — |
-| Font weight | — | MISSING (P2) |
-| Line height | — | MISSING (P2) |
-| Letter spacing | — | MISSING (P2) |
-| Text transform | — | MISSING (P2) |
+| Font weight | WORKING (P1: `subheadlineWeight`) | — |
+| Line height | WORKING (P2: `subheadlineLineHeight`) | — |
+| Letter spacing | WORKING (P2: `subheadlineLetterSpacing`) | — |
+| Text transform | WORKING (P2: `subheadlineTextTransform`) | — |
 | Margin per side | — | MISSING (P1 via BoxSpacingField) |
 | Padding per side | — | MISSING (FUTURE) |
 | Background behind subtitle | — | MISSING (FUTURE) |
@@ -211,13 +219,13 @@
 | Enabled toggle | WORKING | — |
 | Background color | WORKING | — |
 | Opacity | WORKING | — |
-| Padding (single value) | WORKING | Per-side padding (P1) |
-| Margin per side | — | MISSING (P1) |
+| Padding (per-side) | WORKING (P1: `contentBoxPadding` via BoxSpacingField) | — |
+| Margin per side | — | MISSING (FUTURE) |
 | Border width | WORKING | — |
 | Border color | WORKING | — |
-| Border style | — | MISSING (P1) |
-| Border radius (single) | WORKING | Per-corner radius (P1) |
-| Shadow (preset only) | WORKING | Custom shadow builder (P2) |
+| Border style | — | MISSING (FUTURE) |
+| Border radius (per-corner) | WORKING (P1: `contentBoxBorderRadius` via CornerRadiusField) | — |
+| Shadow (preset+custom) | WORKING (P2: upgraded to ShadowField) | — |
 
 ### CTA Button (currently available → missing)
 
@@ -230,10 +238,10 @@
 | Text color | WORKING | — |
 | Border color | WORKING | — |
 | Border width | WORKING | — |
-| Border radius (single) | WORKING | Per-corner radius (P1) |
-| Margin per side | — | MISSING (P1) |
+| Border radius (per-corner) | WORKING (P1: `ctaBorderRadius` via CornerRadiusField) | — |
+| Margin per side | — | MISSING (FUTURE) |
 | Padding per side | — | MISSING (FUTURE — size presets cover most cases) |
-| Shadow | — | MISSING (P2) |
+| Shadow (preset+custom) | WORKING (P2: `ctaShadow*` via ShadowField) | — |
 | Hover color | — | MISSING (FUTURE) |
 
 ### Whole Hero Block (currently available → missing)
@@ -247,7 +255,7 @@
 | Text alignment | WORKING (responsive) | — |
 | Content max width | WORKING (responsive) | — |
 | Border width/color/style | WORKING | — |
-| Border radius (single) | WORKING | Per-corner radius (P1) |
+| Border radius (per-corner) | WORKING (P1: `sectionBorderRadius` via CornerRadiusField) | — |
 | Shadow (preset+custom) | WORKING | — |
 | Margin per side | — | MISSING (shared properties handle this via block.style) |
 | Padding per side | — | MISSING (shared properties handle this via block.style) |
@@ -316,7 +324,7 @@ These field components should be implemented once and reused across all blocks.
 - **Preset**: none, subtle, medium, large, glow (Hero), sm, md, lg (BaseBlock compat)
 - **Custom**: x, y, blur, spread, color (hex), opacity (0–100), inset (boolean)
 
-**Status**: WORKING for section shadow. Content Box still uses preset-only SelectField. P2 will upgrade Content Box to use ShadowField.
+**Status**: WORKING for section shadow, Content Box shadow (P2 upgraded), and CTA shadow (P2 added).
 
 ### 4.4 TypographyField
 
@@ -377,22 +385,26 @@ These field components should be implemented once and reused across all blocks.
 
 ### P1 — Spacing and Radius Fields
 
-- [ ] Implement `BoxSpacingField` as global reusable component
-- [ ] Use for Hero Content Box padding (per-side)
+- [x] Implement `BoxSpacingField` as global reusable component
+- [x] Use for Hero Content Box padding (per-side)
 - [ ] Use for Hero section margin via shared properties
-- [ ] Implement `CornerRadiusField` as global reusable component
-- [ ] Use for Hero section, Content Box, CTA border radius
-- [ ] Ensure Preview and Blade output match for per-side/per-corner values
+- [x] Implement `CornerRadiusField` as global reusable component
+- [x] Use for Hero section, Content Box, CTA border radius
+- [x] Ensure Preview and Blade output match for per-side/per-corner values
 - [ ] Add Content Box border style control (solid/dashed/dotted)
+- [x] Add subtitle weight control (`subheadlineWeight`)
+- [x] Relabel "Headline/Subheadline" to "Title/Subtitle" in Editor
+- [x] Add `spacingHelpers.ts` with backward-compatible resolvers
+- [x] Add `dimOrArray()` validation with key whitelist
 
 ### P2 — Typography and Shadow Enhancement
 
-- [ ] Implement `TypographyField` as global reusable component
-- [ ] Use for Hero title (add line-height, letter-spacing, text-transform)
-- [ ] Use for Hero subtitle (add font-weight, line-height, letter-spacing, text-transform)
-- [ ] Upgrade Content Box shadow from preset-only to full `ShadowField`
-- [ ] Add CTA shadow control
-- [ ] Ensure Preview and Blade parity for all new fields
+- [ ] Implement `TypographyField` as global reusable component (individual fields added directly for now)
+- [x] Add Hero title line-height, letter-spacing, text-transform
+- [x] Add Hero subtitle line-height, letter-spacing, text-transform
+- [x] Upgrade Content Box shadow from preset-only to full `ShadowField`
+- [x] Add CTA shadow control
+- [x] Ensure Preview and Blade parity for all new fields
 
 ### P3 — Responsive and Advanced
 
@@ -412,3 +424,6 @@ These field components should be implemented once and reused across all blocks.
 - No existing data keys were renamed or removed
 - Legacy `backgroundImage` fallback preserved
 - `mediaLoading` and `bg_parallax_speed` remain in validation but are documented as DEAD_CONTROL
+- P1 fields (`sectionBorderRadius`, `contentBoxBorderRadius`, `ctaBorderRadius`, `contentBoxPadding`) accept both legacy string and new per-side/per-corner object via `dimOrArray()` validation
+- P2 typography fields (`headlineLineHeight`, `headlineLetterSpacing`, `headlineTextTransform`, `subheadlineLineHeight`, `subheadlineLetterSpacing`, `subheadlineTextTransform`) are all optional — absence means browser default
+- P2 shadow fields (`contentBoxShadowMode`, `contentBoxShadowCustom`, `ctaShadowMode`, `ctaShadow`, `ctaShadowCustom`) are all optional — old preset-only `contentBoxShadow` values still work
