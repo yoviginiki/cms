@@ -53,6 +53,11 @@ class MenuItem extends Model
     public function resolveUrl(string $baseUrl = ''): string
     {
         if ($this->url) {
+            // Block dangerous URI schemes (javascript:, data:, vbscript:)
+            $stripped = preg_replace('/[\x00-\x1f\x7f\s]/', '', $this->url);
+            if (preg_match('/^(javascript|data|vbscript)\s*:/i', $stripped)) {
+                return '#';
+            }
             return $this->url;
         }
 
