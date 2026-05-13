@@ -11,7 +11,11 @@
   if (!$menu && isset($site)) {
       $menu = \App\Models\Menu::where('site_id', $site->id)->orderBy('created_at')->first();
   }
-  $items = $menu ? $menu->items()->whereNull('parent_id')->orderBy('sort_order')->get() : collect();
+  $items = $menu
+      ? $menu->items()->whereNull('parent_id')->orderBy('sort_order')
+          ->with(['page:id,title,slug', 'post:id,title,slug', 'category:id,name,slug'])
+          ->get()
+      : collect();
 
   $navStyle = $sticky ? 'position:sticky;top:0;z-index:100;' : '';
   $isVertical = $style === 'vertical';
@@ -22,7 +26,7 @@
       <a href="/" style="font-weight:700;font-size:1.1rem;color:var(--color-text, #1e293b);text-decoration:none;">{{ $site->name }}</a>
     @endif
     @foreach($items as $item)
-      <a href="{{ $item->url ?? '#' }}" style="font-size:0.875rem;color:var(--color-text-muted, #64748b);text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--color-primary, #3b82f6)'" onmouseout="this.style.color='var(--color-text-muted, #64748b)'">
+      <a href="{{ $item->resolveUrl() }}" @if($item->target === '_blank') target="_blank" rel="noopener noreferrer" @endif style="font-size:0.875rem;color:var(--color-text-muted, #64748b);text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--color-primary, #3b82f6)'" onmouseout="this.style.color='var(--color-text-muted, #64748b)'">
         {{ $item->label }}
       </a>
     @endforeach
