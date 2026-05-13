@@ -464,19 +464,26 @@ export default function MenuEditor() {
   const flatItems = useMemo(() => flattenTree(items, 0, true), [items]);
   const flatIds = useMemo(() => flatItems.map(fi => fi.item.id || ''), [flatItems]);
 
-  // Calculate projected depth during drag
+  // Calculate projected depth during drag — shows where the item will land
+  // Clamped to ±1 level for same-item drags (actual behavior is one level at a time)
   const projectedDepth = useMemo(() => {
-    if (!activeId || !overId) return null;
+    if (!activeId) return null;
     const activeFlat = flatItems.find(fi => fi.item.id === activeId);
-    const overFlat = flatItems.find(fi => fi.item.id === overId);
-    if (!activeFlat || !overFlat) return null;
+    if (!activeFlat) return null;
 
     const depthChange = Math.round(dragDeltaX / DEPTH_DRAG_PX);
-    const baseDepth = overFlat.depth;
-    // Max depth: overFlat.depth + 1 (can become child of over), min: 0
-    const overIdx = flatItems.indexOf(overFlat);
-    const maxDepth = overIdx > 0 ? overFlat.depth + 1 : 0;
-    return Math.max(0, Math.min(maxDepth, baseDepth + depthChange));
+
+    if (overId && overId !== activeId) {
+      const overFlat = flatItems.find(fi => fi.item.id === overId);
+      if (overFlat) {
+        const maxDepth = overFlat.depth + 1;
+        return Math.max(0, Math.min(maxDepth, activeFlat.depth + depthChange));
+      }
+    }
+
+    // Same-item: clamp to ±1 level (matches actual indent/outdent behavior)
+    const clampedChange = Math.max(-1, Math.min(1, depthChange));
+    return Math.max(0, activeFlat.depth + clampedChange);
   }, [activeId, overId, dragDeltaX, flatItems]);
 
   // DnD handlers
@@ -489,7 +496,7 @@ export default function MenuEditor() {
   const handleDragMove = (event: DragMoveEvent) => {
     dragDeltaRef.current = event.delta.x;
     setDragDeltaX(event.delta.x);
-    if (event.over) setOverId(event.over.id as string);
+    setOverId(event.over ? (event.over.id as string) : null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -499,11 +506,86 @@ export default function MenuEditor() {
     setOverId(null);
     setDragDeltaX(0);
 
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
     const activeFlat = flatItems.find(fi => fi.item.id === active.id);
+    if (!activeFlat) return;
+
+    const significantHorizontal = Math.abs(finalDeltaX) >= DEPTH_DRAG_PX;
+    const sameItem = active.id === over.id;
+
+    // Case 1: Dragged horizontally on the same item — indent/outdent in place
+    if (sameItem && significantHorizontal) {
+      const depthChange = Math.round(finalDeltaX / DEPTH_DRAG_PX);
+      const targetDepth = activeFlat.depth + depthChange;
+
+      if (targetDepth < activeFlat.depth && activeFlat.depth > 0) {
+        // Outdent: find this item's parent and move it out
+        const currentParent = parentMap[active.id as string];
+        if (currentParent) {
+          const [treeWithout, removed] = removeById(items, active.id as string);
+          if (removed) {
+            // Find the parent in the flat list to insert after it
+            const parentFlat = flattenTree(treeWithout).find(fi => fi.item.id === currentParent);
+            if (parentFlat) {
+              const fullFlat = flattenTree(treeWithout);
+              // Find all items that belong under the parent (to insert after the last one)
+              let insertAfterIdx = fullFlat.findIndex(fi => fi.item.id === currentParent);
+              // Skip past all descendants of the parent
+              for (let i = insertAfterIdx + 1; i < fullFlat.length; i++) {
+                if (fullFlat[i].depth > parentFlat.depth) insertAfterIdx = i;
+                else break;
+              }
+              const newFlatList = fullFlat.map(fi => ({ item: fi.item, depth: fi.depth }));
+              const newDepth = parentFlat.depth; // same level as parent
+              newFlatList.splice(insertAfterIdx + 1, 0, { item: { ...removed, children: [] }, depth: newDepth });
+              // Re-insert children of removed item
+              if (removed.children?.length) {
+                const childFlat = flattenTree(removed.children, newDepth + 1);
+                for (let i = 0; i < childFlat.length; i++) {
+                  newFlatList.splice(insertAfterIdx + 2 + i, 0, { item: { ...childFlat[i].item, children: [] }, depth: childFlat[i].depth });
+                }
+              }
+              setItems(rebuildTree(newFlatList));
+              setIsDirty(true);
+            }
+          }
+        }
+        return;
+      }
+
+      if (targetDepth > activeFlat.depth) {
+        // Indent: find the previous sibling and make this item its child
+        const activeIdx = flatItems.indexOf(activeFlat);
+        // Find the previous item at the same depth
+        let prevSiblingId: string | null = null;
+        for (let i = activeIdx - 1; i >= 0; i--) {
+          if (flatItems[i].depth === activeFlat.depth) { prevSiblingId = flatItems[i].item.id || null; break; }
+          if (flatItems[i].depth < activeFlat.depth) break; // went above our level
+        }
+        if (prevSiblingId) {
+          const [treeWithout, removed] = removeById(items, active.id as string);
+          if (removed) {
+            const newTree = addToParent(treeWithout, removed, prevSiblingId);
+            setItems(newTree);
+            setIsDirty(true);
+          }
+        }
+        return;
+      }
+
+      return; // no meaningful depth change
+    }
+
+    // Case 2: Dropped on a different item — reorder (and optionally change depth)
+    if (sameItem) return; // no vertical movement and no significant horizontal
+
     const overFlat = flatItems.find(fi => fi.item.id === over.id);
-    if (!activeFlat || !overFlat) return;
+    if (!overFlat) return;
+
+    // Guard: don't drop on own descendant (would silently delete subtree)
+    const activeDescendants = collectDescendantIds(items, active.id as string);
+    if (activeDescendants.has(over.id as string)) return;
 
     // Remove active from tree
     const [treeAfterRemove, removed] = removeById(items, active.id as string);
@@ -514,28 +596,28 @@ export default function MenuEditor() {
 
     // Find where "over" is in the remaining flat list
     const overRemainingIdx = remainingFlat.findIndex(fi => fi.item.id === over.id);
-    if (overRemainingIdx === -1) { setItems(treeAfterRemove); setIsDirty(true); return; }
+    if (overRemainingIdx === -1) return; // safety — don't commit partial removal
 
-    // Calculate target depth from horizontal drag
-    const depthChange = Math.round(finalDeltaX / DEPTH_DRAG_PX);
-    const baseDepth = remainingFlat[overRemainingIdx].depth;
-    const maxDepth = overRemainingIdx > 0 ? remainingFlat[overRemainingIdx].depth + 1 : 0;
-    const targetDepth = Math.max(0, Math.min(maxDepth, baseDepth + depthChange));
+    // Calculate target depth: start from active item's original depth + horizontal change
+    const depthChange = significantHorizontal ? Math.round(finalDeltaX / DEPTH_DRAG_PX) : 0;
+    const desiredDepth = activeFlat.depth + depthChange;
+    // Clamp: can't go below 0, can't go deeper than the over item's depth + 1
+    const maxDepth = remainingFlat[overRemainingIdx].depth + 1;
+    const targetDepth = Math.max(0, Math.min(maxDepth, desiredDepth));
 
-    // Determine insert position: after the over item
+    // Determine insert position
     const activeOrigIdx = flatItems.indexOf(activeFlat);
     const overOrigIdx = flatItems.indexOf(overFlat);
     const insertIdx = activeOrigIdx < overOrigIdx ? overRemainingIdx + 1 : overRemainingIdx;
 
-    // Build new flat list with the removed item inserted at the right position and depth
+    // Build new flat list
     const newFlatList: { item: MenuItemData; depth: number }[] = remainingFlat.map(fi => ({
       item: fi.item,
       depth: fi.depth,
     }));
     newFlatList.splice(insertIdx, 0, { item: { ...removed, children: [] }, depth: targetDepth });
 
-    // Also re-insert any children of the removed item (they were detached)
-    // Flatten removed's children and insert them right after
+    // Re-insert children of removed item
     if (removed.children?.length) {
       const removedChildrenFlat = flattenTree(removed.children, targetDepth + 1);
       for (let i = 0; i < removedChildrenFlat.length; i++) {
@@ -546,7 +628,6 @@ export default function MenuEditor() {
       }
     }
 
-    // Rebuild tree from flat list
     const newTree = rebuildTree(newFlatList);
     setItems(newTree);
     setIsDirty(true);
@@ -673,8 +754,8 @@ export default function MenuEditor() {
                   <SortableMenuItem
                     key={fi.item.id}
                     flatItem={fi}
-                    isOver={overId === fi.item.id}
-                    projectedDepth={overId === fi.item.id ? projectedDepth : null}
+                    isOver={overId === fi.item.id || (activeId === fi.item.id && activeId === overId)}
+                    projectedDepth={(overId === fi.item.id || (activeId === fi.item.id && !overId)) ? projectedDepth : null}
                     onUpdate={updateItemById}
                     onRemove={removeItemById}
                     onChangeParent={changeParentById}
