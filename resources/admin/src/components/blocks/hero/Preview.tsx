@@ -159,6 +159,12 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const ctaPadding = ctaSizePadding[ctaSize] || ctaSizePadding.md;
   const ctaFontSize = ctaSizeFontSize[ctaSize] || ctaSizeFontSize.md;
 
+  // CTA shadow (must be declared before getDefaultCtaStyle which references it)
+  const ctaShadowMode = (data.ctaShadowMode as string) || 'preset';
+  const ctaShadow = (data.ctaShadow as string) || '';
+  const ctaShadowCustom = (data.ctaShadowCustom as ShadowCustom) || {};
+  const ctaShadowCss = buildShadowCss(ctaShadowMode, ctaShadow, ctaShadowCustom);
+
   // ── Fix #4: CTA defaults aligned with Blade ──
   const getDefaultCtaStyle = (): React.CSSProperties => {
     const style: React.CSSProperties = {};
@@ -260,11 +266,6 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const contentBoxShadowCss = buildShadowCss(contentBoxShadowMode, contentBoxShadow, contentBoxShadowCustom);
   const contentBoxPadding = resolveBoxSpacing(data.contentBoxPadding, '2rem');
 
-  // CTA shadow
-  const ctaShadowMode = (data.ctaShadowMode as string) || 'preset';
-  const ctaShadow = (data.ctaShadow as string) || '';
-  const ctaShadowCustom = (data.ctaShadowCustom as ShadowCustom) || {};
-  const ctaShadowCss = buildShadowCss(ctaShadowMode, ctaShadow, ctaShadowCustom);
   return (
     <div
       className={`relative ${!sectionBorderRadius ? 'rounded-lg' : ''} overflow-hidden ${controlsOwnColors ? 'block-controls-own-colors' : ''}`}
