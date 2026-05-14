@@ -1,3 +1,17 @@
+@use('App\Support\Blocks\BlockStyle')
+@php
+    $__bs = $blockStyle ?? [];
+    $__ba = $blockAnimation ?? [];
+    $__adv = $blockAdvanced ?? [];
+    $__resp = $blockResponsive ?? [];
+    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba);
+    $__customClass = BlockStyle::safeClass($__adv['customClass'] ?? '');
+    $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
+    $__animAttr = BlockStyle::animationAttr($__ba);
+    $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
+@endphp
+@if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
+<div class="beforeafter-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
     $beforeSrc = $data['beforeSrc'] ?? '';
     $afterSrc = $data['afterSrc'] ?? '';
@@ -25,4 +39,6 @@
     >
     <span style="position:absolute;top:0.5rem;left:0.5rem;background:rgba(0,0,0,0.5);color:#fff;font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">{{ e($beforeLabel) }}</span>
     <span style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.5);color:#fff;font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">{{ e($afterLabel) }}</span>
+</div>
+
 </div>

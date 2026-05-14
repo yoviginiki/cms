@@ -1,3 +1,17 @@
+@use('App\Support\Blocks\BlockStyle')
+@php
+    $__bs = $blockStyle ?? [];
+    $__ba = $blockAnimation ?? [];
+    $__adv = $blockAdvanced ?? [];
+    $__resp = $blockResponsive ?? [];
+    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba);
+    $__customClass = BlockStyle::safeClass($__adv['customClass'] ?? '');
+    $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
+    $__animAttr = BlockStyle::animationAttr($__ba);
+    $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
+@endphp
+@if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
+<div class="section-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
     $padding = ['none' => '0', 'sm' => '2rem 1rem', 'md' => '4rem 2rem', 'lg' => '6rem 2rem', 'xl' => '8rem 2rem'];
     $pad = $padding[$data['padding'] ?? 'md'] ?? '4rem 2rem';
@@ -72,3 +86,5 @@
     </script>
     @endif
 </section>
+
+</div>

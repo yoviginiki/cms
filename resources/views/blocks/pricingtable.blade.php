@@ -1,3 +1,17 @@
+@use('App\Support\Blocks\BlockStyle')
+@php
+    $__bs = $blockStyle ?? [];
+    $__ba = $blockAnimation ?? [];
+    $__adv = $blockAdvanced ?? [];
+    $__resp = $blockResponsive ?? [];
+    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba);
+    $__customClass = BlockStyle::safeClass($__adv['customClass'] ?? '');
+    $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
+    $__animAttr = BlockStyle::animationAttr($__ba);
+    $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
+@endphp
+@if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
+<div class="pricingtable-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
     $plans = $data['plans'] ?? [];
     $columns = $data['columns'] ?? 3;
@@ -15,4 +29,6 @@
             <a href="{{ $plan['ctaUrl'] ?? '#' }}" style="display:inline-block;background:#3b82f6;color:#fff;padding:0.5rem 1.5rem;border-radius:0.375rem;text-decoration:none;font-weight:500;">{{ $plan['ctaText'] ?? 'Choose' }}</a>
         </div>
     @endforeach
+</div>
+
 </div>

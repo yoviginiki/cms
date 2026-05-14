@@ -1,3 +1,17 @@
+@use('App\Support\Blocks\BlockStyle')
+@php
+    $__bs = $blockStyle ?? [];
+    $__ba = $blockAnimation ?? [];
+    $__adv = $blockAdvanced ?? [];
+    $__resp = $blockResponsive ?? [];
+    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba);
+    $__customClass = BlockStyle::safeClass($__adv['customClass'] ?? '');
+    $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
+    $__animAttr = BlockStyle::animationAttr($__ba);
+    $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
+@endphp
+@if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
+<div class="tabs-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php $labels = $data['tab_labels'] ?? ['Tab 1']; @endphp
 <div class="tabs-block" style="margin-bottom: 1.5rem;">
     <div role="tablist" style="display: flex; border-bottom: 2px solid #e5e7eb; gap: 0;">
@@ -16,4 +30,6 @@
             @if($i === 0){!! $children !!}@endif
         </div>
     @endforeach
+</div>
+
 </div>

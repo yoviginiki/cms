@@ -1,3 +1,17 @@
+@use('App\Support\Blocks\BlockStyle')
+@php
+    $__bs = $blockStyle ?? [];
+    $__ba = $blockAnimation ?? [];
+    $__adv = $blockAdvanced ?? [];
+    $__resp = $blockResponsive ?? [];
+    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba);
+    $__customClass = BlockStyle::safeClass($__adv['customClass'] ?? '');
+    $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
+    $__animAttr = BlockStyle::animationAttr($__ba);
+    $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
+@endphp
+@if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
+<div class="paywall-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
     $previewLines = (int) ($data['previewLines'] ?? 3);
     $blurIntensity = (int) ($data['blurIntensity'] ?? 8);
@@ -15,4 +29,6 @@
         <h3 style="font-size:1.25rem;font-weight:600;margin:0 0 1rem;text-align:center;">{{ $heading }}</h3>
         <a href="{{ $ctaUrl }}" style="display:inline-block;padding:0.625rem 2rem;background:#3b82f6;color:#fff;border-radius:0.375rem;font-size:0.875rem;font-weight:500;text-decoration:none;">{{ $ctaText }}</a>
     </div>
+</div>
+
 </div>
