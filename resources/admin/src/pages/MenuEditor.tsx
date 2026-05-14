@@ -294,7 +294,7 @@ function SortableMenuItem({ flatItem, isOver, projectedDepth, onUpdate, onRemove
           </span>
 
           {item.target === '_blank' && (
-            <ExternalLink className="h-3 w-3 text-gray-300 shrink-0" title="Opens in new tab" />
+            <span title="Opens in new tab"><ExternalLink className="h-3 w-3 text-gray-300 shrink-0" /></span>
           )}
 
           {/* Actions */}
