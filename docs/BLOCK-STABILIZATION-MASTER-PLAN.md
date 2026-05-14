@@ -8,13 +8,13 @@
 
 ## 1. Summary
 
-The Ensodo CMS has 69 block types. Only 18 are fully COMPLETE (frontend + Blade + PHP definition). 50 blocks are MISSING_BACKEND (no PHP `BlockDefinition`), and 1 is an ORPHAN_BACKEND (quote — PHP exists but frontend uses pullquote). This plan defines the safest order to fix all blocks without breaking the CMS.
+The Ensodo CMS has 69 block types. As of 2026-05-14, **68 are COMPLETE** (frontend + Blade + PHP definition). The legacy `quote` orphan has been resolved — `QuoteBlockDefinition.php` deleted after migration to pullquote. All blocks have Level 4+ shared properties, Level 7 validation tests, and Theme Engine CSS variable integration.
 
-**Current counts:**
+**Current counts (post-stabilization):**
 | Status | Count |
 |--------|-------|
-| COMPLETE | 18 |
-| MISSING_BACKEND | 50 |
+| COMPLETE | 68 |
+| ORPHAN (legacy quote.blade.php kept) | 1 |
 | ORPHAN_BACKEND | 1 |
 | **Total** | **69** |
 
@@ -74,8 +74,8 @@ The Ensodo CMS has 69 block types. Only 18 are fully COMPLETE (frontend + Blade 
 | postgrid | Y | Y | Y | N | MISSING_BACKEND | marketing | MED | P2 | Add PHP def |
 | pricingcard | Y | Y | Y | N | MISSING_BACKEND | marketing | MED | P2 | Add PHP def |
 | pricingtable | Y | Y | Y | N | MISSING_BACKEND | marketing | MED | P2 | Add PHP def |
-| pullquote | Y | Y | Y | N | MISSING_BACKEND | content | LOW | P0 | Resolve quote orphan |
-| quote | N | N | Y | Y | ORPHAN_BACKEND | content | MED | P0 | Merge into pullquote |
+| pullquote | Y | Y | Y | Y | COMPLETE | content | — | — | Done |
+| quote | N | N | Y | N | RESOLVED — legacy Blade kept, PHP deleted, migrated to pullquote | content | — | — | Done |
 | readingprogress | Y | Y | Y | N | MISSING_BACKEND | navigation | LOW | P2 | Add PHP def |
 | relatedposts | Y | Y | Y | N | MISSING_BACKEND | dynamic | MED | P3 | Add PHP def |
 | rich-text | Y | Y | Y | Y | COMPLETE | content | — | — | Done |

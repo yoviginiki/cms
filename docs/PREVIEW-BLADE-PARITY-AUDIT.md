@@ -25,12 +25,17 @@ These are **not bugs** — the Preview is a WYSIWYG approximation, the Blade is 
 | tabs | Blade has inline JS for tab switching + ARIA; Preview shows static layout | Interactive JS can't run in editor canvas |
 | video | Blade embeds actual YouTube/Vimeo iframes or `<video>` tags; Preview shows placeholder | Embedding live video in editor would be distracting |
 
-## Open Gaps (To Fix Later)
+## Recently Fixed Gaps
+
+| Block | Gap | Fix |
+|-------|-----|-----|
+| heading | Blade rendered bare heading tags without sizing | Added font-size map (h1-h6), font-weight, font-family, line-height, color via theme CSS variables |
+| button | Blade omitted base `btn` class, DaisyUI styling broken | Added `btn` base class, removed duplicate inner wrapper |
+
+## Open Gaps (Low Priority)
 
 | Block | Gap | Priority |
 |-------|-----|----------|
-| heading | Preview applies Tailwind size classes (text-4xl etc.) + font-bold; Blade renders bare heading tags without sizing | Medium — heading sizes differ visually |
-| button | Blade omits base `btn` class — DaisyUI button styling may be partially broken | Medium — check DaisyUI rendering |
 | code | Preview shows language header even when empty (fallback 'javascript'); Blade hides header when language is empty | Low — minor UX gap |
 
 ## Low Priority Differences (Styling Approach)

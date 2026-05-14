@@ -16,9 +16,9 @@ Every block type can exist across three independent layers. Not all blocks are c
 
 ### Coverage Summary
 
-- **18 blocks** are fully complete across all three layers.
-- **50 blocks** have frontend + blade but NO PHP definition (no server-side validation).
-- **1 orphan** (`quote`) — PHP `QuoteBlockDefinition` + `quote.blade.php` exist, but frontend uses `pullquote`. Audit reports this as `ORPHAN_BACKEND`.
+- **68 blocks** are fully complete across all three layers (frontend + Blade + PHP definition).
+- **1 legacy Blade** (`quote.blade.php`) kept as fallback — `QuoteBlockDefinition.php` deleted, data migrated to pullquote.
+- All blocks have Level 4+ shared properties, validation tests, and Theme Engine CSS variable integration.
 
 Run `composer audit-blocks` or `bash scripts/block-audit.sh` to check current layer coverage.
 
@@ -75,7 +75,7 @@ interface BlockDefinition
 | `hero` | content | no | `HeroBlockDefinition.php` |
 | `html-embed` | content | no | `HtmlEmbedBlockDefinition.php` |
 | `image` | media | no | `ImageBlockDefinition.php` |
-| `quote` | content | no | `QuoteBlockDefinition.php` |
+| `pullquote` | typography | no | `PullquoteBlockDefinition.php` |
 | `rich-text` | content | no | `RichTextBlockDefinition.php` |
 | `scroll_page` | layout | yes | `ScrollPageBlockDefinition.php` |
 | `section` | layout | yes | `SectionBlockDefinition.php` |
