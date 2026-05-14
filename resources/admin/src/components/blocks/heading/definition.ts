@@ -22,6 +22,14 @@ export const headingDefinition: BlockDefinition = {
   defaultData: {
     text: 'Heading',
     level: 'h2',
+    // Typography
+    color: '',
+    fontSize: '',
+    fontWeight: '',
+    lineHeight: '',
+    letterSpacing: '',
+    textTransform: '',
+    textAlign: '',
   },
   allowsChildren: false,
   hasTypography: true,
