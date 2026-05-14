@@ -1,16 +1,8 @@
-import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { InlineTextField } from '@/components/editor/fields';
 
-export const SidenotePreview: React.FC<BlockComponentProps> = ({ block }) => {
+export const SidenotePreview: React.FC<BlockComponentProps> = ({ block, onUpdate }) => {
   const { content, side } = block.data as { content: string; side: string };
-
-  if (!content) {
-    return (
-      <aside className="text-sm text-base-content/40 italic py-2">
-        Click to add side note...
-      </aside>
-    );
-  }
 
   return (
     <aside
@@ -21,7 +13,13 @@ export const SidenotePreview: React.FC<BlockComponentProps> = ({ block }) => {
       <div className="text-[10px] text-base-content/30 uppercase mb-1">
         Side Note ({side})
       </div>
-      {content}
+      <InlineTextField
+        as="span"
+        value={content || ''}
+        placeholder="Add side note..."
+        onChange={(v) => onUpdate({ ...block.data, content: v })}
+        className="block"
+      />
     </aside>
   );
 };
