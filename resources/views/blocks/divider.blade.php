@@ -14,7 +14,7 @@
 <div class="divider-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
     $style = $data['style'] ?? 'solid';
-    $color = $data['color'] ?? '#ccc';
+    $color = $data['color'] ?? '#d1d5db';
     $thickness = $data['thickness'] ?? '1px';
     $width = $data['width'] ?? '100%';
     $alignment = $data['alignment'] ?? 'center';

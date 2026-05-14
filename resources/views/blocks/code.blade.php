@@ -14,10 +14,16 @@
 <div class="code-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
     $lang = $data['language'] ?? '';
-    $code = e($data['code'] ?? '');
+    $code = $data['code'] ?? '';
+    $showLineNumbers = !empty($data['show_line_numbers']);
+    $lines = explode("\n", $code);
 @endphp
-<div class="code-block" style="margin-bottom: 1.5rem;">
-    <pre style="background: #1e293b; color: #e2e8f0; padding: 1.25rem; border-radius: 0.5rem; overflow-x: auto; font-size: 0.875rem; line-height: 1.6;"><code class="language-{{ $lang }}">{{ $data['code'] ?? '' }}</code></pre>
+@if($lang)
+<div style="background:#1e293b;border-radius:0.5rem 0.5rem 0 0;padding:0.5rem 1rem;">
+    <span style="font-size:0.75rem;color:#94a3b8;font-family:monospace;">{{ $lang }}</span>
 </div>
+@endif
+<pre style="background:#1e293b;color:#e2e8f0;padding:1.25rem;{{ $lang ? 'border-radius:0 0 0.5rem 0.5rem;' : 'border-radius:0.5rem;' }}overflow-x:auto;font-size:0.875rem;line-height:1.6;margin:0;position:relative;{{ $showLineNumbers ? 'padding-left:3.5rem;' : '' }}">@if($showLineNumbers)<span style="position:absolute;left:0;top:1.25rem;width:2.5rem;text-align:right;color:#475569;font-size:0.75rem;line-height:1.6;user-select:none;">@foreach($lines as $i => $line){{ $i + 1 }}
+@endforeach</span>@endif<code class="language-{{ e($lang) }}">{{ $code }}</code></pre>
 
 </div>
