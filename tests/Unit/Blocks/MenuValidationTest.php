@@ -38,42 +38,74 @@ class MenuValidationTest extends TestCase
         $this->assertTrue($this->validate([])->passes());
     }
 
-    public function test_menuId_rejects_overlength(): void
+    public function test_valid_source_passes(): void
     {
-        $this->assertTrue($this->validate(['menuId' => str_repeat('a', 36 + 1)])->fails());
+        $this->assertTrue($this->validate(['source' => 'system'])->passes());
+        $this->assertTrue($this->validate(['source' => 'custom'])->passes());
+    }
+
+    public function test_invalid_source_fails(): void
+    {
+        $this->assertTrue($this->validate(['source' => 'invalid'])->fails());
     }
 
     public function test_valid_style_passes(): void
     {
         $this->assertTrue($this->validate(['style' => 'horizontal'])->passes());
+        $this->assertTrue($this->validate(['style' => 'vertical'])->passes());
+        $this->assertTrue($this->validate(['style' => 'hamburger'])->passes());
     }
 
     public function test_invalid_style_fails(): void
     {
-        $this->assertTrue($this->validate(['style' => '__invalid__'])->fails());
+        $this->assertTrue($this->validate(['style' => 'dropdown'])->fails());
     }
 
-    public function test_showLogo_accepts_boolean(): void
+    public function test_custom_items_valid(): void
     {
-        $this->assertTrue($this->validate(['showLogo' => true])->passes());
-        $this->assertTrue($this->validate(['showLogo' => false])->passes());
+        $this->assertTrue($this->validate([
+            'customItems' => [
+                ['label' => 'Home', 'url' => '/', 'target' => '_self'],
+            ],
+        ])->passes());
     }
 
-    public function test_sticky_accepts_boolean(): void
+    public function test_custom_items_blocks_javascript(): void
+    {
+        $this->assertTrue($this->validate([
+            'customItems' => [
+                ['label' => 'XSS', 'url' => 'javascript:alert(1)', 'target' => '_self'],
+            ],
+        ])->fails());
+    }
+
+    public function test_valid_colors(): void
+    {
+        $this->assertTrue($this->validate(['bgColor' => '#ff0000'])->passes());
+        $this->assertTrue($this->validate(['textColor' => '#333'])->passes());
+        $this->assertTrue($this->validate(['hoverColor' => 'rgba(0,0,0,0.5)'])->passes());
+    }
+
+    public function test_invalid_color_fails(): void
+    {
+        $this->assertTrue($this->validate(['bgColor' => 'url(evil)'])->fails());
+    }
+
+    public function test_mobile_breakpoint_range(): void
+    {
+        $this->assertTrue($this->validate(['mobileBreakpoint' => 768])->passes());
+        $this->assertTrue($this->validate(['mobileBreakpoint' => -1])->fails());
+        $this->assertTrue($this->validate(['mobileBreakpoint' => 1921])->fails());
+    }
+
+    public function test_sticky_boolean(): void
     {
         $this->assertTrue($this->validate(['sticky' => true])->passes());
         $this->assertTrue($this->validate(['sticky' => false])->passes());
     }
 
-    public function test_mobileBreakpoint_in_range(): void
+    public function test_menuId_rejects_overlength(): void
     {
-        $this->assertTrue($this->validate(['mobileBreakpoint' => 0])->passes());
-        $this->assertTrue($this->validate(['mobileBreakpoint' => 1920])->passes());
-    }
-
-    public function test_mobileBreakpoint_out_of_range(): void
-    {
-        $this->assertTrue($this->validate(['mobileBreakpoint' => 0 - 1])->fails());
-        $this->assertTrue($this->validate(['mobileBreakpoint' => 1920 + 1])->fails());
+        $this->assertTrue($this->validate(['menuId' => str_repeat('a', 37)])->fails());
     }
 }
