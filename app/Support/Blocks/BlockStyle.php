@@ -98,9 +98,9 @@ class BlockStyle
                     $r = $g = $b = 0;
                 }
                 $colorVal = "rgba({$r},{$g},{$b}," . number_format($alpha, 2) . ")";
-            } elseif (preg_match('/^rgba?\(/', $color)) {
-                // Already rgb/rgba — apply opacity by wrapping
-                $colorVal = $alpha < 1 ? preg_replace('/rgba?\(([^)]+)\)/', "rgba($1," . number_format($alpha, 2) . ")", $color) : $color;
+            } elseif (preg_match('/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/', $color, $m)) {
+                // Already rgb/rgba — extract RGB and apply custom opacity
+                $colorVal = "rgba({$m[1]},{$m[2]},{$m[3]}," . number_format($alpha, 2) . ")";
             } else {
                 // oklch, hsl, named — use as-is (opacity not applied to non-hex/rgb)
                 $colorVal = $color;

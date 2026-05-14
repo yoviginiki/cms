@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { ToggleField, ColorField } from '@/components/editor/fields';
 
 export const ParagraphEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const content = (block.data.content as string) || '';
+  const data = block.data as Record<string, unknown>;
+  const content = (data.content as string) || '';
   const [showSource, setShowSource] = useState(false);
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-base-content/40">Edit directly in the block preview above.</p>
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" checked={showSource} onChange={e => setShowSource(e.target.checked)}
-          className="checkbox checkbox-xs" />
-        <span className="text-xs text-base-content/40">Show HTML source</span>
-      </label>
+      <ToggleField label="Show HTML source" value={showSource} onChange={setShowSource} />
       {showSource && (
         <textarea value={content}
           onChange={e => onUpdate({ ...block.data, content: e.target.value })}

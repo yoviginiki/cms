@@ -1,46 +1,36 @@
-import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { SelectField, TextField } from '@/components/editor/fields';
 
 export const ColumnsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const { columnCount, gap } = block.data as {
-    columnCount: number;
-    gap: string;
-  };
-
-  const update = (field: string, value: string | number) => {
-    onUpdate({ ...block.data, [field]: value });
-  };
+  const data = block.data as Record<string, unknown>;
+  const update = (field: string, value: unknown) => onUpdate({ ...block.data, [field]: value });
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Column Count</label>
-        <select
-          value={columnCount}
-          onChange={(e) => update('columnCount', parseInt(e.target.value, 10))}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value={1}>1</option>
-          <option value={2}>2</option>
-          <option value={3}>3</option>
-          <option value={4}>4</option>
-          <option value={5}>5</option>
-          <option value={6}>6</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Gap</label>
-        <select
-          value={gap || 'medium'}
-          onChange={(e) => update('gap', e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="none">None</option>
-          <option value="small">Small</option>
-          <option value="medium">Medium</option>
-          <option value="large">Large</option>
-        </select>
-      </div>
+    <div className="space-y-3">
+      <SelectField
+        label="Column Count"
+        value={String(data.column_count ?? data.columnCount ?? 2)}
+        onChange={(v) => update('column_count', parseInt(v, 10))}
+        options={[
+          { value: '1', label: '1 Column' },
+          { value: '2', label: '2 Columns' },
+          { value: '3', label: '3 Columns' },
+          { value: '4', label: '4 Columns' },
+          { value: '5', label: '5 Columns' },
+          { value: '6', label: '6 Columns' },
+        ]}
+      />
+      <SelectField
+        label="Gap"
+        value={(data.gap as string) || 'medium'}
+        onChange={(v) => update('gap', v)}
+        options={[
+          { value: 'none', label: 'None' },
+          { value: 'small', label: 'Small' },
+          { value: 'medium', label: 'Medium' },
+          { value: 'large', label: 'Large' },
+        ]}
+      />
     </div>
   );
 };

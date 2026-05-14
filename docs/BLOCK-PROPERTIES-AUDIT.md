@@ -61,57 +61,45 @@ AnimationPanel exposes opacity/lift/glow hover effects, but no CSS or JavaScript
 
 ## Shared Property Inventory
 
-| Property | Panel | Data Path | Editor Preview | Published Blade | Validation | Status |
-|----------|-------|-----------|---------------|----------------|------------|--------|
-| **Typography** | | | | | | |
-| Font family | TypographyPanel | style.typography.fontFamily | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Font size | TypographyPanel | style.typography.fontSize | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Font weight | TypographyPanel | style.typography.fontWeight | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Line height | TypographyPanel | style.typography.lineHeight | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Letter spacing | TypographyPanel | style.typography.letterSpacing | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Text align | TypographyPanel | style.typography.textAlign | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Text transform | TypographyPanel | style.typography.textTransform | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Text color | TypographyPanel | style.typography.textColor | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Paragraph spacing | TypographyPanel | style.typography.paragraphSpacingAfter | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| **Spacing** | | | | | | |
-| Margin (T/R/B/L) | SpacingPanel | style.spacing.margin* | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Padding (T/R/B/L) | SpacingPanel | style.spacing.padding* | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Gap | SpacingPanel | style.spacing.gap | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| **Visual / Background** | | | | | | |
-| Background color | VisualPanel | style.visual.backgroundColor | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Background gradient | VisualPanel | style.visual.backgroundGradient | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Background image | VisualPanel | style.visual.backgroundImage | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Border width/color/style | VisualPanel | style.visual.border* | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Border radius | VisualPanel | style.visual.borderRadius | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Box shadow | VisualPanel | style.visual.boxShadow | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Opacity | VisualPanel | style.visual.opacity | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Overflow | VisualPanel | style.visual.overflow | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| **Layout** | | | | | | |
-| Width / max-width | LayoutPanel | style.layout.width/maxWidth | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Min height | LayoutPanel | style.layout.minHeight | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Alignment | LayoutPanel | style.layout.alignment | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Display | LayoutPanel | style.layout.display | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Flex direction | LayoutPanel | style.layout.flexDirection | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Justify content | LayoutPanel | style.layout.justifyContent | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Align items | LayoutPanel | style.layout.alignItems | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| Z-index | LayoutPanel | style.layout.zIndex | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| **Animation** | | | | | | |
-| Entrance (8 types) | AnimationPanel | animation.entrance | SortableBlock wrapper | BlockStyle::buildStyle | Allowlisted | WORKING |
-| Duration | AnimationPanel | animation.duration | SortableBlock wrapper | BlockStyle::buildStyle | Clamped 50-3000ms | WORKING |
-| Delay | AnimationPanel | animation.delay | SortableBlock wrapper | BlockStyle::buildStyle | Clamped 0-5000ms | WORKING |
-| Easing | AnimationPanel | animation.easing | SortableBlock wrapper | BlockStyle::buildStyle | Allowlisted | WORKING |
-| Trigger | AnimationPanel | animation.trigger | on-load only | on-load only | N/A | PARTIAL (on-scroll future) |
-| Hover effect | AnimationPanel | animation.hoverEffect | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| **Responsive** | | | | | | |
-| Hide on device | ResponsivePanel | responsive.hideOn | SortableBlock badges | hero.blade.php | None | WORKING (Hero) |
-| Per-breakpoint overrides | ResponsiveField | data.responsive.tablet/mobile | N/A (desktop canvas) | hero.blade.php scoped CSS | Validated | WORKING (Hero pilot: textAlignment, sectionHeight, contentMaxWidth) |
-| **Advanced** | | | | | | |
-| Custom class | AdvancedPanel | advanced.customClass | NOT APPLIED | NOT APPLIED | Escaped | DEAD_CONTROL |
-| Custom CSS | AdvancedPanel | advanced.customCss | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| HTML ID | AdvancedPanel | advanced.htmlId | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
-| ARIA label | AdvancedPanel | advanced.ariaLabel | NOT APPLIED | NOT APPLIED | None | DEAD_CONTROL |
+| Property | Panel | Data Path | Preview | Blade | Status |
+|----------|-------|-----------|---------|-------|--------|
+| **Typography** | | | | | |
+| (Shared TypographyPanel removed) | — | — | — | — | REMOVED — blocks implement typography directly (Hero, Heading) |
+| **Spacing** | | | | | |
+| Margin (T/R/B/L) | SpacingPanel | style.spacing.margin* | WORKING | WORKING | ✅ |
+| Padding (T/R/B/L) | SpacingPanel | style.spacing.padding* | WORKING | WORKING | ✅ |
+| Gap | SpacingPanel | style.spacing.gap | WORKING | WORKING | ✅ |
+| **Visual / Background** | | | | | |
+| Background color | VisualPanel | style.visual.backgroundColor | WORKING | WORKING | ✅ |
+| Background gradient | VisualPanel | style.visual.backgroundGradient | WORKING | WORKING | ✅ |
+| Background image | VisualPanel | style.visual.backgroundImage | WORKING | WORKING | ✅ |
+| Border width/color/style | VisualPanel | style.visual.border* | WORKING | WORKING | ✅ |
+| Border radius (per-corner) | VisualPanel | style.visual.borderRadius | WORKING | WORKING | ✅ |
+| Shadow (preset + custom) | VisualPanel | style.visual.boxShadow/shadowMode/shadowCustom | WORKING | WORKING | ✅ |
+| Opacity | VisualPanel | style.visual.opacity | UI exists | NOT APPLIED | DEAD — by design (fades all content) |
+| Overflow | VisualPanel | style.visual.overflow | WORKING | WORKING | ✅ |
+| **Layout** | | | | | |
+| Width / max-width | LayoutPanel | style.layout.width/maxWidth | WORKING | WORKING | ✅ |
+| Min height | LayoutPanel | style.layout.minHeight | WORKING | WORKING | ✅ |
+| Alignment | LayoutPanel | style.layout.alignment | WORKING | WORKING | ✅ |
+| Display | LayoutPanel | style.layout.display | WORKING | WORKING | ✅ |
+| Flex direction | LayoutPanel | style.layout.flexDirection | WORKING | WORKING | ✅ |
+| Justify content | LayoutPanel | style.layout.justifyContent | WORKING | WORKING | ✅ |
+| Z-index | LayoutPanel | style.layout.zIndex | WORKING | WORKING | ✅ (clamped -100..9999) |
+| **Animation** | | | | | |
+| Entrance (8 types) | AnimationPanel | animation.entrance | WORKING | WORKING | ✅ |
+| Duration/Delay/Easing | AnimationPanel | animation.* | WORKING | WORKING | ✅ |
+| Trigger | AnimationPanel | animation.trigger | on-load only | on-load only | PARTIAL (on-scroll future) |
+| **Responsive** | | | | | |
+| Hide on device | ResponsivePanel | responsive.hideOn | WORKING (badges) | WORKING (CSS) | ✅ |
+| Per-breakpoint overrides | ResponsiveField | data.responsive.* | N/A (desktop canvas) | WORKING (Hero) | ✅ (Hero pilot) |
+| **Advanced** | | | | | |
+| Custom class | AdvancedPanel | advanced.customClass | WORKING | WORKING | ✅ |
+| Custom CSS | AdvancedPanel | advanced.customCss | UI exists | NOT APPLIED | DEAD — security risk |
+| HTML ID | AdvancedPanel | advanced.htmlId | WORKING | WORKING | ✅ |
+| ARIA label | AdvancedPanel | advanced.ariaLabel | WORKING | WORKING | ✅ |
 
-**Total dead controls: 35+**
+**Working controls: 28 | Dead (by design): 3 | Gold-standard blocks: Hero, Heading, FeatureGrid**
 
 ---
 

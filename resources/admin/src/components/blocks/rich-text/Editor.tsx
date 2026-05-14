@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { ToggleField } from '@/components/editor/fields';
 
 export const RichTextEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const content = (block.data.content as string) || '';
@@ -7,21 +8,14 @@ export const RichTextEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-500">
-        Edit the content directly in the block preview (click the block). Use the toolbar for formatting.
+      <p className="text-xs text-base-content/40">
+        Edit the content directly in the block preview. Use the toolbar for formatting.
       </p>
-
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" checked={showSource} onChange={e => setShowSource(e.target.checked)}
-          className="checkbox checkbox-xs" />
-        <span className="text-xs text-gray-500">Show HTML source</span>
-      </label>
-
+      <ToggleField label="Show HTML source" value={showSource} onChange={setShowSource} />
       {showSource && (
         <textarea value={content}
           onChange={e => onUpdate({ ...block.data, content: e.target.value })}
-          className="w-full h-40 font-mono text-xs p-2 border border-gray-200 rounded bg-gray-50 resize-y"
-          placeholder="<p>HTML source code</p>" />
+          className="textarea textarea-bordered textarea-sm w-full text-[11px] font-mono h-40" />
       )}
     </div>
   );

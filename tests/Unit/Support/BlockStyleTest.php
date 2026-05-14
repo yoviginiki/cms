@@ -301,6 +301,21 @@ class BlockStyleTest extends TestCase
         $this->assertStringNotContainsString('rgba(0,0,0', $style); // must NOT fall back to black
     }
 
+    public function test_build_style_with_rgba_shadow_opacity_applied(): void
+    {
+        // Verify rgba color gets opacity replaced, not appended as 5th value
+        $style = BlockStyle::buildStyle(['visual' => [
+            'shadowMode' => 'custom',
+            'shadowCustom' => [
+                'x' => '0px', 'y' => '4px', 'blur' => '12px', 'spread' => '0px',
+                'color' => 'rgba(100,200,50,0.8)', 'opacity' => 50,
+            ],
+        ]]);
+        $this->assertStringContainsString('rgba(100,200,50,0.50)', $style);
+        // Must not produce invalid 5-part rgba
+        $this->assertStringNotContainsString('rgba(100,200,50,0.8,', $style);
+    }
+
     public function test_build_style_with_preset_shadow(): void
     {
         $style = BlockStyle::buildStyle(['visual' => ['boxShadow' => 'md']]);

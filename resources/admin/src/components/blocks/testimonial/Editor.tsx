@@ -1,74 +1,58 @@
-import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { TextField, SelectField, ColorField } from '@/components/editor/fields';
+import { ShadowField } from '@/components/editor/fields/ShadowField';
+import { CornerRadiusField } from '@/components/editor/fields/CornerRadiusField';
+import type { ShadowCustom } from '@/lib/shadowStyles';
 
-interface TestimonialItem {
-  quote: string;
-  author: string;
-  role: string;
-  avatar: string;
-}
+interface TestimonialItem { quote: string; author: string; role: string; avatar: string }
 
 export const TestimonialEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const data = block.data as { items: TestimonialItem[]; layout: string };
-  const items = data.items || [];
-
-  const update = (field: string, value: unknown) => {
-    onUpdate({ ...block.data, [field]: value });
-  };
+  const data = block.data as Record<string, unknown>;
+  const items = (data.items as TestimonialItem[]) || [];
+  const update = (field: string, value: unknown) => onUpdate({ ...block.data, [field]: value });
 
   const updateItem = (index: number, key: keyof TestimonialItem, value: string) => {
     const updated = items.map((item, i) => (i === index ? { ...item, [key]: value } : item));
     update('items', updated);
   };
-
-  const addItem = () => {
-    update('items', [...items, { quote: '', author: '', role: '', avatar: '' }]);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length <= 1) return;
-    update('items', items.filter((_, i) => i !== index));
-  };
+  const addItem = () => update('items', [...items, { quote: '', author: '', role: '', avatar: '' }]);
+  const removeItem = (index: number) => { if (items.length > 1) update('items', items.filter((_, i) => i !== index)); };
+  const asObj = (val: unknown): Record<string, string> => (typeof val === 'object' && val !== null) ? val as Record<string, string> : {};
 
   return (
     <div className="space-y-3">
-      <div>
-        <label className="text-[11px] text-base-content/50 mb-1 block">Layout</label>
-        <select className="select select-bordered select-sm w-full" value={data.layout || 'single'} onChange={(e) => update('layout', e.target.value)}>
-          <option value="single">Single</option>
-          <option value="grid">Grid</option>
-          <option value="carousel">Carousel</option>
-        </select>
-      </div>
+      <div className="divider text-[10px] text-base-content/40 my-1">Layout</div>
+      <SelectField label="Layout" value={(data.layout as string) || 'single'} onChange={(v) => update('layout', v)}
+        options={[{ value: 'single', label: 'Single' }, { value: 'grid', label: 'Grid' }, { value: 'carousel', label: 'Carousel' }]} />
 
+      <div className="divider text-[10px] text-base-content/40 my-1">Card Styling</div>
+      <ColorField label="Card Background" value={(data.cardBgColor as string) || ''} onChange={(v) => update('cardBgColor', v)} />
+      <ColorField label="Card Border Color" value={(data.cardBorderColor as string) || ''} onChange={(v) => update('cardBorderColor', v)} />
+      <CornerRadiusField label="Card Radius" value={asObj(data.cardBorderRadius)} onChange={(v) => update('cardBorderRadius', v)} />
+      <ShadowField label="Card Shadow" mode={(data.cardShadowMode as string) || 'preset'} preset={(data.cardShadow as string) || ''} custom={(data.cardShadowCustom as ShadowCustom) || {}}
+        onChangeMode={(v) => update('cardShadowMode', v)} onChangePreset={(v) => update('cardShadow', v)}
+        onChangeCustom={(v) => update('cardShadowCustom', { ...((data.cardShadowCustom as ShadowCustom) || {}), ...v })} />
+
+      <div className="divider text-[10px] text-base-content/40 my-1">Typography</div>
+      <ColorField label="Quote Color" value={(data.quoteColor as string) || ''} onChange={(v) => update('quoteColor', v)} />
+      <ColorField label="Author Color" value={(data.authorColor as string) || ''} onChange={(v) => update('authorColor', v)} />
+
+      <div className="divider text-[10px] text-base-content/40 my-1">Items</div>
       {items.map((item, i) => (
         <div key={i} className="rounded border border-gray-200 p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500 uppercase">Testimonial {i + 1}</span>
             <button type="button" onClick={() => removeItem(i)} disabled={items.length <= 1} className="text-xs text-red-600 hover:text-red-800 disabled:text-gray-300">Remove</button>
           </div>
-          <div>
-            <label className="text-[11px] text-base-content/50 mb-1 block">Quote</label>
-            <textarea className="textarea textarea-bordered textarea-sm w-full" rows={3} value={item.quote} onChange={(e) => updateItem(i, 'quote', e.target.value)} />
-          </div>
+          <TextField label="Quote" value={item.quote} onChange={(v) => updateItem(i, 'quote', v)} />
           <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[11px] text-base-content/50 mb-1 block">Author</label>
-              <input type="text" className="input input-bordered input-sm w-full" value={item.author} onChange={(e) => updateItem(i, 'author', e.target.value)} />
-            </div>
-            <div>
-              <label className="text-[11px] text-base-content/50 mb-1 block">Role</label>
-              <input type="text" className="input input-bordered input-sm w-full" value={item.role} onChange={(e) => updateItem(i, 'role', e.target.value)} />
-            </div>
+            <TextField label="Author" value={item.author} onChange={(v) => updateItem(i, 'author', v)} />
+            <TextField label="Role" value={item.role} onChange={(v) => updateItem(i, 'role', v)} />
           </div>
-          <div>
-            <label className="text-[11px] text-base-content/50 mb-1 block">Avatar URL</label>
-            <input type="text" className="input input-bordered input-sm w-full" value={item.avatar} onChange={(e) => updateItem(i, 'avatar', e.target.value)} />
-          </div>
+          <TextField label="Avatar URL" value={item.avatar} onChange={(v) => updateItem(i, 'avatar', v)} placeholder="https://..." />
         </div>
       ))}
-
-      <button type="button" onClick={addItem} className="text-sm text-blue-600 hover:text-blue-800 font-medium">+ Add Testimonial</button>
+      <button type="button" onClick={addItem} className="btn btn-ghost btn-sm btn-block text-[11px] border-dashed border-base-content/20">+ Add Testimonial</button>
     </div>
   );
 };
