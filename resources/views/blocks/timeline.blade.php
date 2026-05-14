@@ -26,7 +26,7 @@
 <div class="timeline-block">
     @foreach($items as $item)
         <div class="timeline-item">
-            <div style="font-size:0.75rem;color:#9ca3af;margin-bottom:0.25rem;">{{ $item['date'] ?? '' }}</div>
+            <div style="font-size:0.75rem;color:var(--color-text-muted,#64748b);margin-bottom:0.25rem;">{{ $item['date'] ?? '' }}</div>
             <div style="font-weight:600;">{{ $item['title'] ?? '' }}</div>
             <div style="color:#6b7280;font-size:0.875rem;">{{ $item['description'] ?? '' }}</div>
         </div>

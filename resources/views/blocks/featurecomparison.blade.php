@@ -20,9 +20,9 @@
     <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
         <thead>
             <tr>
-                <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:500;">Feature</th>
+                <th style="text-align:left;padding:0.75rem;border-bottom:2px solid var(--color-border,#e2e8f0);color:#6b7280;font-weight:500;">Feature</th>
                 @foreach($plans as $plan)
-                    <th style="text-align:center;padding:0.75rem;border-bottom:2px solid #e5e7eb;">
+                    <th style="text-align:center;padding:0.75rem;border-bottom:2px solid var(--color-border,#e2e8f0);">
                         <div style="font-weight:600;color:#1f2937;">{{ $plan['name'] ?? '' }}</div>
                         <div style="font-size:0.75rem;color:#6b7280;">{{ $plan['price'] ?? '' }}</div>
                     </th>
@@ -31,7 +31,7 @@
         </thead>
         <tbody>
             @foreach($features as $fi => $feat)
-                <tr style="{{ $fi % 2 === 0 ? 'background:#f9fafb;' : '' }}">
+                <tr style="{{ $fi % 2 === 0 ? 'background:var(--color-bg-alt,#f8fafc);' : '' }}">
                     <td style="padding:0.75rem;color:#374151;">{{ $feat['name'] ?? '' }}</td>
                     @foreach(($feat['values'] ?? []) as $val)
                         <td style="text-align:center;padding:0.75rem;">

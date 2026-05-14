@@ -46,8 +46,8 @@
     $color = $platformColors[$platform] ?? '#6b7280';
 @endphp
 @if($url)
-    <div style="border:1px solid #e5e7eb;border-radius:0.5rem;padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;">
-        <div style="width:2.5rem;height:2.5rem;border-radius:0.375rem;background:{{ $color }};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.875rem;flex-shrink:0;">
+    <div style="border:1px solid var(--color-border,#e2e8f0);border-radius:var(--border-radius-md,0.5rem);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;">
+        <div style="width:2.5rem;height:2.5rem;border-radius:var(--border-radius-sm,0.375rem);background:{{ $color }};display:flex;align-items:center;justify-content:center;color:var(--color-text-inverse,#fff);font-weight:700;font-size:0.875rem;flex-shrink:0;">
             {{ strtoupper(substr($label, 0, 1)) }}
         </div>
         <div style="min-width:0;flex:1;">

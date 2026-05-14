@@ -24,13 +24,13 @@
         <thead>
             <tr>
                 @foreach($headers as $header)
-                    <th style="{{ $pad }}text-align:left;border-bottom:2px solid #e5e7eb;font-weight:600;">{{ $header }}</th>
+                    <th style="{{ $pad }}text-align:left;border-bottom:2px solid var(--color-border,#e2e8f0);font-weight:600;">{{ $header }}</th>
                 @endforeach
             </tr>
         </thead>
         <tbody>
             @foreach($rows as $ri => $row)
-                <tr @if($striped && $ri % 2 === 1) style="background:#f9fafb;" @endif>
+                <tr @if($striped && $ri % 2 === 1) style="background:var(--color-bg-alt,#f9fafb);" @endif>
                     @foreach($row as $cell)
                         <td style="{{ $pad }}border-bottom:1px solid #f3f4f6;">{{ $cell }}</td>
                     @endforeach

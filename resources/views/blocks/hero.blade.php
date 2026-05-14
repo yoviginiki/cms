@@ -51,8 +51,8 @@
         'image'    => !empty($data['bg_image']),
         default    => false,
     } || ($useLegacyFallback && !empty($cssUrl($legacyImage)));
-    $textColor = $hasBg ? '#fff' : '#333';
-    $baseBg = $hasBg ? '' : 'background-color:#f5f5f5;';
+    $textColor = $hasBg ? 'var(--color-text-inverse,#ffffff)' : 'var(--color-text,#1e293b)';
+    $baseBg = $hasBg ? '' : 'background-color:var(--color-bg-alt,#f8fafc);';
 
     // Section height
     $sectionHeightMap = ['auto' => 'auto', 'sm' => '300px', 'md' => '400px', 'lg' => '600px', 'fullscreen' => '100vh'];
@@ -87,7 +87,7 @@
         $headlineColor = $cssVal($data['headlineColor']);
     }
     if (!$headlineColor && $adaptiveTextColor) {
-        $headlineColor = $hasBg ? '#fff' : '#333';
+        $headlineColor = $hasBg ? 'var(--color-text-inverse,#ffffff)' : 'var(--color-text,#1e293b)';
     }
 
     // Subheadline size, weight, and typography

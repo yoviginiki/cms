@@ -73,7 +73,7 @@
 <link rel="stylesheet" href="/vendor/flipbook/flipbook.css">
 <style>
 /* No-JS fallback */
-.ef-root:not(.ef-enhanced) .ef-page { position:relative; display:block; max-width:700px; margin:0 auto 2rem; padding:2rem; background:#fff; border:1px solid #e5e7eb; border-radius:0.5rem; }
+.ef-root:not(.ef-enhanced) .ef-page { position:relative; display:block; max-width:700px; margin:0 auto 2rem; padding:2rem; background:var(--color-bg,#fff); border:1px solid var(--color-border,#e5e7eb); border-radius:var(--border-radius-md,0.5rem); }
 .ef-root.ef-enhanced .ef-noscript-note { display:none; }
 
 /* ─── Block flipbook wrapper ─── */
@@ -85,7 +85,7 @@
     position:absolute; top:50%; transform:translateY(-50%);
     width:40px; height:40px; display:flex; align-items:center; justify-content:center;
     background:rgba(0,0,0,0.4); border:none; border-radius:50%;
-    color:#fff; font-size:20px; cursor:pointer; z-index:30;
+    color:var(--color-text-inverse,#fff); font-size:20px; cursor:pointer; z-index:30;
     opacity:0; transition:opacity 0.25s;
 }
 .efb-wrap:hover .efb-arrow { opacity:0.7; }
@@ -106,7 +106,7 @@
     cursor:pointer; padding:4px 8px; font-size:13px; border-radius:4px;
     transition:background 0.15s, color 0.15s;
 }
-.efb-nav button:hover { background:rgba(255,255,255,0.12); color:#fff; }
+.efb-nav button:hover { background:rgba(255,255,255,0.12); color:var(--color-text-inverse,#fff); }
 .efb-nav button:disabled { opacity:0.3; cursor:default; }
 .efb-nav-indicator { font-variant-numeric:tabular-nums; min-width:70px; text-align:center; }
 
@@ -123,7 +123,7 @@
             {{-- Category articles as pages --}}
             @foreach($categoryPosts as $index => $post)
             <article class="ef-page" data-page-index="{{ $index }}" role="region" aria-label="{{ $post->title }}">
-                <div style="padding:2rem 2.5rem;background:#fff;height:100%;overflow:auto;box-sizing:border-box;">
+                <div style="padding:2rem 2.5rem;background:var(--color-bg,#fff);height:100%;overflow:auto;box-sizing:border-box;">
                     <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:#1a1a1a;line-height:1.3;">{{ $post->title }}</h2>
                     @if($post->published_at)
                     <time style="font-size:0.75rem;color:#999;display:block;margin-bottom:1rem;" datetime="{{ $post->published_at->toIso8601String() }}">{{ $post->published_at->format('M j, Y') }}</time>
@@ -131,7 +131,7 @@
                     @if($post->excerpt)
                     <p style="font-size:0.95rem;color:#555;margin-bottom:1rem;font-style:italic;">{{ $post->excerpt }}</p>
                     @endif
-                    <div style="font-size:0.9rem;line-height:1.7;color:#333;" class="prose">
+                    <div style="font-size:0.9rem;line-height:1.7;color:var(--color-text,#1e293b);" class="prose">
                         {!! $post->content !!}
                     </div>
                 </div>

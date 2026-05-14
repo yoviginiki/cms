@@ -60,7 +60,7 @@
     };
 @endphp
 @if($posts->isEmpty())
-    <div style="padding:2rem;text-align:center;color:#9ca3af;font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:0.5rem;">
+    <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:var(--border-radius-md,0.5rem);">
         No posts found{{ $categoryId ? ' in this category' : '' }}.
     </div>
 @elseif($layout === 'compact')
@@ -69,7 +69,7 @@
             <li style="padding:0.5rem 0;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:0.5rem;">
                 <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;font-size:0.875rem;flex:1;">{{ $post->title }}</a>
                 @if($showDate)
-                    <span style="font-size:0.75rem;color:#9ca3af;">{{ $post->published_at?->format('M j') }}</span>
+                    <span style="font-size:0.75rem;color:var(--color-text-muted,#9ca3af);">{{ $post->published_at?->format('M j') }}</span>
                 @endif
             </li>
         @endforeach
@@ -79,7 +79,7 @@
         @foreach($posts as $post)
             <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 0;border-bottom:1px solid #f3f4f6;">
                 @if($showImage && $post->featured_image)
-                    <img src="{{ $post->featured_image }}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:0.5rem;flex-shrink:0;" />
+                    <img src="{{ $post->featured_image }}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;" />
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
@@ -94,7 +94,7 @@
                         <p style="margin:0.25rem 0 0;color:#6b7280;font-size:0.8125rem;line-height:1.4;">{{ $getExcerpt($post) }}</p>
                     @endif
                     @if($showDate)
-                        <span style="font-size:0.7rem;color:#9ca3af;">{{ $post->published_at?->format('M j, Y') }}</span>
+                        <span style="font-size:0.7rem;color:var(--color-text-muted,#9ca3af);">{{ $post->published_at?->format('M j, Y') }}</span>
                     @endif
                 </div>
             </div>
@@ -105,7 +105,7 @@
     @php $isFeatured = $layout === 'featured' && $posts->count() > 1; @endphp
     @if($isFeatured)
         @php $first = $posts->shift(); @endphp
-        <article style="margin-bottom:1.5rem;border:1px solid #e5e7eb;border-radius:0.75rem;overflow:hidden;">
+        <article style="margin-bottom:1.5rem;border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
             @if($showImage && $first->featured_image)
                 <img src="{{ $first->featured_image }}" alt="" style="width:100%;height:280px;object-fit:cover;" />
             @endif
@@ -122,14 +122,14 @@
                     <p style="color:#6b7280;font-size:0.875rem;margin-top:0.5rem;">{{ $getExcerpt($first) }}</p>
                 @endif
                 @if($showDate)
-                    <span style="font-size:0.75rem;color:#9ca3af;">{{ $first->published_at?->format('M j, Y') }}</span>
+                    <span style="font-size:0.75rem;color:var(--color-text-muted,#9ca3af);">{{ $first->published_at?->format('M j, Y') }}</span>
                 @endif
             </div>
         </article>
     @endif
     <div style="display:grid;grid-template-columns:repeat({{ $columns }}, 1fr);gap:1.5rem;">
         @foreach($posts as $post)
-            <article style="border:1px solid #e5e7eb;border-radius:0.75rem;overflow:hidden;">
+            <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
                 @if($showImage && $post->featured_image)
                     <img src="{{ $post->featured_image }}" alt="" style="width:100%;height:160px;object-fit:cover;" />
                 @elseif($showImage)
@@ -148,7 +148,7 @@
                         <p style="color:#6b7280;font-size:0.8125rem;margin-top:0.25rem;">{{ $getExcerpt($post) }}</p>
                     @endif
                     @if($showDate)
-                        <span style="font-size:0.7rem;color:#9ca3af;">{{ $post->published_at?->format('M j, Y') }}</span>
+                        <span style="font-size:0.7rem;color:var(--color-text-muted,#9ca3af);">{{ $post->published_at?->format('M j, Y') }}</span>
                     @endif
                 </div>
             </article>

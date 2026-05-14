@@ -19,7 +19,7 @@
 @endphp
 <div style="{{ $gridStyle }}">
     @foreach($items as $item)
-        <blockquote style="border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem;margin-bottom:{{ $layout === 'grid' ? '0' : '1rem' }};">
+        <blockquote style="border:1px solid var(--color-border,#e5e7eb);border-radius:0.75rem;padding:1.5rem;margin-bottom:{{ $layout === 'grid' ? '0' : '1rem' }};">
             <p style="font-style:italic;color:#374151;margin-bottom:1rem;">&ldquo;{{ $item['quote'] ?? '' }}&rdquo;</p>
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 @if(!empty($item['avatar']))

@@ -37,8 +37,8 @@
         style="position:absolute;bottom:0;left:0;width:100%;margin:0;opacity:0.6;cursor:pointer;z-index:2;"
         oninput="this.parentElement.querySelector('.beforeafter-before').style.width=this.value+'%'"
     >
-    <span style="position:absolute;top:0.5rem;left:0.5rem;background:rgba(0,0,0,0.5);color:#fff;font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">{{ e($beforeLabel) }}</span>
-    <span style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.5);color:#fff;font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">{{ e($afterLabel) }}</span>
+    <span style="position:absolute;top:0.5rem;left:0.5rem;background:rgba(0,0,0,0.5);color:var(--color-text-inverse,#fff);font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">{{ e($beforeLabel) }}</span>
+    <span style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.5);color:var(--color-text-inverse,#fff);font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">{{ e($afterLabel) }}</span>
 </div>
 
 </div>

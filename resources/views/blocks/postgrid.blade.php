@@ -24,7 +24,7 @@
 @endphp
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:1.5rem;">
     @foreach($posts as $post)
-        <article style="border:1px solid #e5e7eb;border-radius:0.75rem;overflow:hidden;{{ $isHorizontal ? 'display:flex;' : '' }}">
+        <article style="border:1px solid var(--color-border,#e5e7eb);border-radius:0.75rem;overflow:hidden;{{ $isHorizontal ? 'display:flex;' : '' }}">
             <div style="background:#f3f4f6;{{ $isHorizontal ? 'width:33%;min-height:100px;' : 'height:160px;' }}">
                 @if(!empty($post['image']))
                     <img src="{{ $post['image'] }}" alt="" style="width:100%;height:100%;object-fit:cover;" />

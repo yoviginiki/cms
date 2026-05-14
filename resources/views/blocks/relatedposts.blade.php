@@ -20,7 +20,7 @@
 @endphp
 <div style="display:grid;grid-template-columns:repeat({{ min($limit, 4) }},1fr);gap:1.5rem;">
     @foreach($posts as $post)
-        <article style="border:1px solid #e5e7eb;border-radius:0.75rem;overflow:hidden;">
+        <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
             @if(!empty($post['image']))
                 <img src="{{ $post['image'] }}" alt="" style="width:100%;height:140px;object-fit:cover;" />
             @else
@@ -30,7 +30,7 @@
                 <h3 style="font-weight:600;font-size:0.875rem;margin:0;">
                     <a href="{{ $post['url'] ?? '#' }}" style="color:inherit;text-decoration:none;">{{ $post['title'] ?? '' }}</a>
                 </h3>
-                <div style="font-size:0.75rem;color:#9ca3af;margin-top:0.25rem;">{{ $post['date'] ?? '' }}</div>
+                <div style="font-size:0.75rem;color:var(--color-text-muted,#9ca3af);margin-top:0.25rem;">{{ $post['date'] ?? '' }}</div>
             </div>
         </article>
     @endforeach

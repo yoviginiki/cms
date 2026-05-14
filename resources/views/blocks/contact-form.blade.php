@@ -29,14 +29,14 @@
                 </label>
                 @if($field['type'] === 'textarea')
                     <textarea name="{{ \Illuminate\Support\Str::slug($field['label']) }}" rows="4"{{ !empty($field['required']) ? ' required' : '' }}
-                              style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-family: inherit;"></textarea>
+                              style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius:var(--border-radius-sm,0.375rem); font-family: inherit;"></textarea>
                 @else
                     <input type="{{ $field['type'] }}" name="{{ \Illuminate\Support\Str::slug($field['label']) }}"{{ !empty($field['required']) ? ' required' : '' }}
-                           style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+                           style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius:var(--border-radius-sm,0.375rem);">
                 @endif
             </div>
         @endforeach
-        <button type="submit" style="display: inline-block; padding: 0.625rem 1.5rem; background: var(--color-primary, #3b82f6); color: #fff; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer;">
+        <button type="submit" style="display: inline-block; padding: 0.625rem 1.5rem; background: var(--color-primary, #3b82f6); color:var(--color-text-inverse,#fff); border: none; border-radius:var(--border-radius-md,0.5rem); font-weight: 600; cursor: pointer;">
             {{ $submitLabel }}
         </button>
     </form>
