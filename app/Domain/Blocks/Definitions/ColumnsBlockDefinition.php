@@ -10,7 +10,7 @@ class ColumnsBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'column_count' => ['required', 'integer', 'min:2', 'max:6'],
+            'column_count' => ['sometimes', 'integer', 'min:2', 'max:6'],
             'gap' => ['sometimes', 'in:none,small,medium,large'],
         ];
     }

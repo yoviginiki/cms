@@ -10,8 +10,8 @@ class TabsBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'tab_labels' => ['required', 'array', 'min:1'],
-            'tab_labels.*' => ['required', 'string', 'max:100'],
+            'tab_labels' => ['sometimes', 'array'],
+            'tab_labels.*' => ['sometimes', 'string', 'max:100'],
         ];
     }
 

@@ -10,7 +10,7 @@ class AudioBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'url'    => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'url'    => ['sometimes', 'nullable', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'title'  => ['sometimes', 'nullable', 'string', 'max:255'],
             'artist' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];

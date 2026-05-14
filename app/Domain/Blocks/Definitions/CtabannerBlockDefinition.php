@@ -13,7 +13,7 @@ class CtabannerBlockDefinition implements BlockDefinition
             'heading'         => ['sometimes', 'nullable', 'string', 'max:255'],
             'text'            => ['sometimes', 'nullable', 'string', 'max:1000'],
             'buttonText'      => ['sometimes', 'nullable', 'string', 'max:100'],
-            'buttonUrl'       => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'buttonUrl'       => ['sometimes', 'nullable', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'backgroundStyle' => ['sometimes', 'in:solid,gradient,image'],
             'backgroundColor' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'backgroundImage' => ['sometimes', 'nullable', 'string', 'max:2048'],

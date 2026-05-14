@@ -10,8 +10,8 @@ class HeadingBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'text' => ['required', 'string', 'max:255'],
-            'level' => ['required', 'in:h1,h2,h3,h4,h5,h6'],
+            'text' => ['sometimes', 'string', 'max:255'],
+            'level' => ['sometimes', 'in:h1,h2,h3,h4,h5,h6'],
         ];
     }
 

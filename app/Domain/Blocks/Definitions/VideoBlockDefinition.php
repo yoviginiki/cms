@@ -10,7 +10,7 @@ class VideoBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'url' => ['required', 'string', 'max:2048'],
+            'url' => ['sometimes', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'autoplay' => ['sometimes', 'boolean'],
             'muted' => ['sometimes', 'boolean'],
             'poster' => ['sometimes', 'nullable', 'string', 'max:2048'],

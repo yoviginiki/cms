@@ -10,7 +10,7 @@ class CodeBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'code' => ['required', 'string'],
+            'code' => ['sometimes', 'string'],
             'language' => ['sometimes', 'string', 'max:30'],
             'show_line_numbers' => ['sometimes', 'boolean'],
         ];

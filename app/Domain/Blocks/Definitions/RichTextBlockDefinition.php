@@ -10,7 +10,7 @@ class RichTextBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'content' => ['required', 'string'],
+            'content' => ['sometimes', 'string'],
         ];
     }
 

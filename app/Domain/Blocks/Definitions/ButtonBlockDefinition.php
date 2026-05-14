@@ -10,8 +10,8 @@ class ButtonBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'text' => ['required', 'string', 'max:255'],
-            'url' => ['required', 'string', 'max:2048'],
+            'text' => ['sometimes', 'string', 'max:255'],
+            'url' => ['sometimes', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'style' => ['sometimes', 'in:primary,secondary,outline,ghost'],
             'size' => ['sometimes', 'in:sm,md,lg'],
             'target' => ['sometimes', 'in:_self,_blank'],

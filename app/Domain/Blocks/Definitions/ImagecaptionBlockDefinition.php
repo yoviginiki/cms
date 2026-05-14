@@ -10,7 +10,7 @@ class ImagecaptionBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'src'             => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'src'             => ['sometimes', 'nullable', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'alt'             => ['sometimes', 'nullable', 'string', 'max:255'],
             'caption'         => ['sometimes', 'nullable', 'string', 'max:500'],
             'captionPosition' => ['sometimes', 'in:below,above,overlay'],

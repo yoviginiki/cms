@@ -10,9 +10,9 @@ class AccordionBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.title' => ['required', 'string', 'max:255'],
-            'items.*.content' => ['required', 'string'],
+            'items' => ['sometimes', 'array'],
+            'items.*.title' => ['sometimes', 'string', 'max:255'],
+            'items.*.content' => ['sometimes', 'string'],
         ];
     }
 

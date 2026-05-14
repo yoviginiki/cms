@@ -10,7 +10,7 @@ class HtmlEmbedBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'html' => ['required', 'string', 'max:65536'],
+            'html' => ['sometimes', 'string', 'max:65536'],
         ];
     }
 

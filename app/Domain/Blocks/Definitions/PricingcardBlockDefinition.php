@@ -17,7 +17,7 @@ class PricingcardBlockDefinition implements BlockDefinition
             'features.*.text'     => ['sometimes', 'nullable', 'string', 'max:255'],
             'features.*.included' => ['sometimes', 'boolean'],
             'ctaText'     => ['sometimes', 'nullable', 'string', 'max:100'],
-            'ctaUrl'      => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'ctaUrl'      => ['sometimes', 'nullable', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'highlighted' => ['sometimes', 'boolean'],
             'badge'       => ['sometimes', 'nullable', 'string', 'max:50'],
         ];

@@ -17,7 +17,7 @@ class PricingtableBlockDefinition implements BlockDefinition
             'plans.*.features'     => ['sometimes', 'array'],
             'plans.*.features.*'   => ['sometimes', 'nullable', 'string', 'max:255'],
             'plans.*.ctaText'      => ['sometimes', 'nullable', 'string', 'max:100'],
-            'plans.*.ctaUrl'       => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'plans.*.ctaUrl'       => ['sometimes', 'nullable', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'plans.*.highlighted'  => ['sometimes', 'boolean'],
             'columns'              => ['sometimes', 'integer', 'min:1', 'max:6'],
         ];

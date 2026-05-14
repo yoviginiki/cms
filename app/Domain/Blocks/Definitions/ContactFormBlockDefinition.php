@@ -10,11 +10,11 @@ class ContactFormBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'fields' => ['required', 'array', 'min:1'],
-            'fields.*.label' => ['required', 'string', 'max:100'],
-            'fields.*.type' => ['required', 'in:text,email,tel,textarea,select,checkbox'],
+            'fields' => ['sometimes', 'array'],
+            'fields.*.label' => ['sometimes', 'string', 'max:100'],
+            'fields.*.type' => ['sometimes', 'in:text,email,tel,textarea,select,checkbox'],
             'fields.*.required' => ['sometimes', 'boolean'],
-            'recipient_email' => ['required', 'email'],
+            'recipient_email' => ['sometimes', 'email'],
             'success_message' => ['sometimes', 'string', 'max:500'],
             'submit_label' => ['sometimes', 'string', 'max:100'],
         ];
