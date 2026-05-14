@@ -287,8 +287,8 @@ The shared property pipeline was connected end-to-end:
 | Spacing (padding/margin) | Yes (via SortableBlock wrapper) | Yes | WORKING |
 | Border width/color/style | Yes (via wrapper) | Yes | WORKING |
 | Border radius | Yes (via wrapper) | Yes | WORKING |
-| Shadow (sm/md/lg) | Yes (via wrapper) | Yes | WORKING |
-| Opacity | Yes (via wrapper) | Yes | WORKING |
+| Shadow (preset + custom) | Yes (via wrapper) | Yes | WORKING |
+| Opacity | No | No | DEAD — disabled to prevent fading all content |
 | Animation entrance (fade/slide/zoom) | Yes (via wrapper) | Yes | WORKING |
 | Animation duration | Yes | Yes | WORKING |
 | Animation delay | Yes | Yes | WORKING |

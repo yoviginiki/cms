@@ -314,4 +314,57 @@ class BlockStyleTest extends TestCase
         $style = BlockStyle::buildStyle(['visual' => ['overflow' => 'hidden']]);
         $this->assertStringContainsString('overflow:hidden', $style);
     }
+
+    // ── Layout Controls ──
+
+    public function test_build_style_with_width(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => ['width' => '600px']]);
+        $this->assertStringContainsString('width:600px', $style);
+    }
+
+    public function test_build_style_with_max_width(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => ['maxWidth' => '1200px']]);
+        $this->assertStringContainsString('max-width:1200px', $style);
+    }
+
+    public function test_build_style_with_min_height(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => ['minHeight' => '400px']]);
+        $this->assertStringContainsString('min-height:400px', $style);
+    }
+
+    public function test_build_style_with_z_index(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => ['zIndex' => 10]]);
+        $this->assertStringContainsString('z-index:10', $style);
+    }
+
+    public function test_build_style_with_alignment_center(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => ['alignment' => 'center']]);
+        $this->assertStringContainsString('margin-left:auto', $style);
+        $this->assertStringContainsString('margin-right:auto', $style);
+    }
+
+    public function test_build_style_with_display_flex(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => ['display' => 'flex', 'flexDirection' => 'column', 'justifyContent' => 'center']]);
+        $this->assertStringContainsString('display:flex', $style);
+        $this->assertStringContainsString('flex-direction:column', $style);
+        $this->assertStringContainsString('justify-content:center', $style);
+    }
+
+    public function test_build_style_rejects_unsafe_width(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => ['width' => 'expression(alert(1))']]);
+        $this->assertStringNotContainsString('expression', $style);
+    }
+
+    public function test_build_style_layout_empty(): void
+    {
+        $style = BlockStyle::buildStyle(['layout' => []]);
+        $this->assertSame('', $style);
+    }
 }

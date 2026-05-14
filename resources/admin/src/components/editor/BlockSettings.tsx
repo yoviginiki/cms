@@ -3,7 +3,6 @@ import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
 import type { BlockData, BlockStyleProps } from '@/types/blocks';
-import { TypographyPanel } from './properties/TypographyPanel';
 import { SpacingPanel } from './properties/SpacingPanel';
 import { VisualPanel } from './properties/VisualPanel';
 import { LayoutPanel } from './properties/LayoutPanel';
@@ -96,12 +95,9 @@ export function BlockSettings() {
           <Editor block={block} isSelected={true} onUpdate={handleUpdate} onSelect={() => {}} />
         </Section>
 
-        {/* Typography — for text-containing blocks */}
-        {registration.definition.hasTypography !== false && (
-          <Section title="Typography">
-            <TypographyPanel value={style.typography || {}} onChange={v => updateStyle('typography', v)} />
-          </Section>
-        )}
+        {/* Typography is handled per-block (Heading, Hero have their own controls).
+            The shared TypographyPanel was removed because it stored data but never
+            applied it — blocks that need typography implement it directly. */}
 
         {/* Spacing */}
         <Section title="Spacing">

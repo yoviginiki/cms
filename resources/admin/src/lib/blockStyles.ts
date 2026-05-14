@@ -103,6 +103,33 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
     }
   }
 
+  // Layout
+  const lay = style.layout;
+  if (lay) {
+    if (safeDim(lay.width)) css.width = safeDim(lay.width);
+    if (safeDim(lay.maxWidth)) css.maxWidth = safeDim(lay.maxWidth);
+    if (safeDim(lay.minHeight)) css.minHeight = safeDim(lay.minHeight);
+    if (lay.zIndex !== undefined && lay.zIndex !== null) {
+      const z = Math.max(-100, Math.min(9999, Math.round(Number(lay.zIndex))));
+      if (Number.isFinite(z)) css.zIndex = z;
+    }
+    // Alignment margins only apply when no explicit spacing margins are set
+    if (lay.alignment === 'center' && !sp?.marginLeft && !sp?.marginRight) { css.marginLeft = 'auto'; css.marginRight = 'auto'; }
+    else if (lay.alignment === 'right' && !sp?.marginLeft) { css.marginLeft = 'auto'; css.marginRight = '0'; }
+    else if (lay.alignment === 'left' && !sp?.marginRight) { css.marginLeft = '0'; css.marginRight = 'auto'; }
+    if (lay.display && ['flex', 'grid', 'none'].includes(lay.display)) {
+      css.display = lay.display;
+      if (lay.display === 'flex') {
+        if (lay.flexDirection && ['row', 'column'].includes(lay.flexDirection)) {
+          css.flexDirection = lay.flexDirection as React.CSSProperties['flexDirection'];
+        }
+        if (lay.justifyContent && ['flex-start', 'center', 'flex-end', 'space-between'].includes(lay.justifyContent)) {
+          css.justifyContent = lay.justifyContent;
+        }
+      }
+    }
+  }
+
   return css;
 }
 

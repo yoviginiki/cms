@@ -217,6 +217,36 @@ class BlockStyle
             $parts[] = "overflow:{$vis['overflow']}";
         }
 
+        // Layout
+        $lay = $blockStyle['layout'] ?? [];
+        $w = self::safeDim($lay['width'] ?? '');
+        if ($w) $parts[] = "width:{$w}";
+        $mw = self::safeDim($lay['maxWidth'] ?? '');
+        if ($mw) $parts[] = "max-width:{$mw}";
+        $mh = self::safeDim($lay['minHeight'] ?? '');
+        if ($mh) $parts[] = "min-height:{$mh}";
+        $z = $lay['zIndex'] ?? null;
+        if ($z !== null && $z !== '' && is_numeric($z)) {
+            $parts[] = "z-index:" . max(-100, min(9999, intval($z)));
+        }
+        // Alignment margins only apply when no explicit spacing margins are set
+        $hasMarginL = !empty($sp['marginLeft'] ?? '');
+        $hasMarginR = !empty($sp['marginRight'] ?? '');
+        $align = $lay['alignment'] ?? '';
+        if ($align === 'center' && !$hasMarginL && !$hasMarginR) { $parts[] = "margin-left:auto"; $parts[] = "margin-right:auto"; }
+        elseif ($align === 'right' && !$hasMarginL) { $parts[] = "margin-left:auto"; $parts[] = "margin-right:0"; }
+        elseif ($align === 'left' && !$hasMarginR) { $parts[] = "margin-left:0"; $parts[] = "margin-right:auto"; }
+        $disp = $lay['display'] ?? 'block';
+        if (in_array($disp, ['flex', 'grid', 'none'])) {
+            $parts[] = "display:{$disp}";
+            if ($disp === 'flex') {
+                $fd = in_array($lay['flexDirection'] ?? '', ['row', 'column']) ? $lay['flexDirection'] : '';
+                if ($fd) $parts[] = "flex-direction:{$fd}";
+                $jc = in_array($lay['justifyContent'] ?? '', ['flex-start', 'center', 'flex-end', 'space-between']) ? $lay['justifyContent'] : '';
+                if ($jc) $parts[] = "justify-content:{$jc}";
+            }
+        }
+
         // Animation
         $entrance = $blockAnimation['entrance'] ?? 'none';
         $animName = self::safeAnimationName($entrance);
