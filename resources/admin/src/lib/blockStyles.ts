@@ -10,6 +10,9 @@
 
 import type { BlockStyleProps, AnimationProps, AdvancedProps } from '@/types/blocks';
 import type React from 'react';
+import { buildShadowCss } from '@/lib/shadowStyles';
+import type { ShadowCustom } from '@/lib/shadowStyles';
+import { resolveCornerRadius } from '@/lib/spacingHelpers';
 
 /** Sanitize a raw CSS dimension value — keep only safe characters. */
 export function safeDim(v: unknown): string | undefined {
@@ -52,29 +55,52 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
     if (safeDim(sp.marginRight)) css.marginRight = safeDim(sp.marginRight);
     if (safeDim(sp.marginBottom)) css.marginBottom = safeDim(sp.marginBottom);
     if (safeDim(sp.marginLeft)) css.marginLeft = safeDim(sp.marginLeft);
+    if (safeDim(sp.gap)) css.gap = safeDim(sp.gap);
   }
 
   // Visual
   const vis = style.visual;
   if (vis) {
+    // Background
+    if (vis.backgroundGradient) {
+      css.background = vis.backgroundGradient;
+    } else if (safeColor(vis.backgroundColor)) {
+      css.backgroundColor = safeColor(vis.backgroundColor);
+    }
+    if (vis.backgroundImage) {
+      css.backgroundImage = `url(${vis.backgroundImage})`;
+      css.backgroundSize = 'cover';
+      css.backgroundPosition = 'center';
+    }
+
+    // Border
     if (vis.borderWidth && vis.borderColor) {
       const bw = safeDim(vis.borderWidth);
       const bc = safeColor(vis.borderColor);
       const bs = ['solid', 'dashed', 'dotted'].includes(vis.borderStyle || '') ? vis.borderStyle : 'solid';
       if (bw && bc) css.border = `${bw} ${bs} ${bc}`;
     }
-    if (safeDim(vis.borderRadius)) css.borderRadius = safeDim(vis.borderRadius);
-    if (vis.boxShadow && vis.boxShadow !== 'none') {
-      css.boxShadow = SHADOW_MAP[vis.boxShadow] || undefined;
+
+    // Border radius — string (legacy) or per-corner object
+    const resolvedRadius = resolveCornerRadius(vis.borderRadius);
+    if (resolvedRadius) {
+      css.borderRadius = resolvedRadius;
+      css.overflow = 'hidden';
     }
-    // Block opacity is intentionally NOT applied to the wrapper div because
-    // it would fade ALL content including text and buttons. Blocks that need
-    // background-only opacity should use a separate overlay layer (like Hero's
-    // bg_overlay_opacity). The opacity value is preserved in saved data for
-    // future background-layer implementation.
-    // if (vis.opacity !== undefined && vis.opacity < 1) {
-    //   css.opacity = Math.max(0, Math.min(1, vis.opacity));
-    // }
+
+    // Shadow — preset or custom
+    if (vis.shadowMode === 'custom' && vis.shadowCustom) {
+      const shadowCss = buildShadowCss('custom', '', vis.shadowCustom as ShadowCustom);
+      if (shadowCss) css.boxShadow = shadowCss;
+    } else if (vis.boxShadow && vis.boxShadow !== 'none') {
+      const shadowCss = buildShadowCss('preset', vis.boxShadow, undefined);
+      if (shadowCss) css.boxShadow = shadowCss;
+    }
+
+    // Overflow
+    if (vis.overflow && vis.overflow !== 'visible') {
+      css.overflow = vis.overflow;
+    }
   }
 
   return css;

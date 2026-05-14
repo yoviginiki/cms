@@ -33,8 +33,10 @@ export interface VisualProps {
   borderWidth?: string;
   borderColor?: string;
   borderStyle?: 'none' | 'solid' | 'dashed' | 'dotted';
-  borderRadius?: string;
+  borderRadius?: string | { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string };
   boxShadow?: 'none' | 'sm' | 'md' | 'lg' | string;
+  shadowMode?: 'preset' | 'custom';
+  shadowCustom?: { x?: string; y?: string; blur?: string; spread?: string; color?: string; opacity?: number; inset?: boolean };
   opacity?: number;
   overflow?: 'visible' | 'hidden' | 'scroll';
 }

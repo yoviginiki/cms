@@ -337,20 +337,33 @@ The admin editor canvas preview now reflects all Hero design settings that the s
 |----------|--------|--------|
 | Animation trigger (on-scroll) | PARTIAL | on-load works; on-scroll needs Intersection Observer JS (not implemented) |
 | Hover effects (opacity/lift/glow) | DEAD_CONTROL | No CSS/JS implementation |
-| Responsive hide on device | DEAD_CONTROL | Not connected in SortableBlock or Blade |
 | Custom CSS | DEAD_CONTROL | Security risk — not rendered |
-| Global VisualPanel bg color/gradient/image | DEAD_CONTROL for Hero | Hero uses its own BackgroundEditor; global bg ignored |
-| Typography panel overrides | DEAD_CONTROL | Not applied in SortableBlock wrapper or Blade |
-| Layout panel (width/height/display) | DEAD_CONTROL | Not applied in SortableBlock wrapper |
+| Typography panel overrides | NOT APPLIED IN WRAPPER | Stored but not applied — blocks must implement typography rendering themselves |
 
-### Pattern for other blocks
+### Working Controls (Post Visual Controls Upgrade)
 
-Other Blade templates can now access `$blockStyle`, `$blockAnimation`, `$blockAdvanced` — they just need to apply them. The Hero Blade implementation serves as the reference. The SortableBlock wrapper already applies shared properties to ALL block previews automatically.
+| Property | Preview | Blade | Notes |
+|----------|---------|-------|-------|
+| Background color/gradient/image | WORKING | WORKING | Applied via VisualPanel → buildBlockWrapperStyle / buildStyle |
+| Border width/color/style | WORKING | WORKING | |
+| Border radius (per-corner) | WORKING | WORKING | CornerRadiusField in VisualPanel, per-corner object or legacy string |
+| Shadow (preset + custom) | WORKING | WORKING | ShadowField in VisualPanel, custom: x/y/blur/spread/color/opacity/inset |
+| Padding/Margin (per-side) | WORKING | WORKING | SpacingPanel |
+| HTML ID | WORKING | WORKING | Applied in SortableBlock wrapper and Blade shared wrapper |
+| ARIA Label | WORKING | WORKING | Applied in SortableBlock wrapper and Blade shared wrapper |
+| Custom Class | WORKING | WORKING | |
+| Responsive hide | WORKING | WORKING | Scoped media queries via buildHideOnCss |
+| Layout (width/height/display) | WORKING | WORKING | |
+| Animation (entrance) | WORKING | WORKING | |
+| Overflow | WORKING | WORKING | |
 
-### This fix is Hero-first
-- SortableBlock + BuildPageService changes benefit all blocks
-- Only Hero Blade currently renders the shared properties
-- Other blocks will gain Blade support as they're repaired per the Block Quality Contract
+### Architecture
+
+- **67 block Blade templates** have the BaseBlock shared properties wrapper (Level 4)
+- **SortableBlock.tsx** applies shared styles to ALL block previews via `buildBlockWrapperStyle()`
+- **BlockStyle::buildStyle()** generates equivalent CSS for published output
+- **Hero** keeps its own advanced implementation (BackgroundEditor, responsive overrides)
+- Gold-standard blocks: **Hero**, **Heading**, **Section**
 
 ---
 

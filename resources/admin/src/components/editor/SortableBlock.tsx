@@ -91,6 +91,8 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
           ...buildBlockWrapperStyle(block.style),
           ...buildAnimationStyle(block.animation),
         }}
+        {...(block.advanced?.htmlId ? { id: block.advanced.htmlId.replace(/[^a-zA-Z0-9_-]/g, '') } : {})}
+        {...(block.advanced?.ariaLabel ? { 'aria-label': block.advanced.ariaLabel } : {})}
       >
         {block.responsive?.hideOn && block.responsive.hideOn.length > 0 && (
           <div className="absolute top-1 right-1 z-20 flex gap-0.5">

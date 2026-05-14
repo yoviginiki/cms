@@ -83,22 +83,30 @@ class BlockStyle
             $alpha = max(0, min(100, (int) ($custom['opacity'] ?? 15))) / 100;
             $inset = !empty($custom['inset']) ? 'inset ' : '';
 
-            // Convert hex to rgba
-            $hex = ltrim($color, '#');
-            if (strlen($hex) === 3) {
-                $r = hexdec($hex[0] . $hex[0]);
-                $g = hexdec($hex[1] . $hex[1]);
-                $b = hexdec($hex[2] . $hex[2]);
-            } elseif (strlen($hex) >= 6) {
-                $r = hexdec(substr($hex, 0, 2));
-                $g = hexdec(substr($hex, 2, 2));
-                $b = hexdec(substr($hex, 4, 2));
+            // Convert color + opacity to rgba
+            if (str_starts_with($color, '#')) {
+                $hex = ltrim($color, '#');
+                if (strlen($hex) === 3) {
+                    $r = hexdec($hex[0] . $hex[0]);
+                    $g = hexdec($hex[1] . $hex[1]);
+                    $b = hexdec($hex[2] . $hex[2]);
+                } elseif (strlen($hex) >= 6) {
+                    $r = hexdec(substr($hex, 0, 2));
+                    $g = hexdec(substr($hex, 2, 2));
+                    $b = hexdec(substr($hex, 4, 2));
+                } else {
+                    $r = $g = $b = 0;
+                }
+                $colorVal = "rgba({$r},{$g},{$b}," . number_format($alpha, 2) . ")";
+            } elseif (preg_match('/^rgba?\(/', $color)) {
+                // Already rgb/rgba — apply opacity by wrapping
+                $colorVal = $alpha < 1 ? preg_replace('/rgba?\(([^)]+)\)/', "rgba($1," . number_format($alpha, 2) . ")", $color) : $color;
             } else {
-                $r = $g = $b = 0;
+                // oklch, hsl, named — use as-is (opacity not applied to non-hex/rgb)
+                $colorVal = $color;
             }
-            $rgba = "rgba({$r},{$g},{$b}," . number_format($alpha, 2) . ")";
 
-            return "{$inset}{$x} {$y} {$blur} {$spread} {$rgba}";
+            return "{$inset}{$x} {$y} {$blur} {$spread} {$colorVal}";
         }
 
         return self::safeShadow($preset);
@@ -152,6 +160,19 @@ class BlockStyle
         // Visual
         $vis = $blockStyle['visual'] ?? [];
 
+        // Background
+        if (!empty($vis['backgroundGradient'])) {
+            $parts[] = "background:{$vis['backgroundGradient']}";
+        } elseif (!empty($vis['backgroundColor'])) {
+            $bc = self::safeColor($vis['backgroundColor']);
+            if ($bc) $parts[] = "background-color:{$bc}";
+        }
+        if (!empty($vis['backgroundImage'])) {
+            $parts[] = "background-image:url(" . self::safeCssVal($vis['backgroundImage']) . ")";
+            $parts[] = "background-size:cover";
+            $parts[] = "background-position:center";
+        }
+
         // Border
         if (!empty($vis['borderWidth']) && !empty($vis['borderColor'])) {
             $bw = self::safeDim($vis['borderWidth']);
@@ -161,25 +182,40 @@ class BlockStyle
             if ($bw && $bc) $parts[] = "border:{$bw} {$bs} {$bc}";
         }
 
-        // Border radius
-        $br = self::safeDim($vis['borderRadius'] ?? '');
-        if ($br) {
-            $parts[] = "border-radius:{$br}";
-            $parts[] = "overflow:hidden";
+        // Border radius — string (legacy) or per-corner object
+        $brVal = $vis['borderRadius'] ?? '';
+        if (is_array($brVal)) {
+            $tl = self::safeDim($brVal['topLeft'] ?? '');
+            $tr = self::safeDim($brVal['topRight'] ?? '');
+            $br_ = self::safeDim($brVal['bottomRight'] ?? '');
+            $bl = self::safeDim($brVal['bottomLeft'] ?? '');
+            if ($tl || $tr || $br_ || $bl) {
+                $radius = ($tl ?: '0') . ' ' . ($tr ?: '0') . ' ' . ($br_ ?: '0') . ' ' . ($bl ?: '0');
+                $parts[] = "border-radius:{$radius}";
+                $parts[] = "overflow:hidden";
+            }
+        } else {
+            $br = self::safeDim($brVal);
+            if ($br) {
+                $parts[] = "border-radius:{$br}";
+                $parts[] = "overflow:hidden";
+            }
         }
 
-        // Shadow
-        $shadow = self::safeShadow($vis['boxShadow'] ?? '');
-        if ($shadow) $parts[] = "box-shadow:{$shadow}";
+        // Shadow — preset or custom
+        $shadowMode = $vis['shadowMode'] ?? 'preset';
+        if ($shadowMode === 'custom' && is_array($vis['shadowCustom'] ?? null)) {
+            $shadowCss = self::buildShadowCss('custom', '', $vis['shadowCustom']);
+            if ($shadowCss) $parts[] = "box-shadow:{$shadowCss}";
+        } else {
+            $shadow = self::safeShadow($vis['boxShadow'] ?? '');
+            if ($shadow) $parts[] = "box-shadow:{$shadow}";
+        }
 
-        // Block opacity is intentionally NOT applied to the wrapper element because
-        // it fades ALL content including text and buttons. Blocks that need
-        // background-only opacity should use a separate overlay layer (like Hero's
-        // bg_overlay_opacity). The opacity value is preserved in saved data.
-        // if (isset($vis['opacity']) && (float) $vis['opacity'] < 1) {
-        //     $op = max(0, min(1, (float) $vis['opacity']));
-        //     $parts[] = "opacity:{$op}";
-        // }
+        // Overflow (without border-radius)
+        if (!empty($vis['overflow']) && in_array($vis['overflow'], ['hidden', 'scroll'])) {
+            $parts[] = "overflow:{$vis['overflow']}";
+        }
 
         // Animation
         $entrance = $blockAnimation['entrance'] ?? 'none';

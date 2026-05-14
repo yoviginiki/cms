@@ -221,4 +221,97 @@ class BlockStyleTest extends TestCase
         $this->assertSame('', $result['scopeClass']);
         $this->assertSame('', $result['css']);
     }
+
+    // ── Visual Controls: Background ──
+
+    public function test_build_style_with_background_color(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => ['backgroundColor' => '#ff0000']]);
+        $this->assertStringContainsString('background-color:#ff0000', $style);
+    }
+
+    public function test_build_style_with_background_gradient(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => ['backgroundGradient' => 'linear-gradient(135deg, #667eea, #764ba2)']]);
+        $this->assertStringContainsString('background:linear-gradient', $style);
+    }
+
+    public function test_build_style_with_background_image(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => ['backgroundImage' => 'https://example.com/img.jpg']]);
+        $this->assertStringContainsString('background-image:url(', $style);
+        $this->assertStringContainsString('background-size:cover', $style);
+    }
+
+    // ── Visual Controls: Per-corner Border Radius ──
+
+    public function test_build_style_with_per_corner_radius(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => ['borderRadius' => [
+            'topLeft' => '10px', 'topRight' => '20px', 'bottomRight' => '0', 'bottomLeft' => '5px',
+        ]]]);
+        $this->assertStringContainsString('border-radius:10px 20px 0 5px', $style);
+        $this->assertStringContainsString('overflow:hidden', $style);
+    }
+
+    public function test_build_style_with_uniform_radius(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => ['borderRadius' => '12px']]);
+        $this->assertStringContainsString('border-radius:12px', $style);
+        $this->assertStringContainsString('overflow:hidden', $style);
+    }
+
+    // ── Visual Controls: Custom Shadow ──
+
+    public function test_build_style_with_custom_shadow(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => [
+            'shadowMode' => 'custom',
+            'shadowCustom' => [
+                'x' => '4px', 'y' => '8px', 'blur' => '16px', 'spread' => '2px',
+                'color' => '#ff0000', 'opacity' => 50, 'inset' => false,
+            ],
+        ]]);
+        $this->assertStringContainsString('box-shadow:', $style);
+        $this->assertStringContainsString('rgba(255,0,0,0.50)', $style);
+    }
+
+    public function test_build_style_with_inset_shadow(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => [
+            'shadowMode' => 'custom',
+            'shadowCustom' => [
+                'x' => '0px', 'y' => '2px', 'blur' => '8px', 'spread' => '0px',
+                'color' => '#000000', 'opacity' => 20, 'inset' => true,
+            ],
+        ]]);
+        $this->assertStringContainsString('inset', $style);
+    }
+
+    public function test_build_style_with_rgb_shadow_color(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => [
+            'shadowMode' => 'custom',
+            'shadowCustom' => [
+                'x' => '0px', 'y' => '4px', 'blur' => '12px', 'spread' => '0px',
+                'color' => 'rgba(100,200,50,1)', 'opacity' => 80,
+            ],
+        ]]);
+        $this->assertStringContainsString('box-shadow:', $style);
+        $this->assertStringNotContainsString('rgba(0,0,0', $style); // must NOT fall back to black
+    }
+
+    public function test_build_style_with_preset_shadow(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => ['boxShadow' => 'md']]);
+        $this->assertStringContainsString('box-shadow:', $style);
+    }
+
+    // ── Visual Controls: Overflow ──
+
+    public function test_build_style_with_overflow(): void
+    {
+        $style = BlockStyle::buildStyle(['visual' => ['overflow' => 'hidden']]);
+        $this->assertStringContainsString('overflow:hidden', $style);
+    }
 }
