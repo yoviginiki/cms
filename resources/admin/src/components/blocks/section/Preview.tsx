@@ -9,15 +9,17 @@ export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const maxWidth = (data.max_width as string) || '1200px';
   const anchorId = (data.anchor_id as string) || '';
 
-  // Legacy padding preset support
+  // New px fields take priority; legacy padding preset as fallback only
   const legacyPadding = data.padding as string | undefined;
   const legacyPaddingMap: Record<string, string> = {
     none: '0', sm: '1rem', md: '2rem', lg: '3rem', xl: '4rem',
   };
+  const effectivePadTop = data.padding_top ? paddingTop : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '40px') : paddingTop);
+  const effectivePadBottom = data.padding_bottom ? paddingBottom : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '40px') : paddingBottom);
 
   const style: React.CSSProperties = {
-    paddingTop: legacyPadding ? legacyPaddingMap[legacyPadding] || paddingTop : paddingTop,
-    paddingBottom: legacyPadding ? legacyPaddingMap[legacyPadding] || paddingBottom : paddingBottom,
+    paddingTop: effectivePadTop,
+    paddingBottom: effectivePadBottom,
     maxWidth,
     margin: '0 auto',
     position: 'relative',
