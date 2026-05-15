@@ -8,12 +8,14 @@ interface EditorState {
   isDirty: boolean;
   isSaving: boolean;
   editorMode: 'block' | 'magazine';
+  canvasMode: 'visual' | 'wireframe';
   undoStack: BlockData[][];
   redoStack: BlockData[][];
   maxUndoSteps: number;
 
   setBlocks: (blocks: BlockData[]) => void;
   setEditorMode: (mode: 'block' | 'magazine') => void;
+  setCanvasMode: (mode: 'visual' | 'wireframe') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
   updateBlock: (blockId: string, data: Partial<Record<string, unknown>>) => void;
   removeBlock: (blockId: string) => void;
@@ -76,6 +78,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
   isSaving: false,
   editorMode: 'block',
+  canvasMode: 'visual' as 'visual' | 'wireframe',
   undoStack: [],
   redoStack: [],
   maxUndoSteps: 50,
@@ -86,6 +89,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setEditorMode: (mode) => {
     set({ editorMode: mode });
+  },
+
+  setCanvasMode: (mode) => {
+    set({ canvasMode: mode });
   },
 
   addBlock: (type, parentId, index) => {
