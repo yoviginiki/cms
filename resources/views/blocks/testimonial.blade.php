@@ -13,21 +13,33 @@
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="testimonial-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
+    $cssVal = fn($v) => preg_replace('/[^a-zA-Z0-9#(),.\s%\/\-]/', '', (string) $v);
+    $cssDim = fn($v) => preg_match('/^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/i', trim((string) $v)) ? trim((string) $v) : '';
+
     $items = $data['items'] ?? [];
     $layout = $data['layout'] ?? 'single';
     $gridStyle = $layout === 'grid' ? 'display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;' : '';
+
+    $cardBgColor = $cssVal($data['cardBgColor'] ?? '');
+    $cardBorderColor = $cssVal($data['cardBorderColor'] ?? '') ?: 'var(--color-border,#e2e8f0)';
+    $cardRadius = is_array($data['cardBorderRadius'] ?? null)
+        ? implode(' ', array_map(fn($k) => $cssDim($data['cardBorderRadius'][$k] ?? '') ?: '0.75rem', ['topLeft','topRight','bottomRight','bottomLeft']))
+        : ($cssDim($data['cardBorderRadius'] ?? '') ?: '0.75rem');
+    $cardShadow = BlockStyle::buildShadowCss($data['cardShadowMode'] ?? 'preset', $data['cardShadow'] ?? '', is_array($data['cardShadowCustom'] ?? null) ? $data['cardShadowCustom'] : null);
+    $quoteColor = $cssVal($data['quoteColor'] ?? '') ?: 'var(--color-text,#1e293b)';
+    $authorColor = $cssVal($data['authorColor'] ?? '');
 @endphp
 <div style="{{ $gridStyle }}">
     @foreach($items as $item)
-        <blockquote style="border:1px solid var(--color-border,#e5e7eb);border-radius:0.75rem;padding:1.5rem;margin-bottom:{{ $layout === 'grid' ? '0' : '1rem' }};">
-            <p style="font-style:italic;color:#374151;margin-bottom:1rem;">&ldquo;{{ $item['quote'] ?? '' }}&rdquo;</p>
+        <blockquote style="border:1px solid {{ $cardBorderColor }};border-radius:{{ $cardRadius }};padding:1.5rem;margin-bottom:{{ $layout === 'grid' ? '0' : '1rem' }};{{ $cardBgColor ? "background-color:{$cardBgColor};" : '' }}{{ $cardShadow ? "box-shadow:{$cardShadow};" : '' }}">
+            <p style="font-style:italic;color:{{ $quoteColor }};margin-bottom:1rem;">&ldquo;{{ $item['quote'] ?? '' }}&rdquo;</p>
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 @if(!empty($item['avatar']))
                     <img src="{{ $item['avatar'] }}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" />
                 @endif
                 <div>
-                    <div style="font-weight:600;">{{ $item['author'] ?? '' }}</div>
-                    <div style="color:#6b7280;font-size:0.875rem;">{{ $item['role'] ?? '' }}</div>
+                    <div style="font-weight:600;{{ $authorColor ? "color:{$authorColor};" : '' }}">{{ $item['author'] ?? '' }}</div>
+                    <div style="color:var(--color-text-muted,#64748b);font-size:0.875rem;">{{ $item['role'] ?? '' }}</div>
                 </div>
             </div>
         </blockquote>

@@ -16,6 +16,16 @@ class StatsBlockDefinition implements BlockDefinition
             'items.*.prefix'  => ['sometimes', 'nullable', 'string', 'max:20'],
             'items.*.suffix'  => ['sometimes', 'nullable', 'string', 'max:20'],
             'columns'         => ['sometimes', 'integer', 'min:1', 'max:6'],
+            'gap'             => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
+            'cardBgColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'cardBorderColor' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'cardBorderRadius'=> ['sometimes', 'nullable'],
+            'cardShadow'      => ['sometimes', 'nullable', 'in:,none,subtle,medium,large,glow,sm,md,lg'],
+            'cardShadowMode'  => ['sometimes', 'in:preset,custom'],
+            'cardShadowCustom'=> ['sometimes', 'nullable', 'array'],
+            'valueColor'      => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'labelColor'      => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
+            'valueFontSize'   => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
         ];
     }
 
