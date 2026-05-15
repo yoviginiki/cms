@@ -2,6 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
 import { api } from '@/lib/api';
 
+/**
+ * Auto-save blocks after 3s of inactivity when dirty.
+ *
+ * Safe because:
+ * - PageEditor/PostEditor load blocks only once via blocksLoadedRef
+ * - refetchOnWindowFocus is disabled for blocks query
+ * - No external refetch can overwrite the editor store
+ */
 export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts', blockableId: string) {
   const isDirty = useEditorStore((s) => s.isDirty);
   const blocks = useEditorStore((s) => s.blocks);
@@ -24,7 +32,7 @@ export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts', bl
       } finally {
         setSaving(false);
       }
-    }, 2000);
+    }, 3000);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

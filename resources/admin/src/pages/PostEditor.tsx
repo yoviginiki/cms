@@ -86,8 +86,13 @@ export default function PostEditor() {
   useAutoSave(siteId, 'posts', postId);
   useEditorShortcuts(siteId, 'posts', postId);
 
+  // Load blocks only on initial fetch — never overwrite after user starts editing
+  const blocksLoadedRef = useRef(false);
   useEffect(() => {
-    if (fetchedBlocks) setBlocks(fetchedBlocks);
+    if (fetchedBlocks && !blocksLoadedRef.current) {
+      setBlocks(fetchedBlocks);
+      blocksLoadedRef.current = true;
+    }
   }, [fetchedBlocks, setBlocks]);
 
   const initializedPost = useRef(false);

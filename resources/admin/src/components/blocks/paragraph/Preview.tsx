@@ -10,7 +10,7 @@ export const ParagraphPreview: React.FC<BlockComponentProps> = ({ block, isSelec
       <div onClick={e => e.stopPropagation()}>
         <WysiwygEditor
           content={content}
-          onChange={(html) => onUpdate({ ...block.data, content: html })}
+          onChange={(html) => onUpdate({ content: html })}
           minHeight={80}
           placeholder="Type your paragraph text..."
         />

@@ -11,7 +11,7 @@ export const RichTextPreview: React.FC<BlockComponentProps> = ({ block, isSelect
       <div onClick={e => e.stopPropagation()}>
         <WysiwygEditor
           content={content}
-          onChange={(html) => onUpdate({ ...block.data, content: html })}
+          onChange={(html) => onUpdate({ content: html })}
           minHeight={150}
           placeholder="Start typing your content... Use the toolbar for headings, bold, lists, links..."
         />

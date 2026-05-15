@@ -26,7 +26,7 @@ export const DropcapPreview: React.FC<BlockComponentProps> = ({ block, isSelecte
         <div className="dropcap-preview" onClick={e => e.stopPropagation()}>
           <WysiwygEditor
             content={content || ''}
-            onChange={(html) => onUpdate({ ...block.data, content: html })}
+            onChange={(html) => onUpdate({ content: html })}
             minHeight={80}
             placeholder="Type your drop cap text..."
           />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, Eye, Globe, FileText } from 'lucide-react';
@@ -143,8 +143,14 @@ export default function PageEditor() {
   useAutoSave(siteId, 'pages', pageId);
   useEditorShortcuts(siteId, 'pages', pageId);
 
+  // Load blocks only on initial fetch — never overwrite after user starts editing.
+  // React Query refetch (e.g. window focus) must not reset the editor store.
+  const blocksLoadedRef = useRef(false);
   useEffect(() => {
-    if (fetchedBlocks) setBlocks(fetchedBlocks);
+    if (fetchedBlocks && !blocksLoadedRef.current) {
+      setBlocks(fetchedBlocks);
+      blocksLoadedRef.current = true;
+    }
   }, [fetchedBlocks, setBlocks]);
 
   // Read editor_mode from page data

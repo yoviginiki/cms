@@ -11,7 +11,7 @@ export function usePageData(siteId: string, pageId: string) {
   const blocksQuery = useQuery({
     queryKey: ['blocks', 'pages', siteId, pageId],
     queryFn: () => blocks.get(siteId, 'pages', pageId).then((r) => r.data.data),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // blocks managed by editor store — refetch would overwrite unsaved changes
   });
 
   return {
