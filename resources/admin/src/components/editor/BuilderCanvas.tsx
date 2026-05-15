@@ -12,9 +12,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useState } from 'react';
-import { Monitor, Tablet, Smartphone } from 'lucide-react';
+import { Monitor, Tablet, Smartphone, LayoutList, Eye } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
+import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import type { Active } from '@dnd-kit/core';
 
@@ -33,6 +34,8 @@ export function BuilderCanvas() {
 
   const [activeItem, setActiveItem] = useState<Active | null>(null);
   const [canvasDevice, setCanvasDevice] = useState<CanvasDevice>('desktop');
+  const canvasMode = useEditorStore((s) => s.canvasMode);
+  const setCanvasMode = useEditorStore((s) => s.setCanvasMode);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -87,28 +90,61 @@ export function BuilderCanvas() {
         className="flex-1 overflow-y-auto bg-gray-50"
         onClick={() => selectBlock(null)}
       >
-        {/* Responsive canvas device toggle */}
-        <div className="flex items-center justify-center gap-1 py-2 bg-gray-50 border-b border-gray-200 sticky top-0 z-20">
-          {([
-            { device: 'desktop' as CanvasDevice, Icon: Monitor, label: 'Desktop' },
-            { device: 'tablet' as CanvasDevice, Icon: Tablet, label: 'Tablet (768px)' },
-            { device: 'mobile' as CanvasDevice, Icon: Smartphone, label: 'Mobile (375px)' },
-          ]).map(({ device, Icon, label }) => (
+        {/* Toolbar: Mode toggle + Responsive device toggle */}
+        <div className="flex items-center justify-between py-2 px-4 bg-gray-50 border-b border-gray-200 sticky top-0 z-20">
+          {/* Left: Editor mode toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
             <button
-              key={device}
               type="button"
-              onClick={(e) => { e.stopPropagation(); setCanvasDevice(device); }}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                canvasDevice === device
-                  ? 'bg-primary text-primary-content shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              onClick={(e) => { e.stopPropagation(); setCanvasMode('visual'); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                canvasMode === 'visual'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
-              title={label}
+              title="Visual Mode — live rendered preview"
             >
-              <Icon size={14} />
-              <span className="hidden sm:inline">{label}</span>
+              <Eye size={14} />
+              <span>Visual</span>
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCanvasMode('wireframe'); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                canvasMode === 'wireframe'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Wireframe Mode — structural outline"
+            >
+              <LayoutList size={14} />
+              <span>Wireframe</span>
+            </button>
+          </div>
+
+          {/* Right: Responsive device toggle (Visual mode only) */}
+          <div className={`flex items-center gap-1 ${canvasMode === 'wireframe' ? 'opacity-40 pointer-events-none' : ''}`}>
+            {([
+              { device: 'desktop' as CanvasDevice, Icon: Monitor, label: 'Desktop' },
+              { device: 'tablet' as CanvasDevice, Icon: Tablet, label: 'Tablet (768px)' },
+              { device: 'mobile' as CanvasDevice, Icon: Smartphone, label: 'Mobile (375px)' },
+            ]).map(({ device, Icon, label }) => (
+              <button
+                key={device}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setCanvasDevice(device); }}
+                className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  canvasDevice === device
+                    ? 'bg-primary text-primary-content shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+                title={label}
+              >
+                <Icon size={14} />
+                <span className="hidden lg:inline">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="p-6">
         <div
@@ -118,38 +154,44 @@ export function BuilderCanvas() {
             transition: 'max-width 0.3s ease',
           }}
         >
-          <SortableContext
-            items={blocks.map((b) => b.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-3">
+          {canvasMode === 'wireframe' ? (
+            /* ── Wireframe Mode: structural outline ── */
+            <div className="space-y-1">
               {blocks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                  <svg
-                    className="w-16 h-16 mb-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                  <p className="text-lg font-medium">No blocks yet</p>
-                  <p className="text-sm mt-1">
-                    Drag blocks from the sidebar or click to add
-                  </p>
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                  <LayoutList className="w-12 h-12 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No blocks yet</p>
+                  <p className="text-xs mt-1">Add blocks from the sidebar</p>
                 </div>
               ) : (
                 blocks.map((block) => (
-                  <SortableBlock key={block.id} block={block} />
+                  <WireframeBlock key={block.id} block={block} />
                 ))
               )}
             </div>
-          </SortableContext>
+          ) : (
+            /* ── Visual Mode: live rendered preview ── */
+            <SortableContext
+              items={blocks.map((b) => b.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {blocks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                    <svg className="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <p className="text-lg font-medium">No blocks yet</p>
+                    <p className="text-sm mt-1">Drag blocks from the sidebar or click to add</p>
+                  </div>
+                ) : (
+                  blocks.map((block) => (
+                    <SortableBlock key={block.id} block={block} />
+                  ))
+                )}
+              </div>
+            </SortableContext>
+          )}
         </div>
         </div>
       </div>
