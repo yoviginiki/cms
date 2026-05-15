@@ -60,6 +60,9 @@ class SyncBlocksRequest extends FormRequest
             'blocks.*.children.*.children.*.children.*.id' => ['sometimes', 'uuid'],
             'blocks.*.children.*.children.*.children.*.preset_id' => ['sometimes', 'nullable', 'string', 'max:64'],
             'blocks.*.children.*.children.*.children.*.style' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.children.*.animation' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.children.*.responsive' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.children.*.advanced' => ['sometimes', 'nullable', 'array'],
         ];
     }
 
