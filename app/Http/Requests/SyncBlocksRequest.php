@@ -63,6 +63,7 @@ class SyncBlocksRequest extends FormRequest
             'blocks.*.children.*.children.*.children.*.animation' => ['sometimes', 'nullable', 'array'],
             'blocks.*.children.*.children.*.children.*.responsive' => ['sometimes', 'nullable', 'array'],
             'blocks.*.children.*.children.*.children.*.advanced' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.children.*.children' => ['sometimes', 'array', 'max:0'], // modules are leaf nodes
         ];
     }
 
