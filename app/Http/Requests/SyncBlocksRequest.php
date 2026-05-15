@@ -28,22 +28,38 @@ class SyncBlocksRequest extends FormRequest
             'blocks.*.responsive' => ['sometimes', 'nullable', 'array'],
             'blocks.*.advanced' => ['sometimes', 'nullable', 'array'],
             'blocks.*.children' => ['sometimes', 'array'],
+            // Level 2: children (rows)
             'blocks.*.children.*.type' => ['required_with:blocks.*.children', 'string'],
             'blocks.*.children.*.level' => ['sometimes', 'in:section,row,column,module'],
             'blocks.*.children.*.data' => ['present', 'array'],
             'blocks.*.children.*.order' => ['required_with:blocks.*.children', 'integer', 'min:0'],
             'blocks.*.children.*.id' => ['sometimes', 'uuid'],
+            'blocks.*.children.*.preset_id' => ['sometimes', 'nullable', 'string', 'max:64'],
             'blocks.*.children.*.style' => ['sometimes', 'nullable', 'array'],
             'blocks.*.children.*.animation' => ['sometimes', 'nullable', 'array'],
             'blocks.*.children.*.responsive' => ['sometimes', 'nullable', 'array'],
             'blocks.*.children.*.advanced' => ['sometimes', 'nullable', 'array'],
             'blocks.*.children.*.children' => ['sometimes', 'array'],
+            // Level 3: grandchildren (columns)
             'blocks.*.children.*.children.*.type' => ['required_with:blocks.*.children.*.children', 'string'],
             'blocks.*.children.*.children.*.level' => ['sometimes', 'in:section,row,column,module'],
             'blocks.*.children.*.children.*.data' => ['present', 'array'],
             'blocks.*.children.*.children.*.order' => ['required_with:blocks.*.children.*.children', 'integer', 'min:0'],
             'blocks.*.children.*.children.*.id' => ['sometimes', 'uuid'],
+            'blocks.*.children.*.children.*.preset_id' => ['sometimes', 'nullable', 'string', 'max:64'],
             'blocks.*.children.*.children.*.style' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.animation' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.responsive' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.advanced' => ['sometimes', 'nullable', 'array'],
+            'blocks.*.children.*.children.*.children' => ['sometimes', 'array'],
+            // Level 4: modules (leaf nodes)
+            'blocks.*.children.*.children.*.children.*.type' => ['required_with:blocks.*.children.*.children.*.children', 'string'],
+            'blocks.*.children.*.children.*.children.*.level' => ['sometimes', 'in:section,row,column,module'],
+            'blocks.*.children.*.children.*.children.*.data' => ['present', 'array'],
+            'blocks.*.children.*.children.*.children.*.order' => ['required_with:blocks.*.children.*.children.*.children', 'integer', 'min:0'],
+            'blocks.*.children.*.children.*.children.*.id' => ['sometimes', 'uuid'],
+            'blocks.*.children.*.children.*.children.*.preset_id' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'blocks.*.children.*.children.*.children.*.style' => ['sometimes', 'nullable', 'array'],
         ];
     }
 

@@ -85,6 +85,7 @@ class BlockService
                 'id' => $block->id,
                 'type' => $block->type,
                 'level' => $block->level ?? 'module',
+                'preset_id' => $block->preset_id,
                 'data' => $data,
                 'order' => $block->order,
                 'children' => $this->buildTree($blocks, $block->id),

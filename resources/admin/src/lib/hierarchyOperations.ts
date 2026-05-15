@@ -18,8 +18,8 @@ export function findBlockById(tree: HierarchicalBlock[], id: string): Hierarchic
   return null;
 }
 
-/** Find the parent of a block by ID. Returns null for root blocks. */
-export function findBlockParent(tree: HierarchicalBlock[], id: string, parent: HierarchicalBlock | null = null): HierarchicalBlock | null {
+/** Find the parent of a block by ID. Returns null for root blocks, undefined if not found. */
+export function findBlockParent(tree: HierarchicalBlock[], id: string, parent: HierarchicalBlock | null = null): HierarchicalBlock | null | undefined {
   for (const block of tree) {
     if (block.id === id) return parent;
     if (block.children?.length) {
@@ -27,7 +27,7 @@ export function findBlockParent(tree: HierarchicalBlock[], id: string, parent: H
       if (found !== undefined) return found;
     }
   }
-  return null;
+  return undefined;
 }
 
 /** Check if moving a block to a target parent is valid per containment rules. */
@@ -95,14 +95,20 @@ export function removeBlock(tree: HierarchicalBlock[], id: string): [Hierarchica
   return [tree, null];
 }
 
-/** Add a child block to a specific parent. */
-export function addChildToBlock(tree: HierarchicalBlock[], parentId: string, child: HierarchicalBlock): HierarchicalBlock[] {
+/** Add a child block to a specific parent at an optional index. */
+export function addChildToBlock(tree: HierarchicalBlock[], parentId: string, child: HierarchicalBlock, atIndex?: number): HierarchicalBlock[] {
   return tree.map(block => {
     if (block.id === parentId) {
-      return { ...block, children: [...(block.children || []), child] };
+      const children = [...(block.children || [])];
+      if (atIndex !== undefined && atIndex >= 0 && atIndex <= children.length) {
+        children.splice(atIndex, 0, child);
+      } else {
+        children.push(child);
+      }
+      return { ...block, children };
     }
     if (block.children?.length) {
-      return { ...block, children: addChildToBlock(block.children, parentId, child) };
+      return { ...block, children: addChildToBlock(block.children, parentId, child, atIndex) };
     }
     return block;
   });
@@ -127,7 +133,7 @@ export function moveBlock(
     return newTree;
   }
 
-  return addChildToBlock(treeWithout, newParentId, movedBlock);
+  return addChildToBlock(treeWithout, newParentId, movedBlock, newOrder);
 }
 
 /** Deep clone and assign new IDs to a block and its children. */
@@ -138,10 +144,11 @@ export function duplicateBlock(tree: HierarchicalBlock[], blockId: string): Hier
   const parent = findBlockParent(tree, blockId);
   const cloned = deepCloneWithNewIds(block);
 
-  if (parent) {
+  if (parent === undefined) return tree; // block not found in tree
+  if (parent !== null) {
     return addChildToBlock(tree, parent.id, cloned);
   }
-  return [...tree, cloned];
+  return [...tree, cloned]; // root block — append at root
 }
 
 function deepCloneWithNewIds(block: HierarchicalBlock): HierarchicalBlock {
