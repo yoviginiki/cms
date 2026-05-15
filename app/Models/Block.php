@@ -15,7 +15,7 @@ class Block extends Model
 
     protected $fillable = [
         'blockable_id', 'blockable_type', 'parent_block_id',
-        'type', 'data', 'style', 'order',
+        'type', 'level', 'preset_id', 'data', 'style', 'order',
     ];
 
     protected function casts(): array

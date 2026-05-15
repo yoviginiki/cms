@@ -1,0 +1,54 @@
+[
+  {
+    "id": "sec-1",
+    "type": "section",
+    "level": "section",
+    "order": 0,
+    "data": {},
+    "children": [
+      {
+        "id": "row-1",
+        "type": "row",
+        "level": "row",
+        "order": 0,
+        "data": { "columnLayout": "1/2+1/2" },
+        "children": [
+          {
+            "id": "col-1",
+            "type": "column",
+            "level": "column",
+            "order": 0,
+            "data": { "widthFraction": "1/2" },
+            "children": [
+              {
+                "id": "mod-1",
+                "type": "heading",
+                "level": "module",
+                "order": 0,
+                "data": { "text": "Welcome", "level": "h1" },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "col-2",
+            "type": "column",
+            "level": "column",
+            "order": 1,
+            "data": { "widthFraction": "1/2" },
+            "children": [
+              {
+                "id": "mod-2",
+                "type": "paragraph",
+                "level": "module",
+                "order": 0,
+                "data": { "content": "<p>Hello world</p>" },
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
