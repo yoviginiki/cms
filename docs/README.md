@@ -51,10 +51,15 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 - [Animations & Interactions](ANIMATIONS-INTERACTIONS.md) — CSS entrance animations: supported types, timing, easing, reduced motion, security
 - [Advanced Shadow Builder Audit](ADVANCED-SHADOW-BUILDER-AUDIT.md) — shadow system inventory, custom shadow schema, ShadowField design, adoption plan
 
+## Builder Master Plan
+
+- **[Builder Master Plan v3](cms-builder-master-plan.md)** -- canonical roadmap for Divi-inspired builder rebuild. 4-level hierarchy (Section→Row→Column→Module), dual editor modes (Wireframe + Visual), compound presets, vertical slices with manual acceptance gates. 46 weeks, 8 tracks.
+- [Hero Baseline Acceptance Checklist](acceptance/B-0-hero-baseline.md) -- 20-point manual regression baseline for current Hero block.
+
 ## Recovery & Quality
 
 - [Project Recovery Plan](PROJECT-RECOVERY-PLAN.md) -- technical debt assessment, verified counts, priority phases, definition of done
-- [Block Quality Contract](BLOCK-CONTRACT.md) -- comprehensive standard for block development, repair, and evaluation. Covers data contracts, editor UX, inline editing, theme safety, accessibility, security, testing, and readiness levels.
-- [Block Stabilization Master Plan](BLOCK-STABILIZATION-MASTER-PLAN.md) -- complete roadmap for fixing all 69 blocks: inventory, priority order (P0-P3), batch plan, quote/pullquote resolution, completion levels, shared prerequisites.
-- [Hero Controls UX Audit](HERO-CONTROLS-UX-AUDIT.md) -- Hero block control inventory, misleading/missing controls, global field contract, P0-P3 implementation status.
-- [Block Templates](templates/) -- starter templates for new block development (`definition.ts`, `Editor.tsx`, `Preview.tsx`, `index.ts`, Blade template, PHP BlockDefinition). All templates follow the Block Quality Contract.
+- [Block Quality Contract](BLOCK-CONTRACT.md) -- comprehensive standard for block development, repair, and evaluation.
+- [Hero Controls UX Audit](HERO-CONTROLS-UX-AUDIT.md) -- Hero block control inventory, P0-P3 implementation status.
+- [Block Templates](templates/) -- starter templates for new block development.
+- [Archived plans](_archive/) -- previous stabilization and builder plans (superseded by v3).
