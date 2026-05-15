@@ -61,6 +61,8 @@ class BlockService
                 'blockable_id' => $blockable->getKey(),
                 'parent_block_id' => $parentId,
                 'type' => $blockData['type'],
+                'level' => $blockData['level'] ?? 'module',
+                'preset_id' => $blockData['preset_id'] ?? null,
                 'data' => $data,
                 'style' => $style,
                 'order' => $blockData['order'],
@@ -82,6 +84,8 @@ class BlockService
             $node = [
                 'id' => $block->id,
                 'type' => $block->type,
+                'level' => $block->level ?? 'module',
+                'preset_id' => $block->preset_id,
                 'data' => $data,
                 'order' => $block->order,
                 'children' => $this->buildTree($blocks, $block->id),
