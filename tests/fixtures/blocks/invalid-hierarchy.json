@@ -1,0 +1,115 @@
+{
+  "module_in_section": [
+    {
+      "id": "sec-1",
+      "type": "section",
+      "level": "section",
+      "order": 0,
+      "data": {},
+      "children": [
+        {
+          "id": "mod-1",
+          "type": "heading",
+          "level": "module",
+          "order": 0,
+          "data": { "text": "Bad" },
+          "children": []
+        }
+      ]
+    }
+  ],
+  "row_in_row": [
+    {
+      "id": "sec-1",
+      "type": "section",
+      "level": "section",
+      "order": 0,
+      "data": {},
+      "children": [
+        {
+          "id": "row-1",
+          "type": "row",
+          "level": "row",
+          "order": 0,
+          "data": {},
+          "children": [
+            {
+              "id": "row-2",
+              "type": "row",
+              "level": "row",
+              "order": 0,
+              "data": {},
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "column_at_root": [
+    {
+      "id": "col-1",
+      "type": "column",
+      "level": "column",
+      "order": 0,
+      "data": {},
+      "children": []
+    }
+  ],
+  "row_at_root": [
+    {
+      "id": "row-1",
+      "type": "row",
+      "level": "row",
+      "order": 0,
+      "data": {},
+      "children": []
+    }
+  ],
+  "module_with_children": [
+    {
+      "id": "sec-1",
+      "type": "section",
+      "level": "section",
+      "order": 0,
+      "data": {},
+      "children": [
+        {
+          "id": "row-1",
+          "type": "row",
+          "level": "row",
+          "order": 0,
+          "data": {},
+          "children": [
+            {
+              "id": "col-1",
+              "type": "column",
+              "level": "column",
+              "order": 0,
+              "data": {},
+              "children": [
+                {
+                  "id": "mod-1",
+                  "type": "heading",
+                  "level": "module",
+                  "order": 0,
+                  "data": {},
+                  "children": [
+                    {
+                      "id": "mod-2",
+                      "type": "paragraph",
+                      "level": "module",
+                      "order": 0,
+                      "data": {},
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
