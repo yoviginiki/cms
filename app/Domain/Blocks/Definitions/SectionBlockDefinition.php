@@ -12,9 +12,11 @@ class SectionBlockDefinition implements BlockDefinition
         return [
             'background_color' => ['sometimes', 'nullable', 'string', 'max:20'],
             'background_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
-            'padding' => ['sometimes', 'in:none,sm,md,lg,xl'],
-            'max_width' => ['sometimes', 'nullable', 'string'],
-            'anchor_id' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'padding' => ['sometimes', 'nullable', 'in:none,sm,md,lg,xl'], // legacy preset
+            'padding_top' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'padding_bottom' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'max_width' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'anchor_id' => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_-]*$/'],
         ];
     }
 

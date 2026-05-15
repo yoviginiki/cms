@@ -1,49 +1,50 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 
-const paddingMap: Record<string, string> = {
-  none: 'p-0',
-  sm: 'p-4',
-  md: 'p-8',
-  lg: 'p-12',
-  xl: 'p-16',
-};
-
 export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
-  const data = block.data as {
-    background_color: string;
-    background_image: string;
-    padding: string;
-    max_width: string;
-    anchor_id: string;
+  const data = block.data as Record<string, unknown>;
+
+  const paddingTop = (data.padding_top as string) || '40px';
+  const paddingBottom = (data.padding_bottom as string) || '40px';
+  const maxWidth = (data.max_width as string) || '1200px';
+  const anchorId = (data.anchor_id as string) || '';
+
+  // Legacy padding preset support
+  const legacyPadding = data.padding as string | undefined;
+  const legacyPaddingMap: Record<string, string> = {
+    none: '0', sm: '1rem', md: '2rem', lg: '3rem', xl: '4rem',
   };
 
-  const paddingClass = paddingMap[data.padding] || paddingMap.md;
+  const style: React.CSSProperties = {
+    paddingTop: legacyPadding ? legacyPaddingMap[legacyPadding] || paddingTop : paddingTop,
+    paddingBottom: legacyPadding ? legacyPaddingMap[legacyPadding] || paddingBottom : paddingBottom,
+    maxWidth,
+    margin: '0 auto',
+    position: 'relative',
+  };
 
-  const style: React.CSSProperties = {};
-  if (data.background_color) {
-    style.backgroundColor = data.background_color;
+  // Background
+  const bgColor = (data.background_color as string) || (data.bg_color as string) || '';
+  if (bgColor) {
+    style.backgroundColor = bgColor;
   }
-  if (data.background_image) {
-    style.backgroundImage = `url(${data.background_image})`;
+  const bgImage = (data.background_image as string) || (data.bg_image as string) || '';
+  if (bgImage) {
+    style.backgroundImage = `url(${bgImage})`;
     style.backgroundSize = 'cover';
     style.backgroundPosition = 'center';
-  }
-  if (data.max_width) {
-    style.maxWidth = data.max_width;
   }
 
   return (
     <div
-      className={`rounded border border-dashed border-gray-300 ${paddingClass}`}
+      className="rounded border border-dashed border-blue-300/50 min-h-[60px]"
       style={style}
     >
-      <div className="text-xs text-gray-400 uppercase tracking-wide">
-        Section{data.anchor_id ? ` #${data.anchor_id}` : ''}
-      </div>
-      <div className="mt-2 min-h-[40px] text-sm text-gray-500 italic">
-        Child blocks render here
-      </div>
+      {block.children.length === 0 && (
+        <div className="text-xs text-blue-400/60 uppercase tracking-wide text-center py-2">
+          Section{anchorId ? ` #${anchorId}` : ''} — drop rows here
+        </div>
+      )}
     </div>
   );
 };
