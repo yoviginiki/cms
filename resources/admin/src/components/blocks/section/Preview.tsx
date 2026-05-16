@@ -1,21 +1,22 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { safeDim, safeColor } from '@/lib/blockStyles';
 
 export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, unknown>;
 
-  const paddingTop = (data.padding_top as string) || '40px';
-  const paddingBottom = (data.padding_bottom as string) || '40px';
-  const maxWidth = (data.max_width as string) || '1200px';
+  const paddingTop = safeDim(data.padding_top) || '2rem';
+  const paddingBottom = safeDim(data.padding_bottom) || '2rem';
+  const maxWidth = safeDim(data.max_width) || '1200px';
   const anchorId = (data.anchor_id as string) || '';
 
-  // New px fields take priority; legacy padding preset as fallback only
+  // New px fields take priority; legacy padding preset as fallback only (matches Blade)
   const legacyPadding = data.padding as string | undefined;
   const legacyPaddingMap: Record<string, string> = {
     none: '0', sm: '1rem', md: '2rem', lg: '3rem', xl: '4rem',
   };
-  const effectivePadTop = data.padding_top ? paddingTop : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '40px') : paddingTop);
-  const effectivePadBottom = data.padding_bottom ? paddingBottom : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '40px') : paddingBottom);
+  const effectivePadTop = data.padding_top ? paddingTop : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '2rem') : paddingTop);
+  const effectivePadBottom = data.padding_bottom ? paddingBottom : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '2rem') : paddingBottom);
 
   // Outer section style: padding + background (matches Blade <section> element)
   const outerStyle: React.CSSProperties = {
@@ -30,7 +31,8 @@ export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const legacyBgImage = (data.background_image as string) || '';
 
   if (bgType === 'color' && data.bg_color) {
-    outerStyle.backgroundColor = data.bg_color as string;
+    const c = safeColor(data.bg_color);
+    if (c) outerStyle.backgroundColor = c;
   } else if (bgType === 'image' && data.bg_image) {
     outerStyle.backgroundImage = `url(${data.bg_image as string})`;
     outerStyle.backgroundSize = (data.bg_image_size as string) || 'cover';
@@ -39,7 +41,8 @@ export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
     if (data.bg_scroll_effect === 'fixed') outerStyle.backgroundAttachment = 'fixed';
   } else if (legacyBgColor) {
     // Legacy fallback
-    outerStyle.backgroundColor = legacyBgColor;
+    const c = safeColor(legacyBgColor);
+    if (c) outerStyle.backgroundColor = c;
     if (legacyBgImage) {
       outerStyle.backgroundImage = `url(${legacyBgImage})`;
       outerStyle.backgroundSize = 'cover';

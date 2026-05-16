@@ -35,6 +35,7 @@ class SectionBlockDefinition implements BlockDefinition
             'bg_gradient_stops.*.position' => ['sometimes', 'integer', 'between:0,100'],
             'bg_overlay_color' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[#a-zA-Z0-9(),.\s]*$/'],
             'bg_overlay_opacity' => ['sometimes', 'nullable', 'numeric', 'between:0,1'],
+            'bg_asset_id' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
 

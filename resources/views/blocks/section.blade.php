@@ -16,8 +16,8 @@
     // Padding: new px fields take priority, legacy preset as fallback
     $legacyPadding = ['none' => '0', 'sm' => '1rem', 'md' => '2rem', 'lg' => '3rem', 'xl' => '4rem'];
     $legacyPreset = $data['padding'] ?? null;
-    $padTop = $data['padding_top'] ?? ($legacyPreset ? ($legacyPadding[$legacyPreset] ?? '2rem') : '40px');
-    $padBottom = $data['padding_bottom'] ?? ($legacyPreset ? ($legacyPadding[$legacyPreset] ?? '2rem') : '40px');
+    $padTop = $data['padding_top'] ?? ($legacyPreset ? ($legacyPadding[$legacyPreset] ?? '2rem') : '2rem');
+    $padBottom = $data['padding_bottom'] ?? ($legacyPreset ? ($legacyPadding[$legacyPreset] ?? '2rem') : '2rem');
     $maxW = $data['max_width'] ?? '1200px';
     $id = $data['anchor_id'] ?? '';
 
