@@ -102,17 +102,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // Auto-resolve parent for hierarchy blocks when no explicit parent given
     let resolvedParentId = parentId;
-    if (!resolvedParentId && reg.definition.level === 'row') {
-      // Row must go inside a section — use selected block's section or first section
-      const selected = state.selectedBlockId
-        ? findInTree(state.blocks, state.selectedBlockId)
-        : null;
-      if (selected?.block.level === 'section') {
-        resolvedParentId = selected.block.id;
-      } else {
-        const firstSection = state.blocks.find((b) => b.level === 'section');
-        if (firstSection) resolvedParentId = firstSection.id;
+    if (reg.definition.level === 'row') {
+      if (!resolvedParentId) {
+        // Row must go inside a section — use selected block's section or first section
+        const selected = state.selectedBlockId
+          ? findInTree(state.blocks, state.selectedBlockId)
+          : null;
+        if (selected?.block.level === 'section') {
+          resolvedParentId = selected.block.id;
+        } else {
+          const firstSection = state.blocks.find((b) => b.level === 'section');
+          if (firstSection) resolvedParentId = firstSection.id;
+        }
       }
+      // Verify resolved parent is actually a section
+      if (resolvedParentId) {
+        const parent = findInTree(state.blocks, resolvedParentId);
+        if (parent && parent.block.level !== 'section') return; // block invalid placement
+      }
+      if (!resolvedParentId) return; // no section exists — cannot add row
     }
 
     const newBlock: BlockData = {
