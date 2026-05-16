@@ -3,14 +3,12 @@
  *
  * Renders blocks as labeled boxes showing hierarchy instead of live content.
  * Same data, different visual representation than SortableBlock (Visual mode).
- *
- * This is a PROTOTYPE for architecture validation (Slice 0.6).
  */
 
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
 import type { BlockData } from '@/types/blocks';
-import { ChevronRight, ChevronDown, Type, Image, Layout, Columns, Box, MousePointer } from 'lucide-react';
+import { ChevronRight, ChevronDown, Type, Image, Layout, Columns, Box, MousePointer, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 // Map block types to icons for wireframe display
@@ -44,6 +42,14 @@ const typeColors: Record<string, string> = {
   hero: 'border-rose-300 bg-rose-50/30',
 };
 
+// Level badge colors
+const levelColors: Record<string, string> = {
+  section: 'bg-blue-100 text-blue-700',
+  row: 'bg-green-100 text-green-700',
+  column: 'bg-purple-100 text-purple-700',
+  module: 'bg-gray-100 text-gray-600',
+};
+
 function getBlockLabel(block: BlockData): string {
   const reg = blockRegistry.get(block.type);
   const label = reg?.definition.label || block.type;
@@ -52,8 +58,20 @@ function getBlockLabel(block: BlockData): string {
   const title = (block.data.title as string) || (block.data.text as string) || (block.data.heading as string) || '';
   if (title) return `${label}: "${title.slice(0, 30)}${title.length > 30 ? '...' : ''}"`;
 
+  // Show layout info for rows
+  if (block.type === 'row' && block.data.layout) {
+    return `${label} (${block.data.layout})`;
+  }
+
   return label;
 }
+
+// Quick-add child mapping
+const quickAddChild: Record<string, { type: string; label: string; color: string }> = {
+  section: { type: 'row', label: 'Row', color: 'text-green-600 hover:bg-green-50' },
+  row: { type: 'column', label: 'Column', color: 'text-purple-600 hover:bg-purple-50' },
+  column: { type: 'heading', label: 'Heading', color: 'text-blue-600 hover:bg-blue-50' },
+};
 
 interface WireframeBlockProps {
   block: BlockData;
@@ -63,13 +81,16 @@ interface WireframeBlockProps {
 export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const selectBlock = useEditorStore((s) => s.selectBlock);
-  const updateBlock = useEditorStore((s) => s.updateBlock);
+  const addBlock = useEditorStore((s) => s.addBlock);
   const [expanded, setExpanded] = useState(true);
 
   const isSelected = selectedBlockId === block.id;
   const hasChildren = block.children && block.children.length > 0;
   const Icon = typeIcons[block.type] || Box;
   const colorClass = typeColors[block.type] || 'border-gray-300 bg-gray-50/30';
+  const level = block.level || 'module';
+  const levelColor = levelColors[level] || levelColors.module;
+  const childConfig = quickAddChild[level];
 
   return (
     <div style={{ marginLeft: depth * 16 }}>
@@ -104,9 +125,9 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
           {getBlockLabel(block)}
         </span>
 
-        {/* Type badge */}
-        <span className="text-[9px] text-gray-400 uppercase tracking-wider shrink-0">
-          {block.type}
+        {/* Level badge */}
+        <span className={`text-[9px] uppercase tracking-wider shrink-0 rounded px-1.5 py-0.5 font-medium ${levelColor}`}>
+          {level}
         </span>
 
         {/* Children count */}
@@ -114,6 +135,17 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
           <span className="text-[9px] bg-gray-200 text-gray-500 rounded px-1 py-0.5">
             {block.children.length}
           </span>
+        )}
+
+        {/* Quick-add child button */}
+        {childConfig && (
+          <button
+            onClick={(e) => { e.stopPropagation(); addBlock(childConfig.type, block.id); }}
+            className={`p-0.5 rounded ${childConfig.color} transition-colors`}
+            title={`Add ${childConfig.label}`}
+          >
+            <Plus size={12} />
+          </button>
         )}
       </div>
 
