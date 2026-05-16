@@ -22,7 +22,7 @@ class SectionBlockDefinition implements BlockDefinition
             // BackgroundEditor fields
             'bg_type' => ['sometimes', 'nullable', 'in:none,color,gradient,image'],
             'bg_color' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[#a-zA-Z0-9(),.\s]*$/'],
-            'bg_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'bg_image' => ['sometimes', 'nullable', 'string', 'max:2048', 'url'],
             'bg_image_size' => ['sometimes', 'nullable', 'in:cover,contain,auto'],
             'bg_image_position' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[a-z\s%\d]*$/'],
             'bg_image_repeat' => ['sometimes', 'nullable', 'in:no-repeat,repeat,repeat-x,repeat-y'],
