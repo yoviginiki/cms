@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { Upload, Trash2, Image, File, Loader2, X, Download } from 'lucide-react';
+import { Upload, Trash2, Image, File, Loader2, X, Download, Search, Copy, Check } from 'lucide-react';
 import { assets } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -36,6 +36,8 @@ export default function Assets() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [isDragging, setIsDragging] = useState(false);
+  const [search, setSearch] = useState('');
+  const [copied, setCopied] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery<Asset[]>({
     queryKey: ['assets', siteId, filter],
@@ -112,6 +114,18 @@ export default function Assets() {
         />
       </div>
 
+      {/* Search */}
+      <div className="mb-4 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search files by name..."
+          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+
       {/* Upload drop zone */}
       <div
         onDrop={handleDrop}
@@ -180,9 +194,16 @@ export default function Assets() {
         />
       )}
 
-      {data && data.length > 0 && (
+      {data && data.length > 0 && (() => {
+        const filtered = search
+          ? data.filter(a => a.original_name.toLowerCase().includes(search.toLowerCase()))
+          : data;
+        return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {data.map((asset) => (
+          {filtered.length === 0 && (
+            <p className="col-span-full text-center text-sm text-gray-400 py-8">No files match "{search}"</p>
+          )}
+          {filtered.map((asset) => (
             <div
               key={asset.id}
               onClick={() => setSelectedAsset(asset)}
@@ -214,7 +235,8 @@ export default function Assets() {
             </div>
           ))}
         </div>
-      )}
+        );
+      })()}
 
       {/* Asset detail panel */}
       {selectedAsset && (
@@ -272,6 +294,17 @@ export default function Assets() {
             </dl>
 
             <div className="mt-6 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedAsset.url);
+                  setCopied(selectedAsset.id);
+                  setTimeout(() => setCopied(null), 2000);
+                }}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                {copied === selectedAsset.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                {copied === selectedAsset.id ? 'Copied!' : 'Copy URL'}
+              </button>
               <a
                 href={selectedAsset.url}
                 download

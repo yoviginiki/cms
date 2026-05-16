@@ -33,13 +33,24 @@ class UploadAssetRequest extends FormRequest
         'application/x-rar-compressed' => ['rar'],
     ];
 
+    /** Extensions that are NEVER allowed regardless of site settings */
+    private const BLOCKED_EXTENSIONS = [
+        'php', 'phtml', 'php3', 'php4', 'php5', 'phps',
+        'sh', 'bash', 'cgi', 'pl', 'py', 'rb',
+        'exe', 'bat', 'cmd', 'com', 'msi', 'dll', 'scr',
+        'htaccess', 'htpasswd', 'env',
+        'jsp', 'asp', 'aspx',
+    ];
+
     private function getAllowedExtensions(): array
     {
         $site = $this->route('site');
-        if ($site && !empty($site->settings['allowed_extensions'])) {
-            return $site->settings['allowed_extensions'];
-        }
-        return self::DEFAULT_EXTENSIONS;
+        $extensions = (!empty($site?->settings['allowed_extensions']))
+            ? $site->settings['allowed_extensions']
+            : self::DEFAULT_EXTENSIONS;
+
+        // Always remove dangerous extensions
+        return array_values(array_diff($extensions, self::BLOCKED_EXTENSIONS));
     }
 
     public function authorize(): bool
