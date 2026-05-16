@@ -12,6 +12,7 @@ import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCa
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { VersionHistory } from '@/components/editor/VersionHistory';
+import { SeoAnalyzer } from '@/components/editor/SeoAnalyzer';
 import { MagazineCanvas } from '@/components/magazine/MagazineCanvas';
 import MagLayersPanel from '@/components/magazine/MagLayersPanel';
 import PageNavigator from '@/components/magazine/PageNavigator';
@@ -679,7 +680,7 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
   layouts: any[]; publicBase: string; siteSlug: string;
 }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
-  const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add' | 'history'>('page');
+  const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add' | 'seo' | 'history'>('page');
 
   useEffect(() => {
     if (selectedBlockId) setActiveTab('block');
@@ -692,10 +693,11 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
           { key: 'page' as const, label: 'Page' },
           { key: 'block' as const, label: 'Block' },
           { key: 'add' as const, label: '+ Add' },
+          { key: 'seo' as const, label: 'SEO' },
           { key: 'history' as const, label: 'History' },
         ]).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 px-2 py-2.5 text-[11px] font-medium border-b-2 transition-colors ${
+            className={`flex-1 px-1.5 py-2.5 text-[10px] font-medium border-b-2 transition-colors ${
               activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
             {tab.label}
@@ -710,6 +712,14 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
         )}
         {activeTab === 'block' && <BlockSettings />}
         {activeTab === 'add' && <BlockPicker />}
+        {activeTab === 'seo' && (
+          <SeoAnalyzer
+            pageTitle={page?.title}
+            seoTitle={page?.seo_meta?.title as string}
+            seoDescription={page?.seo_meta?.description as string}
+            slug={page?.slug}
+          />
+        )}
         {activeTab === 'history' && <VersionHistory siteId={siteId} pageId={pageId} type="pages" />}
       </div>
     </div>
