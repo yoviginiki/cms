@@ -247,6 +247,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const activeFound = findInTree(newBlocks, activeId);
     if (!activeFound) return;
 
+    // Enforce hierarchy: Row can only be moved inside a Section
+    if (activeFound.block.level === 'row') {
+      if (position === 'inside') {
+        const target = findInTree(newBlocks, overId);
+        if (!target || target.block.level !== 'section') return;
+      } else {
+        // before/after — check sibling's parent is a section
+        const target = findInTree(newBlocks, overId);
+        if (!target || target.block.level !== 'row') return; // only reorder among rows
+      }
+    }
+
     const movingBlock = deepClone(activeFound.block);
     newBlocks = removeFromTree(newBlocks, activeId);
 

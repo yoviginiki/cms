@@ -9,7 +9,9 @@ export const RowPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const layout = (data.layout as RowLayout) || '1/2+1/2';
   const gap = safeDim(data.gap) || '16px';
   const maxWidth = safeDim(data.max_width) || undefined;
-  const verticalAlign = (data.vertical_align as string) || 'stretch';
+  const VALID_ALIGNS = ['start', 'center', 'end', 'stretch'];
+  const rawAlign = (data.vertical_align as string) || 'stretch';
+  const verticalAlign = VALID_ALIGNS.includes(rawAlign) ? rawAlign : 'stretch';
 
   const gridTemplate = LAYOUT_GRID[layout] || LAYOUT_GRID['1/2+1/2'];
   const colCount = LAYOUT_COLUMN_COUNT[layout] || 2;
