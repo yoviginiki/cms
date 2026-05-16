@@ -16,6 +16,7 @@ use App\Policies\PostPolicy;
 use App\Policies\SitePolicy;
 use App\Policies\TagPolicy;
 use App\Models\Tag;
+use App\Domain\Blocks\Definitions\ColumnBlockDefinition;
 use App\Domain\Blocks\Definitions\ColumnsBlockDefinition;
 use App\Domain\Blocks\Definitions\DividerBlockDefinition;
 use App\Domain\Blocks\Definitions\HeadingBlockDefinition;
@@ -106,6 +107,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new HeroBlockDefinition());
             $registry->register(new TextBlockDefinition());
             $registry->register(new ImageBlockDefinition());
+            $registry->register(new ColumnBlockDefinition());
             $registry->register(new ColumnsBlockDefinition());
             $registry->register(new HeadingBlockDefinition());
             $registry->register(new DividerBlockDefinition());

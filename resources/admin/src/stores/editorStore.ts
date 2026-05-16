@@ -101,26 +101,42 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!reg) return;
 
     // Auto-resolve parent for hierarchy blocks when no explicit parent given
+    const requiredParent: Record<string, string> = {
+      row: 'section',
+      column: 'row',
+      module: 'column',
+    };
+    const blockLevel = reg.definition.level || 'module';
+    const neededParentLevel = requiredParent[blockLevel];
     let resolvedParentId = parentId;
-    if (reg.definition.level === 'row') {
+
+    if (neededParentLevel) {
       if (!resolvedParentId) {
-        // Row must go inside a section — use selected block's section or first section
+        // Auto-resolve: use selected block if it matches, otherwise find first match
         const selected = state.selectedBlockId
           ? findInTree(state.blocks, state.selectedBlockId)
           : null;
-        if (selected?.block.level === 'section') {
+        if (selected?.block.level === neededParentLevel) {
           resolvedParentId = selected.block.id;
         } else {
-          const firstSection = state.blocks.find((b) => b.level === 'section');
-          if (firstSection) resolvedParentId = firstSection.id;
+          // Search tree for first block at the needed level
+          const findFirst = (blocks: BlockData[]): string | undefined => {
+            for (const b of blocks) {
+              if (b.level === neededParentLevel) return b.id;
+              const found = findFirst(b.children);
+              if (found) return found;
+            }
+            return undefined;
+          };
+          resolvedParentId = findFirst(state.blocks);
         }
       }
-      // Verify resolved parent is actually a section
+      // Verify resolved parent has the correct level
       if (resolvedParentId) {
         const parent = findInTree(state.blocks, resolvedParentId);
-        if (parent && parent.block.level !== 'section') return; // block invalid placement
+        if (parent && parent.block.level !== neededParentLevel) return;
       }
-      if (!resolvedParentId) return; // no section exists — cannot add row
+      if (!resolvedParentId) return; // no valid parent exists
     }
 
     const newBlock: BlockData = {
@@ -247,15 +263,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const activeFound = findInTree(newBlocks, activeId);
     if (!activeFound) return;
 
-    // Enforce hierarchy: Row can only be moved inside a Section
-    if (activeFound.block.level === 'row') {
+    // Enforce hierarchy containment on move
+    const moveParentReq: Record<string, string> = {
+      row: 'section',
+      column: 'row',
+      module: 'column',
+    };
+    const activeLevel = activeFound.block.level;
+    if (activeLevel && moveParentReq[activeLevel]) {
+      const neededParent = moveParentReq[activeLevel];
       if (position === 'inside') {
         const target = findInTree(newBlocks, overId);
-        if (!target || target.block.level !== 'section') return;
+        if (!target || target.block.level !== neededParent) return;
       } else {
-        // before/after — check sibling's parent is a section
+        // before/after — target must be same level (reorder among siblings)
         const target = findInTree(newBlocks, overId);
-        if (!target || target.block.level !== 'row') return; // only reorder among rows
+        if (!target || target.block.level !== activeLevel) return;
       }
     }
 
