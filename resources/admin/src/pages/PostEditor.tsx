@@ -9,7 +9,7 @@ import { usePostData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useEditorStore } from '@/stores/editorStore';
-import { BuilderCanvas } from '@/components/editor/BuilderCanvas';
+import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { MagazineEditorCanvas } from '@/components/editor/MagazineEditorCanvas';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { LayersPanel } from '@/components/editor/LayersPanel';
@@ -257,7 +257,7 @@ export default function PostEditor() {
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
         {editorMode === 'block' ? (
-          <>
+          <BuilderDndProvider>
             <BuilderCanvas />
             {/* Right sidebar with post metadata + block settings */}
             <div className="w-80 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0">
@@ -296,7 +296,7 @@ export default function PostEditor() {
                 )}
               </div>
             </div>
-          </>
+          </BuilderDndProvider>
         ) : (
           <>
             <MagazineEditorCanvas />

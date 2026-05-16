@@ -25,28 +25,18 @@ interface ModulePickerProps {
   parentId: string;
   insertIndex?: number;
   onClose: () => void;
-  anchorEl: HTMLElement | null;
+  anchorEl?: HTMLElement | null;
 }
 
-export function ModulePicker({ parentId, insertIndex, onClose, anchorEl }: ModulePickerProps) {
+export function ModulePicker({ parentId, insertIndex, onClose }: ModulePickerProps) {
   const [search, setSearch] = useState('');
   const addBlock = useEditorStore((s) => s.addBlock);
   const pickerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Position the popover near the anchor
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
   useEffect(() => {
-    if (anchorEl) {
-      const rect = anchorEl.getBoundingClientRect();
-      setPos({
-        top: rect.bottom + 4,
-        left: Math.max(8, rect.left - 120),
-      });
-    }
     searchRef.current?.focus();
-  }, [anchorEl]);
+  }, []);
 
   // Close on click-outside or Escape
   useEffect(() => {
@@ -89,10 +79,10 @@ export function ModulePicker({ parentId, insertIndex, onClose, anchorEl }: Modul
   };
 
   return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
     <div
       ref={pickerRef}
-      className="fixed z-50 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden"
-      style={{ top: pos.top, left: pos.left, width: 320, maxHeight: 420 }}
+      className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden w-[480px] max-h-[520px]"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
@@ -112,25 +102,25 @@ export function ModulePicker({ parentId, insertIndex, onClose, anchorEl }: Modul
       </div>
 
       {/* Module grid */}
-      <div className="overflow-y-auto p-2" style={{ maxHeight: 370 }}>
+      <div className="overflow-y-auto p-3" style={{ maxHeight: 460 }}>
         {CATEGORY_ORDER.map(({ key, label }) => {
           const defs = grouped.get(key);
           if (!defs?.length) return null;
 
           return (
-            <div key={key} className="mb-3">
-              <h4 className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
+            <div key={key} className="mb-4">
+              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1.5">
                 {label}
               </h4>
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-4 gap-1.5">
                 {defs.map((def) => (
                   <button
                     key={def.type}
                     onClick={() => handleSelect(def.type)}
-                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg text-center transition-colors hover:bg-blue-50 hover:text-blue-600 border border-transparent hover:border-blue-200"
+                    className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg text-center transition-colors hover:bg-blue-50 hover:text-blue-600 border border-transparent hover:border-blue-200"
                   >
-                    <BlockIcon icon={def.icon} size={20} className="text-gray-500" />
-                    <span className="text-[10px] leading-tight text-gray-600 truncate w-full">
+                    <BlockIcon icon={def.icon} size={22} className="text-gray-500" />
+                    <span className="text-[11px] leading-tight text-gray-600 truncate w-full">
                       {def.label}
                     </span>
                   </button>
@@ -144,19 +134,19 @@ export function ModulePicker({ parentId, insertIndex, onClose, anchorEl }: Modul
         {Array.from(grouped.entries())
           .filter(([cat]) => !CATEGORY_ORDER.some(c => c.key === cat))
           .map(([cat, defs]) => (
-            <div key={cat} className="mb-3">
-              <h4 className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
+            <div key={cat} className="mb-4">
+              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1.5">
                 {cat}
               </h4>
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-4 gap-1.5">
                 {defs.map((def) => (
                   <button
                     key={def.type}
                     onClick={() => handleSelect(def.type)}
-                    className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg text-center transition-colors hover:bg-blue-50 hover:text-blue-600 border border-transparent hover:border-blue-200"
+                    className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg text-center transition-colors hover:bg-blue-50 hover:text-blue-600 border border-transparent hover:border-blue-200"
                   >
-                    <BlockIcon icon={def.icon} size={20} className="text-gray-500" />
-                    <span className="text-[10px] leading-tight text-gray-600 truncate w-full">
+                    <BlockIcon icon={def.icon} size={22} className="text-gray-500" />
+                    <span className="text-[11px] leading-tight text-gray-600 truncate w-full">
                       {def.label}
                     </span>
                   </button>
@@ -170,6 +160,7 @@ export function ModulePicker({ parentId, insertIndex, onClose, anchorEl }: Modul
           <p className="text-xs text-gray-400 text-center py-6">No modules found</p>
         )}
       </div>
+    </div>
     </div>,
     document.body
   );

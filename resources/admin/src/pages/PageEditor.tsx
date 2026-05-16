@@ -8,7 +8,7 @@ import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useEditorStore } from '@/stores/editorStore';
 import { useMagazineStore } from '@/stores/magazineStore';
 import { AssetField } from '@/components/ui/AssetPicker';
-import { BuilderCanvas } from '@/components/editor/BuilderCanvas';
+import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { MagazineCanvas } from '@/components/magazine/MagazineCanvas';
@@ -327,11 +327,11 @@ export default function PageEditor() {
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
         {page?.editor_mode !== 'magazine' ? (
-          <>
+          <BuilderDndProvider>
             <BuilderCanvas />
             <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
               layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''} />
-          </>
+          </BuilderDndProvider>
         ) : (
           <>
             {/* Magazine mode: page navigator + canvas + right sidebar */}

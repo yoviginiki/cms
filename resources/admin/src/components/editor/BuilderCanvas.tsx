@@ -19,6 +19,66 @@ import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import type { Active } from '@dnd-kit/core';
 
+/**
+ * Shared DnD provider — wraps both canvas and sidebar so drag from panel works.
+ */
+export function BuilderDndProvider({ children }: { children: React.ReactNode }) {
+  const moveBlock = useEditorStore((s) => s.moveBlock);
+  const addBlock = useEditorStore((s) => s.addBlock);
+  const [activeItem, setActiveItem] = useState<Active | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveItem(event.active);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveItem(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeData = active.data.current;
+    const overId = over.id as string;
+
+    // Dragging new block from sidebar
+    if (activeData?.type === 'new-block') {
+      const blockType = activeData.blockType as string;
+      if (overId.endsWith('-children')) {
+        const parentId = overId.replace('-children', '');
+        addBlock(blockType, parentId);
+      } else {
+        addBlock(blockType);
+      }
+      return;
+    }
+
+    // Reordering existing blocks
+    if (activeData?.type === 'block') {
+      if (overId.endsWith('-children')) {
+        const parentId = overId.replace('-children', '');
+        moveBlock(active.id as string, parentId, 'inside');
+      } else {
+        moveBlock(active.id as string, overId, 'after');
+      }
+    }
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      {children}
+      <DragOverlay active={activeItem} />
+    </DndContext>
+  );
+}
+
 type CanvasDevice = 'desktop' | 'tablet' | 'mobile';
 const canvasWidths: Record<CanvasDevice, string> = {
   desktop: '100%',
@@ -28,7 +88,6 @@ const canvasWidths: Record<CanvasDevice, string> = {
 
 export function BuilderCanvas() {
   const blocks = useEditorStore((s) => s.blocks);
-  const moveBlock = useEditorStore((s) => s.moveBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const removeBlock = useEditorStore((s) => s.removeBlock);
@@ -36,7 +95,6 @@ export function BuilderCanvas() {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
 
-  const [activeItem, setActiveItem] = useState<Active | null>(null);
   const [canvasDevice, setCanvasDevice] = useState<CanvasDevice>('desktop');
   const canvasMode = useEditorStore((s) => s.canvasMode);
   const setCanvasMode = useEditorStore((s) => s.setCanvasMode);
@@ -84,55 +142,8 @@ export function BuilderCanvas() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-  );
-
-  function handleDragStart(event: DragStartEvent) {
-    setActiveItem(event.active);
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveItem(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeData = active.data.current;
-    const overId = over.id as string;
-
-    // Dragging new block from sidebar
-    if (activeData?.type === 'new-block') {
-      const blockType = activeData.blockType as string;
-      // Determine if dropping into a container
-      if (overId.endsWith('-children')) {
-        const parentId = overId.replace('-children', '');
-        addBlock(blockType, parentId);
-      } else {
-        addBlock(blockType);
-      }
-      return;
-    }
-
-    // Reordering existing blocks
-    if (activeData?.type === 'block') {
-      if (overId.endsWith('-children')) {
-        const parentId = overId.replace('-children', '');
-        moveBlock(active.id as string, parentId, 'inside');
-      } else {
-        moveBlock(active.id as string, overId, 'after');
-      }
-    }
-  }
-
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
+    <>
       <div
         className="flex-1 overflow-y-auto bg-gray-50"
         onClick={() => selectBlock(null)}
@@ -238,10 +249,10 @@ export function BuilderCanvas() {
                         <SortableBlock block={block} />
                         {/* Insert point between sections */}
                         {i < blocks.length - 1 && (
-                          <div className="flex justify-center py-3 group/insert">
+                          <div className="flex justify-center py-2">
                             <button
                               onClick={(e) => { e.stopPropagation(); addBlock('section', undefined, i + 1); }}
-                              className="opacity-20 group-hover/insert:opacity-100 flex items-center gap-1 px-3 py-1 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-300 hover:border-blue-300 rounded-lg transition-all"
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-300 hover:border-blue-300 rounded-lg transition-colors"
                               title="Insert section"
                             >
                               <Plus size={12} /> Section
@@ -268,8 +279,6 @@ export function BuilderCanvas() {
         </div>
         </div>
       </div>
-
-      <DragOverlay active={activeItem} />
-    </DndContext>
+    </>
   );
 }

@@ -10,7 +10,7 @@ import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, safeDim
 import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
 import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 
 interface SortableBlockProps {
   block: BlockData;
@@ -57,7 +57,6 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const addBlock = useEditorStore((s) => s.addBlock);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const addBtnRef = useRef<HTMLButtonElement>(null);
 
   const isSelected = selectedBlockId === block.id;
   const registration = blockRegistry.get(block.type);
@@ -186,7 +185,6 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
               {/* Persistent "+" button — always visible */}
               <div className="flex justify-center py-1 col-span-full">
                 <button
-                  ref={addBtnRef}
                   onClick={(e) => { e.stopPropagation(); handleAddChild(); }}
                   className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs border border-transparent rounded-lg transition-colors ${addColor}`}
                 >
@@ -199,12 +197,11 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         </DroppableZone>
       )}
 
-      {/* Module picker popover for columns */}
+      {/* Module picker modal for columns */}
       {pickerOpen && (
         <ModulePicker
           parentId={block.id}
           onClose={() => setPickerOpen(false)}
-          anchorEl={addBtnRef.current}
         />
       )}
 
