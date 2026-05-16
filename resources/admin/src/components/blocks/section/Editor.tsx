@@ -1,7 +1,6 @@
 import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { TextField } from '@/components/editor/fields/TextField';
-import { SelectField } from '@/components/editor/fields/SelectField';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
 
 export const SectionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
@@ -15,20 +14,33 @@ export const SectionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) =
     <div className="space-y-3">
       <BackgroundEditor data={data} onChange={(updates) => onUpdate(updates)} />
 
-      <SelectField
-        label="Padding"
-        value={(data.padding as string) || 'md'}
-        onChange={(v) => update('padding', v)}
-        options={[
-          { value: 'none', label: 'None' },
-          { value: 'sm', label: 'Small' },
-          { value: 'md', label: 'Medium' },
-          { value: 'lg', label: 'Large' },
-          { value: 'xl', label: 'Extra Large' },
-        ]}
+      <div className="grid grid-cols-2 gap-2">
+        <TextField
+          label="Padding Top"
+          value={(data.padding_top as string) || '40px'}
+          onChange={(v) => update('padding_top', v)}
+          placeholder="40px"
+        />
+        <TextField
+          label="Padding Bottom"
+          value={(data.padding_bottom as string) || '40px'}
+          onChange={(v) => update('padding_bottom', v)}
+          placeholder="40px"
+        />
+      </div>
+
+      <TextField
+        label="Max Width"
+        value={(data.max_width as string) || '1200px'}
+        onChange={(v) => update('max_width', v)}
+        placeholder="1200px"
       />
-      <TextField label="Max Width" value={(data.max_width as string) || ''} onChange={(v) => update('max_width', v)} placeholder="1200px" />
-      <TextField label="Anchor ID" value={(data.anchor_id as string) || ''} onChange={(v) => update('anchor_id', v)} placeholder="my-section" />
+      <TextField
+        label="Anchor ID"
+        value={(data.anchor_id as string) || ''}
+        onChange={(v) => update('anchor_id', v)}
+        placeholder="my-section"
+      />
     </div>
   );
 };

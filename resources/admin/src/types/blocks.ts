@@ -97,6 +97,7 @@ export interface AdvancedProps {
 export interface BlockData {
   id: string;
   type: string;
+  level?: 'section' | 'row' | 'column' | 'module';
   data: Record<string, unknown>;
   children: BlockData[];
   order: number;
@@ -113,6 +114,7 @@ export interface BlockDefinition {
   label: string;
   icon: string;
   description?: string;
+  level?: 'section' | 'row' | 'column' | 'module';
   defaultData: Record<string, unknown>;
   allowsChildren: boolean;
   maxChildren?: number;

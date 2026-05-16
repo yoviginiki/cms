@@ -1,48 +1,74 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-
-const paddingMap: Record<string, string> = {
-  none: 'p-0',
-  sm: 'p-4',
-  md: 'p-8',
-  lg: 'p-12',
-  xl: 'p-16',
-};
+import { safeDim, safeColor } from '@/lib/blockStyles';
 
 export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
-  const data = block.data as {
-    background_color: string;
-    background_image: string;
-    padding: string;
-    max_width: string;
-    anchor_id: string;
+  const data = block.data as Record<string, unknown>;
+
+  const paddingTop = safeDim(data.padding_top) || '2rem';
+  const paddingBottom = safeDim(data.padding_bottom) || '2rem';
+  const maxWidth = safeDim(data.max_width) || '1200px';
+  const anchorId = (data.anchor_id as string) || '';
+
+  // New px fields take priority; legacy padding preset as fallback only (matches Blade)
+  const legacyPadding = data.padding as string | undefined;
+  const legacyPaddingMap: Record<string, string> = {
+    none: '0', sm: '1rem', md: '2rem', lg: '3rem', xl: '4rem',
+  };
+  const effectivePadTop = data.padding_top ? paddingTop : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '2rem') : paddingTop);
+  const effectivePadBottom = data.padding_bottom ? paddingBottom : (legacyPadding ? (legacyPaddingMap[legacyPadding] ?? '2rem') : paddingBottom);
+
+  // Outer section style: padding + background (matches Blade <section> element)
+  const outerStyle: React.CSSProperties = {
+    paddingTop: effectivePadTop,
+    paddingBottom: effectivePadBottom,
+    position: 'relative',
   };
 
-  const paddingClass = paddingMap[data.padding] || paddingMap.md;
+  // Background: match Blade logic — bg_type gates which system is used
+  const bgType = (data.bg_type as string) || 'none';
+  const legacyBgColor = (data.background_color as string) || '';
+  const legacyBgImage = (data.background_image as string) || '';
 
-  const style: React.CSSProperties = {};
-  if (data.background_color) {
-    style.backgroundColor = data.background_color;
+  if (bgType === 'color' && data.bg_color) {
+    const c = safeColor(data.bg_color);
+    if (c) outerStyle.backgroundColor = c;
+  } else if (bgType === 'image' && data.bg_image) {
+    outerStyle.backgroundImage = `url(${data.bg_image as string})`;
+    outerStyle.backgroundSize = (data.bg_image_size as string) || 'cover';
+    outerStyle.backgroundPosition = (data.bg_image_position as string) || 'center center';
+    outerStyle.backgroundRepeat = (data.bg_image_repeat as string) || 'no-repeat';
+    if (data.bg_scroll_effect === 'fixed') outerStyle.backgroundAttachment = 'fixed';
+  } else if (legacyBgColor) {
+    // Legacy fallback
+    const c = safeColor(legacyBgColor);
+    if (c) outerStyle.backgroundColor = c;
+    if (legacyBgImage) {
+      outerStyle.backgroundImage = `url(${legacyBgImage})`;
+      outerStyle.backgroundSize = 'cover';
+      outerStyle.backgroundPosition = 'center';
+    }
   }
-  if (data.background_image) {
-    style.backgroundImage = `url(${data.background_image})`;
-    style.backgroundSize = 'cover';
-    style.backgroundPosition = 'center';
-  }
-  if (data.max_width) {
-    style.maxWidth = data.max_width;
-  }
+
+  // Inner wrapper: max-width + centered (matches Blade inner div)
+  const innerStyle: React.CSSProperties = {
+    maxWidth,
+    margin: '0 auto',
+    position: 'relative',
+    zIndex: 1,
+  };
 
   return (
     <div
-      className={`rounded border border-dashed border-gray-300 ${paddingClass}`}
-      style={style}
+      className="rounded border border-dashed border-blue-300/50 min-h-[60px]"
+      style={outerStyle}
     >
-      <div className="text-xs text-gray-400 uppercase tracking-wide">
-        Section{data.anchor_id ? ` #${data.anchor_id}` : ''}
-      </div>
-      <div className="mt-2 min-h-[40px] text-sm text-gray-500 italic">
-        Child blocks render here
+      <div style={innerStyle}>
+        {block.children.length === 0 && (
+          <div className="text-xs text-blue-400/60 uppercase tracking-wide text-center py-2">
+            Section{anchorId ? ` #${anchorId}` : ''} — drop rows here
+          </div>
+        )}
       </div>
     </div>
   );

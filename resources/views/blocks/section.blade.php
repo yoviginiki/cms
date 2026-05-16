@@ -13,14 +13,17 @@
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="section-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 @php
-    $padding = ['none' => '0', 'sm' => '2rem 1rem', 'md' => '4rem 2rem', 'lg' => '6rem 2rem', 'xl' => '8rem 2rem'];
-    $pad = $padding[$data['padding'] ?? 'md'] ?? '4rem 2rem';
+    // Padding: new px fields take priority, legacy preset as fallback
+    $legacyPadding = ['none' => '0', 'sm' => '1rem', 'md' => '2rem', 'lg' => '3rem', 'xl' => '4rem'];
+    $legacyPreset = $data['padding'] ?? null;
+    $padTop = $data['padding_top'] ?? ($legacyPreset ? ($legacyPadding[$legacyPreset] ?? '2rem') : '2rem');
+    $padBottom = $data['padding_bottom'] ?? ($legacyPreset ? ($legacyPadding[$legacyPreset] ?? '2rem') : '2rem');
     $maxW = $data['max_width'] ?? '1200px';
     $id = $data['anchor_id'] ?? '';
 
     // Background system
     $bgType = $data['bg_type'] ?? 'none';
-    $style = "padding: {$pad}; position: relative;";
+    $style = "padding-top: {$padTop}; padding-bottom: {$padBottom}; position: relative;";
 
     // Legacy support (old bg fields)
     $legacyBg = $data['background_color'] ?? '';

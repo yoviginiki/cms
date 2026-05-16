@@ -103,6 +103,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newBlock: BlockData = {
       id: generateId(),
       type,
+      level: reg.definition.level,
       data: deepClone(reg.definition.defaultData),
       children: [],
       order: 0,
