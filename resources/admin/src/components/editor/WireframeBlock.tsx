@@ -152,7 +152,7 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
             className="ml-2 pl-1 gap-2"
             style={{
               display: 'grid',
-              gridTemplateColumns: LAYOUT_GRID[(block.data.layout as RowLayout) || '1/2+1/2'] || `repeat(${block.children.length}, 1fr)`,
+              gridTemplateColumns: LAYOUT_GRID[block.data.layout as RowLayout] || `repeat(${block.children.length}, 1fr)`,
             }}
           >
             {block.children.map((child) => (
