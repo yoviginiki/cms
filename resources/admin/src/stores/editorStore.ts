@@ -8,14 +8,16 @@ interface EditorState {
   isDirty: boolean;
   isSaving: boolean;
   editorMode: 'block' | 'magazine';
-  canvasMode: 'visual' | 'wireframe';
+  canvasMode: 'visual' | 'wireframe' | 'html';
+  rawHtml: string;
   undoStack: BlockData[][];
   redoStack: BlockData[][];
   maxUndoSteps: number;
 
+  setRawHtml: (html: string) => void;
   setBlocks: (blocks: BlockData[]) => void;
   setEditorMode: (mode: 'block' | 'magazine') => void;
-  setCanvasMode: (mode: 'visual' | 'wireframe') => void;
+  setCanvasMode: (mode: 'visual' | 'wireframe' | 'html') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
   updateBlock: (blockId: string, data: Partial<Record<string, unknown>>) => void;
   removeBlock: (blockId: string) => void;
@@ -78,10 +80,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
   isSaving: false,
   editorMode: 'block',
-  canvasMode: 'visual' as 'visual' | 'wireframe',
+  canvasMode: 'visual' as 'visual' | 'wireframe' | 'html',
+  rawHtml: '',
   undoStack: [],
   redoStack: [],
   maxUndoSteps: 50,
+
+  setRawHtml: (html) => {
+    set({ rawHtml: html, isDirty: true });
+  },
 
   setBlocks: (blocks) => {
     set({ blocks, isDirty: false, undoStack: [], redoStack: [] });

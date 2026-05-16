@@ -36,6 +36,12 @@ class BlockController extends Controller
 
         $tree = $this->blockService->syncBlocks($page, $request->validated('blocks'));
 
+        // Save raw HTML if provided
+        if ($request->has('raw_html')) {
+            $page->raw_html = $request->input('raw_html');
+            $page->save();
+        }
+
         // Smart auto-publish — only rebuild this page
         if ($page->status === 'published') {
             $this->autoPublish->triggerIfEnabled($site, $request->user(), 'page_blocks', $page->id);

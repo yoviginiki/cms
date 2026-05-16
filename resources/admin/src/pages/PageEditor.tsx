@@ -149,9 +149,13 @@ export default function PageEditor() {
   useEffect(() => {
     if (fetchedBlocks && !blocksLoadedRef.current) {
       setBlocks(fetchedBlocks);
+      // Load raw HTML from page data (without marking dirty)
+      if (page?.raw_html) {
+        useEditorStore.setState({ rawHtml: page.raw_html });
+      }
       blocksLoadedRef.current = true;
     }
-  }, [fetchedBlocks, setBlocks]);
+  }, [fetchedBlocks, setBlocks, page]);
 
   // Read editor_mode from page data
   useEffect(() => {
@@ -215,8 +219,9 @@ export default function PageEditor() {
         await magEditor.sync(siteId, pageId, { pages, elements });
         magStore.setDirty(false);
       } else {
-        // Save block data
-        await blocksApi.sync(siteId, 'pages', pageId, editorBlocks);
+        // Save block data + raw HTML
+        const rawHtml = useEditorStore.getState().rawHtml;
+        await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
       }
       setDirty(false);
     } catch (err) {
@@ -321,6 +326,10 @@ export default function PageEditor() {
             {(isDirty || magStore.isDirty) && <span className="w-1.5 h-1.5 rounded-full bg-warning-content" />}
           </button>
           <PublishButton siteId={siteId} />
+          <a href={`${publicBase}/${page?.slug || ''}`} target="_blank" rel="noopener"
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="View published page">
+            <Globe size={13} /> Live
+          </a>
         </div>
       </div>
 

@@ -12,12 +12,37 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useState, useEffect, useCallback } from 'react';
-import { Monitor, Tablet, Smartphone, LayoutList, Eye, PanelTop, Plus } from 'lucide-react';
+import { Monitor, Tablet, Smartphone, LayoutList, Eye, PanelTop, Plus, Code } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import type { Active } from '@dnd-kit/core';
+
+/**
+ * HTML raw code editor — preserves scripts/HTML exactly as entered.
+ */
+function HtmlEditor() {
+  const rawHtml = useEditorStore((s) => s.rawHtml);
+  const setRawHtml = useEditorStore((s) => s.setRawHtml);
+
+  return (
+    <div className="flex flex-col h-full min-h-[60vh]">
+      <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-t-lg">
+        <Code size={14} className="text-gray-400" />
+        <span className="text-xs text-gray-300 font-medium">Raw HTML / Script</span>
+        <span className="text-[10px] text-gray-500 ml-auto">Content is preserved exactly as written on publish</span>
+      </div>
+      <textarea
+        value={rawHtml}
+        onChange={(e) => setRawHtml(e.target.value)}
+        className="flex-1 w-full p-4 font-mono text-sm bg-gray-900 text-green-300 border-0 rounded-b-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder={`<!-- Paste your HTML, scripts, embeds here -->\n<div class="custom-section">\n  <h1>Hello World</h1>\n  <script>console.log('works!')</script>\n</div>`}
+        spellCheck={false}
+      />
+    </div>
+  );
+}
 
 /**
  * Shared DnD provider — wraps both canvas and sidebar so drag from panel works.
@@ -194,10 +219,23 @@ export function BuilderCanvas() {
               <LayoutList size={14} />
               <span>Wireframe</span>
             </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCanvasMode('html'); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                canvasMode === 'html'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="HTML Mode — raw code editor"
+            >
+              <Code size={14} />
+              <span>HTML</span>
+            </button>
           </div>
 
           {/* Right: Responsive device toggle (Visual mode only) */}
-          <div className={`flex items-center gap-1 ${canvasMode === 'wireframe' ? 'opacity-40 pointer-events-none' : ''}`}>
+          <div className={`flex items-center gap-1 ${canvasMode !== 'visual' ? 'opacity-40 pointer-events-none' : ''}`}>
             {([
               { device: 'desktop' as CanvasDevice, Icon: Monitor, label: 'Desktop' },
               { device: 'tablet' as CanvasDevice, Icon: Tablet, label: 'Tablet (768px)' },
@@ -228,7 +266,10 @@ export function BuilderCanvas() {
             transition: 'max-width 0.3s ease',
           }}
         >
-          {canvasMode === 'wireframe' ? (
+          {canvasMode === 'html' ? (
+            /* ── HTML Mode: raw code editor ── */
+            <HtmlEditor />
+          ) : canvasMode === 'wireframe' ? (
             /* ── Wireframe Mode: structural outline ── */
             <div className="space-y-1">
               {blocks.length === 0 ? (

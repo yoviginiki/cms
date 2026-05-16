@@ -153,6 +153,11 @@ class BuildPageService
                 $renderedBlocks .= $this->renderBlock($block, $site);
             }
 
+            // Append raw HTML content (preserved verbatim — scripts, embeds, custom HTML)
+            if ($content instanceof Page && $content->raw_html) {
+                $renderedBlocks .= $content->raw_html;
+            }
+
             // Use the already-resolved layout from the grid check above
             $layout = $explicitLayout;
             $layoutSlug = $layout?->slug ?? 'standard';

@@ -16,6 +16,7 @@ class SyncBlocksRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'raw_html' => ['sometimes', 'nullable', 'string', 'max:1048576'],
             'blocks' => ['required', 'array'],
             'blocks.*.type' => ['required', 'string'],
             'blocks.*.level' => ['sometimes', 'in:section,row,column,module'],

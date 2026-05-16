@@ -68,8 +68,8 @@ export const pages = {
 export const blocks = {
   get: (siteId: string, type: 'pages' | 'posts', id: string) =>
     api.get(`/sites/${siteId}/${type}/${id}/blocks`),
-  sync: (siteId: string, type: 'pages' | 'posts', id: string, data: unknown[]) =>
-    api.put(`/sites/${siteId}/${type}/${id}/blocks`, { blocks: data }),
+  sync: (siteId: string, type: 'pages' | 'posts', id: string, data: unknown[], rawHtml?: string) =>
+    api.put(`/sites/${siteId}/${type}/${id}/blocks`, { blocks: data, raw_html: rawHtml ?? '' }),
   render: (siteId: string, blockType: string, blockData: Record<string, unknown>) =>
     api.post(`/sites/${siteId}/blocks/render`, { type: blockType, data: blockData }),
 };
