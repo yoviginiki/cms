@@ -17,7 +17,6 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
   // Styling
   const bgColor = (data.bgColor as string) || '';
   const textColor = (data.textColor as string) || '';
-  const hoverColor = (data.hoverColor as string) || '';
   const borderColor = (data.borderColor as string) || '';
   const fontSize = (data.fontSize as string) || '0.875rem';
   const fontWeight = (data.fontWeight as string) || '';

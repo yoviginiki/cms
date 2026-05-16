@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
-import { ToggleField, ColorField } from '@/components/editor/fields';
+import { ToggleField } from '@/components/editor/fields';
 
 export const ParagraphEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;

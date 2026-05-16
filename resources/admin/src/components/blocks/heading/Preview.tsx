@@ -1,10 +1,6 @@
 import type { BlockComponentProps } from '@/types/blocks';
 import { InlineTextField } from '@/components/editor/fields';
 
-const defaultSizeMap: Record<string, string> = {
-  h1: '2rem', h2: '1.5rem', h3: '1.25rem', h4: '1.125rem', h5: '1rem', h6: '0.875rem',
-};
-
 const sizeClassMap: Record<string, string> = {
   h1: 'text-4xl', h2: 'text-3xl', h3: 'text-2xl', h4: 'text-xl', h5: 'text-lg', h6: 'text-base',
 };

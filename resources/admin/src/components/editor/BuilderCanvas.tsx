@@ -11,7 +11,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Monitor, Tablet, Smartphone, LayoutList, Eye } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
@@ -31,11 +31,58 @@ export function BuilderCanvas() {
   const moveBlock = useEditorStore((s) => s.moveBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
   const selectBlock = useEditorStore((s) => s.selectBlock);
+  const removeBlock = useEditorStore((s) => s.removeBlock);
+  const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
 
   const [activeItem, setActiveItem] = useState<Active | null>(null);
   const [canvasDevice, setCanvasDevice] = useState<CanvasDevice>('desktop');
   const canvasMode = useEditorStore((s) => s.canvasMode);
   const setCanvasMode = useEditorStore((s) => s.setCanvasMode);
+
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Skip when typing in input/textarea/contenteditable
+    const target = e.target as HTMLElement;
+    if (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+    // Ctrl+Shift+W — Wireframe mode
+    if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+      e.preventDefault();
+      setCanvasMode('wireframe');
+      return;
+    }
+    // Ctrl+Shift+V — Visual mode
+    if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+      e.preventDefault();
+      setCanvasMode('visual');
+      return;
+    }
+    // Ctrl+Z — Undo
+    if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
+      e.preventDefault();
+      undo();
+      return;
+    }
+    // Ctrl+Shift+Z or Ctrl+Y — Redo
+    if ((e.ctrlKey && e.shiftKey && e.key === 'Z') || (e.ctrlKey && e.key === 'y')) {
+      e.preventDefault();
+      redo();
+      return;
+    }
+    // Delete or Backspace — remove selected block
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId) {
+      e.preventDefault();
+      removeBlock(selectedBlockId);
+      return;
+    }
+  }, [setCanvasMode, undo, redo, removeBlock, selectedBlockId]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
