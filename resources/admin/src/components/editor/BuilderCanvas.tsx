@@ -20,26 +20,91 @@ import { DragOverlay } from './DragOverlay';
 import type { Active } from '@dnd-kit/core';
 
 /**
- * HTML raw code editor — preserves scripts/HTML exactly as entered.
+ * HTML editor with two sub-tabs:
+ * - "Raw HTML" — custom scripts/embeds preserved on publish
+ * - "Block JSON" — view/export/import the current block tree
  */
 function HtmlEditor() {
   const rawHtml = useEditorStore((s) => s.rawHtml);
   const setRawHtml = useEditorStore((s) => s.setRawHtml);
+  const blocks = useEditorStore((s) => s.blocks);
+  const setBlocks = useEditorStore((s) => s.setBlocks);
+  const [subTab, setSubTab] = useState<'raw' | 'json'>('json');
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState('');
+
+  // Sync blocks to JSON text when switching to json tab
+  useEffect(() => {
+    if (subTab === 'json') {
+      setJsonText(JSON.stringify(blocks, null, 2));
+      setJsonError('');
+    }
+  }, [subTab, blocks]);
+
+  const handleJsonApply = () => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      if (!Array.isArray(parsed)) { setJsonError('Must be a JSON array'); return; }
+      setBlocks(parsed);
+      useEditorStore.setState({ isDirty: true });
+      setJsonError('');
+    } catch (e: any) {
+      setJsonError(e.message);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full min-h-[60vh]">
-      <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-t-lg">
-        <Code size={14} className="text-gray-400" />
-        <span className="text-xs text-gray-300 font-medium">Raw HTML / Script</span>
-        <span className="text-[10px] text-gray-500 ml-auto">Content is preserved exactly as written on publish</span>
+      {/* Sub-tabs */}
+      <div className="flex items-center bg-gray-800 rounded-t-lg">
+        <button
+          onClick={() => setSubTab('json')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors ${
+            subTab === 'json' ? 'text-white bg-gray-700' : 'text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          <Code size={12} /> Block JSON
+        </button>
+        <button
+          onClick={() => setSubTab('raw')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors ${
+            subTab === 'raw' ? 'text-white bg-gray-700' : 'text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          <Code size={12} /> Raw HTML
+        </button>
+        <span className="text-[10px] text-gray-500 ml-auto pr-3">
+          {subTab === 'json' ? 'Edit blocks as JSON — click Apply to save' : 'Content preserved exactly on publish'}
+        </span>
       </div>
-      <textarea
-        value={rawHtml}
-        onChange={(e) => setRawHtml(e.target.value)}
-        className="flex-1 w-full p-4 font-mono text-sm bg-gray-900 text-green-300 border-0 rounded-b-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder={`<!-- Paste your HTML, scripts, embeds here -->\n<div class="custom-section">\n  <h1>Hello World</h1>\n  <script>console.log('works!')</script>\n</div>`}
-        spellCheck={false}
-      />
+
+      {subTab === 'json' ? (
+        <>
+          <textarea
+            value={jsonText}
+            onChange={(e) => setJsonText(e.target.value)}
+            className="flex-1 w-full p-4 font-mono text-xs bg-gray-900 text-blue-300 border-0 resize-none focus:outline-none"
+            spellCheck={false}
+          />
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-b-lg">
+            {jsonError && <span className="text-[10px] text-red-400 flex-1">{jsonError}</span>}
+            <button
+              onClick={handleJsonApply}
+              className="ml-auto px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Apply JSON
+            </button>
+          </div>
+        </>
+      ) : (
+        <textarea
+          value={rawHtml}
+          onChange={(e) => setRawHtml(e.target.value)}
+          className="flex-1 w-full p-4 font-mono text-sm bg-gray-900 text-green-300 border-0 rounded-b-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder={`<!-- Paste your HTML, scripts, embeds here -->\n<div class="custom-section">\n  <h1>Hello World</h1>\n  <script>console.log('works!')</script>\n</div>`}
+          spellCheck={false}
+        />
+      )}
     </div>
   );
 }
