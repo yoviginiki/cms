@@ -2,6 +2,29 @@ import { create } from 'zustand';
 import type { BlockData, BlockStyleProps } from '@/types/blocks';
 import { blockRegistry } from '@/components/blocks/registry';
 
+// ─── Undo persistence helpers ───
+const UNDO_STORAGE_KEY = 'editor_undo_state';
+
+function persistUndoState(blocks: BlockData[], undoStack: BlockData[][], redoStack: BlockData[][]) {
+  try {
+    // Only keep last 10 undo steps in storage to avoid quota issues
+    const payload = JSON.stringify({
+      blocks,
+      undoStack: undoStack.slice(-10),
+      redoStack: redoStack.slice(-10),
+    });
+    sessionStorage.setItem(UNDO_STORAGE_KEY, payload);
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function loadUndoState(): { blocks: BlockData[]; undoStack: BlockData[][]; redoStack: BlockData[][] } | null {
+  try {
+    const raw = sessionStorage.getItem(UNDO_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
 interface EditorState {
   blocks: BlockData[];
   selectedBlockId: string | null;
@@ -28,6 +51,7 @@ interface EditorState {
   redo: () => void;
   setDirty: (dirty: boolean) => void;
   setSaving: (saving: boolean) => void;
+  restoreUndoState: () => void;
 }
 
 function generateId(): string {
@@ -389,4 +413,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setDirty: (dirty) => set({ isDirty: dirty }),
   setSaving: (saving) => set({ isSaving: saving }),
+
+  restoreUndoState: () => {
+    const saved = loadUndoState();
+    if (saved && saved.blocks.length > 0) {
+      set({
+        blocks: saved.blocks,
+        undoStack: saved.undoStack,
+        redoStack: saved.redoStack,
+      });
+    }
+  },
 }));
+
+// Persist undo state to sessionStorage on changes (debounced)
+let persistTimer: ReturnType<typeof setTimeout> | undefined;
+useEditorStore.subscribe(
+  (state) => {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistUndoState(state.blocks, state.undoStack, state.redoStack);
+    }, 1000);
+  }
+);

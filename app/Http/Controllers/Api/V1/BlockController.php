@@ -8,6 +8,7 @@ use App\Domain\Publishing\Services\AutoPublishService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SyncBlocksRequest;
 use App\Models\Page;
+use App\Models\PageVersion;
 use App\Models\Post;
 use App\Models\Site;
 use Illuminate\Http\JsonResponse;
@@ -40,6 +41,19 @@ class BlockController extends Controller
         if ($request->has('raw_html')) {
             $page->raw_html = $request->input('raw_html');
             $page->save();
+        }
+
+        // Create draft snapshot every 5th save (based on version count)
+        if ($request->boolean('create_snapshot')) {
+            $lastVersion = PageVersion::where('page_id', $page->id)->orderByDesc('version_number')->first();
+            PageVersion::create([
+                'page_id' => $page->id,
+                'blocks_snapshot' => $request->validated('blocks'),
+                'seo_snapshot' => $page->seo_meta ?? [],
+                'published_by' => $request->user()?->id,
+                'published_at' => now(),
+                'version_number' => ($lastVersion?->version_number ?? 0) + 1,
+            ]);
         }
 
         // Smart auto-publish — only rebuild this page

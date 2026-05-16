@@ -17,6 +17,7 @@ class SyncBlocksRequest extends FormRequest
     {
         return [
             'raw_html' => ['sometimes', 'nullable', 'string', 'max:1048576'],
+            'create_snapshot' => ['sometimes', 'boolean'],
             'blocks' => ['required', 'array'],
             'blocks.*.type' => ['required', 'string'],
             'blocks.*.level' => ['sometimes', 'in:section,row,column,module'],
