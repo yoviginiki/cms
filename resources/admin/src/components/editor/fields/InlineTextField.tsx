@@ -90,12 +90,17 @@ export function InlineTextField({
     commit();
   }, [commit]);
 
-  // Track live character count during editing
+  // Track live character count and sync to store during editing
   const handleInput = useCallback(() => {
     if (ref.current) {
-      setLiveLength((ref.current.textContent ?? '').length);
+      const text = ref.current.textContent ?? '';
+      setLiveLength(text.length);
+      // Real-time sync: update store as user types
+      if (text !== value) {
+        onChange(text);
+      }
     }
-  }, []);
+  }, [value, onChange]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
