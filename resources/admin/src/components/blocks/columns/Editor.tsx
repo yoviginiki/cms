@@ -1,5 +1,5 @@
 import type { BlockEditorProps } from '@/types/blocks';
-import { SelectField, TextField } from '@/components/editor/fields';
+import { SelectField } from '@/components/editor/fields';
 
 export const ColumnsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
