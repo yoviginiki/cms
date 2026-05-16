@@ -185,9 +185,34 @@ export function BuilderCanvas() {
                     <p className="text-sm mt-1">Drag blocks from the sidebar or click to add</p>
                   </div>
                 ) : (
-                  blocks.map((block) => (
-                    <SortableBlock key={block.id} block={block} />
-                  ))
+                  <>
+                    {blocks.map((block, i) => (
+                      <div key={block.id}>
+                        <SortableBlock block={block} />
+                        {/* Insert point between sections */}
+                        {i < blocks.length - 1 && (
+                          <div className="flex justify-center py-1 group/insert">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); addBlock('section', undefined, i + 1); }}
+                              className="opacity-0 group-hover/insert:opacity-100 flex items-center gap-1 px-2 py-0.5 text-[10px] text-gray-400 hover:text-blue-500 border border-transparent hover:border-blue-200 rounded transition-all"
+                              title="Insert section"
+                            >
+                              <span>+</span> Section
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {/* Add section at end */}
+                    <div className="flex justify-center py-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); addBlock('section'); }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-300 hover:border-blue-300 rounded-lg transition-all"
+                      >
+                        + Add Section
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             </SortableContext>
