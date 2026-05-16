@@ -131,6 +131,22 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
                       + Add Row
                     </button>
                   )}
+                  {block.level === 'row' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addBlock('column', block.id); }}
+                      className="px-3 py-1 text-xs bg-purple-50 text-purple-600 border border-purple-200 rounded hover:bg-purple-100 transition-colors"
+                    >
+                      + Add Column
+                    </button>
+                  )}
+                  {block.level === 'column' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addBlock('heading', block.id); }}
+                      className="px-3 py-1 text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
+                    >
+                      + Add Heading
+                    </button>
+                  )}
                 </div>
               ) : (
                 block.children.map((child) => (

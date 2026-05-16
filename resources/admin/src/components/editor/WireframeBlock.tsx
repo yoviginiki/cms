@@ -22,6 +22,7 @@ const typeIcons: Record<string, typeof Type> = {
   image: Image,
   section: Layout,
   row: Columns,
+  column: Box,
   columns: Columns,
   container: Box,
   button: MousePointer,
@@ -31,6 +32,7 @@ const typeIcons: Record<string, typeof Type> = {
 const typeColors: Record<string, string> = {
   section: 'border-blue-300 bg-blue-50/50',
   row: 'border-green-300 bg-green-50/30',
+  column: 'border-purple-300 bg-purple-50/30',
   columns: 'border-purple-300 bg-purple-50/30',
   container: 'border-green-300 bg-green-50/30',
   heading: 'border-gray-300 bg-white',

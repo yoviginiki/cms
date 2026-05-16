@@ -19,6 +19,7 @@ export const headingDefinition: BlockDefinition = {
   category: 'content',
   label: 'Heading',
   icon: 'Heading',
+  level: 'module',
   defaultData: {
     text: 'Heading',
     level: 'h2',

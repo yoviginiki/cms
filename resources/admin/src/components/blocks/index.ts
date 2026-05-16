@@ -13,6 +13,7 @@
 import './hero';
 import './text';
 import './image';
+import './column';
 import './columns';
 import './heading';
 import './button';
