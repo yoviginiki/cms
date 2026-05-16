@@ -98,6 +98,16 @@ function reorder(blocks: BlockData[]): BlockData[] {
   return blocks.map((b, i) => ({ ...b, order: i }));
 }
 
+/** Ensure every block has children:[] (API may return undefined/null) */
+function normalizeBlocks(blocks: unknown[]): BlockData[] {
+  if (!Array.isArray(blocks)) return [];
+  return blocks.map((b: any) => ({
+    ...b,
+    children: normalizeBlocks(b.children ?? []),
+    data: b.data ?? {},
+  }));
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   blocks: [],
   selectedBlockId: null,
@@ -115,7 +125,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setBlocks: (blocks) => {
-    set({ blocks, isDirty: false, undoStack: [], redoStack: [] });
+    set({ blocks: normalizeBlocks(blocks), isDirty: false, undoStack: [], redoStack: [] });
   },
 
   setEditorMode: (mode) => {

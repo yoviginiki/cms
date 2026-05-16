@@ -76,7 +76,8 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
 
   const reg = blockRegistry.get(block.type);
   const isSelected = selectedBlockId === block.id;
-  const hasChildren = block.children && block.children.length > 0;
+  const children = block.children ?? [];
+  const hasChildren = children.length > 0;
   const iconName = reg?.definition.icon || 'Box';
   const colorClass = typeColors[block.type] || 'border-gray-300 bg-gray-50/30';
   const level = block.level || 'module';
@@ -124,7 +125,7 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
         {/* Children count */}
         {hasChildren && (
           <span className="text-[9px] bg-gray-200 text-gray-500 rounded px-1 py-0.5">
-            {block.children.length}
+            {children.length}
           </span>
         )}
 
@@ -152,16 +153,16 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
             className="ml-2 pl-1 gap-2"
             style={{
               display: 'grid',
-              gridTemplateColumns: LAYOUT_GRID[block.data.layout as RowLayout] || `repeat(${block.children.length}, 1fr)`,
+              gridTemplateColumns: LAYOUT_GRID[block.data.layout as RowLayout] || `repeat(${children.length}, 1fr)`,
             }}
           >
-            {block.children.map((child) => (
+            {children.map((child) => (
               <WireframeBlock key={child.id} block={child} depth={0} />
             ))}
           </div>
         ) : (
           <div className="ml-2 border-l border-gray-200 pl-1">
-            {block.children.map((child) => (
+            {children.map((child) => (
               <WireframeBlock key={child.id} block={child} depth={depth + 1} />
             ))}
           </div>

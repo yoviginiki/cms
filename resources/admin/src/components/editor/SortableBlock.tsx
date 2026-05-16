@@ -79,6 +79,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const allowsChildren = registration.definition.allowsChildren;
   const level = block.level || 'module';
   const levelAccent = LEVEL_ACCENTS[level] || '';
+  const children = block.children ?? [];
 
   // Row children render in CSS grid matching layout preset
   const isRow = block.type === 'row';
@@ -149,7 +150,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         )}
 
         {/* Render Preview — for containers, only when empty */}
-        {(!allowsChildren || block.children.length === 0) && (
+        {(!allowsChildren || children.length === 0) && (
           <Preview
             block={block}
             isSelected={isSelected}
@@ -162,12 +163,12 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
       {allowsChildren && (
         <DroppableZone id={`${block.id}-children`}>
           <SortableContext
-            items={block.children.map((c) => c.id)}
+            items={children.map((c) => c.id)}
             strategy={verticalListSortingStrategy}
             id={`sortable-${block.id}`}
           >
             <div style={childrenStyle} className={isRow ? 'min-h-[40px]' : 'space-y-1'}>
-              {block.children.length === 0 && (
+              {children.length === 0 && (
                 <div className="text-center py-6 col-span-full">
                   <p className="text-xs text-gray-400 mb-2">
                     {level === 'section' ? 'Add rows to build your layout' :
@@ -178,7 +179,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
                 </div>
               )}
 
-              {block.children.map((child) => (
+              {children.map((child) => (
                 <SortableBlock key={child.id} block={child} depth={depth + 1} />
               ))}
 
