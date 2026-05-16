@@ -4,7 +4,7 @@ export const sectionDefinition: BlockDefinition = {
   type: 'section',
   category: 'layout',
   label: 'Section',
-  icon: '📦',
+  icon: 'PanelTop',
   level: 'section',
   defaultData: {
     background_color: '',

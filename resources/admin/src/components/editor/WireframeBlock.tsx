@@ -8,23 +8,10 @@
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
 import type { BlockData } from '@/types/blocks';
-import { ChevronRight, ChevronDown, Type, Image, Layout, Columns, Box, MousePointer, Plus } from 'lucide-react';
-import { useState } from 'react';
-
-// Map block types to icons for wireframe display
-const typeIcons: Record<string, typeof Type> = {
-  heading: Type,
-  paragraph: Type,
-  text: Type,
-  'rich-text': Type,
-  image: Image,
-  section: Layout,
-  row: Columns,
-  column: Box,
-  columns: Columns,
-  container: Box,
-  button: MousePointer,
-};
+import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
+import { BlockIcon } from './BlockIcon';
+import { ModulePicker } from './ModulePicker';
+import { useState, useRef } from 'react';
 
 // Map block types to accent colors for wireframe boxes
 const typeColors: Record<string, string> = {
@@ -83,10 +70,13 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
   const [expanded, setExpanded] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
 
+  const reg = blockRegistry.get(block.type);
   const isSelected = selectedBlockId === block.id;
   const hasChildren = block.children && block.children.length > 0;
-  const Icon = typeIcons[block.type] || Box;
+  const iconName = reg?.definition.icon || 'Box';
   const colorClass = typeColors[block.type] || 'border-gray-300 bg-gray-50/30';
   const level = block.level || 'module';
   const levelColor = levelColors[level] || levelColors.module;
@@ -118,7 +108,7 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
         )}
 
         {/* Type icon */}
-        <Icon size={14} className="text-gray-400 shrink-0" />
+        <BlockIcon icon={iconName} size={14} className="text-gray-400 shrink-0" />
 
         {/* Label */}
         <span className="text-xs font-medium text-gray-700 truncate flex-1">
@@ -140,7 +130,12 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
         {/* Quick-add child button */}
         {childConfig && (
           <button
-            onClick={(e) => { e.stopPropagation(); addBlock(childConfig.type, block.id); }}
+            ref={level === 'column' ? addBtnRef : undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (level === 'column') setPickerOpen(true);
+              else addBlock(childConfig.type, block.id);
+            }}
             className={`p-0.5 rounded ${childConfig.color} transition-colors`}
             title={`Add ${childConfig.label}`}
           >
@@ -156,6 +151,15 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
             <WireframeBlock key={child.id} block={child} depth={depth + 1} />
           ))}
         </div>
+      )}
+
+      {/* Module picker for columns */}
+      {pickerOpen && (
+        <ModulePicker
+          parentId={block.id}
+          onClose={() => setPickerOpen(false)}
+          anchorEl={addBtnRef.current}
+        />
       )}
     </div>
   );

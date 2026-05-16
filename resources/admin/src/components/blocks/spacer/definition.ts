@@ -4,7 +4,7 @@ export const spacerDefinition: BlockDefinition = {
   type: 'spacer',
   category: 'layout',
   label: 'Spacer',
-  icon: '↕',
+  icon: 'MoveVertical',
   defaultData: {
     height: 'md',
   },

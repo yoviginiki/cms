@@ -4,7 +4,7 @@ export const contactFormDefinition: BlockDefinition = {
   type: 'contact-form',
   category: 'forms',
   label: 'Contact Form',
-  icon: '📧',
+  icon: 'Mail',
   defaultData: {
     fields: [
       { label: 'Name', type: 'text', required: true },

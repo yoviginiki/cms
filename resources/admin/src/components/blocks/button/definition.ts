@@ -17,7 +17,7 @@ export const buttonDefinition: BlockDefinition = {
   type: 'button',
   category: 'content',
   label: 'Button',
-  icon: '🔘',
+  icon: 'MousePointer',
   defaultData: {
     text: 'Click Me',
     url: '#',

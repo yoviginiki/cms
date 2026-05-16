@@ -4,7 +4,7 @@ export const tabsDefinition: BlockDefinition = {
   type: 'tabs',
   category: 'interactive',
   label: 'Tabs',
-  icon: '📑',
+  icon: 'PanelTopDashed',
   defaultData: {
     tab_labels: ['Tab 1', 'Tab 2'],
     style: 'underline',

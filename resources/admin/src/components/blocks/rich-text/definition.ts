@@ -4,7 +4,7 @@ export const richTextDefinition: BlockDefinition = {
   type: 'rich-text',
   category: 'content',
   label: 'Rich Text',
-  icon: '📝',
+  icon: 'FileEdit',
   defaultData: {
     content: '<p></p>',
   },

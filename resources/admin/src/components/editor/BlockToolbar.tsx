@@ -2,6 +2,7 @@ import { ArrowUp, ArrowDown, Copy, Trash2, GripVertical } from 'lucide-react';
 import type { BlockData } from '@/types/blocks';
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
+import { BlockIcon } from './BlockIcon';
 
 interface BlockToolbarProps {
   block: BlockData;
@@ -44,6 +45,7 @@ export function BlockToolbar({ block, dragHandleProps }: BlockToolbarProps) {
         <GripVertical size={14} />
       </button>
 
+      <BlockIcon icon={reg?.definition.icon ?? 'Box'} size={12} className="opacity-80" />
       <span className="font-medium px-1">{label}</span>
 
       <div className="w-px h-4 bg-blue-400" />

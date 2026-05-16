@@ -8,7 +8,9 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core';
 import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, safeDim } from '@/lib/blockStyles';
 import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
+import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
+import { useState, useRef } from 'react';
 
 interface SortableBlockProps {
   block: BlockData;
@@ -29,11 +31,11 @@ function DroppableZone({ id, children }: { id: string; children: React.ReactNode
   );
 }
 
-// Quick-add config per level
-const QUICK_ADD: Record<string, { type: string; label: string; color: string }> = {
-  section: { type: 'row', label: 'Row', color: 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100' },
-  row: { type: 'column', label: 'Column', color: 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100' },
-  column: { type: 'heading', label: 'Heading', color: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' },
+// Level-aware border accents
+const LEVEL_ACCENTS: Record<string, string> = {
+  section: 'border-l-blue-400',
+  row: 'border-l-emerald-400',
+  column: 'border-l-purple-400',
 };
 
 export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
@@ -54,6 +56,9 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const updateBlock = useEditorStore((s) => s.updateBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
 
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+
   const isSelected = selectedBlockId === block.id;
   const registration = blockRegistry.get(block.type);
 
@@ -73,9 +78,10 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
 
   const { Preview } = registration;
   const allowsChildren = registration.definition.allowsChildren;
-  const quickAdd = block.level ? QUICK_ADD[block.level] : undefined;
+  const level = block.level || 'module';
+  const levelAccent = LEVEL_ACCENTS[level] || '';
 
-  // Determine children layout based on parent block type
+  // Row children render in CSS grid matching layout preset
   const isRow = block.type === 'row';
   const rowLayout = isRow ? ((block.data.layout as RowLayout) || '1/2+1/2') : undefined;
   const rowGap = isRow ? (safeDim(block.data.gap) || '16px') : undefined;
@@ -83,11 +89,31 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
     ? { display: 'grid', gridTemplateColumns: LAYOUT_GRID[rowLayout!] || '1fr 1fr', gap: rowGap }
     : {};
 
+  // Determine what the "+" button does for this level
+  const handleAddChild = () => {
+    if (level === 'section') {
+      addBlock('row', block.id);
+    } else if (level === 'row') {
+      addBlock('column', block.id);
+    } else if (level === 'column') {
+      setPickerOpen(true);
+    }
+  };
+
+  const addLabel = level === 'section' ? 'Row' : level === 'row' ? 'Column' : 'Module';
+  const addColor = level === 'section'
+    ? 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200'
+    : level === 'row'
+    ? 'text-purple-600 hover:bg-purple-50 hover:border-purple-200'
+    : 'text-blue-600 hover:bg-blue-50 hover:border-blue-200';
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={`relative group transition-all ${
+        allowsChildren && levelAccent ? `border-l-2 ${levelAccent}` : ''
+      } ${
         isSelected
           ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg'
           : 'hover:outline hover:outline-1 hover:outline-blue-200 hover:outline-offset-2 rounded-lg'
@@ -123,7 +149,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
           </div>
         )}
 
-        {/* Render Preview — for containers, only when empty (children render in DnD zone) */}
+        {/* Render Preview — for containers, only when empty */}
         {(!allowsChildren || block.children.length === 0) && (
           <Preview
             block={block}
@@ -142,32 +168,44 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
             id={`sortable-${block.id}`}
           >
             <div style={childrenStyle} className={isRow ? 'min-h-[40px]' : 'space-y-1'}>
-              {block.children.length === 0 ? (
-                <div className="text-center py-4 col-span-full">
-                  <p className="text-sm text-gray-400 mb-2">
-                    {block.level === 'section' ? 'Add rows to this section' :
-                     block.level === 'row' ? 'Add columns to this row' :
-                     block.level === 'column' ? 'Add modules to this column' :
+              {block.children.length === 0 && (
+                <div className="text-center py-6 col-span-full">
+                  <p className="text-xs text-gray-400 mb-2">
+                    {level === 'section' ? 'Add rows to build your layout' :
+                     level === 'row' ? 'Add columns to this row' :
+                     level === 'column' ? 'Add modules to this column' :
                      'Drop blocks here'}
                   </p>
-                  {quickAdd && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addBlock(quickAdd.type, block.id); }}
-                      className={`inline-flex items-center gap-1 px-3 py-1 text-xs border rounded transition-colors ${quickAdd.color}`}
-                    >
-                      <Plus size={12} />
-                      Add {quickAdd.label}
-                    </button>
-                  )}
                 </div>
-              ) : (
-                block.children.map((child) => (
-                  <SortableBlock key={child.id} block={child} depth={depth + 1} />
-                ))
               )}
+
+              {block.children.map((child) => (
+                <SortableBlock key={child.id} block={child} depth={depth + 1} />
+              ))}
+
+              {/* Persistent "+" button — always visible */}
+              <div className="flex justify-center py-1 col-span-full">
+                <button
+                  ref={addBtnRef}
+                  onClick={(e) => { e.stopPropagation(); handleAddChild(); }}
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs border border-transparent rounded-lg transition-colors ${addColor}`}
+                >
+                  <Plus size={14} />
+                  {addLabel}
+                </button>
+              </div>
             </div>
           </SortableContext>
         </DroppableZone>
+      )}
+
+      {/* Module picker popover for columns */}
+      {pickerOpen && (
+        <ModulePicker
+          parentId={block.id}
+          onClose={() => setPickerOpen(false)}
+          anchorEl={addBtnRef.current}
+        />
       )}
 
       {/* Drag handle (visible on hover when not selected) */}

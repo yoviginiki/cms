@@ -12,7 +12,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useState, useEffect, useCallback } from 'react';
-import { Monitor, Tablet, Smartphone, LayoutList, Eye } from 'lucide-react';
+import { Monitor, Tablet, Smartphone, LayoutList, Eye, PanelTop, Plus } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
@@ -238,25 +238,26 @@ export function BuilderCanvas() {
                         <SortableBlock block={block} />
                         {/* Insert point between sections */}
                         {i < blocks.length - 1 && (
-                          <div className="flex justify-center py-1 group/insert">
+                          <div className="flex justify-center py-3 group/insert">
                             <button
                               onClick={(e) => { e.stopPropagation(); addBlock('section', undefined, i + 1); }}
-                              className="opacity-0 group-hover/insert:opacity-100 flex items-center gap-1 px-2 py-0.5 text-[10px] text-gray-400 hover:text-blue-500 border border-transparent hover:border-blue-200 rounded transition-all"
+                              className="opacity-20 group-hover/insert:opacity-100 flex items-center gap-1 px-3 py-1 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-300 hover:border-blue-300 rounded-lg transition-all"
                               title="Insert section"
                             >
-                              <span>+</span> Section
+                              <Plus size={12} /> Section
                             </button>
                           </div>
                         )}
                       </div>
                     ))}
                     {/* Add section at end */}
-                    <div className="flex justify-center py-2">
+                    <div className="flex justify-center py-4">
                       <button
                         onClick={(e) => { e.stopPropagation(); addBlock('section'); }}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-300 hover:border-blue-300 rounded-lg transition-all"
+                        className="flex items-center gap-2 px-6 py-3 text-sm text-blue-500 hover:text-blue-600 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl transition-all hover:bg-blue-50"
                       >
-                        + Add Section
+                        <PanelTop size={18} />
+                        Add Section
                       </button>
                     </div>
                   </>
