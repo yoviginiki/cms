@@ -100,6 +100,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const reg = blockRegistry.get(type);
     if (!reg) return;
 
+    // Auto-resolve parent for hierarchy blocks when no explicit parent given
+    let resolvedParentId = parentId;
+    if (reg.definition.level === 'row') {
+      if (!resolvedParentId) {
+        // Row must go inside a section — use selected block's section or first section
+        const selected = state.selectedBlockId
+          ? findInTree(state.blocks, state.selectedBlockId)
+          : null;
+        if (selected?.block.level === 'section') {
+          resolvedParentId = selected.block.id;
+        } else {
+          const firstSection = state.blocks.find((b) => b.level === 'section');
+          if (firstSection) resolvedParentId = firstSection.id;
+        }
+      }
+      // Verify resolved parent is actually a section
+      if (resolvedParentId) {
+        const parent = findInTree(state.blocks, resolvedParentId);
+        if (parent && parent.block.level !== 'section') return; // block invalid placement
+      }
+      if (!resolvedParentId) return; // no section exists — cannot add row
+    }
+
     const newBlock: BlockData = {
       id: generateId(),
       type,
@@ -135,8 +158,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     let newBlocks = deepClone(state.blocks);
 
-    if (parentId) {
-      const found = findInTree(newBlocks, parentId);
+    if (resolvedParentId) {
+      const found = findInTree(newBlocks, resolvedParentId);
       if (found) {
         const insertAt = index ?? found.block.children.length;
         found.block.children.splice(insertAt, 0, newBlock);
@@ -223,6 +246,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     let newBlocks = deepClone(state.blocks);
     const activeFound = findInTree(newBlocks, activeId);
     if (!activeFound) return;
+
+    // Enforce hierarchy: Row can only be moved inside a Section
+    if (activeFound.block.level === 'row') {
+      if (position === 'inside') {
+        const target = findInTree(newBlocks, overId);
+        if (!target || target.block.level !== 'section') return;
+      } else {
+        // before/after — check sibling's parent is a section
+        const target = findInTree(newBlocks, overId);
+        if (!target || target.block.level !== 'row') return; // only reorder among rows
+      }
+    }
 
     const movingBlock = deepClone(activeFound.block);
     newBlocks = removeFromTree(newBlocks, activeId);

@@ -43,6 +43,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const updateBlock = useEditorStore((s) => s.updateBlock);
+  const addBlock = useEditorStore((s) => s.addBlock);
 
   const isSelected = selectedBlockId === block.id;
   const registration = blockRegistry.get(block.type);
@@ -120,9 +121,17 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
           >
             <div className="p-2 space-y-2">
               {block.children.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  Drop blocks here
-                </p>
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-400 mb-2">Drop blocks here</p>
+                  {block.level === 'section' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addBlock('row', block.id); }}
+                      className="px-3 py-1 text-xs bg-green-50 text-green-600 border border-green-200 rounded hover:bg-green-100 transition-colors"
+                    >
+                      + Add Row
+                    </button>
+                  )}
+                </div>
               ) : (
                 block.children.map((child) => (
                   <SortableBlock key={child.id} block={child} depth={depth + 1} />

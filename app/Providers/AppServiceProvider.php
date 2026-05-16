@@ -24,6 +24,7 @@ use App\Domain\Blocks\Definitions\ImageBlockDefinition;
 use App\Domain\Blocks\Definitions\PullquoteBlockDefinition;
 use App\Domain\Blocks\Definitions\TextBlockDefinition;
 use App\Domain\Blocks\Definitions\ButtonBlockDefinition;
+use App\Domain\Blocks\Definitions\RowBlockDefinition;
 use App\Domain\Blocks\Definitions\SectionBlockDefinition;
 use App\Domain\Blocks\Definitions\SpacerBlockDefinition;
 use App\Domain\Blocks\Definitions\VideoBlockDefinition;
@@ -110,6 +111,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new DividerBlockDefinition());
             $registry->register(new PullquoteBlockDefinition());
             $registry->register(new ButtonBlockDefinition());
+            $registry->register(new RowBlockDefinition());
             $registry->register(new SectionBlockDefinition());
             $registry->register(new SpacerBlockDefinition());
             $registry->register(new VideoBlockDefinition());
