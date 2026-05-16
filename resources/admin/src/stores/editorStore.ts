@@ -100,6 +100,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const reg = blockRegistry.get(type);
     if (!reg) return;
 
+    // Auto-resolve parent for hierarchy blocks when no explicit parent given
+    let resolvedParentId = parentId;
+    if (!resolvedParentId && reg.definition.level === 'row') {
+      // Row must go inside a section — use selected block's section or first section
+      const selected = state.selectedBlockId
+        ? findInTree(state.blocks, state.selectedBlockId)
+        : null;
+      if (selected?.block.level === 'section') {
+        resolvedParentId = selected.block.id;
+      } else {
+        const firstSection = state.blocks.find((b) => b.level === 'section');
+        if (firstSection) resolvedParentId = firstSection.id;
+      }
+    }
+
     const newBlock: BlockData = {
       id: generateId(),
       type,
@@ -135,8 +150,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     let newBlocks = deepClone(state.blocks);
 
-    if (parentId) {
-      const found = findInTree(newBlocks, parentId);
+    if (resolvedParentId) {
+      const found = findInTree(newBlocks, resolvedParentId);
       if (found) {
         const insertAt = index ?? found.block.children.length;
         found.block.children.splice(insertAt, 0, newBlock);

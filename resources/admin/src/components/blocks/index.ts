@@ -16,6 +16,7 @@ import './image';
 import './columns';
 import './heading';
 import './button';
+import './row';
 import './section';
 import './spacer';
 import './video';
