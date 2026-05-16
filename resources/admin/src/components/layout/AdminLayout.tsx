@@ -207,6 +207,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <BookOpen size={15} strokeWidth={1.5} />
             {!collapsed && 'Docs'}
           </a>
+          <a href="/docs/page-generation-guide.md" target="_blank"
+            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors">
+            <FileText size={15} strokeWidth={1.5} />
+            {!collapsed && 'Page Guide'}
+          </a>
           {!collapsed ? (
             <div className="px-2.5 py-1.5 space-y-1">
               <button onClick={handleGenerateExport} disabled={exportState === 'generating'}
