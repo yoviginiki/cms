@@ -27,7 +27,7 @@ export const TestimonialPreview: React.FC<BlockComponentProps> = ({ block }) => 
 
   return (
     <div className={isGrid ? 'grid grid-cols-2 gap-4' : 'space-y-4'}>
-      {items.map((item, i) => (
+      {(items || []).map((item, i) => (
         <blockquote key={i} style={cardStyle}>
           <p className="text-sm italic mb-3" style={{ color: quoteColor || 'var(--color-text,#1e293b)' }}>&ldquo;{item.quote}&rdquo;</p>
           <div className="flex items-center gap-2">

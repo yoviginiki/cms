@@ -50,7 +50,7 @@ export const FeaturegridPreview: React.FC<BlockComponentProps> = ({ block }) => 
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap }}>
-      {items.map((item, i) => (
+      {(items || []).map((item, i) => (
         <div key={i} style={cardStyle}>
           <div style={{ fontSize: iconSize, lineHeight: 1, ...(iconColor ? { color: iconColor } : {}) }}>{item.icon}</div>
           <div>

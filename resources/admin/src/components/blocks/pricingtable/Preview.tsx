@@ -18,7 +18,7 @@ export const PricingtablePreview: React.FC<BlockComponentProps> = ({ block }) =>
 
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-      {plans.map((plan, i) => (
+      {(plans || []).map((plan, i) => (
         <div
           key={i}
           className={`rounded-lg border p-4 text-center ${plan.highlighted ? 'border-blue-500 shadow-md' : 'border-gray-200'}`}
@@ -29,7 +29,7 @@ export const PricingtablePreview: React.FC<BlockComponentProps> = ({ block }) =>
             <span className="text-xs font-normal text-gray-500">{plan.period}</span>
           </div>
           <ul className="text-xs text-gray-600 mt-2 space-y-1">
-            {plan.features.map((f, fi) => (
+            {(plan.features || []).map((f, fi) => (
               <li key={fi}>{f}</li>
             ))}
           </ul>

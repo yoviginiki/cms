@@ -33,7 +33,7 @@ export const PricingcardPreview: React.FC<BlockComponentProps> = ({ block }) => 
         {data.period && <span className="text-sm text-gray-500">/{data.period}</span>}
       </div>
       <ul className="space-y-2 mb-4 text-left">
-        {features.map((feat, i) => (
+        {(features || []).map((feat, i) => (
           <li key={i} className="flex items-center gap-2 text-sm">
             {feat.included ? (
               <span className="text-green-500 font-bold">&#10003;</span>

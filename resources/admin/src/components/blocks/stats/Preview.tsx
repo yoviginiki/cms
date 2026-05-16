@@ -32,7 +32,7 @@ export const StatsPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap }}>
-      {items.map((item, i) => (
+      {(items || []).map((item, i) => (
         <div key={i} style={cardStyle}>
           <div style={{ fontSize: valueFontSize, fontWeight: 700, ...(valueColor ? { color: valueColor } : {}) }}>
             {item.prefix}{item.value}{item.suffix}

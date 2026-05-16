@@ -26,7 +26,7 @@ export const FeaturecomparisonPreview: React.FC<BlockComponentProps> = ({ block 
         <thead>
           <tr>
             <th className="text-left p-2 border-b border-gray-200 text-gray-500 font-medium">Feature</th>
-            {plans.map((plan, i) => (
+            {(plans || []).map((plan, i) => (
               <th key={i} className="text-center p-2 border-b border-gray-200">
                 <div className="font-semibold text-gray-800">{plan.name}</div>
                 <div className="text-xs text-gray-500">{plan.price}</div>
@@ -35,7 +35,7 @@ export const FeaturecomparisonPreview: React.FC<BlockComponentProps> = ({ block 
           </tr>
         </thead>
         <tbody>
-          {features.map((feat, fi) => (
+          {(features || []).map((feat, fi) => (
             <tr key={fi} className={fi % 2 === 0 ? 'bg-gray-50' : ''}>
               <td className="p-2 text-gray-700">{feat.name}</td>
               {(feat.values || []).map((val, vi) => (

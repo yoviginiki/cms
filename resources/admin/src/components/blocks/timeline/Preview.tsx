@@ -13,7 +13,7 @@ export const TimelinePreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <div className="relative pl-6 border-l-2 border-gray-200 space-y-6">
-      {items.map((item, i) => (
+      {(items || []).map((item, i) => (
         <div key={i} className="relative">
           <div className="absolute -left-[25px] w-3 h-3 rounded-full bg-blue-500 border-2 border-white" />
           <div className="text-xs text-gray-400 mb-1">{item.date}</div>

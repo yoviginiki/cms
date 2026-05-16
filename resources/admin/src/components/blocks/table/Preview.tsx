@@ -18,13 +18,13 @@ export const TablePreview: React.FC<BlockComponentProps> = ({ block }) => {
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gray-100">
-            {headers.map((h, i) => (
+            {(headers || []).map((h, i) => (
               <th key={i} className={`${pad} text-left font-semibold border-b border-gray-200`}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, ri) => (
+          {(rows || []).map((row, ri) => (
             <tr key={ri} className={data.striped && ri % 2 === 1 ? 'bg-gray-50' : ''}>
               {row.map((cell, ci) => (
                 <td key={ci} className={`${pad} border-b border-gray-100`}>{cell}</td>
