@@ -53,6 +53,7 @@ export function InlineTextField({
   warnOnly = true,
 }: InlineTextFieldProps) {
   const ref = useRef<HTMLElement>(null);
+  const valueAtFocusRef = useRef(value);
   const [isEditing, setIsEditing] = useState(false);
   const [liveLength, setLiveLength] = useState(value.length);
   const uniqueId = useId();
@@ -83,8 +84,9 @@ export function InlineTextField({
   }, [value, onChange, maxLength, warnOnly]);
 
   const handleFocus = useCallback(() => {
+    valueAtFocusRef.current = value;
     setIsEditing(true);
-  }, []);
+  }, [value]);
 
   const handleBlur = useCallback(() => {
     commit();
@@ -108,8 +110,10 @@ export function InlineTextField({
       e.stopPropagation();
 
       if (e.key === 'Escape') {
-        // Cancel: restore original value and blur
-        if (ref.current) ref.current.textContent = value;
+        // Cancel: restore pre-edit value and blur
+        const original = valueAtFocusRef.current;
+        if (ref.current) ref.current.textContent = original;
+        onChange(original);
         setIsEditing(false);
         ref.current?.blur();
         return;
