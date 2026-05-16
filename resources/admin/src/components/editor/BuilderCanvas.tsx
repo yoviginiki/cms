@@ -25,6 +25,7 @@ import type { Active } from '@dnd-kit/core';
 export function BuilderDndProvider({ children }: { children: React.ReactNode }) {
   const moveBlock = useEditorStore((s) => s.moveBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
+  const selectBlock = useEditorStore((s) => s.selectBlock);
   const [activeItem, setActiveItem] = useState<Active | null>(null);
 
   const sensors = useSensors(
@@ -47,10 +48,25 @@ export function BuilderDndProvider({ children }: { children: React.ReactNode }) 
     if (activeData?.type === 'new-block') {
       const blockType = activeData.blockType as string;
       if (overId.endsWith('-children')) {
+        // Dropped on a container's children zone
         const parentId = overId.replace('-children', '');
         addBlock(blockType, parentId);
       } else {
-        addBlock(blockType);
+        // Dropped on an existing block — if it's a container, add inside it
+        const overData = over.data.current;
+        if (overData?.type === 'block' && overData.block) {
+          const overBlock = overData.block as { id: string; level?: string; children?: unknown[] };
+          const isContainer = overBlock.level === 'section' || overBlock.level === 'row' || overBlock.level === 'column';
+          if (isContainer) {
+            addBlock(blockType, overBlock.id);
+          } else {
+            // Module-level target: let store auto-resolve parent from selection
+            selectBlock(overBlock.id);
+            addBlock(blockType);
+          }
+        } else {
+          addBlock(blockType);
+        }
       }
       return;
     }
