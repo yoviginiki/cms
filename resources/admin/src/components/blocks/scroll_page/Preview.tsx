@@ -127,7 +127,7 @@ export const ScrollPagePreview: React.FC<BlockComponentProps> = ({ block, onUpda
 
       {/* Page list */}
       <div className="p-2 space-y-1">
-        {pages.map((page: any, i: number) => {
+        {(pages || []).map((page: any, i: number) => {
           const isExpanded = expandedPage === i;
           const firstText = getPagePreviewText(page);
           return (

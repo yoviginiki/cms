@@ -20,7 +20,7 @@ interface SeoAnalyzerProps {
 function extractText(blocks: BlockData[]): string {
   let text = '';
   for (const block of blocks) {
-    const data = block.data;
+    const data = block.data ?? {};
     if (data.text) text += ' ' + data.text;
     if (data.content) text += ' ' + String(data.content).replace(/<[^>]*>/g, '');
     if (data.heading) text += ' ' + data.heading;

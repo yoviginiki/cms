@@ -61,7 +61,7 @@ export const FlipbookPreview: React.FC<BlockComponentProps> = ({ block }) => {
                 Upload a PDF in properties, or add child blocks as pages.
               </p>
             ) : (
-              pages.map((child, i) => (
+              (pages || []).map((child, i) => (
                 <div key={child.id}
                   className="flex items-center gap-2 px-2 py-1.5 rounded bg-base-100 border border-base-300/20 hover:border-base-300/40 transition-colors group"
                   onClick={(e) => { e.stopPropagation(); selectBlock(child.id); }}>

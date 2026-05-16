@@ -59,7 +59,7 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
           )}
 
           {/* Desktop links — hidden when hamburger */}
-          {!isHamburger && sampleItems.map((item, i) => (
+          {!isHamburger && (sampleItems || []).map((item, i) => (
             <span key={i} style={linkStyle} className="cursor-default">
               {item.label}
             </span>
@@ -80,7 +80,7 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
       {/* Hamburger dropdown */}
       {isHamburger && hamburgerOpen && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingTop: '0.75rem', borderTop: `1px solid ${borderColor || '#e5e7eb'}`, marginTop: '0.75rem' }}>
-          {sampleItems.map((item, i) => (
+          {(sampleItems || []).map((item, i) => (
             <span key={i} style={{ ...linkStyle, padding: '0.5rem 0', display: 'block' }} className="cursor-default">
               {item.label}
             </span>

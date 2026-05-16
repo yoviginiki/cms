@@ -26,7 +26,7 @@ export const TablePreview: React.FC<BlockComponentProps> = ({ block }) => {
         <tbody>
           {(rows || []).map((row, ri) => (
             <tr key={ri} className={data.striped && ri % 2 === 1 ? 'bg-gray-50' : ''}>
-              {row.map((cell, ci) => (
+              {(row || []).map((cell, ci) => (
                 <td key={ci} className={`${pad} border-b border-gray-100`}>{cell}</td>
               ))}
             </tr>

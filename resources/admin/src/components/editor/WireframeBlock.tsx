@@ -41,14 +41,15 @@ const levelColors: Record<string, string> = {
 function getBlockLabel(block: BlockData): string {
   const reg = blockRegistry.get(block.type);
   const label = reg?.definition.label || block.type;
+  const data = block.data ?? {};
 
   // Show content preview if available
-  const title = (block.data.title as string) || (block.data.text as string) || (block.data.heading as string) || '';
+  const title = (data.title as string) || (data.text as string) || (data.heading as string) || '';
   if (title) return `${label}: "${title.slice(0, 30)}${title.length > 30 ? '...' : ''}"`;
 
   // Show layout info for rows
-  if (block.type === 'row' && block.data.layout) {
-    return `${label} (${block.data.layout})`;
+  if (block.type === 'row' && data.layout) {
+    return `${label} (${data.layout})`;
   }
 
   return label;
@@ -153,7 +154,7 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
             className="ml-2 pl-1 gap-2"
             style={{
               display: 'grid',
-              gridTemplateColumns: LAYOUT_GRID[block.data.layout as RowLayout] || `repeat(${children.length}, 1fr)`,
+              gridTemplateColumns: LAYOUT_GRID[(block.data ?? {}).layout as RowLayout] || `repeat(${children.length}, 1fr)`,
             }}
           >
             {children.map((child) => (

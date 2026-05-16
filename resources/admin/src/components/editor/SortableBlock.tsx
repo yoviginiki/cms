@@ -83,8 +83,9 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
 
   // Row children render in CSS grid matching layout preset
   const isRow = block.type === 'row';
-  const rowLayout = isRow ? ((block.data.layout as RowLayout) || '1/2+1/2') : undefined;
-  const rowGap = isRow ? (safeDim(block.data.gap) || '16px') : undefined;
+  const blockData = block.data ?? {};
+  const rowLayout = isRow ? ((blockData.layout as RowLayout) || '1/2+1/2') : undefined;
+  const rowGap = isRow ? (safeDim(blockData.gap) || '16px') : undefined;
   const childrenStyle: React.CSSProperties = isRow
     ? { display: 'grid', gridTemplateColumns: LAYOUT_GRID[rowLayout!] || '1fr 1fr', gap: rowGap }
     : {};

@@ -8,7 +8,7 @@ export const TabsPreview: React.FC<BlockComponentProps> = ({ block }) => {
   return (
     <div className="rounded border border-gray-200">
       <div className="flex border-b border-gray-200">
-        {labels.map((label, index) => (
+        {(labels || []).map((label, index) => (
           <div
             key={index}
             className={`px-4 py-2 text-sm font-medium ${

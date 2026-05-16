@@ -399,7 +399,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newUndoStack = state.undoStack.slice(0, -1);
 
     set({
-      blocks: prev,
+      blocks: normalizeBlocks(prev),
       undoStack: newUndoStack,
       redoStack: [...state.redoStack, deepClone(state.blocks)],
       isDirty: true,
@@ -414,7 +414,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newRedoStack = state.redoStack.slice(0, -1);
 
     set({
-      blocks: next,
+      blocks: normalizeBlocks(next),
       undoStack: [...state.undoStack, deepClone(state.blocks)],
       redoStack: newRedoStack,
       isDirty: true,
@@ -428,7 +428,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const saved = loadUndoState();
     if (saved && saved.blocks.length > 0) {
       set({
-        blocks: saved.blocks,
+        blocks: normalizeBlocks(saved.blocks),
         undoStack: saved.undoStack,
         redoStack: saved.redoStack,
       });

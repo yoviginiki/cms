@@ -20,7 +20,7 @@ export const ListPreview: React.FC<BlockComponentProps> = ({ block }) => {
   if (listType === 'numbered') {
     return (
       <ol className="list-decimal list-inside text-base-content/80 space-y-1">
-        {listItems.map((item, i) => (
+        {(listItems || []).map((item, i) => (
           <li key={i}>{item}</li>
         ))}
       </ol>
@@ -30,7 +30,7 @@ export const ListPreview: React.FC<BlockComponentProps> = ({ block }) => {
   if (listType === 'checklist') {
     return (
       <ul className="space-y-1">
-        {listItems.map((item, i) => (
+        {(listItems || []).map((item, i) => (
           <li key={i} className="flex items-center gap-2 text-base-content/80">
             <input type="checkbox" className="checkbox checkbox-sm" disabled />
             <span>{item}</span>
@@ -42,7 +42,7 @@ export const ListPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <ul className="list-disc list-inside text-base-content/80 space-y-1">
-      {listItems.map((item, i) => (
+      {(listItems || []).map((item, i) => (
         <li key={i}>{item}</li>
       ))}
     </ul>
