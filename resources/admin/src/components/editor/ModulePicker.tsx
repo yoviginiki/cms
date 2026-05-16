@@ -90,11 +90,14 @@ export function ModulePicker({ parentId, insertIndex, onClose }: ModulePickerPro
         <Search size={14} className="text-gray-400 shrink-0" />
         <input
           ref={searchRef}
+          id="module-picker-search"
+          name="module-picker-search"
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search modules..."
           className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400"
+          aria-label="Search modules"
         />
         <button onClick={onClose} className="p-0.5 text-gray-400 hover:text-gray-600">
           <X size={14} />

@@ -73,8 +73,8 @@ export function BlockPicker() {
       <div className="p-2 border-b border-base-300/20">
         <label className="input input-bordered input-sm flex items-center gap-2 text-[12px]">
           <Search className="h-3.5 w-3.5 text-base-content/30" />
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search blocks..." className="grow bg-transparent" />
+          <input type="text" id="block-picker-search" name="block-picker-search" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search blocks..." className="grow bg-transparent" aria-label="Search blocks" />
         </label>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-3">

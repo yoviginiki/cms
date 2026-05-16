@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface NumberFieldProps {
   label: string;
   value: number;
@@ -7,10 +9,13 @@ interface NumberFieldProps {
 }
 
 export function NumberField({ label, value, onChange, min, max }: NumberFieldProps) {
+  const id = useId();
   return (
     <div className="mb-3">
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <input
+        id={id}
+        name={id}
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}

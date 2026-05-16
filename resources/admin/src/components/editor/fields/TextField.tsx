@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface TextFieldProps {
   label: string;
   value: string;
@@ -7,10 +9,13 @@ interface TextFieldProps {
 }
 
 export function TextField({ label, value, onChange, placeholder, helperText }: TextFieldProps) {
+  const id = useId();
   return (
     <div>
-      <label className="block text-[11px] font-medium text-base-content/50 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-[11px] font-medium text-base-content/50 mb-1">{label}</label>
       <input
+        id={id}
+        name={id}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
