@@ -6,7 +6,9 @@ import { useEditorStore } from '@/stores/editorStore';
 import { BlockToolbar } from './BlockToolbar';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
-import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses } from '@/lib/blockStyles';
+import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, safeDim } from '@/lib/blockStyles';
+import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
+import { Plus } from 'lucide-react';
 
 interface SortableBlockProps {
   block: BlockData;
@@ -18,14 +20,21 @@ function DroppableZone({ id, children }: { id: string; children: React.ReactNode
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[40px] rounded border-2 border-dashed transition-colors ${
-        isOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+      className={`min-h-[20px] rounded transition-colors ${
+        isOver ? 'border-2 border-dashed border-blue-400 bg-blue-50' : ''
       }`}
     >
       {children}
     </div>
   );
 }
+
+// Quick-add config per level
+const QUICK_ADD: Record<string, { type: string; label: string; color: string }> = {
+  section: { type: 'row', label: 'Row', color: 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100' },
+  row: { type: 'column', label: 'Column', color: 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100' },
+  column: { type: 'heading', label: 'Heading', color: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' },
+};
 
 export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const {
@@ -64,15 +73,24 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
 
   const { Preview } = registration;
   const allowsChildren = registration.definition.allowsChildren;
+  const quickAdd = block.level ? QUICK_ADD[block.level] : undefined;
+
+  // Determine children layout based on parent block type
+  const isRow = block.type === 'row';
+  const rowLayout = isRow ? ((block.data.layout as RowLayout) || '1/2+1/2') : undefined;
+  const rowGap = isRow ? (safeDim(block.data.gap) || '16px') : undefined;
+  const childrenStyle: React.CSSProperties = isRow
+    ? { display: 'grid', gridTemplateColumns: LAYOUT_GRID[rowLayout!] || '1fr 1fr', gap: rowGap }
+    : {};
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group rounded-lg transition-all ${
+      className={`relative group transition-all ${
         isSelected
-          ? 'ring-2 ring-blue-500 ring-offset-2'
-          : 'hover:ring-1 hover:ring-gray-300'
+          ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg'
+          : 'hover:outline hover:outline-1 hover:outline-blue-200 hover:outline-offset-2 rounded-lg'
       }`}
       onClick={(e) => {
         e.stopPropagation();
@@ -104,12 +122,16 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
             ))}
           </div>
         )}
-        <Preview
-          block={block}
-          isSelected={isSelected}
-          onUpdate={(data) => updateBlock(block.id, data)}
-          onSelect={() => selectBlock(block.id)}
-        />
+
+        {/* Render Preview — for containers, only when empty (children render in DnD zone) */}
+        {(!allowsChildren || block.children.length === 0) && (
+          <Preview
+            block={block}
+            isSelected={isSelected}
+            onUpdate={(data) => updateBlock(block.id, data)}
+            onSelect={() => selectBlock(block.id)}
+          />
+        )}
       </div>
 
       {allowsChildren && (
@@ -119,32 +141,22 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
             strategy={verticalListSortingStrategy}
             id={`sortable-${block.id}`}
           >
-            <div className="p-2 space-y-2">
+            <div style={childrenStyle} className={isRow ? 'min-h-[40px]' : 'space-y-1'}>
               {block.children.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-400 mb-2">Drop blocks here</p>
-                  {block.level === 'section' && (
+                <div className="text-center py-4 col-span-full">
+                  <p className="text-sm text-gray-400 mb-2">
+                    {block.level === 'section' ? 'Add rows to this section' :
+                     block.level === 'row' ? 'Add columns to this row' :
+                     block.level === 'column' ? 'Add modules to this column' :
+                     'Drop blocks here'}
+                  </p>
+                  {quickAdd && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); addBlock('row', block.id); }}
-                      className="px-3 py-1 text-xs bg-green-50 text-green-600 border border-green-200 rounded hover:bg-green-100 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); addBlock(quickAdd.type, block.id); }}
+                      className={`inline-flex items-center gap-1 px-3 py-1 text-xs border rounded transition-colors ${quickAdd.color}`}
                     >
-                      + Add Row
-                    </button>
-                  )}
-                  {block.level === 'row' && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addBlock('column', block.id); }}
-                      className="px-3 py-1 text-xs bg-purple-50 text-purple-600 border border-purple-200 rounded hover:bg-purple-100 transition-colors"
-                    >
-                      + Add Column
-                    </button>
-                  )}
-                  {block.level === 'column' && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addBlock('heading', block.id); }}
-                      className="px-3 py-1 text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
-                    >
-                      + Add Heading
+                      <Plus size={12} />
+                      Add {quickAdd.label}
                     </button>
                   )}
                 </div>
@@ -158,9 +170,10 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         </DroppableZone>
       )}
 
+      {/* Drag handle (visible on hover when not selected) */}
       {!isSelected && (
         <div
-          className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 cursor-grab p-1 bg-white rounded shadow text-gray-400 hover:text-gray-600 transition-opacity"
+          className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 cursor-grab p-1 bg-white rounded shadow text-gray-400 hover:text-gray-600 transition-opacity z-10"
           {...attributes}
           {...listeners}
         >

@@ -53,6 +53,7 @@ export function InlineTextField({
   warnOnly = true,
 }: InlineTextFieldProps) {
   const ref = useRef<HTMLElement>(null);
+  const valueAtFocusRef = useRef(value);
   const [isEditing, setIsEditing] = useState(false);
   const [liveLength, setLiveLength] = useState(value.length);
   const uniqueId = useId();
@@ -83,19 +84,25 @@ export function InlineTextField({
   }, [value, onChange, maxLength, warnOnly]);
 
   const handleFocus = useCallback(() => {
+    valueAtFocusRef.current = value;
     setIsEditing(true);
-  }, []);
+  }, [value]);
 
   const handleBlur = useCallback(() => {
     commit();
   }, [commit]);
 
-  // Track live character count during editing
+  // Track live character count and sync to store during editing
   const handleInput = useCallback(() => {
     if (ref.current) {
-      setLiveLength((ref.current.textContent ?? '').length);
+      const text = ref.current.textContent ?? '';
+      setLiveLength(text.length);
+      // Real-time sync: update store as user types
+      if (text !== value) {
+        onChange(text);
+      }
     }
-  }, []);
+  }, [value, onChange]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -103,8 +110,10 @@ export function InlineTextField({
       e.stopPropagation();
 
       if (e.key === 'Escape') {
-        // Cancel: restore original value and blur
-        if (ref.current) ref.current.textContent = value;
+        // Cancel: restore pre-edit value and blur
+        const original = valueAtFocusRef.current;
+        if (ref.current) ref.current.textContent = original;
+        onChange(original);
         setIsEditing(false);
         ref.current?.blur();
         return;
