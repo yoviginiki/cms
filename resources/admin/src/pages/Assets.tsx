@@ -16,7 +16,7 @@ interface Asset {
   created_at: string;
 }
 
-type FilterType = 'all' | 'images' | 'documents';
+type FilterType = 'all' | 'images' | 'documents' | 'video' | 'audio';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -43,6 +43,8 @@ export default function Assets() {
       const params: Record<string, unknown> = {};
       if (filter === 'images') params.type = 'image';
       if (filter === 'documents') params.type = 'document';
+      if (filter === 'video') params.type = 'video';
+      if (filter === 'audio') params.type = 'audio';
       return assets.list(siteId, params).then(r => r.data.data);
     },
   });
@@ -90,8 +92,8 @@ export default function Assets() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage your media files</p>
+          <h1 className="text-2xl font-bold text-gray-900">File Manager</h1>
+          <p className="mt-1 text-sm text-gray-500">Upload and manage all site files</p>
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -141,7 +143,7 @@ export default function Assets() {
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
-        {(['all', 'images', 'documents'] as FilterType[]).map((f) => (
+        {(['all', 'images', 'documents', 'video', 'audio'] as FilterType[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}

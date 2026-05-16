@@ -23,13 +23,20 @@ class AssetController extends Controller
 
         $query = $site->assets()->orderByDesc('created_at');
 
-        if ($mime = $request->query('mime_type')) {
-            if ($mime === 'images') {
+        $typeFilter = $request->query('type') ?? $request->query('mime_type');
+        if ($typeFilter) {
+            if ($typeFilter === 'image' || $typeFilter === 'images') {
                 $query->where('mime_type', 'like', 'image/%');
-            } elseif ($mime === 'documents') {
-                $query->where('mime_type', 'not like', 'image/%');
+            } elseif ($typeFilter === 'document' || $typeFilter === 'documents') {
+                $query->where('mime_type', 'not like', 'image/%')
+                      ->where('mime_type', 'not like', 'video/%')
+                      ->where('mime_type', 'not like', 'audio/%');
+            } elseif ($typeFilter === 'video') {
+                $query->where('mime_type', 'like', 'video/%');
+            } elseif ($typeFilter === 'audio') {
+                $query->where('mime_type', 'like', 'audio/%');
             } else {
-                $query->where('mime_type', $mime);
+                $query->where('mime_type', $typeFilter);
             }
         }
 

@@ -21,7 +21,7 @@ interface PageItem {
   status: string;
 }
 
-type Tab = 'general' | 'front-page' | 'seo' | 'deploy' | 'custom-code' | 'ai' | 'magazine' | 'danger';
+type Tab = 'general' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'ai' | 'magazine' | 'danger';
 
 declare global {
   interface Window {
@@ -69,6 +69,11 @@ export default function SiteSettings() {
   const [magPnAlign, setMagPnAlign] = useState('outer');
   const [magPnSize, setMagPnSize] = useState('9');
   const [openaiKey, setOpenaiKey] = useState('');
+
+  // Files
+  const DEFAULT_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'doc', 'docx', 'txt', 'md', 'mp3', 'mp4', 'mov', 'mpg', 'zip', 'rar'];
+  const [allowedExtensions, setAllowedExtensions] = useState<string[]>(DEFAULT_EXTENSIONS);
+  const [newExt, setNewExt] = useState('');
 
   // Deploy
   const [deployMethod, setDeployMethod] = useState<'local' | 'ssh' | 'zip_only'>('local');
@@ -127,6 +132,7 @@ export default function SiteSettings() {
       setSshPath((site.settings?.deploy_ssh_path as string) ?? '');
       setSshPort(Number(site.settings?.deploy_ssh_port) || 22);
       setSshKey((site.settings?.deploy_ssh_key as string) ?? '');
+      setAllowedExtensions((site.settings?.allowed_extensions as string[]) ?? DEFAULT_EXTENSIONS);
     }
   }, [site]);
 
@@ -199,6 +205,13 @@ export default function SiteSettings() {
     },
   });
 
+  const saveFiles = () => updateMutation.mutate({
+    settings: {
+      ...(site?.settings || {}),
+      allowed_extensions: allowedExtensions,
+    },
+  });
+
   const saveDeploy = () => updateMutation.mutate({
     settings: {
       ...(site?.settings || {}),
@@ -215,6 +228,7 @@ export default function SiteSettings() {
     { key: 'general', label: 'General', show: true },
     { key: 'front-page', label: 'Front Page', show: true },
     { key: 'seo', label: 'SEO', show: true },
+    { key: 'files', label: 'Files', show: true },
     { key: 'deploy', label: 'Deploy', show: isAdminOrOwner },
     { key: 'custom-code', label: 'Custom Code', show: isAdminOrOwner },
     { key: 'ai', label: 'AI', show: isAdminOrOwner },
@@ -442,6 +456,100 @@ export default function SiteSettings() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Files */}
+      {activeTab === 'files' && (
+        <div className="max-w-2xl space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Allowed File Extensions</h3>
+            <p className="text-sm text-gray-500 mb-4">Manage which file types can be uploaded to the media library.</p>
+          </div>
+
+          {/* Add new extension */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newExt}
+              onChange={(e) => setNewExt(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+              placeholder="Add extension (e.g. csv)"
+              className="input input-bordered input-sm flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newExt && !allowedExtensions.includes(newExt)) {
+                  setAllowedExtensions([...allowedExtensions, newExt]);
+                  setNewExt('');
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                if (newExt && !allowedExtensions.includes(newExt)) {
+                  setAllowedExtensions([...allowedExtensions, newExt]);
+                  setNewExt('');
+                }
+              }}
+              className="btn btn-sm btn-primary"
+              disabled={!newExt || allowedExtensions.includes(newExt)}
+            >
+              Add
+            </button>
+          </div>
+
+          {/* Extension list */}
+          <div className="flex flex-wrap gap-2">
+            {allowedExtensions.map((ext) => (
+              <span
+                key={ext}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 group hover:bg-red-50 hover:text-red-700 transition-colors"
+              >
+                .{ext}
+                <button
+                  onClick={() => setAllowedExtensions(allowedExtensions.filter(e => e !== ext))}
+                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity"
+                  title={`Remove .${ext}`}
+                >
+                  &times;
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {allowedExtensions.length === 0 && (
+            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              No extensions allowed — all uploads will be blocked.
+            </p>
+          )}
+
+          {/* Quick add presets */}
+          <div className="border-t border-gray-200 pt-4">
+            <p className="text-xs text-gray-400 mb-2 uppercase tracking-wider font-medium">Quick Add</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Images', exts: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico'] },
+                { label: 'Documents', exts: ['pdf', 'doc', 'docx', 'txt', 'md', 'csv', 'xls', 'xlsx', 'pptx'] },
+                { label: 'Video', exts: ['mp4', 'mov', 'mpg', 'avi', 'webm'] },
+                { label: 'Audio', exts: ['mp3', 'wav', 'ogg', 'flac'] },
+                { label: 'Archives', exts: ['zip', 'rar', 'tar', 'gz'] },
+              ].map(({ label, exts }) => (
+                <button
+                  key={label}
+                  onClick={() => {
+                    const merged = [...new Set([...allowedExtensions, ...exts])];
+                    setAllowedExtensions(merged);
+                  }}
+                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-md text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors"
+                >
+                  + {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={saveFiles} disabled={updateMutation.isPending}
+            className="btn btn-primary btn-sm gap-1.5">
+            <Save size={14} /> Save
+          </button>
         </div>
       )}
 
