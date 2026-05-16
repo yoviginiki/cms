@@ -11,6 +11,7 @@ import type { BlockData } from '@/types/blocks';
 import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { BlockIcon } from './BlockIcon';
 import { ModulePicker } from './ModulePicker';
+import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
 import { useState, useRef } from 'react';
 
 // Map block types to accent colors for wireframe boxes
@@ -144,13 +145,27 @@ export function WireframeBlock({ block, depth = 0 }: WireframeBlockProps) {
         )}
       </div>
 
-      {/* Children */}
+      {/* Children — rows render columns horizontally */}
       {hasChildren && expanded && (
-        <div className="ml-2 border-l border-gray-200 pl-1">
-          {block.children.map((child) => (
-            <WireframeBlock key={child.id} block={child} depth={depth + 1} />
-          ))}
-        </div>
+        level === 'row' ? (
+          <div
+            className="ml-2 pl-1 gap-2"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: LAYOUT_GRID[(block.data.layout as RowLayout) || '1/2+1/2'] || `repeat(${block.children.length}, 1fr)`,
+            }}
+          >
+            {block.children.map((child) => (
+              <WireframeBlock key={child.id} block={child} depth={0} />
+            ))}
+          </div>
+        ) : (
+          <div className="ml-2 border-l border-gray-200 pl-1">
+            {block.children.map((child) => (
+              <WireframeBlock key={child.id} block={child} depth={depth + 1} />
+            ))}
+          </div>
+        )
       )}
 
       {/* Module picker for columns */}
