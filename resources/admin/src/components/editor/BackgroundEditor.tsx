@@ -47,7 +47,7 @@ export default function BackgroundEditor({ data, onChange }: Props) {
   const [expanded, setExpanded] = useState(bg.bg_type !== 'none');
 
   const update = (field: string, value: unknown) => {
-    onChange({ ...data, [field]: value });
+    onChange({ [field]: value });
   };
 
   const gradientCss = buildGradientCss(bg);
@@ -168,7 +168,7 @@ export default function BackgroundEditor({ data, onChange }: Props) {
             <div className="space-y-2">
               <AssetField label="Background Image" value={bg.bg_image || ''} accept="image"
                 onChange={(url, assetId) => {
-                  onChange({ ...data, bg_image: url, ...(assetId ? { bg_asset_id: assetId } : {}) });
+                  onChange({ bg_image: url, ...(assetId ? { bg_asset_id: assetId } : {}) });
                 }} />
 
               <div className="grid grid-cols-2 gap-2">
