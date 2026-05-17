@@ -9,6 +9,7 @@ export const timelineDefinition: BlockDefinition = {
     items: [{ date: '2024', title: 'Event', description: 'Description' }],
     layout: 'left',
     lineStyle: 'solid',
+    titleTextShadow: '',
   },
   allowsChildren: false,
 };

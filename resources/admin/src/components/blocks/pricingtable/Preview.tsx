@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 interface Plan {
   name: string;
@@ -12,9 +13,10 @@ interface Plan {
 }
 
 export const PricingtablePreview: React.FC<BlockComponentProps> = ({ block }) => {
-  const data = block.data as { plans: Plan[]; columns: number };
+  const data = block.data as { plans: Plan[]; columns: number; textShadow?: string };
   const plans = data.plans || [];
   const cols = data.columns || 3;
+  const textShadow = resolveTextShadow(data.textShadow);
 
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
@@ -23,8 +25,8 @@ export const PricingtablePreview: React.FC<BlockComponentProps> = ({ block }) =>
           key={i}
           className={`rounded-lg border p-4 text-center ${plan.highlighted ? 'border-blue-500 shadow-md' : 'border-gray-200'}`}
         >
-          <div className="font-semibold text-sm mb-1">{plan.name}</div>
-          <div className="text-2xl font-bold">
+          <div className="font-semibold text-sm mb-1" style={textShadow ? { textShadow } : undefined}>{plan.name}</div>
+          <div className="text-2xl font-bold" style={textShadow ? { textShadow } : undefined}>
             {plan.price}
             <span className="text-xs font-normal text-gray-500">{plan.period}</span>
           </div>

@@ -11,6 +11,7 @@ export const newsletterDefinition: BlockDefinition = {
     buttonText: 'Subscribe',
     endpoint: '',
     style: 'inline',
+    headingTextShadow: '',
   },
   allowsChildren: false,
 };

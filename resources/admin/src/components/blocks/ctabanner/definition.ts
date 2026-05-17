@@ -40,6 +40,7 @@ export const ctabannerDefinition: BlockDefinition = {
     backgroundStyle: 'solid',
     backgroundColor: '',
     backgroundImage: '',
+    headingTextShadow: '',
   },
   allowsChildren: false,
 };

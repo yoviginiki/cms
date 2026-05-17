@@ -31,6 +31,22 @@ export function safeColor(v: unknown): string | undefined {
   return undefined;
 }
 
+/** Text shadow presets — shared between block-level (VisualPanel) and element-level (heading, pullquote, etc.) */
+export const TEXT_SHADOW_PRESETS: Record<string, string> = {
+  sm: '0 1px 2px rgba(0,0,0,0.15)',
+  md: '0 2px 4px rgba(0,0,0,0.25)',
+  lg: '0 4px 8px rgba(0,0,0,0.4)',
+  outline: '-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)',
+  glow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)',
+};
+
+/** Resolve a text shadow preset key to a CSS value. Returns undefined for empty/none. */
+export function resolveTextShadow(key: unknown): string | undefined {
+  if (!key || key === 'none') return undefined;
+  const s = String(key);
+  return TEXT_SHADOW_PRESETS[s] || undefined;
+}
+
 const SHADOW_MAP: Record<string, string> = {
   sm: '0 1px 2px rgba(0,0,0,0.04)',
   md: '0 4px 12px rgba(0,0,0,0.06)',
@@ -104,13 +120,6 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
 
     // Text shadow
     if (vis.textShadow && vis.textShadow !== 'none') {
-      const presets: Record<string, string> = {
-        sm: '0 1px 2px rgba(0,0,0,0.15)',
-        md: '0 2px 4px rgba(0,0,0,0.25)',
-        lg: '0 4px 8px rgba(0,0,0,0.4)',
-        outline: '-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)',
-        glow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)',
-      };
       if (vis.textShadow === 'custom') {
         const x = safeDim(vis.textShadowX) || '0px';
         const y = safeDim(vis.textShadowY) || '2px';
@@ -118,7 +127,7 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
         const color = safeColor(vis.textShadowColor) || 'rgba(0,0,0,0.3)';
         css.textShadow = `${x} ${y} ${blur} ${color}`;
       } else {
-        css.textShadow = presets[vis.textShadow] || 'none';
+        css.textShadow = TEXT_SHADOW_PRESETS[vis.textShadow] || 'none';
       }
     }
   }

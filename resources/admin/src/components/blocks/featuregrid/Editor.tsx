@@ -106,6 +106,8 @@ export const FeaturegridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
       {/* ── Typography ── */}
       <div className="divider text-[10px] text-base-content/40 my-1">Typography</div>
       <ColorField label="Title Color" value={(data.titleColor as string) || ''} onChange={(v) => update('titleColor', v)} />
+      <SelectField label="Title Text Shadow" value={(data.titleTextShadow as string) || ''} onChange={(v) => update('titleTextShadow', v)}
+        options={[{ value: '', label: 'None' }, { value: 'sm', label: 'Subtle' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Strong' }, { value: 'outline', label: 'Outline' }, { value: 'glow', label: 'Glow' }]} />
       <ColorField label="Description Color" value={(data.descColor as string) || ''} onChange={(v) => update('descColor', v)} />
       <TextField label="Icon Size" value={(data.iconSize as string) || ''} onChange={(v) => update('iconSize', v)} placeholder="e.g. 2rem, 32px" />
       <ColorField label="Icon Color" value={(data.iconColor as string) || ''} onChange={(v) => update('iconColor', v)} />

@@ -16,12 +16,14 @@
 @php
     $plans = $data['plans'] ?? [];
     $columns = $data['columns'] ?? 3;
+    $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
+    $textShadow = $tsShadowPresets[$data['textShadow'] ?? ''] ?? '';
 @endphp
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:1.5rem;">
     @foreach($plans as $plan)
         <div style="border:{{ ($plan['highlighted'] ?? false) ? '2px solid #3b82f6' : '1px solid var(--color-border,#e2e8f0)' }};border-radius:0.75rem;padding:2rem;text-align:center;{{ ($plan['highlighted'] ?? false) ? 'box-shadow:0 4px 12px rgba(0,0,0,0.1);' : '' }}">
-            <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.5rem;">{{ $plan['name'] ?? '' }}</div>
-            <div style="font-size:2rem;font-weight:700;">{{ $plan['price'] ?? '' }}<span style="font-size:0.875rem;font-weight:400;color:#6b7280;">{{ $plan['period'] ?? '' }}</span></div>
+            <div style="font-weight:600;font-size:1.1rem;margin-bottom:0.5rem;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $plan['name'] ?? '' }}</div>
+            <div style="font-size:2rem;font-weight:700;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $plan['price'] ?? '' }}<span style="font-size:0.875rem;font-weight:400;color:#6b7280;">{{ $plan['period'] ?? '' }}</span></div>
             <ul style="list-style:none;padding:0;margin:1rem 0;color:#4b5563;">
                 @foreach(($plan['features'] ?? []) as $feature)
                     <li style="padding:0.25rem 0;">{{ $feature }}</li>

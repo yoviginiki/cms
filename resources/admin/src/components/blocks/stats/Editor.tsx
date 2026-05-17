@@ -38,6 +38,8 @@ export const StatsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
       <ColorField label="Value Color" value={(data.valueColor as string) || ''} onChange={(v) => update('valueColor', v)} />
       <ColorField label="Label Color" value={(data.labelColor as string) || ''} onChange={(v) => update('labelColor', v)} />
       <TextField label="Value Font Size" value={(data.valueFontSize as string) || ''} onChange={(v) => update('valueFontSize', v)} placeholder="e.g. 2.5rem" />
+      <SelectField label="Text Shadow" value={(data.textShadow as string) || ''} onChange={(v) => update('textShadow', v)}
+        options={[{ value: '', label: 'None' }, { value: 'sm', label: 'Subtle' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Strong' }, { value: 'outline', label: 'Outline' }, { value: 'glow', label: 'Glow' }]} />
 
       <div className="divider text-[10px] text-base-content/40 my-1">Items</div>
       {items.map((item, i) => (

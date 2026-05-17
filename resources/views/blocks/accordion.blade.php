@@ -13,11 +13,15 @@
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="accordion-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
+@php
+    $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
+    $titleTextShadow = $tsShadowPresets[$data['titleTextShadow'] ?? ''] ?? '';
+@endphp
 <div class="accordion-block" style="margin-bottom: 1.5rem;">
     @foreach(($data['items'] ?? []) as $item)
         <details style="border: 1px solid var(--color-border,#e2e8f0); border-radius:var(--border-radius-md,0.5rem); margin-bottom: 0.5rem; overflow: hidden;">
             <summary style="padding: 1rem 1.25rem; cursor: pointer; font-weight: 500; background:var(--color-bg-alt,#f8fafc); list-style: none; display: flex; align-items: center; justify-content: space-between;">
-                {{ $item['title'] ?? '' }}
+                <span @if($titleTextShadow) style="text-shadow:{{ $titleTextShadow }}" @endif>{{ $item['title'] ?? '' }}</span>
                 <span style="transition: transform 0.2s;">&#9660;</span>
             </summary>
             <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--color-border,#e2e8f0);">

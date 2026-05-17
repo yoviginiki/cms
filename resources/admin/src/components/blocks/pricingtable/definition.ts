@@ -18,6 +18,7 @@ export const pricingtableDefinition: BlockDefinition = {
       },
     ],
     columns: 3,
+    textShadow: '',
   },
   allowsChildren: false,
 };

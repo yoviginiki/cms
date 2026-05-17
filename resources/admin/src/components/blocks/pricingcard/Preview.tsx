@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 interface Feature {
   text: string;
@@ -16,9 +17,11 @@ export const PricingcardPreview: React.FC<BlockComponentProps> = ({ block }) => 
     ctaUrl: string;
     highlighted: boolean;
     badge: string;
+    textShadow?: string;
   };
 
   const features = data.features || [];
+  const textShadow = resolveTextShadow(data.textShadow);
 
   return (
     <div className={`rounded-lg border-2 p-5 text-center relative ${data.highlighted ? 'border-blue-500 shadow-lg' : 'border-gray-200'}`}>
@@ -27,9 +30,9 @@ export const PricingcardPreview: React.FC<BlockComponentProps> = ({ block }) => 
           {data.badge}
         </span>
       )}
-      <h3 className="text-lg font-semibold text-gray-800 mb-1">{data.planName || 'Plan'}</h3>
+      <h3 className="text-lg font-semibold text-gray-800 mb-1" style={textShadow ? { textShadow } : undefined}>{data.planName || 'Plan'}</h3>
       <div className="mb-3">
-        <span className="text-3xl font-bold text-gray-900">{data.price || '$0'}</span>
+        <span className="text-3xl font-bold text-gray-900" style={textShadow ? { textShadow } : undefined}>{data.price || '$0'}</span>
         {data.period && <span className="text-sm text-gray-500">/{data.period}</span>}
       </div>
       <ul className="space-y-2 mb-4 text-left">

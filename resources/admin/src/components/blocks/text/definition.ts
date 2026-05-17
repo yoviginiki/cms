@@ -7,6 +7,7 @@ export const textDefinition: BlockDefinition = {
   icon: 'Type',
   defaultData: {
     content: '',
+    textShadow: '',
   },
   allowsChildren: false,
 };

@@ -18,6 +18,7 @@ export const pricingcardDefinition: BlockDefinition = {
     ctaUrl: '#',
     highlighted: false,
     badge: '',
+    textShadow: '',
   },
   allowsChildren: false,
 };

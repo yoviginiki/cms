@@ -9,6 +9,7 @@ export const featuregridDefinition: BlockDefinition = {
     items: [{ icon: 'star', title: 'Feature', description: 'Description' }],
     columns: 3,
     style: 'icon-top',
+    titleTextShadow: '',
   },
   allowsChildren: false,
 };

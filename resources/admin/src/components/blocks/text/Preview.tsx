@@ -1,5 +1,6 @@
 import type { BlockComponentProps } from '@/types/blocks';
 import WysiwygEditor from '@/components/editor/WysiwygEditor';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 const safeColor = (v: string) => /^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,./%]+\)|oklch\([\d\s,./%]+\))$/.test(v.trim()) ? v.trim() : '';
 const safeDim = (v: string) => /^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/.test(v.trim()) ? v.trim() : '';
@@ -16,6 +17,7 @@ export const TextPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const fontStyle = (data.fontStyle as string) || '';
   const lineHeight = (data.lineHeight as string) || '';
   const letterSpacing = (data.letterSpacing as string) || '';
+  const textShadow = resolveTextShadow(data.textShadow);
 
   const style: React.CSSProperties = {
     ...(textAlign ? { textAlign: textAlign as React.CSSProperties['textAlign'] } : {}),
@@ -25,6 +27,7 @@ export const TextPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
     ...(fontStyle === 'italic' ? { fontStyle: 'italic' } : {}),
     ...(lineHeight ? { lineHeight } : {}),
     ...(letterSpacing ? { letterSpacing } : {}),
+    ...(textShadow ? { textShadow } : {}),
   };
 
   if (isSelected) {

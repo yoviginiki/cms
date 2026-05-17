@@ -30,6 +30,7 @@ export const pullquoteDefinition: BlockDefinition = {
     text: '',
     attribution: '',
     style: 'large-text',
+    textShadow: '',
   },
   allowsChildren: false,
   hasTypography: true,

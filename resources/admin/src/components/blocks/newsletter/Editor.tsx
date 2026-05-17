@@ -2,7 +2,7 @@ import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 
 export const NewsletterEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const data = block.data as { heading: string; description: string; buttonText: string; endpoint: string; style: string };
+  const data = block.data as { heading: string; description: string; buttonText: string; endpoint: string; style: string; headingTextShadow?: string };
 
   const update = (field: string, value: unknown) => {
     onUpdate({ ...block.data, [field]: value });
@@ -21,6 +21,17 @@ export const NewsletterEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
       <div>
         <label className="text-[11px] text-base-content/50 mb-1 block">Button Text</label>
         <input type="text" className="input input-bordered input-sm w-full" value={data.buttonText || ''} onChange={(e) => update('buttonText', e.target.value)} />
+      </div>
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Heading Text Shadow</label>
+        <select className="select select-bordered select-sm w-full" value={data.headingTextShadow || ''} onChange={(e) => update('headingTextShadow', e.target.value || undefined)}>
+          <option value="">None</option>
+          <option value="sm">Subtle</option>
+          <option value="md">Medium</option>
+          <option value="lg">Strong</option>
+          <option value="outline">Outline</option>
+          <option value="glow">Glow</option>
+        </select>
       </div>
       <div>
         <label className="text-[11px] text-base-content/50 mb-1 block">Endpoint URL</label>

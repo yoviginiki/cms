@@ -36,6 +36,8 @@ export const TestimonialEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
       <div className="divider text-[10px] text-base-content/40 my-1">Typography</div>
       <ColorField label="Quote Color" value={(data.quoteColor as string) || ''} onChange={(v) => update('quoteColor', v)} />
       <ColorField label="Author Color" value={(data.authorColor as string) || ''} onChange={(v) => update('authorColor', v)} />
+      <SelectField label="Text Shadow" value={(data.textShadow as string) || ''} onChange={(v) => update('textShadow', v)}
+        options={[{ value: '', label: 'None' }, { value: 'sm', label: 'Subtle' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Strong' }, { value: 'outline', label: 'Outline' }, { value: 'glow', label: 'Glow' }]} />
 
       <div className="divider text-[10px] text-base-content/40 my-1">Items</div>
       {items.map((item, i) => (

@@ -9,6 +9,7 @@ export const accordionDefinition: BlockDefinition = {
     items: [{ title: 'Question', content: '<p>Answer</p>' }],
     multiOpen: false,
     iconStyle: 'arrow',
+    titleTextShadow: '',
   },
   allowsChildren: false,
 };

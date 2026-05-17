@@ -28,7 +28,9 @@
     $letterSpacing = $cssVal($data['letterSpacing'] ?? '');
     $textTransform = in_array($data['textTransform'] ?? '', ['uppercase','lowercase','capitalize']) ? $data['textTransform'] : '';
     $textAlign = in_array($data['textAlign'] ?? '', ['left','center','right']) ? $data['textAlign'] : '';
+    $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
+    $textShadow = $tsShadowPresets[$data['textShadow'] ?? ''] ?? '';
 @endphp
-<{{ $level }} style="font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:var(--font-heading,inherit);line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif">{{ $data['text'] ?? '' }}</{{ $level }}>
+<{{ $level }} style="font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:var(--font-heading,inherit);line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif @if($textShadow)text-shadow:{{ $textShadow }};@endif">{{ $data['text'] ?? '' }}</{{ $level }}>
 
 </div>

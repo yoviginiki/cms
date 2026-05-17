@@ -30,7 +30,11 @@
 @endphp
 <div class="ctabanner-block" style="{{ $inlineStyle }} padding: 3rem 1.5rem; text-align: center; color:var(--color-text-inverse,#fff); margin-bottom: var(--space-6, 1.5rem);">
     <div style="max-width: 640px; margin: 0 auto;">
-        <h2 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.75rem;">{{ e($heading) }}</h2>
+        @php
+            $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
+            $headingTextShadow = $tsShadowPresets[$data['headingTextShadow'] ?? ''] ?? '';
+        @endphp
+        <h2 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.75rem;@if($headingTextShadow) text-shadow:{{ $headingTextShadow }};@endif">{{ e($heading) }}</h2>
         @if($text)
             <p style="font-size: 1rem; opacity: 0.9; margin-bottom: 1.5rem;">{{ e($text) }}</p>
         @endif

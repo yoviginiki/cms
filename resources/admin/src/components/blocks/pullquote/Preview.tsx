@@ -1,13 +1,16 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { InlineTextField } from '@/components/editor/fields';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 export const PullquotePreview: React.FC<BlockComponentProps> = ({ block, onUpdate }) => {
-  const { text, attribution, style } = block.data as {
+  const { text, attribution, style, textShadow: tsShadowKey } = block.data as {
     text: string;
     attribution: string;
     style: string;
+    textShadow?: string;
   };
+  const textShadow = resolveTextShadow(tsShadowKey);
 
   const update = (field: string, value: string) => {
     onUpdate({ ...block.data, [field]: value });
@@ -29,6 +32,7 @@ export const PullquotePreview: React.FC<BlockComponentProps> = ({ block, onUpdat
           onChange={(v) => update('text', v)}
           multiline
           className="text-base-content/80"
+          style={textShadow ? { textShadow } : undefined}
         />
       </blockquote>
       <figcaption className="mt-2">
