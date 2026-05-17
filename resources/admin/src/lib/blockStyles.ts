@@ -148,8 +148,15 @@ const ANIMATION_NAMES: Record<string, string> = {
  */
 export function buildBackgroundFromData(data?: Record<string, unknown>): React.CSSProperties {
   if (!data) return {};
-  const bgType = data.bg_type as string;
-  if (!bgType || bgType === 'none') return {};
+  let bgType = data.bg_type as string;
+
+  // Auto-detect bg_type if fields are set but type is missing
+  if (!bgType || bgType === 'none') {
+    if (data.bg_color) bgType = 'color';
+    else if (data.bg_image) bgType = 'image';
+    else if (data.bg_gradient_stops) bgType = 'gradient';
+    else return {};
+  }
 
   const css: React.CSSProperties = {};
 

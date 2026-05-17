@@ -163,6 +163,14 @@ class BlockStyle
 
         // Background — prefer bg_* fields from BackgroundEditor, fall back to visual.*
         $bgType = $blockData['bg_type'] ?? null;
+
+        // Auto-detect bg_type if fields are set but type is missing/none
+        if (!$bgType || $bgType === 'none') {
+            if (!empty($blockData['bg_color'])) $bgType = 'color';
+            elseif (!empty($blockData['bg_image'])) $bgType = 'image';
+            elseif (!empty($blockData['bg_gradient_stops'])) $bgType = 'gradient';
+        }
+
         if ($bgType && $bgType !== 'none') {
             if ($bgType === 'color' && !empty($blockData['bg_color'])) {
                 $bc = self::safeColor($blockData['bg_color']);

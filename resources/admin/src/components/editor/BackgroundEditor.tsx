@@ -47,7 +47,19 @@ export default function BackgroundEditor({ data, onChange }: Props) {
   const [expanded, setExpanded] = useState(bg.bg_type !== 'none');
 
   const update = (field: string, value: unknown) => {
-    onChange({ [field]: value });
+    const updates: Record<string, unknown> = { [field]: value };
+
+    // Auto-set bg_type when user changes a bg field without explicitly selecting type
+    if (field !== 'bg_type' && field.startsWith('bg_')) {
+      const currentType = bg.bg_type;
+      if (!currentType || currentType === 'none') {
+        if (field === 'bg_color') updates.bg_type = 'color';
+        else if (field === 'bg_image' || field === 'bg_asset_id') updates.bg_type = 'image';
+        else if (field.startsWith('bg_gradient')) updates.bg_type = 'gradient';
+      }
+    }
+
+    onChange(updates);
   };
 
   const gradientCss = buildGradientCss(bg);
