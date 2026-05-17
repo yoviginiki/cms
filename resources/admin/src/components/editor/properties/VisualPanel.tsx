@@ -82,6 +82,51 @@ export function VisualPanel({ value, onChange, hideBg }: Props) {
         onChangeCustom={(v) => update('shadowCustom', { ...((value.shadowCustom as ShadowCustom) || {}), ...v })}
       />
 
+      {/* ── Text Shadow ── */}
+      <div>
+        <label className="text-[10px] text-base-content/40">Text Shadow</label>
+        <select value={value.textShadow || 'none'} onChange={e => update('textShadow', e.target.value === 'none' ? undefined : e.target.value)}
+          className="select select-bordered select-xs w-full text-[11px]">
+          <option value="none">None</option>
+          <option value="sm">Subtle</option>
+          <option value="md">Medium</option>
+          <option value="lg">Strong</option>
+          <option value="outline">Outline</option>
+          <option value="glow">Glow</option>
+          <option value="custom">Custom</option>
+        </select>
+        {value.textShadow === 'custom' && (
+          <div className="mt-2 space-y-1">
+            <div className="grid grid-cols-3 gap-1">
+              <div>
+                <label className="text-[9px] text-base-content/30">X</label>
+                <input value={value.textShadowX || '0px'} onChange={e => update('textShadowX', e.target.value)}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="0px" />
+              </div>
+              <div>
+                <label className="text-[9px] text-base-content/30">Y</label>
+                <input value={value.textShadowY || '2px'} onChange={e => update('textShadowY', e.target.value)}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="2px" />
+              </div>
+              <div>
+                <label className="text-[9px] text-base-content/30">Blur</label>
+                <input value={value.textShadowBlur || '4px'} onChange={e => update('textShadowBlur', e.target.value)}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="4px" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[9px] text-base-content/30">Color</label>
+              <div className="flex gap-1">
+                <input type="color" value={value.textShadowColor || '#000000'} onChange={e => update('textShadowColor', e.target.value)}
+                  className="w-7 h-6 rounded cursor-pointer border border-base-300/30" />
+                <input value={value.textShadowColor || ''} onChange={e => update('textShadowColor', e.target.value)}
+                  className="input input-bordered input-xs flex-1 text-[10px]" placeholder="rgba(0,0,0,0.3)" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── Opacity ── */}
       <div>
         <label className="text-[10px] text-base-content/40">Block Opacity</label>

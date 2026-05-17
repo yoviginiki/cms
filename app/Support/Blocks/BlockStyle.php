@@ -260,6 +260,27 @@ class BlockStyle
             $parts[] = "overflow:{$vis['overflow']}";
         }
 
+        // Text shadow
+        $ts = $vis['textShadow'] ?? '';
+        if ($ts && $ts !== 'none') {
+            $tsPresets = [
+                'sm' => '0 1px 2px rgba(0,0,0,0.15)',
+                'md' => '0 2px 4px rgba(0,0,0,0.25)',
+                'lg' => '0 4px 8px rgba(0,0,0,0.4)',
+                'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)',
+                'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)',
+            ];
+            if ($ts === 'custom') {
+                $x = self::safeDim($vis['textShadowX'] ?? '0px') ?: '0px';
+                $y = self::safeDim($vis['textShadowY'] ?? '2px') ?: '2px';
+                $blur = self::safeDim($vis['textShadowBlur'] ?? '4px') ?: '4px';
+                $color = self::safeColor($vis['textShadowColor'] ?? '') ?: 'rgba(0,0,0,0.3)';
+                $parts[] = "text-shadow:{$x} {$y} {$blur} {$color}";
+            } elseif (isset($tsPresets[$ts])) {
+                $parts[] = "text-shadow:{$tsPresets[$ts]}";
+            }
+        }
+
         // Layout
         $lay = $blockStyle['layout'] ?? [];
         $w = self::safeDim($lay['width'] ?? '');

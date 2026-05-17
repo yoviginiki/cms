@@ -39,6 +39,11 @@ export interface VisualProps {
   shadowCustom?: { x?: string; y?: string; blur?: string; spread?: string; color?: string; opacity?: number; inset?: boolean };
   opacity?: number;
   overflow?: 'visible' | 'hidden' | 'scroll';
+  textShadow?: 'none' | 'sm' | 'md' | 'lg' | 'outline' | 'glow' | 'custom';
+  textShadowX?: string;
+  textShadowY?: string;
+  textShadowBlur?: string;
+  textShadowColor?: string;
 }
 
 // ─── Layout ───

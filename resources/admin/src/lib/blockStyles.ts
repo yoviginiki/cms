@@ -101,6 +101,26 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
     if (vis.overflow && vis.overflow !== 'visible') {
       css.overflow = vis.overflow;
     }
+
+    // Text shadow
+    if (vis.textShadow && vis.textShadow !== 'none') {
+      const presets: Record<string, string> = {
+        sm: '0 1px 2px rgba(0,0,0,0.15)',
+        md: '0 2px 4px rgba(0,0,0,0.25)',
+        lg: '0 4px 8px rgba(0,0,0,0.4)',
+        outline: '-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)',
+        glow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)',
+      };
+      if (vis.textShadow === 'custom') {
+        const x = safeDim(vis.textShadowX) || '0px';
+        const y = safeDim(vis.textShadowY) || '2px';
+        const blur = safeDim(vis.textShadowBlur) || '4px';
+        const color = safeColor(vis.textShadowColor) || 'rgba(0,0,0,0.3)';
+        css.textShadow = `${x} ${y} ${blur} ${color}`;
+      } else {
+        css.textShadow = presets[vis.textShadow] || 'none';
+      }
+    }
   }
 
   // Layout
