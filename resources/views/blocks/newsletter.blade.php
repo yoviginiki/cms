@@ -12,6 +12,7 @@
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="newsletter-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+{!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $heading = $data['heading'] ?? 'Subscribe';
     $description = $data['description'] ?? '';

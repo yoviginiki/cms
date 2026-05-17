@@ -401,6 +401,10 @@ img{max-width:100%;height:auto;display:block}
 .block-hover-glow{transition:box-shadow .3s ease}.block-hover-glow:hover{box-shadow:0 0 20px rgba(59,130,246,.4)}
 .block-hover-scale{transition:transform .3s ease}.block-hover-scale:hover{transform:scale(1.03)}
 .block-hover-darken{transition:filter .3s ease}.block-hover-darken:hover{filter:brightness(.85)}
+.block-hover-grayscale{transition:filter .3s ease}.block-hover-grayscale:hover{filter:grayscale(100%)}
+.block-hover-sepia{transition:filter .3s ease}.block-hover-sepia:hover{filter:sepia(100%)}
+.block-hover-blur{transition:filter .3s ease}.block-hover-blur:hover{filter:blur(2px)}
+.block-hover-saturate{transition:filter .3s ease}.block-hover-saturate:hover{filter:saturate(1.8)}
 ';
 
         return trim($css);

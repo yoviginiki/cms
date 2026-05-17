@@ -12,6 +12,7 @@
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="contact-form-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+{!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $fields = $data['fields'] ?? [['label' => 'Name', 'type' => 'text', 'required' => true], ['label' => 'Email', 'type' => 'email', 'required' => true], ['label' => 'Message', 'type' => 'textarea', 'required' => true]];
     $submitLabel = $data['submit_label'] ?? 'Send Message';

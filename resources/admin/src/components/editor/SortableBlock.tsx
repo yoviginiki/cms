@@ -6,7 +6,7 @@ import { useEditorStore } from '@/stores/editorStore';
 import { BlockToolbar } from './BlockToolbar';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
-import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, buildBackgroundFromData, safeDim } from '@/lib/blockStyles';
+import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, buildBackgroundFromData, buildOverlayFromData, safeDim } from '@/lib/blockStyles';
 import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
 import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
@@ -141,6 +141,12 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         {...(block.advanced?.htmlId ? { id: block.advanced.htmlId.replace(/[^a-zA-Z0-9_-]/g, '') } : {})}
         {...(block.advanced?.ariaLabel ? { 'aria-label': block.advanced.ariaLabel } : {})}
       >
+        {/* Color overlay for background images */}
+        {(() => {
+          const overlayStyle = buildOverlayFromData(block.data);
+          return overlayStyle ? <div style={overlayStyle} /> : null;
+        })()}
+
         {block.responsive?.hideOn && block.responsive.hideOn.length > 0 && (
           <div className="absolute top-1 right-1 z-20 flex gap-0.5">
             {block.responsive.hideOn.map((device) => (
@@ -152,6 +158,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         )}
 
         {/* Render Preview — for containers, only when empty */}
+        <div className="relative z-[1]">
         {(!allowsChildren || children.length === 0) && (
           <Preview
             block={block}
@@ -160,10 +167,12 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
             onSelect={() => selectBlock(block.id)}
           />
         )}
+        </div>
       </div>
 
       {allowsChildren && (
         <DroppableZone id={`${block.id}-children`}>
+          <div className="relative z-[1]">
           <SortableContext
             items={children.map((c) => c.id)}
             strategy={verticalListSortingStrategy}
@@ -197,6 +206,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
               </div>
             </div>
           </SortableContext>
+          </div>
         </DroppableZone>
       )}
 

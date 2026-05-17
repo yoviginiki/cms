@@ -299,7 +299,24 @@ class BlockStyle
         return implode(';', $parts);
     }
 
-    private const HOVER_EFFECTS = ['opacity', 'lift', 'glow', 'scale', 'darken'];
+    /**
+     * Build overlay HTML for background images with color overlay.
+     * Returns empty string if no overlay needed.
+     */
+    public static function buildOverlayHtml(array $data): string
+    {
+        $bgType = $data['bg_type'] ?? null;
+        if ($bgType !== 'image') return '';
+
+        $color = self::safeColor($data['bg_overlay_color'] ?? '');
+        $opacity = (float) ($data['bg_overlay_opacity'] ?? 0);
+        if (!$color || $opacity <= 0) return '';
+
+        $safeOpacity = max(0, min(1, $opacity));
+        return "<div style=\"position:absolute;inset:0;background-color:{$color};opacity:{$safeOpacity};pointer-events:none;z-index:0;\"></div>";
+    }
+
+    private const HOVER_EFFECTS = ['opacity', 'lift', 'glow', 'scale', 'darken', 'grayscale', 'sepia', 'blur', 'saturate'];
 
     /**
      * Build class string from block shared properties.

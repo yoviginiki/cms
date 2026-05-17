@@ -12,6 +12,7 @@
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="imagecaption-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+{!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 <figure class="image-caption image-caption--{{ $data['captionPosition'] ?? 'below' }}">
   @if(!empty($data['src']))<img src="{{ e($data['src']) }}" alt="{{ e($data['alt'] ?? '') }}" loading="lazy">@endif
   @if(!empty($data['caption']))<figcaption>{{ e($data['caption']) }}</figcaption>@endif

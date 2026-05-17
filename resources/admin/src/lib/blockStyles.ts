@@ -183,6 +183,29 @@ export function buildBackgroundFromData(data?: Record<string, unknown>): React.C
   return css;
 }
 
+/**
+ * Build overlay style from block.data bg_overlay_* fields.
+ * Returns null if no overlay needed, or a style object for an absolute overlay div.
+ */
+export function buildOverlayFromData(data?: Record<string, unknown>): React.CSSProperties | null {
+  if (!data) return null;
+  const bgType = data.bg_type as string;
+  if (bgType !== 'image') return null;
+
+  const color = safeColor(data.bg_overlay_color as string);
+  const opacity = Number(data.bg_overlay_opacity ?? 0);
+  if (!color || opacity <= 0) return null;
+
+  return {
+    position: 'absolute',
+    inset: '0',
+    backgroundColor: color,
+    opacity,
+    pointerEvents: 'none',
+    zIndex: 0,
+  };
+}
+
 const VALID_EASINGS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
 
 /**

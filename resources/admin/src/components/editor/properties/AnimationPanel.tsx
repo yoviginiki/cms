@@ -74,6 +74,10 @@ export function AnimationPanel({ value, onChange }: Props) {
           <option value="glow">Glow (box-shadow)</option>
           <option value="scale">Scale up</option>
           <option value="darken">Darken</option>
+          <option value="grayscale">Black & White</option>
+          <option value="sepia">Sepia</option>
+          <option value="blur">Blur</option>
+          <option value="saturate">Saturate (vivid)</option>
         </select>
       </div>
     </div>

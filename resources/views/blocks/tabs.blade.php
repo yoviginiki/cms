@@ -12,6 +12,7 @@
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="tabs-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+{!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php $labels = $data['tab_labels'] ?? ['Tab 1']; @endphp
 <div class="tabs-block" style="margin-bottom: 1.5rem;">
     <div role="tablist" style="display: flex; border-bottom: 2px solid var(--color-border,#e2e8f0); gap: 0;">
