@@ -10,6 +10,9 @@
     @if(!empty($fontPreloads))
         {!! $fontPreloads !!}
     @endif
+    @if(!empty($designTokensCss))
+        <style>{!! $designTokensCss !!}</style>
+    @endif
     @if(!empty($criticalCss))
         <style>{!! $criticalCss !!}</style>
     @endif
