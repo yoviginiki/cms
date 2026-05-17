@@ -69,7 +69,7 @@ function deepCloneWithNewIds(block: BlockData): BlockData {
     ...block,
     id: generateId(),
     data: deepClone(block.data),
-    children: block.children.map(deepCloneWithNewIds),
+    children: (block.children ?? []).map(deepCloneWithNewIds),
   };
 }
 
@@ -81,7 +81,7 @@ function findInTree(
     if (blocks[i].id === id) {
       return { block: blocks[i], parent: blocks, index: i };
     }
-    const found = findInTree(blocks[i].children, id);
+    const found = findInTree(blocks[i].children ?? [], id);
     if (found) return found;
   }
   return null;
@@ -92,7 +92,7 @@ function removeFromTree(blocks: BlockData[], id: string): BlockData[] {
     .filter((b) => b.id !== id)
     .map((b) => ({
       ...b,
-      children: removeFromTree(b.children, id),
+      children: removeFromTree(b.children ?? [], id),
     }));
 }
 

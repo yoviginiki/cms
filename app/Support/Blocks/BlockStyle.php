@@ -30,7 +30,7 @@ class BlockStyle
     public static function safeCssVal(mixed $v): string
     {
         if (!$v) return '';
-        return preg_replace('/[^a-zA-Z0-9#(),.\s%\/\-]/', '', (string) $v);
+        return preg_replace('/[^a-zA-Z0-9#(),.:\s%\/\-]/', '', (string) $v);
     }
 
     /** Sanitize custom class tokens: only safe characters. */
