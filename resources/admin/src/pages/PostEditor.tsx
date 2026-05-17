@@ -48,6 +48,9 @@ export default function PostEditor() {
   const [categoryId, setCategoryId] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [featuredImage, setFeaturedImage] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
+  const [postFormat, setPostFormat] = useState('standard');
   const [publishedAt, setPublishedAt] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [layoutId, setLayoutId] = useState('');
@@ -110,6 +113,9 @@ export default function PostEditor() {
     setLayoutId(post.layout_id || '');
     setExcerpt(post.excerpt || '');
     setFeaturedImage(post.featured_image || '');
+    setVideoUrl(post.video_url || '');
+    setThumbnail(post.thumbnail || '');
+    setPostFormat(post.post_format || 'standard');
     setPublishedAt(post.published_at ? new Date(post.published_at).toISOString().slice(0, 16) : '');
     setScheduledAt(post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '');
     setSlugManual(!!post.slug);
@@ -139,6 +145,7 @@ export default function PostEditor() {
       await postsApi.update(siteId, postId, {
         title, slug, status, category_id: categoryId || null, layout_id: layoutId || null,
         excerpt: excerpt || null, featured_image: featuredImage || null,
+        video_url: videoUrl || null, thumbnail: thumbnail || null, post_format: postFormat,
         editor_mode: editorMode,
         published_at: publishedAt || null, scheduled_at: scheduledAt || null,
       });
@@ -285,6 +292,9 @@ export default function PostEditor() {
                     categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
                     excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
                     featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
+                    videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
+                    thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
+                    postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
                     publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
                     scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
                     layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
@@ -327,6 +337,9 @@ export default function PostEditor() {
                     categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
                     excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
                     featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
+                    videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
+                    thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
+                    postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
                     publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
                     scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
                     layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
@@ -348,7 +361,7 @@ export default function PostEditor() {
 // ═══════════════════════════════════════════
 // Post Metadata Panel
 // ═══════════════════════════════════════════
-function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId }: {
+function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId }: {
   slug: string; setSlug: (v: string) => void;
   slugManual: boolean; setSlugManual: (v: boolean) => void;
   title: string;
@@ -358,6 +371,9 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
   layouts: Array<{ id: string; name: string; slug: string; is_system: boolean; description?: string }>;
   excerpt: string; setExcerpt: (v: string) => void;
   featuredImage: string; setFeaturedImage: (v: string) => void;
+  videoUrl: string; setVideoUrl: (v: string) => void;
+  thumbnail: string; setThumbnail: (v: string) => void;
+  postFormat: string; setPostFormat: (v: string) => void;
   publishedAt: string; setPublishedAt: (v: string) => void;
   scheduledAt: string; setScheduledAt: (v: string) => void;
   categories: Array<{ id: string; name: string }>;
@@ -430,8 +446,36 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
         <p className="text-[10px] text-base-content/25 mt-0.5">{excerpt.length}/300 characters</p>
       </div>
 
+      {/* Post Format */}
+      <div>
+        <label className="text-[11px] text-base-content/40 mb-1 block">Post Format</label>
+        <select value={postFormat} onChange={e => setPostFormat(e.target.value)}
+          className="select select-bordered select-sm w-full text-[12px]">
+          <option value="standard">Standard</option>
+          <option value="video">Video</option>
+          <option value="gallery">Gallery</option>
+          <option value="audio">Audio</option>
+          <option value="link">Link</option>
+        </select>
+      </div>
+
       {/* Featured image */}
       <AssetField label="Featured image" value={featuredImage} onChange={(url) => setFeaturedImage(url)} accept="image" />
+
+      {/* Thumbnail (separate from featured image) */}
+      <AssetField label="Thumbnail" value={thumbnail} onChange={(url) => setThumbnail(url)} accept="image" />
+      <p className="text-[10px] text-base-content/25 -mt-3">Optional smaller image for cards and lists</p>
+
+      {/* Video URL */}
+      {(postFormat === 'video' || videoUrl) && (
+        <div>
+          <label className="text-[11px] text-base-content/40 mb-1 block">Video URL</label>
+          <input type="url" value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
+            className="input input-bordered input-sm w-full text-[12px]"
+            placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..." />
+          <p className="text-[10px] text-base-content/25 mt-0.5">YouTube, Vimeo, or direct video URL</p>
+        </div>
+      )}
 
       {/* Published date */}
       <div>

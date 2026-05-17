@@ -20,6 +20,9 @@ class PostResource extends JsonResource
             'category_id' => $this->category_id,
             'excerpt' => $this->excerpt,
             'featured_image' => $this->featured_image,
+            'video_url' => $this->video_url,
+            'thumbnail' => $this->thumbnail,
+            'post_format' => $this->post_format ?? 'standard',
             'grid_id' => $this->grid_id,
             'grid' => $this->whenLoaded('grid', fn() => [
                 'id' => $this->grid->id,

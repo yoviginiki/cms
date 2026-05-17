@@ -13,7 +13,7 @@ class Category extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'site_id', 'parent_id', 'name', 'slug',
+        'site_id', 'parent_id', 'default_layout_id', 'name', 'slug',
         'description', 'sort_order', 'is_public', 'grid_id',
     ];
 
