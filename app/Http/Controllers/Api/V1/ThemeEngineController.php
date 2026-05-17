@@ -46,7 +46,7 @@ class ThemeEngineController extends Controller
             ->whereNotNull('document')
             ->get(['id', 'name', 'slug', 'description', 'modes', 'schema_version', 'is_system', 'parent_theme_id']);
 
-        $all = $systemThemes->merge($siteThemes);
+        $all = $systemThemes->merge($siteThemes)->unique('id');
 
         // Mark active — check both new assignments AND legacy active_theme_id
         $assignedIds = ThemeAssignment::where('tenant_id', $site->tenant_id)
@@ -165,6 +165,11 @@ class ThemeEngineController extends Controller
             'theme_id' => ['required', 'string'],
             'mode' => ['sometimes', 'string'],
         ]);
+
+        $theme = $this->findTheme($request->input('theme_id'));
+        if (!$theme) {
+            return response()->json(['message' => 'Theme not found'], 404);
+        }
 
         $mode = $request->input('mode', 'light');
 

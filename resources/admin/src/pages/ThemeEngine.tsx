@@ -199,10 +199,14 @@ function ThemeCard({ theme, siteId: _siteId, onFork, onAssign, onEdit }: {
             <Copy className="h-3 w-3" /> Fork
           </button>
         )}
-        {!theme.is_assigned && (
+        {theme.is_assigned ? (
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 text-purple-700 border border-purple-200">
+            <Check className="h-3 w-3" /> Selected
+          </span>
+        ) : (
           <button onClick={onAssign}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700">
-            <Check className="h-3 w-3" /> Assign
+            <Check className="h-3 w-3" /> Select
           </button>
         )}
       </div>
