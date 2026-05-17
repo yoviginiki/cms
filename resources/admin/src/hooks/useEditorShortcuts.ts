@@ -57,13 +57,13 @@ export function useEditorShortcuts(
         return;
       }
 
-      // Delete/Backspace: remove selected (only if not in an input)
+      // Delete/Backspace: remove selected (only if not in an input or contentEditable)
       if (
         (e.key === 'Delete' || e.key === 'Backspace') &&
         state.selectedBlockId
       ) {
-        const tag = (e.target as HTMLElement).tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        const target = e.target as HTMLElement;
+        if (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
         e.preventDefault();
         removeBlock(state.selectedBlockId);
         return;

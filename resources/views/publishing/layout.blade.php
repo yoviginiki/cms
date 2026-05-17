@@ -26,6 +26,10 @@
     @endif
     {!! $headScripts ?? '' !!}
     <style>
+    /* ─── Block overlay z-index fix ─── */
+    /* Ensure block content stacks above background overlays */
+    .block-bg-overlay ~ * { position: relative; z-index: 1; }
+
     /* ─── Override old theme nav styles ─── */
     nav.nav-menu-container{all:unset !important}
     nav .nav-menu{all:unset !important}

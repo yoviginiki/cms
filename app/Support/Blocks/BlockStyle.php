@@ -343,7 +343,7 @@ class BlockStyle
         if (!$color || $opacity <= 0) return '';
 
         $safeOpacity = max(0, min(1, $opacity));
-        return "<div style=\"position:absolute;inset:0;background-color:{$color};opacity:{$safeOpacity};pointer-events:none;z-index:0;\"></div>";
+        return "<div class=\"block-bg-overlay\" style=\"position:absolute;inset:0;background-color:{$color};opacity:{$safeOpacity};pointer-events:none;z-index:0;\"></div>";
     }
 
     private const HOVER_EFFECTS = ['opacity', 'lift', 'glow', 'scale', 'darken', 'grayscale', 'sepia', 'blur', 'saturate'];

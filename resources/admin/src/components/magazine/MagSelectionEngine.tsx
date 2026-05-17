@@ -170,7 +170,7 @@ export function useMagSelection(
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
 
       if (e.key === 'Delete' || e.key === 'Backspace') { if (state.selectedIds.length) { e.preventDefault(); onDeleteElements(state.selectedIds); clearSelection(); } }
       if (e.key === 'd' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onDuplicateElements(state.selectedIds); }
