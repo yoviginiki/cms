@@ -32,11 +32,25 @@ export const featuresPreset: PresetDefinition = {
     children: [
       {
         id: uid(),
-        type: 'heading',
-        level: 'module',
+        type: 'row',
+        level: 'row',
         order: 0,
-        data: { text: 'Why Choose Us', level: 'h2', fontSize: '2rem' },
-        children: [],
+        data: { layout: '1', gap: '16px' },
+        children: [{
+          id: uid(),
+          type: 'column',
+          level: 'column',
+          order: 0,
+          data: { padding: '0', vertical_align: 'center' },
+          children: [{
+            id: uid(),
+            type: 'heading',
+            level: 'module',
+            order: 0,
+            data: { text: 'Why Choose Us', level: 'h2', fontSize: '2rem' },
+            children: [],
+          }],
+        }],
       },
       {
         id: uid(),
