@@ -174,10 +174,7 @@ class BuildPageService
                 // Standard: header + max-width content + footer
                 $headerNav = $this->menuRenderer->renderByLocation($site, 'header');
                 $footerNav = $this->menuRenderer->renderByLocation($site, 'footer');
-                $bodyContent = ($headerNav ?: ($themeConfig['navigation_html'] ?? ''))
-                    . '<main style="max-width:' . ($layout?->supports['maxWidthValue'] ?? '48rem') . ';margin:0 auto;padding:0 1.5rem;">'
-                    . $renderedBlocks . '</main>'
-                    . ($footerNav ?? '');
+                $bodyContent = $renderedBlocks;
             }
 
             $html = View::make('publishing.layout', [
@@ -188,9 +185,10 @@ class BuildPageService
                 'criticalCss' => $criticalCss,
                 'fontPreloads' => $fontPreloads,
                 'cssFile' => $themeConfig['css_file'] ?? null,
-                'navigation' => '',
-                'footerNavigation' => '',
+                'navigation' => ($layoutSlug === 'standard') ? ($headerNav ?: ($themeConfig['navigation_html'] ?? '')) : '',
+                'footerNavigation' => ($layoutSlug === 'standard') ? ($footerNav ?? '') : '',
                 'renderedBlocks' => $bodyContent,
+                'mainStyle' => ($layoutSlug === 'standard') ? 'max-width:' . ($layout?->supports['maxWidthValue'] ?? '48rem') . ';margin:0 auto;padding:0 1.5rem;' : '',
                 'designTokensCss' => $designTokensCss ?? '',
                 'hookHeadScripts' => $hookHeadScripts,
                 'hookBodyOpen' => $hookBodyOpen,

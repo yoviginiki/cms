@@ -197,7 +197,8 @@ export function buildBackgroundFromData(data?: Record<string, unknown>): React.C
 export function buildOverlayFromData(data?: Record<string, unknown>): React.CSSProperties | null {
   if (!data) return null;
   const bgType = data.bg_type as string;
-  if (bgType !== 'image') return null;
+  // Auto-detect image background when bg_type is missing but bg_image is set
+  if (bgType !== 'image' && !data.bg_image) return null;
 
   const color = safeColor(data.bg_overlay_color as string);
   const opacity = Number(data.bg_overlay_opacity ?? 0);

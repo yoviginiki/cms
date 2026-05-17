@@ -87,7 +87,7 @@
         {!! $navigation !!}
     </header>
     @endif
-    <main role="main">
+    <main role="main"@if(!empty($mainStyle)) style="{{ $mainStyle }}"@endif>
         {!! $renderedBlocks !!}
     </main>
     @if(!empty($footerNavigation))

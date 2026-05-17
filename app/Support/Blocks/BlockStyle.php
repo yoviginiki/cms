@@ -314,7 +314,8 @@ class BlockStyle
     public static function buildOverlayHtml(array $data): string
     {
         $bgType = $data['bg_type'] ?? null;
-        if ($bgType !== 'image') return '';
+        // Auto-detect image background when bg_type is missing but bg_image is set
+        if ($bgType !== 'image' && empty($data['bg_image'])) return '';
 
         $color = self::safeColor($data['bg_overlay_color'] ?? '');
         $opacity = (float) ($data['bg_overlay_opacity'] ?? 0);

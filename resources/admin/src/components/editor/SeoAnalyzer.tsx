@@ -85,13 +85,15 @@ export function SeoAnalyzer({ pageTitle, seoTitle, seoDescription, slug }: SeoAn
       results.push({ id: 'desc-ok', label: 'Meta Description', status: 'pass', message: `Description is ${seoDescription.length} chars — optimal length.` });
     }
 
-    // 3. H1 tag
+    // 3. H1 tag (also count Hero blocks which always render an H1)
     const headings = findBlocks(blocks, 'heading');
     const h1s = headings.filter(h => h.data.level === 'h1');
-    if (h1s.length === 0) {
+    const heroBlocks = findBlocks(blocks, 'hero');
+    const totalH1s = h1s.length + heroBlocks.length;
+    if (totalH1s === 0) {
       results.push({ id: 'h1-missing', label: 'H1 Heading', status: 'error', message: 'No H1 heading found. Every page should have exactly one H1.' });
-    } else if (h1s.length > 1) {
-      results.push({ id: 'h1-multiple', label: 'H1 Heading', status: 'warning', message: `Found ${h1s.length} H1 headings. Use only one H1 per page.` });
+    } else if (totalH1s > 1) {
+      results.push({ id: 'h1-multiple', label: 'H1 Heading', status: 'warning', message: `Found ${totalH1s} H1 headings. Use only one H1 per page.` });
     } else {
       results.push({ id: 'h1-ok', label: 'H1 Heading', status: 'pass', message: 'Page has exactly one H1 heading.' });
     }
@@ -160,8 +162,10 @@ export function SeoAnalyzer({ pageTitle, seoTitle, seoDescription, slug }: SeoAn
     }
 
     // 10. Structured headings with keywords
-    if (h1s.length === 1 && effectiveTitle) {
-      const h1Text = String(h1s[0].data.text || '').toLowerCase();
+    if (totalH1s === 1 && effectiveTitle) {
+      const h1Text = h1s.length === 1
+        ? String(h1s[0].data.text || '').toLowerCase()
+        : String(heroBlocks[0].data.title || '').toLowerCase();
       const titleWords = effectiveTitle.toLowerCase().split(/\s+/).filter(w => w.length > 3);
       const matchingWords = titleWords.filter(w => h1Text.includes(w));
       if (matchingWords.length === 0 && titleWords.length > 0) {
