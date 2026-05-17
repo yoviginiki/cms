@@ -6,36 +6,38 @@ import type { ShadowCustom } from '@/lib/shadowStyles';
 interface Props {
   value: VisualProps;
   onChange: (v: VisualProps) => void;
+  hideBg?: boolean;
 }
 
-export function VisualPanel({ value, onChange }: Props) {
+export function VisualPanel({ value, onChange, hideBg }: Props) {
   const update = (key: string, v: unknown) => onChange({ ...value, [key]: v || undefined });
 
   return (
     <div className="space-y-3">
-      {/* ── Background ── */}
-      <p className="text-[9px] text-base-content/25 italic">
-        Background controls below are for generic blocks. Hero and blocks with their own background system use those instead.
-      </p>
-      <div>
-        <label className="text-[10px] text-base-content/40">Background color</label>
-        <div className="flex gap-2">
-          <input type="color" value={value.backgroundColor || '#ffffff'} onChange={e => update('backgroundColor', e.target.value)}
-            className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
-          <input value={value.backgroundColor || ''} onChange={e => update('backgroundColor', e.target.value)}
-            className="input input-bordered input-xs flex-1 text-[11px]" placeholder="transparent" />
-        </div>
-      </div>
-      <div>
-        <label className="text-[10px] text-base-content/40">Background image</label>
-        <input value={value.backgroundImage || ''} onChange={e => update('backgroundImage', e.target.value)}
-          className="input input-bordered input-xs w-full text-[11px]" placeholder="url(https://...)" />
-      </div>
-      <div>
-        <label className="text-[10px] text-base-content/40">Gradient</label>
-        <input value={value.backgroundGradient || ''} onChange={e => update('backgroundGradient', e.target.value)}
-          className="input input-bordered input-xs w-full text-[11px]" placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
-      </div>
+      {!hideBg && (
+        <>
+          {/* ── Background (legacy — use BackgroundEditor section instead) ── */}
+          <div>
+            <label className="text-[10px] text-base-content/40">Background color</label>
+            <div className="flex gap-2">
+              <input type="color" value={value.backgroundColor || '#ffffff'} onChange={e => update('backgroundColor', e.target.value)}
+                className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
+              <input value={value.backgroundColor || ''} onChange={e => update('backgroundColor', e.target.value)}
+                className="input input-bordered input-xs flex-1 text-[11px]" placeholder="transparent" />
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] text-base-content/40">Background image</label>
+            <input value={value.backgroundImage || ''} onChange={e => update('backgroundImage', e.target.value)}
+              className="input input-bordered input-xs w-full text-[11px]" placeholder="url(https://...)" />
+          </div>
+          <div>
+            <label className="text-[10px] text-base-content/40">Gradient</label>
+            <input value={value.backgroundGradient || ''} onChange={e => update('backgroundGradient', e.target.value)}
+              className="input input-bordered input-xs w-full text-[11px]" placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
+          </div>
+        </>
+      )}
 
       {/* ── Border ── */}
       <div className="grid grid-cols-3 gap-2">

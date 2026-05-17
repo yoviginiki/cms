@@ -6,7 +6,7 @@ import { useEditorStore } from '@/stores/editorStore';
 import { BlockToolbar } from './BlockToolbar';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
-import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, safeDim } from '@/lib/blockStyles';
+import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, buildBackgroundFromData, safeDim } from '@/lib/blockStyles';
 import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
 import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
@@ -132,9 +132,10 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
       )}
 
       <div
-        className={`relative ${buildBlockClasses(block.advanced)}`}
+        className={`relative ${buildBlockClasses(block.advanced, block.animation)}`}
         style={{
           ...buildBlockWrapperStyle(block.style),
+          ...buildBackgroundFromData(block.data),
           ...buildAnimationStyle(block.animation),
         }}
         {...(block.advanced?.htmlId ? { id: block.advanced.htmlId.replace(/[^a-zA-Z0-9_-]/g, '') } : {})}

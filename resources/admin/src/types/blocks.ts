@@ -82,7 +82,7 @@ export interface AnimationProps {
   delay?: number;
   easing?: 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
   trigger?: 'on-load' | 'on-scroll';
-  hoverEffect?: 'none' | 'opacity' | 'lift' | 'glow';
+  hoverEffect?: 'none' | 'opacity' | 'lift' | 'glow' | 'scale' | 'darken';
 }
 
 // ─── Advanced ───

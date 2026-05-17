@@ -143,6 +143,46 @@ const ANIMATION_NAMES: Record<string, string> = {
   'scale-in': 'block-scale-in',
 };
 
+/**
+ * Build background CSS from block.data bg_* fields (BackgroundEditor).
+ */
+export function buildBackgroundFromData(data?: Record<string, unknown>): React.CSSProperties {
+  if (!data) return {};
+  const bgType = data.bg_type as string;
+  if (!bgType || bgType === 'none') return {};
+
+  const css: React.CSSProperties = {};
+
+  if (bgType === 'color' && data.bg_color) {
+    const c = safeColor(data.bg_color as string);
+    if (c) css.backgroundColor = c;
+  }
+
+  if (bgType === 'gradient' && data.bg_gradient_stops) {
+    const stops = data.bg_gradient_stops as Array<{ color: string; position: number }>;
+    const type = (data.bg_gradient_type as string) || 'linear';
+    const angle = Number(data.bg_gradient_angle ?? 180);
+    if (stops.length >= 2) {
+      const stopsStr = stops.map(s => `${s.color} ${s.position}%`).join(', ');
+      css.background = type === 'radial'
+        ? `radial-gradient(circle, ${stopsStr})`
+        : `linear-gradient(${angle}deg, ${stopsStr})`;
+    }
+  }
+
+  if (bgType === 'image' && data.bg_image) {
+    css.backgroundImage = `url(${data.bg_image})`;
+    css.backgroundSize = (data.bg_image_size as string) || 'cover';
+    css.backgroundPosition = (data.bg_image_position as string) || 'center center';
+    css.backgroundRepeat = (data.bg_image_repeat as string) || 'no-repeat';
+    if (data.bg_scroll_effect === 'fixed') {
+      css.backgroundAttachment = 'fixed';
+    }
+  }
+
+  return css;
+}
+
 const VALID_EASINGS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
 
 /**
@@ -169,10 +209,16 @@ export function buildAnimationStyle(animation?: AnimationProps): React.CSSProper
 /**
  * Build CSS class names from block.advanced.
  */
-export function buildBlockClasses(advanced?: AdvancedProps): string {
-  if (!advanced?.customClass) return '';
-  // Only allow safe class tokens
-  return advanced.customClass.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
+export function buildBlockClasses(advanced?: AdvancedProps, animation?: AnimationProps): string {
+  let classes = '';
+  if (advanced?.customClass) {
+    classes += advanced.customClass.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
+  }
+  // Hover effect CSS class
+  if (animation?.hoverEffect && animation.hoverEffect !== 'none') {
+    classes += ` block-hover-${animation.hoverEffect}`;
+  }
+  return classes.trim();
 }
 
 /** Validate and normalize a CSS dimension value. Returns empty string if invalid. */

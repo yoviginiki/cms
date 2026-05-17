@@ -9,6 +9,7 @@ import { LayoutPanel } from './properties/LayoutPanel';
 import { AnimationPanel } from './properties/AnimationPanel';
 import { AdvancedPanel } from './properties/AdvancedPanel';
 import { ResponsivePanel } from './properties/ResponsivePanel';
+import BackgroundEditor from './BackgroundEditor';
 
 function findBlock(blocks: BlockData[], id: string): BlockData | null {
   for (const block of blocks) {
@@ -104,9 +105,14 @@ export function BlockSettings() {
           <SpacingPanel value={style.spacing || {}} onChange={v => updateStyle('spacing', v)} />
         </Section>
 
-        {/* Visual */}
-        <Section title="Background & borders">
-          <VisualPanel value={style.visual || {}} onChange={v => updateStyle('visual', v)} />
+        {/* Background (full Divi-quality: color picker, gradient builder, image + overlay) */}
+        <Section title="Background">
+          <BackgroundEditor data={block.data || {}} onChange={handleUpdate} />
+        </Section>
+
+        {/* Borders & Shadow */}
+        <Section title="Borders & Shadow">
+          <VisualPanel value={style.visual || {}} onChange={v => updateStyle('visual', v)} hideBg />
         </Section>
 
         {/* Layout */}
