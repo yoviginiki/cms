@@ -157,58 +157,57 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
           </div>
         )}
 
-        {/* Render Preview — for containers, only when empty */}
+        {/* Content layer — sits above overlay */}
         <div className="relative z-[1]">
-        {(!allowsChildren || children.length === 0) && (
-          <Preview
-            block={block}
-            isSelected={isSelected}
-            onUpdate={(data) => updateBlock(block.id, data)}
-            onSelect={() => selectBlock(block.id)}
-          />
-        )}
+          {/* Render Preview — for containers, only when empty */}
+          {(!allowsChildren || children.length === 0) && (
+            <Preview
+              block={block}
+              isSelected={isSelected}
+              onUpdate={(data) => updateBlock(block.id, data)}
+              onSelect={() => selectBlock(block.id)}
+            />
+          )}
+
+          {allowsChildren && (
+            <DroppableZone id={`${block.id}-children`}>
+              <SortableContext
+                items={children.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+                id={`sortable-${block.id}`}
+              >
+                <div style={childrenStyle} className={isRow ? 'min-h-[40px]' : 'space-y-1'}>
+                  {children.length === 0 && (
+                    <div className="text-center py-6 col-span-full">
+                      <p className="text-xs text-gray-400 mb-2">
+                        {level === 'section' ? 'Add rows to build your layout' :
+                         level === 'row' ? 'Add columns to this row' :
+                         level === 'column' ? 'Add modules to this column' :
+                         'Drop blocks here'}
+                      </p>
+                    </div>
+                  )}
+
+                  {children.map((child) => (
+                    <SortableBlock key={child.id} block={child} depth={depth + 1} />
+                  ))}
+
+                  {/* Persistent "+" button — always visible */}
+                  <div className="flex justify-center py-1 col-span-full">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleAddChild(); }}
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs border border-transparent rounded-lg transition-colors ${addColor}`}
+                    >
+                      <Plus size={14} />
+                      {addLabel}
+                    </button>
+                  </div>
+                </div>
+              </SortableContext>
+            </DroppableZone>
+          )}
         </div>
       </div>
-
-      {allowsChildren && (
-        <DroppableZone id={`${block.id}-children`}>
-          <div className="relative z-[1]">
-          <SortableContext
-            items={children.map((c) => c.id)}
-            strategy={verticalListSortingStrategy}
-            id={`sortable-${block.id}`}
-          >
-            <div style={childrenStyle} className={isRow ? 'min-h-[40px]' : 'space-y-1'}>
-              {children.length === 0 && (
-                <div className="text-center py-6 col-span-full">
-                  <p className="text-xs text-gray-400 mb-2">
-                    {level === 'section' ? 'Add rows to build your layout' :
-                     level === 'row' ? 'Add columns to this row' :
-                     level === 'column' ? 'Add modules to this column' :
-                     'Drop blocks here'}
-                  </p>
-                </div>
-              )}
-
-              {children.map((child) => (
-                <SortableBlock key={child.id} block={child} depth={depth + 1} />
-              ))}
-
-              {/* Persistent "+" button — always visible */}
-              <div className="flex justify-center py-1 col-span-full">
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleAddChild(); }}
-                  className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs border border-transparent rounded-lg transition-colors ${addColor}`}
-                >
-                  <Plus size={14} />
-                  {addLabel}
-                </button>
-              </div>
-            </div>
-          </SortableContext>
-          </div>
-        </DroppableZone>
-      )}
 
       {/* Module picker modal for columns */}
       {pickerOpen && (

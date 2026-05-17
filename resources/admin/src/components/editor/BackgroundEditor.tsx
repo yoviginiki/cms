@@ -180,7 +180,11 @@ export default function BackgroundEditor({ data, onChange }: Props) {
             <div className="space-y-2">
               <AssetField label="Background Image" value={bg.bg_image || ''} accept="image"
                 onChange={(url, assetId) => {
-                  onChange({ bg_image: url, ...(assetId ? { bg_asset_id: assetId } : {}) });
+                  onChange({
+                    bg_image: url,
+                    ...(assetId ? { bg_asset_id: assetId } : {}),
+                    ...(!bg.bg_type || bg.bg_type === 'none' ? { bg_type: 'image' } : {}),
+                  });
                 }} />
 
               <div className="grid grid-cols-2 gap-2">

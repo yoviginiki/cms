@@ -18,10 +18,13 @@
     $maxW = $data['max_width'] ?? '1200px';
     $id = $data['anchor_id'] ?? '';
 
-    // Legacy bg support (for blocks without bg_type set)
-    $bgType = $data['bg_type'] ?? 'none';
+    // Legacy bg support (only when NO new bg_* fields are present)
+    $hasNewBg = (!empty($data['bg_type']) && $data['bg_type'] !== 'none')
+        || !empty($data['bg_color'])
+        || !empty($data['bg_image'])
+        || !empty($data['bg_gradient_stops']);
     $legacyStyle = '';
-    if ($bgType === 'none') {
+    if (!$hasNewBg) {
         $legacyBg = $data['background_color'] ?? '';
         $legacyBgImg = $data['background_image'] ?? '';
         if ($legacyBg) $legacyStyle .= "background-color:{$legacyBg};";
