@@ -141,8 +141,9 @@ class BlockStyle
     /**
      * Build inline style string from block shared properties.
      * All values are sanitized before output.
+     * $blockData (optional) is the block's data array for bg_* background fields.
      */
-    public static function buildStyle(array $blockStyle = [], array $blockAnimation = []): string
+    public static function buildStyle(array $blockStyle = [], array $blockAnimation = [], array $blockData = []): string
     {
         $parts = [];
 
@@ -160,17 +161,51 @@ class BlockStyle
         // Visual
         $vis = $blockStyle['visual'] ?? [];
 
-        // Background
-        if (!empty($vis['backgroundGradient'])) {
-            $parts[] = "background:{$vis['backgroundGradient']}";
-        } elseif (!empty($vis['backgroundColor'])) {
-            $bc = self::safeColor($vis['backgroundColor']);
-            if ($bc) $parts[] = "background-color:{$bc}";
-        }
-        if (!empty($vis['backgroundImage'])) {
-            $parts[] = "background-image:url(" . self::safeCssVal($vis['backgroundImage']) . ")";
-            $parts[] = "background-size:cover";
-            $parts[] = "background-position:center";
+        // Background — prefer bg_* fields from BackgroundEditor, fall back to visual.*
+        $bgType = $blockData['bg_type'] ?? null;
+        if ($bgType && $bgType !== 'none') {
+            if ($bgType === 'color' && !empty($blockData['bg_color'])) {
+                $bc = self::safeColor($blockData['bg_color']);
+                if ($bc) $parts[] = "background-color:{$bc}";
+            } elseif ($bgType === 'gradient' && !empty($blockData['bg_gradient_stops'])) {
+                $stops = $blockData['bg_gradient_stops'];
+                $gType = $blockData['bg_gradient_type'] ?? 'linear';
+                $angle = (int) ($blockData['bg_gradient_angle'] ?? 180);
+                if (count($stops) >= 2) {
+                    $stopsStr = implode(', ', array_map(
+                        fn($s) => self::safeColor($s['color'] ?? '#000') . ' ' . max(0, min(100, (int) ($s['position'] ?? 0))) . '%',
+                        $stops
+                    ));
+                    $parts[] = $gType === 'radial'
+                        ? "background:radial-gradient(circle, {$stopsStr})"
+                        : "background:linear-gradient({$angle}deg, {$stopsStr})";
+                }
+            } elseif ($bgType === 'image' && !empty($blockData['bg_image'])) {
+                $url = self::safeCssVal($blockData['bg_image']);
+                $size = in_array($blockData['bg_image_size'] ?? '', ['cover', 'contain', 'auto']) ? $blockData['bg_image_size'] : 'cover';
+                $pos = self::safeCssVal($blockData['bg_image_position'] ?? 'center center') ?: 'center center';
+                $repeat = in_array($blockData['bg_image_repeat'] ?? '', ['no-repeat', 'repeat', 'repeat-x', 'repeat-y']) ? $blockData['bg_image_repeat'] : 'no-repeat';
+                $parts[] = "background-image:url({$url})";
+                $parts[] = "background-size:{$size}";
+                $parts[] = "background-position:{$pos}";
+                $parts[] = "background-repeat:{$repeat}";
+                if (($blockData['bg_scroll_effect'] ?? '') === 'fixed') {
+                    $parts[] = "background-attachment:fixed";
+                }
+            }
+        } else {
+            // Legacy: style.visual background fields
+            if (!empty($vis['backgroundGradient'])) {
+                $parts[] = "background:{$vis['backgroundGradient']}";
+            } elseif (!empty($vis['backgroundColor'])) {
+                $bc = self::safeColor($vis['backgroundColor']);
+                if ($bc) $parts[] = "background-color:{$bc}";
+            }
+            if (!empty($vis['backgroundImage'])) {
+                $parts[] = "background-image:url(" . self::safeCssVal($vis['backgroundImage']) . ")";
+                $parts[] = "background-size:cover";
+                $parts[] = "background-position:center";
+            }
         }
 
         // Border
@@ -264,11 +299,14 @@ class BlockStyle
         return implode(';', $parts);
     }
 
+    private const HOVER_EFFECTS = ['opacity', 'lift', 'glow', 'scale', 'darken'];
+
     /**
      * Build class string from block shared properties.
      */
     public static function buildClasses(
         array $blockAdvanced = [],
+        array $blockAnimation = [],
         string ...$extra
     ): string {
         $classes = [];
@@ -276,6 +314,12 @@ class BlockStyle
         // Custom class (sanitized)
         $custom = self::safeClass($blockAdvanced['customClass'] ?? '');
         if ($custom) $classes[] = $custom;
+
+        // Hover effect class
+        $hover = $blockAnimation['hoverEffect'] ?? '';
+        if ($hover && in_array($hover, self::HOVER_EFFECTS)) {
+            $classes[] = "block-hover-{$hover}";
+        }
 
         // Extra classes passed by the block template
         foreach ($extra as $c) {

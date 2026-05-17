@@ -4,8 +4,8 @@
     $__ba = $blockAnimation ?? [];
     $__adv = $blockAdvanced ?? [];
     $__resp = $blockResponsive ?? [];
-    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba);
-    $__customClass = BlockStyle::safeClass($__adv['customClass'] ?? '');
+    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba, $data ?? []);
+    $__customClass = BlockStyle::buildClasses($__adv, $__ba);
     $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
     $__animAttr = BlockStyle::animationAttr($__ba);
     $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);

@@ -396,6 +396,11 @@ img{max-width:100%;height:auto;display:block}
 @keyframes block-zoom{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
 @keyframes block-scale-in{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){[style*="animation-name"],[data-animation]{animation:none!important}}
+.block-hover-opacity{transition:opacity .3s ease}.block-hover-opacity:hover{opacity:.7}
+.block-hover-lift{transition:transform .3s ease,box-shadow .3s ease}.block-hover-lift:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(0,0,0,.12)}
+.block-hover-glow{transition:box-shadow .3s ease}.block-hover-glow:hover{box-shadow:0 0 20px rgba(59,130,246,.4)}
+.block-hover-scale{transition:transform .3s ease}.block-hover-scale:hover{transform:scale(1.03)}
+.block-hover-darken{transition:filter .3s ease}.block-hover-darken:hover{filter:brightness(.85)}
 ';
 
         return trim($css);
