@@ -36,21 +36,22 @@ class DemoBlocksPageSeeder extends Seeder
             return;
         }
 
-        // Delete existing demo page if it exists
+        // Reuse existing page or create new one
         $existing = Page::where('site_id', $site->id)->where('slug', 'block-showcase')->first();
         if ($existing) {
             $existing->blocks()->delete();
-            $existing->forceDelete();
+            $page = $existing;
+            $this->command->info("Cleared existing block-showcase page blocks");
+        } else {
+            $page = Page::create([
+                'site_id' => $site->id,
+                'title' => 'Block Showcase',
+                'slug' => 'block-showcase',
+                'status' => 'published',
+                'editor_mode' => 'builder',
+                'published_at' => now(),
+            ]);
         }
-
-        $page = Page::create([
-            'site_id' => $site->id,
-            'title' => 'Block Showcase',
-            'slug' => 'block-showcase',
-            'status' => 'published',
-            'editor_mode' => 'builder',
-            'published_at' => now(),
-        ]);
 
         $sections = $this->buildSections();
 
