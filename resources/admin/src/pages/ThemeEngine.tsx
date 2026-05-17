@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Palette, Copy, Loader2, Check, Upload, Eye } from 'lucide-react';
+import { Palette, Copy, Loader2, Check, Upload, Eye, Power } from 'lucide-react';
 import { themeEngine } from '@/lib/api';
 
 interface ThemeItem {
@@ -39,7 +39,7 @@ export default function ThemeEngine() {
     },
   });
 
-  const assignMut = useMutation({
+  const activateMut = useMutation({
     mutationFn: (themeId: string) => themeEngine.assign(siteId, themeId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['theme-engine', siteId] }),
   });
@@ -105,9 +105,10 @@ export default function ThemeEngine() {
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">System Themes</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {systemThemes.map(theme => (
-              <ThemeCard key={theme.id} theme={theme} siteId={siteId}
+              <ThemeCard key={theme.id} theme={theme}
                 onFork={() => handleFork(theme)}
-                onAssign={() => assignMut.mutate(theme.id)}
+                onActivate={() => activateMut.mutate(theme.id)}
+                isActivating={activateMut.isPending}
                 onEdit={() => navigate(`/sites/${siteId}/theme-engine/${theme.id}`)} />
             ))}
           </div>
@@ -128,9 +129,10 @@ export default function ThemeEngine() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {customThemes.map(theme => (
-              <ThemeCard key={theme.id} theme={theme} siteId={siteId}
+              <ThemeCard key={theme.id} theme={theme}
                 onFork={() => handleFork(theme)}
-                onAssign={() => assignMut.mutate(theme.id)}
+                onActivate={() => activateMut.mutate(theme.id)}
+                isActivating={activateMut.isPending}
                 onEdit={() => navigate(`/sites/${siteId}/theme-engine/${theme.id}`)} />
             ))}
           </div>
@@ -159,9 +161,12 @@ export default function ThemeEngine() {
   );
 }
 
-function ThemeCard({ theme, siteId: _siteId, onFork, onAssign, onEdit }: {
-  theme: ThemeItem; siteId: string;
-  onFork: () => void; onAssign: () => void; onEdit: () => void;
+function ThemeCard({ theme, onFork, onActivate, isActivating, onEdit }: {
+  theme: ThemeItem;
+  onFork: () => void;
+  onActivate: () => void;
+  isActivating: boolean;
+  onEdit: () => void;
 }) {
   return (
     <div className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${
@@ -175,7 +180,9 @@ function ThemeCard({ theme, siteId: _siteId, onFork, onAssign, onEdit }: {
           )}
         </div>
         {theme.is_assigned && (
-          <span className="bg-purple-100 text-purple-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">Active</span>
+          <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Power className="h-2.5 w-2.5" /> Active
+          </span>
         )}
       </div>
 
@@ -200,13 +207,13 @@ function ThemeCard({ theme, siteId: _siteId, onFork, onAssign, onEdit }: {
           </button>
         )}
         {theme.is_assigned ? (
-          <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 text-purple-700 border border-purple-200">
-            <Check className="h-3 w-3" /> Selected
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 border border-green-200">
+            <Check className="h-3 w-3" /> Active
           </span>
         ) : (
-          <button onClick={onAssign}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700">
-            <Check className="h-3 w-3" /> Select
+          <button onClick={onActivate} disabled={isActivating}
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">
+            <Power className="h-3 w-3" /> Activate
           </button>
         )}
       </div>
