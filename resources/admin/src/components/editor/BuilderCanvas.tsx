@@ -17,6 +17,8 @@ import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
+import { BlockIcon } from './BlockIcon';
+import { presets as presetsList } from '@/presets';
 import type { Active } from '@dnd-kit/core';
 
 /**
@@ -195,6 +197,7 @@ const canvasWidths: Record<CanvasDevice, string> = {
 export function BuilderCanvas() {
   const blocks = useEditorStore((s) => s.blocks);
   const addBlock = useEditorStore((s) => s.addBlock);
+  const addPresetAction = useEditorStore((s) => s.addPreset);
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const removeBlock = useEditorStore((s) => s.removeBlock);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
@@ -383,15 +386,25 @@ export function BuilderCanvas() {
                         )}
                       </div>
                     ))}
-                    {/* Add section at end */}
-                    <div className="flex justify-center py-4">
+                    {/* Add section at end — with preset options */}
+                    <div className="flex flex-wrap justify-center gap-2 py-4">
                       <button
                         onClick={(e) => { e.stopPropagation(); addBlock('section'); }}
-                        className="flex items-center gap-2 px-6 py-3 text-sm text-blue-500 hover:text-blue-600 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl transition-all hover:bg-blue-50"
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm text-blue-500 hover:text-blue-600 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl transition-all hover:bg-blue-50"
                       >
-                        <PanelTop size={18} />
-                        Add Section
+                        <PanelTop size={16} />
+                        Blank Section
                       </button>
+                      {presetsList.map(p => (
+                        <button
+                          key={p.type}
+                          onClick={(e) => { e.stopPropagation(); addPresetAction(p.type); }}
+                          className="flex items-center gap-1.5 px-4 py-2.5 text-xs text-purple-500 hover:text-purple-600 border border-dashed border-purple-200 hover:border-purple-400 rounded-xl transition-all hover:bg-purple-50"
+                        >
+                          <BlockIcon icon={p.icon} size={14} className="text-purple-400" />
+                          {p.label}
+                        </button>
+                      ))}
                     </div>
                   </>
                 )}

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, X } from 'lucide-react';
+import { Search, X, Sparkles } from 'lucide-react';
 import { blockRegistry } from '@/components/blocks/registry';
 import { useEditorStore } from '@/stores/editorStore';
 import { BlockIcon } from './BlockIcon';
+import { presets } from '@/presets';
 import type { BlockDefinition, BlockCategory } from '@/types/blocks';
 
 const CATEGORY_ORDER: { key: BlockCategory; label: string }[] = [
@@ -31,6 +32,7 @@ interface ModulePickerProps {
 export function ModulePicker({ parentId, insertIndex, onClose }: ModulePickerProps) {
   const [search, setSearch] = useState('');
   const addBlock = useEditorStore((s) => s.addBlock);
+  const addPreset = useEditorStore((s) => s.addPreset);
   const pickerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -106,6 +108,30 @@ export function ModulePicker({ parentId, insertIndex, onClose }: ModulePickerPro
 
       {/* Module grid */}
       <div className="overflow-y-auto p-3" style={{ maxHeight: 460 }}>
+        {/* Presets section */}
+        {!search && (
+          <div className="mb-4 pb-3 border-b border-gray-100">
+            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-purple-500 px-1 mb-2 flex items-center gap-1">
+              <Sparkles size={10} /> Presets
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {presets.map((preset) => (
+                <button
+                  key={preset.type}
+                  onClick={() => { addPreset(preset.type); onClose(); }}
+                  className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-left transition-colors hover:bg-purple-50 hover:text-purple-700 border border-transparent hover:border-purple-200"
+                >
+                  <BlockIcon icon={preset.icon} size={18} className="text-purple-400 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="text-[11px] font-medium text-gray-700 block">{preset.label}</span>
+                    <span className="text-[9px] text-gray-400 leading-tight">{preset.description}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {CATEGORY_ORDER.map(({ key, label }) => {
           const defs = grouped.get(key);
           if (!defs?.length) return null;

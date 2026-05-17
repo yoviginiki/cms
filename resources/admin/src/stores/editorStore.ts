@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BlockData, BlockStyleProps } from '@/types/blocks';
 import { blockRegistry } from '@/components/blocks/registry';
+import { getPreset } from '@/presets';
 
 // ─── Undo persistence helpers ───
 const UNDO_STORAGE_KEY = 'editor_undo_state';
@@ -42,6 +43,7 @@ interface EditorState {
   setEditorMode: (mode: 'block' | 'magazine') => void;
   setCanvasMode: (mode: 'visual' | 'wireframe' | 'html') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
+  addPreset: (presetType: string, index?: number) => void;
   updateBlock: (blockId: string, data: Partial<Record<string, unknown>>) => void;
   removeBlock: (blockId: string) => void;
   moveBlock: (activeId: string, overId: string, position: 'before' | 'after' | 'inside') => void;
@@ -234,6 +236,30 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       redoStack: [],
       isDirty: true,
       selectedBlockId: newBlock.id,
+    });
+  },
+
+  addPreset: (presetType, index) => {
+    const preset = getPreset(presetType);
+    if (!preset) return;
+
+    const state = get();
+    const undoStack = [
+      ...state.undoStack.slice(-(state.maxUndoSteps - 1)),
+      deepClone(state.blocks),
+    ];
+
+    const presetTree = preset.build();
+    const newBlocks = deepClone(state.blocks);
+    const insertAt = index ?? newBlocks.length;
+    newBlocks.splice(insertAt, 0, presetTree);
+
+    set({
+      blocks: reorder(newBlocks),
+      undoStack,
+      redoStack: [],
+      isDirty: true,
+      selectedBlockId: presetTree.id,
     });
   },
 
