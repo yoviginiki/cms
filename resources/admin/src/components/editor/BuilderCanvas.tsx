@@ -214,12 +214,6 @@ export function BuilderCanvas() {
     const target = e.target as HTMLElement;
     if (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
 
-    // Block destructive shortcuts in preview mode (tablet/mobile)
-    if (canvasDevice !== 'desktop') {
-      // Only allow mode-switching shortcuts, block everything else
-      if (!(e.ctrlKey && e.shiftKey && (e.key === 'W' || e.key === 'V'))) return;
-    }
-
     // Ctrl+Shift+W — Wireframe mode
     if (e.ctrlKey && e.shiftKey && e.key === 'W') {
       e.preventDefault();
@@ -333,14 +327,14 @@ export function BuilderCanvas() {
           </div>
         </div>
         {canvasDevice !== 'desktop' && (
-          <div className="flex items-center justify-center gap-2 py-1.5 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs font-medium">
-            <Eye size={12} /> Preview only — switch to Desktop to edit
+          <div className="flex items-center justify-center gap-2 py-1.5 bg-info/10 border-b border-info/20 text-info text-xs font-medium">
+            <Eye size={12} /> Editing at {canvasDevice === 'tablet' ? '768px' : '375px'} width
           </div>
         )}
         <div className="p-6">
         <div
           className={`mx-auto bg-white rounded-xl shadow-sm border min-h-[60vh] p-6 editor-canvas-light ${
-            canvasDevice !== 'desktop' ? 'border-amber-300 pointer-events-none opacity-90' : 'border-gray-200'
+            canvasDevice !== 'desktop' ? 'border-info/30' : 'border-gray-200'
           }`}
           style={{
             maxWidth: canvasWidths[canvasDevice],

@@ -21,7 +21,11 @@ return new class extends Migration
                 (blockable_type = 'page' AND blockable_id IN (SELECT id FROM pages WHERE site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid)))
                 OR (blockable_type = 'post' AND blockable_id IN (SELECT id FROM posts WHERE site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid)))
                 OR (blockable_type = 'template' AND blockable_id IN (SELECT id FROM theme_templates WHERE site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid)))
-                OR (parent_block_id IS NOT NULL AND parent_block_id IN (SELECT id FROM blocks))
+            )
+            WITH CHECK (
+                (blockable_type = 'page' AND blockable_id IN (SELECT id FROM pages WHERE site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid)))
+                OR (blockable_type = 'post' AND blockable_id IN (SELECT id FROM posts WHERE site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid)))
+                OR (blockable_type = 'template' AND blockable_id IN (SELECT id FROM theme_templates WHERE site_id IN (SELECT id FROM sites WHERE tenant_id = current_setting('app.current_tenant_id')::uuid)))
             )
         ");
     }
