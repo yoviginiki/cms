@@ -86,6 +86,13 @@ use App\Domain\Blocks\Definitions\CustomformBlockDefinition;
 use App\Domain\Blocks\Definitions\PaywallBlockDefinition;
 use App\Domain\Blocks\Definitions\SharebuttonsBlockDefinition;
 use App\Domain\Blocks\Definitions\BeforeafterBlockDefinition;
+use App\Domain\Blocks\Definitions\PostTitleBlockDefinition;
+use App\Domain\Blocks\Definitions\PostContentBlockDefinition;
+use App\Domain\Blocks\Definitions\PostImageBlockDefinition;
+use App\Domain\Blocks\Definitions\PostVideoBlockDefinition;
+use App\Domain\Blocks\Definitions\PostMetaBlockDefinition;
+use App\Domain\Blocks\Definitions\PostExcerptBlockDefinition;
+use App\Domain\Blocks\Definitions\PostNavigationBlockDefinition;
 use App\Domain\Blocks\Services\BlockRegistry;
 use App\Domain\Hooks\HookDispatcher;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -174,6 +181,15 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new PaywallBlockDefinition());
             $registry->register(new SharebuttonsBlockDefinition());
             $registry->register(new BeforeafterBlockDefinition());
+
+            // Dynamic content blocks (for theme builder templates)
+            $registry->register(new PostTitleBlockDefinition());
+            $registry->register(new PostContentBlockDefinition());
+            $registry->register(new PostImageBlockDefinition());
+            $registry->register(new PostVideoBlockDefinition());
+            $registry->register(new PostMetaBlockDefinition());
+            $registry->register(new PostExcerptBlockDefinition());
+            $registry->register(new PostNavigationBlockDefinition());
 
             return $registry;
         });
