@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout, Plus, Loader2, Trash2, FileText, Globe, FolderTree, Film, Grid3x3, Search, AlertTriangle } from 'lucide-react';
-import { themeTemplates as templatesApi } from '@/lib/api';
+import { themeTemplates as templatesApi, categories as categoriesApi } from '@/lib/api';
 
 interface Template {
   id: string;
@@ -52,6 +52,11 @@ export default function Templates() {
   const [newCategoryId, setNewCategoryId] = useState('');
   const [newPostFormat, setNewPostFormat] = useState('');
   const [newIsDefault, setNewIsDefault] = useState(false);
+
+  const { data: categoriesList } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['categories', siteId],
+    queryFn: () => categoriesApi.list(siteId).then((r: any) => r.data?.data || []),
+  });
 
   const { data: templatesList, isLoading } = useQuery<Template[]>({
     queryKey: ['templates', siteId],
@@ -205,6 +210,9 @@ export default function Templates() {
                   <select value={newCategoryId} onChange={e => setNewCategoryId(e.target.value)}
                     className="select select-bordered select-sm w-full">
                     <option value="">All Categories</option>
+                    {(categoriesList || []).map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
                   </select>
                   <p className="text-[10px] text-gray-300 mt-0.5">Leave empty for a global template</p>
                 </div>

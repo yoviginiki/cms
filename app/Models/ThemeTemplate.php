@@ -55,7 +55,7 @@ class ThemeTemplate extends Model
                 ->where('type', 'post')
                 ->where('category_id', $post->category_id)
                 ->where('post_format', $post->post_format)
-                ->first();
+                ->orderByDesc('priority')->first();
             if ($match) return $match;
         }
 
@@ -65,7 +65,7 @@ class ThemeTemplate extends Model
                 ->where('type', 'post')
                 ->where('category_id', $post->category_id)
                 ->whereNull('post_format')
-                ->first();
+                ->orderByDesc('priority')->first();
             if ($match) return $match;
         }
 
@@ -75,7 +75,7 @@ class ThemeTemplate extends Model
                 ->where('type', 'post')
                 ->whereNull('category_id')
                 ->where('post_format', $post->post_format)
-                ->first();
+                ->orderByDesc('priority')->first();
             if ($match) return $match;
         }
 
@@ -83,7 +83,7 @@ class ThemeTemplate extends Model
         return static::where('site_id', $siteId)
             ->where('type', 'post')
             ->where('is_default', true)
-            ->first();
+            ->orderByDesc('priority')->first();
     }
 
     /**

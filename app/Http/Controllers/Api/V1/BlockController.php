@@ -90,6 +90,7 @@ class BlockController extends Controller
 
     public function indexForTemplate(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
+        abort_if($themeTemplate->site_id !== $site->id, 404);
         return response()->json([
             'data' => $this->blockService->getBlockTree($themeTemplate),
         ]);
@@ -97,6 +98,7 @@ class BlockController extends Controller
 
     public function syncForTemplate(SyncBlocksRequest $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
+        abort_if($themeTemplate->site_id !== $site->id, 404);
         $tree = $this->blockService->syncBlocks($themeTemplate, $request->validated('blocks'));
         return response()->json(['data' => $tree]);
     }

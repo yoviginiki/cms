@@ -360,6 +360,23 @@ class BuildPageService
     }
 
     /**
+     * Render blocks with a specific template context (used by archive renderer).
+     */
+    public function renderBlocksWithContext(iterable $blocks, Site $site, array $context): string
+    {
+        $this->templateContext = $context;
+        try {
+            $html = '';
+            foreach ($blocks as $block) {
+                $html .= $this->renderBlock($block, $site);
+            }
+            return $html;
+        } finally {
+            $this->templateContext = [];
+        }
+    }
+
+    /**
      * Render a global header or footer template if one exists.
      */
     private function renderGlobalTemplate(Site $site, string $type): ?string

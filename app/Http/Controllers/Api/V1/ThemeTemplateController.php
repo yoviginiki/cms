@@ -11,6 +11,16 @@ use Illuminate\Support\Str;
 
 class ThemeTemplateController extends Controller
 {
+    /**
+     * Abort if the template doesn't belong to this site.
+     */
+    private function assertOwnership(Site $site, ThemeTemplate $themeTemplate): void
+    {
+        if ($themeTemplate->site_id !== $site->id) {
+            abort(404, 'Template not found');
+        }
+    }
+
     public function index(Site $site): JsonResponse
     {
         $templates = ThemeTemplate::where('site_id', $site->id)
@@ -24,8 +34,9 @@ class ThemeTemplateController extends Controller
 
     public function show(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
+        $this->assertOwnership($site, $themeTemplate);
         $themeTemplate->load('category:id,name,slug');
-        return response()->json(['data' => $template]);
+        return response()->json(['data' => $themeTemplate]);
     }
 
     public function store(Request $request, Site $site): JsonResponse
@@ -33,7 +44,7 @@ class ThemeTemplateController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:post,archive,header,footer,404,search'],
-            'category_id' => ['sometimes', 'nullable', 'uuid'],
+            'category_id' => ['sometimes', 'nullable', 'uuid', "exists:categories,id,site_id,{$site->id}"],
             'post_format' => ['sometimes', 'nullable', 'in:standard,video,gallery,audio,link'],
             'is_default' => ['sometimes', 'boolean'],
             'settings' => ['sometimes', 'array'],
@@ -65,10 +76,12 @@ class ThemeTemplateController extends Controller
 
     public function update(Request $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
+        $this->assertOwnership($site, $themeTemplate);
+
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'type' => ['sometimes', 'in:post,archive,header,footer,404,search'],
-            'category_id' => ['sometimes', 'nullable', 'uuid'],
+            'category_id' => ['sometimes', 'nullable', 'uuid', "exists:categories,id,site_id,{$site->id}"],
             'post_format' => ['sometimes', 'nullable', 'in:standard,video,gallery,audio,link'],
             'is_default' => ['sometimes', 'boolean'],
             'settings' => ['sometimes', 'array'],
@@ -88,6 +101,7 @@ class ThemeTemplateController extends Controller
 
     public function destroy(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
+        $this->assertOwnership($site, $themeTemplate);
         $themeTemplate->blocks()->delete();
         $themeTemplate->delete();
 

@@ -356,24 +356,14 @@ class PublishSiteJob implements ShouldQueue
             '__archiveBaseUrl' => "/blog/category/{$category->slug}",
         ];
 
-        // Render template blocks with context
+        // Render template blocks with archive context (safe try/finally inside)
         $templateBlocks = $template->blocks()
             ->whereNull('parent_block_id')
             ->orderBy('order')
             ->with('children')
             ->get();
 
-        // Use reflection to set template context on BuildPageService
-        $ref = new \ReflectionProperty($buildService, 'templateContext');
-        $ref->setAccessible(true);
-        $ref->setValue($buildService, $archiveContext);
-
-        $renderedBlocks = '';
-        foreach ($templateBlocks as $block) {
-            $renderedBlocks .= $buildService->renderBlock($block, $site);
-        }
-
-        $ref->setValue($buildService, []);
+        $renderedBlocks = $buildService->renderBlocksWithContext($templateBlocks, $site, $archiveContext);
 
         $themeConfig = $site->theme?->config ?? [];
         $tokenGenerator = app(\App\Domain\Theme\Services\DesignTokenGenerator::class);
