@@ -88,16 +88,16 @@ class BlockController extends Controller
         return response()->json(['data' => $tree]);
     }
 
-    public function indexForTemplate(Site $site, ThemeTemplate $template): JsonResponse
+    public function indexForTemplate(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
         return response()->json([
-            'data' => $this->blockService->getBlockTree($template),
+            'data' => $this->blockService->getBlockTree($themeTemplate),
         ]);
     }
 
-    public function syncForTemplate(SyncBlocksRequest $request, Site $site, ThemeTemplate $template): JsonResponse
+    public function syncForTemplate(SyncBlocksRequest $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
-        $tree = $this->blockService->syncBlocks($template, $request->validated('blocks'));
+        $tree = $this->blockService->syncBlocks($themeTemplate, $request->validated('blocks'));
         return response()->json(['data' => $tree]);
     }
 

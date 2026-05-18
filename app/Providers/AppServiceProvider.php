@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\Block;
 use App\Models\Category;
 use App\Models\Page;
+use App\Models\ThemeTemplate;
 use App\Models\Post;
 use App\Models\Site;
 use App\Policies\AssetPolicy;
@@ -225,9 +226,11 @@ class AppServiceProvider extends ServiceProvider
         Relation::enforceMorphMap([
             'page' => Page::class,
             'post' => Post::class,
+            'template' => ThemeTemplate::class,
         ]);
 
         // Explicit route model bindings for non-standard model locations
+        Route::model('themeTemplate', ThemeTemplate::class);
         Route::model('issue', \App\Domain\IssueComposer\Models\MagazineIssue::class);
         Route::model('item', \App\Domain\IssueComposer\Models\IssueContentItem::class);
         Route::model('session', \App\Models\Magazine\WizardSession::class);

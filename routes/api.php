@@ -179,11 +179,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Theme Templates (Theme Builder)
         Route::get('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'index']);
         Route::post('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'store']);
-        Route::get('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'show']);
-        Route::put('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'update']);
-        Route::delete('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'destroy']);
-        Route::get('sites/{site}/templates/{template}/blocks', [BlockController::class, 'indexForTemplate']);
-        Route::put('sites/{site}/templates/{template}/blocks', [BlockController::class, 'syncForTemplate']);
+        Route::get('sites/{site}/templates/{themeTemplate}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'show']);
+        Route::put('sites/{site}/templates/{themeTemplate}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'update']);
+        Route::delete('sites/{site}/templates/{themeTemplate}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'destroy']);
+        Route::get('sites/{site}/templates/{themeTemplate}/blocks', [BlockController::class, 'indexForTemplate']);
+        Route::put('sites/{site}/templates/{themeTemplate}/blocks', [BlockController::class, 'syncForTemplate']);
 
         // Preview
         Route::get('sites/{site}/pages/{page}/preview', [PreviewController::class, 'previewPage']);

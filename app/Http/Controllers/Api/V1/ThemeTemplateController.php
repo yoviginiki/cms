@@ -22,9 +22,9 @@ class ThemeTemplateController extends Controller
         return response()->json(['data' => $templates]);
     }
 
-    public function show(Site $site, ThemeTemplate $template): JsonResponse
+    public function show(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
-        $template->load('category:id,name,slug');
+        $themeTemplate->load('category:id,name,slug');
         return response()->json(['data' => $template]);
     }
 
@@ -63,7 +63,7 @@ class ThemeTemplateController extends Controller
         return response()->json(['data' => $template], 201);
     }
 
-    public function update(Request $request, Site $site, ThemeTemplate $template): JsonResponse
+    public function update(Request $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
@@ -74,22 +74,22 @@ class ThemeTemplateController extends Controller
             'settings' => ['sometimes', 'array'],
         ]);
 
-        if (!empty($data['is_default']) && !$template->is_default) {
+        if (!empty($data['is_default']) && !$themeTemplate->is_default) {
             ThemeTemplate::where('site_id', $site->id)
-                ->where('type', $data['type'] ?? $template->type)
+                ->where('type', $data['type'] ?? $themeTemplate->type)
                 ->where('is_default', true)
                 ->update(['is_default' => false]);
         }
 
-        $template->update($data);
+        $themeTemplate->update($data);
 
-        return response()->json(['data' => $template->fresh()]);
+        return response()->json(['data' => $themeTemplate->fresh()]);
     }
 
-    public function destroy(Site $site, ThemeTemplate $template): JsonResponse
+    public function destroy(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
-        $template->blocks()->delete();
-        $template->delete();
+        $themeTemplate->blocks()->delete();
+        $themeTemplate->delete();
 
         return response()->json(['message' => 'Template deleted']);
     }

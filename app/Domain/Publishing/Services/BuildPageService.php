@@ -13,12 +13,14 @@ use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
 use App\Models\Theme;
+use App\Models\ThemeTemplate;
 use Illuminate\Support\Facades\View;
 
 class BuildPageService
 {
     private int $imageIndex = 0;
     private bool $isPreview = false;
+    private array $templateContext = [];
 
     public function __construct(
         private SanitizationService $sanitizer,
@@ -37,6 +39,7 @@ class BuildPageService
     {
         $this->imageIndex = 0;
         $this->isPreview = $isPreview;
+        $this->templateContext = [];
 
         $headContent = $this->seoService->generatePageHead($content, $site);
         $themeConfig = $theme?->config ?? [];
@@ -141,21 +144,30 @@ class BuildPageService
                 'lang' => $themeConfig['lang'] ?? 'en',
             ])->render();
         } else {
-            // Render blocks
-            $blocks = $content->blocks()
-                ->whereNull('parent_block_id')
-                ->orderBy('order')
-                ->with('children')
-                ->get();
+            // Check for theme template (posts only)
+            $template = ($content instanceof Post)
+                ? ThemeTemplate::resolveForPost($content)
+                : null;
 
-            $renderedBlocks = '';
-            foreach ($blocks as $block) {
-                $renderedBlocks .= $this->renderBlock($block, $site);
-            }
+            if ($template) {
+                $renderedBlocks = $this->renderTemplatedPost($content, $template, $site);
+            } else {
+                // Standard: render content's own blocks
+                $blocks = $content->blocks()
+                    ->whereNull('parent_block_id')
+                    ->orderBy('order')
+                    ->with('children')
+                    ->get();
 
-            // Append raw HTML content (preserved verbatim — scripts, embeds, custom HTML)
-            if ($content instanceof Page && $content->raw_html) {
-                $renderedBlocks .= $content->raw_html;
+                $renderedBlocks = '';
+                foreach ($blocks as $block) {
+                    $renderedBlocks .= $this->renderBlock($block, $site);
+                }
+
+                // Append raw HTML content (preserved verbatim — scripts, embeds, custom HTML)
+                if ($content instanceof Page && $content->raw_html) {
+                    $renderedBlocks .= $content->raw_html;
+                }
             }
 
             // Use the already-resolved layout from the grid check above
@@ -261,7 +273,7 @@ class BuildPageService
         $blockAdvanced = $sanitizedData['__advanced'] ?? [];
         $blockResponsive = $sanitizedData['__responsive'] ?? [];
 
-        return View::make($viewName, [
+        return View::make($viewName, array_merge([
             'data' => $sanitizedData,
             'children' => $childrenHtml,
             'childrenArray' => $childrenArray,
@@ -270,7 +282,73 @@ class BuildPageService
             'blockAnimation' => $blockAnimation,
             'blockAdvanced' => $blockAdvanced,
             'blockResponsive' => $blockResponsive,
-        ])->render();
+        ], $this->templateContext))->render();
+    }
+
+    /**
+     * Render a post using a theme template.
+     * Template blocks are rendered with post data injected as context.
+     */
+    private function renderTemplatedPost(Post $post, ThemeTemplate $template, Site $site): string
+    {
+        // First render the post's own blocks as the "post content" HTML
+        $postBlocks = $post->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with('children')
+            ->get();
+
+        $postContentHtml = '';
+        foreach ($postBlocks as $block) {
+            $postContentHtml .= $this->renderBlock($block, $site);
+        }
+
+        // Resolve prev/next posts in same category
+        $prevPost = null;
+        $nextPost = null;
+        if ($post->category_id) {
+            $prevPost = Post::where('site_id', $post->site_id)
+                ->where('category_id', $post->category_id)
+                ->where('status', 'published')
+                ->where('published_at', '<', $post->published_at)
+                ->orderByDesc('published_at')
+                ->first();
+            $nextPost = Post::where('site_id', $post->site_id)
+                ->where('category_id', $post->category_id)
+                ->where('status', 'published')
+                ->where('published_at', '>', $post->published_at)
+                ->orderBy('published_at')
+                ->first();
+        }
+
+        // Load post relationships for dynamic blocks
+        $post->loadMissing(['category', 'author']);
+
+        // Set template context — these variables are passed to all Blade views
+        $this->templateContext = [
+            '__post' => $post,
+            '__postContentHtml' => $postContentHtml,
+            '__prevPost' => $prevPost,
+            '__nextPost' => $nextPost,
+        ];
+
+        // Render template blocks (try/finally ensures context is always cleared)
+        try {
+            $templateBlocks = $template->blocks()
+                ->whereNull('parent_block_id')
+                ->orderBy('order')
+                ->with('children')
+                ->get();
+
+            $html = '';
+            foreach ($templateBlocks as $block) {
+                $html .= $this->renderBlock($block, $site);
+            }
+
+            return $html;
+        } finally {
+            $this->templateContext = [];
+        }
     }
 
     /**
