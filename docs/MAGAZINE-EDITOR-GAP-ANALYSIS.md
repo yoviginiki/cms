@@ -85,20 +85,20 @@
 
 ### 3.3 Layout Objects / Frames
 
-| Feature | Status | Evidence | Risk |
-|---------|--------|----------|------|
-| Text frame | WORKING | 6 variants with inline editing | LOW |
-| Image frame | WORKING | 6 variants with asset picker | LOW |
-| Shape/frame | WORKING | Rectangle, ellipse, line | LOW |
-| Line | WORKING | SVG line with stroke styles | LOW |
-| Caption frame | WORKING | caption_frame type | LOW |
-| Quote frame | WORKING | pullquote_frame type | LOW |
-| Page number | PARTIAL | Type exists, no auto-numbering | LOW |
-| Article placeholder | WORKING | Via AI wizard provisioning | LOW |
-| Decorative elements | PARTIAL | decorative_rule, limited | LOW |
-| Grouped objects | PARTIAL | Group type exists, no visual grouping | MEDIUM |
-| Locked objects | WORKING | Lock toggle, pointer-events disabled | LOW |
-| Object duplication | WORKING | Ctrl+D, +10px offset | LOW |
+| Feature | Status | Evidence | Risk | Action |
+|---------|--------|----------|------|--------|
+| Text frame | WORKING | 6 variants with inline editing | LOW | None |
+| Image frame | WORKING | 6 variants with asset picker | LOW | None |
+| Shape/frame | WORKING | Rectangle, ellipse, line | LOW | None |
+| Line | WORKING | SVG line with stroke styles | LOW | None |
+| Caption frame | WORKING | caption_frame type | LOW | None |
+| Quote frame | WORKING | pullquote_frame type | LOW | None |
+| Page number | PARTIAL | Type exists, no auto-numbering | LOW | Auto-number (M4) |
+| Article placeholder | WORKING | Via AI wizard provisioning | LOW | None |
+| Decorative elements | PARTIAL | decorative_rule, limited | LOW | Expand (M8) |
+| Grouped objects | PARTIAL | Group type exists, no visual grouping | MEDIUM | Implement (M2) |
+| Locked objects | WORKING | Lock toggle, pointer-events disabled | LOW | None |
+| Object duplication | WORKING | Ctrl+D, +10px offset | LOW | None |
 
 ### 3.4 Typography
 
@@ -120,18 +120,18 @@
 
 ### 3.5 Images and Media
 
-| Feature | Status | Evidence | Risk |
-|---------|--------|----------|------|
-| Image placement | WORKING | AssetField picker | LOW |
-| Fit/fill | WORKING | 4 modes (fill/fit/stretch/none) | LOW |
-| Crop/focal point | WORKING | x/y 0-1 + offset/scale | LOW |
-| Rotation | WORKING | 0-360 in ImagePanel | LOW |
-| Opacity | WORKING | 0-100% in EffectsPanel | LOW |
-| Alt/caption | WORKING | Alt text input | LOW |
-| Missing image warning | PARTIAL | Placeholder shown, no warning badge | LOW |
-| Resolution warning | MISSING | No DPI/resolution checking | MEDIUM |
-| Replace image | WORKING | Via AssetField | LOW |
-| Drag/drop image | MISSING | Click-to-add only | LOW |
+| Feature | Status | Evidence | Risk | Action |
+|---------|--------|----------|------|--------|
+| Image placement | WORKING | AssetField picker | LOW | None |
+| Fit/fill | WORKING | 4 modes (fill/fit/stretch/none) | LOW | None |
+| Crop/focal point | WORKING | x/y 0-1 + offset/scale | LOW | None |
+| Rotation | WORKING | 0-360 in ImagePanel | LOW | None |
+| Opacity | WORKING | 0-100% in EffectsPanel | LOW | None |
+| Alt/caption | WORKING | Alt text input | LOW | None |
+| Missing image warning | PARTIAL | Placeholder shown, no warning badge | LOW | Add badge (M7) |
+| Resolution warning | MISSING | No DPI/resolution checking | MEDIUM | Add (M7) |
+| Replace image | WORKING | Via AssetField | LOW | None |
+| Drag/drop image | MISSING | Click-to-add only | LOW | Add (M2) |
 
 ### 3.6 Object Controls
 
@@ -150,54 +150,54 @@
 
 ### 3.7 Layers
 
-| Feature | Status | Evidence | Risk |
-|---------|--------|----------|------|
-| Layer panel | WORKING | MagLayersPanel with tree view | LOW |
-| Object order | WORKING | z-index sorting, reorder buttons | LOW |
-| Hide/show | WORKING | Eye toggle per element | LOW |
-| Lock/unlock | WORKING | Lock toggle per element | LOW |
-| Move between layers | MISSING | No drag-between-layers | LOW |
-| Master page layer | MISSING | No master page layer behavior | MEDIUM |
+| Feature | Status | Evidence | Risk | Action |
+|---------|--------|----------|------|--------|
+| Layer panel | WORKING | MagLayersPanel with tree view | LOW | None |
+| Object order | WORKING | z-index sorting, reorder buttons | LOW | None |
+| Hide/show | WORKING | Eye toggle per element | LOW | None |
+| Lock/unlock | WORKING | Lock toggle per element | LOW | None |
+| Move between layers | MISSING | No drag-between-layers | LOW | Add (M6) |
+| Master page layer | MISSING | No master page layer behavior | MEDIUM | Add (M6) |
 
 ### 3.8 Styles and Design System
 
-| Feature | Status | Evidence | Risk |
-|---------|--------|----------|------|
-| Typography styles | BROKEN | mag_styles table + UI, no application | HIGH |
-| Color swatches | MISSING | No swatch panel | MEDIUM |
-| Object styles | MISSING | Type field supports it | MEDIUM |
-| Reusable templates | WORKING | 19 templates in config/magazine_templates.php | LOW |
-| Theme tokens | PARTIAL | issue_design_system table exists | LOW |
+| Feature | Status | Evidence | Risk | Action |
+|---------|--------|----------|------|--------|
+| Typography styles | BROKEN | mag_styles table + UI, no application | HIGH | Fix (M0) |
+| Color swatches | MISSING | No swatch panel | MEDIUM | Add (M3) |
+| Object styles | MISSING | Type field supports it | MEDIUM | Add (M3) |
+| Reusable templates | WORKING | 19 templates in config/magazine_templates.php | LOW | None |
+| Theme tokens | PARTIAL | issue_design_system table exists | LOW | Wire (M3) |
 
 ### 3.9 Preflight / Validation
 
-| Feature | Status | Evidence | Risk |
-|---------|--------|----------|------|
-| Missing images | MISSING | No validation | MEDIUM |
-| Low-resolution images | MISSING | No DPI checking | MEDIUM |
-| Text overflow | PARTIAL | Visual indicator, no preflight report | LOW |
-| Empty frames | MISSING | No validation | LOW |
-| Invalid fonts | MISSING | No font validation | LOW |
-| Outside bleed/safe area | MISSING | No boundary checking | MEDIUM |
-| Export readiness | MISSING | No preflight score | MEDIUM |
+| Feature | Status | Evidence | Risk | Action |
+|---------|--------|----------|------|--------|
+| Missing images | MISSING | No validation | MEDIUM | Add (M7) |
+| Low-resolution images | MISSING | No DPI checking | MEDIUM | Add (M7) |
+| Text overflow | PARTIAL | Visual indicator, no preflight report | LOW | Add report (M7) |
+| Empty frames | MISSING | No validation | LOW | Add (M7) |
+| Invalid fonts | MISSING | No font validation | LOW | Add (M7) |
+| Outside bleed/safe area | MISSING | No boundary checking | MEDIUM | Add (M7) |
+| Export readiness | MISSING | No preflight score | MEDIUM | Add (M7) |
 
 ### 3.10 Export / Publishing
 
-| Feature | Status | Evidence | Risk |
-|---------|--------|----------|------|
-| Preview flipbook | WORKING | Via linked page + viewer | LOW |
-| Static HTML output | WORKING | Via publishing pipeline | LOW |
-| PDF export | MISSING | Not implemented | MEDIUM |
-| Web magazine output | WORKING | Via page publishing | LOW |
+| Feature | Status | Evidence | Risk | Action |
+|---------|--------|----------|------|--------|
+| Preview flipbook | WORKING | Via linked page + viewer | LOW | None |
+| Static HTML output | WORKING | Via publishing pipeline | LOW | None |
+| PDF export | MISSING | Not implemented | MEDIUM | Add (M9) |
+| Web magazine output | WORKING | Via page publishing | LOW | None |
 
 ### 3.11 Collaboration / Editorial
 
-| Feature | Status | Evidence | Risk |
-|---------|--------|----------|------|
-| Issue status | WORKING | draft/handed_off in magazine_issues | LOW |
-| Article assignment | WORKING | mag_articles + issue_content_items | LOW |
-| Version history | MISSING | No version tracking for mag content | MEDIUM |
-| AI editorial planning | WORKING | 7-step wizard with Claude | LOW |
+| Feature | Status | Evidence | Risk | Action |
+|---------|--------|----------|------|--------|
+| Issue status | WORKING | draft/handed_off in magazine_issues | LOW | None |
+| Article assignment | WORKING | mag_articles + issue_content_items | LOW | None |
+| Version history | MISSING | No version tracking for mag content | MEDIUM | Add (M9+) |
+| AI editorial planning | WORKING | 7-step wizard with Claude | LOW | None |
 
 ---
 
