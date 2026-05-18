@@ -183,9 +183,17 @@ class BuildPageService
                     'content' => $content,
                 ])->render();
             } else {
-                // Standard: header + max-width content + footer
-                $headerNav = $this->menuRenderer->renderByLocation($site, 'header');
-                $footerNav = $this->menuRenderer->renderByLocation($site, 'footer');
+                // Standard: check for template-based header/footer, fall back to menu
+                $headerHtml = $this->renderGlobalTemplate($site, 'header');
+                $footerHtml = $this->renderGlobalTemplate($site, 'footer');
+
+                if (!$headerHtml) {
+                    $headerHtml = $this->menuRenderer->renderByLocation($site, 'header') ?: ($themeConfig['navigation_html'] ?? '');
+                }
+                if (!$footerHtml) {
+                    $footerHtml = $this->menuRenderer->renderByLocation($site, 'footer') ?: '';
+                }
+
                 $bodyContent = $renderedBlocks;
             }
 
@@ -197,8 +205,8 @@ class BuildPageService
                 'criticalCss' => $criticalCss,
                 'fontPreloads' => $fontPreloads,
                 'cssFile' => $themeConfig['css_file'] ?? null,
-                'navigation' => ($layoutSlug === 'standard') ? ($headerNav ?: ($themeConfig['navigation_html'] ?? '')) : '',
-                'footerNavigation' => ($layoutSlug === 'standard') ? ($footerNav ?? '') : '',
+                'navigation' => ($layoutSlug === 'standard') ? ($headerHtml ?? '') : '',
+                'footerNavigation' => ($layoutSlug === 'standard') ? ($footerHtml ?? '') : '',
                 'renderedBlocks' => $bodyContent,
                 'mainStyle' => ($layoutSlug === 'standard') ? 'max-width:' . ($layout?->supports['maxWidthValue'] ?? '48rem') . ';margin:0 auto;padding:0 1.5rem;' : '',
                 'designTokensCss' => $designTokensCss ?? '',
@@ -349,6 +357,30 @@ class BuildPageService
         } finally {
             $this->templateContext = [];
         }
+    }
+
+    /**
+     * Render a global header or footer template if one exists.
+     */
+    private function renderGlobalTemplate(Site $site, string $type): ?string
+    {
+        $template = ThemeTemplate::resolveGlobal($site->id, $type);
+        if (!$template) return null;
+
+        $blocks = $template->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with('children')
+            ->get();
+
+        if ($blocks->isEmpty()) return null;
+
+        $html = '';
+        foreach ($blocks as $block) {
+            $html .= $this->renderBlock($block, $site);
+        }
+
+        return $html;
     }
 
     /**

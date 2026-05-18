@@ -87,5 +87,8 @@ import './post-video';
 import './post-meta';
 import './post-excerpt';
 import './post-navigation';
+import './post-loop';
+import './category-header';
+import './archive-pagination';
 
 export { blockRegistry } from './registry';
