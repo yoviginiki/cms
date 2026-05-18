@@ -26,6 +26,8 @@ import DebugConsole from './pages/DebugConsole';
 import ThemeEngine from './pages/ThemeEngine';
 import ThemeEditorPage from './pages/ThemeEditor';
 import ThemeStudio from './pages/ThemeStudio';
+import Templates from './pages/Templates';
+import TemplateEditor from './pages/TemplateEditor';
 import Login from './pages/Login';
 import SessionsListPage from './pages/wizard/SessionsListPage';
 import WizardPage from './pages/wizard/WizardPage';
@@ -67,6 +69,8 @@ export default function App() {
           <Route path="/sites/:siteId/grids/assignments" element={<LayoutRoute><GridAssignments /></LayoutRoute>} />
           <Route path="/sites/:siteId/grids/:gridId/edit" element={<GridEditor />} />
           <Route path="/sites/:siteId/assets" element={<LayoutRoute><Assets /></LayoutRoute>} />
+          <Route path="/sites/:siteId/templates" element={<LayoutRoute><Templates /></LayoutRoute>} />
+          <Route path="/sites/:siteId/templates/:templateId/edit" element={<TemplateEditor />} />
           <Route path="/sites/:siteId/theme-engine" element={<LayoutRoute><ThemeEngine /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-engine/:themeId" element={<ThemeEditorPage />} />
           <Route path="/sites/:siteId/theme-engine/:themeId/studio" element={<ThemeStudio />} />

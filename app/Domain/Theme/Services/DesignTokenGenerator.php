@@ -10,6 +10,49 @@ class DesignTokenGenerator
     /**
      * Generate CSS custom properties from theme config + customizations.
      */
+    /** Map from W3C token paths to CSS variable names. */
+    private const W3C_TO_CSS = [
+        'semantic.color.brand' => 'color-primary',
+        'semantic.color.accent' => 'color-accent',
+        'semantic.color.success' => 'color-success',
+        'semantic.color.warning' => 'color-warning',
+        'semantic.color.danger' => 'color-danger',
+        'semantic.color.background.canvas' => 'color-bg',
+        'semantic.color.background.surface' => 'color-bg-alt',
+        'semantic.color.background.raised' => 'color-bg',
+        'semantic.color.background.overlay' => null,
+        'semantic.color.text.body' => 'color-text',
+        'semantic.color.text.heading' => 'color-bg-inverse',
+        'semantic.color.text.muted' => 'color-text-muted',
+        'semantic.color.text.link' => 'color-accent',
+        'semantic.color.text.inverse' => 'color-text-inverse',
+        'semantic.color.border.default' => 'color-border',
+        'semantic.color.border.subtle' => 'color-border-light',
+        'semantic.color.border.strong' => null,
+        'semantic.font.family.display' => 'font-heading',
+        'semantic.font.family.body' => 'font-body',
+        'semantic.font.family.mono' => 'font-mono',
+        'semantic.font.size.xs' => null,
+        'semantic.font.size.sm' => 'font-size-sm',
+        'semantic.font.size.base' => 'font-size-base',
+        'semantic.font.size.lg' => 'font-size-lg',
+        'semantic.font.size.xl' => 'font-size-xl',
+        'semantic.font.size.2xl' => 'font-size-2xl',
+        'semantic.font.size.3xl' => 'font-size-3xl',
+        'semantic.font.size.4xl' => null,
+        'semantic.font.size.5xl' => null,
+        'semantic.size.radius.none' => null,
+        'semantic.size.radius.sm' => 'border-radius-sm',
+        'semantic.size.radius.md' => 'border-radius-md',
+        'semantic.size.radius.lg' => 'border-radius-lg',
+        'semantic.size.radius.xl' => null,
+        'semantic.size.radius.full' => 'border-radius-full',
+        'semantic.shadow.sm' => 'shadow-sm',
+        'semantic.shadow.md' => 'shadow-md',
+        'semantic.shadow.lg' => 'shadow-lg',
+        'semantic.shadow.xl' => 'shadow-xl',
+    ];
+
     public function generate(Site $site): string
     {
         $theme = $site->theme;
@@ -19,19 +62,51 @@ class DesignTokenGenerator
         $themeTokens = $theme->config['tokens'] ?? [];
         $customizations = $this->getCustomizations($site, $theme);
 
-        // Merge: defaults → theme → customizations
+        // Merge: defaults → config tokens → customizations
         $tokens = array_merge($defaults, $themeTokens, $customizations);
+
+        // Bridge W3C document tokens → CSS variables (studio edits affect published site)
+        if ($theme->document) {
+            $docTokens = $this->resolveDocumentTokens($theme->document);
+            $tokens = array_merge($tokens, $docTokens);
+        }
 
         $css = ":root {\n";
         foreach ($tokens as $key => $value) {
+            if (is_array($value)) $value = implode(', ', $value);
             $css .= "  --{$key}: {$value};\n";
         }
         $css .= "}\n";
 
-        // Add font imports
         $css .= $this->generateFontImports($tokens);
 
         return $css;
+    }
+
+    /**
+     * Resolve W3C Design Token document to flat CSS variable names.
+     */
+    private function resolveDocumentTokens(array $document): array
+    {
+        try {
+            $merger = new \App\Services\Theme\TokenMerger();
+            $refs = new \App\Services\Theme\ReferenceResolver();
+            $flat = $refs->flatten($merger->merge([$document]));
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($flat as $path => $value) {
+            $cssName = self::W3C_TO_CSS[$path] ?? null;
+            if (!$cssName) continue;
+            if (is_array($value)) {
+                $value = "'" . implode("', '", $value) . "'";
+            }
+            $result[$cssName] = $value;
+        }
+
+        return $result;
     }
 
     /**

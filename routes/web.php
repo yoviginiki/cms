@@ -27,8 +27,8 @@ Route::get('/magazine', [MagazineViewController::class, 'index'])->name('magazin
 Route::get('/magazine/{slug}', [MagazineViewController::class, 'show'])->name('magazine.show');
 Route::get('/issue/{slug}', [MagazineViewController::class, 'showPage'])->name('magazine.page');
 
-// ─── Documentation (auth-protected) ───
-Route::middleware(['auth'])->prefix('docs')->group(function () {
+// ─── Documentation (public) ───
+Route::prefix('docs')->group(function () {
     Route::get('/', [DocsController::class, 'index'])->name('docs.index');
     Route::get('/download', [DocsController::class, 'download'])->name('docs.download');
     Route::get('/{slug}', [DocsController::class, 'show'])->name('docs.show');

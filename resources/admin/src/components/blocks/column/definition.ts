@@ -4,7 +4,7 @@ export const columnDefinition: BlockDefinition = {
   type: 'column',
   category: 'layout',
   label: 'Column',
-  icon: '▯',
+  icon: 'RectangleVertical',
   level: 'column',
   defaultData: {
     padding: '',

@@ -13,12 +13,14 @@ use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
 use App\Models\Theme;
+use App\Models\ThemeTemplate;
 use Illuminate\Support\Facades\View;
 
 class BuildPageService
 {
     private int $imageIndex = 0;
     private bool $isPreview = false;
+    private array $templateContext = [];
 
     public function __construct(
         private SanitizationService $sanitizer,
@@ -37,6 +39,7 @@ class BuildPageService
     {
         $this->imageIndex = 0;
         $this->isPreview = $isPreview;
+        $this->templateContext = [];
 
         $headContent = $this->seoService->generatePageHead($content, $site);
         $themeConfig = $theme?->config ?? [];
@@ -141,16 +144,30 @@ class BuildPageService
                 'lang' => $themeConfig['lang'] ?? 'en',
             ])->render();
         } else {
-            // Render blocks
-            $blocks = $content->blocks()
-                ->whereNull('parent_block_id')
-                ->orderBy('order')
-                ->with('children')
-                ->get();
+            // Check for theme template (posts only)
+            $template = ($content instanceof Post)
+                ? ThemeTemplate::resolveForPost($content)
+                : null;
 
-            $renderedBlocks = '';
-            foreach ($blocks as $block) {
-                $renderedBlocks .= $this->renderBlock($block, $site);
+            if ($template) {
+                $renderedBlocks = $this->renderTemplatedPost($content, $template, $site);
+            } else {
+                // Standard: render content's own blocks
+                $blocks = $content->blocks()
+                    ->whereNull('parent_block_id')
+                    ->orderBy('order')
+                    ->with('children')
+                    ->get();
+
+                $renderedBlocks = '';
+                foreach ($blocks as $block) {
+                    $renderedBlocks .= $this->renderBlock($block, $site);
+                }
+
+                // Append raw HTML content (preserved verbatim — scripts, embeds, custom HTML)
+                if ($content instanceof Page && $content->raw_html) {
+                    $renderedBlocks .= $content->raw_html;
+                }
             }
 
             // Use the already-resolved layout from the grid check above
@@ -166,13 +183,18 @@ class BuildPageService
                     'content' => $content,
                 ])->render();
             } else {
-                // Standard: header + max-width content + footer
-                $headerNav = $this->menuRenderer->renderByLocation($site, 'header');
-                $footerNav = $this->menuRenderer->renderByLocation($site, 'footer');
-                $bodyContent = ($headerNav ?: ($themeConfig['navigation_html'] ?? ''))
-                    . '<main style="max-width:' . ($layout?->supports['maxWidthValue'] ?? '48rem') . ';margin:0 auto;padding:0 1.5rem;">'
-                    . $renderedBlocks . '</main>'
-                    . ($footerNav ?? '');
+                // Standard: check for template-based header/footer, fall back to menu
+                $headerHtml = $this->renderGlobalTemplate($site, 'header');
+                $footerHtml = $this->renderGlobalTemplate($site, 'footer');
+
+                if (!$headerHtml) {
+                    $headerHtml = $this->menuRenderer->renderByLocation($site, 'header') ?: ($themeConfig['navigation_html'] ?? '');
+                }
+                if (!$footerHtml) {
+                    $footerHtml = $this->menuRenderer->renderByLocation($site, 'footer') ?: '';
+                }
+
+                $bodyContent = $renderedBlocks;
             }
 
             $html = View::make('publishing.layout', [
@@ -183,9 +205,10 @@ class BuildPageService
                 'criticalCss' => $criticalCss,
                 'fontPreloads' => $fontPreloads,
                 'cssFile' => $themeConfig['css_file'] ?? null,
-                'navigation' => '',
-                'footerNavigation' => '',
+                'navigation' => ($layoutSlug === 'standard') ? ($headerHtml ?? '') : '',
+                'footerNavigation' => ($layoutSlug === 'standard') ? ($footerHtml ?? '') : '',
                 'renderedBlocks' => $bodyContent,
+                'mainStyle' => ($layoutSlug === 'standard') ? 'max-width:' . ($layout?->supports['maxWidthValue'] ?? '48rem') . ';margin:0 auto;padding:0 1.5rem;' : '',
                 'designTokensCss' => $designTokensCss ?? '',
                 'hookHeadScripts' => $hookHeadScripts,
                 'hookBodyOpen' => $hookBodyOpen,
@@ -258,7 +281,7 @@ class BuildPageService
         $blockAdvanced = $sanitizedData['__advanced'] ?? [];
         $blockResponsive = $sanitizedData['__responsive'] ?? [];
 
-        return View::make($viewName, [
+        return View::make($viewName, array_merge([
             'data' => $sanitizedData,
             'children' => $childrenHtml,
             'childrenArray' => $childrenArray,
@@ -267,7 +290,114 @@ class BuildPageService
             'blockAnimation' => $blockAnimation,
             'blockAdvanced' => $blockAdvanced,
             'blockResponsive' => $blockResponsive,
-        ])->render();
+        ], $this->templateContext))->render();
+    }
+
+    /**
+     * Render a post using a theme template.
+     * Template blocks are rendered with post data injected as context.
+     */
+    private function renderTemplatedPost(Post $post, ThemeTemplate $template, Site $site): string
+    {
+        // First render the post's own blocks as the "post content" HTML
+        $postBlocks = $post->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with('children')
+            ->get();
+
+        $postContentHtml = '';
+        foreach ($postBlocks as $block) {
+            $postContentHtml .= $this->renderBlock($block, $site);
+        }
+
+        // Resolve prev/next posts in same category
+        $prevPost = null;
+        $nextPost = null;
+        if ($post->category_id) {
+            $prevPost = Post::where('site_id', $post->site_id)
+                ->where('category_id', $post->category_id)
+                ->where('status', 'published')
+                ->where('published_at', '<', $post->published_at)
+                ->orderByDesc('published_at')
+                ->first();
+            $nextPost = Post::where('site_id', $post->site_id)
+                ->where('category_id', $post->category_id)
+                ->where('status', 'published')
+                ->where('published_at', '>', $post->published_at)
+                ->orderBy('published_at')
+                ->first();
+        }
+
+        // Load post relationships for dynamic blocks
+        $post->loadMissing(['category', 'author']);
+
+        // Set template context — these variables are passed to all Blade views
+        $this->templateContext = [
+            '__post' => $post,
+            '__postContentHtml' => $postContentHtml,
+            '__prevPost' => $prevPost,
+            '__nextPost' => $nextPost,
+        ];
+
+        // Render template blocks (try/finally ensures context is always cleared)
+        try {
+            $templateBlocks = $template->blocks()
+                ->whereNull('parent_block_id')
+                ->orderBy('order')
+                ->with('children')
+                ->get();
+
+            $html = '';
+            foreach ($templateBlocks as $block) {
+                $html .= $this->renderBlock($block, $site);
+            }
+
+            return $html;
+        } finally {
+            $this->templateContext = [];
+        }
+    }
+
+    /**
+     * Render blocks with a specific template context (used by archive renderer).
+     */
+    public function renderBlocksWithContext(iterable $blocks, Site $site, array $context): string
+    {
+        $this->templateContext = $context;
+        try {
+            $html = '';
+            foreach ($blocks as $block) {
+                $html .= $this->renderBlock($block, $site);
+            }
+            return $html;
+        } finally {
+            $this->templateContext = [];
+        }
+    }
+
+    /**
+     * Render a global header or footer template if one exists.
+     */
+    private function renderGlobalTemplate(Site $site, string $type): ?string
+    {
+        $template = ThemeTemplate::resolveGlobal($site->id, $type);
+        if (!$template) return null;
+
+        $blocks = $template->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with('children')
+            ->get();
+
+        if ($blocks->isEmpty()) return null;
+
+        $html = '';
+        foreach ($blocks as $block) {
+            $html .= $this->renderBlock($block, $site);
+        }
+
+        return $html;
     }
 
     /**
@@ -391,6 +521,15 @@ img{max-width:100%;height:auto;display:block}
 @keyframes block-zoom{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
 @keyframes block-scale-in{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){[style*="animation-name"],[data-animation]{animation:none!important}}
+.block-hover-opacity{transition:opacity .3s ease}.block-hover-opacity:hover{opacity:.7}
+.block-hover-lift{transition:transform .3s ease,box-shadow .3s ease}.block-hover-lift:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(0,0,0,.12)}
+.block-hover-glow{transition:box-shadow .3s ease}.block-hover-glow:hover{box-shadow:0 0 20px rgba(59,130,246,.4)}
+.block-hover-scale{transition:transform .3s ease}.block-hover-scale:hover{transform:scale(1.03)}
+.block-hover-darken{transition:filter .3s ease}.block-hover-darken:hover{filter:brightness(.85)}
+.block-hover-grayscale{transition:filter .3s ease}.block-hover-grayscale:hover{filter:grayscale(100%)}
+.block-hover-sepia{transition:filter .3s ease}.block-hover-sepia:hover{filter:sepia(100%)}
+.block-hover-blur{transition:filter .3s ease}.block-hover-blur:hover{filter:blur(2px)}
+.block-hover-saturate{transition:filter .3s ease}.block-hover-saturate:hover{filter:saturate(1.8)}
 ';
 
         return trim($css);

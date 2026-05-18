@@ -8,9 +8,11 @@ import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useEditorStore } from '@/stores/editorStore';
 import { useMagazineStore } from '@/stores/magazineStore';
 import { AssetField } from '@/components/ui/AssetPicker';
-import { BuilderCanvas } from '@/components/editor/BuilderCanvas';
+import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { BlockSettings } from '@/components/editor/BlockSettings';
+import { VersionHistory } from '@/components/editor/VersionHistory';
+import { SeoAnalyzer } from '@/components/editor/SeoAnalyzer';
 import { MagazineCanvas } from '@/components/magazine/MagazineCanvas';
 import MagLayersPanel from '@/components/magazine/MagLayersPanel';
 import PageNavigator from '@/components/magazine/PageNavigator';
@@ -149,9 +151,15 @@ export default function PageEditor() {
   useEffect(() => {
     if (fetchedBlocks && !blocksLoadedRef.current) {
       setBlocks(fetchedBlocks);
+      // Load raw HTML from page data (without marking dirty)
+      if (page?.raw_html) {
+        useEditorStore.setState({ rawHtml: page.raw_html });
+      }
+      // Restore undo history from sessionStorage if available
+      useEditorStore.getState().restoreUndoState();
       blocksLoadedRef.current = true;
     }
-  }, [fetchedBlocks, setBlocks]);
+  }, [fetchedBlocks, setBlocks, page]);
 
   // Read editor_mode from page data
   useEffect(() => {
@@ -215,8 +223,9 @@ export default function PageEditor() {
         await magEditor.sync(siteId, pageId, { pages, elements });
         magStore.setDirty(false);
       } else {
-        // Save block data
-        await blocksApi.sync(siteId, 'pages', pageId, editorBlocks);
+        // Save block data + raw HTML
+        const rawHtml = useEditorStore.getState().rawHtml;
+        await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
       }
       setDirty(false);
     } catch (err) {
@@ -321,17 +330,25 @@ export default function PageEditor() {
             {(isDirty || magStore.isDirty) && <span className="w-1.5 h-1.5 rounded-full bg-warning-content" />}
           </button>
           <PublishButton siteId={siteId} />
+          <a href={`${publicBase}/${page?.slug || ''}`} target="_blank" rel="noopener"
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="View published page">
+            <Globe size={13} /> Live
+          </a>
         </div>
       </div>
 
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
         {page?.editor_mode !== 'magazine' ? (
-          <>
-            <BuilderCanvas />
-            <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
-              layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''} />
-          </>
+          <BuilderDndProvider>
+            <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
+              <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
+                <BuilderCanvas />
+              </div>
+              <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
+                layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''} />
+            </div>
+          </BuilderDndProvider>
         ) : (
           <>
             {/* Magazine mode: page navigator + canvas + right sidebar */}
@@ -362,8 +379,8 @@ export default function PageEditor() {
               );
             })()}
 
-            {/* Right sidebar */}
-            <div className="w-72 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0">
+            {/* Right sidebar — overlay on mobile */}
+            <div className="w-72 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 hidden lg:flex">
               <div className="flex border-b border-base-300/20 shrink-0">
                 {([
                   { key: 'add' as const, label: '+ Add' },
@@ -667,22 +684,24 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
   layouts: any[]; publicBase: string; siteSlug: string;
 }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
-  const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add'>('page');
+  const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add' | 'seo' | 'history'>('page');
 
   useEffect(() => {
     if (selectedBlockId) setActiveTab('block');
   }, [selectedBlockId]);
 
   return (
-    <div className="w-80 border-l border-gray-200 bg-white h-full overflow-y-auto flex flex-col">
+    <div className="w-80 min-w-[320px] border-l border-gray-200 bg-white h-full overflow-y-auto flex flex-col shrink-0 snap-start">
       <div className="flex border-b border-gray-200">
         {([
           { key: 'page' as const, label: 'Page' },
           { key: 'block' as const, label: 'Block' },
           { key: 'add' as const, label: '+ Add' },
+          { key: 'seo' as const, label: 'SEO' },
+          { key: 'history' as const, label: 'History' },
         ]).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-1 px-1.5 py-2.5 text-[10px] font-medium border-b-2 transition-colors ${
               activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
             {tab.label}
@@ -697,8 +716,18 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
         )}
         {activeTab === 'block' && <BlockSettings />}
         {activeTab === 'add' && <BlockPicker />}
+        {activeTab === 'seo' && (
+          <SeoAnalyzer
+            pageTitle={page?.title}
+            seoTitle={page?.seo_meta?.title as string}
+            seoDescription={page?.seo_meta?.description as string}
+            slug={page?.slug}
+          />
+        )}
+        {activeTab === 'history' && <VersionHistory siteId={siteId} pageId={pageId} type="pages" />}
       </div>
     </div>
+
   );
 }
 

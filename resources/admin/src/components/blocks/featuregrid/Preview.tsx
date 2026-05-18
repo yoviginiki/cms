@@ -2,6 +2,7 @@ import type { BlockComponentProps } from '@/types/blocks';
 import { buildShadowCss } from '@/lib/shadowStyles';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 import { resolveCornerRadius } from '@/lib/spacingHelpers';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 interface FeatureItem { icon: string; title: string; description: string }
 
@@ -34,6 +35,7 @@ export const FeaturegridPreview: React.FC<BlockComponentProps> = ({ block }) => 
   const descColor = safeColor((data.descColor as string) || '');
   const iconSize = safeDim((data.iconSize as string) || '') || '2rem';
   const iconColor = safeColor((data.iconColor as string) || '');
+  const titleTextShadow = resolveTextShadow(data.titleTextShadow);
 
   const cardStyle: React.CSSProperties = {
     display: 'flex',
@@ -50,11 +52,11 @@ export const FeaturegridPreview: React.FC<BlockComponentProps> = ({ block }) => 
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap }}>
-      {items.map((item, i) => (
+      {(items || []).map((item, i) => (
         <div key={i} style={cardStyle}>
           <div style={{ fontSize: iconSize, lineHeight: 1, ...(iconColor ? { color: iconColor } : {}) }}>{item.icon}</div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.25rem', ...(titleColor ? { color: titleColor } : {}) }}>{item.title}</div>
+            <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.25rem', ...(titleColor ? { color: titleColor } : {}), ...(titleTextShadow ? { textShadow: titleTextShadow } : {}) }}>{item.title}</div>
             <div style={{ fontSize: '0.8125rem', ...(descColor ? { color: descColor } : { color: 'var(--color-text-muted,#64748b)' }) }}>{item.description}</div>
           </div>
         </div>

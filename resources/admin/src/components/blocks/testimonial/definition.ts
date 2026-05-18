@@ -8,6 +8,7 @@ export const testimonialDefinition: BlockDefinition = {
   defaultData: {
     items: [{ quote: 'Great product!', author: 'John', role: 'CEO', avatar: '' }],
     layout: 'single',
+    textShadow: '',
   },
   allowsChildren: false,
 };

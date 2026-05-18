@@ -80,5 +80,15 @@ import './scroll_page';
 import './menu';
 import './breadcrumbs';
 import './anchormenu';
+import './post-title';
+import './post-content';
+import './post-image';
+import './post-video';
+import './post-meta';
+import './post-excerpt';
+import './post-navigation';
+import './post-loop';
+import './category-header';
+import './archive-pagination';
 
 export { blockRegistry } from './registry';

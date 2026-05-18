@@ -2,6 +2,7 @@ import type { BlockComponentProps } from '@/types/blocks';
 import { buildShadowCss } from '@/lib/shadowStyles';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 import { resolveCornerRadius } from '@/lib/spacingHelpers';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 interface TestimonialItem { quote: string; author: string; role: string; avatar: string }
 
@@ -18,6 +19,7 @@ export const TestimonialPreview: React.FC<BlockComponentProps> = ({ block }) => 
   const cardShadowCss = buildShadowCss((data.cardShadowMode as string) || 'preset', (data.cardShadow as string) || '', (data.cardShadowCustom as ShadowCustom) || {});
   const quoteColor = safeColor((data.quoteColor as string) || '');
   const authorColor = safeColor((data.authorColor as string) || '');
+  const textShadow = resolveTextShadow(data.textShadow);
 
   const cardStyle: React.CSSProperties = {
     padding: '1rem', border: `1px solid ${cardBorderColor}`, borderRadius: cardBorderRadius,
@@ -27,9 +29,9 @@ export const TestimonialPreview: React.FC<BlockComponentProps> = ({ block }) => 
 
   return (
     <div className={isGrid ? 'grid grid-cols-2 gap-4' : 'space-y-4'}>
-      {items.map((item, i) => (
+      {(items || []).map((item, i) => (
         <blockquote key={i} style={cardStyle}>
-          <p className="text-sm italic mb-3" style={{ color: quoteColor || 'var(--color-text,#1e293b)' }}>&ldquo;{item.quote}&rdquo;</p>
+          <p className="text-sm italic mb-3" style={{ color: quoteColor || 'var(--color-text,#1e293b)', ...(textShadow ? { textShadow } : {}) }}>&ldquo;{item.quote}&rdquo;</p>
           <div className="flex items-center gap-2">
             {item.avatar && (
               <div className="w-8 h-8 rounded-full overflow-hidden" style={{ background: 'var(--color-bg-alt,#f8fafc)' }}>
@@ -37,7 +39,7 @@ export const TestimonialPreview: React.FC<BlockComponentProps> = ({ block }) => 
               </div>
             )}
             <div>
-              <div className="text-sm font-semibold" style={{ color: authorColor || undefined }}>{item.author}</div>
+              <div className="text-sm font-semibold" style={{ color: authorColor || undefined, ...(textShadow ? { textShadow } : {}) }}>{item.author}</div>
               <div className="text-xs" style={{ color: 'var(--color-text-muted,#64748b)' }}>{item.role}</div>
             </div>
           </div>

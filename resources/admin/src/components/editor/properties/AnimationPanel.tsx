@@ -62,6 +62,24 @@ export function AnimationPanel({ value, onChange }: Props) {
           </div>
         </>
       )}
+
+      {/* ── Hover Effects ── */}
+      <div className="pt-2 border-t border-base-300/20">
+        <label className="text-[10px] text-base-content/40">Hover effect</label>
+        <select value={value.hoverEffect || 'none'} onChange={e => update('hoverEffect', e.target.value === 'none' ? undefined : e.target.value)}
+          className="select select-bordered select-xs w-full text-[11px]">
+          <option value="none">None</option>
+          <option value="opacity">Fade (opacity)</option>
+          <option value="lift">Lift (shadow + translate)</option>
+          <option value="glow">Glow (box-shadow)</option>
+          <option value="scale">Scale up</option>
+          <option value="darken">Darken</option>
+          <option value="grayscale">Black & White</option>
+          <option value="sepia">Sepia</option>
+          <option value="blur">Blur</option>
+          <option value="saturate">Saturate (vivid)</option>
+        </select>
+      </div>
     </div>
   );
 }

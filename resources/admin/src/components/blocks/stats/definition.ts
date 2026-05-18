@@ -8,6 +8,7 @@ export const statsDefinition: BlockDefinition = {
   defaultData: {
     items: [{ value: '100', label: 'Users', prefix: '', suffix: '+' }],
     columns: 3,
+    textShadow: '',
   },
   allowsChildren: false,
 };

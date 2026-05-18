@@ -12,7 +12,7 @@ interface Plan {
 }
 
 export const PricingtableEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const data = block.data as { plans: Plan[]; columns: number };
+  const data = block.data as { plans: Plan[]; columns: number; textShadow?: string };
   const plans = data.plans || [];
 
   const update = (field: string, value: unknown) => {
@@ -49,6 +49,18 @@ export const PricingtableEditor: React.FC<BlockEditorProps> = ({ block, onUpdate
           <option value={2}>2</option>
           <option value={3}>3</option>
           <option value={4}>4</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Text Shadow</label>
+        <select className="select select-bordered select-sm w-full" value={data.textShadow || ''} onChange={(e) => update('textShadow', e.target.value || undefined)}>
+          <option value="">None</option>
+          <option value="sm">Subtle</option>
+          <option value="md">Medium</option>
+          <option value="lg">Strong</option>
+          <option value="outline">Outline</option>
+          <option value="glow">Glow</option>
         </select>
       </div>
 

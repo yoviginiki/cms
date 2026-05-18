@@ -1,5 +1,6 @@
 import type { BlockComponentProps } from '@/types/blocks';
 import { InlineTextField } from '@/components/editor/fields';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 const safeColor = (v: string) => /^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,./%]+\)|oklch\([\d\s,./%]+\))$/.test(v.trim()) ? v.trim() : '';
 const safeDim = (v: string) => /^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/.test(v.trim()) ? v.trim() : '';
@@ -21,11 +22,12 @@ export const CtabannerPreview: React.FC<BlockComponentProps> = ({ block, onUpdat
   const btnBgColor = safeColor((data.btnBgColor as string) || '');
   const btnTextColor = safeColor((data.btnTextColor as string) || '');
   const btnBorderRadius = safeDim((data.btnBorderRadius as string) || '');
+  const headingTextShadow = resolveTextShadow(data.headingTextShadow);
 
   return (
     <div className="rounded-lg p-6 text-center text-white" style={{ ...bgStyle, minHeight: 80 }}>
       <InlineTextField as="h3" value={(data.heading as string) || ''} placeholder="Add heading" onChange={(v) => update('heading', v)}
-        className="text-lg font-bold mb-1 block" style={{ color: headingColor || undefined }} />
+        className="text-lg font-bold mb-1 block" style={{ color: headingColor || undefined, textShadow: headingTextShadow }} />
       <InlineTextField as="p" value={(data.text as string) || ''} placeholder="Add description..." onChange={(v) => update('text', v)}
         multiline className="text-sm opacity-90 mb-3 block" style={{ color: textColor || undefined }} />
       <InlineTextField as="span" value={(data.buttonText as string) || ''} placeholder="Button text" onChange={(v) => update('buttonText', v)}

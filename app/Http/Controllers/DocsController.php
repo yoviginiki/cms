@@ -27,7 +27,14 @@ class DocsController extends Controller
             ]);
         }
 
-        return redirect("/docs/{$docs[0]['slug']}");
+        // Render index page with doc listing instead of redirect
+        $links = implode('', array_map(fn($d) => "<li><a href=\"/docs/{$d['slug']}\">{$d['title']}</a></li>", $docs));
+        return view('docs.layout', [
+            'title' => 'Documentation',
+            'docs' => $docs,
+            'current' => '',
+            'content' => "<h1>Documentation</h1><ul>{$links}</ul>",
+        ]);
     }
 
     public function download()

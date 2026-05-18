@@ -8,7 +8,7 @@ interface TimelineItem {
 }
 
 export const TimelineEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const data = block.data as { items: TimelineItem[]; layout: string; lineStyle: string };
+  const data = block.data as { items: TimelineItem[]; layout: string; lineStyle: string; titleTextShadow?: string };
   const items = data.items || [];
 
   const update = (field: string, value: unknown) => {
@@ -36,6 +36,18 @@ export const TimelineEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
         <select className="select select-bordered select-sm w-full" value={data.layout || 'left'} onChange={(e) => update('layout', e.target.value)}>
           <option value="left">Left</option>
           <option value="alternating">Alternating</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Title Text Shadow</label>
+        <select className="select select-bordered select-sm w-full" value={data.titleTextShadow || ''} onChange={(e) => update('titleTextShadow', e.target.value || undefined)}>
+          <option value="">None</option>
+          <option value="sm">Subtle</option>
+          <option value="md">Medium</option>
+          <option value="lg">Strong</option>
+          <option value="outline">Outline</option>
+          <option value="glow">Glow</option>
         </select>
       </div>
 

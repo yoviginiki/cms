@@ -31,6 +31,7 @@ export const headingDefinition: BlockDefinition = {
     letterSpacing: '',
     textTransform: '',
     textAlign: '',
+    textShadow: '',
   },
   allowsChildren: false,
   hasTypography: true,

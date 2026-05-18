@@ -4,7 +4,7 @@ export const htmlEmbedDefinition: BlockDefinition = {
   type: 'html-embed',
   category: 'content',
   label: 'HTML Embed',
-  icon: '</>',
+  icon: 'CodeXml',
   defaultData: {
     html: '',
   },

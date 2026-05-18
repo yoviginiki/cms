@@ -39,6 +39,11 @@ export interface VisualProps {
   shadowCustom?: { x?: string; y?: string; blur?: string; spread?: string; color?: string; opacity?: number; inset?: boolean };
   opacity?: number;
   overflow?: 'visible' | 'hidden' | 'scroll';
+  textShadow?: 'none' | 'sm' | 'md' | 'lg' | 'outline' | 'glow' | 'custom';
+  textShadowX?: string;
+  textShadowY?: string;
+  textShadowBlur?: string;
+  textShadowColor?: string;
 }
 
 // ─── Layout ───
@@ -82,7 +87,7 @@ export interface AnimationProps {
   delay?: number;
   easing?: 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
   trigger?: 'on-load' | 'on-scroll';
-  hoverEffect?: 'none' | 'opacity' | 'lift' | 'glow';
+  hoverEffect?: 'none' | 'opacity' | 'lift' | 'glow' | 'scale' | 'darken' | 'grayscale' | 'sepia' | 'blur' | 'saturate';
 }
 
 // ─── Advanced ───
@@ -143,6 +148,7 @@ export type BlockCategory =
   | 'data'
   | 'blog'
   | 'embed'
+  | 'dynamic'
   | 'navigation'
   | 'marketing'
   | 'advanced';

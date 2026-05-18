@@ -9,18 +9,19 @@ import { usePostData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useEditorStore } from '@/stores/editorStore';
-import { BuilderCanvas } from '@/components/editor/BuilderCanvas';
+import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { MagazineEditorCanvas } from '@/components/editor/MagazineEditorCanvas';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { LayersPanel } from '@/components/editor/LayersPanel';
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { api, blocks as blocksApi, posts as postsApi, categories as categoriesApi, versions as versionsApi, publishing, sites } from '@/lib/api';
 import { AssetField } from '@/components/ui/AssetPicker';
+import WysiwygEditor from '@/components/editor/WysiwygEditor';
 import { slugify } from '@/lib/slugify';
 
 import '@/components/blocks';
 
-type EditorMode = 'block' | 'magazine';
+type EditorMode = 'simple' | 'block' | 'magazine';
 type RightTab = 'settings' | 'post' | 'layers' | 'blocks';
 
 export default function PostEditor() {
@@ -37,7 +38,8 @@ export default function PostEditor() {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
 
-  const [editorMode, setEditorMode] = useState<EditorMode>('block');
+  const [editorMode, setEditorMode] = useState<EditorMode>('simple');
+  const [simpleContent, setSimpleContent] = useState('');
   const [rightTab, setRightTab] = useState<RightTab>('post');
   const [saveError, setSaveError] = useState('');
 
@@ -48,6 +50,9 @@ export default function PostEditor() {
   const [categoryId, setCategoryId] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [featuredImage, setFeaturedImage] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
+  const [postFormat, setPostFormat] = useState('standard');
   const [publishedAt, setPublishedAt] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [layoutId, setLayoutId] = useState('');
@@ -92,6 +97,11 @@ export default function PostEditor() {
     if (fetchedBlocks && !blocksLoadedRef.current) {
       setBlocks(fetchedBlocks);
       blocksLoadedRef.current = true;
+      // Extract simple content from first text/rich-text block
+      const textBlock = fetchedBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
+      if (textBlock?.data?.content) {
+        setSimpleContent(textBlock.data.content as string);
+      }
     }
   }, [fetchedBlocks, setBlocks]);
 
@@ -110,10 +120,13 @@ export default function PostEditor() {
     setLayoutId(post.layout_id || '');
     setExcerpt(post.excerpt || '');
     setFeaturedImage(post.featured_image || '');
+    setVideoUrl(post.video_url || '');
+    setThumbnail(post.thumbnail || '');
+    setPostFormat(post.post_format || 'standard');
     setPublishedAt(post.published_at ? new Date(post.published_at).toISOString().slice(0, 16) : '');
     setScheduledAt(post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '');
     setSlugManual(!!post.slug);
-    if (post.editor_mode) {
+    if (post.editor_mode === 'simple' || post.editor_mode === 'block' || post.editor_mode === 'magazine') {
       setEditorMode(post.editor_mode as EditorMode);
       setStoreEditorMode(post.editor_mode as EditorMode);
     }
@@ -139,12 +152,31 @@ export default function PostEditor() {
       await postsApi.update(siteId, postId, {
         title, slug, status, category_id: categoryId || null, layout_id: layoutId || null,
         excerpt: excerpt || null, featured_image: featuredImage || null,
+        video_url: videoUrl || null, thumbnail: thumbnail || null, post_format: postFormat,
         editor_mode: editorMode,
         published_at: publishedAt || null, scheduled_at: scheduledAt || null,
       });
       setMetaDirty(false);
-      // Save blocks
-      await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
+      // Save blocks — in simple mode, wrap content in a single text block
+      if (editorMode === 'simple') {
+        // Find existing text/rich-text block to preserve its ID, keep all other blocks
+        const existingText = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
+        const otherBlocks = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
+        const textBlock = {
+          ...(existingText || {}),
+          id: existingText?.id || undefined,
+          type: 'text',
+          level: 'module',
+          data: { content: simpleContent },
+          style: existingText?.style || {},
+          order: 0,
+          children: existingText?.children || [],
+        };
+        const simpleBlocks = [textBlock, ...otherBlocks.map((b: any, i: number) => ({ ...b, order: i + 1 }))];
+        await blocksApi.sync(siteId, 'posts', postId, simpleBlocks);
+      } else {
+        await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
+      }
       setDirty(false);
       queryClient.invalidateQueries({ queryKey: ['post', siteId, postId] });
       // If status changed (e.g. published→draft), trigger republish so front page
@@ -174,7 +206,16 @@ export default function PostEditor() {
         published_at: pubDate, scheduled_at: scheduledAt || null,
       });
       // Save blocks
-      await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
+      if (editorMode === 'simple') {
+        const existingText2 = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
+        const otherBlocks2 = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
+        await blocksApi.sync(siteId, 'posts', postId, [
+          { ...(existingText2 || {}), id: existingText2?.id, type: 'text', level: 'module', data: { content: simpleContent }, style: existingText2?.style || {}, order: 0, children: existingText2?.children || [] },
+          ...otherBlocks2.map((b: any, i: number) => ({ ...b, order: i + 1 })),
+        ]);
+      } else {
+        await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
+      }
       // Update local state to match what was saved
       setStatus(pubStatus);
       setPublishedAt(new Date(pubDate).toISOString().slice(0, 16));
@@ -223,6 +264,10 @@ export default function PostEditor() {
         <div className="flex items-center gap-2">
           {/* Editor mode toggle */}
           <div className="flex bg-base-200/80 rounded-md p-0.5">
+            <button onClick={() => switchEditorMode('simple')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${editorMode === 'simple' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40'}`}>
+              Simple
+            </button>
             <button onClick={() => switchEditorMode('block')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${editorMode === 'block' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40'}`}>
               <LayoutList size={12} /> Blocks
@@ -256,11 +301,54 @@ export default function PostEditor() {
 
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
-        {editorMode === 'block' ? (
-          <>
-            <BuilderCanvas />
-            {/* Right sidebar with post metadata + block settings */}
-            <div className="w-80 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0">
+        {editorMode === 'simple' ? (
+          /* Simple WYSIWYG editor — full screen, classic WordPress-like */
+          <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
+            <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto p-4 lg:p-8">
+              <div className="max-w-3xl mx-auto">
+                <WysiwygEditor
+                  content={simpleContent}
+                  onChange={(html) => { setSimpleContent(html); setDirty(true); }}
+                  placeholder="Start writing your post..."
+                  minHeight={500}
+                />
+              </div>
+            </div>
+            {/* Post settings sidebar — swipe to reach */}
+            <div className="w-80 min-w-[320px] bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 snap-start">
+              <div className="p-1 border-b border-base-300/20 text-center text-[10px] text-base-content/30 font-medium">Post Settings</div>
+              <div className="flex-1 overflow-y-auto">
+                <PostMetaPanel
+                  slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
+                  slugManual={slugManual} setSlugManual={setSlugManual}
+                  title={title}
+                  status={status} setStatus={s => { setStatus(s); markMetaDirty(); }}
+                  categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
+                  excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
+                  featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
+                  videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
+                  thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
+                  postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
+                  publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
+                  scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
+                  layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
+                  layouts={layoutsList || []}
+                  categories={categoriesList || []}
+                  versions={versionsList || []}
+                  siteId={siteId} postId={postId}
+                />
+              </div>
+            </div>
+          </div>
+        ) : editorMode === 'block' ? (
+          <BuilderDndProvider>
+            {/* Horizontal scroll container: canvas (100vw) + sidebar (320px) side by side */}
+            <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
+            <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
+              <BuilderCanvas />
+            </div>
+            {/* Sidebar — sits next to canvas, swipe to reach on mobile */}
+            <div className="w-80 min-w-[320px] bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 snap-start">
               <div className="flex border-b border-base-300/20 shrink-0">
                 {([
                   { key: 'post' as RightTab, label: 'Post' },
@@ -285,6 +373,9 @@ export default function PostEditor() {
                     categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
                     excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
                     featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
+                    videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
+                    thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
+                    postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
                     publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
                     scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
                     layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
@@ -296,7 +387,8 @@ export default function PostEditor() {
                 )}
               </div>
             </div>
-          </>
+            </div>{/* close horizontal scroll container */}
+          </BuilderDndProvider>
         ) : (
           <>
             <MagazineEditorCanvas />
@@ -327,6 +419,9 @@ export default function PostEditor() {
                     categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
                     excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
                     featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
+                    videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
+                    thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
+                    postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
                     publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
                     scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
                     layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
@@ -348,7 +443,7 @@ export default function PostEditor() {
 // ═══════════════════════════════════════════
 // Post Metadata Panel
 // ═══════════════════════════════════════════
-function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId }: {
+function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId }: {
   slug: string; setSlug: (v: string) => void;
   slugManual: boolean; setSlugManual: (v: boolean) => void;
   title: string;
@@ -358,6 +453,9 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
   layouts: Array<{ id: string; name: string; slug: string; is_system: boolean; description?: string }>;
   excerpt: string; setExcerpt: (v: string) => void;
   featuredImage: string; setFeaturedImage: (v: string) => void;
+  videoUrl: string; setVideoUrl: (v: string) => void;
+  thumbnail: string; setThumbnail: (v: string) => void;
+  postFormat: string; setPostFormat: (v: string) => void;
   publishedAt: string; setPublishedAt: (v: string) => void;
   scheduledAt: string; setScheduledAt: (v: string) => void;
   categories: Array<{ id: string; name: string }>;
@@ -430,8 +528,36 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
         <p className="text-[10px] text-base-content/25 mt-0.5">{excerpt.length}/300 characters</p>
       </div>
 
+      {/* Post Format */}
+      <div>
+        <label className="text-[11px] text-base-content/40 mb-1 block">Post Format</label>
+        <select value={postFormat} onChange={e => setPostFormat(e.target.value)}
+          className="select select-bordered select-sm w-full text-[12px]">
+          <option value="standard">Standard</option>
+          <option value="video">Video</option>
+          <option value="gallery">Gallery</option>
+          <option value="audio">Audio</option>
+          <option value="link">Link</option>
+        </select>
+      </div>
+
       {/* Featured image */}
       <AssetField label="Featured image" value={featuredImage} onChange={(url) => setFeaturedImage(url)} accept="image" />
+
+      {/* Thumbnail (separate from featured image) */}
+      <AssetField label="Thumbnail" value={thumbnail} onChange={(url) => setThumbnail(url)} accept="image" />
+      <p className="text-[10px] text-base-content/25 -mt-3">Optional smaller image for cards and lists</p>
+
+      {/* Video URL */}
+      {(postFormat === 'video' || videoUrl) && (
+        <div>
+          <label className="text-[11px] text-base-content/40 mb-1 block">Video URL</label>
+          <input type="url" value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
+            className="input input-bordered input-sm w-full text-[12px]"
+            placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..." />
+          <p className="text-[10px] text-base-content/25 mt-0.5">YouTube, Vimeo, or direct video URL</p>
+        </div>
+      )}
 
       {/* Published date */}
       <div>

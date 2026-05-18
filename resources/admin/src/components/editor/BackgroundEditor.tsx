@@ -47,7 +47,19 @@ export default function BackgroundEditor({ data, onChange }: Props) {
   const [expanded, setExpanded] = useState(bg.bg_type !== 'none');
 
   const update = (field: string, value: unknown) => {
-    onChange({ ...data, [field]: value });
+    const updates: Record<string, unknown> = { [field]: value };
+
+    // Auto-set bg_type when user changes a bg field without explicitly selecting type
+    if (field !== 'bg_type' && field.startsWith('bg_')) {
+      const currentType = bg.bg_type;
+      if (!currentType || currentType === 'none') {
+        if (field === 'bg_color') updates.bg_type = 'color';
+        else if (field === 'bg_image' || field === 'bg_asset_id') updates.bg_type = 'image';
+        else if (field.startsWith('bg_gradient')) updates.bg_type = 'gradient';
+      }
+    }
+
+    onChange(updates);
   };
 
   const gradientCss = buildGradientCss(bg);
@@ -168,7 +180,11 @@ export default function BackgroundEditor({ data, onChange }: Props) {
             <div className="space-y-2">
               <AssetField label="Background Image" value={bg.bg_image || ''} accept="image"
                 onChange={(url, assetId) => {
-                  onChange({ ...data, bg_image: url, ...(assetId ? { bg_asset_id: assetId } : {}) });
+                  onChange({
+                    bg_image: url,
+                    ...(assetId ? { bg_asset_id: assetId } : {}),
+                    ...(!bg.bg_type || bg.bg_type === 'none' ? { bg_type: 'image' } : {}),
+                  });
                 }} />
 
               <div className="grid grid-cols-2 gap-2">

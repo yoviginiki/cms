@@ -202,16 +202,21 @@ export function MagazineEditorCanvas() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === ' ') { setSpaceHeld(true); e.preventDefault(); }
       if (!selectedBlockId) return;
+
+      // Skip all shortcuts when user is editing text
+      const t = e.target as HTMLElement;
+      const isEditing = t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT';
+
       const step = e.shiftKey ? 10 : 1;
       const block = blocks.find(b => b.id === selectedBlockId);
       if (!block) return;
       const rect = getBlockRect(block);
 
-      if (e.key === 'ArrowUp') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x, rect.y - step); }
-      if (e.key === 'ArrowDown') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x, rect.y + step); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x - step, rect.y); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x + step, rect.y); }
-      if (e.key === 'Delete' || e.key === 'Backspace') { if (document.activeElement === document.body) { e.preventDefault(); removeBlock(selectedBlockId); } }
+      if (!isEditing && e.key === 'ArrowUp') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x, rect.y - step); }
+      if (!isEditing && e.key === 'ArrowDown') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x, rect.y + step); }
+      if (!isEditing && e.key === 'ArrowLeft') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x - step, rect.y); }
+      if (!isEditing && e.key === 'ArrowRight') { e.preventDefault(); setBlockPosition(selectedBlockId, rect.x + step, rect.y); }
+      if (!isEditing && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); removeBlock(selectedBlockId); }
       if (e.key === ';' && e.ctrlKey) { e.preventDefault(); setShowGrid(g => !g); }
       if (e.key === "'" && e.ctrlKey) { e.preventDefault(); setSnapToGrid(s => !s); }
     };

@@ -1,6 +1,6 @@
 import type { BlockEditorProps } from '@/types/blocks';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
-import { TextField, ColorField } from '@/components/editor/fields';
+import { TextField, ColorField, SelectField } from '@/components/editor/fields';
 
 export const CtabannerEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -19,6 +19,19 @@ export const CtabannerEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
 
       <div className="divider text-[10px] text-base-content/40 my-1">Typography</div>
       <ColorField label="Heading Color" value={(data.headingColor as string) || ''} onChange={(v) => update('headingColor', v)} />
+      <SelectField
+        label="Heading Text Shadow"
+        value={(data.headingTextShadow as string) || ''}
+        onChange={(v) => update('headingTextShadow', v)}
+        options={[
+          { value: '', label: 'None' },
+          { value: 'sm', label: 'Subtle' },
+          { value: 'md', label: 'Medium' },
+          { value: 'lg', label: 'Strong' },
+          { value: 'outline', label: 'Outline' },
+          { value: 'glow', label: 'Glow' },
+        ]}
+      />
       <ColorField label="Text Color" value={(data.textColor as string) || ''} onChange={(v) => update('textColor', v)} />
 
       <div className="divider text-[10px] text-base-content/40 my-1">Button Styling</div>

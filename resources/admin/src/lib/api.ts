@@ -66,10 +66,10 @@ export const pages = {
 };
 
 export const blocks = {
-  get: (siteId: string, type: 'pages' | 'posts', id: string) =>
+  get: (siteId: string, type: 'pages' | 'posts' | 'templates', id: string) =>
     api.get(`/sites/${siteId}/${type}/${id}/blocks`),
-  sync: (siteId: string, type: 'pages' | 'posts', id: string, data: unknown[]) =>
-    api.put(`/sites/${siteId}/${type}/${id}/blocks`, { blocks: data }),
+  sync: (siteId: string, type: 'pages' | 'posts' | 'templates', id: string, data: unknown[], rawHtml?: string) =>
+    api.put(`/sites/${siteId}/${type}/${id}/blocks`, { blocks: data, raw_html: rawHtml ?? '' }),
   render: (siteId: string, blockType: string, blockData: Record<string, unknown>) =>
     api.post(`/sites/${siteId}/blocks/render`, { type: blockType, data: blockData }),
 };
@@ -156,6 +156,14 @@ export const publishing = {
 
 export const layouts = {
   list: (siteId: string) => api.get(`/sites/${siteId}/layouts`),
+};
+
+export const themeTemplates = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/templates`),
+  get: (siteId: string, templateId: string) => api.get(`/sites/${siteId}/templates/${templateId}`),
+  create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/templates`, data),
+  update: (siteId: string, templateId: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/templates/${templateId}`, data),
+  delete: (siteId: string, templateId: string) => api.delete(`/sites/${siteId}/templates/${templateId}`),
 };
 
 export const themeEngine = {

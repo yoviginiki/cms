@@ -16,6 +16,7 @@ export const PricingcardEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
     ctaUrl: string;
     highlighted: boolean;
     badge: string;
+    textShadow?: string;
   };
 
   const features = data.features || [];
@@ -127,6 +128,18 @@ export const PricingcardEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
         >
           + Add Feature
         </button>
+      </div>
+
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Text Shadow</label>
+        <select className="select select-bordered select-sm w-full" value={(data.textShadow as string) || ''} onChange={(e) => update('textShadow', e.target.value || undefined)}>
+          <option value="">None</option>
+          <option value="sm">Subtle</option>
+          <option value="md">Medium</option>
+          <option value="lg">Strong</option>
+          <option value="outline">Outline</option>
+          <option value="glow">Glow</option>
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-2">

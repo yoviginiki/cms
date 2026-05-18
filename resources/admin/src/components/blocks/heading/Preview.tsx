@@ -1,5 +1,6 @@
 import type { BlockComponentProps } from '@/types/blocks';
 import { InlineTextField } from '@/components/editor/fields';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 const sizeClassMap: Record<string, string> = {
   h1: 'text-4xl', h2: 'text-3xl', h3: 'text-2xl', h4: 'text-xl', h5: 'text-lg', h6: 'text-base',
@@ -19,8 +20,9 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
   const letterSpacing = (data.letterSpacing as string) || '';
   const textTransform = (data.textTransform as string) || '';
   const textAlign = (data.textAlign as string) || '';
+  const textShadow = resolveTextShadow(data.textShadow);
 
-  const hasCustomStyle = color || fontSize || fontWeight || lineHeight || letterSpacing || textTransform || textAlign;
+  const hasCustomStyle = color || fontSize || fontWeight || lineHeight || letterSpacing || textTransform || textAlign || textShadow;
 
   const style: React.CSSProperties = {
     ...(fontSize ? { fontSize } : {}),
@@ -30,6 +32,7 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
     ...(letterSpacing ? { letterSpacing } : {}),
     ...(textTransform ? { textTransform: textTransform as React.CSSProperties['textTransform'] } : {}),
     ...(textAlign ? { textAlign: textAlign as React.CSSProperties['textAlign'] } : {}),
+    ...(textShadow ? { textShadow } : {}),
   };
 
   // Use Tailwind size class only when no custom fontSize is set

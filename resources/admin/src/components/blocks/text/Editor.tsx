@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { TextField, ToggleField, SelectField, ColorField } from '@/components/editor/fields';
 
+
 export const TextEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
   const content = (data.content as string) || '';
@@ -77,6 +78,19 @@ export const TextEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         onChange={(v) => update('letterSpacing', v)}
         placeholder="e.g. 0.02em, 1px"
         helperText="Leave empty for default"
+      />
+      <SelectField
+        label="Text Shadow"
+        value={(data.textShadow as string) || ''}
+        onChange={(v) => update('textShadow', v)}
+        options={[
+          { value: '', label: 'None' },
+          { value: 'sm', label: 'Subtle' },
+          { value: 'md', label: 'Medium' },
+          { value: 'lg', label: 'Strong' },
+          { value: 'outline', label: 'Outline' },
+          { value: 'glow', label: 'Glow' },
+        ]}
       />
     </div>
   );

@@ -6,36 +6,38 @@ import type { ShadowCustom } from '@/lib/shadowStyles';
 interface Props {
   value: VisualProps;
   onChange: (v: VisualProps) => void;
+  hideBg?: boolean;
 }
 
-export function VisualPanel({ value, onChange }: Props) {
+export function VisualPanel({ value, onChange, hideBg }: Props) {
   const update = (key: string, v: unknown) => onChange({ ...value, [key]: v || undefined });
 
   return (
     <div className="space-y-3">
-      {/* ── Background ── */}
-      <p className="text-[9px] text-base-content/25 italic">
-        Background controls below are for generic blocks. Hero and blocks with their own background system use those instead.
-      </p>
-      <div>
-        <label className="text-[10px] text-base-content/40">Background color</label>
-        <div className="flex gap-2">
-          <input type="color" value={value.backgroundColor || '#ffffff'} onChange={e => update('backgroundColor', e.target.value)}
-            className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
-          <input value={value.backgroundColor || ''} onChange={e => update('backgroundColor', e.target.value)}
-            className="input input-bordered input-xs flex-1 text-[11px]" placeholder="transparent" />
-        </div>
-      </div>
-      <div>
-        <label className="text-[10px] text-base-content/40">Background image</label>
-        <input value={value.backgroundImage || ''} onChange={e => update('backgroundImage', e.target.value)}
-          className="input input-bordered input-xs w-full text-[11px]" placeholder="url(https://...)" />
-      </div>
-      <div>
-        <label className="text-[10px] text-base-content/40">Gradient</label>
-        <input value={value.backgroundGradient || ''} onChange={e => update('backgroundGradient', e.target.value)}
-          className="input input-bordered input-xs w-full text-[11px]" placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
-      </div>
+      {!hideBg && (
+        <>
+          {/* ── Background (legacy — use BackgroundEditor section instead) ── */}
+          <div>
+            <label className="text-[10px] text-base-content/40">Background color</label>
+            <div className="flex gap-2">
+              <input type="color" value={value.backgroundColor || '#ffffff'} onChange={e => update('backgroundColor', e.target.value)}
+                className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
+              <input value={value.backgroundColor || ''} onChange={e => update('backgroundColor', e.target.value)}
+                className="input input-bordered input-xs flex-1 text-[11px]" placeholder="transparent" />
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] text-base-content/40">Background image</label>
+            <input value={value.backgroundImage || ''} onChange={e => update('backgroundImage', e.target.value)}
+              className="input input-bordered input-xs w-full text-[11px]" placeholder="url(https://...)" />
+          </div>
+          <div>
+            <label className="text-[10px] text-base-content/40">Gradient</label>
+            <input value={value.backgroundGradient || ''} onChange={e => update('backgroundGradient', e.target.value)}
+              className="input input-bordered input-xs w-full text-[11px]" placeholder="linear-gradient(135deg, #667eea, #764ba2)" />
+          </div>
+        </>
+      )}
 
       {/* ── Border ── */}
       <div className="grid grid-cols-3 gap-2">
@@ -79,6 +81,51 @@ export function VisualPanel({ value, onChange }: Props) {
         onChangePreset={(v) => update('boxShadow', v)}
         onChangeCustom={(v) => update('shadowCustom', { ...((value.shadowCustom as ShadowCustom) || {}), ...v })}
       />
+
+      {/* ── Text Shadow ── */}
+      <div>
+        <label className="text-[10px] text-base-content/40">Text Shadow</label>
+        <select value={value.textShadow || 'none'} onChange={e => update('textShadow', e.target.value === 'none' ? undefined : e.target.value)}
+          className="select select-bordered select-xs w-full text-[11px]">
+          <option value="none">None</option>
+          <option value="sm">Subtle</option>
+          <option value="md">Medium</option>
+          <option value="lg">Strong</option>
+          <option value="outline">Outline</option>
+          <option value="glow">Glow</option>
+          <option value="custom">Custom</option>
+        </select>
+        {value.textShadow === 'custom' && (
+          <div className="mt-2 space-y-1">
+            <div className="grid grid-cols-3 gap-1">
+              <div>
+                <label className="text-[9px] text-base-content/30">X</label>
+                <input value={value.textShadowX || '0px'} onChange={e => update('textShadowX', e.target.value)}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="0px" />
+              </div>
+              <div>
+                <label className="text-[9px] text-base-content/30">Y</label>
+                <input value={value.textShadowY || '2px'} onChange={e => update('textShadowY', e.target.value)}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="2px" />
+              </div>
+              <div>
+                <label className="text-[9px] text-base-content/30">Blur</label>
+                <input value={value.textShadowBlur || '4px'} onChange={e => update('textShadowBlur', e.target.value)}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="4px" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[9px] text-base-content/30">Color</label>
+              <div className="flex gap-1">
+                <input type="color" value={value.textShadowColor || '#000000'} onChange={e => update('textShadowColor', e.target.value)}
+                  className="w-7 h-6 rounded cursor-pointer border border-base-300/30" />
+                <input value={value.textShadowColor || ''} onChange={e => update('textShadowColor', e.target.value)}
+                  className="input input-bordered input-xs flex-1 text-[10px]" placeholder="rgba(0,0,0,0.3)" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── Opacity ── */}
       <div>

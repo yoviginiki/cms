@@ -4,7 +4,7 @@ export const codeDefinition: BlockDefinition = {
   type: 'code',
   category: 'content',
   label: 'Code',
-  icon: '{ }',
+  icon: 'Code',
   defaultData: {
     code: '',
     language: 'javascript',

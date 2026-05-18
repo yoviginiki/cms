@@ -1,22 +1,49 @@
 import { create } from 'zustand';
 import type { BlockData, BlockStyleProps } from '@/types/blocks';
 import { blockRegistry } from '@/components/blocks/registry';
+import { getPreset } from '@/presets';
+
+// ─── Undo persistence helpers ───
+const UNDO_STORAGE_KEY = 'editor_undo_state';
+
+function persistUndoState(blocks: BlockData[], undoStack: BlockData[][], redoStack: BlockData[][]) {
+  try {
+    // Only keep last 10 undo steps in storage to avoid quota issues
+    const payload = JSON.stringify({
+      blocks,
+      undoStack: undoStack.slice(-10),
+      redoStack: redoStack.slice(-10),
+    });
+    sessionStorage.setItem(UNDO_STORAGE_KEY, payload);
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function loadUndoState(): { blocks: BlockData[]; undoStack: BlockData[][]; redoStack: BlockData[][] } | null {
+  try {
+    const raw = sessionStorage.getItem(UNDO_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
 
 interface EditorState {
   blocks: BlockData[];
   selectedBlockId: string | null;
   isDirty: boolean;
   isSaving: boolean;
-  editorMode: 'block' | 'magazine';
-  canvasMode: 'visual' | 'wireframe';
+  editorMode: 'simple' | 'block' | 'magazine';
+  canvasMode: 'visual' | 'wireframe' | 'html';
+  rawHtml: string;
   undoStack: BlockData[][];
   redoStack: BlockData[][];
   maxUndoSteps: number;
 
+  setRawHtml: (html: string) => void;
   setBlocks: (blocks: BlockData[]) => void;
-  setEditorMode: (mode: 'block' | 'magazine') => void;
-  setCanvasMode: (mode: 'visual' | 'wireframe') => void;
+  setEditorMode: (mode: 'simple' | 'block' | 'magazine') => void;
+  setCanvasMode: (mode: 'visual' | 'wireframe' | 'html') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
+  addPreset: (presetType: string, index?: number) => void;
   updateBlock: (blockId: string, data: Partial<Record<string, unknown>>) => void;
   removeBlock: (blockId: string) => void;
   moveBlock: (activeId: string, overId: string, position: 'before' | 'after' | 'inside') => void;
@@ -26,6 +53,7 @@ interface EditorState {
   redo: () => void;
   setDirty: (dirty: boolean) => void;
   setSaving: (saving: boolean) => void;
+  restoreUndoState: () => void;
 }
 
 function generateId(): string {
@@ -41,7 +69,7 @@ function deepCloneWithNewIds(block: BlockData): BlockData {
     ...block,
     id: generateId(),
     data: deepClone(block.data),
-    children: block.children.map(deepCloneWithNewIds),
+    children: (block.children ?? []).map(deepCloneWithNewIds),
   };
 }
 
@@ -53,7 +81,7 @@ function findInTree(
     if (blocks[i].id === id) {
       return { block: blocks[i], parent: blocks, index: i };
     }
-    const found = findInTree(blocks[i].children, id);
+    const found = findInTree(blocks[i].children ?? [], id);
     if (found) return found;
   }
   return null;
@@ -64,12 +92,22 @@ function removeFromTree(blocks: BlockData[], id: string): BlockData[] {
     .filter((b) => b.id !== id)
     .map((b) => ({
       ...b,
-      children: removeFromTree(b.children, id),
+      children: removeFromTree(b.children ?? [], id),
     }));
 }
 
 function reorder(blocks: BlockData[]): BlockData[] {
   return blocks.map((b, i) => ({ ...b, order: i }));
+}
+
+/** Ensure every block has children:[] (API may return undefined/null) */
+function normalizeBlocks(blocks: unknown[]): BlockData[] {
+  if (!Array.isArray(blocks)) return [];
+  return blocks.map((b: any) => ({
+    ...b,
+    children: normalizeBlocks(b.children ?? []),
+    data: b.data ?? {},
+  }));
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -78,13 +116,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
   isSaving: false,
   editorMode: 'block',
-  canvasMode: 'visual' as 'visual' | 'wireframe',
+  canvasMode: 'visual' as 'visual' | 'wireframe' | 'html',
+  rawHtml: '',
   undoStack: [],
   redoStack: [],
   maxUndoSteps: 50,
 
+  setRawHtml: (html) => {
+    set({ rawHtml: html, isDirty: true });
+  },
+
   setBlocks: (blocks) => {
-    set({ blocks, isDirty: false, undoStack: [], redoStack: [] });
+    set({ blocks: normalizeBlocks(blocks), isDirty: false, undoStack: [], redoStack: [] });
   },
 
   setEditorMode: (mode) => {
@@ -193,6 +236,30 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       redoStack: [],
       isDirty: true,
       selectedBlockId: newBlock.id,
+    });
+  },
+
+  addPreset: (presetType, index) => {
+    const preset = getPreset(presetType);
+    if (!preset) return;
+
+    const state = get();
+    const undoStack = [
+      ...state.undoStack.slice(-(state.maxUndoSteps - 1)),
+      deepClone(state.blocks),
+    ];
+
+    const presetTree = preset.build();
+    const newBlocks = deepClone(state.blocks);
+    const insertAt = index ?? newBlocks.length;
+    newBlocks.splice(insertAt, 0, presetTree);
+
+    set({
+      blocks: reorder(newBlocks),
+      undoStack,
+      redoStack: [],
+      isDirty: true,
+      selectedBlockId: presetTree.id,
     });
   },
 
@@ -358,7 +425,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newUndoStack = state.undoStack.slice(0, -1);
 
     set({
-      blocks: prev,
+      blocks: normalizeBlocks(prev),
       undoStack: newUndoStack,
       redoStack: [...state.redoStack, deepClone(state.blocks)],
       isDirty: true,
@@ -373,7 +440,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newRedoStack = state.redoStack.slice(0, -1);
 
     set({
-      blocks: next,
+      blocks: normalizeBlocks(next),
       undoStack: [...state.undoStack, deepClone(state.blocks)],
       redoStack: newRedoStack,
       isDirty: true,
@@ -382,4 +449,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setDirty: (dirty) => set({ isDirty: dirty }),
   setSaving: (saving) => set({ isSaving: saving }),
+
+  restoreUndoState: () => {
+    const saved = loadUndoState();
+    if (saved && saved.blocks.length > 0) {
+      set({
+        blocks: normalizeBlocks(saved.blocks),
+        undoStack: saved.undoStack,
+        redoStack: saved.redoStack,
+      });
+    }
+  },
 }));
+
+// Persist undo state to sessionStorage on changes (debounced)
+let persistTimer: ReturnType<typeof setTimeout> | undefined;
+useEditorStore.subscribe(
+  (state) => {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistUndoState(state.blocks, state.undoStack, state.redoStack);
+    }, 1000);
+  }
+);

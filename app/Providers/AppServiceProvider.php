@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\Block;
 use App\Models\Category;
 use App\Models\Page;
+use App\Models\ThemeTemplate;
 use App\Models\Post;
 use App\Models\Site;
 use App\Policies\AssetPolicy;
@@ -86,6 +87,16 @@ use App\Domain\Blocks\Definitions\CustomformBlockDefinition;
 use App\Domain\Blocks\Definitions\PaywallBlockDefinition;
 use App\Domain\Blocks\Definitions\SharebuttonsBlockDefinition;
 use App\Domain\Blocks\Definitions\BeforeafterBlockDefinition;
+use App\Domain\Blocks\Definitions\PostTitleBlockDefinition;
+use App\Domain\Blocks\Definitions\PostContentBlockDefinition;
+use App\Domain\Blocks\Definitions\PostImageBlockDefinition;
+use App\Domain\Blocks\Definitions\PostVideoBlockDefinition;
+use App\Domain\Blocks\Definitions\PostMetaBlockDefinition;
+use App\Domain\Blocks\Definitions\PostExcerptBlockDefinition;
+use App\Domain\Blocks\Definitions\PostNavigationBlockDefinition;
+use App\Domain\Blocks\Definitions\PostLoopBlockDefinition;
+use App\Domain\Blocks\Definitions\CategoryHeaderBlockDefinition;
+use App\Domain\Blocks\Definitions\ArchivePaginationBlockDefinition;
 use App\Domain\Blocks\Services\BlockRegistry;
 use App\Domain\Hooks\HookDispatcher;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -175,6 +186,18 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new SharebuttonsBlockDefinition());
             $registry->register(new BeforeafterBlockDefinition());
 
+            // Dynamic content blocks (for theme builder templates)
+            $registry->register(new PostTitleBlockDefinition());
+            $registry->register(new PostContentBlockDefinition());
+            $registry->register(new PostImageBlockDefinition());
+            $registry->register(new PostVideoBlockDefinition());
+            $registry->register(new PostMetaBlockDefinition());
+            $registry->register(new PostExcerptBlockDefinition());
+            $registry->register(new PostNavigationBlockDefinition());
+            $registry->register(new PostLoopBlockDefinition());
+            $registry->register(new CategoryHeaderBlockDefinition());
+            $registry->register(new ArchivePaginationBlockDefinition());
+
             return $registry;
         });
     }
@@ -209,9 +232,11 @@ class AppServiceProvider extends ServiceProvider
         Relation::enforceMorphMap([
             'page' => Page::class,
             'post' => Post::class,
+            'template' => ThemeTemplate::class,
         ]);
 
         // Explicit route model bindings for non-standard model locations
+        Route::model('themeTemplate', ThemeTemplate::class);
         Route::model('issue', \App\Domain\IssueComposer\Models\MagazineIssue::class);
         Route::model('item', \App\Domain\IssueComposer\Models\IssueContentItem::class);
         Route::model('session', \App\Models\Magazine\WizardSession::class);

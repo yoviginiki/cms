@@ -47,7 +47,7 @@ export const rowDefinition: BlockDefinition = {
   type: 'row',
   category: 'layout',
   label: 'Row',
-  icon: '⬜',
+  icon: 'Rows3',
   level: 'row',
   defaultData: {
     layout: '1/2+1/2',

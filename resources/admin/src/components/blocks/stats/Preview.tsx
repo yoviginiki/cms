@@ -2,6 +2,7 @@ import type { BlockComponentProps } from '@/types/blocks';
 import { buildShadowCss } from '@/lib/shadowStyles';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 import { resolveCornerRadius } from '@/lib/spacingHelpers';
+import { resolveTextShadow } from '@/lib/blockStyles';
 
 interface StatItem { value: string; label: string; prefix: string; suffix: string }
 
@@ -22,6 +23,7 @@ export const StatsPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const valueColor = safeColor((data.valueColor as string) || '');
   const labelColor = safeColor((data.labelColor as string) || '') || 'var(--color-text-muted,#64748b)';
   const valueFontSize = safeDim((data.valueFontSize as string) || '') || '1.5rem';
+  const textShadow = resolveTextShadow(data.textShadow);
 
   const cardStyle: React.CSSProperties = {
     textAlign: 'center', padding: '1.5rem',
@@ -32,12 +34,12 @@ export const StatsPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap }}>
-      {items.map((item, i) => (
+      {(items || []).map((item, i) => (
         <div key={i} style={cardStyle}>
-          <div style={{ fontSize: valueFontSize, fontWeight: 700, ...(valueColor ? { color: valueColor } : {}) }}>
+          <div style={{ fontSize: valueFontSize, fontWeight: 700, ...(valueColor ? { color: valueColor } : {}), ...(textShadow ? { textShadow } : {}) }}>
             {item.prefix}{item.value}{item.suffix}
           </div>
-          <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem', color: labelColor }}>{item.label}</div>
+          <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem', color: labelColor, ...(textShadow ? { textShadow } : {}) }}>{item.label}</div>
         </div>
       ))}
     </div>

@@ -4,14 +4,15 @@
     $__ba = $blockAnimation ?? [];
     $__adv = $blockAdvanced ?? [];
     $__resp = $blockResponsive ?? [];
-    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba);
-    $__customClass = BlockStyle::safeClass($__adv['customClass'] ?? '');
+    $__sharedStyle = BlockStyle::buildStyle($__bs, $__ba, $data ?? []);
+    $__customClass = BlockStyle::buildClasses($__adv, $__ba);
     $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
     $__animAttr = BlockStyle::animationAttr($__ba);
     $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
-<div class="row-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+<div class="row-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+{!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $layoutMap = [
         '1' => '1fr',
@@ -28,7 +29,8 @@
     $gap = BlockStyle::safeDim($data['gap'] ?? '16px') ?: '16px';
     $maxW = BlockStyle::safeDim($data['max_width'] ?? '');
     $validAligns = ['start', 'center', 'end', 'stretch'];
-    $vAlign = in_array($data['vertical_align'] ?? 'stretch', $validAligns) ? $data['vertical_align'] : 'stretch';
+    $rawVAlign = $data['vertical_align'] ?? 'stretch';
+    $vAlign = in_array($rawVAlign, $validAligns) ? $rawVAlign : 'stretch';
 
     $style = "display:grid;grid-template-columns:{$gridCols};gap:{$gap};align-items:{$vAlign};";
     if ($maxW) {

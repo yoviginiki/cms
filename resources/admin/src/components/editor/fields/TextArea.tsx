@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface TextAreaProps {
   label: string;
   value: string;
@@ -7,10 +9,13 @@ interface TextAreaProps {
 }
 
 export function TextArea({ label, value, onChange, placeholder, rows = 4 }: TextAreaProps) {
+  const id = useId();
   return (
     <div className="mb-3">
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <textarea
+        id={id}
+        name={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

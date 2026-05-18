@@ -16,7 +16,7 @@ export const SharebuttonsPreview: React.FC<BlockComponentProps> = ({ block }) =>
 
   return (
     <div className="flex gap-2 flex-wrap">
-      {platforms.map((p) => (
+      {(platforms || []).map((p) => (
         <span
           key={p}
           className={`inline-flex items-center gap-1 text-xs ${

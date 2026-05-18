@@ -11,7 +11,14 @@ class Menu extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['site_id', 'name', 'slug', 'location'];
+    protected $fillable = ['site_id', 'name', 'slug', 'location', 'style'];
+
+    protected function casts(): array
+    {
+        return [
+            'style' => 'array',
+        ];
+    }
 
     public function site(): BelongsTo
     {

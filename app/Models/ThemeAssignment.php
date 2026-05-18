@@ -11,7 +11,7 @@ class ThemeAssignment extends Model
     use HasUuids;
 
     protected $fillable = [
-        'tenant_id', 'site_id', 'theme_id', 'mode',
+        'tenant_id', 'site_id', 'page_id', 'theme_id', 'mode',
     ];
 
     public function site(): BelongsTo

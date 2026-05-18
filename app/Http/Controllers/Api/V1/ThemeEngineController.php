@@ -46,17 +46,14 @@ class ThemeEngineController extends Controller
             ->whereNotNull('document')
             ->get(['id', 'name', 'slug', 'description', 'modes', 'schema_version', 'is_system', 'parent_theme_id']);
 
-        $all = $systemThemes->merge($siteThemes);
+        $all = $systemThemes->merge($siteThemes)->unique('id');
 
-        // Mark active — check both new assignments AND legacy active_theme_id
-        $assignedIds = ThemeAssignment::where('tenant_id', $site->tenant_id)
-            ->pluck('theme_id')
-            ->toArray();
-        $legacyActiveId = $site->active_theme_id;
+        // Mark the single active theme for this site
+        $activeThemeId = $site->active_theme_id;
 
-        $all = $all->map(function ($t) use ($assignedIds, $legacyActiveId) {
+        $all = $all->map(function ($t) use ($activeThemeId) {
             $arr = is_array($t) ? $t : $t->toArray();
-            $arr['is_assigned'] = in_array($arr['id'], $assignedIds) || $arr['id'] === $legacyActiveId;
+            $arr['is_assigned'] = $arr['id'] === $activeThemeId;
             return $arr;
         });
 
@@ -163,23 +160,35 @@ class ThemeEngineController extends Controller
     {
         $request->validate([
             'theme_id' => ['required', 'string'],
-            'mode' => ['sometimes', 'string'],
+            'page_id' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $mode = $request->input('mode', 'light');
+        $theme = $this->findTheme($request->input('theme_id'));
+        if (!$theme) {
+            return response()->json(['message' => 'Theme not found'], 404);
+        }
 
-        ThemeAssignment::updateOrCreate(
-            [
-                'tenant_id' => $site->tenant_id,
-                'site_id' => $site->id,
-                'mode' => $mode,
-            ],
-            ['theme_id' => $request->input('theme_id')],
-        );
+        $pageId = $request->input('page_id');
+
+        if ($pageId) {
+            // Per-page theme override
+            ThemeAssignment::updateOrCreate(
+                [
+                    'tenant_id' => $site->tenant_id,
+                    'site_id' => $site->id,
+                    'mode' => 'light',
+                    'page_id' => $pageId,
+                ],
+                ['theme_id' => $theme->id],
+            );
+        } else {
+            // Site-wide active theme — single source of truth
+            $site->update(['active_theme_id' => $theme->id]);
+        }
 
         $this->resolver->invalidateForSite($site->tenant_id, $site->id);
 
-        return response()->json(['message' => 'Theme assigned']);
+        return response()->json(['message' => $pageId ? 'Theme assigned to page' : 'Theme activated']);
     }
 
     /**

@@ -10,6 +10,9 @@
     @if(!empty($fontPreloads))
         {!! $fontPreloads !!}
     @endif
+    @if(!empty($designTokensCss))
+        <style>{!! $designTokensCss !!}</style>
+    @endif
     @if(!empty($criticalCss))
         <style>{!! $criticalCss !!}</style>
     @endif
@@ -26,6 +29,48 @@
     @endif
     {!! $headScripts ?? '' !!}
     <style>
+    /* ─── Block overlay z-index fix ─── */
+    .block-bg-overlay ~ * { position: relative; z-index: 1; }
+
+    /* ─── Mobile responsive — published pages ─── */
+    @media (max-width: 768px) {
+      /* Force multi-column grids to single column */
+      [style*="grid-template-columns:repeat(2"] { grid-template-columns: 1fr !important; }
+      [style*="grid-template-columns:repeat(3"] { grid-template-columns: 1fr !important; }
+      [style*="grid-template-columns:repeat(4"] { grid-template-columns: 1fr !important; }
+      [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+      [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+      /* Reduce section padding on mobile */
+      .section-block { padding-left: 1rem !important; padding-right: 1rem !important; }
+
+      /* Cap section inner max-width */
+      .section-block > div { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+
+      /* Ensure images don't overflow */
+      img { max-width: 100% !important; height: auto !important; }
+
+      /* Fix sticky sidebar on mobile */
+      .stickysidebar-block > div { flex-direction: column !important; }
+      .stickysidebar-block aside { width: 100% !important; position: static !important; }
+
+      /* Tables scroll horizontally */
+      table { display: block; overflow-x: auto; }
+
+      /* Reduce large headings */
+      h1 { font-size: clamp(1.5rem, 5vw, 3rem) !important; }
+      h2 { font-size: clamp(1.25rem, 4vw, 2rem) !important; }
+
+      /* Fix fullbleed on mobile */
+      .fullbleed-block section { min-height: 40vh !important; }
+    }
+
+    @media (max-width: 480px) {
+      /* Even smaller phones */
+      .section-block { padding-top: 2rem !important; padding-bottom: 2rem !important; }
+      body { font-size: 15px; }
+    }
+
     /* ─── Override old theme nav styles ─── */
     nav.nav-menu-container{all:unset !important}
     nav .nav-menu{all:unset !important}
@@ -87,7 +132,7 @@
         {!! $navigation !!}
     </header>
     @endif
-    <main role="main">
+    <main role="main"@if(!empty($mainStyle)) style="{{ $mainStyle }}"@endif>
         {!! $renderedBlocks !!}
     </main>
     @if(!empty($footerNavigation))

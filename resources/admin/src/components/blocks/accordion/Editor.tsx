@@ -9,7 +9,7 @@ interface AccordionItem {
 }
 
 export const AccordionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const data = block.data as { items: AccordionItem[] };
+  const data = block.data as { items: AccordionItem[]; titleTextShadow?: string };
   const items = data.items || [{ title: 'Question', content: '<p>Answer</p>' }];
 
   const updateItem = (index: number, field: keyof AccordionItem, value: string) => {
@@ -36,6 +36,17 @@ export const AccordionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
 
   return (
     <div className="space-y-4">
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Title Text Shadow</label>
+        <select className="select select-bordered select-sm w-full" value={data.titleTextShadow || ''} onChange={(e) => onUpdate({ ...block.data, titleTextShadow: e.target.value || undefined })}>
+          <option value="">None</option>
+          <option value="sm">Subtle</option>
+          <option value="md">Medium</option>
+          <option value="lg">Strong</option>
+          <option value="outline">Outline</option>
+          <option value="glow">Glow</option>
+        </select>
+      </div>
       <label className="block text-sm font-medium text-gray-700">Accordion Items</label>
       {items.map((item, index) => (
         <div key={index} className="rounded border border-gray-200 p-3 space-y-2">

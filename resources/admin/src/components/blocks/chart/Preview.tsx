@@ -9,7 +9,7 @@ interface ChartDataItem {
 export const ChartPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as { chartType: string; data: ChartDataItem[]; title: string; showLegend: boolean };
   const items = data.data || [];
-  const maxVal = Math.max(...items.map((d) => d.value), 1);
+  const maxVal = Math.max(...(items || []).map((d) => d.value), 1);
   const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
   return (
@@ -17,7 +17,7 @@ export const ChartPreview: React.FC<BlockComponentProps> = ({ block }) => {
       {data.title && <div className="text-sm font-semibold mb-3">{data.title}</div>}
       {(data.chartType === 'bar' || data.chartType === 'line') && (
         <div className="space-y-2">
-          {items.map((item, i) => (
+          {(items || []).map((item, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="text-xs w-12 text-right text-gray-500">{item.label}</span>
               <div className="flex-1 bg-gray-100 rounded h-5 overflow-hidden">
@@ -38,7 +38,7 @@ export const ChartPreview: React.FC<BlockComponentProps> = ({ block }) => {
           </div>
           {data.showLegend && (
             <div className="space-y-1">
-              {items.map((item, i) => (
+              {(items || []).map((item, i) => (
                 <div key={i} className="flex items-center gap-1">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
                   <span className="text-xs text-gray-600">{item.label}: {item.value}</span>

@@ -20,7 +20,7 @@ export const CustomformPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <div className="rounded border border-gray-200 p-4 space-y-3">
-      {fields.map((field, index) => (
+      {(fields || []).map((field, index) => (
         <div key={index}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {field.label}

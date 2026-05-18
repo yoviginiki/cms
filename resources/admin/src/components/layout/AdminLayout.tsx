@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download } from 'lucide-react';
+import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download, X, PanelLeft } from 'lucide-react';
 import { publishing, api } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -10,6 +10,11 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close mobile sidebar on navigation
+  const location2 = useLocation();
+  useEffect(() => { setMobileOpen(false); }, [location2.pathname]);
   const { siteId: routeSiteId } = useParams();
   const location = useLocation();
 
@@ -107,8 +112,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         { to: `/sites/${siteId}/tags`, icon: Hash, label: 'Tags' },
         { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
         { to: `/sites/${siteId}/grids`, icon: LayoutGrid, label: 'Grids' },
+        { to: `/sites/${siteId}/templates`, icon: Rocket, label: 'Templates' },
         { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
-        { to: `/sites/${siteId}/assets`, icon: Image, label: 'Assets' },
+        { to: `/sites/${siteId}/assets`, icon: Archive, label: 'File Manager' },
         { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
         { to: `/sites/${siteId}/graph`, icon: GitBranch, label: 'Graph' },
         { to: `/sites/${siteId}/import`, icon: Upload, label: 'Import' },
@@ -120,8 +126,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex h-screen bg-base-200" data-theme={adminTheme}>
-      {/* Sidebar */}
-      <aside className={`${collapsed ? 'w-14' : 'w-56'} bg-base-100 border-r border-base-300/50 flex flex-col transition-all duration-200`}>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
+      )}
+
+      {/* Sidebar — drawer on mobile, static on desktop */}
+      <aside className={`
+        ${collapsed ? 'lg:w-14' : 'lg:w-56'}
+        fixed lg:static inset-y-0 left-0 z-50 w-64
+        bg-base-100 border-r border-base-300/50 flex flex-col transition-all duration-200
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         {/* Logo */}
         <div className="flex items-center justify-between h-12 px-3 border-b border-base-300/30">
           {!collapsed && (
@@ -129,10 +145,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               cms
             </Link>
           )}
-          <button onClick={() => setCollapsed(!collapsed)}
-            className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-base-content/70">
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setMobileOpen(false)}
+              className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-base-content/70 lg:hidden">
+              <X size={14} />
+            </button>
+            <button onClick={() => setCollapsed(!collapsed)}
+              className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-base-content/70 hidden lg:flex">
+              {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -207,6 +229,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <BookOpen size={15} strokeWidth={1.5} />
             {!collapsed && 'Docs'}
           </a>
+          <a href="/docs/page-generation-guide.md" target="_blank"
+            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30 transition-colors">
+            <FileText size={15} strokeWidth={1.5} />
+            {!collapsed && 'Page Guide'}
+          </a>
           {!collapsed ? (
             <div className="px-2.5 py-1.5 space-y-1">
               <button onClick={handleGenerateExport} disabled={exportState === 'generating'}
@@ -252,7 +279,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile top bar with hamburger */}
+        <div className="flex items-center h-12 px-3 bg-base-100 border-b border-base-300/30 lg:hidden shrink-0">
+          <button onClick={() => setMobileOpen(true)}
+            className="btn btn-ghost btn-sm btn-square text-base-content/60">
+            <PanelLeft size={18} />
+          </button>
+          <span className="text-sm font-medium text-base-content/70 ml-2">CMS</span>
+        </div>
+
         {/* Top bar */}
         {publishSiteId && (
           <div className="flex items-center justify-between h-12 px-4 bg-base-100 border-b border-base-300/30 shrink-0">

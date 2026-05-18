@@ -371,6 +371,26 @@ button, a, input, select, textarea {
   to { opacity: 1; transform: scale(1); }
 }
 
+/* ─── Hover effects for blocks ─── */
+.block-hover-opacity { transition: opacity 0.3s ease; }
+.block-hover-opacity:hover { opacity: 0.7; }
+.block-hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+.block-hover-lift:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.12); }
+.block-hover-glow { transition: box-shadow 0.3s ease; }
+.block-hover-glow:hover { box-shadow: 0 0 20px rgba(59,130,246,0.4); }
+.block-hover-scale { transition: transform 0.3s ease; }
+.block-hover-scale:hover { transform: scale(1.03); }
+.block-hover-darken { transition: filter 0.3s ease; }
+.block-hover-darken:hover { filter: brightness(0.85); }
+.block-hover-grayscale { transition: filter 0.3s ease; }
+.block-hover-grayscale:hover { filter: grayscale(100%); }
+.block-hover-sepia { transition: filter 0.3s ease; }
+.block-hover-sepia:hover { filter: sepia(100%); }
+.block-hover-blur { transition: filter 0.3s ease; }
+.block-hover-blur:hover { filter: blur(2px); }
+.block-hover-saturate { transition: filter 0.3s ease; }
+.block-hover-saturate:hover { filter: saturate(1.8); }
+
 /* ─── Properties panel readability fix ─── */
 /* Boost label contrast in dark admin theme so text isn't gray-on-gray */
 [data-theme="cms-admin"] .text-base-content\/30 { color: oklch(0.65 0.01 260) !important; }
@@ -385,3 +405,23 @@ button, a, input, select, textarea {
 [data-theme="cms-admin"] .textarea-bordered { border-color: oklch(0.35 0.01 260) !important; }
 /* Ensure upload button text is visible */
 [data-theme="cms-admin"] .btn-ghost { color: oklch(0.80 0.01 260); }
+
+/* ═══════════════════════════════════════════
+   Mobile Responsive — Admin
+   ═══════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  /* Page list cards: single column */
+  .grid-cols-2, .md\:grid-cols-2, .lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make touch targets bigger */
+  .btn-xs { min-height: 2rem; min-width: 2rem; }
+  .btn-sm { min-height: 2.5rem; min-width: 2.5rem; }
+}
+
+@media (max-width: 640px) {
+  .text-2xl { font-size: 1.25rem !important; }
+  .gap-6 { gap: 0.75rem !important; }
+  .gap-4 { gap: 0.5rem !important; }
+}

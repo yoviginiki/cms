@@ -83,6 +83,19 @@ export const HeadingEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) =
         ]}
       />
       <SelectField
+        label="Text Shadow"
+        value={(data.textShadow as string) || ''}
+        onChange={(v) => update('textShadow', v)}
+        options={[
+          { value: '', label: 'None' },
+          { value: 'sm', label: 'Subtle' },
+          { value: 'md', label: 'Medium' },
+          { value: 'lg', label: 'Strong' },
+          { value: 'outline', label: 'Outline' },
+          { value: 'glow', label: 'Glow' },
+        ]}
+      />
+      <SelectField
         label="Text Alignment"
         value={(data.textAlign as string) || ''}
         onChange={(v) => update('textAlign', v)}

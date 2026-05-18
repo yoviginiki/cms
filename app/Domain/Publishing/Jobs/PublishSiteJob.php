@@ -303,30 +303,87 @@ class PublishSiteJob implements ShouldQueue
     {
         $vars = $this->getArchiveVars($site);
         $categories = $site->categories()->withCount('posts')->get();
+        $buildService = app(\App\Domain\Publishing\Services\BuildPageService::class);
 
         foreach ($categories as $category) {
-            $posts = $category->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
+            $posts = $category->posts()->with(['category', 'author'])->where('status', 'published')->orderByDesc('published_at')->get();
 
-            // Collect child categories with their posts
-            $children = $categories->where('parent_id', $category->id);
-            $childData = [];
-            foreach ($children as $child) {
-                $childPosts = $child->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
-                if ($childPosts->isNotEmpty()) {
-                    $childData[] = ['category' => $child, 'posts' => $childPosts];
+            // Check for archive template
+            $archiveTemplate = \App\Models\ThemeTemplate::resolveForArchive($site->id, $category->id);
+
+            if ($archiveTemplate) {
+                // Render archive using template blocks with context
+                $html = $this->renderArchiveWithTemplate($archiveTemplate, $category, $posts, $site, $vars, $buildService);
+            } else {
+                // Collect child categories with their posts
+                $children = $categories->where('parent_id', $category->id);
+                $childData = [];
+                foreach ($children as $child) {
+                    $childPosts = $child->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
+                    if ($childPosts->isNotEmpty()) {
+                        $childData[] = ['category' => $child, 'posts' => $childPosts];
+                    }
                 }
-            }
 
-            $html = View::make('publishing.category-archive', array_merge($vars, [
-                'category' => $category,
-                'posts' => $posts,
-                'childCategories' => $childData,
-            ]))->render();
+                $html = View::make('publishing.category-archive', array_merge($vars, [
+                    'category' => $category,
+                    'posts' => $posts,
+                    'childCategories' => $childData,
+                ]))->render();
+            }
 
             $path = "blog/category/{$category->slug}/index.html";
             File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
             File::put("{$stagingPath}/{$path}", $html);
         }
+    }
+
+    private function renderArchiveWithTemplate(
+        \App\Models\ThemeTemplate $template,
+        $category,
+        $posts,
+        $site,
+        array $vars,
+        \App\Domain\Publishing\Services\BuildPageService $buildService,
+    ): string {
+        // Set archive context for dynamic blocks
+        $archiveContext = [
+            '__category' => $category,
+            '__archivePosts' => $posts,
+            '__archivePostCount' => $posts->count(),
+            '__archiveCurrentPage' => 1,
+            '__archiveTotalPages' => 1,
+            '__archiveBaseUrl' => "/blog/category/{$category->slug}",
+        ];
+
+        // Render template blocks with archive context (safe try/finally inside)
+        $templateBlocks = $template->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with('children')
+            ->get();
+
+        $renderedBlocks = $buildService->renderBlocksWithContext($templateBlocks, $site, $archiveContext);
+
+        $themeConfig = $site->theme?->config ?? [];
+        $tokenGenerator = app(\App\Domain\Theme\Services\DesignTokenGenerator::class);
+
+        $seoService = app(\App\Domain\Publishing\Services\SeoService::class);
+        $headContent = '<title>' . e($category->name) . ' | ' . e($site->name) . '</title>';
+
+        return View::make('publishing.layout', array_merge($vars, [
+            'headContent' => $headContent,
+            'headScripts' => '',
+            'bodyScripts' => '',
+            'fontPreloads' => $vars['fontPreloads'] ?? '',
+            'hookHeadScripts' => '',
+            'hookBodyOpen' => '',
+            'hookBodyClose' => '',
+            'renderedBlocks' => $renderedBlocks,
+            'mainStyle' => 'max-width:var(--container-width,1080px);margin:0 auto;padding:0 1.5rem;',
+            'content' => (object) ['title' => $category->name, 'seo_meta' => []],
+            'themeConfig' => $themeConfig,
+        ]))->render();
     }
 
     private function buildTagArchives($site, string $stagingPath): void

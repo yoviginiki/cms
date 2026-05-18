@@ -31,6 +31,22 @@ export function safeColor(v: unknown): string | undefined {
   return undefined;
 }
 
+/** Text shadow presets — shared between block-level (VisualPanel) and element-level (heading, pullquote, etc.) */
+export const TEXT_SHADOW_PRESETS: Record<string, string> = {
+  sm: '0 1px 2px rgba(0,0,0,0.15)',
+  md: '0 2px 4px rgba(0,0,0,0.25)',
+  lg: '0 4px 8px rgba(0,0,0,0.4)',
+  outline: '-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)',
+  glow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)',
+};
+
+/** Resolve a text shadow preset key to a CSS value. Returns undefined for empty/none. */
+export function resolveTextShadow(key: unknown): string | undefined {
+  if (!key || key === 'none') return undefined;
+  const s = String(key);
+  return TEXT_SHADOW_PRESETS[s] || undefined;
+}
+
 const SHADOW_MAP: Record<string, string> = {
   sm: '0 1px 2px rgba(0,0,0,0.04)',
   md: '0 4px 12px rgba(0,0,0,0.06)',
@@ -101,6 +117,19 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
     if (vis.overflow && vis.overflow !== 'visible') {
       css.overflow = vis.overflow;
     }
+
+    // Text shadow
+    if (vis.textShadow && vis.textShadow !== 'none') {
+      if (vis.textShadow === 'custom') {
+        const x = safeDim(vis.textShadowX) || '0px';
+        const y = safeDim(vis.textShadowY) || '2px';
+        const blur = safeDim(vis.textShadowBlur) || '4px';
+        const color = safeColor(vis.textShadowColor) || 'rgba(0,0,0,0.3)';
+        css.textShadow = `${x} ${y} ${blur} ${color}`;
+      } else {
+        css.textShadow = TEXT_SHADOW_PRESETS[vis.textShadow] || 'none';
+      }
+    }
   }
 
   // Layout
@@ -143,6 +172,77 @@ const ANIMATION_NAMES: Record<string, string> = {
   'scale-in': 'block-scale-in',
 };
 
+/**
+ * Build background CSS from block.data bg_* fields (BackgroundEditor).
+ */
+export function buildBackgroundFromData(data?: Record<string, unknown>): React.CSSProperties {
+  if (!data) return {};
+  let bgType = data.bg_type as string;
+
+  // Auto-detect bg_type if fields are set but type is missing
+  if (!bgType || bgType === 'none') {
+    if (data.bg_color) bgType = 'color';
+    else if (data.bg_image) bgType = 'image';
+    else if (data.bg_gradient_stops) bgType = 'gradient';
+    else return {};
+  }
+
+  const css: React.CSSProperties = {};
+
+  if (bgType === 'color' && data.bg_color) {
+    const c = safeColor(data.bg_color as string);
+    if (c) css.backgroundColor = c;
+  }
+
+  if (bgType === 'gradient' && data.bg_gradient_stops) {
+    const stops = data.bg_gradient_stops as Array<{ color: string; position: number }>;
+    const type = (data.bg_gradient_type as string) || 'linear';
+    const angle = Number(data.bg_gradient_angle ?? 180);
+    if (stops.length >= 2) {
+      const stopsStr = stops.map(s => `${s.color} ${s.position}%`).join(', ');
+      css.background = type === 'radial'
+        ? `radial-gradient(circle, ${stopsStr})`
+        : `linear-gradient(${angle}deg, ${stopsStr})`;
+    }
+  }
+
+  if (bgType === 'image' && data.bg_image) {
+    css.backgroundImage = `url(${data.bg_image})`;
+    css.backgroundSize = (data.bg_image_size as string) || 'cover';
+    css.backgroundPosition = (data.bg_image_position as string) || 'center center';
+    css.backgroundRepeat = (data.bg_image_repeat as string) || 'no-repeat';
+    if (data.bg_scroll_effect === 'fixed') {
+      css.backgroundAttachment = 'fixed';
+    }
+  }
+
+  return css;
+}
+
+/**
+ * Build overlay style from block.data bg_overlay_* fields.
+ * Returns null if no overlay needed, or a style object for an absolute overlay div.
+ */
+export function buildOverlayFromData(data?: Record<string, unknown>): React.CSSProperties | null {
+  if (!data) return null;
+  const bgType = data.bg_type as string;
+  // Auto-detect image background when bg_type is missing but bg_image is set
+  if (bgType !== 'image' && !data.bg_image) return null;
+
+  const color = safeColor(data.bg_overlay_color as string);
+  const opacity = Number(data.bg_overlay_opacity ?? 0);
+  if (!color || opacity <= 0) return null;
+
+  return {
+    position: 'absolute',
+    inset: '0',
+    backgroundColor: color,
+    opacity,
+    pointerEvents: 'none',
+    zIndex: 0,
+  };
+}
+
 const VALID_EASINGS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
 
 /**
@@ -169,10 +269,16 @@ export function buildAnimationStyle(animation?: AnimationProps): React.CSSProper
 /**
  * Build CSS class names from block.advanced.
  */
-export function buildBlockClasses(advanced?: AdvancedProps): string {
-  if (!advanced?.customClass) return '';
-  // Only allow safe class tokens
-  return advanced.customClass.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
+export function buildBlockClasses(advanced?: AdvancedProps, animation?: AnimationProps): string {
+  let classes = '';
+  if (advanced?.customClass) {
+    classes += advanced.customClass.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
+  }
+  // Hover effect CSS class
+  if (animation?.hoverEffect && animation.hoverEffect !== 'none') {
+    classes += ` block-hover-${animation.hoverEffect}`;
+  }
+  return classes.trim();
 }
 
 /** Validate and normalize a CSS dimension value. Returns empty string if invalid. */
