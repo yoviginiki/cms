@@ -321,7 +321,7 @@ export function BuilderCanvas() {
                 title={label}
               >
                 <Icon size={14} />
-                <span className="hidden lg:inline">{label}</span>
+                <span className="hidden sm:inline text-[11px]">{device === 'desktop' ? 'Desktop' : device === 'tablet' ? 'Tablet' : 'Mobile'}</span>
               </button>
             ))}
           </div>
