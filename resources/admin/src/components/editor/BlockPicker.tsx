@@ -7,17 +7,17 @@ import { BlockIcon } from './BlockIcon';
 import type { BlockCategory, BlockDefinition } from '@/types/blocks';
 
 const CATEGORY_ORDER: { key: BlockCategory; label: string }[] = [
+  { key: 'dynamic', label: 'Dynamic Content' },
   { key: 'layout', label: 'Layout' },
   { key: 'typography', label: 'Typography' },
   { key: 'content', label: 'Content' },
   { key: 'navigation', label: 'Navigation' },
   { key: 'media', label: 'Media' },
-  { key: 'blog', label: 'Blog & editorial' },
+  { key: 'blog', label: 'Blog & Editorial' },
   { key: 'interactive', label: 'Interactive' },
-  { key: 'data', label: 'Data & content' },
+  { key: 'data', label: 'Data & Content' },
   { key: 'commerce', label: 'Commerce' },
   { key: 'forms', label: 'Forms' },
-  { key: 'dynamic', label: 'Dynamic Content' },
   { key: 'embed', label: 'Embeds' },
   { key: 'marketing', label: 'Marketing' },
   { key: 'advanced', label: 'Advanced' },

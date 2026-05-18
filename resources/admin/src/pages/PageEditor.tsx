@@ -375,8 +375,8 @@ export default function PageEditor() {
               );
             })()}
 
-            {/* Right sidebar */}
-            <div className="w-72 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0">
+            {/* Right sidebar — overlay on mobile */}
+            <div className="w-72 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 max-lg:fixed max-lg:right-0 max-lg:top-12 max-lg:bottom-0 max-lg:z-30 max-lg:w-80 max-lg:shadow-xl">
               <div className="flex border-b border-base-300/20 shrink-0">
                 {([
                   { key: 'add' as const, label: '+ Add' },
