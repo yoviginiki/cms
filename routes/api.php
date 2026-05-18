@@ -176,6 +176,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/theme-engine/studio/frames', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'studioFrames']);
         Route::get('sites/{site}/theme-engine/studio/frame/{slug}', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'studioFrame']);
 
+        // Theme Templates (Theme Builder)
+        Route::get('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'index']);
+        Route::post('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'store']);
+        Route::get('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'show']);
+        Route::put('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'update']);
+        Route::delete('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'destroy']);
+
         // Preview
         Route::get('sites/{site}/pages/{page}/preview', [PreviewController::class, 'previewPage']);
         Route::get('sites/{site}/posts/{post}/preview', [PreviewController::class, 'previewPost']);

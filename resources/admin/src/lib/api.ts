@@ -158,6 +158,14 @@ export const layouts = {
   list: (siteId: string) => api.get(`/sites/${siteId}/layouts`),
 };
 
+export const themeTemplates = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/templates`),
+  get: (siteId: string, templateId: string) => api.get(`/sites/${siteId}/templates/${templateId}`),
+  create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/templates`, data),
+  update: (siteId: string, templateId: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/templates/${templateId}`, data),
+  delete: (siteId: string, templateId: string) => api.delete(`/sites/${siteId}/templates/${templateId}`),
+};
+
 export const themeEngine = {
   list: (siteId: string) => api.get(`/sites/${siteId}/theme-engine/themes`),
   get: (siteId: string, themeId: string) => api.get(`/sites/${siteId}/theme-engine/themes/${themeId}`),

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Image, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download } from 'lucide-react';
+import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download } from 'lucide-react';
 import { publishing, api } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -107,8 +107,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         { to: `/sites/${siteId}/tags`, icon: Hash, label: 'Tags' },
         { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
         { to: `/sites/${siteId}/grids`, icon: LayoutGrid, label: 'Grids' },
+        { to: `/sites/${siteId}/templates`, icon: Rocket, label: 'Templates' },
         { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
-        { to: `/sites/${siteId}/assets`, icon: Image, label: 'Assets' },
+        { to: `/sites/${siteId}/assets`, icon: Archive, label: 'File Manager' },
         { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
         { to: `/sites/${siteId}/graph`, icon: GitBranch, label: 'Graph' },
         { to: `/sites/${siteId}/import`, icon: Upload, label: 'Import' },
