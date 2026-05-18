@@ -9,7 +9,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import {
   ArrowLeft, Save, Plus, Trash2, GripVertical, ChevronRight, ChevronDown,
-  Loader2, ExternalLink, FileText, FolderOpen, Link2, Globe, Settings2,
+  Loader2, ExternalLink, FileText, FolderOpen, Link2, Globe, Settings2, Palette,
 } from 'lucide-react';
 import { menus, pages as pagesApi, categories as catsApi, posts as postsApi } from '@/lib/api';
 
@@ -401,8 +401,9 @@ export default function MenuEditor() {
   const queryClient = useQueryClient();
   const [items, setItems] = useState<MenuItemData[]>([]);
   const [menuName, setMenuName] = useState('');
+  const [menuStyle, setMenuStyle] = useState<Record<string, unknown>>({});
   const [isDirty, setIsDirty] = useState(false);
-  const [addPanelTab, setAddPanelTab] = useState<'pages' | 'posts' | 'categories' | 'custom'>('pages');
+  const [addPanelTab, setAddPanelTab] = useState<'pages' | 'posts' | 'categories' | 'custom' | 'style'>('pages');
   const [searchQuery, setSearchQuery] = useState('');
   const [addParentId, setAddParentId] = useState<string | null>(null);
 
@@ -434,13 +435,14 @@ export default function MenuEditor() {
   useEffect(() => {
     if (menuData) {
       setMenuName(menuData.menu?.name || '');
+      setMenuStyle(menuData.menu?.style || {});
       setItems(ensureIds(menuData.items || []));
     }
   }, [menuData]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      await menus.update(siteId, menuId, { name: menuName });
+      await menus.update(siteId, menuId, { name: menuName, style: menuStyle });
       await menus.syncItems(siteId, menuId, cleanItems(items));
     },
     onSuccess: () => {
@@ -829,6 +831,7 @@ export default function MenuEditor() {
                 { key: 'posts' as const, label: 'Posts', icon: FileText },
                 { key: 'categories' as const, label: 'Cats', icon: FolderOpen },
                 { key: 'custom' as const, label: 'Link', icon: Link2 },
+                { key: 'style' as const, label: 'Style', icon: Palette },
               ]).map(({ key, label, icon: Icon }) => (
                 <button key={key} onClick={() => { setAddPanelTab(key); setSearchQuery(''); }}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-[11px] font-medium border-b-2 transition-colors ${
@@ -840,7 +843,7 @@ export default function MenuEditor() {
             </div>
 
             {/* Search */}
-            {addPanelTab !== 'custom' && (
+            {addPanelTab !== 'custom' && addPanelTab !== 'style' && (
               <div className="px-3 py-2 border-b border-gray-50">
                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search..." className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -895,6 +898,110 @@ export default function MenuEditor() {
                     className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-blue-600 border-2 border-dashed border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors">
                     <Plus className="h-4 w-4" /> Add Custom Link
                   </button>
+                </div>
+              )}
+              {addPanelTab === 'style' && (
+                <div className="p-3 space-y-3">
+                  <p className="text-[10px] text-gray-400">Customize how this menu looks on the published site.</p>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Background Color</label>
+                    <div className="flex gap-1">
+                      <input type="color" value={(menuStyle.bgColor as string) || '#ffffff'}
+                        onChange={e => { setMenuStyle(s => ({ ...s, bgColor: e.target.value })); setIsDirty(true); }}
+                        className="w-7 h-7 rounded cursor-pointer border border-gray-200" />
+                      <input value={(menuStyle.bgColor as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, bgColor: e.target.value })); setIsDirty(true); }}
+                        className="input input-bordered input-xs flex-1 text-[10px]" placeholder="transparent" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Text Color</label>
+                    <div className="flex gap-1">
+                      <input type="color" value={(menuStyle.textColor as string) || '#333333'}
+                        onChange={e => { setMenuStyle(s => ({ ...s, textColor: e.target.value })); setIsDirty(true); }}
+                        className="w-7 h-7 rounded cursor-pointer border border-gray-200" />
+                      <input value={(menuStyle.textColor as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, textColor: e.target.value })); setIsDirty(true); }}
+                        className="input input-bordered input-xs flex-1 text-[10px]" placeholder="inherit" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Hover Color</label>
+                    <input value={(menuStyle.hoverColor as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, hoverColor: e.target.value })); setIsDirty(true); }}
+                      className="input input-bordered input-xs w-full text-[10px]" placeholder="var(--color-accent)" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Font Size</label>
+                    <input value={(menuStyle.fontSize as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, fontSize: e.target.value })); setIsDirty(true); }}
+                      className="input input-bordered input-xs w-full text-[10px]" placeholder="14px" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Font Weight</label>
+                    <select value={(menuStyle.fontWeight as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, fontWeight: e.target.value })); setIsDirty(true); }}
+                      className="select select-bordered select-xs w-full text-[10px]">
+                      <option value="">Default</option>
+                      <option value="400">Normal (400)</option>
+                      <option value="500">Medium (500)</option>
+                      <option value="600">Semibold (600)</option>
+                      <option value="700">Bold (700)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Height</label>
+                    <input value={(menuStyle.height as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, height: e.target.value })); setIsDirty(true); }}
+                      className="input input-bordered input-xs w-full text-[10px]" placeholder="56px" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Item Gap</label>
+                    <input value={(menuStyle.gap as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, gap: e.target.value })); setIsDirty(true); }}
+                      className="input input-bordered input-xs w-full text-[10px]" placeholder="24px" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Letter Spacing</label>
+                    <input value={(menuStyle.letterSpacing as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, letterSpacing: e.target.value })); setIsDirty(true); }}
+                      className="input input-bordered input-xs w-full text-[10px]" placeholder="0.04em" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Text Transform</label>
+                    <select value={(menuStyle.textTransform as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, textTransform: e.target.value })); setIsDirty(true); }}
+                      className="select select-bordered select-xs w-full text-[10px]">
+                      <option value="">None</option>
+                      <option value="uppercase">UPPERCASE</option>
+                      <option value="lowercase">lowercase</option>
+                      <option value="capitalize">Capitalize</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input type="checkbox" checked={!!menuStyle.sticky} onChange={e => { setMenuStyle(s => ({ ...s, sticky: e.target.checked })); setIsDirty(true); }}
+                      className="checkbox checkbox-xs" />
+                    <label className="text-[10px] text-gray-500">Sticky (fixed on scroll)</label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={!!menuStyle.transparent} onChange={e => { setMenuStyle(s => ({ ...s, transparent: e.target.checked })); setIsDirty(true); }}
+                      className="checkbox checkbox-xs" />
+                    <label className="text-[10px] text-gray-500">Transparent Background</label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={!!menuStyle.showSearch} onChange={e => { setMenuStyle(s => ({ ...s, showSearch: e.target.checked })); setIsDirty(true); }}
+                      className="checkbox checkbox-xs" />
+                    <label className="text-[10px] text-gray-500">Show Search Icon</label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={!!menuStyle.showSocial} onChange={e => { setMenuStyle(s => ({ ...s, showSocial: e.target.checked })); setIsDirty(true); }}
+                      className="checkbox checkbox-xs" />
+                    <label className="text-[10px] text-gray-500">Show Social Links</label>
+                  </div>
                 </div>
               )}
             </div>

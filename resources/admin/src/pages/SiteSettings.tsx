@@ -21,7 +21,7 @@ interface PageItem {
   status: string;
 }
 
-type Tab = 'general' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'ai' | 'magazine' | 'danger';
+type Tab = 'general' | 'branding' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'ai' | 'magazine' | 'danger';
 
 declare global {
   interface Window {
@@ -39,6 +39,13 @@ export default function SiteSettings() {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('');
   const [autoPublish, setAutoPublish] = useState(true);
+
+  // Branding
+  const [logoUrl, setLogoUrl] = useState('');
+  const [tagline, setTagline] = useState('');
+  const [footerText, setFooterText] = useState('');
+  const [footerCopyright, setFooterCopyright] = useState('');
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>({});
 
   // Front Page
   const [homepageType, setHomepageType] = useState<'page' | 'grid' | 'blog'>('page');
@@ -106,6 +113,11 @@ export default function SiteSettings() {
       setName(site.name);
       setStatus(site.status);
       setAutoPublish((site.settings?.auto_publish as boolean) ?? true);
+      setLogoUrl((site.settings?.logo_url as string) ?? '');
+      setTagline((site.settings?.tagline as string) ?? '');
+      setFooterText((site.settings?.footer_text as string) ?? '');
+      setFooterCopyright((site.settings?.footer_copyright as string) ?? '');
+      setSocialLinks((site.settings?.social_links as Record<string, string>) ?? {});
       setHomepageType((site.settings?.homepage_type as 'page' | 'grid' | 'blog') ?? 'page');
       setHomepageId((site.settings?.homepage_id as string) ?? '');
       setHomepageGridId((site.settings?.homepage_grid_id as string) ?? '');
@@ -153,6 +165,17 @@ export default function SiteSettings() {
     name,
     status,
     settings: { ...(site?.settings || {}), auto_publish: autoPublish },
+  });
+
+  const saveBranding = () => updateMutation.mutate({
+    settings: {
+      ...(site?.settings || {}),
+      logo_url: logoUrl || null,
+      tagline: tagline || null,
+      footer_text: footerText || null,
+      footer_copyright: footerCopyright || null,
+      social_links: socialLinks,
+    },
   });
 
   const saveFrontPage = () => updateMutation.mutate({
@@ -226,6 +249,7 @@ export default function SiteSettings() {
 
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: 'general', label: 'General', show: true },
+    { key: 'branding', label: 'Branding', show: true },
     { key: 'front-page', label: 'Front Page', show: true },
     { key: 'seo', label: 'SEO', show: true },
     { key: 'files', label: 'Files', show: true },
@@ -312,6 +336,71 @@ export default function SiteSettings() {
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Branding */}
+      {activeTab === 'branding' && (
+        <div className="max-w-2xl space-y-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+            <h3 className="font-semibold text-gray-900 text-sm">Logo & Identity</h3>
+
+            <div>
+              <label className="text-[11px] text-gray-500 mb-1 block">Logo Image</label>
+              <div className="flex items-center gap-3">
+                {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 max-w-[160px] object-contain rounded border" />}
+                <input type="text" value={logoUrl} onChange={e => setLogoUrl(e.target.value)}
+                  className="input input-bordered input-sm flex-1 text-[12px]" placeholder="Logo URL or upload path" />
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Upload via File Manager, then paste the URL here</p>
+            </div>
+
+            <div>
+              <label className="text-[11px] text-gray-500 mb-1 block">Tagline</label>
+              <input type="text" value={tagline} onChange={e => setTagline(e.target.value)}
+                className="input input-bordered input-sm w-full text-[12px]" placeholder="A short description of your site" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+            <h3 className="font-semibold text-gray-900 text-sm">Social Links</h3>
+            <p className="text-[10px] text-gray-400">Add your social media profile URLs. Leave empty to hide.</p>
+            {(['facebook', 'twitter', 'instagram', 'youtube', 'linkedin', 'github', 'tiktok', 'telegram', 'email'] as const).map(platform => (
+              <div key={platform}>
+                <label className="text-[11px] text-gray-500 mb-1 block capitalize">{platform === 'email' ? 'Email Address' : platform}</label>
+                <input type={platform === 'email' ? 'email' : 'url'}
+                  value={socialLinks[platform] || ''}
+                  onChange={e => setSocialLinks(prev => ({ ...prev, [platform]: e.target.value }))}
+                  className="input input-bordered input-sm w-full text-[12px]"
+                  placeholder={platform === 'email' ? 'contact@example.com' : `https://${platform}.com/...`} />
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+            <h3 className="font-semibold text-gray-900 text-sm">Footer</h3>
+
+            <div>
+              <label className="text-[11px] text-gray-500 mb-1 block">Footer Text</label>
+              <textarea value={footerText} onChange={e => setFooterText(e.target.value)} rows={2}
+                className="textarea textarea-bordered textarea-sm w-full text-[12px]"
+                placeholder="Custom text shown in the footer" />
+            </div>
+
+            <div>
+              <label className="text-[11px] text-gray-500 mb-1 block">Copyright Notice</label>
+              <input type="text" value={footerCopyright} onChange={e => setFooterCopyright(e.target.value)}
+                className="input input-bordered input-sm w-full text-[12px]"
+                placeholder={`© ${new Date().getFullYear()} Your Site Name`} />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button onClick={saveBranding} disabled={updateMutation.isPending}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {updateMutation.isPending ? 'Saving...' : 'Save Branding'}
+            </button>
           </div>
         </div>
       )}

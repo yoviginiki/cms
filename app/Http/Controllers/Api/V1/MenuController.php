@@ -56,9 +56,10 @@ class MenuController extends Controller
         $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'location' => ['sometimes', 'string', 'in:header,footer,sidebar,mobile'],
+            'style' => ['sometimes', 'array'],
         ]);
 
-        $menu = $this->menuService->updateMenu($menu, $request->only(['name', 'location']));
+        $menu = $this->menuService->updateMenu($menu, $request->only(['name', 'location', 'style']));
 
         return response()->json(['data' => $menu]);
     }
