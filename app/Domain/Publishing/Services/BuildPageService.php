@@ -281,7 +281,14 @@ class BuildPageService
         $blockAdvanced = $sanitizedData['__advanced'] ?? [];
         $blockResponsive = $sanitizedData['__responsive'] ?? [];
 
-        return View::make($viewName, array_merge([
+        // Build responsive style overrides (spacing/layout per breakpoint)
+        $htmlId = \App\Support\Blocks\BlockStyle::safeId($blockAdvanced['htmlId'] ?? '');
+        $respStyleCss = \App\Support\Blocks\BlockStyle::buildResponsiveStyleCss(
+            is_array($block->responsive) ? $block->responsive : $blockResponsive,
+            $htmlId ?: $block->id,
+        );
+
+        $rendered = View::make($viewName, array_merge([
             'data' => $sanitizedData,
             'children' => $childrenHtml,
             'childrenArray' => $childrenArray,
@@ -291,6 +298,14 @@ class BuildPageService
             'blockAdvanced' => $blockAdvanced,
             'blockResponsive' => $blockResponsive,
         ], $this->templateContext))->render();
+
+        // Wrap with responsive style overrides if any exist
+        if ($respStyleCss['css']) {
+            $rendered = '<style>' . $respStyleCss['css'] . '</style>'
+                . '<div class="' . $respStyleCss['scopeClass'] . '">' . $rendered . '</div>';
+        }
+
+        return $rendered;
     }
 
     /**

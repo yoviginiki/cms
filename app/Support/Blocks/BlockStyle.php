@@ -411,4 +411,81 @@ class BlockStyle
 
         return ['scopeClass' => $scope, 'css' => $css];
     }
+
+    /**
+     * Build responsive style overrides (spacing/layout) as scoped CSS.
+     * Reads from block.responsive.tablet/mobile.spacing and .layout.
+     * Returns ['scopeClass' => string, 'css' => string].
+     */
+    public static function buildResponsiveStyleCss(array $blockResponsive = [], string $htmlId = ''): array
+    {
+        $tablet = $blockResponsive['tablet'] ?? [];
+        $mobile = $blockResponsive['mobile'] ?? [];
+
+        if (empty($tablet) && empty($mobile)) return ['scopeClass' => '', 'css' => ''];
+
+        $scope = 'rsp-' . substr(md5($htmlId ?: uniqid('', true)), 0, 8);
+        $css = '';
+
+        // Tablet overrides: max-width 1023px
+        $tabletRules = self::buildStyleOverrideRules($tablet);
+        if ($tabletRules) {
+            $css .= "@media(max-width:1023px){.{$scope}{{$tabletRules}}}";
+        }
+
+        // Mobile overrides: max-width 767px
+        $mobileRules = self::buildStyleOverrideRules($mobile);
+        if ($mobileRules) {
+            $css .= "@media(max-width:767px){.{$scope}{{$mobileRules}}}";
+        }
+
+        return ['scopeClass' => $scope, 'css' => $css];
+    }
+
+    /**
+     * Build CSS rules from a responsive override object (spacing + layout sections).
+     */
+    private static function buildStyleOverrideRules(array $overrides): string
+    {
+        $rules = '';
+
+        // Spacing overrides
+        $spacing = $overrides['spacing'] ?? [];
+        $spacingMap = [
+            'marginTop' => 'margin-top', 'marginRight' => 'margin-right',
+            'marginBottom' => 'margin-bottom', 'marginLeft' => 'margin-left',
+            'paddingTop' => 'padding-top', 'paddingRight' => 'padding-right',
+            'paddingBottom' => 'padding-bottom', 'paddingLeft' => 'padding-left',
+            'gap' => 'gap',
+        ];
+        foreach ($spacingMap as $key => $cssProp) {
+            $val = self::safeDim($spacing[$key] ?? '');
+            if ($val !== '') $rules .= "{$cssProp}:{$val}!important;";
+        }
+
+        // Layout overrides
+        $layout = $overrides['layout'] ?? [];
+        $layoutMap = [
+            'width' => 'width', 'maxWidth' => 'max-width', 'minHeight' => 'min-height',
+        ];
+        foreach ($layoutMap as $key => $cssProp) {
+            $val = self::safeDim($layout[$key] ?? '');
+            if ($val !== '') $rules .= "{$cssProp}:{$val}!important;";
+        }
+
+        // Display override
+        $validDisplay = ['block', 'flex', 'grid', 'none'];
+        $display = $layout['display'] ?? '';
+        if (in_array($display, $validDisplay)) {
+            $rules .= "display:{$display}!important;";
+        }
+
+        // Alignment override
+        $validAlign = ['left', 'center', 'right'];
+        $align = $layout['alignment'] ?? '';
+        if ($align === 'center') $rules .= 'margin-left:auto!important;margin-right:auto!important;';
+        elseif ($align === 'right') $rules .= 'margin-left:auto!important;margin-right:0!important;';
+
+        return $rules;
+    }
 }

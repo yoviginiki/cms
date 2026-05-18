@@ -102,7 +102,13 @@ export function BlockSettings() {
 
         {/* Spacing */}
         <Section title="Spacing">
-          <SpacingPanel value={style.spacing || {}} onChange={v => updateStyle('spacing', v)} />
+          <SpacingPanel
+            value={style.spacing || {}}
+            onChange={v => updateStyle('spacing', v)}
+            style={style}
+            responsive={block.responsive}
+            onResponsiveChange={v => handleUpdate({ __responsive: v })}
+          />
         </Section>
 
         {/* Background (full Divi-quality: color picker, gradient builder, image + overlay) */}
@@ -117,7 +123,13 @@ export function BlockSettings() {
 
         {/* Layout */}
         <Section title="Layout">
-          <LayoutPanel value={style.layout || {}} onChange={v => updateStyle('layout', v)} />
+          <LayoutPanel
+            value={style.layout || {}}
+            onChange={v => updateStyle('layout', v)}
+            style={style}
+            responsive={block.responsive}
+            onResponsiveChange={v => handleUpdate({ __responsive: v })}
+          />
         </Section>
 
         {/* Animation */}
