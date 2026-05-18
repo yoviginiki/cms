@@ -29,6 +29,7 @@ import ThemeStudio from './pages/ThemeStudio';
 import Templates from './pages/Templates';
 import TemplateEditor from './pages/TemplateEditor';
 import Login from './pages/Login';
+import DtpPrototypeShell from './components/magazine/prototypes/dtp/DtpPrototypeShell';
 import SessionsListPage from './pages/wizard/SessionsListPage';
 import WizardPage from './pages/wizard/WizardPage';
 
@@ -84,6 +85,9 @@ export default function App() {
           {/* Full-screen editors (no sidebar) */}
           <Route path="/sites/:siteId/pages/:pageId/edit" element={<PageEditor />} />
           <Route path="/sites/:siteId/posts/:postId/edit" element={<PostEditor />} />
+
+          {/* Dev prototype: DTP Canvas (M1) — intentionally production-accessible for stakeholder review */}
+          <Route path="/sites/:siteId/magazine/dtp-prototype" element={<DtpPrototypeShell />} />
         </Routes>
       </ToastProvider>
     </QueryClientProvider>
