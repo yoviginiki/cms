@@ -326,9 +326,16 @@ export function BuilderCanvas() {
             ))}
           </div>
         </div>
+        {canvasDevice !== 'desktop' && (
+          <div className="flex items-center justify-center gap-2 py-1.5 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs font-medium">
+            <Eye size={12} /> Preview only — switch to Desktop to edit
+          </div>
+        )}
         <div className="p-6">
         <div
-          className="mx-auto bg-white rounded-xl shadow-sm border border-gray-200 min-h-[60vh] p-6 editor-canvas-light"
+          className={`mx-auto bg-white rounded-xl shadow-sm border min-h-[60vh] p-6 editor-canvas-light ${
+            canvasDevice !== 'desktop' ? 'border-amber-300 pointer-events-none opacity-90' : 'border-gray-200'
+          }`}
           style={{
             maxWidth: canvasWidths[canvasDevice],
             transition: 'max-width 0.3s ease',
