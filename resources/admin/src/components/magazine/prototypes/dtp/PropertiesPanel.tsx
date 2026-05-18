@@ -1,8 +1,9 @@
 /**
- * M1 DTP Canvas Prototype — Properties Panel
+ * M2 DTP Canvas Prototype — Properties Panel
  *
- * Shows document info when nothing selected, frame properties when a frame is selected.
+ * Shows document info when nothing selected, editable frame properties when selected.
  */
+import { useState, useEffect } from 'react';
 import { FileText, ImageIcon, Quote, Hash, Layers } from 'lucide-react';
 import type { DtpDocument, DtpFrame, DtpSpread } from './mockDocument';
 
@@ -10,13 +11,11 @@ interface Props {
   document: DtpDocument;
   spread: DtpSpread;
   selectedFrame: DtpFrame | null;
+  onUpdateFrame?: (id: string, updates: Partial<DtpFrame>) => void;
 }
 
 const TYPE_ICONS: Record<DtpFrame['type'], typeof FileText> = {
-  text: FileText,
-  image: ImageIcon,
-  quote: Quote,
-  pageNumber: Hash,
+  text: FileText, image: ImageIcon, quote: Quote, pageNumber: Hash,
 };
 
 function PropRow({ label, value }: { label: string; value: string | number }) {
@@ -28,9 +27,43 @@ function PropRow({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-export function PropertiesPanel({ document: doc, spread, selectedFrame }: Props) {
+/** Numeric input that validates and calls back on change/blur */
+function NumInput({ label, value, onChange, min, max, suffix = 'px' }: {
+  label: string; value: number; onChange: (v: number) => void;
+  min?: number; max?: number; suffix?: string;
+}) {
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => { setText(String(value)); }, [value]);
+
+  const commit = () => {
+    let n = parseFloat(text);
+    if (isNaN(n)) { setText(String(value)); return; }
+    if (min !== undefined) n = Math.max(min, n);
+    if (max !== undefined) n = Math.min(max, n);
+    n = Math.round(n);
+    setText(String(n));
+    onChange(n);
+  };
+
+  return (
+    <div>
+      <label className="text-[9px] text-neutral-500 mb-0.5 block">{label}</label>
+      <div className="flex items-center">
+        <input type="text" value={text}
+          onChange={e => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); }}
+          className="w-full bg-neutral-700 text-neutral-200 text-[11px] font-mono px-1.5 py-1 rounded border border-neutral-600 focus:border-blue-500 focus:outline-none"
+        />
+        <span className="text-[9px] text-neutral-500 ml-1 shrink-0">{suffix}</span>
+      </div>
+    </div>
+  );
+}
+
+export function PropertiesPanel({ document: doc, spread, selectedFrame, onUpdateFrame }: Props) {
   if (!selectedFrame) {
-    // Document / spread info
     return (
       <div className="p-3 space-y-4">
         <div>
@@ -64,7 +97,7 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame }: Props)
 
         <div>
           <h3 className="text-[11px] font-semibold text-neutral-300 uppercase tracking-wider mb-2">
-            <Layers size={11} className="inline mr-1" />Frames on Spread
+            <Layers size={11} className="inline mr-1" />Frames
           </h3>
           <div className="space-y-0.5">
             {[...spread.frames].sort((a, b) => b.zIndex - a.zIndex).map(frame => {
@@ -83,18 +116,17 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame }: Props)
     );
   }
 
-  // Frame properties
   const Icon = TYPE_ICONS[selectedFrame.type];
+  const update = (updates: Partial<DtpFrame>) => onUpdateFrame?.(selectedFrame.id, updates);
 
   return (
     <div className="p-3 space-y-4">
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Icon size={14} className="text-blue-400" />
-          <h3 className="text-[12px] font-semibold text-neutral-200">{selectedFrame.label || selectedFrame.type}</h3>
-        </div>
+      <div className="flex items-center gap-2 mb-1">
+        <Icon size={14} className="text-blue-400" />
+        <h3 className="text-[12px] font-semibold text-neutral-200">{selectedFrame.label || selectedFrame.type}</h3>
       </div>
 
+      {/* Identity */}
       <div>
         <h4 className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Identity</h4>
         <div className="bg-neutral-700/50 rounded-lg p-3 space-y-0.5">
@@ -104,20 +136,24 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame }: Props)
         </div>
       </div>
 
+      {/* Transform — editable */}
       <div>
         <h4 className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Transform</h4>
-        <div className="bg-neutral-700/50 rounded-lg p-3 space-y-0.5">
-          <div className="grid grid-cols-2 gap-x-4">
-            <PropRow label="X" value={`${selectedFrame.x}px`} />
-            <PropRow label="Y" value={`${selectedFrame.y}px`} />
-            <PropRow label="W" value={`${selectedFrame.width}px`} />
-            <PropRow label="H" value={`${selectedFrame.height}px`} />
+        <div className="bg-neutral-700/50 rounded-lg p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <NumInput label="X" value={selectedFrame.x} onChange={v => update({ x: v })} />
+            <NumInput label="Y" value={selectedFrame.y} onChange={v => update({ y: v })} />
+            <NumInput label="Width" value={selectedFrame.width} onChange={v => update({ width: v })} min={20} />
+            <NumInput label="Height" value={selectedFrame.height} onChange={v => update({ height: v })} min={20} />
           </div>
-          <PropRow label="Rotation" value={`${selectedFrame.rotation}deg`} />
-          <PropRow label="Z-Index" value={selectedFrame.zIndex} />
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <NumInput label="Rotation" value={selectedFrame.rotation} onChange={v => update({ rotation: v })} min={0} max={360} suffix="deg" />
+            <NumInput label="Z-Index" value={selectedFrame.zIndex} onChange={v => update({ zIndex: v })} min={0} max={100} suffix="" />
+          </div>
         </div>
       </div>
 
+      {/* Content preview */}
       {selectedFrame.content && (
         <div>
           <h4 className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Content</h4>
@@ -128,6 +164,11 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame }: Props)
           </div>
         </div>
       )}
+
+      {/* Keyboard hint */}
+      <div className="bg-neutral-700/30 rounded p-2">
+        <p className="text-[9px] text-neutral-500">Arrow keys: nudge 1px | Shift+arrow: 10px</p>
+      </div>
     </div>
   );
 }
