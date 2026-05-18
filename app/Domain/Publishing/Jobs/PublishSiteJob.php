@@ -368,7 +368,17 @@ class PublishSiteJob implements ShouldQueue
         $themeConfig = $site->theme?->config ?? [];
         $tokenGenerator = app(\App\Domain\Theme\Services\DesignTokenGenerator::class);
 
+        $seoService = app(\App\Domain\Publishing\Services\SeoService::class);
+        $headContent = '<title>' . e($category->name) . ' | ' . e($site->name) . '</title>';
+
         return View::make('publishing.layout', array_merge($vars, [
+            'headContent' => $headContent,
+            'headScripts' => '',
+            'bodyScripts' => '',
+            'fontPreloads' => $vars['fontPreloads'] ?? '',
+            'hookHeadScripts' => '',
+            'hookBodyOpen' => '',
+            'hookBodyClose' => '',
             'renderedBlocks' => $renderedBlocks,
             'mainStyle' => 'max-width:var(--container-width,1080px);margin:0 auto;padding:0 1.5rem;',
             'content' => (object) ['title' => $category->name, 'seo_meta' => []],
