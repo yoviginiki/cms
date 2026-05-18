@@ -341,9 +341,13 @@ export default function PageEditor() {
       <div className="flex flex-1 overflow-hidden">
         {page?.editor_mode !== 'magazine' ? (
           <BuilderDndProvider>
-            <BuilderCanvas />
-            <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
-              layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''} />
+            <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
+              <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
+                <BuilderCanvas />
+              </div>
+              <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
+                layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''} />
+            </div>
           </BuilderDndProvider>
         ) : (
           <>
@@ -686,32 +690,24 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
     if (selectedBlockId) setActiveTab('block');
   }, [selectedBlockId]);
 
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const tabButtons = (
-    <div className="flex border-b border-gray-200">
-      {([
-        { key: 'page' as const, label: 'Page' },
-        { key: 'block' as const, label: 'Block' },
-        { key: 'add' as const, label: '+ Add' },
-        { key: 'seo' as const, label: 'SEO' },
-        { key: 'history' as const, label: 'History' },
-      ]).map(tab => (
-        <button key={tab.key} onClick={() => { setActiveTab(tab.key); setMobileOpen(true); }}
-          className={`flex-1 px-1.5 py-2.5 text-[10px] font-medium border-b-2 transition-colors ${
-            activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}>
-          {tab.label}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
-    <>
-    {/* Desktop sidebar */}
-    <div className="w-80 border-l border-gray-200 bg-white h-full overflow-y-auto flex-col hidden lg:flex">
-      {tabButtons}
+    <div className="w-80 min-w-[320px] border-l border-gray-200 bg-white h-full overflow-y-auto flex flex-col shrink-0 snap-start">
+      <div className="flex border-b border-gray-200">
+        {([
+          { key: 'page' as const, label: 'Page' },
+          { key: 'block' as const, label: 'Block' },
+          { key: 'add' as const, label: '+ Add' },
+          { key: 'seo' as const, label: 'SEO' },
+          { key: 'history' as const, label: 'History' },
+        ]).map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 px-1.5 py-2.5 text-[10px] font-medium border-b-2 transition-colors ${
+              activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'page' && (
@@ -732,37 +728,6 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
       </div>
     </div>
 
-    {/* Mobile: floating tab bar + bottom sheet */}
-    <div className="lg:hidden">
-      {/* Bottom tab bar — always visible */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg">
-        {tabButtons}
-      </div>
-
-      {/* Bottom sheet overlay */}
-      {mobileOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setMobileOpen(false)} />
-          <div className="fixed bottom-10 left-0 right-0 z-50 bg-white rounded-t-xl shadow-2xl max-h-[70vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-              <span className="text-xs font-medium text-gray-500 capitalize">{activeTab}</span>
-              <button onClick={() => setMobileOpen(false)} className="btn btn-ghost btn-xs">Close</button>
-            </div>
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(70vh - 44px)' }}>
-              {activeTab === 'page' && <PageSettingsPanel page={page} siteId={siteId} pageId={pageId} layouts={layouts} publicBase={publicBase} siteSlug={siteSlug} />}
-              {activeTab === 'block' && <BlockSettings />}
-              {activeTab === 'add' && <BlockPicker />}
-              {activeTab === 'seo' && (
-                <SeoAnalyzer pageTitle={page?.title} seoTitle={page?.seo_meta?.title as string}
-                  seoDescription={page?.seo_meta?.description as string} slug={page?.slug} />
-              )}
-              {activeTab === 'history' && <VersionHistory siteId={siteId} pageId={pageId} type="pages" />}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-    </>
   );
 }
 

@@ -39,7 +39,6 @@ export default function PostEditor() {
 
   const [editorMode, setEditorMode] = useState<EditorMode>('block');
   const [rightTab, setRightTab] = useState<RightTab>('post');
-  const [mobileSidebar, setMobileSidebar] = useState(false);
   const [saveError, setSaveError] = useState('');
 
   // Post metadata
@@ -266,18 +265,13 @@ export default function PostEditor() {
       <div className="flex flex-1 overflow-hidden">
         {editorMode === 'block' ? (
           <BuilderDndProvider>
-            <BuilderCanvas />
-            {/* Mobile toggle */}
-            {!mobileSidebar && (
-              <button onClick={() => setMobileSidebar(true)}
-                className="fixed bottom-4 right-4 z-40 btn btn-primary btn-circle shadow-lg lg:hidden">
-                <span className="text-lg">+</span>
-              </button>
-            )}
-            {mobileSidebar && <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={() => setMobileSidebar(false)} />}
-            {/* Right sidebar — hidden on mobile unless toggled */}
-            <div className={`w-80 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 ${mobileSidebar ? 'fixed right-0 top-0 bottom-0 z-40 shadow-2xl' : 'hidden'} lg:relative lg:flex lg:shadow-none`}>
-              <button onClick={() => setMobileSidebar(false)} className="absolute top-1 right-1 btn btn-ghost btn-xs z-10 lg:hidden">&times;</button>
+            {/* Horizontal scroll container: canvas (100vw) + sidebar (320px) side by side */}
+            <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
+            <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
+              <BuilderCanvas />
+            </div>
+            {/* Sidebar — sits next to canvas, swipe to reach on mobile */}
+            <div className="w-80 min-w-[320px] bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 snap-start">
               <div className="flex border-b border-base-300/20 shrink-0">
                 {([
                   { key: 'post' as RightTab, label: 'Post' },
@@ -316,6 +310,7 @@ export default function PostEditor() {
                 )}
               </div>
             </div>
+            </div>{/* close horizontal scroll container */}
           </BuilderDndProvider>
         ) : (
           <>

@@ -31,7 +31,6 @@ export default function TemplateEditor() {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
 
   const [rightTab, setRightTab] = useState<RightTab>('blocks');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [saveError, setSaveError] = useState('');
   const [name, setName] = useState('');
   const [nameDirty, setNameDirty] = useState(false);
@@ -151,42 +150,18 @@ export default function TemplateEditor() {
           </div>
         </div>
 
-        {/* Main area */}
-        <div className="flex flex-1 overflow-hidden relative">
-          {/* Canvas */}
-          <div className="flex-1 overflow-auto">
+        {/* Main area — horizontal scroll: canvas + sidebar */}
+        <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
+          {/* Canvas — full width on mobile */}
+          <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
             <BuilderCanvas />
           </div>
 
-          {/* Mobile sidebar toggle */}
-          {!sidebarOpen && (
-            <button onClick={() => setSidebarOpen(true)}
-              className="fixed bottom-4 right-4 z-30 btn btn-primary btn-circle shadow-lg lg:hidden">
-              <PlusCircle size={20} />
-            </button>
-          )}
-
-          {/* Mobile overlay */}
-          {sidebarOpen && (
-            <div className="fixed inset-0 bg-black/30 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
-          )}
-
-          {/* Right sidebar — drawer on mobile, static on desktop */}
-          <div className={`
-            ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-            fixed lg:static right-0 top-0 bottom-0 z-30
-            w-80 lg:w-72 bg-base-100 border-l border-base-300/50 flex flex-col shrink-0
-            transition-transform duration-200
-          `}>
-            {/* Close button on mobile */}
-            <button onClick={() => setSidebarOpen(false)}
-              className="absolute top-2 left-2 z-10 btn btn-ghost btn-xs btn-square lg:hidden">
-              <span className="text-base-content/50">&times;</span>
-            </button>
-
-            <div className="flex border-b border-base-300/30 pt-1 lg:pt-0">
+          {/* Right sidebar — next to canvas, swipe to reach */}
+          <div className="w-72 min-w-[288px] bg-base-100 border-l border-base-300/50 flex flex-col shrink-0 snap-start">
+            <div className="flex border-b border-base-300/30">
               {tabs.map(tab => (
-                <button key={tab.key} onClick={() => { setRightTab(tab.key); setSidebarOpen(true); }}
+                <button key={tab.key} onClick={() => setRightTab(tab.key)}
                   className={`flex-1 py-2 text-[10px] font-medium flex flex-col items-center gap-0.5 transition-colors ${
                     rightTab === tab.key ? 'text-primary border-b-2 border-primary' : 'text-base-content/40 hover:text-base-content/60'
                   }`}>
