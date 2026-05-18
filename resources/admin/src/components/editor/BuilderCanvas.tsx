@@ -214,6 +214,12 @@ export function BuilderCanvas() {
     const target = e.target as HTMLElement;
     if (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
 
+    // Block destructive shortcuts in preview mode (tablet/mobile)
+    if (canvasDevice !== 'desktop') {
+      // Only allow mode-switching shortcuts, block everything else
+      if (!(e.ctrlKey && e.shiftKey && (e.key === 'W' || e.key === 'V'))) return;
+    }
+
     // Ctrl+Shift+W — Wireframe mode
     if (e.ctrlKey && e.shiftKey && e.key === 'W') {
       e.preventDefault();
@@ -244,7 +250,7 @@ export function BuilderCanvas() {
       removeBlock(selectedBlockId);
       return;
     }
-  }, [setCanvasMode, undo, redo, removeBlock, selectedBlockId]);
+  }, [setCanvasMode, undo, redo, removeBlock, selectedBlockId, canvasDevice]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);

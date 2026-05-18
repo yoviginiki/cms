@@ -7,11 +7,15 @@ use App\Models\Site;
 
 class MenuRenderer
 {
-    /** Sanitize a CSS value — strip anything that could break out of a CSS property. */
+    /** Sanitize a CSS value — whitelist safe characters only. */
     private static function safeCss(string $v): string
     {
-        // Remove semicolons, braces, angle brackets, and backslashes
-        return preg_replace('/[;{}<>\\\\]/', '', $v);
+        $v = trim($v);
+        if (!$v) return '';
+        // Block dangerous patterns
+        if (preg_match('/expression|javascript|url\s*\(|import|\\\\|@/i', $v)) return '';
+        // Only allow: letters, digits, #, (), comma, dot, space, %, /, -, single quotes
+        return preg_replace("/[^a-zA-Z0-9#(),.'\\s%\\/-]/", '', $v);
     }
 
     /** Sanitize a URL — only allow http/https/mailto/data schemes. */

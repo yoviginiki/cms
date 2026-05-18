@@ -159,15 +159,20 @@ export default function PostEditor() {
       setMetaDirty(false);
       // Save blocks — in simple mode, wrap content in a single text block
       if (editorMode === 'simple') {
-        const simpleBlocks = [{
-          id: editorBlocks.find((b: any) => b.type === 'text')?.id || undefined,
+        // Find existing text/rich-text block to preserve its ID, keep all other blocks
+        const existingText = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
+        const otherBlocks = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
+        const textBlock = {
+          ...(existingText || {}),
+          id: existingText?.id || undefined,
           type: 'text',
           level: 'module',
           data: { content: simpleContent },
-          style: {},
+          style: existingText?.style || {},
           order: 0,
-          children: [],
-        }];
+          children: existingText?.children || [],
+        };
+        const simpleBlocks = [textBlock, ...otherBlocks.map((b: any, i: number) => ({ ...b, order: i + 1 }))];
         await blocksApi.sync(siteId, 'posts', postId, simpleBlocks);
       } else {
         await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
@@ -202,10 +207,12 @@ export default function PostEditor() {
       });
       // Save blocks
       if (editorMode === 'simple') {
-        await blocksApi.sync(siteId, 'posts', postId, [{
-          id: editorBlocks.find((b: any) => b.type === 'text')?.id || undefined,
-          type: 'text', level: 'module', data: { content: simpleContent }, style: {}, order: 0, children: [],
-        }]);
+        const existingText2 = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
+        const otherBlocks2 = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
+        await blocksApi.sync(siteId, 'posts', postId, [
+          { ...(existingText2 || {}), id: existingText2?.id, type: 'text', level: 'module', data: { content: simpleContent }, style: existingText2?.style || {}, order: 0, children: existingText2?.children || [] },
+          ...otherBlocks2.map((b: any, i: number) => ({ ...b, order: i + 1 })),
+        ]);
       } else {
         await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
       }
