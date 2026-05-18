@@ -29,7 +29,8 @@
     $gap = BlockStyle::safeDim($data['gap'] ?? '16px') ?: '16px';
     $maxW = BlockStyle::safeDim($data['max_width'] ?? '');
     $validAligns = ['start', 'center', 'end', 'stretch'];
-    $vAlign = in_array($data['vertical_align'] ?? 'stretch', $validAligns) ? $data['vertical_align'] : 'stretch';
+    $rawVAlign = $data['vertical_align'] ?? 'stretch';
+    $vAlign = in_array($rawVAlign, $validAligns) ? $rawVAlign : 'stretch';
 
     $style = "display:grid;grid-template-columns:{$gridCols};gap:{$gap};align-items:{$vAlign};";
     if ($maxW) {

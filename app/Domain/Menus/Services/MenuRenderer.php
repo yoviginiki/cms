@@ -7,6 +7,22 @@ use App\Models\Site;
 
 class MenuRenderer
 {
+    /** Sanitize a CSS value — strip anything that could break out of a CSS property. */
+    private static function safeCss(string $v): string
+    {
+        // Remove semicolons, braces, angle brackets, and backslashes
+        return preg_replace('/[;{}<>\\\\]/', '', $v);
+    }
+
+    /** Sanitize a URL — only allow http/https/mailto/data schemes. */
+    private static function safeUrl(string $v): string
+    {
+        $v = trim($v);
+        if (!$v) return '';
+        if (preg_match('#^(https?://|mailto:|/|data:image/)#i', $v)) return $v;
+        return '';
+    }
+
     public function render(?Menu $menu, Site $site, string $ariaLabel = 'Main navigation'): string
     {
         if (!$menu) return '';
@@ -43,19 +59,19 @@ class MenuRenderer
     private function renderHeader(Menu $menu, Site $site, $items, array $settings, array $style, string $ariaLabel): string
     {
         $siteName = e($site->name);
-        $logoUrl = $settings['logo_url'] ?? '';
+        $logoUrl = self::safeUrl($settings['logo_url'] ?? '');
         $scopeClass = 'menu-' . substr(md5($menu->id), 0, 8);
 
-        // Build style CSS from menu style settings
-        $bgColor = $style['bgColor'] ?? '';
-        $textColor = $style['textColor'] ?? '';
-        $hoverColor = $style['hoverColor'] ?? 'var(--color-accent)';
-        $fontSize = $style['fontSize'] ?? '';
-        $fontWeight = $style['fontWeight'] ?? '';
-        $height = $style['height'] ?? '';
-        $gap = $style['gap'] ?? '';
-        $letterSpacing = $style['letterSpacing'] ?? '';
-        $textTransform = $style['textTransform'] ?? '';
+        // Build style CSS from menu style settings (all values sanitized)
+        $bgColor = self::safeCss($style['bgColor'] ?? '');
+        $textColor = self::safeCss($style['textColor'] ?? '');
+        $hoverColor = self::safeCss($style['hoverColor'] ?? 'var(--color-accent)');
+        $fontSize = self::safeCss($style['fontSize'] ?? '');
+        $fontWeight = self::safeCss($style['fontWeight'] ?? '');
+        $height = self::safeCss($style['height'] ?? '');
+        $gap = self::safeCss($style['gap'] ?? '');
+        $letterSpacing = self::safeCss($style['letterSpacing'] ?? '');
+        $textTransform = self::safeCss($style['textTransform'] ?? '');
         $isSticky = !empty($style['sticky']);
         $isTransparent = !empty($style['transparent']);
         $showSearch = !empty($style['showSearch']);
@@ -162,16 +178,18 @@ class MenuRenderer
     private function renderFooter(Menu $menu, Site $site, $items, array $settings, array $style, string $ariaLabel): string
     {
         $siteName = e($site->name);
-        $logoUrl = $settings['logo_url'] ?? '';
+        $logoUrl = self::safeUrl($settings['logo_url'] ?? '');
         $footerText = $settings['footer_text'] ?? '';
         $footerCopyright = $settings['footer_copyright'] ?? ('© ' . date('Y') . ' ' . $siteName);
         $socialLinks = $settings['social_links'] ?? [];
 
-        $bgColor = $style['bgColor'] ?? 'var(--color-bg-inverse,#333)';
-        $textColor = $style['textColor'] ?? '#999';
-        $hoverColor = $style['hoverColor'] ?? 'var(--color-accent)';
+        $bgColor = self::safeCss($style['bgColor'] ?? 'var(--color-bg-inverse,#333)');
+        $textColor = self::safeCss($style['textColor'] ?? '#999');
+        $hoverColor = self::safeCss($style['hoverColor'] ?? 'var(--color-accent)');
+        $scopeClass = 'footer-' . substr(md5($menu->id), 0, 8);
 
-        $html = "<footer style=\"background:{$bgColor};color:{$textColor};padding:var(--space-16,80px) var(--container-padding,30px);\" aria-label=\"" . e($ariaLabel) . "\">\n";
+        $html = "<style>.{$scopeClass} a{color:{$textColor};transition:color 0.2s;}.{$scopeClass} a:hover{color:{$hoverColor};}</style>\n";
+        $html .= "<footer class=\"{$scopeClass}\" style=\"background:{$bgColor};color:{$textColor};padding:var(--space-16,80px) var(--container-padding,30px);\" aria-label=\"" . e($ariaLabel) . "\">\n";
         $html .= "  <div style=\"max-width:var(--container-width,1080px);margin:0 auto;text-align:center;\">\n";
 
         // Logo or site name
@@ -193,7 +211,7 @@ class MenuRenderer
             foreach ($items as $item) {
                 $url = e($item->resolveUrl(''));
                 $label = e($item->label);
-                $html .= "        <li><a href=\"{$url}\" style=\"color:{$textColor};text-decoration:none;font-size:0.875rem;transition:color 0.2s;\" onmouseover=\"this.style.color='{$hoverColor}'\" onmouseout=\"this.style.color='{$textColor}'\">{$label}</a></li>\n";
+                $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:0.875rem;\">{$label}</a></li>\n";
             }
             $html .= "      </ul>\n";
             $html .= "    </nav>\n";
@@ -257,7 +275,9 @@ class MenuRenderer
         $html = "      <li style=\"list-style:none;\"><div style=\"{$style}\">\n";
         foreach ($socialLinks as $platform => $url) {
             if (!$url || $platform === 'email') continue;
-            $html .= "        <a href=\"" . e($url) . "\" target=\"_blank\" rel=\"noopener\" aria-label=\"" . e($platform) . "\" style=\"opacity:0.6;transition:opacity 0.2s;text-decoration:none;\" onmouseover=\"this.style.opacity='1'\" onmouseout=\"this.style.opacity='0.6'\">" . ucfirst($platform)[0] . "</a>\n";
+            $safeUrl = self::safeUrl((string) $url);
+            if (!$safeUrl) continue;
+            $html .= "        <a href=\"" . e($safeUrl) . "\" target=\"_blank\" rel=\"noopener\" aria-label=\"" . e($platform) . "\" style=\"opacity:0.6;transition:opacity 0.2s;text-decoration:none;\">" . e(ucfirst((string) $platform)[0]) . "</a>\n";
         }
         if (!empty($socialLinks['email'])) {
             $html .= "        <a href=\"mailto:" . e($socialLinks['email']) . "\" aria-label=\"Email\" style=\"opacity:0.6;\">@</a>\n";

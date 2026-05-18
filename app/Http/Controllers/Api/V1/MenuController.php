@@ -57,6 +57,19 @@ class MenuController extends Controller
             'name' => ['sometimes', 'string', 'max:255'],
             'location' => ['sometimes', 'string', 'in:header,footer,sidebar,mobile'],
             'style' => ['sometimes', 'array'],
+            'style.bgColor' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'style.textColor' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'style.hoverColor' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'style.fontSize' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'style.fontWeight' => ['sometimes', 'nullable', 'in:,400,500,600,700'],
+            'style.height' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'style.gap' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'style.letterSpacing' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'style.textTransform' => ['sometimes', 'nullable', 'in:,uppercase,lowercase,capitalize'],
+            'style.sticky' => ['sometimes', 'boolean'],
+            'style.transparent' => ['sometimes', 'boolean'],
+            'style.showSearch' => ['sometimes', 'boolean'],
+            'style.showSocial' => ['sometimes', 'boolean'],
         ]);
 
         $menu = $this->menuService->updateMenu($menu, $request->only(['name', 'location', 'style']));

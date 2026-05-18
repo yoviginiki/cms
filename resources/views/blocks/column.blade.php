@@ -16,7 +16,8 @@
 @php
     $padding = BlockStyle::safeDim($data['padding'] ?? '');
     $validAligns = ['start', 'center', 'end', 'stretch'];
-    $vAlign = in_array($data['vertical_align'] ?? 'start', $validAligns) ? $data['vertical_align'] : 'start';
+    $rawVAlign = $data['vertical_align'] ?? 'start';
+    $vAlign = in_array($rawVAlign, $validAligns) ? $rawVAlign : 'start';
     $bgColor = BlockStyle::safeColor($data['background_color'] ?? '');
 
     $style = "display:flex;flex-direction:column;";
