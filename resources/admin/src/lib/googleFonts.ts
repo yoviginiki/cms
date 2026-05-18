@@ -27,7 +27,7 @@ export type FontCategory = 'sans-serif' | 'serif' | 'display' | 'monospace';
  */
 export function buildGoogleFontUrl(family: string, weights: number[] = [400, 700]): string {
   const encodedFamily = encodeURIComponent(family);
-  const wghtAxis = weights.sort((a, b) => a - b).join(';');
+  const wghtAxis = [...weights].sort((a, b) => a - b).join(';');
   return `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@${wghtAxis}&display=swap`;
 }
 

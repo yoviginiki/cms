@@ -65,9 +65,11 @@ export function useThemeFonts(siteId: string) {
       document.head.appendChild(styleEl);
     }
 
+    // Sanitize token values — strip characters that could break out of CSS declarations
+    const safeCssValue = (v: string) => v.replace(/[{}<>]/g, '');
     const cssVars = fontKeys
       .filter(key => tokens[key])
-      .map(key => `  --${key}: ${tokens[key]};`)
+      .map(key => `  --${key}: ${safeCssValue(tokens[key])};`)
       .join('\n');
     styleEl.textContent = `.editor-canvas-light {\n${cssVars}\n}`;
 

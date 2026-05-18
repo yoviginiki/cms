@@ -46,8 +46,8 @@ export function FontPicker({ label, value, onChange, showWeights, selectedWeight
       const q = search.toLowerCase();
       list = list.filter(f => f.family.toLowerCase().includes(q));
     }
-    // Popular first, then alphabetical
-    return list.sort((a, b) => {
+    // Popular first, then alphabetical (spread to avoid mutating shared array)
+    return [...list].sort((a, b) => {
       if (a.popular && !b.popular) return -1;
       if (!a.popular && b.popular) return 1;
       return a.family.localeCompare(b.family);
