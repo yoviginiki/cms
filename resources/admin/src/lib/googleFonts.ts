@@ -27,7 +27,7 @@ export type FontCategory = 'sans-serif' | 'serif' | 'display' | 'monospace';
  */
 export function buildGoogleFontUrl(family: string, weights: number[] = [400, 700]): string {
   const encodedFamily = encodeURIComponent(family);
-  const wghtAxis = weights.sort((a, b) => a - b).join(';');
+  const wghtAxis = [...weights].sort((a, b) => a - b).join(';');
   return `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@${wghtAxis}&display=swap`;
 }
 
@@ -70,10 +70,10 @@ export const GOOGLE_FONTS: GoogleFont[] = [
   { family: 'Montserrat', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true, popular: true },
   { family: 'Poppins', category: 'sans-serif', weights: [300, 400, 500, 600, 700], popular: true },
   { family: 'Nunito', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
-  { family: 'Raleway', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
+  { family: 'Raleway', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true, popular: true },
   { family: 'Work Sans', category: 'sans-serif', weights: [300, 400, 500, 600, 700], variable: true },
   { family: 'DM Sans', category: 'sans-serif', weights: [400, 500, 700], popular: true },
-  { family: 'Manrope', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
+  { family: 'Manrope', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true, popular: true },
   { family: 'Plus Jakarta Sans', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
   { family: 'Outfit', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
   { family: 'Space Grotesk', category: 'sans-serif', weights: [300, 400, 500, 600, 700], variable: true },
@@ -81,7 +81,9 @@ export const GOOGLE_FONTS: GoogleFont[] = [
   { family: 'Figtree', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
   { family: 'Geist', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
   { family: 'Rubik', category: 'sans-serif', weights: [300, 400, 500, 600, 700], variable: true },
-  { family: 'Barlow', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800] },
+  { family: 'Barlow', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], popular: true },
+  { family: 'Barlow Condensed', category: 'sans-serif', weights: [300, 400, 500, 600, 700], popular: true },
+  { family: 'Nunito Sans', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true, popular: true },
   { family: 'Mulish', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
   { family: 'Quicksand', category: 'sans-serif', weights: [300, 400, 500, 600, 700], variable: true },
   { family: 'Cabin', category: 'sans-serif', weights: [400, 500, 600, 700], variable: true },
@@ -91,7 +93,7 @@ export const GOOGLE_FONTS: GoogleFont[] = [
   { family: 'Urbanist', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800], variable: true },
   { family: 'Red Hat Display', category: 'sans-serif', weights: [300, 400, 500, 600, 700, 800] },
   { family: 'Overpass', category: 'sans-serif', weights: [300, 400, 600, 700, 800], variable: true },
-  { family: 'Source Sans 3', category: 'sans-serif', weights: [300, 400, 500, 600, 700], variable: true },
+  { family: 'Source Sans 3', category: 'sans-serif', weights: [300, 400, 500, 600, 700], variable: true, popular: true },
   { family: 'Noto Sans', category: 'sans-serif', weights: [300, 400, 500, 600, 700], variable: true },
 
   // ─── Serif (editorial, luxury, traditional) ───

@@ -480,6 +480,27 @@ class BlockStyle
             $rules .= "display:{$display}!important;";
         }
 
+        // Flex direction override
+        $validFlexDir = ['row', 'column'];
+        $flexDir = $layout['flexDirection'] ?? '';
+        if (in_array($flexDir, $validFlexDir)) {
+            $rules .= "flex-direction:{$flexDir}!important;";
+        }
+
+        // Justify content override
+        $validJustify = ['flex-start', 'center', 'flex-end', 'space-between', 'space-around'];
+        $justify = $layout['justifyContent'] ?? '';
+        if (in_array($justify, $validJustify)) {
+            $rules .= "justify-content:{$justify}!important;";
+        }
+
+        // Z-index override
+        $zIndex = $layout['zIndex'] ?? null;
+        if ($zIndex !== null && is_numeric($zIndex)) {
+            $z = max(-100, min(9999, (int) $zIndex));
+            $rules .= "z-index:{$z}!important;";
+        }
+
         // Alignment override
         $validAlign = ['left', 'center', 'right'];
         $align = $layout['alignment'] ?? '';

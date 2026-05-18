@@ -89,7 +89,10 @@ class DesignTokenGenerator
         $css .= ":root {\n";
         foreach ($tokens as $key => $value) {
             if (is_array($value)) $value = implode(', ', $value);
-            $css .= "  --{$key}: {$value};\n";
+            // Sanitize: strip characters that could break out of CSS declarations
+            $safeKey = preg_replace('/[^a-zA-Z0-9\-_]/', '', $key);
+            $safeValue = preg_replace('/[{}<>]/', '', (string) $value);
+            $css .= "  --{$safeKey}: {$safeValue};\n";
         }
         $css .= "}\n";
 
@@ -166,6 +169,7 @@ class DesignTokenGenerator
         $fonts = [];
         foreach (array_keys($uniqueFonts) as $fontName) {
             $fonts[] = urlencode($fontName) . ':wght@300;400;500;600;700';
+        }
 
         if (empty($fonts)) return '';
 
