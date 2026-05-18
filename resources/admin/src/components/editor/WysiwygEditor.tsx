@@ -2,13 +2,14 @@ import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Link as LinkIcon, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Heading3, Quote, Code, Undo, Redo, Minus,
-  Unlink,
+  Unlink, ImageIcon,
 } from 'lucide-react';
 
 interface WysiwygEditorProps {
@@ -26,6 +27,7 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
         heading: { levels: [1, 2, 3, 4] },
       }),
       Link.configure({ openOnClick: false, HTMLAttributes: { class: 'text-blue-600 underline' } }),
+      Image.configure({ inline: false, allowBase64: false }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Underline,
       Placeholder.configure({ placeholder }),
@@ -91,6 +93,10 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
         }} icon={editor.isActive('link') ? Unlink : LinkIcon} title={editor.isActive('link') ? 'Remove Link' : 'Add Link'} />
 
         <ToolBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} icon={Minus} title="Horizontal Rule" />
+        <ToolBtn onClick={() => {
+          const url = prompt('Image URL:');
+          if (url) editor.chain().focus().setImage({ src: url }).run();
+        }} icon={ImageIcon} title="Insert Image" />
 
         <div className="flex-1" />
 

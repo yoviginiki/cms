@@ -23,7 +23,7 @@ class UpdatePostRequest extends FormRequest
             'thumbnail' => ['sometimes', 'nullable', 'string', 'max:500'],
             'post_format' => ['sometimes', 'in:standard,video,gallery,audio,link'],
             'status' => ['sometimes', 'in:draft,published,archived'],
-            'editor_mode' => ['sometimes', 'in:block,magazine'],
+            'editor_mode' => ['sometimes', 'in:simple,block,magazine'],
             'layout_id' => ['sometimes', 'nullable', 'uuid'],
             'published_at' => ['sometimes', 'nullable', 'date'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],

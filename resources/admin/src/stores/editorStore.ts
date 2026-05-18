@@ -31,7 +31,7 @@ interface EditorState {
   selectedBlockId: string | null;
   isDirty: boolean;
   isSaving: boolean;
-  editorMode: 'block' | 'magazine';
+  editorMode: 'simple' | 'block' | 'magazine';
   canvasMode: 'visual' | 'wireframe' | 'html';
   rawHtml: string;
   undoStack: BlockData[][];
@@ -40,7 +40,7 @@ interface EditorState {
 
   setRawHtml: (html: string) => void;
   setBlocks: (blocks: BlockData[]) => void;
-  setEditorMode: (mode: 'block' | 'magazine') => void;
+  setEditorMode: (mode: 'simple' | 'block' | 'magazine') => void;
   setCanvasMode: (mode: 'visual' | 'wireframe' | 'html') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
   addPreset: (presetType: string, index?: number) => void;
