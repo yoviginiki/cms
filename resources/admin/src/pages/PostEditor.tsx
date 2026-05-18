@@ -39,6 +39,7 @@ export default function PostEditor() {
 
   const [editorMode, setEditorMode] = useState<EditorMode>('block');
   const [rightTab, setRightTab] = useState<RightTab>('post');
+  const [mobileSidebar, setMobileSidebar] = useState(false);
   const [saveError, setSaveError] = useState('');
 
   // Post metadata
@@ -266,8 +267,17 @@ export default function PostEditor() {
         {editorMode === 'block' ? (
           <BuilderDndProvider>
             <BuilderCanvas />
-            {/* Right sidebar — overlay on mobile */}
-            <div className="w-80 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 max-lg:fixed max-lg:right-0 max-lg:top-12 max-lg:bottom-0 max-lg:z-30 max-lg:w-80 max-lg:shadow-xl">
+            {/* Mobile toggle */}
+            {!mobileSidebar && (
+              <button onClick={() => setMobileSidebar(true)}
+                className="fixed bottom-4 right-4 z-40 btn btn-primary btn-circle shadow-lg lg:hidden">
+                <span className="text-lg">+</span>
+              </button>
+            )}
+            {mobileSidebar && <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={() => setMobileSidebar(false)} />}
+            {/* Right sidebar — hidden on mobile unless toggled */}
+            <div className={`w-80 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 ${mobileSidebar ? 'fixed right-0 top-0 bottom-0 z-40 shadow-2xl' : 'hidden'} lg:relative lg:flex lg:shadow-none`}>
+              <button onClick={() => setMobileSidebar(false)} className="absolute top-1 right-1 btn btn-ghost btn-xs z-10 lg:hidden">&times;</button>
               <div className="flex border-b border-base-300/20 shrink-0">
                 {([
                   { key: 'post' as RightTab, label: 'Post' },
