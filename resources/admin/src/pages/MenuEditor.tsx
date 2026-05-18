@@ -1002,6 +1002,38 @@ export default function MenuEditor() {
                       className="checkbox checkbox-xs" />
                     <label className="text-[10px] text-gray-500">Show Social Links</label>
                   </div>
+
+                  <div className="border-t border-gray-100 pt-2 mt-2">
+                    <p className="text-[10px] text-gray-400 font-medium mb-2">Mobile Menu</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Hamburger Breakpoint</label>
+                    <select value={(menuStyle.mobileBreakpoint as string) || '768'} onChange={e => { setMenuStyle(s => ({ ...s, mobileBreakpoint: e.target.value })); setIsDirty(true); }}
+                      className="select select-bordered select-xs w-full text-[10px]">
+                      <option value="768">768px (tablets)</option>
+                      <option value="1024">1024px (small laptops)</option>
+                      <option value="480">480px (phones only)</option>
+                      <option value="9999">Always show hamburger</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Mobile Panel Background</label>
+                    <div className="flex gap-1">
+                      <input type="color" value={(menuStyle.mobileBgColor as string) || '#ffffff'}
+                        onChange={e => { setMenuStyle(s => ({ ...s, mobileBgColor: e.target.value })); setIsDirty(true); }}
+                        className="w-7 h-7 rounded cursor-pointer border border-gray-200" />
+                      <input value={(menuStyle.mobileBgColor as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, mobileBgColor: e.target.value })); setIsDirty(true); }}
+                        className="input input-bordered input-xs flex-1 text-[10px]" placeholder="#ffffff" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-gray-500 mb-0.5 block">Mobile Font Size</label>
+                    <input value={(menuStyle.mobileFontSize as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, mobileFontSize: e.target.value })); setIsDirty(true); }}
+                      className="input input-bordered input-xs w-full text-[10px]" placeholder="16px" />
+                  </div>
                 </div>
               )}
             </div>

@@ -105,21 +105,29 @@ class MenuRenderer
         $css .= ".{$scopeClass}.menu-open .menu-hamburger span:nth-child(2){opacity:0;}\n";
         $css .= ".{$scopeClass}.menu-open .menu-hamburger span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg);}\n";
 
-        // Mobile panel
-        $css .= ".{$scopeClass} .menu-hamburger-panel{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;background:" . ($bgColor ?: 'rgba(255,255,255,0.97)') . ";";
-        $css .= "backdrop-filter:blur(20px);border-bottom:1px solid var(--color-border-light);padding:16px;gap:0;box-shadow:0 8px 32px rgba(0,0,0,0.06);}\n";
-        $css .= ".{$scopeClass}.menu-open .menu-hamburger-panel{display:flex!important;}\n";
-        $css .= ".{$scopeClass} .menu-hamburger-panel a{display:block;padding:10px 16px;}\n";
+        // Mobile panel — uses dedicated mobile settings
+        $mobileBg = self::safeCss($style['mobileBgColor'] ?? '') ?: ($bgColor ?: 'var(--color-bg,#ffffff)');
+        $mobileFontSize = self::safeCss($style['mobileFontSize'] ?? '') ?: '16px';
+        $mobileBreakpoint = in_array((string) ($style['mobileBreakpoint'] ?? '768'), ['480', '768', '1024', '9999']) ? ($style['mobileBreakpoint'] ?? '768') : '768';
 
-        $css .= "@media(max-width:768px){.{$scopeClass} .menu-hamburger{display:flex!important;}.{$scopeClass} .menu-desktop{display:none!important;}}\n";
+        $css .= ".{$scopeClass} .menu-hamburger-panel{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;";
+        $css .= "background:{$mobileBg};border-bottom:1px solid var(--color-border-light);padding:8px 0;gap:0;box-shadow:0 8px 32px rgba(0,0,0,0.1);}\n";
+        $css .= ".{$scopeClass}.menu-open .menu-hamburger-panel{display:flex!important;}\n";
+        $css .= ".{$scopeClass} .menu-hamburger-panel a{display:block;padding:12px 24px;font-size:{$mobileFontSize};border-bottom:1px solid var(--color-border-light,#eee);}\n";
+        $css .= ".{$scopeClass} .menu-hamburger-panel a:last-child{border-bottom:none;}\n";
+
+        $css .= "@media(max-width:{$mobileBreakpoint}px){.{$scopeClass} .menu-hamburger{display:flex!important;}.{$scopeClass} .menu-desktop{display:none!important;}}\n";
         $css .= "</style>\n";
 
-        // Nav HTML
-        $navStyle = '';
-        if ($isSticky) $navStyle .= 'position:sticky;top:0;z-index:1000;';
-        if ($bgColor && !$isTransparent) $navStyle .= "background:{$bgColor};";
-        elseif ($isTransparent) $navStyle .= 'background:transparent;';
-        else $navStyle .= 'background:rgba(255,255,255,0.88);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);';
+        // Nav HTML — always sticky with solid background for mobile reliability
+        $navStyle = 'position:sticky;top:0;z-index:1000;';
+        if ($bgColor && !$isTransparent) {
+            $navStyle .= "background:{$bgColor};";
+        } elseif ($isTransparent) {
+            $navStyle .= 'background:transparent;';
+        } else {
+            $navStyle .= 'background:var(--color-bg,#ffffff);';
+        }
         $navStyle .= 'border-bottom:1px solid var(--color-border-light,#eee);';
 
         $innerStyle = 'display:flex;align-items:center;justify-content:space-between;max-width:var(--container-width,1400px);margin:0 auto;padding:0 var(--container-padding,40px);';
