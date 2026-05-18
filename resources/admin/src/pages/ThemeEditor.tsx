@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Download, Sun, Moon, ChevronRight, Info, History, RotateCcw } from 'lucide-react';
 import { api, themeEngine } from '@/lib/api';
+import { FontPicker } from '@/components/editor/fields/FontPicker';
 
 // ═══════════════════════════════════════════
 // Token descriptions — explains what each token does and where it's used
@@ -531,10 +532,18 @@ function TokenDetailPanel({ path, tokens, rawToken, isSystem, onUpdate }: any) {
           )}
 
           {isFont && (
-            <input type="text" value={typeof rawValue === 'string' ? rawValue : ''}
-              onChange={e => onUpdate({ $type: 'fontFamily', $value: e.target.value })}
-              className="input input-bordered input-sm w-full font-mono text-xs"
-              placeholder="Font family or {reference.path}" />
+            <div className="space-y-2">
+              <FontPicker
+                label="Select font"
+                value={typeof resolvedValue === 'string' ? resolvedValue : ''}
+                onChange={v => onUpdate({ $type: 'fontFamily', $value: v })}
+                showWeights
+              />
+              <input type="text" value={typeof rawValue === 'string' ? rawValue : ''}
+                onChange={e => onUpdate({ $type: 'fontFamily', $value: e.target.value })}
+                className="input input-bordered input-xs w-full font-mono text-[10px] text-base-content/40"
+                placeholder="Or type manually: {reference.path}" />
+            </div>
           )}
 
           {(isSize || isShadow) && (

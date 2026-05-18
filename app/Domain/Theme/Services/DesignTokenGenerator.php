@@ -36,6 +36,14 @@ class DesignTokenGenerator
         'semantic.font.family.display' => 'font-heading',
         'semantic.font.family.body' => 'font-body',
         'semantic.font.family.mono' => 'font-mono',
+        'semantic.font.family.h1' => 'font-h1',
+        'semantic.font.family.h2' => 'font-h2',
+        'semantic.font.family.h3' => 'font-h3',
+        'semantic.font.family.h4' => 'font-h4',
+        'semantic.font.family.h5' => 'font-h5',
+        'semantic.font.family.h6' => 'font-h6',
+        'semantic.font.family.button' => 'font-button',
+        'semantic.font.family.nav' => 'font-nav',
         'semantic.font.size.xs' => 'font-size-xs',
         'semantic.font.size.sm' => 'font-size-sm',
         'semantic.font.size.base' => 'font-size-base',
@@ -136,22 +144,28 @@ class DesignTokenGenerator
     }
 
     /**
-     * Generate Google Fonts @import for heading and body fonts.
+     * Generate Google Fonts @import for all font tokens.
+     * Collects unique font families from heading, body, mono, h1-h6, button, nav tokens.
      */
     private function generateFontImports(array $tokens): string
     {
-        $fonts = [];
-        $headingFont = $tokens['font-heading'] ?? null;
-        $bodyFont = $tokens['font-body'] ?? null;
+        // Collect all font token keys and their values
+        $fontKeys = ['font-heading', 'font-body', 'font-mono',
+            'font-h1', 'font-h2', 'font-h3', 'font-h4', 'font-h5', 'font-h6',
+            'font-button', 'font-nav'];
 
-        if ($headingFont && !str_contains($headingFont, 'system-ui')) {
-            $clean = trim(explode(',', $headingFont)[0], "' \"");
-            $fonts[] = urlencode($clean) . ':wght@400;600;700';
+        $uniqueFonts = [];
+        foreach ($fontKeys as $key) {
+            $val = $tokens[$key] ?? null;
+            if (!$val || str_contains($val, 'system-ui') || str_contains($val, 'ui-monospace')) continue;
+            $clean = trim(explode(',', $val)[0], "' \"");
+            if (!$clean || isset($uniqueFonts[$clean])) continue;
+            $uniqueFonts[$clean] = true;
         }
-        if ($bodyFont && !str_contains($bodyFont, 'system-ui') && $bodyFont !== $headingFont) {
-            $clean = trim(explode(',', $bodyFont)[0], "' \"");
-            $fonts[] = urlencode($clean) . ':wght@400;500;600';
-        }
+
+        $fonts = [];
+        foreach (array_keys($uniqueFonts) as $fontName) {
+            $fonts[] = urlencode($fontName) . ':wght@300;400;500;600;700';
 
         if (empty($fonts)) return '';
 
