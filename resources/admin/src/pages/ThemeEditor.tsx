@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, Download, Sun, Moon, ChevronRight, Info } from 'lucide-react';
-import { themeEngine } from '@/lib/api';
+import { ArrowLeft, Save, Loader2, Download, Sun, Moon, ChevronRight, Info, History, RotateCcw } from 'lucide-react';
+import { api, themeEngine } from '@/lib/api';
 
 // ═══════════════════════════════════════════
 // Token descriptions — explains what each token does and where it's used
@@ -118,6 +118,7 @@ export default function ThemeEditor() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [editDoc, setEditDoc] = useState<Record<string, unknown> | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
 
   const { data: theme, isLoading } = useQuery<any>({
     queryKey: ['theme-detail', siteId, themeId],
@@ -133,6 +134,12 @@ export default function ThemeEditor() {
     if (theme?.document && !editDoc) setEditDoc(theme.document);
   }, [theme]);
 
+  const { data: versionsList } = useQuery<any[]>({
+    queryKey: ['theme-versions', siteId, themeId],
+    queryFn: () => api.get(`/sites/${siteId}/theme-engine/versions`, { params: { theme_id: themeId } }).then((r: any) => r.data?.data || []),
+    enabled: showVersions && !!themeId,
+  });
+
   const saveMut = useMutation({
     mutationFn: (doc: Record<string, unknown>) =>
       themeEngine.update(siteId, themeId, { document: doc }),
@@ -140,6 +147,19 @@ export default function ThemeEditor() {
       setIsDirty(false);
       queryClient.invalidateQueries({ queryKey: ['theme-detail', siteId, themeId] });
       queryClient.invalidateQueries({ queryKey: ['theme-resolved', siteId] });
+      queryClient.invalidateQueries({ queryKey: ['theme-versions', siteId] });
+    },
+  });
+
+  const restoreMut = useMutation({
+    mutationFn: (versionId: string) => themeEngine.restoreVersion(siteId, versionId),
+    onSuccess: (r: any) => {
+      const restored = r.data?.data;
+      if (restored?.document) setEditDoc(restored.document);
+      setIsDirty(false);
+      queryClient.invalidateQueries({ queryKey: ['theme-detail', siteId, themeId] });
+      queryClient.invalidateQueries({ queryKey: ['theme-resolved', siteId] });
+      queryClient.invalidateQueries({ queryKey: ['theme-versions', siteId] });
     },
   });
 
@@ -179,6 +199,10 @@ export default function ThemeEditor() {
               <Moon size={12} /> Dark
             </button>
           </div>
+          <button onClick={() => setShowVersions(!showVersions)}
+            className={`btn btn-sm text-xs gap-1 ${showVersions ? 'btn-active' : 'btn-ghost'}`}>
+            <History size={12} /> History
+          </button>
           <button onClick={() => {
             const json = JSON.stringify(editDoc || theme?.document, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
@@ -221,9 +245,52 @@ export default function ThemeEditor() {
           </div>
         </div>
 
-        {/* Right: Inspector for selected token */}
+        {/* Right: Inspector or Version History */}
         <div className="w-96 bg-base-100 border-l border-base-300/30 overflow-y-auto shrink-0">
-          {selectedPath ? (
+          {showVersions ? (
+            <div className="p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-base-content/80 flex items-center gap-2">
+                <History size={14} /> Version History
+              </h3>
+              <p className="text-[11px] text-base-content/40">
+                Snapshots are created automatically when you save.
+              </p>
+              {!versionsList?.length ? (
+                <div className="text-center py-8 text-base-content/20">
+                  <History size={24} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">No versions yet</p>
+                  <p className="text-[10px] mt-1">Save changes to create the first snapshot</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {versionsList.map((v: any, i: number) => (
+                    <div key={v.id} className="bg-base-200/50 rounded-lg p-3 border border-base-300/20">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-base-content/70">
+                          {i === 0 ? 'Latest' : `Version ${versionsList.length - i}`}
+                        </span>
+                        <span className="text-[10px] text-base-content/30 font-mono">
+                          {v.content_hash?.slice(0, 8)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-base-content/40 mb-2">
+                        {new Date(v.created_at).toLocaleString()}
+                      </p>
+                      {!isSystem && (
+                        <button
+                          onClick={() => { if (confirm('Restore this version? Current state will be saved as a new version.')) restoreMut.mutate(v.id); }}
+                          disabled={restoreMut.isPending}
+                          className="btn btn-xs btn-ghost gap-1 text-primary">
+                          <RotateCcw size={11} />
+                          {restoreMut.isPending ? 'Restoring...' : 'Restore'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : selectedPath ? (
             <TokenDetailPanel path={selectedPath} tokens={tokens}
               rawToken={findToken(editDoc || {}, selectedPath)}
               isSystem={isSystem}

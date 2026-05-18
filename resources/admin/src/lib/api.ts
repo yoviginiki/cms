@@ -177,6 +177,7 @@ export const themeEngine = {
   saveOverrides: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/theme-engine/overrides`, data),
   importTheme: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/theme-engine/import`, data),
   versions: (siteId: string) => api.get(`/sites/${siteId}/theme-engine/versions`),
+  restoreVersion: (siteId: string, versionId: string) => api.post(`/sites/${siteId}/theme-engine/versions/${versionId}/restore`),
   coverage: (siteId: string, themeId: string, mode?: string) => api.get(`/sites/${siteId}/theme-engine/themes/${themeId}/coverage`, { params: { mode } }),
   studioFrames: (siteId: string) => api.get(`/sites/${siteId}/theme-engine/studio/frames`),
 };

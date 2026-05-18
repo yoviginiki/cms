@@ -10,7 +10,10 @@ class DesignTokenGenerator
     /**
      * Generate CSS custom properties from theme config + customizations.
      */
-    /** Map from W3C token paths to CSS variable names. */
+    /**
+     * Map from W3C token paths to legacy CSS variable names.
+     * Every token is also emitted as --semantic-{path} for Studio/Blade consistency.
+     */
     private const W3C_TO_CSS = [
         'semantic.color.brand' => 'color-primary',
         'semantic.color.accent' => 'color-accent',
@@ -19,33 +22,34 @@ class DesignTokenGenerator
         'semantic.color.danger' => 'color-danger',
         'semantic.color.background.canvas' => 'color-bg',
         'semantic.color.background.surface' => 'color-bg-alt',
-        'semantic.color.background.raised' => 'color-bg',
-        'semantic.color.background.overlay' => null,
+        'semantic.color.background.raised' => 'color-bg-raised',
+        'semantic.color.background.overlay' => 'color-bg-overlay',
+        'semantic.color.background.inverse' => 'color-bg-inverse',
         'semantic.color.text.body' => 'color-text',
-        'semantic.color.text.heading' => 'color-bg-inverse',
+        'semantic.color.text.heading' => 'color-heading',
         'semantic.color.text.muted' => 'color-text-muted',
-        'semantic.color.text.link' => 'color-accent',
+        'semantic.color.text.link' => 'color-link',
         'semantic.color.text.inverse' => 'color-text-inverse',
         'semantic.color.border.default' => 'color-border',
         'semantic.color.border.subtle' => 'color-border-light',
-        'semantic.color.border.strong' => null,
+        'semantic.color.border.strong' => 'color-border-strong',
         'semantic.font.family.display' => 'font-heading',
         'semantic.font.family.body' => 'font-body',
         'semantic.font.family.mono' => 'font-mono',
-        'semantic.font.size.xs' => null,
+        'semantic.font.size.xs' => 'font-size-xs',
         'semantic.font.size.sm' => 'font-size-sm',
         'semantic.font.size.base' => 'font-size-base',
         'semantic.font.size.lg' => 'font-size-lg',
         'semantic.font.size.xl' => 'font-size-xl',
         'semantic.font.size.2xl' => 'font-size-2xl',
         'semantic.font.size.3xl' => 'font-size-3xl',
-        'semantic.font.size.4xl' => null,
-        'semantic.font.size.5xl' => null,
-        'semantic.size.radius.none' => null,
+        'semantic.font.size.4xl' => 'font-size-4xl',
+        'semantic.font.size.5xl' => 'font-size-5xl',
+        'semantic.size.radius.none' => 'border-radius-none',
         'semantic.size.radius.sm' => 'border-radius-sm',
         'semantic.size.radius.md' => 'border-radius-md',
         'semantic.size.radius.lg' => 'border-radius-lg',
-        'semantic.size.radius.xl' => null,
+        'semantic.size.radius.xl' => 'border-radius-xl',
         'semantic.size.radius.full' => 'border-radius-full',
         'semantic.shadow.sm' => 'shadow-sm',
         'semantic.shadow.md' => 'shadow-md',
@@ -71,14 +75,15 @@ class DesignTokenGenerator
             $tokens = array_merge($tokens, $docTokens);
         }
 
-        $css = ":root {\n";
+        // Font imports must come before style rules per CSS spec
+        $css = $this->generateFontImports($tokens);
+
+        $css .= ":root {\n";
         foreach ($tokens as $key => $value) {
             if (is_array($value)) $value = implode(', ', $value);
             $css .= "  --{$key}: {$value};\n";
         }
         $css .= "}\n";
-
-        $css .= $this->generateFontImports($tokens);
 
         return $css;
     }
@@ -98,12 +103,19 @@ class DesignTokenGenerator
 
         $result = [];
         foreach ($flat as $path => $value) {
-            $cssName = self::W3C_TO_CSS[$path] ?? null;
-            if (!$cssName) continue;
             if (is_array($value)) {
                 $value = "'" . implode("', '", $value) . "'";
             }
-            $result[$cssName] = $value;
+
+            // Emit --semantic-* variable (matches Studio iframe CSS vars)
+            $semanticName = str_replace('.', '-', $path);
+            $result[$semanticName] = $value;
+
+            // Also emit legacy --color-*/--font-* alias if mapped
+            $cssName = self::W3C_TO_CSS[$path] ?? null;
+            if ($cssName) {
+                $result[$cssName] = $value;
+            }
         }
 
         return $result;
@@ -160,13 +172,18 @@ class DesignTokenGenerator
             'color-secondary' => '#64748b',
             'color-accent' => '#f59e0b',
             'color-text' => '#1e293b',
+            'color-heading' => '#0f172a',
             'color-text-muted' => '#64748b',
             'color-text-inverse' => '#ffffff',
+            'color-link' => '#3b82f6',
             'color-bg' => '#ffffff',
             'color-bg-alt' => '#f8fafc',
+            'color-bg-raised' => '#ffffff',
+            'color-bg-overlay' => 'rgba(0,0,0,0.5)',
             'color-bg-inverse' => '#0f172a',
             'color-border' => '#e2e8f0',
             'color-border-light' => '#f1f5f9',
+            'color-border-strong' => '#94a3b8',
             'color-success' => '#22c55e',
             'color-warning' => '#f59e0b',
             'color-danger' => '#ef4444',

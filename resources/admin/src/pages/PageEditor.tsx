@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, Eye, Globe, FileText } from 'lucide-react';
 import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -24,7 +24,7 @@ import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
-import { api, blocks as blocksApi, pages as pagesApi, magEditor, sites } from '@/lib/api';
+import { api, blocks as blocksApi, pages as pagesApi, magEditor, sites, themeEngine } from '@/lib/api';
 import type { MagElement, MagPageData, MagElementStyle, TextFrameData, ImageFrameData } from '@/types/magazine';
 import '@/components/blocks';
 
@@ -731,6 +731,58 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
   );
 }
 
+function PageThemePicker({ siteId, pageId }: { siteId: string; pageId: string }) {
+  const queryClient = useQueryClient();
+  const { data: themes } = useQuery<any[]>({
+    queryKey: ['theme-engine', siteId],
+    queryFn: () => themeEngine.list(siteId).then((r: any) => r.data?.data || []),
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<string>('');
+
+  const assignTheme = async (themeId: string) => {
+    setSaving(true);
+    try {
+      if (themeId) {
+        // Per-page assignment only — don't change site-wide theme
+        await api.post(`/sites/${siteId}/theme-engine/assign`, { theme_id: themeId, page_id: pageId });
+      } else {
+        // Clear per-page override
+        await api.post(`/sites/${siteId}/theme-engine/assign`, { theme_id: null, page_id: pageId });
+      }
+      setSelectedTheme(themeId);
+      queryClient.invalidateQueries({ queryKey: ['theme-engine', siteId] });
+    } catch (e) {
+      console.error('Theme assign failed:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!themes?.length) return null;
+
+  return (
+    <div>
+      <label className="text-[11px] text-gray-500 mb-1 block">Page Theme</label>
+      <select
+        value={selectedTheme}
+        onChange={e => assignTheme(e.target.value)}
+        className="select select-bordered select-sm w-full text-[12px]"
+        disabled={saving}
+      >
+        <option value="">Site default</option>
+        {themes.map((t: any) => (
+          <option key={t.id} value={t.id}>
+            {t.name}{t.is_system ? ' (System)' : ''}{t.is_assigned ? ' (Active)' : ''}
+          </option>
+        ))}
+      </select>
+      <p className="text-[10px] text-gray-400 mt-0.5">Override the site theme for this page only</p>
+    </div>
+  );
+}
+
 function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug }: {
   page: any; siteId: string; pageId: string;
   layouts: any[]; publicBase: string; siteSlug: string;
@@ -808,6 +860,9 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
           <option value="magazine">Magazine (Canvas)</option>
         </select>
       </div>
+
+      {/* Page Theme Override */}
+      <PageThemePicker siteId={siteId} pageId={pageId} />
 
       {/* SEO */}
       <div className="border-t border-gray-100 pt-3">

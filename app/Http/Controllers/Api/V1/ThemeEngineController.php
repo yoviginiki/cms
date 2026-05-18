@@ -122,12 +122,28 @@ class ThemeEngineController extends Controller
             'modes' => ['sometimes', 'array'],
         ]);
 
-        $theme->update($request->only(['name', 'description', 'document', 'modes']));
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $site, $theme) {
+            // Snapshot current document before updating
+            if ($request->has('document') && $theme->document) {
+                ThemeVersion::create([
+                    'tenant_id' => $site->tenant_id,
+                    'theme_id' => $theme->id,
+                    'site_id' => $site->id,
+                    'mode' => 'light',
+                    'resolved_document' => $theme->document,
+                    'content_hash' => hash('sha256', json_encode($theme->document)),
+                    'css_artifact_path' => null,
+                    'css_artifact_size' => 0,
+                ]);
+            }
 
-        // Invalidate cache
-        $this->resolver->invalidateForSite($site->tenant_id, $site->id);
+            $theme->update($request->only(['name', 'description', 'document', 'modes']));
 
-        return response()->json(['data' => $theme->fresh()]);
+            // Invalidate cache
+            $this->resolver->invalidateForSite($site->tenant_id, $site->id);
+
+            return response()->json(['data' => $theme->fresh()]);
+        });
     }
 
     /**
@@ -159,16 +175,35 @@ class ThemeEngineController extends Controller
     public function assign(Request $request, Site $site): JsonResponse
     {
         $request->validate([
-            'theme_id' => ['required', 'string'],
+            'theme_id' => ['nullable', 'string'],
             'page_id' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $theme = $this->findTheme($request->input('theme_id'));
+        $pageId = $request->input('page_id');
+        $themeId = $request->input('theme_id');
+
+        // Validate page belongs to this site
+        if ($pageId) {
+            $pageExists = \App\Models\Page::where('id', $pageId)->where('site_id', $site->id)->exists();
+            if (!$pageExists) {
+                return response()->json(['message' => 'Page not found'], 404);
+            }
+        }
+
+        // Clear per-page override
+        if ($pageId && !$themeId) {
+            ThemeAssignment::where('site_id', $site->id)
+                ->where('page_id', $pageId)
+                ->delete();
+
+            $this->resolver->invalidateForSite($site->tenant_id, $site->id);
+            return response()->json(['data' => ['cleared' => true]]);
+        }
+
+        $theme = $this->findTheme($themeId);
         if (!$theme) {
             return response()->json(['message' => 'Theme not found'], 404);
         }
-
-        $pageId = $request->input('page_id');
 
         if ($pageId) {
             // Per-page theme override
@@ -276,16 +311,56 @@ class ThemeEngineController extends Controller
     }
 
     /**
-     * Get version history for a site's theme.
+     * Get version history for a theme.
      */
-    public function versions(Site $site): JsonResponse
+    public function versions(Request $request, Site $site): JsonResponse
     {
-        $versions = ThemeVersion::where('site_id', $site->id)
+        $query = ThemeVersion::where('site_id', $site->id)
             ->orderByDesc('created_at')
-            ->limit(20)
-            ->get(['id', 'theme_id', 'mode', 'content_hash', 'css_artifact_path', 'css_artifact_size', 'created_at']);
+            ->limit(20);
+
+        // Filter by theme if specified
+        if ($themeId = $request->query('theme_id')) {
+            $query->where('theme_id', $themeId);
+        }
+
+        $versions = $query->get(['id', 'theme_id', 'mode', 'content_hash', 'css_artifact_path', 'css_artifact_size', 'created_at']);
 
         return response()->json(['data' => $versions]);
+    }
+
+    /**
+     * Restore a theme to a previous version.
+     */
+    public function restoreVersion(Request $request, Site $site, string $versionId): JsonResponse
+    {
+        $version = ThemeVersion::where('site_id', $site->id)->findOrFail($versionId);
+        $theme = Theme::findOrFail($version->theme_id);
+
+        if ($theme->is_system) {
+            return response()->json(['message' => 'Cannot restore system themes'], 403);
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($site, $theme, $version) {
+        // Snapshot current state before restoring
+        if ($theme->document) {
+            ThemeVersion::create([
+                'tenant_id' => $site->tenant_id,
+                'theme_id' => $theme->id,
+                'site_id' => $site->id,
+                'mode' => 'light',
+                'resolved_document' => $theme->document,
+                'content_hash' => hash('sha256', json_encode($theme->document)),
+                'css_artifact_path' => null,
+                'css_artifact_size' => 0,
+            ]);
+        }
+
+        $theme->update(['document' => $version->resolved_document]);
+        $this->resolver->invalidateForSite($site->tenant_id, $site->id);
+
+        return response()->json(['data' => $theme->fresh()]);
+        }); // end DB::transaction
     }
 
     /**
