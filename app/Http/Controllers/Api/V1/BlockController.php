@@ -11,6 +11,7 @@ use App\Models\Page;
 use App\Models\PageVersion;
 use App\Models\Post;
 use App\Models\Site;
+use App\Models\ThemeTemplate;
 use Illuminate\Http\JsonResponse;
 
 class BlockController extends Controller
@@ -84,6 +85,19 @@ class BlockController extends Controller
             $this->autoPublish->triggerIfEnabled($site, $request->user(), 'post_updated', $post->id);
         }
 
+        return response()->json(['data' => $tree]);
+    }
+
+    public function indexForTemplate(Site $site, ThemeTemplate $template): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->blockService->getBlockTree($template),
+        ]);
+    }
+
+    public function syncForTemplate(SyncBlocksRequest $request, Site $site, ThemeTemplate $template): JsonResponse
+    {
+        $tree = $this->blockService->syncBlocks($template, $request->validated('blocks'));
         return response()->json(['data' => $tree]);
     }
 

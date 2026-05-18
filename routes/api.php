@@ -182,6 +182,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'show']);
         Route::put('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'update']);
         Route::delete('sites/{site}/templates/{template}', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'destroy']);
+        Route::get('sites/{site}/templates/{template}/blocks', [BlockController::class, 'indexForTemplate']);
+        Route::put('sites/{site}/templates/{template}/blocks', [BlockController::class, 'syncForTemplate']);
 
         // Preview
         Route::get('sites/{site}/pages/{page}/preview', [PreviewController::class, 'previewPage']);

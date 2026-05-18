@@ -8,7 +8,7 @@ const SNAPSHOT_INTERVAL = 5; // Create a draft snapshot every N saves
  * Auto-save blocks after 3s of inactivity when dirty.
  * Creates a draft version snapshot every 5th save.
  */
-export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts', blockableId: string) {
+export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts' | 'templates', blockableId: string) {
   const isDirty = useEditorStore((s) => s.isDirty);
   const blocks = useEditorStore((s) => s.blocks);
   const rawHtml = useEditorStore((s) => s.rawHtml);

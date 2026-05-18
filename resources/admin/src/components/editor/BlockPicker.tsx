@@ -17,6 +17,7 @@ const CATEGORY_ORDER: { key: BlockCategory; label: string }[] = [
   { key: 'data', label: 'Data & content' },
   { key: 'commerce', label: 'Commerce' },
   { key: 'forms', label: 'Forms' },
+  { key: 'dynamic', label: 'Dynamic Content' },
   { key: 'embed', label: 'Embeds' },
   { key: 'marketing', label: 'Marketing' },
   { key: 'advanced', label: 'Advanced' },

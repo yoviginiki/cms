@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 
 export function useEditorShortcuts(
   siteId: string,
-  blockableType: 'pages' | 'posts',
+  blockableType: 'pages' | 'posts' | 'templates',
   blockableId: string,
 ) {
   const undo = useEditorStore((s) => s.undo);
