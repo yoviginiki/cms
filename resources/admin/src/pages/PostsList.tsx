@@ -184,8 +184,52 @@ export default function PostsList() {
         </div>
       )}
 
+      {/* Mobile card view */}
       {data && data.length > 0 && (
-        <div className="overflow-x-auto rounded-box border border-base-300/40">
+        <div className="lg:hidden space-y-2">
+          {data.map((post: Post) => (
+            <div key={post.id} className="bg-base-100 rounded-lg border border-base-300/40 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <button onClick={() => navigate(`/sites/${siteId}/posts/${post.id}/edit`)}
+                    className="text-sm font-medium text-base-content/90 hover:text-primary text-left truncate block w-full">
+                    {post.title}
+                  </button>
+                  <p className="text-[11px] text-base-content/30 truncate">/{post.slug}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <StatusBadge status={post.status} />
+                    {post.category?.name && (
+                      <span className="text-[10px] text-base-content/40">{post.category.name}</span>
+                    )}
+                    {post.published_at && (
+                      <span className="text-[10px] text-base-content/30">{new Date(post.published_at).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <a href={`${publicBase}/${post.category?.slug ? post.category.slug + '/' : ''}${post.slug}`}
+                    target="_blank" rel="noopener"
+                    className="btn btn-ghost btn-sm btn-square text-base-content/40" title="View">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                  <button onClick={() => navigate(`/sites/${siteId}/posts/${post.id}/edit`)}
+                    className="btn btn-ghost btn-sm btn-square text-base-content/40" title="Edit">
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget(post)}
+                    className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-error" title="Delete">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Desktop table view */}
+      {data && data.length > 0 && (
+        <div className="overflow-x-auto rounded-box border border-base-300/40 hidden lg:block">
           <table className="table table-sm">
             <thead>
               <tr className="border-b border-base-300/40">

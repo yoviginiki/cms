@@ -106,8 +106,42 @@ export default function PagesList() {
         <EmptyState icon={FileText} title="No pages yet" description="Create your first page" actionLabel="Create Page" onAction={handleCreate} />
       )}
 
+      {/* Mobile card view */}
       {sortedPages.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:hidden space-y-2">
+          {sortedPages.map((page) => (
+            <div key={page.id} className={`bg-white rounded-lg border p-3 ${isHomepage(page) ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200'}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
+                    className="text-sm font-medium text-gray-900 hover:text-blue-600 text-left truncate block w-full">
+                    {page.title}
+                    {isHomepage(page) && <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Front Page</span>}
+                  </button>
+                  <div className="flex items-center gap-2 mt-1">
+                    <StatusBadge status={page.status} />
+                    <span className="text-[11px] text-gray-400 font-mono">/{page.slug}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
+                    className="p-2 text-gray-400 hover:text-blue-600 rounded-lg" title="Edit">
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget(page)}
+                    className="p-2 text-gray-400 hover:text-red-600 rounded-lg" title="Delete">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Desktop table view */}
+      {sortedPages.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hidden lg:block">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
