@@ -172,6 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/theme-engine/overrides', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'saveOverrides']);
         Route::post('sites/{site}/theme-engine/import', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'import']);
         Route::get('sites/{site}/theme-engine/versions', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'versions']);
+        Route::post('sites/{site}/theme-engine/versions/{version}/restore', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'restoreVersion']);
         Route::get('sites/{site}/theme-engine/themes/{theme}/coverage', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'coverage']);
         Route::get('sites/{site}/theme-engine/studio/frames', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'studioFrames']);
         Route::get('sites/{site}/theme-engine/studio/frame/{slug}', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'studioFrame']);
