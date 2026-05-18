@@ -5,6 +5,7 @@ import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, Eye, Globe, FileText 
 import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
+import { useThemeFonts } from '@/hooks/useThemeFonts';
 import { useEditorStore } from '@/stores/editorStore';
 import { useMagazineStore } from '@/stores/magazineStore';
 import { AssetField } from '@/components/ui/AssetPicker';
@@ -144,6 +145,7 @@ export default function PageEditor() {
 
   useAutoSave(siteId, 'pages', pageId);
   useEditorShortcuts(siteId, 'pages', pageId);
+  useThemeFonts(siteId);
 
   // Load blocks only on initial fetch — never overwrite after user starts editing.
   // React Query refetch (e.g. window focus) must not reset the editor store.

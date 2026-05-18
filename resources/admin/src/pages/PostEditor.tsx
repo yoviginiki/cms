@@ -8,6 +8,7 @@ import {
 import { usePostData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
+import { useThemeFonts } from '@/hooks/useThemeFonts';
 import { useEditorStore } from '@/stores/editorStore';
 import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { MagazineEditorCanvas } from '@/components/editor/MagazineEditorCanvas';
@@ -90,6 +91,7 @@ export default function PostEditor() {
 
   useAutoSave(siteId, 'posts', postId);
   useEditorShortcuts(siteId, 'posts', postId);
+  useThemeFonts(siteId);
 
   // Load blocks only on initial fetch — never overwrite after user starts editing
   const blocksLoadedRef = useRef(false);
