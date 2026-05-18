@@ -33,7 +33,7 @@
     .block-bg-overlay ~ * { position: relative; z-index: 1; }
 
     /* ─── Mobile responsive — published pages ─── */
-    @media (max-width: 768px) {
+    @media (max-width: 767px) {
       /* Force multi-column grids to single column */
       [style*="grid-template-columns:repeat(2"] { grid-template-columns: 1fr !important; }
       [style*="grid-template-columns:repeat(3"] { grid-template-columns: 1fr !important; }

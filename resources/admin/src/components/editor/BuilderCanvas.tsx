@@ -187,12 +187,8 @@ export function BuilderDndProvider({ children }: { children: React.ReactNode }) 
   );
 }
 
-type CanvasDevice = 'desktop' | 'tablet' | 'mobile';
-const canvasWidths: Record<CanvasDevice, string> = {
-  desktop: '100%',
-  tablet: '768px',
-  mobile: '375px',
-};
+import { CANVAS_WIDTHS, type Breakpoint } from '@/lib/breakpoints';
+type CanvasDevice = Breakpoint;
 
 export function BuilderCanvas() {
   const blocks = useEditorStore((s) => s.blocks);
@@ -204,7 +200,8 @@ export function BuilderCanvas() {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
 
-  const [canvasDevice, setCanvasDevice] = useState<CanvasDevice>('desktop');
+  const canvasDevice = useEditorStore((s) => s.canvasDevice);
+  const setCanvasDevice = useEditorStore((s) => s.setCanvasDevice);
   const canvasMode = useEditorStore((s) => s.canvasMode);
   const setCanvasMode = useEditorStore((s) => s.setCanvasMode);
 
@@ -307,7 +304,7 @@ export function BuilderCanvas() {
             {([
               { device: 'desktop' as CanvasDevice, Icon: Monitor, label: 'Desktop' },
               { device: 'tablet' as CanvasDevice, Icon: Tablet, label: 'Tablet (768px)' },
-              { device: 'mobile' as CanvasDevice, Icon: Smartphone, label: 'Mobile (375px)' },
+              { device: 'mobile' as CanvasDevice, Icon: Smartphone, label: 'Mobile (390px)' },
             ]).map(({ device, Icon, label }) => (
               <button
                 key={device}
@@ -328,7 +325,7 @@ export function BuilderCanvas() {
         </div>
         {canvasDevice !== 'desktop' && (
           <div className="flex items-center justify-center gap-2 py-1.5 bg-info/10 border-b border-info/20 text-info text-xs font-medium">
-            <Eye size={12} /> Editing at {canvasDevice === 'tablet' ? '768px' : '375px'} width
+            <Eye size={12} /> Editing at {canvasDevice === 'tablet' ? '768px' : '390px'} width
           </div>
         )}
         <div className="p-6">
@@ -337,7 +334,7 @@ export function BuilderCanvas() {
             canvasDevice !== 'desktop' ? 'border-info/30' : 'border-gray-200'
           }`}
           style={{
-            maxWidth: canvasWidths[canvasDevice],
+            maxWidth: CANVAS_WIDTHS[canvasDevice],
             transition: 'max-width 0.3s ease',
           }}
         >

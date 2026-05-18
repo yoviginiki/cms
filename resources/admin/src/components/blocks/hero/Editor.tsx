@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
 import { TextField, SelectField, ToggleField, ColorField, ShadowField, BoxSpacingField, CornerRadiusField } from '@/components/editor/fields';
@@ -6,10 +6,15 @@ import type { ShadowCustom } from '@/lib/shadowStyles';
 import { ResponsiveField } from '@/components/editor/fields/ResponsiveField';
 import type { Breakpoint } from '@/lib/responsiveValues';
 import { getResponsiveValue, setResponsiveValue, clearResponsiveValue } from '@/lib/responsiveValues';
+import { useEditorStore } from '@/stores/editorStore';
 
 export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
+  const canvasDevice = useEditorStore((s) => s.canvasDevice);
   const [responsiveBp, setResponsiveBp] = useState<Breakpoint>('desktop');
+
+  // Sync responsive breakpoint with canvas device toggle
+  useEffect(() => { setResponsiveBp(canvasDevice); }, [canvasDevice]);
 
   const update = (field: string, value: unknown) => {
     onUpdate({ ...block.data, [field]: value });
