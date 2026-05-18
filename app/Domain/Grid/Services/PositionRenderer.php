@@ -9,6 +9,7 @@ use App\Models\GridPosition;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
+use App\Models\ThemeTemplate;
 use Illuminate\Support\Facades\View;
 
 class PositionRenderer
@@ -78,6 +79,16 @@ class PositionRenderer
             return '';
         }
 
+        // Check for ThemeTemplate — if a template exists for this post,
+        // render template blocks with post context (Grid layout + Template content)
+        if ($content instanceof Post) {
+            $template = ThemeTemplate::resolveForPost($content);
+            if ($template) {
+                return $this->renderTemplatedCanvas($template, $content, $site);
+            }
+        }
+
+        // Standard: render content's own blocks
         $blocks = $content->blocks()
             ->whereNull('parent_block_id')
             ->orderBy('order')
@@ -90,6 +101,61 @@ class PositionRenderer
         }
 
         return $html;
+    }
+
+    /**
+     * Render a post's canvas using a ThemeTemplate.
+     * Combines Grid layout (wrapper) with Template content (dynamic blocks).
+     */
+    private function renderTemplatedCanvas(ThemeTemplate $template, Post $post, Site $site): string
+    {
+        $builder = app(\App\Domain\Publishing\Services\BuildPageService::class);
+
+        // Render post's own blocks as content HTML
+        $postBlocks = $post->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with('children')
+            ->get();
+
+        $postContentHtml = '';
+        foreach ($postBlocks as $block) {
+            $postContentHtml .= $builder->renderBlock($block, $site);
+        }
+
+        // Resolve prev/next posts
+        $prevPost = null;
+        $nextPost = null;
+        if ($post->category_id && $post->published_at) {
+            $prevPost = Post::where('site_id', $post->site_id)
+                ->where('category_id', $post->category_id)
+                ->where('status', 'published')
+                ->where('published_at', '<', $post->published_at)
+                ->orderByDesc('published_at')
+                ->first();
+            $nextPost = Post::where('site_id', $post->site_id)
+                ->where('category_id', $post->category_id)
+                ->where('status', 'published')
+                ->where('published_at', '>', $post->published_at)
+                ->orderBy('published_at')
+                ->first();
+        }
+
+        $post->loadMissing(['category', 'author']);
+
+        // Render template blocks with post context
+        $templateBlocks = $template->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with('children')
+            ->get();
+
+        return $builder->renderBlocksWithContext($templateBlocks, $site, [
+            '__post' => $post,
+            '__postContentHtml' => $postContentHtml,
+            '__prevPost' => $prevPost,
+            '__nextPost' => $nextPost,
+        ]);
     }
 
     /**
