@@ -5,6 +5,8 @@ import { InlineTextField, InlineLinkPopover, InlineMediaReplace } from '@/compon
 import { buildShadowCss } from '@/lib/shadowStyles';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 import { resolveBoxSpacing, resolveCornerRadius } from '@/lib/spacingHelpers';
+import { getResponsiveValue } from '@/lib/responsiveValues';
+import { useEditorStore } from '@/stores/editorStore';
 
 // ── Safe CSS value helpers (preview-only; Blade has its own sanitizers) ──
 const safeDim = (v: string) =>
@@ -57,22 +59,24 @@ export const HeroPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
     }
   };
 
-  // Configurable fields with sensible defaults matching previous hardcoded values.
-  // Preview always uses desktop/base values — the editor canvas is desktop-width.
-  // Responsive overrides (tablet/mobile) take effect in published Blade output only.
+  // Resolve responsive values based on active canvas device
+  const canvasDevice = useEditorStore((s) => s.canvasDevice);
+  const rv = (key: string, fallback: string) =>
+    (getResponsiveValue(data, key, canvasDevice) as string) || fallback;
+
   const headlineTag = (data.headlineTag as string) || 'h1';
-  const textAlignment = (data.textAlignment as string) || 'center';
+  const textAlignment = rv('textAlignment', 'center');
   const verticalPosition = (data.verticalPosition as string) || 'center';
-  const sectionHeight = (data.sectionHeight as string) || 'md';
-  const contentMaxWidth = (data.contentMaxWidth as string) || '800px';
-  const headlineSize = (data.headlineSize as string) || '2.5rem';
+  const sectionHeight = rv('sectionHeight', 'md');
+  const contentMaxWidth = rv('contentMaxWidth', '800px');
+  const headlineSize = rv('headlineSize', '2.5rem');
   const headlineWeight = (data.headlineWeight as string) || '700';
   const headlineColor = safeColor((data.headlineColor as string) || '');
   const headlineLineHeight = (data.headlineLineHeight as string) || '';
   const headlineLetterSpacing = (data.headlineLetterSpacing as string) || '';
   const headlineTextTransform = (data.headlineTextTransform as string) || '';
   const headlineTextShadow = (data.headlineTextShadow as string) || '';
-  const subheadlineSize = (data.subheadlineSize as string) || '1.25rem';
+  const subheadlineSize = rv('subheadlineSize', '1.25rem');
   const subheadlineWeight = (data.subheadlineWeight as string) || '400';
   const subtitleColor = safeColor((data.subtitleColor as string) || '');
   const subheadlineLineHeight = (data.subheadlineLineHeight as string) || '';

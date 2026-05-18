@@ -400,13 +400,13 @@ class BlockStyle
         $css = '';
 
         if (in_array('desktop', $hideOn)) {
-            $css .= "@media(min-width:1025px){.{$scope}{display:none!important}}";
+            $css .= "@media(min-width:1024px){.{$scope}{display:none!important}}";
         }
         if (in_array('tablet', $hideOn)) {
-            $css .= "@media(min-width:769px) and (max-width:1024px){.{$scope}{display:none!important}}";
+            $css .= "@media(min-width:768px) and (max-width:1023px){.{$scope}{display:none!important}}";
         }
         if (in_array('mobile', $hideOn)) {
-            $css .= "@media(max-width:768px){.{$scope}{display:none!important}}";
+            $css .= "@media(max-width:767px){.{$scope}{display:none!important}}";
         }
 
         return ['scopeClass' => $scope, 'css' => $css];

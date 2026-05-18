@@ -189,7 +189,7 @@
     $respCss = '';
     if ($hasResponsive && $respScopeClass) {
         $respRules = [];
-        // Tablet: max-width 1024px
+        // Tablet: max-width 1023px
         $tabletRules = [];
         if (!empty($respTablet['textAlignment'])) {
             $ta = in_array($respTablet['textAlignment'], ['left','center','right']) ? $respTablet['textAlignment'] : null;
@@ -211,9 +211,9 @@
             $ss = $cssDim($respTablet['subheadlineSize']);
             if ($ss) $tabletRules[] = ".{$respScopeClass} .hero-subtitle{font-size:{$ss}}";
         }
-        if ($tabletRules) $respRules[] = '@media(max-width:1024px){' . implode('', $tabletRules) . '}';
+        if ($tabletRules) $respRules[] = '@media(max-width:1023px){' . implode('', $tabletRules) . '}';
 
-        // Mobile: max-width 640px
+        // Mobile: max-width 767px
         $mobileRules = [];
         if (!empty($respMobile['textAlignment'])) {
             $ta = in_array($respMobile['textAlignment'], ['left','center','right']) ? $respMobile['textAlignment'] : null;
@@ -235,7 +235,7 @@
             $ss = $cssDim($respMobile['subheadlineSize']);
             if ($ss) $mobileRules[] = ".{$respScopeClass} .hero-subtitle{font-size:{$ss}}";
         }
-        if ($mobileRules) $respRules[] = '@media(max-width:640px){' . implode('', $mobileRules) . '}';
+        if ($mobileRules) $respRules[] = '@media(max-width:767px){' . implode('', $mobileRules) . '}';
 
         $respCss = implode('', $respRules);
     }

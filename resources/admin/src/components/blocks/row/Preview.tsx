@@ -2,9 +2,11 @@ import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { safeDim } from '@/lib/blockStyles';
 import { LAYOUT_GRID, LAYOUT_COLUMN_COUNT, type RowLayout } from './definition';
+import { useEditorStore } from '@/stores/editorStore';
 
 export const RowPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, unknown>;
+  const canvasDevice = useEditorStore((s) => s.canvasDevice);
 
   const layout = (data.layout as RowLayout) || '1/2+1/2';
   const gap = safeDim(data.gap) || '16px';
@@ -13,7 +15,9 @@ export const RowPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const rawAlign = (data.vertical_align as string) || 'stretch';
   const verticalAlign = VALID_ALIGNS.includes(rawAlign) ? rawAlign : 'stretch';
 
-  const gridTemplate = LAYOUT_GRID[layout] || LAYOUT_GRID['1/2+1/2'];
+  // Stack columns on mobile (matches Blade media query)
+  const isMobileStack = canvasDevice === 'mobile';
+  const gridTemplate = isMobileStack ? '1fr' : (LAYOUT_GRID[layout] || LAYOUT_GRID['1/2+1/2']);
   const colCount = LAYOUT_COLUMN_COUNT[layout] || 2;
 
   const style: React.CSSProperties = {

@@ -10,8 +10,12 @@
     $__animAttr = BlockStyle::animationAttr($__ba);
     $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
 @endphp
+@php
+    $rowScopeClass = 'row-' . substr(md5(($__htmlId ?: '') . ($data['layout'] ?? '') . spl_object_id((object)$data)), 0, 8);
+@endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
-<div class="row-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+<style>@media(max-width:767px){.{{ $rowScopeClass }} > div{grid-template-columns:1fr !important;}};</style>
+<div class="row-block {{ $rowScopeClass }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $layoutMap = [
