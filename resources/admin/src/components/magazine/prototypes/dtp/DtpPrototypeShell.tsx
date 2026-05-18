@@ -1,27 +1,32 @@
 /**
- * M1 DTP Canvas Prototype — Shell Layout
+ * M2 DTP Canvas Prototype — Shell Layout
  *
- * InDesign-inspired layout: toolbar, page navigator, canvas, properties panel, status bar.
- * Uses mocked data only. No database, no API.
+ * InDesign-inspired layout with editable frame geometry.
+ * Uses mocked data in local React state only. No database, no API.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ArrowLeft, ZoomIn, ZoomOut, Maximize2, MousePointer, Type, ImageIcon, Quote } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MOCK_DOCUMENT } from './mockDocument';
+import { MOCK_DOCUMENT, type DtpFrame, type DtpDocument } from './mockDocument';
 import { SpreadCanvas } from './SpreadCanvas';
 import { PropertiesPanel } from './PropertiesPanel';
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+const MIN_SIZE = 20;
+
+function deepClone<T>(obj: T): T { return JSON.parse(JSON.stringify(obj)); }
 
 export default function DtpPrototypeShell() {
   const navigate = useNavigate();
   const { siteId } = useParams();
+
+  // Editable local state (cloned from mock, never persisted)
+  const [doc, setDoc] = useState<DtpDocument>(() => deepClone(MOCK_DOCUMENT));
   const [activeSpreadIdx, setActiveSpreadIdx] = useState(0);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(0.5);
   const [activeTool, setActiveTool] = useState<'select' | 'text' | 'image' | 'quote'>('select');
 
-  const doc = MOCK_DOCUMENT;
   const activeSpread = doc.spreads[activeSpreadIdx];
   const selectedFrame = activeSpread?.frames.find(f => f.id === selectedFrameId) ?? null;
 
@@ -39,6 +44,46 @@ export default function DtpPrototypeShell() {
     setSelectedFrameId(id);
   }, []);
 
+  // ─── Frame geometry updates ───
+  const updateFrame = useCallback((frameId: string, updates: Partial<DtpFrame>) => {
+    setDoc(prev => {
+      const next = deepClone(prev);
+      const spread = next.spreads[activeSpreadIdx];
+      const frame = spread?.frames.find(f => f.id === frameId);
+      if (!frame) return prev;
+      if (updates.x !== undefined) frame.x = Math.round(updates.x);
+      if (updates.y !== undefined) frame.y = Math.round(updates.y);
+      if (updates.width !== undefined) frame.width = Math.max(MIN_SIZE, Math.round(updates.width));
+      if (updates.height !== undefined) frame.height = Math.max(MIN_SIZE, Math.round(updates.height));
+      if (updates.rotation !== undefined) frame.rotation = updates.rotation;
+      if (updates.zIndex !== undefined) frame.zIndex = updates.zIndex;
+      return next;
+    });
+  }, [activeSpreadIdx]);
+
+  // ─── Keyboard nudging ───
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!selectedFrameId) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+      const step = e.shiftKey ? 10 : 1;
+      let dx = 0, dy = 0;
+      if (e.key === 'ArrowLeft') dx = -step;
+      else if (e.key === 'ArrowRight') dx = step;
+      else if (e.key === 'ArrowUp') dy = -step;
+      else if (e.key === 'ArrowDown') dy = step;
+      else return;
+
+      e.preventDefault();
+      const frame = doc.spreads[activeSpreadIdx]?.frames.find(f => f.id === selectedFrameId);
+      if (frame) updateFrame(selectedFrameId, { x: frame.x + dx, y: frame.y + dy });
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedFrameId, activeSpreadIdx, doc, updateFrame]);
+
   return (
     <div className="flex flex-col h-screen bg-neutral-800 text-neutral-200" data-theme="cms-admin">
       {/* ─── Top Toolbar ─── */}
@@ -49,10 +94,9 @@ export default function DtpPrototypeShell() {
             <ArrowLeft size={16} />
           </button>
           <span className="text-[11px] font-medium text-neutral-300">{doc.title}</span>
-          <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-medium">M1 PROTOTYPE</span>
+          <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-medium">M2 PROTOTYPE</span>
         </div>
 
-        {/* Tools */}
         <div className="flex items-center gap-1">
           <div className="flex bg-neutral-700 rounded p-0.5 gap-0.5">
             {([
@@ -71,7 +115,6 @@ export default function DtpPrototypeShell() {
 
           <div className="w-px h-5 bg-neutral-600 mx-1" />
 
-          {/* Zoom */}
           <button onClick={handleZoomOut} className="p-1 text-neutral-400 hover:text-white" title="Zoom out">
             <ZoomOut size={14} />
           </button>
@@ -88,8 +131,7 @@ export default function DtpPrototypeShell() {
       {/* ─── Main Area ─── */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Spread Navigator */}
-        <div className="w-20 bg-neutral-850 border-r border-neutral-700 overflow-y-auto shrink-0"
-          style={{ backgroundColor: '#1a1a1a' }}>
+        <div className="w-20 border-r border-neutral-700 overflow-y-auto shrink-0" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="p-1.5 space-y-1.5">
             <div className="text-[8px] text-neutral-500 uppercase tracking-wider px-1 py-1">Spreads</div>
             {doc.spreads.map((spread, idx) => (
@@ -97,7 +139,6 @@ export default function DtpPrototypeShell() {
                 className={`w-full rounded overflow-hidden border transition-colors ${
                   idx === activeSpreadIdx ? 'border-blue-500' : 'border-neutral-600 hover:border-neutral-400'
                 }`}>
-                {/* Mini spread thumbnail */}
                 <div className="flex bg-neutral-700 p-1 gap-0.5" style={{ aspectRatio: spread.pages.length === 2 ? '2/1.4' : '1/1.4' }}>
                   {spread.pages.map(page => (
                     <div key={page.id} className="flex-1 bg-white rounded-[1px]" style={{ backgroundColor: page.backgroundColor }} />
@@ -118,6 +159,7 @@ export default function DtpPrototypeShell() {
             zoom={zoom}
             selectedFrameId={selectedFrameId}
             onSelectFrame={handleSelectFrame}
+            onUpdateFrame={updateFrame}
           />
         </div>
 
@@ -127,6 +169,7 @@ export default function DtpPrototypeShell() {
             spread={activeSpread}
             selectedFrame={selectedFrame}
             document={doc}
+            onUpdateFrame={updateFrame}
           />
         </div>
       </div>
@@ -140,7 +183,9 @@ export default function DtpPrototypeShell() {
         </div>
         <div className="flex items-center gap-3 text-[10px] text-neutral-400">
           {selectedFrame && (
-            <span className="text-blue-400">{selectedFrame.label || selectedFrame.type} selected</span>
+            <span className="text-blue-400">
+              {selectedFrame.label || selectedFrame.type} — {selectedFrame.x},{selectedFrame.y} {selectedFrame.width}x{selectedFrame.height}
+            </span>
           )}
           <span>Zoom {Math.round(zoom * 100)}%</span>
           <span>Tool: {activeTool}</span>
