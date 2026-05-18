@@ -405,3 +405,42 @@ button, a, input, select, textarea {
 [data-theme="cms-admin"] .textarea-bordered { border-color: oklch(0.35 0.01 260) !important; }
 /* Ensure upload button text is visible */
 [data-theme="cms-admin"] .btn-ghost { color: oklch(0.80 0.01 260); }
+
+/* ═══════════════════════════════════════════
+   Mobile Responsive — Admin
+   ═══════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  /* Editor right sidebars: full width bottom sheet */
+  .editor-right-sidebar {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    max-height: 50vh;
+    border-top: 1px solid var(--bc, #e5e7eb);
+    border-left: none !important;
+    z-index: 30;
+    overflow-y: auto;
+  }
+
+  /* Page list cards: single column */
+  .grid-cols-2, .md\:grid-cols-2, .lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Reduce padding on mobile */
+  .p-6 { padding: 0.75rem !important; }
+  .px-6 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+
+  /* Make touch targets bigger */
+  .btn-xs { min-height: 2rem; min-width: 2rem; }
+  .btn-sm { min-height: 2.5rem; min-width: 2.5rem; }
+}
+
+@media (max-width: 640px) {
+  /* Even tighter on small phones */
+  .text-2xl { font-size: 1.25rem !important; }
+  .gap-6 { gap: 0.75rem !important; }
+  .gap-4 { gap: 0.5rem !important; }
+}
