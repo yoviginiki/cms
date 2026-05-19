@@ -204,6 +204,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/posts/{post}/versions/{version}', [VersionController::class, 'showForPost']);
         Route::post('sites/{site}/posts/{post}/versions/{version}/restore', [VersionController::class, 'restoreForPost']);
 
+        // DTP Designer (feature-flagged)
+        Route::middleware(\App\Http\Middleware\RequireDtpDesigner::class)->group(function () {
+            Route::get('sites/{site}/magazine-issues/{issue}/dtp-document', [\App\Http\Controllers\Api\V1\DtpDocumentController::class, 'show']);
+            Route::put('sites/{site}/magazine-issues/{issue}/dtp-document', [\App\Http\Controllers\Api\V1\DtpDocumentController::class, 'save']);
+        });
+
         // WordPress Import
         Route::post('sites/{site}/import/upload', [ImportController::class, 'upload']);
         Route::get('sites/{site}/import/{importId}/preview', [ImportController::class, 'preview']);
