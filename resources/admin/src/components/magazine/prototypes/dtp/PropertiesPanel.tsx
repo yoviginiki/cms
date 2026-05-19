@@ -11,6 +11,7 @@ interface Props {
   document: DtpDocument;
   spread: DtpSpread;
   selectedFrame: DtpFrame | null;
+  selectedCount?: number;
   onUpdateFrame?: (id: string, updates: Partial<DtpFrame>) => void;
 }
 
@@ -62,7 +63,22 @@ function NumInput({ label, value, onChange, min, max, suffix = 'px' }: {
   );
 }
 
-export function PropertiesPanel({ document: doc, spread, selectedFrame, onUpdateFrame }: Props) {
+export function PropertiesPanel({ document: doc, spread, selectedFrame, selectedCount = 0, onUpdateFrame }: Props) {
+  // Multi-select info
+  if (selectedCount > 1) {
+    return (
+      <div className="p-3 space-y-4">
+        <div className="bg-blue-500/10 rounded-lg p-3">
+          <h3 className="text-[12px] font-semibold text-blue-300 mb-1">{selectedCount} frames selected</h3>
+          <p className="text-[10px] text-neutral-400 leading-relaxed">
+            Use toolbar Align buttons to align selected frames. Use Distribute buttons (3+ frames) to space evenly.
+          </p>
+          <p className="text-[10px] text-neutral-400 mt-2">Arrow keys nudge all selected frames.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!selectedFrame) {
     return (
       <div className="p-3 space-y-4">

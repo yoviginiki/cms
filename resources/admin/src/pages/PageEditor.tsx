@@ -77,9 +77,12 @@ export default function PageEditor() {
     enabled: isMagazineMode,
   });
 
-  // Initialize magazine store from API data
+  // Initialize magazine store from API data — only on first load.
+  // Subsequent React Query refetches must NOT overwrite unsaved edits.
+  const magLoadedRef = useRef(false);
   useEffect(() => {
-    if (!magData || !isMagazineMode) return;
+    if (!magData || !isMagazineMode || magLoadedRef.current) return;
+    magLoadedRef.current = true;
     const pages: MagPageData[] = (magData.pages || []).map((p: any) => ({
       id: p.id,
       pageNumber: p.page_number,
