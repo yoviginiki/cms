@@ -208,6 +208,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware(\App\Http\Middleware\RequireDtpDesigner::class)->group(function () {
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-document', [\App\Http\Controllers\Api\V1\DtpDocumentController::class, 'show']);
             Route::put('sites/{site}/magazine-issues/{issue}/dtp-document', [\App\Http\Controllers\Api\V1\DtpDocumentController::class, 'save']);
+            Route::get('sites/{site}/magazine-issues/{issue}/dtp-preview', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'preview']);
         });
 
         // WordPress Import
