@@ -133,6 +133,37 @@ function MagazineEditorV2Inner() {
   const currentElements = currentPage?.elements || [];
   const selectedEl = currentElements.find(e => store.selectedIds.includes(e.id)) || null;
   const [autoOpenImagePicker, setAutoOpenImagePicker] = useState(false);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+
+  // Thread helpers
+  const allElements = store.pages.flatMap(p => p.elements || []);
+  const getThreadFrameCount = (tid: string) => allElements.filter(e => e.threadId === tid).length;
+
+  const handleStartThread = () => {
+    if (!selectedEl) return;
+    const tid = crypto.randomUUID();
+    store.updateElement(selectedEl.id, { threadId: tid, threadOrder: 0 } as any);
+    setActiveThreadId(tid);
+  };
+
+  const handleContinueThread = () => {
+    if (!selectedEl || !activeThreadId) return;
+    const order = allElements.filter(e => e.threadId === activeThreadId).length;
+    store.updateElement(selectedEl.id, { threadId: activeThreadId, threadOrder: order } as any);
+  };
+
+  const handleUnthread = () => {
+    if (!selectedEl || !selectedEl.threadId) return;
+    const tid = selectedEl.threadId;
+    store.updateElement(selectedEl.id, { threadId: null, threadOrder: null } as any);
+    // Renumber remaining frames in the thread to close gaps
+    const remaining = allElements
+      .filter(e => e.threadId === tid && e.id !== selectedEl.id)
+      .sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+    remaining.forEach((e, i) => {
+      if ((e.threadOrder ?? 0) !== i) store.updateElement(e.id, { threadOrder: i } as any);
+    });
+  };
 
   // Auto-switch to Properties tab when an element is selected
   useEffect(() => {
@@ -211,6 +242,8 @@ function MagazineEditorV2Inner() {
             _v2locked: el.locked,
             _v2visible: el.visible,
             _v2layerName: el.layerName,
+            _v2threadId: el.threadId || null,
+            _v2threadOrder: el.threadOrder ?? null,
             // Also store in legacy format for the public viewer blade
             html: (el.data as any)?.content || null,
             src: (el.data as any)?.src || null,
@@ -299,6 +332,9 @@ function MagazineEditorV2Inner() {
         {currentPage && (
           <MagazineCanvas
             page={currentPage}
+            allPages={store.pages}
+            viewMode={store.viewMode}
+            gridColumns={store.gridColumns}
             elements={currentElements}
             zoom={store.zoom}
             onZoomChange={store.setZoom}
@@ -307,6 +343,13 @@ function MagazineEditorV2Inner() {
             onDeleteElements={handleDeleteElements}
             onDuplicateElements={handleDuplicateElements}
             onSelectElement={(id) => id ? store.selectElement(id) : store.clearSelection()}
+            onPageClick={(n) => {
+              if (n === -1) store.setViewMode('single');
+              else if (n === -2) store.setViewMode('spread');
+              else if (n === -3) store.setViewMode('grid');
+              else if (n <= -10) store.setGridColumns(-(n + 10));
+              else store.setCurrentPage(n);
+            }}
           />
         )}
 
@@ -360,6 +403,15 @@ function MagazineEditorV2Inner() {
                       <TextFramePanel
                         data={(selectedEl.data || {}) as unknown as TextFrameData}
                         onChange={(v) => handleUpdateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })}
+                        threadId={selectedEl.threadId}
+                        threadInfo={selectedEl.threadId ? {
+                          position: allElements.filter(e => e.threadId === selectedEl.threadId && (e.threadOrder ?? 0) <= (selectedEl.threadOrder ?? 0)).length,
+                          total: getThreadFrameCount(selectedEl.threadId),
+                        } : undefined}
+                        onStartThread={handleStartThread}
+                        onContinueThread={handleContinueThread}
+                        onUnthread={handleUnthread}
+                        availableThreadId={activeThreadId}
                       />
                     )}
 
@@ -583,8 +635,8 @@ function convertLegacyElement(el: any, pageW: number, pageH: number): MagElement
       style: _v2style || el.style || DEFAULT_STYLE,
       typography: _v2typography || null,
       textWrap: _v2textWrap || DEFAULT_WRAP,
-      threadId: null,
-      threadOrder: null,
+      threadId: el.content?._v2threadId || null,
+      threadOrder: el.content?._v2threadOrder ?? null,
       pageNumber: 1,
       onMaster: false,
       parentId: null,

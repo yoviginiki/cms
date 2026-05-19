@@ -334,7 +334,7 @@ export function MagazineCanvas({
         <div className="w-px h-5 bg-base-300 mx-1" />
 
         {/* View mode selector */}
-        {allPages && allPages.length > 1 && (
+        {allPages && (
           <div className="flex items-center gap-0.5">
             <button className={`btn btn-xs ${viewMode === 'single' ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => onPageClick && onPageClick(-1)} title="Single page">
