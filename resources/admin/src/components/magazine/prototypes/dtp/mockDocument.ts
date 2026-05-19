@@ -29,6 +29,8 @@ export interface DtpFrame {
   content?: string;    // text content or placeholder
   label?: string;      // human-readable name
   image?: ImageSettings; // image frame data
+  visible?: boolean;   // default true — hidden frames not rendered on canvas
+  locked?: boolean;    // default false — locked frames can't be moved/resized/edited
 }
 
 export const DEFAULT_IMAGE: ImageSettings = {

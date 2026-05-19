@@ -38,6 +38,7 @@ import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
 import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import TextWrapPanel from '@/components/magazine/properties/TextWrapPanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
+import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 
@@ -133,6 +134,7 @@ function MagazineEditorV2Inner() {
   const currentElements = currentPage?.elements || [];
   const selectedEl = currentElements.find(e => store.selectedIds.includes(e.id)) || null;
   const [autoOpenImagePicker, setAutoOpenImagePicker] = useState(false);
+  const [alignToPage, setAlignToPage] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   // Thread helpers
@@ -448,6 +450,44 @@ function MagazineEditorV2Inner() {
                         onChange={(v) => handleUpdateElement(selectedEl.id, { textWrap: { ...(selectedEl.textWrap || {}), ...v } as MagTextWrap })}
                       />
                     )}
+
+                    {/* Align / Distribute */}
+                    {store.selectedIds.length >= 1 && (
+                      <AlignDistributePanel
+                        onAlign={(type) => {
+                          const ids = store.selectedIds;
+                          const els = currentElements.filter(e => ids.includes(e.id) && !e.locked);
+                          if (els.length < 1) return;
+                          const bounds = alignToPage && currentPage
+                            ? { minX: 0, minY: 0, maxX: currentPage.pageSize.width, maxY: currentPage.pageSize.height }
+                            : (() => { const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }; els.forEach(e => { b.minX = Math.min(b.minX, e.x); b.minY = Math.min(b.minY, e.y); b.maxX = Math.max(b.maxX, e.x + e.width); b.maxY = Math.max(b.maxY, e.y + e.height); }); return b; })();
+                          els.forEach(e => {
+                            if (type === 'align-left') handleUpdateElement(e.id, { x: bounds.minX });
+                            else if (type === 'align-right') handleUpdateElement(e.id, { x: bounds.maxX - e.width });
+                            else if (type === 'align-center-h') handleUpdateElement(e.id, { x: (bounds.minX + bounds.maxX) / 2 - e.width / 2 });
+                            else if (type === 'align-top') handleUpdateElement(e.id, { y: bounds.minY });
+                            else if (type === 'align-bottom') handleUpdateElement(e.id, { y: bounds.maxY - e.height });
+                            else if (type === 'align-center-v') handleUpdateElement(e.id, { y: (bounds.minY + bounds.maxY) / 2 - e.height / 2 });
+                          });
+                        }}
+                        onDistribute={(type) => {
+                          const ids = store.selectedIds;
+                          const els = currentElements.filter(e => ids.includes(e.id) && !e.locked);
+                          if (els.length < 3) return;
+                          const axis = type === 'distribute-horizontal' ? 'x' : 'y';
+                          const size = axis === 'x' ? 'width' : 'height';
+                          const sorted = [...els].sort((a, b) => a[axis] - b[axis]);
+                          const totalSize = sorted.reduce((s, e) => s + e[size], 0);
+                          const first = sorted[0][axis];
+                          const last = sorted[sorted.length - 1][axis] + sorted[sorted.length - 1][size];
+                          const gap = (last - first - totalSize) / (sorted.length - 1);
+                          let pos = first;
+                          sorted.forEach((e, i) => { if (i > 0) handleUpdateElement(e.id, { [axis]: Math.round(pos) }); pos += e[size] + gap; });
+                        }}
+                        alignToPage={alignToPage}
+                        onToggleAlignToPage={() => setAlignToPage(!alignToPage)}
+                      />
+                    )}
                   </>
                 ) : currentPage ? (
                   <>
@@ -572,7 +612,15 @@ function MagazineEditorV2Inner() {
               <StylesPanel
                 styles={store.styles}
                 selectedElementId={selectedEl?.id || null}
-                onApplyStyle={() => {}}
+                onApplyStyle={(styleId) => {
+                  if (!selectedEl) return;
+                  const TYPOGRAPHY_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame', 'page_number', 'running_header'];
+                  if (!TYPOGRAPHY_TYPES.includes(selectedEl.type)) return;
+                  const style = store.styles.find(s => s.id === styleId);
+                  if (!style) return;
+                  const typo = { ...(selectedEl.typography || {}), ...style.properties };
+                  handleUpdateElement(selectedEl.id, { typography: typo as any });
+                }}
                 onCreateStyle={(type) => {
                   store.addStyle({
                     id: crypto.randomUUID(),

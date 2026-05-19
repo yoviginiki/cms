@@ -16,6 +16,7 @@ import { MOCK_DOCUMENT, type DtpFrame, type DtpDocument } from './mockDocument';
 import { SpreadCanvas } from './SpreadCanvas';
 import { PropertiesPanel } from './PropertiesPanel';
 import { PreflightPanel } from './PreflightPanel';
+import { LayersPanel } from './LayersPanel';
 import { alignFrames, distributeFrames } from './snapEngine';
 import { runPreflight } from './preflight';
 
@@ -35,7 +36,7 @@ export default function DtpPrototypeShell() {
   const [showGuides, setShowGuides] = useState(true);
   const [showRulers, setShowRulers] = useState(true);
   const [snapEnabled, setSnapEnabled] = useState(true);
-  const [rightTab, setRightTab] = useState<'properties' | 'preflight'>('properties');
+  const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'preflight'>('properties');
 
   // Auto-run preflight on document changes
   const preflightResult = useMemo(() => runPreflight(doc), [doc]);
@@ -70,20 +71,25 @@ export default function DtpPrototypeShell() {
       if (updates.height !== undefined) frame.height = Math.max(MIN_SIZE, Math.round(updates.height));
       if (updates.rotation !== undefined) frame.rotation = updates.rotation;
       if (updates.zIndex !== undefined) frame.zIndex = updates.zIndex;
+      if (updates.visible !== undefined) frame.visible = updates.visible;
+      if (updates.locked !== undefined) frame.locked = updates.locked;
+      if (updates.image !== undefined) frame.image = updates.image as any;
       return next;
     });
   }, [activeSpreadIdx]);
 
   // ─── Align / Distribute ───
   const handleAlign = (dir: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom') => {
-    if (selectedFrames.length < 2) return;
-    const updates = alignFrames(selectedFrames, dir);
-    selectedFrames.forEach((f, i) => { if (Object.keys(updates[i]).length) updateFrame(f.id, updates[i]); });
+    const unlocked = selectedFrames.filter(f => !f.locked);
+    if (unlocked.length < 2) return;
+    const updates = alignFrames(unlocked, dir);
+    unlocked.forEach((f, i) => { if (Object.keys(updates[i]).length) updateFrame(f.id, updates[i]); });
   };
 
   const handleDistribute = (axis: 'horizontal' | 'vertical') => {
-    if (selectedFrames.length < 3) return;
-    const sorted = [...selectedFrames].sort((a, b) => axis === 'horizontal' ? a.x - b.x : a.y - b.y);
+    const unlocked = selectedFrames.filter(f => !f.locked);
+    if (unlocked.length < 3) return;
+    const sorted = [...unlocked].sort((a, b) => axis === 'horizontal' ? a.x - b.x : a.y - b.y);
     const updates = distributeFrames(sorted, axis);
     sorted.forEach((f, i) => { if (Object.keys(updates[i]).length) updateFrame(f.id, updates[i]); });
   };
@@ -106,7 +112,7 @@ export default function DtpPrototypeShell() {
       e.preventDefault();
       for (const id of selectedIds) {
         const frame = doc.spreads[activeSpreadIdx]?.frames.find(f => f.id === id);
-        if (frame) updateFrame(id, { x: frame.x + dx, y: frame.y + dy });
+        if (frame && !frame.locked) updateFrame(id, { x: frame.x + dx, y: frame.y + dy });
       }
     };
     window.addEventListener('keydown', handler);
@@ -230,11 +236,15 @@ export default function DtpPrototypeShell() {
           <div className="flex border-b border-neutral-700">
             <button onClick={() => setRightTab('properties')}
               className={`flex-1 px-2 py-1.5 text-[10px] font-medium ${rightTab === 'properties' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
-              Properties
+              Props
+            </button>
+            <button onClick={() => setRightTab('layers')}
+              className={`flex-1 px-2 py-1.5 text-[10px] font-medium ${rightTab === 'layers' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              Layers
             </button>
             <button onClick={() => setRightTab('preflight')}
               className={`flex-1 px-2 py-1.5 text-[10px] font-medium flex items-center justify-center gap-1 ${rightTab === 'preflight' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
-              Preflight
+              Check
               {preflightResult.issues.length > 0 && (
                 <span className={`text-[8px] px-1 rounded-full ${preflightResult.status === 'blocked' ? 'bg-red-500' : 'bg-amber-500'} text-white`}>
                   {preflightResult.issues.length}
@@ -242,7 +252,7 @@ export default function DtpPrototypeShell() {
               )}
             </button>
           </div>
-          {rightTab === 'properties' ? (
+          {rightTab === 'properties' && (
             <PropertiesPanel
               spread={activeSpread}
               selectedFrame={selectedFrame}
@@ -250,7 +260,16 @@ export default function DtpPrototypeShell() {
               document={doc}
               onUpdateFrame={updateFrame}
             />
-          ) : (
+          )}
+          {rightTab === 'layers' && (
+            <LayersPanel
+              spread={activeSpread}
+              selectedIds={selectedIds}
+              onSelectFrame={(id) => { setSelectedIds([id]); }}
+              onUpdateFrame={updateFrame}
+            />
+          )}
+          {rightTab === 'preflight' && (
             <PreflightPanel
               result={preflightResult}
               onSelectFrame={(id) => { setSelectedIds([id]); setRightTab('properties'); }}

@@ -47,6 +47,7 @@ export function useMagSelection(
 
   const dragStartRef = useRef<{ x: number; y: number; origPositions: Map<string, { x: number; y: number }> } | null>(null);
   const resizeStartRef = useRef<{ x: number; y: number; origBounds: { x: number; y: number; w: number; h: number } } | null>(null);
+  const rotationStartRef = useRef<{ startAngle: number; initialRotation: number; cx: number; cy: number; pageRect: DOMRect | null } | null>(null);
 
   const select = useCallback((id: string, addToSelection = false) => {
     setState(s => ({
@@ -68,6 +69,15 @@ export function useMagSelection(
 
     const handle = (e.target as HTMLElement).dataset?.handle;
     if (handle === 'rotate') {
+      const cx = el.x + el.width / 2;
+      const cy = el.y + el.height / 2;
+      // Calculate starting angle from mouse to element center (in page coords, accounting for zoom)
+      const pageEl = (e.currentTarget as HTMLElement).closest('[data-canvas="page"]');
+      const rect = pageEl?.getBoundingClientRect() || null;
+      const mouseX = rect ? (e.clientX - rect.left) / zoom : e.clientX;
+      const mouseY = rect ? (e.clientY - rect.top) / zoom : e.clientY;
+      const startAngle = Math.atan2(mouseY - cy, mouseX - cx) * (180 / Math.PI);
+      rotationStartRef.current = { startAngle, initialRotation: el.rotation, cx, cy, pageRect: rect };
       setState(s => ({ ...s, isRotating: true, selectedIds: [id] }));
       return;
     }
@@ -89,7 +99,7 @@ export function useMagSelection(
     });
     dragStartRef.current = { x: e.clientX, y: e.clientY, origPositions: positions };
     setState(s => ({ ...s, isDragging: true }));
-  }, [elements, state.selectedIds, select]);
+  }, [elements, state.selectedIds, select, zoom]);
 
   // Pointer move (global)
   const handlePointerMove = useCallback((e: PointerEvent) => {
@@ -148,6 +158,24 @@ export function useMagSelection(
         onUpdateElement(state.selectedIds[0], { x, y, width: w, height });
       }
     }
+
+    // Rotation
+    if (state.isRotating && rotationStartRef.current && state.selectedIds[0]) {
+      const el = elements.find(el => el.id === state.selectedIds[0]);
+      if (el) {
+        const { startAngle, initialRotation, cx, cy, pageRect: rect } = rotationStartRef.current;
+        const mouseX = rect ? (e.clientX - rect.left) / zoom : e.clientX;
+        const mouseY = rect ? (e.clientY - rect.top) / zoom : e.clientY;
+        const currentAngle = Math.atan2(mouseY - cy, mouseX - cx) * (180 / Math.PI);
+        let rotation = initialRotation + (currentAngle - startAngle);
+        // Normalize to 0-360
+        rotation = ((rotation % 360) + 360) % 360;
+        // Snap to 15° increments when Shift held
+        if (e.shiftKey) rotation = Math.round(rotation / 15) * 15;
+        rotation = ((rotation % 360) + 360) % 360; // re-normalize after snap
+        onUpdateElement(state.selectedIds[0], { rotation: Math.round(rotation) });
+      }
+    }
   }, [state, elements, zoom, pageWidth, pageHeight, margins, onUpdateElement]);
 
   const handlePointerUp = useCallback(() => {
@@ -155,6 +183,7 @@ export function useMagSelection(
       setState(s => ({ ...s, isDragging: false, isResizing: false, isRotating: false, resizeHandle: null, guides: [], marquee: null }));
       dragStartRef.current = null;
       resizeStartRef.current = null;
+      rotationStartRef.current = null;
     }
   }, [state]);
 

@@ -143,6 +143,18 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
         <h3 className="text-[12px] font-semibold text-neutral-200">{selectedFrame.label || selectedFrame.type}</h3>
       </div>
 
+      {selectedFrame.locked && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex items-center gap-2">
+          <span className="text-[10px] text-amber-400">Locked — unlock in Layers panel to edit</span>
+        </div>
+      )}
+
+      {selectedFrame.visible === false && (
+        <div className="bg-neutral-700/50 border border-neutral-600 rounded-lg p-2">
+          <span className="text-[10px] text-neutral-400">Hidden — show in Layers panel</span>
+        </div>
+      )}
+
       {/* Identity */}
       <div>
         <h4 className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Identity</h4>
@@ -153,7 +165,8 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
         </div>
       </div>
 
-      {/* Transform — editable */}
+      {/* Transform — editable (disabled when locked) */}
+      {!selectedFrame.locked && (
       <div>
         <h4 className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Transform</h4>
         <div className="bg-neutral-700/50 rounded-lg p-3">
@@ -169,9 +182,10 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
           </div>
         </div>
       </div>
+      )}
 
       {/* Image controls */}
-      {selectedFrame.type === 'image' && (() => {
+      {selectedFrame.type === 'image' && !selectedFrame.locked && (() => {
         const img = selectedFrame.image || { src: '', alt: '', caption: '', fitMode: 'fill' as FitMode, focalPoint: { x: 50, y: 50 }, opacity: 100 };
         const updateImage = (patch: Partial<ImageSettings>) => update({ image: { ...img, ...patch } } as any);
         const hasSrc = !!img.src;
