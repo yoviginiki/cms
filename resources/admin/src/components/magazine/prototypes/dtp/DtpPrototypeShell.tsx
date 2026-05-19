@@ -18,6 +18,7 @@ import { PropertiesPanel } from './PropertiesPanel';
 import { PreflightPanel } from './PreflightPanel';
 import { LayersPanel } from './LayersPanel';
 import { TemplateGallery } from './TemplateGallery';
+import { ExportPanel } from './ExportPanel';
 import { MOCK_MASTER_PAGES, type DtpTemplate } from './mockDocument';
 import { alignFrames, distributeFrames } from './snapEngine';
 import { runPreflight } from './preflight';
@@ -38,7 +39,8 @@ export default function DtpPrototypeShell() {
   const [showGuides, setShowGuides] = useState(true);
   const [showRulers, setShowRulers] = useState(true);
   const [snapEnabled, setSnapEnabled] = useState(true);
-  const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'preflight' | 'templates'>('properties');
+  const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'preflight' | 'templates' | 'export'>('properties');
+  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'export'>('edit');
 
   // Auto-run preflight on document changes
   const preflightResult = useMemo(() => runPreflight(doc), [doc]);
@@ -243,6 +245,18 @@ export default function DtpPrototypeShell() {
             {preflightResult.status === 'blocked' && <XCircle size={12} className="text-red-400" />}
             <span>{preflightResult.issues.length}</span>
           </button>
+
+          <div className="w-px h-5 bg-neutral-600 mx-1" />
+
+          {/* View mode */}
+          <div className="flex bg-neutral-700 rounded p-0.5 gap-0.5">
+            {(['edit', 'preview', 'export'] as const).map(mode => (
+              <button key={mode} onClick={() => { setViewMode(mode); if (mode === 'export') setRightTab('export'); else if (rightTab === 'export') setRightTab('properties'); }}
+                className={`px-2 py-0.5 rounded text-[9px] font-medium ${viewMode === mode ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white'}`}>
+                {mode === 'edit' ? 'Edit' : mode === 'preview' ? 'Preview' : 'Export'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -299,13 +313,17 @@ export default function DtpPrototypeShell() {
               Tmpl
             </button>
             <button onClick={() => setRightTab('preflight')}
-              className={`flex-1 px-2 py-1.5 text-[10px] font-medium flex items-center justify-center gap-1 ${rightTab === 'preflight' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              className={`flex-1 px-1 py-1.5 text-[9px] font-medium flex items-center justify-center gap-0.5 ${rightTab === 'preflight' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
               Check
               {preflightResult.issues.length > 0 && (
-                <span className={`text-[8px] px-1 rounded-full ${preflightResult.status === 'blocked' ? 'bg-red-500' : 'bg-amber-500'} text-white`}>
+                <span className={`text-[7px] px-1 rounded-full ${preflightResult.status === 'blocked' ? 'bg-red-500' : 'bg-amber-500'} text-white`}>
                   {preflightResult.issues.length}
                 </span>
               )}
+            </button>
+            <button onClick={() => { setRightTab('export'); setViewMode('export'); }}
+              className={`flex-1 px-1 py-1.5 text-[9px] font-medium ${rightTab === 'export' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              Export
             </button>
           </div>
           {rightTab === 'properties' && (
@@ -338,6 +356,9 @@ export default function DtpPrototypeShell() {
               onSelectFrame={(id) => { setSelectedIds([id]); setRightTab('properties'); }}
             />
           )}
+          {rightTab === 'export' && (
+            <ExportPanel document={doc} preflight={preflightResult} />
+          )}
         </div>
       </div>
 
@@ -354,6 +375,7 @@ export default function DtpPrototypeShell() {
             <span className="text-blue-400">{selectedFrame.label} — {selectedFrame.x},{selectedFrame.y} {selectedFrame.width}x{selectedFrame.height}</span>
           )}
           <span>Snap: {snapEnabled ? 'ON' : 'off'}</span>
+          <span>Mode: {viewMode}</span>
           <span>Zoom {Math.round(zoom * 100)}%</span>
         </div>
       </div>
