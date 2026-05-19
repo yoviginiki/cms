@@ -30,6 +30,7 @@ import Templates from './pages/Templates';
 import TemplateEditor from './pages/TemplateEditor';
 import Login from './pages/Login';
 import DtpPrototypeShell from './components/magazine/prototypes/dtp/DtpPrototypeShell';
+import DtpEditorBeta from './pages/DtpEditorBeta';
 import SessionsListPage from './pages/wizard/SessionsListPage';
 import WizardPage from './pages/wizard/WizardPage';
 
@@ -88,6 +89,9 @@ export default function App() {
 
           {/* Dev prototype: DTP Canvas (M1) — intentionally production-accessible for stakeholder review */}
           <Route path="/sites/:siteId/magazine/dtp-prototype" element={<DtpPrototypeShell />} />
+
+          {/* Beta DTP Editor — connected to real API, feature-flagged on backend */}
+          <Route path="/sites/:siteId/magazine-issues/:issueId/dtp-editor" element={<DtpEditorBeta />} />
         </Routes>
       </ToastProvider>
     </QueryClientProvider>
