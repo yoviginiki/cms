@@ -59,7 +59,7 @@ The DTP prototype (M1-M9) proved that the frontend can deliver InDesign-like lay
 |--------|-------|--------|
 | MagazineIssue | magazine_issues | EXISTS |
 | MagazinePage | mag_pages | EXISTS (page_size, margins, bleed, columns, baseline_grid, master_page_id, spread_with) |
-| MagazineFrame | mag_elements | EXISTS (37 columns: transform, style, typography, text_wrap, threading, layers) |
+| MagazineFrame | mag_elements | EXISTS (27 columns: transform, style, typography, text_wrap, threading, layers) |
 | MagazineStyle | mag_styles | EXISTS (paragraph/character/object styles, inheritance) |
 | MagazineArticle | mag_articles | EXISTS |
 
@@ -169,11 +169,11 @@ Route: /admin/sites/{siteId}/magazines/{issueId}/designer
 Feature flag: magazine_dtp_designer_enabled (per-site setting)
 ```
 
-### Implementation:
-1. Add `magazine_dtp_designer_enabled` to site settings JSON
-2. Add route in App.tsx (lazy-loaded)
-3. Show "Open in Designer" button on magazine list (when flag enabled)
-4. Designer reads from same API as existing editor
+### Planned implementation steps (MP4):
+1. Site settings JSON will include `magazine_dtp_designer_enabled`
+2. Route will be added to App.tsx (lazy-loaded)
+3. Magazine list will show "Open in Designer" button when flag enabled
+4. Designer will read from same API as existing editor
 5. No changes to existing editor behavior
 
 ---
@@ -187,8 +187,8 @@ Feature flag: magazine_dtp_designer_enabled (per-site setting)
 - **Risk: LOW**
 
 ### MP2: Production Types + Normalizers
-- Create shared TypeScript types for production frames
-- Create normalizer functions (API response → editor state)
+- Shared TypeScript types for production frames (planned)
+- Normalizer functions mapping API response → editor state (planned)
 - No UI changes
 - **Risk: LOW**
 
@@ -276,6 +276,6 @@ Feature flag: magazine_dtp_designer_enabled (per-site setting)
 
 ## 13. Recommended Next Step
 
-**MP1: Data Model Audit** — Verify that `mag_elements` has every column needed by the prototype frame model. Document any gaps. This is a zero-risk documentation task that sets the foundation for MP2-MP10.
+**MP1: COMPLETE** — See [MAGAZINE-DTP-DATA-MODEL-PLAN.md](MAGAZINE-DTP-DATA-MODEL-PLAN.md). Finding: zero migrations needed for beta. All prototype fields map to existing `mag_elements` columns.
 
-After MP1, proceed to MP2 (shared types) → MP3 (save/load) → MP4 (beta route). The entire MP1-MP4 sequence can be done without any database migrations, since the existing tables already have all required fields.
+**Next: MP2** — Define shared TypeScript types and normalizers (code task, planned). Prepares for MP3 (save/load).
