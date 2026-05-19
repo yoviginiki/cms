@@ -14,12 +14,13 @@ interface Props {
   isHovered: boolean;
   zoom: number;
   isEditing?: boolean;
+  threadedContent?: string;  // Pre-computed content from threading engine
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   onDoubleClick: (e: React.MouseEvent, id: string) => void;
   onContentChange?: (id: string, html: string) => void;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, onPointerDown, onDoubleClick, onContentChange }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -126,7 +127,9 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         cursor: isEditing ? 'text' : undefined,
       };
 
-      const safeContent = DOMPurify.sanitize(data.content || '<p>Text frame</p>', SAFE_HTML_CONFIG);
+      // Use threaded content if available (from threading engine), otherwise use frame's own content
+      const rawContent = threadedContent !== undefined ? threadedContent : (data.content || '<p>Text frame</p>');
+      const safeContent = DOMPurify.sanitize(rawContent, SAFE_HTML_CONFIG);
 
       if (isEditing) {
         return (

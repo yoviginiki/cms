@@ -373,6 +373,9 @@ export default function PageEditor() {
               return (
                 <MagazineCanvas
                   page={safePage}
+                  allPages={magStore.pages}
+                  viewMode={magStore.viewMode}
+                  gridColumns={magStore.gridColumns}
                   elements={safePage.elements}
                   zoom={magStore.zoom}
                   onZoomChange={magStore.setZoom}
@@ -381,6 +384,13 @@ export default function PageEditor() {
                   onDeleteElements={(ids) => magStore.deleteElements(ids)}
                   onDuplicateElements={(ids) => magStore.duplicateElements(ids)}
                   onSelectElement={(id) => id ? magStore.selectElement(id) : magStore.clearSelection()}
+                  onPageClick={(n) => {
+                    if (n === -1) magStore.setViewMode('single');
+                    else if (n === -2) magStore.setViewMode('spread');
+                    else if (n === -3) magStore.setViewMode('grid');
+                    else if (n <= -10) magStore.setGridColumns(-(n + 10));
+                    else magStore.setCurrentPage(n);
+                  }}
                 />
               );
             })()}
