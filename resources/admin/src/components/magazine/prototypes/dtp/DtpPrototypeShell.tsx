@@ -4,18 +4,20 @@
  * Adds: multi-select, align/distribute, snap toggle, guide toggle, rulers.
  * Uses mocked data in local React state only. No database, no API.
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, ZoomIn, ZoomOut, Maximize2, MousePointer,
   Magnet, Ruler, AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  ArrowRightLeft, ArrowUpDown,
+  ArrowRightLeft, ArrowUpDown, CheckCircle, AlertTriangle, XCircle,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MOCK_DOCUMENT, type DtpFrame, type DtpDocument } from './mockDocument';
 import { SpreadCanvas } from './SpreadCanvas';
 import { PropertiesPanel } from './PropertiesPanel';
+import { PreflightPanel } from './PreflightPanel';
 import { alignFrames, distributeFrames } from './snapEngine';
+import { runPreflight } from './preflight';
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 const MIN_SIZE = 20;
@@ -33,6 +35,10 @@ export default function DtpPrototypeShell() {
   const [showGuides, setShowGuides] = useState(true);
   const [showRulers, setShowRulers] = useState(true);
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [rightTab, setRightTab] = useState<'properties' | 'preflight'>('properties');
+
+  // Auto-run preflight on document changes
+  const preflightResult = useMemo(() => runPreflight(doc), [doc]);
 
   const activeSpread = doc.spreads[activeSpreadIdx];
   const selectedFrames = activeSpread?.frames.filter(f => selectedIds.includes(f.id)) ?? [];
@@ -165,6 +171,20 @@ export default function DtpPrototypeShell() {
           <span className="text-[11px] text-neutral-400 w-10 text-center font-mono">{Math.round(zoom * 100)}%</span>
           <button onClick={handleZoomIn} className="p-1 text-neutral-400 hover:text-white"><ZoomIn size={14} /></button>
           <button onClick={handleFitSpread} className="p-1 text-neutral-400 hover:text-white"><Maximize2 size={14} /></button>
+
+          <div className="w-px h-5 bg-neutral-600 mx-1" />
+
+          {/* Preflight status */}
+          <button onClick={() => setRightTab(rightTab === 'preflight' ? 'properties' : 'preflight')}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+              rightTab === 'preflight' ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Preflight">
+            {preflightResult.status === 'pass' && <CheckCircle size={12} className="text-green-400" />}
+            {preflightResult.status === 'warnings' && <AlertTriangle size={12} className="text-amber-400" />}
+            {preflightResult.status === 'blocked' && <XCircle size={12} className="text-red-400" />}
+            <span>{preflightResult.issues.length}</span>
+          </button>
         </div>
       </div>
 
@@ -204,15 +224,38 @@ export default function DtpPrototypeShell() {
           />
         </div>
 
-        {/* Right: Properties */}
+        {/* Right: Properties / Preflight */}
         <div className="w-72 bg-neutral-800 border-l border-neutral-700 overflow-y-auto shrink-0">
-          <PropertiesPanel
-            spread={activeSpread}
-            selectedFrame={selectedFrame}
-            selectedCount={multiCount}
-            document={doc}
-            onUpdateFrame={updateFrame}
-          />
+          {/* Tabs */}
+          <div className="flex border-b border-neutral-700">
+            <button onClick={() => setRightTab('properties')}
+              className={`flex-1 px-2 py-1.5 text-[10px] font-medium ${rightTab === 'properties' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              Properties
+            </button>
+            <button onClick={() => setRightTab('preflight')}
+              className={`flex-1 px-2 py-1.5 text-[10px] font-medium flex items-center justify-center gap-1 ${rightTab === 'preflight' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              Preflight
+              {preflightResult.issues.length > 0 && (
+                <span className={`text-[8px] px-1 rounded-full ${preflightResult.status === 'blocked' ? 'bg-red-500' : 'bg-amber-500'} text-white`}>
+                  {preflightResult.issues.length}
+                </span>
+              )}
+            </button>
+          </div>
+          {rightTab === 'properties' ? (
+            <PropertiesPanel
+              spread={activeSpread}
+              selectedFrame={selectedFrame}
+              selectedCount={multiCount}
+              document={doc}
+              onUpdateFrame={updateFrame}
+            />
+          ) : (
+            <PreflightPanel
+              result={preflightResult}
+              onSelectFrame={(id) => { setSelectedIds([id]); setRightTab('properties'); }}
+            />
+          )}
         </div>
       </div>
 
