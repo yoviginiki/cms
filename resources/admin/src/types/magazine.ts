@@ -138,6 +138,7 @@ export interface TextFrameData {
   autoSize: 'none' | 'grow-height' | 'shrink-text';
   columnsInFrame: number;
   columnGap: number;
+  columnFill: 'auto' | 'balance';
   columnRule: boolean;
   textInset: { top: number; right: number; bottom: number; left: number };
   verticalAlign: 'top' | 'center' | 'bottom';

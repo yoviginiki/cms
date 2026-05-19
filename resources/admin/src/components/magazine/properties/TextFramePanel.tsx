@@ -70,6 +70,22 @@ export default function TextFramePanel({ data, onChange, threadInfo }: TextFrame
         </div>
       </div>
 
+      {/* Column fill mode */}
+      <div>
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Column fill</label>
+        <div className="flex gap-1">
+          <button type="button" onClick={() => onChange({ columnFill: 'auto' })}
+            className={`btn btn-xs flex-1 ${data.columnFill !== 'balance' ? 'btn-primary' : 'btn-ghost'}`}>
+            Auto
+          </button>
+          <button type="button" onClick={() => onChange({ columnFill: 'balance' })}
+            className={`btn btn-xs flex-1 ${data.columnFill === 'balance' ? 'btn-primary' : 'btn-ghost'}`}>
+            Balance
+          </button>
+        </div>
+        <p className="text-[9px] text-base-content/30 mt-0.5">Auto fills first column fully. Balance splits text evenly.</p>
+      </div>
+
       {/* Column rule */}
       <label className="flex items-center gap-1.5 cursor-pointer">
         <input
