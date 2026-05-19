@@ -1,8 +1,10 @@
 # Magazine Editor Gap Analysis
 
+> **Update 2026-05-19**: DTP prototype M0-M9 complete. Production integration plan available at [MAGAZINE-PRODUCTION-INTEGRATION-PLAN.md](MAGAZINE-PRODUCTION-INTEGRATION-PLAN.md).
+
 ## 1. Executive Summary
 
-**Status: PARTIAL** — The Magazine Editor is a working prototype at ~65-70% completion. Core canvas editing, 25+ element types, styling panels, smart guides, and zoom/pan work. However, it lacks professional DTP features needed for InDesign-level workflows: spread view, rulers, text threading, master pages, styles application, rotation drag, align/distribute, preflight, and export.
+**Status: PROTOTYPE COMPLETE** — The DTP prototype track (M1-M9) has been fully implemented, proving spread view, rulers, snap/guides, align/distribute, text threading, image controls, layers, preflight, templates, master pages, and export readiness. The production magazine editor also received fixes for align/distribute, rotation drag, and style application. Next step: production integration (MP1-MP10).
 
 **Architecture verdict:** The current data model (mag_pages, mag_elements, mag_styles) is **solid and extensible** — it already has fields for master pages, text threading, spreads, baseline grids, and styles. The gap is primarily in **UI implementation**, not data model. No schema changes needed for M0-M4.
 
