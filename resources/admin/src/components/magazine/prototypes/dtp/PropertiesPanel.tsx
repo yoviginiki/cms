@@ -143,7 +143,14 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
         <h3 className="text-[12px] font-semibold text-neutral-200">{selectedFrame.label || selectedFrame.type}</h3>
       </div>
 
-      {selectedFrame.locked && (
+      {selectedFrame.isMasterObject && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+          <span className="text-[10px] text-amber-400 font-medium">Master object — read-only on this page</span>
+          <p className="text-[9px] text-neutral-500 mt-0.5">Edit on master page to change all instances</p>
+        </div>
+      )}
+
+      {selectedFrame.locked && !selectedFrame.isMasterObject && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex items-center gap-2">
           <span className="text-[10px] text-amber-400">Locked — unlock in Layers panel to edit</span>
         </div>

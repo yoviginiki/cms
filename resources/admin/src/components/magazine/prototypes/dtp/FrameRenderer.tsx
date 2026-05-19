@@ -134,7 +134,9 @@ export function FrameRenderer({ frame, isSelected, zoom, page, pageFrames, snapE
       {/* Background */}
       <div className="absolute inset-0 transition-colors" style={{
         backgroundColor: frame.type === 'image' ? '#e5e7eb' : colors.bg,
-        border: isSelected ? `2px solid ${colors.border}` : '1px solid transparent',
+        border: isSelected
+          ? `2px solid ${frame.isMasterObject ? '#f59e0b' : colors.border}`
+          : frame.isMasterObject ? '1px dashed rgba(245,158,11,0.4)' : '1px solid transparent',
       }} />
 
       {/* Hover */}
@@ -151,8 +153,11 @@ export function FrameRenderer({ frame, isSelected, zoom, page, pageFrames, snapE
       ))}
 
       {/* Badge */}
-      <div className="absolute -top-4 left-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+      <div className="absolute -top-4 left-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity flex gap-1"
         style={{ opacity: isSelected ? 1 : undefined }}>
+        {frame.isMasterObject && (
+          <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-amber-500 text-white">MASTER</span>
+        )}
         <span className="text-[8px] font-medium px-1 py-0.5 rounded" style={{ backgroundColor: colors.border, color: 'white' }}>
           {frame.label || colors.label}
         </span>
