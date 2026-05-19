@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Download, Sun, Moon, ChevronRight, Info, History, RotateCcw } from 'lucide-react';
@@ -129,6 +129,7 @@ export default function ThemeEditor() {
   const { data: resolved } = useQuery<any>({
     queryKey: ['theme-resolved', siteId, mode],
     queryFn: () => themeEngine.resolve(siteId, mode).then((r: any) => r.data.data),
+    refetchOnWindowFocus: false,  // Don't overwrite local edits on tab switch
   });
 
   useEffect(() => {
@@ -165,7 +166,37 @@ export default function ThemeEditor() {
   });
 
   const isSystem = theme?.is_system;
-  const tokens = resolved?.tokens || {};
+
+  // Merge server-resolved tokens with local edits for immediate feedback
+  const tokens = useMemo(() => {
+    const base = { ...(resolved?.tokens || {}) };
+    if (!editDoc) return base;
+    const localLiterals: Record<string, string> = {};
+    const flatten = (obj: Record<string, any>, prefix = ''): void => {
+      for (const [key, val] of Object.entries(obj)) {
+        if (key.startsWith('$')) continue;
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          if ('$value' in val) {
+            localLiterals[path] = String(val.$value);
+          } else {
+            flatten(val, path);
+          }
+        }
+      }
+    };
+    flatten(editDoc);
+    for (const [path, raw] of Object.entries(localLiterals)) {
+      if (raw.startsWith('{') && raw.endsWith('}')) {
+        const refPath = raw.slice(1, -1);
+        base[path] = localLiterals[refPath] ?? base[refPath] ?? raw;
+      } else {
+        base[path] = raw;
+      }
+    }
+    return base;
+  }, [resolved, editDoc]);
+
   const tree = buildTree(editDoc || theme?.document || {});
 
   if (isLoading) {

@@ -108,10 +108,25 @@ export function FontPicker({ label, value, onChange, showWeights, selectedWeight
         <ChevronDown size={12} className={`text-base-content/30 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-base-100 border border-base-300/30 rounded-xl shadow-xl overflow-hidden"
-          style={{ maxHeight: 380 }}>
+      {/* Dropdown — fixed position to escape overflow:auto parents */}
+      {isOpen && (() => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        const spaceBelow = rect ? window.innerHeight - rect.bottom - 12 : 380;
+        const spaceAbove = rect ? rect.top - 12 : 0;
+        const openAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
+        const maxH = Math.max(120, Math.min(380, openAbove ? spaceAbove : spaceBelow));
+        const dropdownStyle: React.CSSProperties = rect ? {
+          position: 'fixed',
+          top: openAbove ? rect.top - maxH - 4 : rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+          maxHeight: maxH,
+          zIndex: 9999,
+        } : { position: 'absolute', left: 0, right: 0, marginTop: 4, maxHeight: 380, zIndex: 50 };
+
+        return (
+        <div className="bg-base-100 border border-base-300/30 rounded-xl shadow-xl overflow-hidden"
+          style={dropdownStyle}>
 
           {/* Search */}
           <div className="p-2 border-b border-base-300/20">
@@ -193,7 +208,8 @@ export function FontPicker({ label, value, onChange, showWeights, selectedWeight
             })}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Weight selector (optional) */}
       {showWeights && currentFont && currentFont.weights.length > 1 && (

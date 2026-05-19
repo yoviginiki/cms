@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Sun, Moon, Maximize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
@@ -14,11 +14,20 @@ interface SelectedElement {
 
 const TOKEN_LABELS: Record<string, string> = {
   'semantic.color.brand': 'Brand Color',
-  'semantic.color.text.heading': 'Heading Text',
+  'semantic.color.text.heading': 'All Headings Color',
+  'semantic.color.text.h1': 'H1 Color',
+  'semantic.color.text.h2': 'H2 Color',
+  'semantic.color.text.h3': 'H3 Color',
+  'semantic.color.text.h4': 'H4 Color',
+  'semantic.color.text.h5': 'H5 Color',
+  'semantic.color.text.h6': 'H6 Color',
   'semantic.color.text.body': 'Body Text',
   'semantic.color.text.muted': 'Muted Text',
   'semantic.color.text.link': 'Link Color',
+  'semantic.color.text.link.hover': 'Link Hover Color',
   'semantic.color.text.inverse': 'Inverse Text',
+  'semantic.text.decoration.link': 'Link Underline',
+  'semantic.text.decoration.link.hover': 'Link Hover Underline',
   'semantic.color.background.canvas': 'Page Background',
   'semantic.color.background.surface': 'Surface Background',
   'semantic.color.background.raised': 'Raised Background',
@@ -69,6 +78,7 @@ export default function ThemeStudio() {
   const { data: resolved } = useQuery<any>({
     queryKey: ['theme-resolved', siteId, mode],
     queryFn: () => themeEngine.resolve(siteId, mode).then((r: any) => r.data.data),
+    refetchOnWindowFocus: false,  // Don't overwrite local edits on tab switch
   });
 
   const { data: frames } = useQuery<FrameDef[]>({
@@ -93,13 +103,16 @@ export default function ThemeStudio() {
     },
   });
 
-  // Listen for messages from iframes
+  // Listen for messages from iframes — validate origin and source
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
       if (!e.data?.type) return;
+      // Verify message comes from one of our iframes
+      const isOurIframe = Object.values(iframeRefs.current).some(iframe => iframe?.contentWindow === e.source);
+      if (!isOurIframe) return;
       if (e.data.type === 'click') {
         if (!e.data.element) { setSelected(null); return; }
-        // Find which frame this came from
         let frameSlug = '';
         for (const [slug, iframe] of Object.entries(iframeRefs.current)) {
           if (iframe?.contentWindow === e.source) { frameSlug = slug; break; }
@@ -111,10 +124,13 @@ export default function ThemeStudio() {
     return () => window.removeEventListener('message', handler);
   }, []);
 
+  // Ref for current resolved tokens (avoids stale closure in updateTokenInDoc)
+  const tokensRef = useRef<Record<string, unknown>>({});
+
   // Broadcast token update to all iframes
   const updateToken = useCallback((path: string, value: string) => {
     Object.values(iframeRefs.current).forEach(iframe => {
-      iframe?.contentWindow?.postMessage({ type: 'updateToken', path, value }, '*');
+      iframe?.contentWindow?.postMessage({ type: 'updateToken', path, value }, window.location.origin);
     });
   }, []);
 
@@ -131,19 +147,59 @@ export default function ThemeStudio() {
     setEditDoc(updated);
     setIsDirty(true);
 
-    // Also broadcast to iframes for instant preview
+    // Broadcast to iframes for instant preview
     if (typeof value === 'object' && (value as any)?.$value) {
-      const resolvedVal = String((value as any).$value);
+      let resolvedVal = String((value as any).$value);
+      // Resolve reference if needed
+      if (resolvedVal.startsWith('{') && resolvedVal.endsWith('}')) {
+        const refPath = resolvedVal.slice(1, -1);
+        resolvedVal = String(tokensRef.current[refPath] ?? resolvedVal);
+      }
       if (!resolvedVal.startsWith('{')) {
         updateToken(path, resolvedVal);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editDoc, updateToken]);
 
   const isSystem = theme?.is_system;
-  const tokens = resolved?.tokens || {};
-  const frameUrl = (slug: string) =>
-    `/api/v1/sites/${siteId}/theme-engine/studio/frame/${slug}?theme_id=${themeId}&mode=${mode}&_t=${Date.now()}`;
+
+  // Merge server-resolved tokens with local edits so changes are visible immediately
+  const tokens = useMemo(() => {
+    const base = { ...(resolved?.tokens || {}) };
+    if (!editDoc) return base;
+    // First pass: collect all literal values
+    const localLiterals: Record<string, string> = {};
+    const flatten = (obj: Record<string, any>, prefix = ''): void => {
+      for (const [key, val] of Object.entries(obj)) {
+        if (key.startsWith('$')) continue;
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          if ('$value' in val) {
+            localLiterals[path] = String(val.$value);
+          } else {
+            flatten(val, path);
+          }
+        }
+      }
+    };
+    flatten(editDoc);
+    // Second pass: resolve references (one level deep)
+    for (const [path, raw] of Object.entries(localLiterals)) {
+      if (raw.startsWith('{') && raw.endsWith('}')) {
+        const refPath = raw.slice(1, -1);
+        base[path] = localLiterals[refPath] ?? base[refPath] ?? raw;
+      } else {
+        base[path] = raw;
+      }
+    }
+    return base;
+  }, [resolved, editDoc]);
+  tokensRef.current = tokens;
+  // Stable URL — no Date.now() cache buster, so iframe doesn't reload on every re-render
+  const frameUrl = useCallback((slug: string) =>
+    `/api/v1/sites/${siteId}/theme-engine/studio/frame/${slug}?theme_id=${themeId}&mode=${mode}`,
+  [siteId, themeId, mode]);
 
   return (
     <div className="flex flex-col h-screen bg-neutral-900" data-theme="cms-admin">
@@ -221,7 +277,8 @@ export default function ThemeStudio() {
               <div className="space-y-3">
                 {selected.tokenPaths.map(path => {
                   const value = tokens[path];
-                  const isColor = typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value);
+                  const isColor = path.includes('.color.') || (typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value));
+                  const colorValue = isColor ? (typeof value === 'string' && /^#[0-9a-f]{3,8}$/i.test(value) ? value : '#000000') : '';
                   const label = TOKEN_LABELS[path] || path.split('.').pop() || path;
 
                   return (
@@ -229,25 +286,27 @@ export default function ThemeStudio() {
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-medium text-neutral-200">{label}</span>
                         {isColor && (
-                          <span className="w-5 h-5 rounded border border-neutral-600" style={{ backgroundColor: value }} />
+                          <span className="w-5 h-5 rounded border border-neutral-600" style={{ backgroundColor: colorValue }} />
                         )}
+                        {!value && isColor && <span className="text-[9px] text-neutral-500 italic">Not set — inherits</span>}
                       </div>
                       <p className="text-[10px] text-neutral-500 font-mono mb-2">{path}</p>
 
                       {!isSystem && isColor && (
                         <div className="flex gap-1.5">
-                          <input type="color" value={value || '#000000'}
+                          <input type="color" value={colorValue}
                             onChange={e => {
                               updateToken(path, e.target.value);
                               updateTokenInDoc(path, { $type: 'color', $value: e.target.value });
                             }}
                             className="w-8 h-7 rounded border border-neutral-600 cursor-pointer" />
-                          <input type="text" value={value || ''}
+                          <input type="text" value={typeof value === 'string' ? value : ''}
                             onChange={e => {
                               updateToken(path, e.target.value);
                               updateTokenInDoc(path, { $type: 'color', $value: e.target.value });
                             }}
-                            className="flex-1 bg-neutral-700 text-neutral-200 text-xs font-mono px-2 py-1 rounded border border-neutral-600" />
+                            className="flex-1 bg-neutral-700 text-neutral-200 text-xs font-mono px-2 py-1 rounded border border-neutral-600"
+                            placeholder="Inherit from heading" />
                         </div>
                       )}
 
