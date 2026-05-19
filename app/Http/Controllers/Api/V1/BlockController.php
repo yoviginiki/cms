@@ -100,6 +100,10 @@ class BlockController extends Controller
     {
         abort_if($themeTemplate->site_id !== $site->id, 404);
         $tree = $this->blockService->syncBlocks($themeTemplate, $request->validated('blocks'));
+
+        // Auto-publish — regenerate all pages/posts using this template
+        $this->autoPublish->triggerIfEnabled($site, $request->user(), 'template_updated', $themeTemplate->id);
+
         return response()->json(['data' => $tree]);
     }
 
