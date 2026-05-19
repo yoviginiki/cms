@@ -31,6 +31,8 @@ export interface DtpFrame {
   image?: ImageSettings; // image frame data
   visible?: boolean;   // default true — hidden frames not rendered on canvas
   locked?: boolean;    // default false — locked frames can't be moved/resized/edited
+  isMasterObject?: boolean;  // true = from master page, read-only on regular page
+  masterPageId?: string;     // which master page this frame belongs to
 }
 
 export const DEFAULT_IMAGE: ImageSettings = {
@@ -56,6 +58,24 @@ export interface DtpPage {
   height: number;      // px
   margins: { top: number; right: number; bottom: number; left: number };
   backgroundColor: string;
+  masterPageId?: string;
+}
+
+// ─── Templates ───
+export interface DtpTemplate {
+  id: string;
+  name: string;
+  description: string;
+  target: 'page' | 'spread';
+  frames: Omit<DtpFrame, 'id'>[];
+}
+
+// ─── Master Pages ───
+export interface DtpMasterPage {
+  id: string;
+  name: string;
+  appliesTo: 'left' | 'right' | 'both';
+  frames: Omit<DtpFrame, 'id'>[];
 }
 
 export interface DtpSpread {
@@ -222,3 +242,62 @@ export const MOCK_DOCUMENT: DtpDocument = {
     },
   ],
 };
+
+// ─── Page Templates ───
+const PW = 595;
+
+export const MOCK_TEMPLATES: DtpTemplate[] = [
+  { id: 'tpl-cover', name: 'Cover', description: 'Full-page cover with title and image', target: 'page', frames: [
+    { type: 'image', pageIndex: 0, x: 0, y: 0, width: PW, height: 400, rotation: 0, zIndex: 0, label: 'Cover Image', image: { ...DEFAULT_IMAGE } },
+    { type: 'text', pageIndex: 0, x: 40, y: 420, width: 515, height: 100, rotation: 0, zIndex: 2, label: 'Title', content: 'Magazine Title' },
+    { type: 'text', pageIndex: 0, x: 40, y: 530, width: 515, height: 40, rotation: 0, zIndex: 1, label: 'Subtitle', content: 'Issue subtitle' },
+  ]},
+  { id: 'tpl-toc', name: 'Table of Contents', description: 'Two-column contents list', target: 'page', frames: [
+    { type: 'text', pageIndex: 0, x: 40, y: 48, width: 515, height: 60, rotation: 0, zIndex: 2, label: 'TOC Title', content: 'Contents' },
+    { type: 'text', pageIndex: 0, x: 40, y: 128, width: 245, height: 650, rotation: 0, zIndex: 1, label: 'TOC Column 1', content: '' },
+    { type: 'text', pageIndex: 0, x: 310, y: 128, width: 245, height: 650, rotation: 0, zIndex: 1, label: 'TOC Column 2', content: '' },
+  ]},
+  { id: 'tpl-editorial', name: 'Editorial Spread', description: 'Two-page spread with headline, body columns, and image', target: 'spread', frames: [
+    { type: 'text', pageIndex: 0, x: 40, y: 48, width: 515, height: 80, rotation: 0, zIndex: 2, label: 'Headline', content: 'Article Title' },
+    { type: 'text', pageIndex: 0, x: 40, y: 148, width: 245, height: 580, rotation: 0, zIndex: 1, label: 'Body Col 1', content: '' },
+    { type: 'text', pageIndex: 0, x: 310, y: 148, width: 245, height: 580, rotation: 0, zIndex: 1, label: 'Body Col 2', content: '' },
+    { type: 'image', pageIndex: 1, x: 40, y: 48, width: 515, height: 380, rotation: 0, zIndex: 1, label: 'Feature Image', image: { ...DEFAULT_IMAGE } },
+    { type: 'quote', pageIndex: 1, x: 60, y: 460, width: 475, height: 100, rotation: 0, zIndex: 2, label: 'Pull Quote', content: '"Quote here"' },
+    { type: 'text', pageIndex: 1, x: 40, y: 580, width: 515, height: 180, rotation: 0, zIndex: 1, label: 'Caption', content: '' },
+  ]},
+  { id: 'tpl-article', name: 'Article Spread', description: 'Text-heavy two-page article layout', target: 'spread', frames: [
+    { type: 'text', pageIndex: 0, x: 40, y: 48, width: 515, height: 60, rotation: 0, zIndex: 2, label: 'Section Title', content: 'Section' },
+    { type: 'text', pageIndex: 0, x: 40, y: 128, width: 515, height: 650, rotation: 0, zIndex: 1, label: 'Body Text', content: '' },
+    { type: 'text', pageIndex: 1, x: 40, y: 48, width: 515, height: 730, rotation: 0, zIndex: 1, label: 'Body Continued', content: '' },
+  ]},
+  { id: 'tpl-interview', name: 'Interview Spread', description: 'Q&A layout with portrait', target: 'spread', frames: [
+    { type: 'image', pageIndex: 0, x: 40, y: 48, width: 300, height: 400, rotation: 0, zIndex: 1, label: 'Portrait', image: { ...DEFAULT_IMAGE } },
+    { type: 'text', pageIndex: 0, x: 360, y: 48, width: 195, height: 400, rotation: 0, zIndex: 1, label: 'Bio', content: '' },
+    { type: 'text', pageIndex: 0, x: 40, y: 470, width: 515, height: 310, rotation: 0, zIndex: 1, label: 'Q&A Part 1', content: '' },
+    { type: 'text', pageIndex: 1, x: 40, y: 48, width: 515, height: 730, rotation: 0, zIndex: 1, label: 'Q&A Part 2', content: '' },
+  ]},
+  { id: 'tpl-gallery', name: 'Gallery Spread', description: 'Image grid with captions', target: 'spread', frames: [
+    { type: 'image', pageIndex: 0, x: 40, y: 48, width: 250, height: 360, rotation: 0, zIndex: 1, label: 'Image 1', image: { ...DEFAULT_IMAGE } },
+    { type: 'image', pageIndex: 0, x: 305, y: 48, width: 250, height: 360, rotation: 0, zIndex: 1, label: 'Image 2', image: { ...DEFAULT_IMAGE } },
+    { type: 'text', pageIndex: 0, x: 40, y: 430, width: 515, height: 60, rotation: 0, zIndex: 1, label: 'Caption', content: '' },
+    { type: 'image', pageIndex: 1, x: 40, y: 48, width: 515, height: 500, rotation: 0, zIndex: 1, label: 'Full Image', image: { ...DEFAULT_IMAGE } },
+    { type: 'quote', pageIndex: 1, x: 60, y: 570, width: 475, height: 80, rotation: 0, zIndex: 2, label: 'Quote', content: '' },
+  ]},
+  { id: 'tpl-quote', name: 'Quote Spread', description: 'Full-page quote with background', target: 'page', frames: [
+    { type: 'quote', pageIndex: 0, x: 60, y: 280, width: 475, height: 200, rotation: 0, zIndex: 2, label: 'Main Quote', content: '"Your quote here"' },
+    { type: 'text', pageIndex: 0, x: 200, y: 500, width: 195, height: 30, rotation: 0, zIndex: 1, label: 'Attribution', content: '— Author Name' },
+  ]},
+];
+
+// ─── Master Pages ───
+export const MOCK_MASTER_PAGES: DtpMasterPage[] = [
+  { id: 'master-default', name: 'Default Master', appliesTo: 'both', frames: [
+    { type: 'pageNumber', pageIndex: 0, x: 275, y: 800, width: 45, height: 24, rotation: 0, zIndex: 100, label: 'Page Number', content: '#', isMasterObject: true },
+    { type: 'text', pageIndex: 0, x: 40, y: 14, width: 200, height: 18, rotation: 0, zIndex: 100, label: 'Header', content: 'Ensodo Magazine', isMasterObject: true },
+    { type: 'text', pageIndex: 0, x: 355, y: 14, width: 200, height: 18, rotation: 0, zIndex: 100, label: 'Footer Right', content: 'ensodo.eu', isMasterObject: true },
+  ]},
+  { id: 'master-editorial', name: 'Editorial Master', appliesTo: 'both', frames: [
+    { type: 'pageNumber', pageIndex: 0, x: 40, y: 800, width: 30, height: 24, rotation: 0, zIndex: 100, label: 'Page Number', content: '#', isMasterObject: true },
+    { type: 'text', pageIndex: 0, x: 200, y: 14, width: 195, height: 18, rotation: 0, zIndex: 100, label: 'Section Header', content: 'Editorial', isMasterObject: true },
+  ]},
+];

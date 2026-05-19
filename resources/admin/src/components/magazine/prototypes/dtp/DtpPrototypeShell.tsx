@@ -17,6 +17,8 @@ import { SpreadCanvas } from './SpreadCanvas';
 import { PropertiesPanel } from './PropertiesPanel';
 import { PreflightPanel } from './PreflightPanel';
 import { LayersPanel } from './LayersPanel';
+import { TemplateGallery } from './TemplateGallery';
+import { MOCK_MASTER_PAGES, type DtpTemplate } from './mockDocument';
 import { alignFrames, distributeFrames } from './snapEngine';
 import { runPreflight } from './preflight';
 
@@ -36,7 +38,7 @@ export default function DtpPrototypeShell() {
   const [showGuides, setShowGuides] = useState(true);
   const [showRulers, setShowRulers] = useState(true);
   const [snapEnabled, setSnapEnabled] = useState(true);
-  const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'preflight'>('properties');
+  const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'preflight' | 'templates'>('properties');
 
   // Auto-run preflight on document changes
   const preflightResult = useMemo(() => runPreflight(doc), [doc]);
@@ -77,6 +79,56 @@ export default function DtpPrototypeShell() {
       return next;
     });
   }, [activeSpreadIdx]);
+
+  // ─── Template apply ───
+  const handleApplyTemplate = useCallback((tpl: DtpTemplate, replace: boolean) => {
+    setDoc(prev => {
+      const next = deepClone(prev);
+      const spread = next.spreads[activeSpreadIdx];
+      if (!spread) return prev;
+      if (replace) spread.frames = spread.frames.filter(f => f.isMasterObject);
+      const newFrames = tpl.frames.map(f => ({ ...f, id: crypto.randomUUID() }));
+      spread.frames.push(...newFrames);
+      return next;
+    });
+  }, [activeSpreadIdx]);
+
+  // ─── Master page assignment ───
+  const handleAssignMaster = useCallback((masterPageId: string | null) => {
+    setDoc(prev => {
+      const next = deepClone(prev);
+      const spread = next.spreads[activeSpreadIdx];
+      if (!spread) return prev;
+      // Remove old master objects
+      spread.frames = spread.frames.filter(f => !f.isMasterObject);
+      // Assign master to all pages in spread
+      spread.pages.forEach(p => { p.masterPageId = masterPageId || undefined; });
+      // Add master frames if assigned
+      if (masterPageId) {
+        const master = MOCK_MASTER_PAGES.find(m => m.id === masterPageId);
+        if (master) {
+          spread.pages.forEach((page, pageIdx) => {
+            master.frames.forEach(mf => {
+              const frame = {
+                ...mf,
+                id: crypto.randomUUID(),
+                pageIndex: pageIdx,
+                isMasterObject: true,
+                masterPageId,
+                locked: true,
+                // Replace # with actual page number for pageNumber type
+                content: mf.type === 'pageNumber' ? String(page.pageNumber) : mf.content,
+              };
+              spread.frames.push(frame);
+            });
+          });
+        }
+      }
+      return next;
+    });
+  }, [activeSpreadIdx]);
+
+  const currentMasterPageId = activeSpread?.pages[0]?.masterPageId;
 
   // ─── Align / Distribute ───
   const handleAlign = (dir: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom') => {
@@ -235,12 +287,16 @@ export default function DtpPrototypeShell() {
           {/* Tabs */}
           <div className="flex border-b border-neutral-700">
             <button onClick={() => setRightTab('properties')}
-              className={`flex-1 px-2 py-1.5 text-[10px] font-medium ${rightTab === 'properties' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              className={`flex-1 px-1 py-1.5 text-[9px] font-medium ${rightTab === 'properties' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
               Props
             </button>
             <button onClick={() => setRightTab('layers')}
-              className={`flex-1 px-2 py-1.5 text-[10px] font-medium ${rightTab === 'layers' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              className={`flex-1 px-1 py-1.5 text-[9px] font-medium ${rightTab === 'layers' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
               Layers
+            </button>
+            <button onClick={() => setRightTab('templates')}
+              className={`flex-1 px-1 py-1.5 text-[9px] font-medium ${rightTab === 'templates' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
+              Tmpl
             </button>
             <button onClick={() => setRightTab('preflight')}
               className={`flex-1 px-2 py-1.5 text-[10px] font-medium flex items-center justify-center gap-1 ${rightTab === 'preflight' ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
@@ -267,6 +323,13 @@ export default function DtpPrototypeShell() {
               selectedIds={selectedIds}
               onSelectFrame={(id) => { setSelectedIds([id]); }}
               onUpdateFrame={updateFrame}
+            />
+          )}
+          {rightTab === 'templates' && (
+            <TemplateGallery
+              onApplyTemplate={handleApplyTemplate}
+              onAssignMaster={handleAssignMaster}
+              currentMasterPageId={currentMasterPageId}
             />
           )}
           {rightTab === 'preflight' && (
