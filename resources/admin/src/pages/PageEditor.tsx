@@ -6,6 +6,7 @@ import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useThemeFonts } from '@/hooks/useThemeFonts';
+import DOMPurify from 'dompurify';
 import { useEditorStore } from '@/stores/editorStore';
 import { useMagazineStore } from '@/stores/magazineStore';
 import { AssetField } from '@/components/ui/AssetPicker';
@@ -422,7 +423,8 @@ export default function PageEditor() {
                               value={((selEl.data as any)?.content || '').replace(/<[^>]*>/g, '')}
                               placeholder="Type text content here..."
                               onChange={(e) => {
-                                const html = '<p>' + e.target.value.split('\n').join('</p><p>') + '</p>';
+                                const raw = '<p>' + e.target.value.split('\n').join('</p><p>') + '</p>';
+                                const html = DOMPurify.sanitize(raw, { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'ul', 'ol', 'li'], ALLOWED_ATTR: ['href', 'target', 'class'], ALLOW_DATA_ATTR: false });
                                 magStore.updateElement(selEl.id, { data: { ...selEl.data, content: html } } as any);
                               }}
                             />

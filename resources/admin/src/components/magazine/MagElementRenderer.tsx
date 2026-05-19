@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 
@@ -18,6 +18,21 @@ interface Props {
 
 export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, onPointerDown, onDoubleClick, onContentChange }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  // Detect actual text overflow (scrollHeight > clientHeight)
+  useEffect(() => {
+    if (!TEXT_FRAME_TYPES.includes(el.type)) return;
+    const check = () => {
+      const node = textRef.current || editRef.current;
+      if (node) setIsOverflowing(node.scrollHeight > node.clientHeight + 2);
+    };
+    check();
+    // Re-check after fonts load
+    const timer = setTimeout(check, 500);
+    return () => clearTimeout(timer);
+  }, [el.type, el.width, el.height, (el.data as any)?.content, isEditing]);
 
   // When entering edit mode, focus the contentEditable
   useEffect(() => {
@@ -100,6 +115,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         padding: data.textInset ? `${data.textInset.top}px ${data.textInset.right}px ${data.textInset.bottom}px ${data.textInset.left}px` : '8px',
         columnCount: data.columnsInFrame || 1,
         columnGap: data.columnGap || 12,
+        columnFill: data.columnFill === 'balance' ? 'balance' : 'auto',
         overflow: isEditing ? 'auto' : 'hidden',
         width: '100%',
         height: '100%',
@@ -111,6 +127,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         return (
           <div
             ref={editRef}
+            data-editing-id={el.id}
             style={textStyle}
             contentEditable
             suppressContentEditableWarning
@@ -122,7 +139,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         );
       }
 
-      return <div style={textStyle} dangerouslySetInnerHTML={{ __html: data.content || '<p>Text frame</p>' }} />;
+      return <div ref={textRef} style={textStyle} dangerouslySetInnerHTML={{ __html: data.content || '<p>Text frame</p>' }} />;
     }
 
     if (IMAGE_FRAME_TYPES.includes(el.type)) {
@@ -329,9 +346,10 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {/* Lock indicator */}
       {el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
 
-      {/* Overflow indicator for text frames */}
-      {TEXT_FRAME_TYPES.includes(el.type) && (el.data as any)?.overflow === 'hidden' && (
-        <div className="absolute bottom-0 right-0 w-4 h-4 bg-error text-error-content flex items-center justify-center text-[8px] font-bold rounded-tl">+</div>
+      {/* Overflow indicator — shows when text actually overflows the frame */}
+      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && (
+        <div className="absolute bottom-0 right-0 w-5 h-5 bg-error text-error-content flex items-center justify-center text-[9px] font-bold rounded-tl cursor-help"
+          title="Text overflows this frame. Increase frame height, reduce font size, or link to another text frame.">+</div>
       )}
 
       {/* Thread indicators */}

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import type { MagPageData, MagElement } from '@/types/magazine';
 import { MagElementRenderer } from './MagElementRenderer';
 import { useMagSelection } from './MagSelectionEngine';
@@ -85,9 +86,31 @@ export function MagazineCanvas({
   // Inline text editing state — must be before handleCanvasPointerDown
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Sanitize HTML from contentEditable — strip event handlers, scripts, dangerous attributes
+  const sanitizeHtml = (html: string) => DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+    ALLOW_DATA_ATTR: false,
+  });
+
+  // Ref to track the editing element ID — avoids stale closure issues
+  const editingIdRef = useRef<string | null>(null);
+  useEffect(() => { editingIdRef.current = editingId; }, [editingId]);
+
   const exitEditing = useCallback(() => {
-    if (editingId) setEditingId(null);
-  }, [editingId]);
+    const currentEditId = editingIdRef.current;
+    if (!currentEditId) return;
+    // Flush content from the contentEditable DOM before React unmounts it — scoped by data attribute
+    const editableEl = document.querySelector(`[data-editing-id="${currentEditId}"]`) as HTMLElement | null
+      ?? document.querySelector('[contenteditable="true"]') as HTMLElement | null;
+    if (editableEl) {
+      const el = elements.find(e => e.id === currentEditId);
+      onUpdateElement(currentEditId, { data: { ...(el?.data || {}), content: sanitizeHtml(editableEl.innerHTML) } } as any);
+    }
+    editingIdRef.current = null;
+    setEditingId(null);
+  }, [elements, onUpdateElement]);
 
   const handleDoubleClick = useCallback((_e: React.MouseEvent, id: string) => {
     const el = elements.find(e => e.id === id);
@@ -99,7 +122,10 @@ export function MagazineCanvas({
   }, [elements]);
 
   const handleContentChange = useCallback((id: string, html: string) => {
-    onUpdateElement(id, { data: { ...(elements.find(e => e.id === id)?.data || {}), content: html } } as any);
+    // Skip if exitEditing already flushed (editingIdRef is null)
+    if (!editingIdRef.current) return;
+    onUpdateElement(id, { data: { ...(elements.find(e => e.id === id)?.data || {}), content: sanitizeHtml(html) } } as any);
+    editingIdRef.current = null;
     setEditingId(null);
   }, [elements, onUpdateElement]);
 

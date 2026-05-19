@@ -173,7 +173,7 @@ function makeDefaultElement(
 
   // Default data per element type
   const defaultData: Record<string, Record<string, unknown>> = {
-    text_frame: { content: '<p>Type your text here</p>', overflow: 'hidden', autoSize: 'none', columnsInFrame: 1, columnGap: 12, columnRule: false, textInset: { top: 8, right: 8, bottom: 8, left: 8 }, verticalAlign: 'top' },
+    text_frame: { content: '<p>Type your text here</p>', overflow: 'hidden', autoSize: 'none', columnsInFrame: 1, columnGap: 12, columnFill: 'auto', columnRule: false, textInset: { top: 8, right: 8, bottom: 8, left: 8 }, verticalAlign: 'top' },
     headline_frame: { content: '<h1>Headline</h1>', overflow: 'hidden', autoSize: 'none', columnsInFrame: 1, columnGap: 12, columnRule: false, textInset: { top: 8, right: 8, bottom: 8, left: 8 }, verticalAlign: 'center' },
     pullquote_frame: { content: '<p><em>"Your quote here"</em></p>', overflow: 'hidden', autoSize: 'none', columnsInFrame: 1, columnGap: 12, columnRule: false, textInset: { top: 16, right: 16, bottom: 16, left: 16 }, verticalAlign: 'center' },
     caption_frame: { content: '<p>Caption text</p>', overflow: 'hidden', autoSize: 'none', columnsInFrame: 1, columnGap: 12, columnRule: false, textInset: { top: 4, right: 4, bottom: 4, left: 4 }, verticalAlign: 'top' },

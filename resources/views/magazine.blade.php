@@ -98,7 +98,7 @@
 
         /* ─── Page elements ─── */
         .page-element { position: absolute; overflow: hidden; }
-        .page-element.type-text { pointer-events: none; }
+        .page-element.type-text { pointer-events: none; column-fill: auto; }
         .page-element.type-text * { margin: 0; }
         .page-element.type-image img { width: 100%; height: 100%; display: block; }
         .page-element.type-video iframe { width: 100%; height: 100%; border: none; }
@@ -459,9 +459,14 @@
                 div.style.cssText = `left:${el.x}%;top:${el.y}%;width:${el.width}%;height:${el.height}%;z-index:${el.z_index||0};`;
                 if (el.rotation) div.style.transform = `rotate(${el.rotation}deg)`;
 
-                if (el.type === 'text') div.innerHTML = el.content.html || '';
-                else if (el.type === 'image' && el.content.src) {
-                    const img = document.createElement('img');
+                if (el.type === 'text') {
+                    div.innerHTML = el.content.html || '';
+                    var cols = parseInt(el.content.columnsInFrame) || 1;
+                    if (cols > 1 && cols <= 6) { div.style.columnCount = cols; div.style.columnGap = (parseInt(el.content.columnGap) || 12) + 'px'; }
+                    div.style.columnFill = el.content.columnFill === 'balance' ? 'balance' : 'auto';
+                    if (el.content.textInset) { var ti = el.content.textInset; div.style.padding = (parseInt(ti.top)||0)+'px '+(parseInt(ti.right)||0)+'px '+(parseInt(ti.bottom)||0)+'px '+(parseInt(ti.left)||0)+'px'; }
+                } else if (el.type === 'image' && el.content.src) {
+                    var img = document.createElement('img');
                     img.src = el.content.src; img.alt = el.content.alt || '';
                     img.style.objectFit = el.content.objectFit || 'cover'; img.loading = 'lazy';
                     div.appendChild(img);
@@ -902,6 +907,10 @@
                 if (el.rotation) div.style.transform = 'rotate('+el.rotation+'deg)';
                 if (el.type === 'text') {
                     div.innerHTML = el.content.html || '';
+                    var cols2 = parseInt(el.content.columnsInFrame) || 1;
+                    if (cols2 > 1 && cols2 <= 6) { div.style.columnCount = cols2; div.style.columnGap = (parseInt(el.content.columnGap) || 12) + 'px'; }
+                    div.style.columnFill = el.content.columnFill === 'balance' ? 'balance' : 'auto';
+                    if (el.content.textInset) { var ti2 = el.content.textInset; div.style.padding = (parseInt(ti2.top)||0)+'px '+(parseInt(ti2.right)||0)+'px '+(parseInt(ti2.bottom)||0)+'px '+(parseInt(ti2.left)||0)+'px'; }
                 } else if (el.type === 'image' && el.content.src) {
                     var img = document.createElement('img');
                     img.src = el.content.src; img.alt = el.content.alt || '';
