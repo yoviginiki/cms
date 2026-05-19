@@ -15,6 +15,8 @@ import {
 
 type ToolType = 'select' | 'text' | 'image' | 'rectangle' | 'ellipse' | 'line';
 
+type ViewMode = 'single' | 'spread' | 'grid';
+
 interface MagazineState {
   pages: MagPageData[];
   currentPageNumber: number;
@@ -26,6 +28,8 @@ interface MagazineState {
   redoStack: string[];
   zoom: number;
   panOffset: { x: number; y: number };
+  viewMode: ViewMode;
+  gridColumns: number;
   showGrid: boolean;
   showGuides: boolean;
   showBaseline: boolean;
@@ -79,6 +83,8 @@ interface MagazineActions {
   toggleGuides: () => void;
   toggleBaseline: () => void;
   toggleSnap: () => void;
+  setViewMode: (mode: ViewMode) => void;
+  setGridColumns: (cols: number) => void;
 
   // Persistence
   setDirty: (d: boolean) => void;
@@ -249,6 +255,8 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   redoStack: [],
   zoom: 1,
   panOffset: { x: 0, y: 0 },
+  viewMode: 'single' as ViewMode,
+  gridColumns: 2,
   showGrid: false,
   showGuides: true,
   showBaseline: false,
@@ -656,6 +664,14 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
 
   toggleSnap() {
     set((s) => ({ snapEnabled: !s.snapEnabled }));
+  },
+
+  setViewMode(mode) {
+    set({ viewMode: mode });
+  },
+
+  setGridColumns(cols) {
+    set({ gridColumns: Math.max(1, Math.min(6, cols)) });
   },
 
   // ─── Persistence ───

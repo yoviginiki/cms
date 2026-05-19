@@ -1,15 +1,21 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import type { MagPageData, MagElement } from '@/types/magazine';
 import { MagElementRenderer } from './MagElementRenderer';
 import { useMagSelection } from './MagSelectionEngine';
+import { getThreadFrames, distributeThreadContent } from './TextThreading';
 import {
   MousePointer2, Type, ImageIcon, Square, Circle, Minus,
   ZoomIn, ZoomOut, Grid3X3, Magnet, Columns3, AlignVerticalSpaceAround,
 } from 'lucide-react';
 
+type ViewMode = 'single' | 'spread' | 'grid';
+
 interface MagazineCanvasProps {
   page: MagPageData;
+  allPages?: MagPageData[];
+  viewMode?: ViewMode;
+  gridColumns?: number;
   elements: MagElement[];
   zoom: number;
   onZoomChange: (z: number) => void;
@@ -18,7 +24,7 @@ interface MagazineCanvasProps {
   onDeleteElements: (ids: string[]) => void;
   onDuplicateElements: (ids: string[]) => void;
   onSelectElement: (id: string | null) => void;
-  
+  onPageClick?: (pageNumber: number) => void;
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -43,6 +49,9 @@ const TOOL_LABELS: Record<string, string> = {
 
 export function MagazineCanvas({
   page,
+  allPages,
+  viewMode = 'single',
+  gridColumns = 2,
   elements,
   zoom,
   onZoomChange,
@@ -51,6 +60,7 @@ export function MagazineCanvas({
   onDeleteElements,
   onDuplicateElements,
   onSelectElement,
+  onPageClick,
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -220,8 +230,25 @@ export function MagazineCanvas({
 
   // (editing state, exitEditing, handleDoubleClick, handleContentChange moved above handleCanvasPointerDown)
 
-  // Sort elements by zIndex for rendering
-  const sortedElements = [...elements].sort((a, b) => a.zIndex - b.zIndex);
+  // Text threading: compute distributed content for threaded frames
+  const threadedContentMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!allPages || allPages.length === 0) return map;
+    const processedThreads = new Set<string>();
+    const allElements = allPages.flatMap(p => p.elements || []);
+    for (const el of allElements) {
+      if (!el.threadId || processedThreads.has(el.threadId)) continue;
+      processedThreads.add(el.threadId);
+      const threadFrames = getThreadFrames(allPages, el.threadId);
+      if (threadFrames.length < 2) continue;
+      // Source content is from the first frame in the thread
+      const sourceContent = (threadFrames[0].data as any)?.content || '';
+      if (!sourceContent) continue;
+      const distributed = distributeThreadContent(threadFrames, sourceContent);
+      distributed.forEach((tc, fid) => { map.set(fid, tc.visibleHtml); });
+    }
+    return map;
+  }, [allPages]);
 
   // Column guides
   const columnGuides: number[] = [];
@@ -304,6 +331,34 @@ export function MagazineCanvas({
           <Magnet size={14} />
         </button>
 
+        <div className="w-px h-5 bg-base-300 mx-1" />
+
+        {/* View mode selector */}
+        {allPages && allPages.length > 1 && (
+          <div className="flex items-center gap-0.5">
+            <button className={`btn btn-xs ${viewMode === 'single' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => onPageClick && onPageClick(-1)} title="Single page">
+              <span className="text-[10px]">1</span>
+            </button>
+            <button className={`btn btn-xs ${viewMode === 'spread' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => onPageClick && onPageClick(-2)} title="Spread (2 pages)">
+              <span className="text-[10px]">2</span>
+            </button>
+            <button className={`btn btn-xs ${viewMode === 'grid' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => onPageClick && onPageClick(-3)} title="Grid view">
+              <span className="text-[10px]">G</span>
+            </button>
+            {viewMode === 'grid' && (
+              <select className="select select-xs select-bordered w-14 text-[10px]"
+                value={gridColumns} onChange={e => onPageClick && onPageClick(-(10 + parseInt(e.target.value)))}>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            )}
+          </div>
+        )}
+
         <div className="flex-1" />
 
         {/* Selection info */}
@@ -334,76 +389,82 @@ export function MagazineCanvas({
             left: 0,
           }}
         >
-          {/* Page shadow */}
-          <div
-            style={{
-              width: pageW,
-              height: pageH,
-              position: 'absolute',
-              boxShadow: '0 2px 16px rgba(0,0,0,0.15)',
-              borderRadius: 1,
-            }}
-          />
+          {/* Multi-page layout wrapper */}
+          {(() => {
+            // Determine which pages to show
+            const pagesToShow: MagPageData[] = (() => {
+              if (!allPages || allPages.length === 0) return [page];
+              if (viewMode === 'single') return [page];
+              if (viewMode === 'spread') {
+                const idx = allPages.findIndex(p => p.pageNumber === page.pageNumber);
+                const startIdx = idx % 2 === 0 ? idx : Math.max(0, idx - 1);
+                return allPages.slice(startIdx, startIdx + 2);
+              }
+              return allPages; // grid: show all
+            })();
 
-          {/* Page */}
-          <div
-            data-canvas="page"
-            style={{
-              width: pageW,
-              height: pageH,
-              position: 'relative',
-              background: page.backgroundColor || '#ffffff',
-              overflow: 'hidden',
-            }}
-          >
+            const cols = viewMode === 'grid' ? gridColumns : viewMode === 'spread' ? pagesToShow.length : 1;
+            const pageGap = viewMode === 'single' ? 0 : 24;
+
+            return (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${cols}, ${pageW}px)`,
+                gap: pageGap,
+              }}>
+                {pagesToShow.map(pg => {
+                  const pgElements = pg.elements || [];
+                  const sortedEls = [...pgElements].sort((a, b) => a.zIndex - b.zIndex);
+                  const isActivePage = pg.pageNumber === page.pageNumber;
+                  const pgMargins = pg.margins || { top: 36, right: 36, bottom: 36, left: 36 };
+                  const pgW = pg.pageSize?.width || pageW;
+                  const pgH = pg.pageSize?.height || pageH;
+
+                  return (
+                    <div key={pg.id || pg.pageNumber} style={{ position: 'relative' }}
+                      onClick={() => onPageClick && !isActivePage && onPageClick(pg.pageNumber)}>
+                      {/* Page shadow */}
+                      <div style={{ width: pgW, height: pgH, position: 'absolute', boxShadow: '0 2px 16px rgba(0,0,0,0.15)', borderRadius: 1 }} />
+
+                      {/* Page number label */}
+                      {viewMode !== 'single' && (
+                        <div style={{ position: 'absolute', top: -18, left: 0, right: 0, textAlign: 'center' }}>
+                          <span style={{ fontSize: 10, color: isActivePage ? '#3b82f6' : 'rgba(255,255,255,0.4)', fontWeight: isActivePage ? 600 : 400 }}>
+                            {pg.pageNumber}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Active page indicator */}
+                      {viewMode !== 'single' && isActivePage && (
+                        <div style={{ position: 'absolute', inset: -2, border: '2px solid #3b82f6', borderRadius: 2, pointerEvents: 'none', zIndex: 9999 }} />
+                      )}
+
+                      {/* Non-active page overlay in grid mode */}
+                      {viewMode === 'grid' && !isActivePage && (
+                        <div style={{ position: 'absolute', inset: 0, zIndex: 9998, cursor: 'pointer' }} />
+                      )}
+
+                      <div data-canvas="page" style={{ width: pgW, height: pgH, position: 'relative', background: pg.backgroundColor || '#ffffff', overflow: 'hidden' }}>
             {/* Margin guides */}
             {showMargins && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
-                {/* Top */}
-                <div style={{ position: 'absolute', top: margins.top, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
-                {/* Bottom */}
-                <div style={{ position: 'absolute', bottom: margins.bottom, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
-                {/* Left */}
-                <div style={{ position: 'absolute', left: margins.left, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />
-                {/* Right */}
-                <div style={{ position: 'absolute', right: margins.right, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />
+                <div style={{ position: 'absolute', top: pgMargins.top, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
+                <div style={{ position: 'absolute', bottom: pgMargins.bottom, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
+                <div style={{ position: 'absolute', left: pgMargins.left, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />
+                <div style={{ position: 'absolute', right: pgMargins.right, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />
               </div>
             )}
 
-            {/* Column guides */}
-            {showColumns && columnGuides.map((x, i) => (
-              <div
-                key={`col-${i}`}
-                style={{
-                  position: 'absolute', left: x, top: margins.top,
-                  bottom: margins.bottom, width: 0,
-                  borderLeft: '1px solid rgba(255,100,150,0.25)',
-                  pointerEvents: 'none', zIndex: 9000,
-                }}
-              />
-            ))}
-
-            {/* Baseline grid */}
-            {showBaseline && baselineLines.map((y, i) => (
-              <div
-                key={`bl-${i}`}
-                style={{
-                  position: 'absolute', top: y, left: margins.left,
-                  right: margins.right, height: 0,
-                  borderTop: '1px dotted rgba(100,150,255,0.2)',
-                  pointerEvents: 'none', zIndex: 9000,
-                }}
-              />
-            ))}
-
             {/* Elements */}
-            {sortedElements.map(el => (
+            {sortedEls.map(el => (
               <MagElementRenderer
                 key={el.id}
                 element={el}
                 isSelected={selection.selectedIds.includes(el.id)}
                 isHovered={selection.hoveredId === el.id}
                 isEditing={editingId === el.id}
+                threadedContent={el.threadId ? threadedContentMap.get(el.id) : undefined}
                 zoom={zoom}
                 onPointerDown={(e, id) => { exitEditing(); selection.handleElementPointerDown(e, id); }}
                 onDoubleClick={handleDoubleClick}
@@ -443,7 +504,14 @@ export function MagazineCanvas({
                 }}
               />
             )}
-          </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {/* end multi-page layout */}
         </div>
       </div>
     </div>
