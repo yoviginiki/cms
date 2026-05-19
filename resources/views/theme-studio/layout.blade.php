@@ -18,7 +18,8 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--semantic-color-text-heading, #111);
     line-height: 1.3;
 }
-a { color: var(--semantic-color-text-link, #3b82f6); }
+a { color: var(--semantic-color-text-link, #3b82f6); text-decoration: var(--semantic-text-decoration-link, none); transition: color 0.15s, text-decoration 0.15s; }
+a:hover { color: var(--semantic-color-text-link-hover, #2563eb); text-decoration: var(--semantic-text-decoration-link-hover, underline); }
 </style>
 </head>
 <body>
@@ -60,16 +61,14 @@ document.addEventListener('mouseout', function(e) {
     if (!e.target.closest('[data-theme-tokens]')) return;
     window.parent.postMessage({ type: 'hover', element: null }, '*');
 });
-// Listen for token updates from parent
+// Listen for token updates from parent — validate origin
 window.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'updateToken') {
-        document.documentElement.style.setProperty('--' + e.data.path.replace(/\./g, '-'), e.data.value);
-    }
-    if (e.data && e.data.type === 'applyTheme') {
-        var style = document.getElementById('_theme_override') || document.createElement('style');
-        style.id = '_theme_override';
-        style.textContent = e.data.resolvedCss;
-        document.head.appendChild(style);
+    if (e.origin !== window.location.origin) return;
+    if (!e.data || !e.data.type) return;
+    if (e.data.type === 'updateToken' && typeof e.data.path === 'string' && typeof e.data.value === 'string') {
+        var safePath = e.data.path.replace(/[^a-zA-Z0-9.\-_]/g, '');
+        var safeValue = e.data.value.replace(/[{}<>]/g, '');
+        document.documentElement.style.setProperty('--' + safePath.replace(/\./g, '-'), safeValue);
     }
 });
 window.parent.postMessage({ type: 'ready' }, '*');
