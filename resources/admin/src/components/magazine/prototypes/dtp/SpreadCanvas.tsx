@@ -105,7 +105,7 @@ export function SpreadCanvas({ spread, zoom, selectedIds, onSelectFrame, onUpdat
         {pages.map((page, pageIdx) => {
           const pageX = PASTEBOARD_PAD + (pageIdx * (pageW + PAGE_GAP));
           const pageY = PASTEBOARD_PAD;
-          const pageFrames = spread.frames.filter(f => f.pageIndex === pageIdx);
+          const pageFrames = spread.frames.filter(f => f.pageIndex === pageIdx && f.visible !== false);
 
           return (
             <div key={page.id} className="absolute" style={{ left: pageX, top: pageY, width: pageW, height: pageH }}>

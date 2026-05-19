@@ -51,6 +51,7 @@ export function FrameRenderer({ frame, isSelected, zoom, page, pageFrames, snapE
     e.stopPropagation();
     e.preventDefault();
     onSelect(e.shiftKey); // Shift+click for multi-select
+    if (frame.locked) return; // Locked frames can be selected but not dragged
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: frame.x, origY: frame.y };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
@@ -88,6 +89,7 @@ export function FrameRenderer({ frame, isSelected, zoom, page, pageFrames, snapE
   const handleResizeDown = useCallback((handle: string, e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    if (frame.locked) return; // Locked frames can't be resized
     resizeRef.current = { handle, startX: e.clientX, startY: e.clientY, orig: { x: frame.x, y: frame.y, w: frame.width, h: frame.height } };
 
     const handleMove = (ev: PointerEvent) => {
@@ -123,7 +125,7 @@ export function FrameRenderer({ frame, isSelected, zoom, page, pageFrames, snapE
         left: frame.x, top: frame.y, width: frame.width, height: frame.height,
         transform: frame.rotation ? `rotate(${frame.rotation}deg)` : undefined,
         zIndex: frame.zIndex + 10,
-        cursor: isSelected ? 'move' : 'pointer',
+        cursor: frame.locked ? 'not-allowed' : isSelected ? 'move' : 'pointer',
         userSelect: 'none',
       }}
       onPointerDown={handlePointerDown}
