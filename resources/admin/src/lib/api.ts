@@ -253,4 +253,12 @@ export const issueComposer = {
   handoff: (siteId: string, issueId: string) => api.post(`/sites/${siteId}/magazine-issues/${issueId}/handoff`),
 };
 
+// DTP Designer API (feature-flagged)
+export const dtpDesigner = {
+  loadDocument: (siteId: string, issueId: string) =>
+    api.get(`/sites/${siteId}/magazine-issues/${issueId}/dtp-document`),
+  saveDocument: (siteId: string, issueId: string, data: Record<string, unknown>) =>
+    api.put(`/sites/${siteId}/magazine-issues/${issueId}/dtp-document`, data),
+};
+
 export default api;
