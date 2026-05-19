@@ -1,10 +1,16 @@
 
+import { Link, Unlink } from 'lucide-react';
 import type { TextFrameData } from '@/types/magazine';
 
 interface TextFramePanelProps {
   data: TextFrameData;
   onChange: (v: Partial<TextFrameData>) => void;
   threadInfo?: { position: number; total: number };
+  threadId?: string | null;
+  onStartThread?: () => void;
+  onContinueThread?: () => void;
+  onUnthread?: () => void;
+  availableThreadId?: string | null;  // threadId from another selected/last-started thread
 }
 
 const VALIGN_OPTIONS: { value: TextFrameData['verticalAlign']; label: string }[] = [
@@ -13,7 +19,7 @@ const VALIGN_OPTIONS: { value: TextFrameData['verticalAlign']; label: string }[]
   { value: 'bottom', label: 'Bottom' },
 ];
 
-export default function TextFramePanel({ data, onChange, threadInfo }: TextFramePanelProps) {
+export default function TextFramePanel({ data, onChange, threadInfo, threadId, onStartThread, onContinueThread, onUnthread, availableThreadId }: TextFramePanelProps) {
   return (
     <div className="space-y-3">
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Text Frame</h3>
@@ -132,21 +138,54 @@ export default function TextFramePanel({ data, onChange, threadInfo }: TextFrame
         </div>
       </div>
 
-      {/* Thread status */}
-      {threadInfo && (
-        <div className="border-t border-base-300 pt-2">
-          <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Threading</h3>
-          <p className="text-[10px] text-base-content/40 mb-1">
-            Frame {threadInfo.position} of {threadInfo.total}
-          </p>
-          <button
-            type="button"
-            className="btn btn-xs btn-ghost btn-outline w-full"
-          >
-            Unthread
-          </button>
-        </div>
-      )}
+      {/* Text Threading */}
+      <div className="border-t border-base-300 pt-2">
+        <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Text Threading</h3>
+
+        {threadId ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 bg-primary/10 rounded p-2">
+              <Link size={12} className="text-primary shrink-0" />
+              <div>
+                <p className="text-[10px] text-base-content/70 font-medium">Threaded</p>
+                {threadInfo && (
+                  <p className="text-[9px] text-base-content/40">Frame {threadInfo.position} of {threadInfo.total}</p>
+                )}
+                <p className="text-[8px] text-base-content/30 font-mono">{threadId?.slice(0, 8)}...</p>
+              </div>
+            </div>
+            {onUnthread && (
+              <button type="button" onClick={onUnthread}
+                className="btn btn-xs btn-ghost btn-outline w-full gap-1">
+                <Unlink size={10} /> Remove from thread
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-[9px] text-base-content/40">
+              Link text frames so content flows from one to the next across pages.
+            </p>
+            {onStartThread && (
+              <button type="button" onClick={onStartThread}
+                className="btn btn-xs btn-primary w-full gap-1">
+                <Link size={10} /> Start new thread
+              </button>
+            )}
+            {availableThreadId && onContinueThread && (
+              <button type="button" onClick={onContinueThread}
+                className="btn btn-xs btn-secondary w-full gap-1">
+                <Link size={10} /> Continue thread ({availableThreadId.slice(0, 8)}...)
+              </button>
+            )}
+            {!availableThreadId && (
+              <p className="text-[8px] text-base-content/30 italic">
+                Start a thread on one frame, then continue it on another.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
