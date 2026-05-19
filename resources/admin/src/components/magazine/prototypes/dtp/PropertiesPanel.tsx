@@ -4,8 +4,9 @@
  * Shows document info when nothing selected, editable frame properties when selected.
  */
 import { useState, useEffect } from 'react';
-import { FileText, ImageIcon, Quote, Hash, Layers } from 'lucide-react';
-import type { DtpDocument, DtpFrame, DtpSpread } from './mockDocument';
+import { FileText, ImageIcon, Quote, Hash, Layers, AlertTriangle } from 'lucide-react';
+import type { DtpDocument, DtpFrame, DtpSpread, FitMode, ImageSettings } from './mockDocument';
+import { MOCK_ASSETS } from './mockDocument';
 
 interface Props {
   document: DtpDocument;
@@ -169,8 +170,95 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
         </div>
       </div>
 
-      {/* Content preview */}
-      {selectedFrame.content && (
+      {/* Image controls */}
+      {selectedFrame.type === 'image' && (() => {
+        const img = selectedFrame.image || { src: '', alt: '', caption: '', fitMode: 'fill' as FitMode, focalPoint: { x: 50, y: 50 }, opacity: 100 };
+        const updateImage = (patch: Partial<ImageSettings>) => update({ image: { ...img, ...patch } } as any);
+        const hasSrc = !!img.src;
+
+        return (
+          <div>
+            <h4 className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Image</h4>
+            <div className="bg-neutral-700/50 rounded-lg p-3 space-y-3">
+              {/* Status */}
+              {!hasSrc && (
+                <div className="flex items-center gap-1.5 text-amber-400 text-[10px]">
+                  <AlertTriangle size={12} />
+                  <span>Missing image</span>
+                </div>
+              )}
+
+              {/* Mock asset picker */}
+              <div>
+                <label className="text-[9px] text-neutral-500 mb-1 block">Choose image</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {MOCK_ASSETS.map(asset => (
+                    <button key={asset.id} onClick={() => updateImage({ src: asset.url })}
+                      className={`rounded overflow-hidden border transition-colors ${img.src === asset.url ? 'border-blue-500' : 'border-neutral-600 hover:border-neutral-400'}`}
+                      title={asset.label}>
+                      <img src={asset.url} alt={asset.label} className="w-full aspect-square object-cover" loading="lazy" draggable={false} />
+                    </button>
+                  ))}
+                </div>
+                {hasSrc && (
+                  <button onClick={() => updateImage({ src: '' })}
+                    className="mt-1 text-[9px] text-red-400 hover:text-red-300">
+                    Clear image
+                  </button>
+                )}
+              </div>
+
+              {/* Fit mode */}
+              <div>
+                <label className="text-[9px] text-neutral-500 mb-1 block">Fit mode</label>
+                <div className="flex gap-0.5">
+                  {(['fill', 'fit', 'stretch', 'original'] as FitMode[]).map(mode => (
+                    <button key={mode} onClick={() => updateImage({ fitMode: mode })}
+                      className={`flex-1 px-1 py-0.5 text-[9px] rounded ${img.fitMode === mode ? 'bg-blue-600 text-white' : 'bg-neutral-600 text-neutral-300 hover:bg-neutral-500'}`}>
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Focal point */}
+              <div className="grid grid-cols-2 gap-2">
+                <NumInput label="Focal X" value={img.focalPoint.x} onChange={v => updateImage({ focalPoint: { ...img.focalPoint, x: v } })} min={0} max={100} suffix="%" />
+                <NumInput label="Focal Y" value={img.focalPoint.y} onChange={v => updateImage({ focalPoint: { ...img.focalPoint, y: v } })} min={0} max={100} suffix="%" />
+              </div>
+
+              {/* Opacity */}
+              <div>
+                <label className="text-[9px] text-neutral-500 mb-0.5 block">Opacity: {img.opacity}%</label>
+                <input type="range" min={0} max={100} value={img.opacity}
+                  onChange={e => updateImage({ opacity: Number(e.target.value) })}
+                  className="w-full h-1 accent-blue-500" />
+              </div>
+
+              {/* Alt text */}
+              <div>
+                <label className="text-[9px] text-neutral-500 mb-0.5 block">Alt text</label>
+                <input type="text" value={img.alt}
+                  onChange={e => updateImage({ alt: e.target.value })}
+                  className="w-full bg-neutral-700 text-neutral-200 text-[10px] px-1.5 py-1 rounded border border-neutral-600 focus:border-blue-500 focus:outline-none"
+                  placeholder="Describe the image..." />
+              </div>
+
+              {/* Caption */}
+              <div>
+                <label className="text-[9px] text-neutral-500 mb-0.5 block">Caption</label>
+                <input type="text" value={img.caption}
+                  onChange={e => updateImage({ caption: e.target.value })}
+                  className="w-full bg-neutral-700 text-neutral-200 text-[10px] px-1.5 py-1 rounded border border-neutral-600 focus:border-blue-500 focus:outline-none"
+                  placeholder="Image caption..." />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Content preview (text frames only) */}
+      {selectedFrame.type !== 'image' && selectedFrame.content && (
         <div>
           <h4 className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">Content</h4>
           <div className="bg-neutral-700/50 rounded-lg p-3">

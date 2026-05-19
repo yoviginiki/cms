@@ -4,8 +4,8 @@
  * Drag-to-move with snapping, resize handles, multi-select support.
  */
 import { useRef, useCallback } from 'react';
-import { ImageIcon, Quote } from 'lucide-react';
-import type { DtpFrame, DtpPage } from './mockDocument';
+import { Quote, AlertTriangle } from 'lucide-react';
+import type { DtpFrame, DtpPage, FitMode } from './mockDocument';
 import { getSnapLines, snapPosition, type SnapLine } from './snapEngine';
 
 interface Props {
@@ -165,13 +165,38 @@ export function FrameRenderer({ frame, isSelected, zoom, page, pageFrames, snapE
             </p>
           </div>
         )}
-        {frame.type === 'image' && (
-          <div className="flex flex-col items-center justify-center h-full bg-neutral-200">
-            <ImageIcon size={24} className="text-neutral-400 mb-1" />
-            <span className="text-[9px] text-neutral-400">{frame.label || 'Image'}</span>
-            <span className="text-[8px] text-neutral-300 mt-0.5">{frame.width}x{frame.height}</span>
-          </div>
-        )}
+        {frame.type === 'image' && (() => {
+          const img = frame.image;
+          const safeSrc = img?.src && (img.src.startsWith('https://') || img.src.startsWith('http://')) ? img.src : '';
+          const hasSrc = !!safeSrc;
+          const fitMap: Record<FitMode, string> = { fill: 'cover', fit: 'contain', stretch: 'fill', original: 'none' };
+          const objectFit = fitMap[img?.fitMode || 'fill'];
+          const objectPosition = img ? `${img.focalPoint.x}% ${img.focalPoint.y}%` : '50% 50%';
+          const opacity = (img?.opacity ?? 100) / 100;
+
+          if (hasSrc) {
+            return (
+              <div className="w-full h-full relative">
+                <img src={safeSrc} alt={img!.alt || ''}
+                  style={{ width: '100%', height: '100%', objectFit: objectFit as any, objectPosition, opacity, display: 'block' }}
+                  draggable={false} />
+                {img!.caption && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1.5 py-0.5">
+                    <span className="text-[8px] text-white/80 select-none">{img!.caption}</span>
+                  </div>
+                )}
+              </div>
+            );
+          }
+          return (
+            <div className="flex flex-col items-center justify-center h-full bg-neutral-200">
+              <AlertTriangle size={16} className="text-amber-400 mb-1" />
+              <span className="text-[9px] text-neutral-500 font-medium">No image</span>
+              <span className="text-[8px] text-neutral-400">{frame.label || 'Image frame'}</span>
+              <span className="text-[8px] text-neutral-300 mt-0.5">{frame.width}x{frame.height}</span>
+            </div>
+          );
+        })()}
         {frame.type === 'quote' && (
           <div className="p-3 flex items-center h-full" style={{ borderLeft: `3px solid ${colors.border}` }}>
             <div className="flex gap-2 items-start">

@@ -5,6 +5,17 @@
  * No database, no API, no persistence.
  */
 
+export type FitMode = 'fill' | 'fit' | 'stretch' | 'original';
+
+export interface ImageSettings {
+  src: string;
+  alt: string;
+  caption: string;
+  fitMode: FitMode;
+  focalPoint: { x: number; y: number };  // 0-100
+  opacity: number;                        // 0-100
+}
+
 export interface DtpFrame {
   id: string;
   type: 'text' | 'image' | 'quote' | 'pageNumber';
@@ -17,7 +28,24 @@ export interface DtpFrame {
   zIndex: number;
   content?: string;    // text content or placeholder
   label?: string;      // human-readable name
+  image?: ImageSettings; // image frame data
 }
+
+export const DEFAULT_IMAGE: ImageSettings = {
+  src: '', alt: '', caption: '',
+  fitMode: 'fill',
+  focalPoint: { x: 50, y: 50 },
+  opacity: 100,
+};
+
+/** Sample images for prototype mock asset picker */
+export const MOCK_ASSETS = [
+  { id: 'mock-1', label: 'Mountain Landscape', url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80' },
+  { id: 'mock-2', label: 'City Skyline', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80' },
+  { id: 'mock-3', label: 'Ocean Waves', url: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=800&q=80' },
+  { id: 'mock-4', label: 'Forest Path', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80' },
+  { id: 'mock-5', label: 'Abstract Pattern', url: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=800&q=80' },
+];
 
 export interface DtpPage {
   id: string;
@@ -73,7 +101,7 @@ export const MOCK_DOCUMENT: DtpDocument = {
         {
           id: 'f-cover-image', type: 'image', pageIndex: 0,
           x: 0, y: 0, width: PAGE_W, height: 260, rotation: 0, zIndex: 0,
-          content: '', label: 'Cover Image',
+          content: '', label: 'Cover Image', image: { ...DEFAULT_IMAGE },
         },
         {
           id: 'f-cover-pagenum', type: 'pageNumber', pageIndex: 0,
@@ -120,7 +148,7 @@ export const MOCK_DOCUMENT: DtpDocument = {
         {
           id: 'f-ed-image', type: 'image', pageIndex: 1,
           x: 40, y: 48, width: 515, height: 380, rotation: 0, zIndex: 1,
-          content: '', label: 'Feature Image',
+          content: '', label: 'Feature Image', image: { ...DEFAULT_IMAGE },
         },
         {
           id: 'f-ed-quote', type: 'quote', pageIndex: 1,
@@ -154,12 +182,12 @@ export const MOCK_DOCUMENT: DtpDocument = {
         {
           id: 'f-gal-img1', type: 'image', pageIndex: 0,
           x: 40, y: 48, width: 250, height: 360, rotation: 0, zIndex: 1,
-          content: '', label: 'Gallery Image 1',
+          content: '', label: 'Gallery Image 1', image: { ...DEFAULT_IMAGE },
         },
         {
           id: 'f-gal-img2', type: 'image', pageIndex: 0,
           x: 305, y: 48, width: 250, height: 360, rotation: 0, zIndex: 1,
-          content: '', label: 'Gallery Image 2',
+          content: '', label: 'Gallery Image 2', image: { ...DEFAULT_IMAGE },
         },
         {
           id: 'f-gal-text', type: 'text', pageIndex: 0,
@@ -170,7 +198,7 @@ export const MOCK_DOCUMENT: DtpDocument = {
         {
           id: 'f-gal-img3', type: 'image', pageIndex: 1,
           x: 40, y: 48, width: 515, height: 500, rotation: 0, zIndex: 1,
-          content: '', label: 'Full Page Image',
+          content: '', label: 'Full Page Image', image: { ...DEFAULT_IMAGE },
         },
         {
           id: 'f-gal-quote', type: 'quote', pageIndex: 1,
