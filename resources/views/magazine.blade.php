@@ -9,7 +9,7 @@
     $pageFit = $s['page_fit'] ?? 'fill';             // fill (edge-to-edge), fit (maintain ratio with padding), cover
     $bgColor = $s['bg_color'] ?? '#0a0a0a';
     $pageShadow = $s['page_shadow'] ?? true;
-    $pageGap = $s['page_gap'] ?? 0;                  // px between pages in spread
+    $pageGap = (int)($s['page_gap'] ?? 0);             // px between pages in spread
     $showHeader = $s['show_header'] ?? true;
     $showControls = $s['show_controls'] ?? true;
     $showThumbnails = $s['show_thumbnails'] ?? true;
@@ -18,7 +18,7 @@
     $autoHideUI = $s['auto_hide_ui'] ?? true;
     // Map display_mode to spread_mode for the JS viewer
     $spreadMode = $displayMode === 'single' ? 'single' : ($displayMode === 'scroll' ? 'single' : 'spread');
-    $mobileBreakpoint = $s['mobile_breakpoint'] ?? 768;
+    $mobileBreakpoint = (int)($s['mobile_breakpoint'] ?? 768);
     $maxWidth = $s['max_width'] ?? '100%';            // 100%, 1400px, 90vw, etc.
     $maxHeight = $s['max_height'] ?? '100vh';
     $padding = $s['padding'] ?? '0';                  // padding around viewport
@@ -26,7 +26,7 @@
     $pageTransition = $s['page_transition'] ?? 'slide'; // slide, fade, flip, none
     // Spread mode always uses realistic page turn
     if ($displayMode === 'spread') $pageTransition = 'turn';
-    $transitionSpeed = $s['transition_speed'] ?? 400;
+    $transitionSpeed = (int)($s['transition_speed'] ?? 400);
     $uiTheme = $s['ui_theme'] ?? 'dark';              // dark, light, auto
     $headerBg = $s['header_bg'] ?? '';
     $controlsBg = $s['controls_bg'] ?? '';
@@ -384,6 +384,33 @@
         <div class="toc-content" id="toc-content"></div>
     </div>
 
+    {{-- Shared HTML sanitizer for magazine text content --}}
+    <script>
+    var SAFE_TAGS = new Set(['P','BR','B','I','U','EM','STRONG','SPAN','A','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','SUB','SUP','HR','DIV']);
+    var SAFE_ATTRS = new Set(['href','target','rel','class','style']);
+    function sanitizeHTML(html) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html || '';
+        tmp.querySelectorAll('script,iframe,object,embed,form,input,textarea,select,button,link,meta,style').forEach(function(el) { el.remove(); });
+        var all = tmp.querySelectorAll('*');
+        for (var i = 0; i < all.length; i++) {
+            var el = all[i];
+            if (!SAFE_TAGS.has(el.tagName)) { el.replaceWith(document.createTextNode(el.textContent || '')); continue; }
+            for (var j = el.attributes.length - 1; j >= 0; j--) {
+                var attr = el.attributes[j];
+                if (!SAFE_ATTRS.has(attr.name)) { el.removeAttribute(attr.name); continue; }
+                if (attr.name === 'href') {
+                    var href = attr.value.replace(/[\x00-\x1f\x7f]/g, '').trim().toLowerCase();
+                    var allowed = href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('/') || href.startsWith('#') || href.startsWith('.');
+                    if (!allowed) { el.removeAttribute(attr.name); continue; }
+                }
+                }
+            }
+        }
+        return tmp.innerHTML;
+    }
+    </script>
+
     @unless($useFlipbookLibrary)
     <script>
     (function() {
@@ -460,7 +487,7 @@
                 if (el.rotation) div.style.transform = `rotate(${el.rotation}deg)`;
 
                 if (el.type === 'text') {
-                    div.innerHTML = el.content.html || '';
+                    div.innerHTML = sanitizeHTML(el.content.html || '');
                     var cols = parseInt(el.content.columnsInFrame) || 1;
                     if (cols > 1 && cols <= 6) { div.style.columnCount = cols; div.style.columnGap = (parseInt(el.content.columnGap) || 12) + 'px'; }
                     div.style.columnFill = el.content.columnFill === 'balance' ? 'balance' : 'auto';
@@ -716,7 +743,9 @@
             PAGES.forEach((page, i) => {
                 const item = document.createElement('div');
                 item.className = 'toc-item';
-                item.innerHTML = `<span>${page.title || 'Page ' + (i + 1)}</span><span class="num">${i + 1}</span>`;
+                var titleSpan = document.createElement('span'); titleSpan.textContent = page.title || 'Page ' + (i + 1);
+                var numSpan = document.createElement('span'); numSpan.className = 'num'; numSpan.textContent = String(i + 1);
+                item.appendChild(titleSpan); item.appendChild(numSpan);
                 item.onclick = () => { goToPage(i); toggleTOC(false); };
                 c.appendChild(item);
             });
@@ -906,7 +935,7 @@
                 div.style.cssText = 'position:absolute;overflow:hidden;left:'+el.x+'%;top:'+el.y+'%;width:'+el.width+'%;height:'+el.height+'%;z-index:'+(el.z_index||0)+';';
                 if (el.rotation) div.style.transform = 'rotate('+el.rotation+'deg)';
                 if (el.type === 'text') {
-                    div.innerHTML = el.content.html || '';
+                    div.innerHTML = sanitizeHTML(el.content.html || '');
                     var cols2 = parseInt(el.content.columnsInFrame) || 1;
                     if (cols2 > 1 && cols2 <= 6) { div.style.columnCount = cols2; div.style.columnGap = (parseInt(el.content.columnGap) || 12) + 'px'; }
                     div.style.columnFill = el.content.columnFill === 'balance' ? 'balance' : 'auto';
@@ -936,7 +965,9 @@
             PAGES.forEach(function(page, i) {
                 var item = document.createElement('div');
                 item.className = 'toc-item';
-                item.innerHTML = '<span>' + (page.title || 'Page '+(i+1)) + '</span><span class="num">'+(i+1)+'</span>';
+                var ts = document.createElement('span'); ts.textContent = page.title || 'Page '+(i+1);
+                var ns = document.createElement('span'); ns.className = 'num'; ns.textContent = String(i+1);
+                item.appendChild(ts); item.appendChild(ns);
                 item.onclick = function() { if(window.__fb) window.__fb.flipTo(i); toggleTOC(false); };
                 tocContent.appendChild(item);
             });
@@ -952,7 +983,7 @@
                 aspect_ratio: PAGE_W + ':' + PAGE_H,
                 flipping_time_ms: {{ $transitionSpeed ?: 800 }},
                 show_cover: true,
-                max_shadow_opacity: {{ $s['max_shadow_opacity'] ?? 0.5 }},
+                max_shadow_opacity: {{ (float)($s['max_shadow_opacity'] ?? 0.5) }},
                 click_to_flip: true,
                 swipe_to_flip: true,
                 start_page: 0,

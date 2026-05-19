@@ -1,6 +1,9 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
+import DOMPurify from 'dompurify';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
+
+const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'], ALLOW_DATA_ATTR: false };
 
 const TEXT_FRAME_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
 const IMAGE_FRAME_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image'];
@@ -123,6 +126,8 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         cursor: isEditing ? 'text' : undefined,
       };
 
+      const safeContent = DOMPurify.sanitize(data.content || '<p>Text frame</p>', SAFE_HTML_CONFIG);
+
       if (isEditing) {
         return (
           <div
@@ -134,12 +139,12 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
             onBlur={handleBlur}
             onKeyDown={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
-            dangerouslySetInnerHTML={{ __html: data.content || '<p>Text frame</p>' }}
+            dangerouslySetInnerHTML={{ __html: safeContent }}
           />
         );
       }
 
-      return <div ref={textRef} style={textStyle} dangerouslySetInnerHTML={{ __html: data.content || '<p>Text frame</p>' }} />;
+      return <div ref={textRef} style={textStyle} dangerouslySetInnerHTML={{ __html: safeContent }} />;
     }
 
     if (IMAGE_FRAME_TYPES.includes(el.type)) {

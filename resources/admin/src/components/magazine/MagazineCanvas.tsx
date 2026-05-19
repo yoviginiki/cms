@@ -102,7 +102,7 @@ export function MagazineCanvas({
     const currentEditId = editingIdRef.current;
     if (!currentEditId) return;
     // Flush content from the contentEditable DOM before React unmounts it — scoped by data attribute
-    const editableEl = document.querySelector(`[data-editing-id="${currentEditId}"]`) as HTMLElement | null
+    const editableEl = document.querySelector(`[data-editing-id="${CSS.escape(currentEditId)}"]`) as HTMLElement | null
       ?? document.querySelector('[contenteditable="true"]') as HTMLElement | null;
     if (editableEl) {
       const el = elements.find(e => e.id === currentEditId);
