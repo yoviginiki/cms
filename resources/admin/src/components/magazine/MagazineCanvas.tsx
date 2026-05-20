@@ -25,6 +25,7 @@ interface MagazineCanvasProps {
   onDuplicateElements: (ids: string[]) => void;
   onSelectElement: (id: string | null) => void;
   onPageClick?: (pageNumber: number) => void;
+  onContinueText?: (elementId: string) => void;
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -61,6 +62,7 @@ export function MagazineCanvas({
   onDuplicateElements,
   onSelectElement,
   onPageClick,
+  onContinueText,
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -469,6 +471,8 @@ export function MagazineCanvas({
                 onPointerDown={(e, id) => { exitEditing(); selection.handleElementPointerDown(e, id); }}
                 onDoubleClick={handleDoubleClick}
                 onContentChange={handleContentChange}
+                onContinueText={onContinueText}
+                allPages={allPages}
               />
             ))}
 

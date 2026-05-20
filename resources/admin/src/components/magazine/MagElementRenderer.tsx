@@ -18,9 +18,11 @@ interface Props {
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   onDoubleClick: (e: React.MouseEvent, id: string) => void;
   onContentChange?: (id: string, html: string) => void;
+  onContinueText?: (id: string) => void;
+  allPages?: Array<{ pageNumber: number; elements: MagElement[] }>;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, allPages }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -560,16 +562,45 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {/* Lock indicator */}
       {el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
 
-      {/* Overflow indicator — shows when text actually overflows the frame */}
-      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && (
-        <div className="absolute bottom-0 right-0 w-5 h-5 bg-error text-error-content flex items-center justify-center text-[9px] font-bold rounded-tl cursor-help"
-          title="Text overflows this frame. Increase frame height, reduce font size, or link to another text frame.">+</div>
+      {/* Overflow indicator + Continue button */}
+      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && !el.threadId && (
+        <button
+          className="absolute bottom-0 right-0 h-6 px-1.5 bg-error hover:bg-error/80 text-error-content flex items-center gap-0.5 text-[8px] font-bold rounded-tl cursor-pointer z-[9998]"
+          title="Continue text to next page"
+          onClick={(e) => { e.stopPropagation(); onContinueText?.(el.id); }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >+ Continue</button>
+      )}
+      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && el.threadId && (
+        <div className="absolute bottom-0 right-0 w-5 h-5 bg-warning text-warning-content flex items-center justify-center text-[9px] font-bold rounded-tl cursor-help"
+          title="Text overflows — already linked to continuation frame">⋯</div>
       )}
 
-      {/* Thread indicators */}
-      {el.threadId && (
-        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" title={`Thread ${el.threadOrder}`} />
-      )}
+      {/* Thread / linked frame indicators */}
+      {el.threadId && (() => {
+        const allEls = allPages?.flatMap(p => p.elements) || [];
+        const threadFrames = allEls.filter(e => e.threadId === el.threadId).sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+        const myIndex = threadFrames.findIndex(f => f.id === el.id);
+        const isFirst = myIndex === 0;
+        const isLast = myIndex === threadFrames.length - 1;
+        const nextFrame = !isLast ? threadFrames[myIndex + 1] : null;
+        const prevFrame = !isFirst ? threadFrames[myIndex - 1] : null;
+        return (
+          <>
+            {prevFrame && (
+              <div className="absolute -top-5 left-0 bg-blue-500/80 text-white text-[7px] px-1.5 py-0.5 rounded-b font-medium pointer-events-none whitespace-nowrap">
+                ← Continued from p.{prevFrame.pageNumber}
+              </div>
+            )}
+            {nextFrame && (
+              <div className="absolute -bottom-5 right-0 bg-blue-500/80 text-white text-[7px] px-1.5 py-0.5 rounded-t font-medium pointer-events-none whitespace-nowrap">
+                Continues → p.{nextFrame.pageNumber}
+              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white pointer-events-none" title={`Thread ${(el.threadOrder ?? 0) + 1} of ${threadFrames.length}`} />
+          </>
+        );
+      })()}
 
       {/* Resize handles when selected */}
       {isSelected && !el.locked && (

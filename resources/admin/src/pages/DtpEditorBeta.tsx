@@ -473,6 +473,7 @@ export default function DtpEditorBeta() {
           onDeleteElements={(ids) => store.deleteElements(ids)}
           onDuplicateElements={(ids) => store.duplicateElements(ids)}
           onSelectElement={(id) => id ? store.selectElement(id) : store.clearSelection()}
+          onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
           onPageClick={(n) => {
             if (n === -1) store.setViewMode('single');
             else if (n === -2) store.setViewMode('spread');

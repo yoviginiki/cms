@@ -55,6 +55,8 @@ interface MagazineActions {
   updateElement: (id: string, updates: Partial<MagElement>) => void;
   deleteElements: (ids: string[]) => void;
   duplicateElements: (ids: string[]) => void;
+  moveElementToPage: (elementId: string, fromPage: number, toPage: number, newX?: number, newY?: number) => void;
+  continueTextToNextPage: (elementId: string) => void;
 
   // Selection
   selectElement: (id: string, addToSelection?: boolean) => void;
@@ -490,6 +492,121 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       selectedIds: newIds,
       isDirty: true,
     }));
+  },
+
+  moveElementToPage(elementId, fromPage, toPage, newX, newY) {
+    if (fromPage === toPage) return;
+    const state = get();
+    get().pushSnapshot();
+
+    const srcPage = state.pages.find(p => p.pageNumber === fromPage);
+    const dstPage = state.pages.find(p => p.pageNumber === toPage);
+    if (!srcPage || !dstPage) return;
+
+    const element = srcPage.elements.find(e => e.id === elementId);
+    if (!element) return;
+
+    const moved: MagElement = {
+      ...structuredClone(element),
+      pageNumber: toPage,
+      x: (newX != null && Number.isFinite(newX)) ? newX : (Number.isFinite(element.x) ? element.x : 0),
+      y: (newY != null && Number.isFinite(newY)) ? newY : (Number.isFinite(element.y) ? element.y : 0),
+    };
+
+    set({
+      pages: state.pages.map(p => {
+        if (p.pageNumber === fromPage) return { ...p, elements: p.elements.filter(e => e.id !== elementId) };
+        if (p.pageNumber === toPage) return { ...p, elements: [...p.elements, moved] };
+        return p;
+      }),
+      currentPageNumber: toPage,
+      selectedIds: [elementId],
+      isDirty: true,
+    });
+  },
+
+  continueTextToNextPage(elementId) {
+    const state = get();
+    get().pushSnapshot();
+
+    // Find the element across all pages
+    let sourcePage: MagPageData | undefined;
+    let sourceElement: MagElement | undefined;
+    for (const p of state.pages) {
+      const el = p.elements.find(e => e.id === elementId);
+      if (el) { sourcePage = p; sourceElement = el; break; }
+    }
+    if (!sourcePage || !sourceElement) return;
+
+    const nextPageNumber = sourcePage.pageNumber + 1;
+    let pages = [...state.pages];
+    let targetPage = pages.find(p => p.pageNumber === nextPageNumber);
+
+    // Create next page if it doesn't exist
+    if (!targetPage) {
+      targetPage = {
+        id: crypto.randomUUID(),
+        pageNumber: nextPageNumber,
+        pageSize: { ...sourcePage.pageSize },
+        margins: { ...sourcePage.margins },
+        bleed: { ...sourcePage.bleed },
+        columns: { ...sourcePage.columns },
+        baselineGrid: { ...sourcePage.baselineGrid },
+        isMaster: false,
+        masterPageId: sourcePage.masterPageId,
+        spreadWith: null,
+        backgroundColor: sourcePage.backgroundColor,
+        backgroundAssetId: null,
+        elements: [],
+      };
+      // Renumber existing pages and insert
+      pages = pages.map(p => p.pageNumber >= nextPageNumber ? { ...p, pageNumber: p.pageNumber + 1 } : p);
+      const insertIdx = pages.findIndex(p => p.pageNumber > nextPageNumber);
+      if (insertIdx === -1) pages.push(targetPage);
+      else pages.splice(insertIdx, 0, targetPage);
+    }
+
+    // Create continuation frame
+    const continuationId = crypto.randomUUID();
+    const maxZ = Math.max(0, ...targetPage.elements.map(e => e.zIndex));
+    const continuation: MagElement = {
+      ...structuredClone(sourceElement),
+      id: continuationId,
+      pageNumber: nextPageNumber,
+      x: Number.isFinite(sourceElement.x) ? sourceElement.x : 40,
+      y: Number.isFinite(sourcePage.margins.top) ? sourcePage.margins.top : 36,
+      threadId: sourceElement.threadId || crypto.randomUUID(),
+      threadOrder: (sourceElement.threadOrder ?? 0) + 1,
+      zIndex: maxZ + 1,
+      data: { ...sourceElement.data, content: '<p>Continued text...</p>' },
+    };
+
+    // Link source → continuation
+    const threadId = continuation.threadId;
+    pages = pages.map(p => ({
+      ...p,
+      elements: p.elements.map(e => {
+        if (e.id === elementId) {
+          return { ...e, threadId, threadOrder: e.threadOrder ?? 0 };
+        }
+        return e;
+      }),
+    }));
+
+    // Add continuation to target page
+    pages = pages.map(p => {
+      if (p.pageNumber === nextPageNumber) {
+        return { ...p, elements: [...p.elements, continuation] };
+      }
+      return p;
+    });
+
+    set({
+      pages,
+      currentPageNumber: nextPageNumber,
+      selectedIds: [continuationId],
+      isDirty: true,
+    });
   },
 
   // ─── Selection ───
