@@ -190,6 +190,23 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       if (isPolygon) { containerStyle.clipPath = 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)'; containerStyle.overflow = 'hidden'; }
       if (el.type === 'background_image') { containerStyle.zIndex = -1; }
 
+      // P15: Apply image-specific styling
+      const imgBorderRadius = data.borderRadius ? `${data.borderRadius}px` : undefined;
+      // Whitelist shadow CSS to prevent injection from tampered documents
+      const SAFE_SHADOWS = new Set([
+        '0 1px 3px rgba(0,0,0,0.12)',
+        '0 4px 12px rgba(0,0,0,0.15)',
+        '0 8px 24px rgba(0,0,0,0.2)',
+        '0 12px 40px rgba(0,0,0,0.25)',
+      ]);
+      const rawShadow = data.shadowCss as string | null;
+      const imgShadowCss = rawShadow && SAFE_SHADOWS.has(rawShadow) ? rawShadow : null;
+      const imgBgColor = data.backgroundColor as string | undefined;
+      const imgOpacity = Math.min(100, Math.max(0, Number(data.opacity) || 100)) / 100;
+      if (imgBorderRadius && !isCircular) { containerStyle.borderRadius = imgBorderRadius; containerStyle.overflow = 'hidden'; }
+      if (imgShadowCss) containerStyle.boxShadow = imgShadowCss;
+      if (imgBgColor) containerStyle.backgroundColor = imgBgColor;
+
       if (!data.assetId && !data.src) {
         return (
           <div className="w-full h-full bg-base-300/10 flex flex-col items-center justify-center border border-dashed border-base-300/30" style={clipStyle}>
@@ -200,11 +217,32 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         );
       }
       const imgStyle: React.CSSProperties = {
-        width: '100%', height: '100%',
+        width: '100%', height: data.showCaption && data.caption ? 'calc(100% - 20px)' : '100%',
         objectFit: (data.fit || 'cover') as any,
         objectPosition: data.focalPoint ? `${(data.focalPoint.x ?? 0.5) * 100}% ${(data.focalPoint.y ?? 0.5) * 100}%` : 'center',
+        opacity: imgOpacity,
       };
-      return <img src={data.src || `/api/v1/assets/${data.assetId}/serve`} alt={data.alt || ''} style={imgStyle} />;
+      // Apply image filters
+      const filters: string[] = [];
+      if (data.filters?.brightness != null && data.filters.brightness !== 100) filters.push(`brightness(${data.filters.brightness}%)`);
+      if (data.filters?.contrast != null && data.filters.contrast !== 100) filters.push(`contrast(${data.filters.contrast}%)`);
+      if (data.filters?.saturation != null && data.filters.saturation !== 100) filters.push(`saturate(${data.filters.saturation}%)`);
+      if (data.filters?.grayscale) filters.push('grayscale(1)');
+      if (filters.length) imgStyle.filter = filters.join(' ');
+
+      const caption = data.caption as string | undefined;
+      const showCaption = (data.showCaption ?? true) && !!caption;
+
+      return (
+        <>
+          <img src={data.src || `/api/v1/assets/${data.assetId}/serve`} alt={data.alt || ''} style={imgStyle} />
+          {showCaption && (
+            <div className="absolute bottom-0 left-0 right-0 bg-base-100/80 px-2 py-1 text-[9px] text-base-content/60 truncate" style={{ height: 20 }}>
+              {caption}
+            </div>
+          )}
+        </>
+      );
     }
 
     if (el.type === 'rectangle') {

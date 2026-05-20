@@ -1,4 +1,6 @@
 
+import { useState } from 'react';
+import { Trash2, RotateCcw } from 'lucide-react';
 import type { ImageFrameData } from '@/types/magazine';
 import { AssetField } from '@/components/ui/AssetPicker';
 
@@ -9,9 +11,22 @@ interface ImagePanelProps {
   onAutoOpenDone?: () => void;
 }
 
+const SHADOW_PRESETS = [
+  { label: 'None', value: null },
+  { label: 'Subtle', value: '0 1px 3px rgba(0,0,0,0.12)' },
+  { label: 'Medium', value: '0 4px 12px rgba(0,0,0,0.15)' },
+  { label: 'Strong', value: '0 8px 24px rgba(0,0,0,0.2)' },
+  { label: 'Float', value: '0 12px 40px rgba(0,0,0,0.25)' },
+];
+
 export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }: ImagePanelProps) {
-  // Get current URL from either src field or assetId
   const currentUrl = (data as any).src || (data.assetId ? `/api/v1/assets/${data.assetId}/serve` : '');
+  const hasImage = !!(currentUrl || data.assetId);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Focal point as 0-100 for UX, stored as 0-1
+  const focalX = Math.round((data.focalPoint?.x ?? 0.5) * 100);
+  const focalY = Math.round((data.focalPoint?.y ?? 0.5) * 100);
 
   return (
     <div className="space-y-3">
@@ -21,86 +36,135 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
       <AssetField
         label="Image"
         value={currentUrl}
-        onChange={(url, assetId) => onChange({ assetId: assetId || null, ...(({ src: url } as any)) })}
+        onChange={(url, assetId) => onChange({ assetId: assetId || null, ...({ src: url } as any) })}
         accept="image"
         autoOpen={autoOpen}
         onAutoOpenDone={onAutoOpenDone}
       />
+
+      {/* Clear image */}
+      {hasImage && (
+        <button
+          type="button"
+          onClick={() => onChange({ assetId: null, ...({ src: '' } as any) })}
+          className="btn btn-xs btn-ghost btn-outline w-full gap-1 text-error/60 hover:text-error"
+        >
+          <Trash2 size={10} /> Clear image
+        </button>
+      )}
 
       {/* Alt text */}
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Alt text</label>
         <input
           type="text"
-          value={data.alt}
+          value={data.alt || ''}
           onChange={(e) => onChange({ alt: e.target.value })}
           className="input input-bordered input-xs w-full"
+          placeholder="Describe the image..."
+        />
+        {!data.alt && hasImage && (
+          <p className="text-[8px] text-warning/60 mt-0.5">Missing alt text — required for accessibility</p>
+        )}
+      </div>
+
+      {/* Caption */}
+      <div>
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Caption</label>
+        <input
+          type="text"
+          value={(data as any).caption || ''}
+          onChange={(e) => onChange({ ...({ caption: e.target.value } as any) })}
+          className="input input-bordered input-xs w-full"
+          placeholder="Photo credit or description..."
         />
       </div>
 
-      {/* Fit */}
+      {/* Show caption toggle */}
+      <label className="flex items-center gap-1.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={(data as any).showCaption ?? true}
+          onChange={(e) => onChange({ ...({ showCaption: e.target.checked } as any) })}
+          className="checkbox checkbox-xs"
+        />
+        <span className="text-[10px] text-base-content/40">Show caption below image</span>
+      </label>
+
+      {/* Fit mode */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Fit</label>
-        <select
-          value={data.fit}
-          onChange={(e) => onChange({ fit: e.target.value as ImageFrameData['fit'] })}
-          className="select select-bordered select-xs w-full"
-        >
-          <option value="fill">Fill</option>
-          <option value="fit">Fit</option>
-          <option value="stretch">Stretch</option>
-          <option value="none">None</option>
-        </select>
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Fit mode</label>
+        <div className="flex gap-1">
+          {(['fill', 'fit', 'stretch', 'none'] as const).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onChange({ fit: mode })}
+              className={`btn btn-xs flex-1 ${data.fit === mode ? 'btn-primary' : 'btn-ghost'}`}
+            >
+              {mode === 'none' ? 'Original' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </button>
+          ))}
+        </div>
+        <p className="text-[8px] text-base-content/25 mt-0.5">
+          {data.fit === 'fill' && 'Cover — fills frame, crops excess'}
+          {data.fit === 'fit' && 'Contain — fits inside frame, may letterbox'}
+          {data.fit === 'stretch' && 'Stretch — distorts to fill frame'}
+          {data.fit === 'none' && 'Original — natural size, may overflow'}
+        </p>
       </div>
 
-      {/* Focal point */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Focal X</label>
-          <input
-            type="number"
-            min={0}
-            max={1}
-            step={0.01}
-            value={data.focalPoint.x}
-            onChange={(e) => onChange({ focalPoint: { ...data.focalPoint, x: Number(e.target.value) } })}
-            className="input input-bordered input-xs w-full"
-          />
+      {/* Focal point — 0-100% */}
+      <div>
+        <div className="flex items-center justify-between mb-0.5">
+          <label className="text-[10px] text-base-content/40">Focal point</label>
+          <button
+            type="button"
+            onClick={() => onChange({ focalPoint: { x: 0.5, y: 0.5 } })}
+            className="text-[8px] text-base-content/30 hover:text-base-content/60 flex items-center gap-0.5"
+            title="Reset to center"
+          >
+            <RotateCcw size={8} /> Reset
+          </button>
         </div>
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Focal Y</label>
-          <input
-            type="number"
-            min={0}
-            max={1}
-            step={0.01}
-            value={data.focalPoint.y}
-            onChange={(e) => onChange({ focalPoint: { ...data.focalPoint, y: Number(e.target.value) } })}
-            className="input input-bordered input-xs w-full"
-          />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[8px] text-base-content/30 block">X: {focalX}%</label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={focalX}
+              onChange={(e) => onChange({ focalPoint: { ...data.focalPoint, x: Number(e.target.value) / 100 } })}
+              className="range range-xs w-full"
+            />
+          </div>
+          <div>
+            <label className="text-[8px] text-base-content/30 block">Y: {focalY}%</label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={focalY}
+              onChange={(e) => onChange({ focalPoint: { ...data.focalPoint, y: Number(e.target.value) / 100 } })}
+              className="range range-xs w-full"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Image offset */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Offset X</label>
-          <input
-            type="number"
-            value={data.imageOffsetX}
-            onChange={(e) => onChange({ imageOffsetX: Number(e.target.value) })}
-            className="input input-bordered input-xs w-full"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Offset Y</label>
-          <input
-            type="number"
-            value={data.imageOffsetY}
-            onChange={(e) => onChange({ imageOffsetY: Number(e.target.value) })}
-            className="input input-bordered input-xs w-full"
-          />
-        </div>
+      {/* Opacity */}
+      <div>
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(((data as any).opacity ?? 100))}
+          onChange={(e) => onChange({ ...({ opacity: Number(e.target.value) } as any) })}
+          className="range range-xs w-full"
+        />
+        <span className="text-[10px] text-base-content/40">{Math.round((data as any).opacity ?? 100)}%</span>
       </div>
 
       {/* Image scale */}
@@ -108,80 +172,127 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Scale</label>
         <input
           type="range"
-          min={0.1}
-          max={4}
-          step={0.1}
-          value={data.imageScale}
-          onChange={(e) => onChange({ imageScale: Number(e.target.value) })}
+          min={10}
+          max={400}
+          step={10}
+          value={Math.round((data.imageScale ?? 1) * 100)}
+          onChange={(e) => onChange({ imageScale: Number(e.target.value) / 100 })}
           className="range range-xs w-full"
         />
-        <span className="text-[10px] text-base-content/40">{data.imageScale.toFixed(1)}x</span>
+        <span className="text-[10px] text-base-content/40">{Math.round((data.imageScale ?? 1) * 100)}%</span>
       </div>
 
-      {/* Image rotation */}
+      {/* Shadow presets */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Rotation</label>
-        <input
-          type="number"
-          min={0}
-          max={360}
-          value={data.imageRotation}
-          onChange={(e) => onChange({ imageRotation: Number(e.target.value) })}
-          className="input input-bordered input-xs w-full"
-        />
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Shadow preset</label>
+        <select
+          value={(data as any).shadowPreset || 'none'}
+          onChange={(e) => {
+            const preset = SHADOW_PRESETS.find(p => p.label.toLowerCase() === e.target.value);
+            onChange({ ...({ shadowPreset: e.target.value, shadowCss: preset?.value || null } as any) });
+          }}
+          className="select select-bordered select-xs w-full"
+        >
+          {SHADOW_PRESETS.map(p => (
+            <option key={p.label} value={p.label.toLowerCase()}>{p.label}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Filters */}
-      <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Filters</h3>
-
+      {/* Border radius */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Brightness</label>
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Border radius</label>
         <input
           type="range"
           min={0}
-          max={200}
-          value={data.filters.brightness}
-          onChange={(e) => onChange({ filters: { ...data.filters, brightness: Number(e.target.value) } })}
+          max={50}
+          value={(data as any).borderRadius ?? 0}
+          onChange={(e) => onChange({ ...({ borderRadius: Number(e.target.value) } as any) })}
           className="range range-xs w-full"
         />
-        <span className="text-[10px] text-base-content/40">{data.filters.brightness}%</span>
+        <span className="text-[10px] text-base-content/40">{(data as any).borderRadius ?? 0}px</span>
       </div>
 
+      {/* Background color (visible when fit=contain/original) */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Contrast</label>
-        <input
-          type="range"
-          min={0}
-          max={200}
-          value={data.filters.contrast}
-          onChange={(e) => onChange({ filters: { ...data.filters, contrast: Number(e.target.value) } })}
-          className="range range-xs w-full"
-        />
-        <span className="text-[10px] text-base-content/40">{data.filters.contrast}%</span>
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Background</label>
+        <div className="flex gap-1">
+          <input
+            type="color"
+            value={(data as any).backgroundColor || '#ffffff'}
+            onChange={(e) => onChange({ ...({ backgroundColor: e.target.value } as any) })}
+            className="w-8 h-6 cursor-pointer rounded border border-base-300"
+          />
+          <input
+            type="text"
+            value={(data as any).backgroundColor || '#ffffff'}
+            onChange={(e) => onChange({ ...({ backgroundColor: e.target.value } as any) })}
+            className="input input-bordered input-xs flex-1"
+          />
+        </div>
       </div>
 
-      <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Saturation</label>
-        <input
-          type="range"
-          min={0}
-          max={200}
-          value={data.filters.saturation}
-          onChange={(e) => onChange({ filters: { ...data.filters, saturation: Number(e.target.value) } })}
-          className="range range-xs w-full"
-        />
-        <span className="text-[10px] text-base-content/40">{data.filters.saturation}%</span>
-      </div>
+      {/* Advanced section */}
+      <div className="border-t border-base-300 pt-2">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="text-[10px] text-base-content/40 hover:text-base-content/60 w-full text-left"
+        >
+          {showAdvanced ? '− Advanced' : '+ Advanced'}
+        </button>
 
-      <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={data.filters.grayscale}
-          onChange={(e) => onChange({ filters: { ...data.filters, grayscale: e.target.checked } })}
-          className="checkbox checkbox-xs"
-        />
-        <span className="text-[10px] text-base-content/40">Grayscale</span>
-      </label>
+        {showAdvanced && (
+          <div className="space-y-3 mt-2">
+            {/* Image offset */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-base-content/40 mb-0.5 block">Offset X</label>
+                <input type="number" value={data.imageOffsetX || 0} onChange={(e) => onChange({ imageOffsetX: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
+              </div>
+              <div>
+                <label className="text-[10px] text-base-content/40 mb-0.5 block">Offset Y</label>
+                <input type="number" value={data.imageOffsetY || 0} onChange={(e) => onChange({ imageOffsetY: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
+              </div>
+            </div>
+
+            {/* Image rotation */}
+            <div>
+              <label className="text-[10px] text-base-content/40 mb-0.5 block">Rotation</label>
+              <input type="number" min={0} max={360} value={data.imageRotation || 0} onChange={(e) => onChange({ imageRotation: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
+            </div>
+
+            {/* Clip shape */}
+            <div>
+              <label className="text-[10px] text-base-content/40 mb-0.5 block">Clip shape</label>
+              <select value={data.clipShape || 'rectangle'} onChange={(e) => onChange({ clipShape: e.target.value as ImageFrameData['clipShape'] })} className="select select-bordered select-xs w-full">
+                <option value="rectangle">Rectangle</option>
+                <option value="ellipse">Ellipse</option>
+                <option value="polygon">Polygon</option>
+              </select>
+            </div>
+
+            {/* Filters */}
+            <h4 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Filters</h4>
+            <div>
+              <label className="text-[10px] text-base-content/40 mb-0.5 block">Brightness ({data.filters?.brightness ?? 100}%)</label>
+              <input type="range" min={0} max={200} value={data.filters?.brightness ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, brightness: Number(e.target.value) } })} className="range range-xs w-full" />
+            </div>
+            <div>
+              <label className="text-[10px] text-base-content/40 mb-0.5 block">Contrast ({data.filters?.contrast ?? 100}%)</label>
+              <input type="range" min={0} max={200} value={data.filters?.contrast ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, contrast: Number(e.target.value) } })} className="range range-xs w-full" />
+            </div>
+            <div>
+              <label className="text-[10px] text-base-content/40 mb-0.5 block">Saturation ({data.filters?.saturation ?? 100}%)</label>
+              <input type="range" min={0} max={200} value={data.filters?.saturation ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, saturation: Number(e.target.value) } })} className="range range-xs w-full" />
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={data.filters?.grayscale ?? false} onChange={(e) => onChange({ filters: { ...data.filters, grayscale: e.target.checked } })} className="checkbox checkbox-xs" />
+              <span className="text-[10px] text-base-content/40">Grayscale</span>
+            </label>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
