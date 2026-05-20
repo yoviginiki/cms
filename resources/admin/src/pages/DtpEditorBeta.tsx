@@ -1,193 +1,258 @@
 /**
- * MAG-P4 — Beta DTP Editor connected to real Save/Load API.
+ * MAG-P12 — Production DTP Editor using proven MagazineCanvas + magazineStore.
  *
- * Loads/saves DTP document via MAG-P3 endpoints.
+ * Loads DTP document via MAG-P3 API, converts to MagPageData/MagElement format,
+ * and renders using the full production canvas with 39 element types, undo/redo,
+ * inline text editing, zoom, and all property panels.
+ *
  * Feature-flagged — old magazine editor remains unchanged.
  */
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowLeft, Save, Loader2, AlertTriangle, Eye, Info, ChevronDown, ChevronUp, ExternalLink,
-  Type, Image, Square, Quote, Hash, Plus, Trash2, Copy,
-  ZoomIn, ZoomOut, Maximize2,
-  Magnet, Ruler,
-} from 'lucide-react';
+import { Loader2, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { dtpDesigner } from '@/lib/api';
 
-// Reuse prototype components
-import { SpreadCanvas } from '@/components/magazine/prototypes/dtp/SpreadCanvas';
-import { PropertiesPanel } from '@/components/magazine/prototypes/dtp/PropertiesPanel';
-import { LayersPanel } from '@/components/magazine/prototypes/dtp/LayersPanel';
-import { PreflightPanel } from '@/components/magazine/prototypes/dtp/PreflightPanel';
-import { ExportPanel } from '@/components/magazine/prototypes/dtp/ExportPanel';
-import { runPreflight } from '@/components/magazine/prototypes/dtp/preflight';
-import type { DtpFrame, DtpDocument, DtpSpread, DtpPage } from '@/components/magazine/prototypes/dtp/mockDocument';
+// ─── Production editor components (from old MagazineEditorV2) ───
+import { useMagazineStore } from '@/stores/magazineStore';
+import { MagazineCanvas } from '@/components/magazine/MagazineCanvas';
+import MagazineToolbar from '@/components/magazine/MagazineToolbar';
+import MagLayersPanel from '@/components/magazine/MagLayersPanel';
+import PageNavigator from '@/components/magazine/PageNavigator';
+import StylesPanel from '@/components/magazine/StylesPanel';
+import MagElementPalette from '@/components/magazine/MagElementPalette';
+import TransformPanel from '@/components/magazine/properties/TransformPanel';
+import MagTypographyPanel from '@/components/magazine/properties/MagTypographyPanel';
+import FillStrokePanel from '@/components/magazine/properties/FillStrokePanel';
+import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
+import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
+import TextWrapPanel from '@/components/magazine/properties/TextWrapPanel';
+import ImagePanel from '@/components/magazine/properties/ImagePanel';
+import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
+import PagePanel from '@/components/magazine/properties/PagePanel';
+import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
+import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 
-const MIN_SIZE = 20;
+// ─── Adapter: DTP API → magazineStore format ───
 
-/** Convert API response to DtpDocument for the prototype canvas */
-function apiToDocument(data: any): DtpDocument {
-  const spreads: DtpSpread[] = [];
-  const apiSpreads = data.spreads || [];
-  const apiPages = data.pages || [];
-  const apiFrames = data.frames || [];
+function dtpApiToPages(apiData: any): MagPageData[] {
+  const apiPages = apiData.pages || [];
+  const apiFrames = apiData.frames || [];
 
-  if (apiSpreads.length === 0) {
-    // Empty document — create starter spread with one page
-    spreads.push({
-      id: 'starter-spread',
-      label: 'Spread 1',
-      pages: [{
-        id: 'starter-page', pageNumber: 1, width: 595, height: 842,
-        margins: { top: 36, right: 36, bottom: 36, left: 36 }, backgroundColor: '#ffffff',
-      }],
-      frames: [],
-    });
-  } else {
-    for (const apiSpread of apiSpreads) {
-      const spreadPages = apiPages
-        .filter((p: any) => p.spread_id === apiSpread.id)
-        .sort((a: any, b: any) => a.page_index - b.page_index);
+  if (apiPages.length === 0) {
+    // Empty document — create starter page
+    return [{
+      id: crypto.randomUUID(),
+      pageNumber: 1,
+      pageSize: { width: 595, height: 842 },
+      margins: { top: 36, right: 36, bottom: 36, left: 36 },
+      bleed: { top: 9, right: 9, bottom: 9, left: 9 },
+      columns: { count: 1, gutter: 12 },
+      baselineGrid: { increment: 14, start: 36 },
+      isMaster: false,
+      masterPageId: null,
+      spreadWith: null,
+      backgroundColor: '#ffffff',
+      backgroundAssetId: null,
+      elements: [],
+    }];
+  }
 
-      const pages: DtpPage[] = spreadPages.map((p: any) => ({
-        id: p.id,
-        pageNumber: p.page_index + 1,
-        width: p.width || 595,
-        height: p.height || 842,
-        margins: p.margins || { top: 36, right: 36, bottom: 36, left: 36 },
-        backgroundColor: p.background?.color || '#ffffff',
-        masterPageId: p.master_page_id || undefined,
-      }));
+  const sortedPages = [...apiPages].sort((a: any, b: any) => a.page_index - b.page_index);
 
-      const frames: DtpFrame[] = apiFrames
-        .filter((f: any) => spreadPages.some((p: any) => p.id === f.page_id))
-        .map((f: any) => {
-          const pageIdx = spreadPages.findIndex((p: any) => p.id === f.page_id);
-          return {
-            id: f.id,
-            type: mapFrameType(f.frame_type),
-            pageIndex: Math.max(0, pageIdx),
-            x: f.x || 0,
-            y: f.y || 0,
-            width: f.width || 200,
-            height: f.height || 100,
-            rotation: f.rotation || 0,
-            zIndex: f.z_index || 0,
-            content: f.content?.html || f.content?.text || '',
-            label: f.name || f.frame_type,
-            visible: f.visible !== false,
-            locked: f.locked === true,
-            isMasterObject: f.metadata?.onMaster === true,
-            image: f.frame_type === 'image' ? {
-              src: f.content?.src || '',
-              alt: f.content?.alt || '',
-              caption: f.content?.caption || '',
-              fitMode: f.content?.fitMode || 'fill',
-              focalPoint: f.content?.focalPoint || { x: 50, y: 50 },
-              opacity: f.content?.opacity ?? 100,
-            } : undefined,
-          } as DtpFrame;
-        });
+  return sortedPages.map((p: any, idx: number) => {
+    const pageFrames = apiFrames
+      .filter((f: any) => f.page_id === p.id)
+      .sort((a: any, b: any) => (a.z_index || 0) - (b.z_index || 0));
 
-      spreads.push({
-        id: apiSpread.id,
-        label: apiSpread.name || `Spread ${apiSpread.spread_index + 1}`,
-        pages,
-        frames,
-      });
-    }
+    const elements: MagElement[] = pageFrames.map((f: any) => dtpFrameToElement(f, idx + 1));
+
+    return {
+      id: p.id,
+      pageNumber: idx + 1,
+      pageSize: { width: p.width || 595, height: p.height || 842 },
+      margins: p.margins || { top: 36, right: 36, bottom: 36, left: 36 },
+      bleed: p.bleed || { top: 9, right: 9, bottom: 9, left: 9 },
+      columns: { count: 1, gutter: 12 },
+      baselineGrid: { increment: 14, start: 36 },
+      isMaster: false,
+      masterPageId: p.master_page_id || null,
+      spreadWith: null,
+      backgroundColor: p.background?.color || '#ffffff',
+      backgroundAssetId: null,
+      elements,
+    };
+  });
+}
+
+const FRAME_TYPE_MAP: Record<string, string> = {
+  text: 'text_frame',
+  image: 'image_frame',
+  quote: 'pullquote_frame',
+  pageNumber: 'page_number',
+  shape: 'rectangle',
+  line: 'line',
+  decorative: 'decorative_rule',
+  articleReference: 'text_frame',
+};
+
+function dtpFrameToElement(f: any, pageNumber: number): MagElement {
+  const content = f.content || {};
+  const magType = FRAME_TYPE_MAP[f.frame_type] || 'text_frame';
+
+  const data: Record<string, unknown> = {};
+  if (['text', 'quote', 'articleReference'].includes(f.frame_type)) {
+    data.content = content.html || content.text || '';
+  }
+  if (f.frame_type === 'image') {
+    data.src = content.src || '';
+    data.alt = content.alt || '';
+    data.fit = content.fitMode || 'fill';
+    data.focalPoint = content.focalPoint || { x: 50, y: 50 };
   }
 
   return {
-    title: data.issue?.title || 'Untitled Issue',
-    subtitle: data.issue?.subtitle || '',
-    pageSize: { width: 595, height: 842 },
-    spreads,
+    id: f.id,
+    type: magType as any,
+    name: f.name || null,
+    data,
+    x: f.x || 0,
+    y: f.y || 0,
+    width: f.width || 200,
+    height: f.height || 100,
+    rotation: f.rotation || 0,
+    scaleX: 1,
+    scaleY: 1,
+    zIndex: f.z_index || 0,
+    locked: f.locked === true,
+    visible: f.visible !== false,
+    layerName: null,
+    style: { ...DEFAULT_ELEMENT_STYLE },
+    typography: ['text', 'quote', 'articleReference'].includes(f.frame_type) ? { ...DEFAULT_TYPOGRAPHY } : null,
+    textWrap: { ...DEFAULT_TEXT_WRAP },
+    threadId: f.metadata?.threadId || null,
+    threadOrder: f.metadata?.threadOrder ?? null,
+    pageNumber,
+    onMaster: f.metadata?.onMaster === true,
+    parentId: null,
+    children: [],
+    responsiveOverrides: {},
   };
 }
 
-function mapFrameType(apiType: string): DtpFrame['type'] {
-  const map: Record<string, DtpFrame['type']> = {
-    text: 'text', image: 'image', quote: 'quote', pageNumber: 'pageNumber',
-    shape: 'text', line: 'text', articleReference: 'text', decorative: 'text',
-  };
-  return map[apiType] || 'text';
-}
+// ─── Adapter: magazineStore → DTP API save payload ───
 
-/** Convert DtpDocument back to API save payload */
-function documentToApi(doc: DtpDocument): Record<string, unknown> {
+const REVERSE_TYPE_MAP: Record<string, string> = {
+  text_frame: 'text', headline_frame: 'text', pullquote_frame: 'quote',
+  caption_frame: 'text', footnote_frame: 'text', marginalia_frame: 'text',
+  image_frame: 'image', circular_image: 'image', polygon_image: 'image',
+  fullbleed_image: 'image', gallery_frame: 'image', background_image: 'image',
+  rectangle: 'shape', ellipse: 'shape', line: 'line', polygon: 'shape',
+  freeform_path: 'shape', decorative_rule: 'decorative', gradient_overlay: 'shape',
+  page_number: 'pageNumber', running_header: 'text', column_guides: 'text',
+  video_frame: 'text', audio_player: 'text', embed_frame: 'text', svg_icon: 'shape',
+  button: 'text', hotspot: 'shape', tooltip_trigger: 'shape',
+  accordion_frame: 'text', slidein_panel: 'text',
+  table_frame: 'text', chart_frame: 'text', infographic_number: 'text', progress_indicator: 'shape',
+  group: 'text', component_instance: 'text', clipping_group: 'text',
+};
+
+function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any[]): Record<string, unknown> {
   const spreads: any[] = [];
-  const pages: any[] = [];
+  const outPages: any[] = [];
   const frames: any[] = [];
 
-  doc.spreads.forEach((spread, si) => {
-    const spreadId = spread.id || crypto.randomUUID();
-    spreads.push({ id: spreadId, spread_index: si, name: spread.label });
+  pages.forEach((page, idx) => {
+    // Each page gets its own spread for simplicity
+    const spreadId = `spread-${page.id}`;
+    spreads.push({ id: spreadId, spread_index: idx, name: `Spread ${idx + 1}` });
 
-    spread.pages.forEach((page, pi) => {
-      const pageId = page.id || crypto.randomUUID();
-      pages.push({
-        id: pageId, spread_id: spreadId, page_index: si * 2 + pi,
-        side: spread.pages.length === 1 ? 'single' : pi === 0 ? 'left' : 'right',
-        width: page.width, height: page.height,
-        margins: page.margins, background: { color: page.backgroundColor },
-        master_page_id: page.masterPageId || null,
+    outPages.push({
+      id: page.id,
+      spread_id: spreadId,
+      page_index: idx,
+      side: 'single',
+      width: page.pageSize.width,
+      height: page.pageSize.height,
+      margins: page.margins,
+      bleed: page.bleed,
+      background: { color: page.backgroundColor || '#ffffff' },
+      master_page_id: page.masterPageId || null,
+    });
+
+    page.elements.forEach(el => {
+      const frameType = REVERSE_TYPE_MAP[el.type] || 'text';
+      const content: Record<string, unknown> = {};
+
+      if (['text', 'quote'].includes(frameType)) {
+        content.html = (el.data as any)?.content || '';
+      }
+      if (frameType === 'image') {
+        content.src = (el.data as any)?.src || '';
+        content.alt = (el.data as any)?.alt || '';
+        content.fitMode = (el.data as any)?.fit || 'fill';
+        content.focalPoint = (el.data as any)?.focalPoint || { x: 50, y: 50 };
+        content.opacity = 100;
+      }
+
+      frames.push({
+        id: el.id,
+        page_id: page.id,
+        spread_id: spreadId,
+        frame_type: frameType,
+        name: el.name || el.type.replace(/_/g, ' '),
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
+        rotation: el.rotation,
+        z_index: el.zIndex,
+        visible: el.visible,
+        locked: el.locked,
+        content,
+        style: {},
+        metadata: {
+          onMaster: el.onMaster || false,
+          threadId: el.threadId || null,
+          threadOrder: el.threadOrder ?? null,
+          _magType: el.type, // Preserve original type for round-trip
+        },
       });
-
-      spread.frames
-        .filter(f => f.pageIndex === pi)
-        .forEach(f => {
-          frames.push({
-            id: f.id || crypto.randomUUID(),
-            page_id: pageId, spread_id: spreadId,
-            frame_type: f.type === 'quote' ? 'quote' : f.type === 'pageNumber' ? 'pageNumber' : f.type,
-            name: f.label || null,
-            x: f.x, y: f.y, width: f.width, height: f.height,
-            rotation: f.rotation, z_index: f.zIndex,
-            visible: f.visible !== false, locked: f.locked === true,
-            content: f.type === 'image' && f.image ? {
-              src: f.image.src, alt: f.image.alt, caption: f.image.caption,
-              fitMode: f.image.fitMode, focalPoint: f.image.focalPoint, opacity: f.image.opacity,
-            } : f.content ? { html: f.content } : {},
-            style: {}, metadata: { onMaster: f.isMasterObject || false },
-          });
-        });
     });
   });
 
-  return { spreads, pages, layers: [], frames, asset_references: [] };
+  return { spreads, pages: outPages, layers: apiLayers, frames, asset_references: apiAssetRefs };
 }
+
+// ─── Editor Component ───
+
+type RightTab = 'add' | 'properties' | 'layers' | 'styles';
 
 export default function DtpEditorBeta() {
   const { siteId = '', issueId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const store = useMagazineStore();
 
-  // Load document from API
+  const [rightTab, setRightTab] = useState<RightTab>('properties');
+  const [showStatusPanel, setShowStatusPanel] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [apiLayers, setApiLayers] = useState<any[]>([]);
+  const [apiAssetRefs, setApiAssetRefs] = useState<any[]>([]);
+  const [autoOpenImagePicker, setAutoOpenImagePicker] = useState(false);
+  const [alignToPage, setAlignToPage] = useState(false);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const initializedRef = useRef(false);
+
+  // Load DTP document from API
   const { data: apiData, isLoading, error: loadError } = useQuery({
     queryKey: ['dtp-document', siteId, issueId],
     queryFn: () => dtpDesigner.loadDocument(siteId, issueId).then((r: any) => r.data.data),
     retry: 1,
+    refetchOnWindowFocus: false,
   });
 
-  // Local editor state
-  const [doc, setDoc] = useState<DtpDocument | null>(null);
-  const [apiLayers, setApiLayers] = useState<any[]>([]);
-  const [apiAssetRefs, setApiAssetRefs] = useState<any[]>([]);
-  const [isDirty, setIsDirty] = useState(false);
-  const [activeSpreadIdx, setActiveSpreadIdx] = useState(0);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [zoom, setZoom] = useState(0.5);
-  const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'templates' | 'preflight' | 'export'>('properties');
-  const [showGuides, setShowGuides] = useState(true);
-  const [showRulers, setShowRulers] = useState(true);
-  const [snapEnabled, setSnapEnabled] = useState(true);
-  const [showStatusPanel, setShowStatusPanel] = useState(false);
-
-  const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
-
-  // DTP rollout status (always available, not behind feature flag)
+  // DTP rollout status
   const { data: rolloutData, refetch: refetchRollout } = useQuery({
     queryKey: ['dtp-rollout', siteId, issueId],
     queryFn: () => dtpDesigner.getRolloutStatus(siteId, issueId).then((r: any) => r.data.data),
@@ -195,174 +260,96 @@ export default function DtpEditorBeta() {
     refetchOnWindowFocus: false,
   });
 
-  // Initialize doc from API data (once)
+  // Initialize store from API data
   useEffect(() => {
-    if (apiData && !doc) {
-      setDoc(apiToDocument(apiData));
-      setApiLayers(apiData.layers || []);
-      setApiAssetRefs(apiData.asset_references || []);
-    }
-  }, [apiData, doc]);
+    if (!apiData) return;
+    if (initializedRef.current && store.isDirty) return;
+    initializedRef.current = true;
+
+    const pages = dtpApiToPages(apiData);
+    setApiLayers(apiData.layers || []);
+    setApiAssetRefs(apiData.asset_references || []);
+    store.setDocument(pages, []);
+  }, [apiData]);
 
   // Save mutation
-  const saveMut = useMutation({
-    mutationFn: () => {
-      if (!doc) throw new Error('No document');
-      const payload = documentToApi(doc);
-      // Preserve layers and asset_references from API (not yet editable in beta)
-      payload.layers = apiLayers;
-      payload.asset_references = apiAssetRefs;
-      return dtpDesigner.saveDocument(siteId, issueId, payload);
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      setSaveError(null);
+      const payload = pagesToDtpApi(store.pages, apiLayers, apiAssetRefs);
+      await dtpDesigner.saveDocument(siteId, issueId, payload);
     },
     onSuccess: () => {
-      setIsDirty(false);
+      store.setDirty(false);
       queryClient.invalidateQueries({ queryKey: ['dtp-document', siteId, issueId] });
+      queryClient.invalidateQueries({ queryKey: ['dtp-rollout', siteId, issueId] });
+    },
+    onError: (err: any) => {
+      setSaveError(err?.response?.data?.message || err?.message || 'Save failed');
     },
   });
 
-  // Frame update
-  const updateFrame = useCallback((frameId: string, updates: Partial<DtpFrame>) => {
-    setDoc(prev => {
-      if (!prev) return prev;
-      const next = JSON.parse(JSON.stringify(prev));
-      const frame = next.spreads[activeSpreadIdx]?.frames.find((f: DtpFrame) => f.id === frameId);
-      if (!frame) return prev;
-      if (updates.x !== undefined) frame.x = Math.round(updates.x);
-      if (updates.y !== undefined) frame.y = Math.round(updates.y);
-      if (updates.width !== undefined) frame.width = Math.max(MIN_SIZE, Math.round(updates.width));
-      if (updates.height !== undefined) frame.height = Math.max(MIN_SIZE, Math.round(updates.height));
-      if (updates.rotation !== undefined) frame.rotation = updates.rotation;
-      if (updates.zIndex !== undefined) frame.zIndex = updates.zIndex;
-      if (updates.visible !== undefined) frame.visible = updates.visible;
-      if (updates.locked !== undefined) frame.locked = updates.locked;
-      if (updates.image !== undefined) frame.image = updates.image;
-      return next;
-    });
-    setIsDirty(true);
-  }, [activeSpreadIdx]);
+  // Current page & selection
+  const rawPage = store.pages.find(p => p.pageNumber === store.currentPageNumber) || store.pages[0];
+  const currentPage: MagPageData | null = rawPage ? {
+    ...rawPage,
+    pageSize: rawPage.pageSize || { width: 595, height: 842 },
+    margins: rawPage.margins || { top: 36, right: 36, bottom: 36, left: 36 },
+    bleed: rawPage.bleed || { top: 9, right: 9, bottom: 9, left: 9 },
+    columns: rawPage.columns || { count: 1, gutter: 12 },
+    baselineGrid: rawPage.baselineGrid || { increment: 14, start: 36 },
+    elements: rawPage.elements || [],
+  } : null;
+  const currentElements = currentPage?.elements || [];
+  const selectedEl = currentElements.find(e => store.selectedIds.includes(e.id)) || null;
 
-  // ─── Add frame ───
-  const addFrame = useCallback((type: DtpFrame['type']) => {
-    if (!doc) return;
-    const id = crypto.randomUUID();
-    const frame: DtpFrame = {
-      id,
-      type,
-      pageIndex: 0,
-      x: 40 + Math.random() * 100,
-      y: 40 + Math.random() * 100,
-      width: type === 'image' ? 300 : type === 'text' ? 400 : 200,
-      height: type === 'image' ? 200 : type === 'text' ? 120 : 100,
-      rotation: 0,
-      zIndex: (doc.spreads[activeSpreadIdx]?.frames.length || 0) + 1,
-      content: type === 'text' ? '<p>New text frame</p>' : type === 'quote' ? '<p>Quote text</p>' : '',
-      label: type.charAt(0).toUpperCase() + type.slice(1),
-      visible: true,
-      locked: false,
-      isMasterObject: false,
-      image: type === 'image' ? { src: '', alt: '', caption: '', fitMode: 'fill' as const, focalPoint: { x: 50, y: 50 }, opacity: 100 } : undefined,
-    };
-    setDoc(prev => {
-      if (!prev) return prev;
-      const next = JSON.parse(JSON.stringify(prev));
-      next.spreads[activeSpreadIdx]?.frames.push(frame);
-      return next;
-    });
-    setSelectedIds([id]);
-    setIsDirty(true);
-  }, [doc, activeSpreadIdx]);
+  // Thread helpers
+  const allElements = store.pages.flatMap(p => p.elements || []);
+  const getThreadFrameCount = (tid: string) => allElements.filter(e => e.threadId === tid).length;
 
-  // ─── Delete selected frames ───
-  const deleteSelected = useCallback(() => {
-    if (selectedIds.length === 0) return;
-    setDoc(prev => {
-      if (!prev) return prev;
-      const next = JSON.parse(JSON.stringify(prev));
-      const spread = next.spreads[activeSpreadIdx];
-      if (spread) spread.frames = spread.frames.filter((f: DtpFrame) => !selectedIds.includes(f.id));
-      return next;
-    });
-    setSelectedIds([]);
-    setIsDirty(true);
-  }, [selectedIds, activeSpreadIdx]);
+  const handleStartThread = () => {
+    if (!selectedEl) return;
+    const tid = crypto.randomUUID();
+    store.updateElement(selectedEl.id, { threadId: tid, threadOrder: 0 } as any);
+    setActiveThreadId(tid);
+  };
 
-  // ─── Duplicate selected frame ───
-  const duplicateSelected = useCallback(() => {
-    if (selectedIds.length !== 1 || !doc) return;
-    const frame = doc.spreads[activeSpreadIdx]?.frames.find(f => f.id === selectedIds[0]);
-    if (!frame) return;
-    const newId = crypto.randomUUID();
-    const clone = { ...JSON.parse(JSON.stringify(frame)), id: newId, x: frame.x + 20, y: frame.y + 20 };
-    setDoc(prev => {
-      if (!prev) return prev;
-      const next = JSON.parse(JSON.stringify(prev));
-      next.spreads[activeSpreadIdx]?.frames.push(clone);
-      return next;
-    });
-    setSelectedIds([newId]);
-    setIsDirty(true);
-  }, [selectedIds, doc, activeSpreadIdx]);
+  const handleContinueThread = () => {
+    if (!selectedEl || !activeThreadId) return;
+    const order = allElements.filter(e => e.threadId === activeThreadId).length;
+    store.updateElement(selectedEl.id, { threadId: activeThreadId, threadOrder: order } as any);
+  };
 
-  // ─── Add spread ───
-  const addSpread = useCallback(() => {
-    if (!doc) return;
-    const pageNum = doc.spreads.reduce((acc, s) => acc + s.pages.length, 0) + 1;
-    const newSpread: DtpSpread = {
-      id: crypto.randomUUID(),
-      label: `Spread ${doc.spreads.length + 1}`,
-      pages: [{
-        id: crypto.randomUUID(), pageNumber: pageNum, width: 595, height: 842,
-        margins: { top: 36, right: 36, bottom: 36, left: 36 }, backgroundColor: '#ffffff',
-      }],
-      frames: [],
-    };
-    setDoc(prev => {
-      if (!prev) return prev;
-      const next = JSON.parse(JSON.stringify(prev));
-      next.spreads.push(newSpread);
-      return next;
+  const handleUnthread = () => {
+    if (!selectedEl || !selectedEl.threadId) return;
+    const tid = selectedEl.threadId;
+    store.updateElement(selectedEl.id, { threadId: null, threadOrder: null } as any);
+    const remaining = allElements
+      .filter(e => e.threadId === tid && e.id !== selectedEl.id)
+      .sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+    remaining.forEach((e, i) => {
+      if ((e.threadOrder ?? 0) !== i) store.updateElement(e.id, { threadOrder: i } as any);
     });
-    setActiveSpreadIdx(doc.spreads.length);
-    setSelectedIds([]);
-    setIsDirty(true);
-  }, [doc]);
+  };
 
-  // ─── Keyboard shortcuts ───
+  // Auto-switch tab on selection
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelected(); }
-      if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); duplicateSelected(); }
-      if (selectedIds.length === 0 || !doc) return;
-      const step = e.shiftKey ? 10 : 1;
-      let dx = 0, dy = 0;
-      if (e.key === 'ArrowLeft') dx = -step;
-      else if (e.key === 'ArrowRight') dx = step;
-      else if (e.key === 'ArrowUp') dy = -step;
-      else if (e.key === 'ArrowDown') dy = step;
-      else return;
-      e.preventDefault();
-      for (const id of selectedIds) {
-        const frame = doc.spreads[activeSpreadIdx]?.frames.find(f => f.id === id);
-        if (frame && !frame.locked) updateFrame(id, { x: frame.x + dx, y: frame.y + dy });
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedIds, activeSpreadIdx, doc, updateFrame, deleteSelected, duplicateSelected]);
+    if (store.selectedIds.length > 0) setRightTab('properties');
+  }, [store.selectedIds]);
 
-  const activeSpread = doc?.spreads[activeSpreadIdx];
-  const selectedFrames = activeSpread?.frames.filter(f => selectedIds.includes(f.id)) ?? [];
-  const selectedFrame = selectedFrames.length === 1 ? selectedFrames[0] : null;
-  const preflightResult = useMemo(() => doc ? runPreflight(doc) : { status: 'pass' as const, score: 100, errors: [], warnings: [], info: [], issues: [] }, [doc]);
+  const IMAGE_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];
+
+  const handleAddElement = (type: string, x: number, y: number, w: number, h: number) => {
+    store.addElement(type, x, y, w, h);
+    if (IMAGE_TYPES.includes(type)) setAutoOpenImagePicker(true);
+  };
 
   // ─── Loading / Error states ───
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-neutral-800">
-        <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
-        <span className="ml-3 text-neutral-400">Loading DTP document...</span>
+      <div className="flex items-center justify-center h-screen bg-base-200">
+        <Loader2 className="h-8 w-8 animate-spin text-base-content/20" />
+        <span className="ml-3 text-base-content/40">Loading DTP document...</span>
       </div>
     );
   }
@@ -370,10 +357,10 @@ export default function DtpEditorBeta() {
   if (loadError) {
     const is404 = (loadError as any)?.response?.status === 404;
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-neutral-800 text-neutral-200">
-        <AlertTriangle className="h-12 w-12 text-amber-400 mb-4" />
+      <div className="flex flex-col items-center justify-center h-screen bg-base-200 text-base-content">
+        <AlertTriangle className="h-12 w-12 text-warning mb-4" />
         <h2 className="text-lg font-semibold mb-2">{is404 ? 'DTP Designer Not Available' : 'Failed to Load'}</h2>
-        <p className="text-sm text-neutral-400 mb-4">
+        <p className="text-sm text-base-content/40 mb-4">
           {is404 ? 'The DTP Designer feature is not enabled for this site.' : (loadError as Error).message}
         </p>
         <button onClick={() => navigate(-1)} className="btn btn-sm btn-ghost">Go Back</button>
@@ -381,279 +368,259 @@ export default function DtpEditorBeta() {
     );
   }
 
-  if (!doc || !activeSpread) return null;
+  if (!currentPage || store.pages.length === 0) {
+    return <div className="flex items-center justify-center h-screen bg-base-200"><span className="loading loading-spinner loading-sm text-base-content/20" /></div>;
+  }
+
+  const adminTheme = localStorage.getItem('admin-theme') || 'cms-admin';
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-800 text-neutral-200">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between h-10 px-3 bg-neutral-900 border-b border-neutral-700 shrink-0">
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate(`/sites/${siteId}/magazines`)} className="p-1 text-neutral-400 hover:text-white" title="Back to magazines">
-            <ArrowLeft size={16} />
-          </button>
-          <span className="text-[11px] font-medium text-neutral-300 truncate max-w-[160px]">{doc.title}</span>
-          <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-medium">BETA</span>
-          {isDirty && <span className="text-[9px] text-amber-400">Unsaved</span>}
+    <div className="flex flex-col h-screen bg-base-200" data-theme={adminTheme}>
+      {/* ─── Toolbar ─── */}
+      <MagazineToolbar
+        activeTool={store.activeTool}
+        onSetTool={(t) => store.setTool(t as any)}
+        zoom={store.zoom}
+        onZoomChange={store.setZoom}
+        currentPage={store.currentPageNumber}
+        totalPages={store.pages.length}
+        onChangePage={store.setCurrentPage}
+        showGrid={store.showGrid}
+        showGuides={store.showGuides}
+        showBaseline={store.showBaseline}
+        onToggleGrid={store.toggleGrid}
+        onToggleGuides={store.toggleGuides}
+        onToggleBaseline={store.toggleBaseline}
+        onUndo={store.undo}
+        onRedo={store.redo}
+        canUndo={store.undoStack.length > 0}
+        canRedo={store.redoStack.length > 0}
+        onSave={() => saveMutation.mutate()}
+        isDirty={store.isDirty}
+        isSaving={saveMutation.isPending}
+      />
+
+      {/* ─── DTP Status + Save error ─── */}
+      {saveError && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-error/10 border-b border-error/20 text-error text-[12px]">
+          <span className="font-medium">Save failed:</span> {saveError}
+          <button onClick={() => setSaveError(null)} className="ml-auto btn btn-ghost btn-xs text-error">Dismiss</button>
         </div>
+      )}
 
-        <div className="flex items-center gap-0.5">
-          {/* ─── Add frame tools ─── */}
-          <div className="flex bg-neutral-700 rounded p-0.5 gap-0.5">
-            <button onClick={() => addFrame('text')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add text frame (T)"><Type size={14} /></button>
-            <button onClick={() => addFrame('image')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add image frame"><Image size={14} /></button>
-            <button onClick={() => addFrame('text')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add shape (as text)"><Square size={14} /></button>
-            <button onClick={() => addFrame('quote')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add quote"><Quote size={14} /></button>
-            <button onClick={() => addFrame('pageNumber')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add page number"><Hash size={14} /></button>
-          </div>
-
-          <div className="w-px h-5 bg-neutral-600 mx-1" />
-
-          {/* ─── Frame actions ─── */}
-          <button onClick={duplicateSelected} disabled={selectedIds.length !== 1} className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-25" title="Duplicate (Ctrl+D)"><Copy size={14} /></button>
-          <button onClick={deleteSelected} disabled={selectedIds.length === 0} className="p-1.5 rounded text-neutral-400 hover:text-red-400 disabled:opacity-25" title="Delete (Del)"><Trash2 size={14} /></button>
-
-          <div className="w-px h-5 bg-neutral-600 mx-1" />
-
-          {/* ─── Toggles ─── */}
-          <button onClick={() => setShowRulers(!showRulers)}
-            className={`p-1.5 rounded transition-colors ${showRulers ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Rulers"><Ruler size={14} /></button>
-          <button onClick={() => setShowGuides(!showGuides)}
-            className={`p-1.5 rounded transition-colors ${showGuides ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Guides"><span className="text-[10px] font-bold">G</span></button>
-          <button onClick={() => setSnapEnabled(!snapEnabled)}
-            className={`p-1.5 rounded transition-colors ${snapEnabled ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white'}`}
-            title="Snap"><Magnet size={14} /></button>
-
-          <div className="w-px h-5 bg-neutral-600 mx-1" />
-
-          {/* ─── Zoom ─── */}
-          <button onClick={() => { const i = ZOOM_STEPS.findIndex(z => z >= zoom); if (i > 0) setZoom(ZOOM_STEPS[i - 1]); }} className="p-1 text-neutral-400 hover:text-white"><ZoomOut size={14} /></button>
-          <span className="text-[11px] text-neutral-400 w-10 text-center font-mono">{Math.round(zoom * 100)}%</span>
-          <button onClick={() => { const i = ZOOM_STEPS.findIndex(z => z >= zoom); if (i < ZOOM_STEPS.length - 1) setZoom(ZOOM_STEPS[i + 1]); }} className="p-1 text-neutral-400 hover:text-white"><ZoomIn size={14} /></button>
-          <button onClick={() => setZoom(0.5)} className="p-1 text-neutral-400 hover:text-white" title="Fit"><Maximize2 size={14} /></button>
-
-          <div className="w-px h-5 bg-neutral-600 mx-1" />
-
-          {/* ─── Preview / Save / Status ─── */}
-          {rolloutData?.capabilities?.previewLinkAvailable && rolloutData?.links?.dtpPreview ? (
-            <a href={rolloutData.links.dtpPreview} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded bg-neutral-700 text-neutral-300 hover:bg-neutral-600">
-              <Eye size={12} /> Preview
-            </a>
-          ) : rolloutData && !rolloutData?.capabilities?.previewLinkAvailable ? (
-            <span className="flex items-center gap-1 px-2 py-1 text-[11px] rounded bg-neutral-700 text-neutral-500 cursor-not-allowed"
-              title="Preview not available — save a DTP document first">
-              <Eye size={12} /> Preview
-            </span>
-          ) : null}
-          <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !isDirty}
-            className={`flex items-center gap-1 px-3 py-1 text-[11px] rounded ${isDirty ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-neutral-700 text-neutral-400'} disabled:opacity-40`}>
-            {saveMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-            {saveMut.isPending ? 'Saving...' : 'Save'}
-          </button>
-          {saveMut.isError && (
-            <span className="text-[10px] text-red-400">{(saveMut.error as any)?.response?.data?.message || 'Save failed'}</span>
-          )}
-          <button onClick={() => setShowStatusPanel(p => !p)}
-            className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded ${showStatusPanel ? 'bg-blue-500/20 text-blue-300' : 'bg-neutral-700 text-neutral-400 hover:text-neutral-200'}`}>
-            <Info size={12} /> Status {showStatusPanel ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-          </button>
-        </div>
-      </div>
-
-      {/* DTP Status Panel */}
       {showStatusPanel && rolloutData && (
-        <div className="bg-neutral-900 border-b border-neutral-700 px-4 py-3 shrink-0">
+        <div className="bg-base-300/30 border-b border-base-300/20 px-4 py-2 shrink-0">
           <div className="flex flex-wrap gap-4 text-[11px]">
-            {/* Rollout status */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">Rollout:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-base-content/40">Rollout:</span>
               <span className={`px-1.5 py-0.5 rounded font-medium ${
-                rolloutData.status === 'dtp_ready' ? 'bg-green-500/20 text-green-300' :
-                rolloutData.status === 'dtp_beta' ? 'bg-amber-500/20 text-amber-300' :
-                'bg-neutral-600 text-neutral-300'
+                rolloutData.status === 'dtp_ready' ? 'bg-success/10 text-success' :
+                rolloutData.status === 'dtp_beta' ? 'bg-warning/10 text-warning' :
+                'bg-base-200 text-base-content/40'
               }`}>
-                {rolloutData.status === 'dtp_ready' ? 'Ready' :
-                 rolloutData.status === 'dtp_beta' ? 'Beta' :
-                 rolloutData.status === 'legacy' ? 'Legacy' : 'Unknown'}
+                {rolloutData.status === 'dtp_ready' ? 'Ready' : rolloutData.status === 'dtp_beta' ? 'Beta' : 'Legacy'}
               </span>
             </div>
-
-            {/* DTP feature */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">DTP Feature:</span>
-              <span className={rolloutData.capabilities?.dtpFeatureEnabled ? 'text-green-400' : 'text-red-400'}>
-                {rolloutData.capabilities?.dtpFeatureEnabled ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
-
-            {/* Document status */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">Document:</span>
-              <span className={rolloutData.capabilities?.hasDtpDocument ? 'text-green-400' : 'text-neutral-400'}>
-                {rolloutData.capabilities?.hasDtpDocument ? 'Saved' : 'Empty'}
-              </span>
-              {rolloutData.dtpStats && (
-                <span className="text-neutral-500">
-                  ({rolloutData.dtpStats.spreads} spreads, {rolloutData.dtpStats.pages} pages, {rolloutData.dtpStats.frames} frames)
-                </span>
-              )}
-            </div>
-
-            {/* Preview link */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">Preview link:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-base-content/40">Preview:</span>
               {rolloutData.capabilities?.previewLinkAvailable && rolloutData.links?.dtpPreview ? (
-                <a href={rolloutData.links.dtpPreview} target="_blank" rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline flex items-center gap-1">
-                  Available <ExternalLink size={9} />
-                </a>
-              ) : (
-                <span className="text-neutral-400">Not available</span>
-              )}
+                <a href={rolloutData.links.dtpPreview} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">Available <ExternalLink size={9} /></a>
+              ) : <span className="text-base-content/30">Not available</span>}
             </div>
-
-            {/* Preview render health */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">Render health:</span>
-              <span className={rolloutData.capabilities?.previewRenderable ? 'text-green-400' : 'text-amber-400'}>
-                {rolloutData.capabilities?.previewRenderable ? 'Renderable' : 'Not renderable'}
+            <div className="flex items-center gap-1.5">
+              <span className="text-base-content/40">Render:</span>
+              <span className={rolloutData.capabilities?.previewRenderable ? 'text-success' : 'text-warning'}>
+                {rolloutData.capabilities?.previewRenderable ? 'OK' : 'Not ready'}
               </span>
             </div>
-
-            {/* Preflight */}
             {rolloutData.preflight && (
-              <div className="flex items-center gap-2">
-                <span className="text-neutral-500">Preflight:</span>
-                <span className={`px-1.5 py-0.5 rounded font-medium ${
-                  rolloutData.preflight.status === 'pass' ? 'bg-green-500/20 text-green-300' :
-                  rolloutData.preflight.status === 'warning' ? 'bg-amber-500/20 text-amber-300' :
-                  'bg-red-500/20 text-red-300'
-                }`}>
-                  {rolloutData.preflight.status === 'pass' ? 'Pass' :
-                   rolloutData.preflight.status === 'warning' ? `Warnings (${rolloutData.preflight.counts?.warnings || 0})` :
-                   `Errors (${rolloutData.preflight.counts?.blocking || 0} blocking)`}
+              <div className="flex items-center gap-1.5">
+                <span className="text-base-content/40">Preflight:</span>
+                <span className={rolloutData.preflight.status === 'pass' ? 'text-success' : rolloutData.preflight.status === 'warning' ? 'text-warning' : 'text-error'}>
+                  {rolloutData.preflight.status === 'pass' ? 'Pass' : rolloutData.preflight.status === 'warning' ? 'Warnings' : 'Errors'} ({rolloutData.preflight.score}/100)
                 </span>
-                <span className="text-neutral-500">Score: {rolloutData.preflight.score}/100</span>
               </div>
             )}
-
-            {/* Promotion readiness */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-500">Promote:</span>
-              <span className={rolloutData.canPromote ? 'text-green-400' : 'text-neutral-400'}>
-                {rolloutData.canPromote ? 'Ready' : 'Not ready'}
-              </span>
-            </div>
-
-            {/* Blocking reasons */}
             {rolloutData.blockingReasons?.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-neutral-500">Blocked:</span>
-                <span className="text-red-400">{rolloutData.blockingReasons.join(' ')}</span>
-              </div>
+              <span className="text-error text-[10px]">{rolloutData.blockingReasons.join(' ')}</span>
             )}
-
-            {/* Warnings */}
-            {rolloutData.warnings?.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-neutral-500">Warnings:</span>
-                <span className="text-amber-400">{rolloutData.warnings.join(' ')}</span>
-              </div>
-            )}
-
-            {/* Refresh */}
-            <button onClick={() => refetchRollout()} className="text-neutral-400 hover:text-white flex items-center gap-1">
-              ↻ Refresh status
-            </button>
+            <button onClick={() => refetchRollout()} className="text-base-content/30 hover:text-base-content text-[10px]">↻ Refresh</button>
           </div>
         </div>
       )}
 
-      {/* Main area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Spread Navigator */}
-        <div className="w-20 border-r border-neutral-700 overflow-y-auto shrink-0" style={{ backgroundColor: '#1a1a1a' }}>
-          <div className="p-1.5 space-y-1.5">
-            <div className="text-[8px] text-neutral-500 uppercase tracking-wider px-1 py-1">Spreads</div>
-            {doc.spreads.map((spread, idx) => (
-              <button key={spread.id} onClick={() => { setActiveSpreadIdx(idx); setSelectedIds([]); }}
-                className={`w-full rounded overflow-hidden border transition-colors ${idx === activeSpreadIdx ? 'border-blue-500' : 'border-neutral-600 hover:border-neutral-400'}`}>
-                <div className="flex bg-neutral-700 p-1 gap-0.5" style={{ aspectRatio: spread.pages.length === 2 ? '2/1.4' : '1/1.4' }}>
-                  {spread.pages.map(page => (
-                    <div key={page.id} className="flex-1 bg-white rounded-[1px]" style={{ backgroundColor: page.backgroundColor }} />
-                  ))}
-                </div>
-                <div className="text-[8px] text-neutral-400 text-center py-0.5 bg-neutral-800">
-                  {spread.pages.map(p => p.pageNumber).join('-')}
-                </div>
+        {/* ─── LEFT: Page navigator ─── */}
+        <PageNavigator
+          pages={store.pages}
+          currentPage={store.currentPageNumber}
+          onChangePage={store.setCurrentPage}
+          onAddPage={() => store.addPage(store.currentPageNumber)}
+          onDeletePage={(n) => store.deletePage(n)}
+        />
+
+        {/* ─── CENTER: Canvas ─── */}
+        <MagazineCanvas
+          page={currentPage}
+          allPages={store.pages}
+          viewMode={store.viewMode}
+          gridColumns={store.gridColumns}
+          elements={currentElements}
+          zoom={store.zoom}
+          onZoomChange={store.setZoom}
+          onUpdateElement={(id, updates) => store.updateElement(id, updates)}
+          onAddElement={handleAddElement}
+          onDeleteElements={(ids) => store.deleteElements(ids)}
+          onDuplicateElements={(ids) => store.duplicateElements(ids)}
+          onSelectElement={(id) => id ? store.selectElement(id) : store.clearSelection()}
+          onPageClick={(n) => {
+            if (n === -1) store.setViewMode('single');
+            else if (n === -2) store.setViewMode('spread');
+            else if (n === -3) store.setViewMode('grid');
+            else if (n <= -10) store.setGridColumns(-(n + 10));
+            else store.setCurrentPage(n);
+          }}
+        />
+
+        {/* ─── RIGHT: Properties / Add / Layers / Styles ─── */}
+        <div className="w-72 bg-base-100 border-l border-base-300/30 flex flex-col shrink-0">
+          <div className="flex border-b border-base-300/20 shrink-0">
+            {([
+              { key: 'add' as RightTab, label: '+ Add' },
+              { key: 'properties' as RightTab, label: 'Properties' },
+              { key: 'layers' as RightTab, label: 'Layers' },
+              { key: 'styles' as RightTab, label: 'Styles' },
+            ]).map(tab => (
+              <button key={tab.key} onClick={() => setRightTab(tab.key)}
+                className={`flex-1 px-2 py-2 text-[11px] font-medium transition-colors ${rightTab === tab.key ? 'border-b-2 border-primary text-primary' : 'text-base-content/40'}`}>
+                {tab.label}
               </button>
             ))}
-            <button onClick={addSpread}
-              className="w-full rounded border-2 border-dashed border-neutral-600 hover:border-blue-500 hover:bg-neutral-700/50 transition-colors py-3 flex flex-col items-center gap-1 mt-1"
-              title="Add new spread/page">
-              <Plus size={18} className="text-neutral-500" />
-              <span className="text-[8px] text-neutral-500">Add Page</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {rightTab === 'add' && <MagElementPalette onAddElement={handleAddElement} />}
+
+            {rightTab === 'properties' && (
+              <div className="p-3 space-y-4">
+                {selectedEl ? (
+                  <>
+                    <div className="text-[10px] text-base-content/30 uppercase tracking-wider">{selectedEl.type.replace(/_/g, ' ')}</div>
+                    <TransformPanel x={selectedEl.x} y={selectedEl.y} width={selectedEl.width} height={selectedEl.height} rotation={selectedEl.rotation}
+                      onChange={(updates) => store.updateElement(selectedEl.id, updates as Partial<MagElement>)} />
+                    {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame'].includes(selectedEl.type) && selectedEl.typography && (
+                      <MagTypographyPanel value={selectedEl.typography} onChange={(v) => store.updateElement(selectedEl.id, { typography: { ...selectedEl.typography!, ...v } as MagTypography })} />
+                    )}
+                    {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame'].includes(selectedEl.type) && (
+                      <TextFramePanel
+                        data={(selectedEl.data || {}) as unknown as TextFrameData}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })}
+                        threadId={selectedEl.threadId}
+                        threadInfo={selectedEl.threadId ? {
+                          position: allElements.filter(e => e.threadId === selectedEl.threadId && (e.threadOrder ?? 0) <= (selectedEl.threadOrder ?? 0)).length,
+                          total: getThreadFrameCount(selectedEl.threadId),
+                        } : undefined}
+                        onStartThread={handleStartThread}
+                        onContinueThread={handleContinueThread}
+                        onUnthread={handleUnthread}
+                        availableThreadId={activeThreadId}
+                      />
+                    )}
+                    {IMAGE_TYPES.includes(selectedEl.type) && (
+                      <ImagePanel
+                        data={(selectedEl.data || {}) as unknown as ImageFrameData}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })}
+                        autoOpen={autoOpenImagePicker}
+                        onAutoOpenDone={() => setAutoOpenImagePicker(false)}
+                      />
+                    )}
+                    <FillStrokePanel style={selectedEl.style} onChange={(v) => store.updateElement(selectedEl.id, { style: { ...selectedEl.style, ...v } as MagElementStyle })} />
+                    <EffectsPanel style={selectedEl.style} onChange={(v) => store.updateElement(selectedEl.id, { style: { ...selectedEl.style, ...v } as MagElementStyle })} />
+                    {selectedEl.textWrap && (
+                      <TextWrapPanel value={selectedEl.textWrap} onChange={(v) => store.updateElement(selectedEl.id, { textWrap: { ...selectedEl.textWrap, ...v } as MagTextWrap })} />
+                    )}
+                    {store.selectedIds.length > 1 && (
+                      <AlignDistributePanel
+                        onAlign={(_type: string) => {
+                          // Align handled by MagazineCanvas internally
+                        }}
+                        onDistribute={(_type: string) => {
+                          // Distribute handled by MagazineCanvas internally
+                        }}
+                        alignToPage={alignToPage}
+                        onToggleAlignToPage={() => setAlignToPage(!alignToPage)}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="py-8 text-center">
+                    <PagePanel page={currentPage} onChange={(updates: Partial<MagPageData>) => store.updatePage(store.currentPageNumber, updates)} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {rightTab === 'layers' && (
+              <MagLayersPanel
+                elements={currentElements}
+                selectedIds={store.selectedIds}
+                onSelect={(id: string) => store.selectElement(id)}
+                onToggleVisibility={(id: string) => {
+                  const el = currentElements.find(e => e.id === id);
+                  if (el) store.updateElement(id, { visible: !el.visible });
+                }}
+                onToggleLock={(id: string) => {
+                  const el = currentElements.find(e => e.id === id);
+                  if (el) store.updateElement(id, { locked: !el.locked });
+                }}
+                onReorderZ={(id: string, direction: 'up' | 'down') => {
+                  if (direction === 'up') store.bringToFront([id]);
+                  else store.sendToBack([id]);
+                }}
+              />
+            )}
+
+            {rightTab === 'styles' && (
+              <StylesPanel
+                styles={store.styles}
+                selectedElementId={store.selectedIds[0] || null}
+                onApplyStyle={(styleId: string) => {
+                  if (selectedEl) {
+                    const style = store.styles.find(s => s.id === styleId);
+                    if (style && selectedEl.typography) {
+                      store.updateElement(selectedEl.id, { typography: { ...selectedEl.typography, ...style.properties } as MagTypography });
+                    }
+                  }
+                }}
+                onCreateStyle={(_type: 'paragraph' | 'character') => {
+                  // Style creation deferred to MAG-P13
+                }}
+                onDeleteStyle={(_id: string) => {
+                  // Style deletion deferred to MAG-P13
+                }}
+              />
+            )}
+          </div>
+
+          {/* ─── Status toggle ─── */}
+          <div className="border-t border-base-300/20 px-2 py-1 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2 text-[10px] text-base-content/30">
+              <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">DTP BETA</span>
+              {rolloutData && (
+                <span className={`px-1 py-0.5 rounded text-[9px] ${
+                  rolloutData.status === 'dtp_ready' ? 'bg-success/10 text-success' :
+                  rolloutData.status === 'dtp_beta' ? 'bg-warning/10 text-warning' :
+                  'bg-base-200 text-base-content/30'
+                }`}>
+                  {rolloutData.status === 'dtp_ready' ? 'Ready' : rolloutData.status === 'dtp_beta' ? 'Beta' : 'Legacy'}
+                </span>
+              )}
+            </div>
+            <button onClick={() => setShowStatusPanel(p => !p)}
+              className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded ${showStatusPanel ? 'bg-primary/10 text-primary' : 'text-base-content/30 hover:text-base-content/60'}`}>
+              <Info size={10} /> Status {showStatusPanel ? <ChevronUp size={8} /> : <ChevronDown size={8} />}
             </button>
           </div>
-        </div>
-
-        {/* Center: Canvas */}
-        <div className="flex-1 overflow-auto bg-neutral-700">
-          <SpreadCanvas
-            spread={activeSpread}
-            zoom={zoom}
-            selectedIds={selectedIds}
-            onSelectFrame={(id, add) => {
-              if (!id) { setSelectedIds([]); return; }
-              if (add) { setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); }
-              else { setSelectedIds([id]); }
-            }}
-            onUpdateFrame={(id, updates) => { updateFrame(id, updates); }}
-            showGuides={showGuides}
-            showRulers={showRulers}
-            snapEnabled={snapEnabled}
-          />
-        </div>
-
-        {/* Right: Tabs */}
-        <div className="w-72 bg-neutral-800 border-l border-neutral-700 overflow-y-auto shrink-0">
-          <div className="flex border-b border-neutral-700">
-            {(['properties', 'layers', 'templates', 'preflight', 'export'] as const).map(tab => (
-              <button key={tab} onClick={() => setRightTab(tab)}
-                className={`flex-1 px-1 py-1.5 text-[9px] font-medium ${rightTab === tab ? 'text-white border-b-2 border-blue-500' : 'text-neutral-400'}`}>
-                {tab === 'properties' ? 'Props' : tab === 'templates' ? 'Tmpl' : tab === 'preflight' ? 'Check' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-          {rightTab === 'properties' && <PropertiesPanel spread={activeSpread} selectedFrame={selectedFrame} selectedCount={selectedIds.length} document={doc} onUpdateFrame={updateFrame} />}
-          {rightTab === 'layers' && <LayersPanel spread={activeSpread} selectedIds={selectedIds} onSelectFrame={id => setSelectedIds([id])} onUpdateFrame={updateFrame} />}
-          {rightTab === 'preflight' && <PreflightPanel result={preflightResult} onSelectFrame={id => { setSelectedIds([id]); setRightTab('properties'); }} />}
-          {rightTab === 'export' && <ExportPanel document={doc} preflight={preflightResult} />}
-        </div>
-      </div>
-
-      {/* Status */}
-      <div className="flex items-center justify-between h-7 px-3 bg-neutral-900 border-t border-neutral-700 shrink-0">
-        <div className="flex items-center gap-3 text-[10px] text-neutral-400">
-          <span>Spread {activeSpreadIdx + 1}/{doc.spreads.length}</span>
-          <span>{activeSpread.frames.length} frames</span>
-          {isDirty && <span className="text-amber-400">Unsaved changes</span>}
-        </div>
-        <div className="flex items-center gap-3 text-[10px] text-neutral-400">
-          {selectedFrame && <span className="text-blue-400">{selectedFrame.label} — {selectedFrame.x},{selectedFrame.y}</span>}
-          <span>Zoom {Math.round(zoom * 100)}%</span>
-          {rolloutData && (
-            <span className={`px-1 py-0.5 rounded text-[9px] ${
-              rolloutData.status === 'dtp_ready' ? 'bg-green-500/15 text-green-400' :
-              rolloutData.status === 'dtp_beta' ? 'bg-amber-500/15 text-amber-400' :
-              'bg-neutral-700 text-neutral-400'
-            }`}>
-              {rolloutData.status === 'dtp_ready' ? 'Ready' :
-               rolloutData.status === 'dtp_beta' ? 'Beta' : 'Legacy'}
-            </span>
-          )}
         </div>
       </div>
     </div>
