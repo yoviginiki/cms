@@ -48,6 +48,7 @@ const MAGAZINE_ELEMENTS: CategoryGroup[] = [
       { type: 'ellipse', label: 'Ellipse', description: 'Circle or oval shape', width: 150, height: 150 },
       { type: 'line', label: 'Line', description: 'Straight line with arrows', width: 300, height: 2 },
       { type: 'polygon', label: 'Polygon', description: 'Triangle, pentagon, hexagon, star', width: 150, height: 150 },
+      { type: 'freeform_path', label: 'Freeform path', description: 'Custom drawn SVG path', width: 200, height: 100 },
       { type: 'decorative_rule', label: 'Decorative rule', description: 'Ornamental divider line', width: 400, height: 20 },
       { type: 'gradient_overlay', label: 'Gradient overlay', description: 'Color gradient shape', width: 300, height: 200 },
     ],
@@ -92,6 +93,7 @@ const MAGAZINE_ELEMENTS: CategoryGroup[] = [
     label: 'Grouping',
     items: [
       { type: 'group', label: 'Group', description: 'Container to group elements together', width: 300, height: 200 },
+      { type: 'component_instance', label: 'Component', description: 'Reusable saved component', width: 300, height: 200 },
       { type: 'clipping_group', label: 'Clipping group', description: 'Group with clipping mask', width: 300, height: 200 },
     ],
   },
