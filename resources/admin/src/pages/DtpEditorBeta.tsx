@@ -7,7 +7,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, AlertTriangle, Eye, ShieldCheck, Info, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { dtpDesigner } from '@/lib/api';
 
 // Reuse prototype components
@@ -177,6 +177,15 @@ export default function DtpEditorBeta() {
   const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'templates' | 'preflight' | 'export'>('properties');
   const [showGuides] = useState(true);
   const [snapEnabled] = useState(true);
+  const [showStatusPanel, setShowStatusPanel] = useState(false);
+
+  // DTP rollout status (always available, not behind feature flag)
+  const { data: rolloutData, refetch: refetchRollout } = useQuery({
+    queryKey: ['dtp-rollout', siteId, issueId],
+    queryFn: () => dtpDesigner.getRolloutStatus(siteId, issueId).then((r: any) => r.data.data),
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
   // Initialize doc from API data (once)
   useEffect(() => {
@@ -268,6 +277,18 @@ export default function DtpEditorBeta() {
           {isDirty && <span className="text-[9px] text-amber-400">Unsaved</span>}
         </div>
         <div className="flex items-center gap-2">
+          {/* Preview button — gated on capability + link */}
+          {rolloutData?.capabilities?.previewLinkAvailable && rolloutData?.links?.dtpPreview ? (
+            <a href={rolloutData.links.dtpPreview} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded bg-neutral-700 text-neutral-300 hover:bg-neutral-600">
+              <Eye size={12} /> Preview
+            </a>
+          ) : rolloutData && !rolloutData?.capabilities?.previewLinkAvailable ? (
+            <span className="flex items-center gap-1 px-2 py-1 text-[11px] rounded bg-neutral-700 text-neutral-500 cursor-not-allowed"
+              title="Preview not available — save a DTP document first">
+              <Eye size={12} /> Preview
+            </span>
+          ) : null}
           <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !isDirty}
             className={`flex items-center gap-1 px-3 py-1 text-[11px] rounded ${isDirty ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-neutral-700 text-neutral-400'} disabled:opacity-40`}>
             {saveMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
@@ -276,8 +297,122 @@ export default function DtpEditorBeta() {
           {saveMut.isError && (
             <span className="text-[10px] text-red-400">{(saveMut.error as any)?.response?.data?.message || 'Save failed'}</span>
           )}
+          {/* Status panel toggle */}
+          <button onClick={() => setShowStatusPanel(p => !p)}
+            className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded ${showStatusPanel ? 'bg-blue-500/20 text-blue-300' : 'bg-neutral-700 text-neutral-400 hover:text-neutral-200'}`}>
+            <Info size={12} /> Status {showStatusPanel ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+          </button>
         </div>
       </div>
+
+      {/* DTP Status Panel */}
+      {showStatusPanel && rolloutData && (
+        <div className="bg-neutral-900 border-b border-neutral-700 px-4 py-3 shrink-0">
+          <div className="flex flex-wrap gap-4 text-[11px]">
+            {/* Rollout status */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Rollout:</span>
+              <span className={`px-1.5 py-0.5 rounded font-medium ${
+                rolloutData.status === 'dtp_ready' ? 'bg-green-500/20 text-green-300' :
+                rolloutData.status === 'dtp_beta' ? 'bg-amber-500/20 text-amber-300' :
+                'bg-neutral-600 text-neutral-300'
+              }`}>
+                {rolloutData.status === 'dtp_ready' ? 'Ready' :
+                 rolloutData.status === 'dtp_beta' ? 'Beta' :
+                 rolloutData.status === 'legacy' ? 'Legacy' : 'Unknown'}
+              </span>
+            </div>
+
+            {/* DTP feature */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">DTP Feature:</span>
+              <span className={rolloutData.capabilities?.dtpFeatureEnabled ? 'text-green-400' : 'text-red-400'}>
+                {rolloutData.capabilities?.dtpFeatureEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+
+            {/* Document status */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Document:</span>
+              <span className={rolloutData.capabilities?.hasDtpDocument ? 'text-green-400' : 'text-neutral-400'}>
+                {rolloutData.capabilities?.hasDtpDocument ? 'Saved' : 'Empty'}
+              </span>
+              {rolloutData.dtpStats && (
+                <span className="text-neutral-500">
+                  ({rolloutData.dtpStats.spreads} spreads, {rolloutData.dtpStats.pages} pages, {rolloutData.dtpStats.frames} frames)
+                </span>
+              )}
+            </div>
+
+            {/* Preview link */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Preview link:</span>
+              {rolloutData.capabilities?.previewLinkAvailable ? (
+                <a href={rolloutData.links?.dtpPreview} target="_blank" rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline flex items-center gap-1">
+                  Available <ExternalLink size={9} />
+                </a>
+              ) : (
+                <span className="text-neutral-400">Not available</span>
+              )}
+            </div>
+
+            {/* Preview render health */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Render health:</span>
+              <span className={rolloutData.capabilities?.previewRenderable ? 'text-green-400' : 'text-amber-400'}>
+                {rolloutData.capabilities?.previewRenderable ? 'Renderable' : 'Not renderable'}
+              </span>
+            </div>
+
+            {/* Preflight */}
+            {rolloutData.preflight && (
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-500">Preflight:</span>
+                <span className={`px-1.5 py-0.5 rounded font-medium ${
+                  rolloutData.preflight.status === 'pass' ? 'bg-green-500/20 text-green-300' :
+                  rolloutData.preflight.status === 'warning' ? 'bg-amber-500/20 text-amber-300' :
+                  'bg-red-500/20 text-red-300'
+                }`}>
+                  {rolloutData.preflight.status === 'pass' ? 'Pass' :
+                   rolloutData.preflight.status === 'warning' ? `Warnings (${rolloutData.preflight.counts?.warnings || 0})` :
+                   `Errors (${rolloutData.preflight.counts?.blocking || 0} blocking)`}
+                </span>
+                <span className="text-neutral-500">Score: {rolloutData.preflight.score}/100</span>
+              </div>
+            )}
+
+            {/* Promotion readiness */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Promote:</span>
+              <span className={rolloutData.canPromote ? 'text-green-400' : 'text-neutral-400'}>
+                {rolloutData.canPromote ? 'Ready' : 'Not ready'}
+              </span>
+            </div>
+
+            {/* Blocking reasons */}
+            {rolloutData.blockingReasons?.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-500">Blocked:</span>
+                <span className="text-red-400">{rolloutData.blockingReasons.join(' ')}</span>
+              </div>
+            )}
+
+            {/* Warnings */}
+            {rolloutData.warnings?.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-500">Warnings:</span>
+                <span className="text-amber-400">{rolloutData.warnings.join(' ')}</span>
+              </div>
+            )}
+
+            {/* Refresh */}
+            <button onClick={() => refetchRollout()} className="text-neutral-400 hover:text-white flex items-center gap-1">
+              <ShieldCheck size={11} /> Refresh status
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main area */}
       <div className="flex flex-1 overflow-hidden">
@@ -346,6 +481,16 @@ export default function DtpEditorBeta() {
         <div className="flex items-center gap-3 text-[10px] text-neutral-400">
           {selectedFrame && <span className="text-blue-400">{selectedFrame.label} — {selectedFrame.x},{selectedFrame.y}</span>}
           <span>Zoom {Math.round(zoom * 100)}%</span>
+          {rolloutData && (
+            <span className={`px-1 py-0.5 rounded text-[9px] ${
+              rolloutData.status === 'dtp_ready' ? 'bg-green-500/15 text-green-400' :
+              rolloutData.status === 'dtp_beta' ? 'bg-amber-500/15 text-amber-400' :
+              'bg-neutral-700 text-neutral-400'
+            }`}>
+              {rolloutData.status === 'dtp_ready' ? 'Ready' :
+               rolloutData.status === 'dtp_beta' ? 'Beta' : 'Legacy'}
+            </span>
+          )}
         </div>
       </div>
     </div>

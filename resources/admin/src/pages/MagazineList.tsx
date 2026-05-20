@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, BookOpen, Search, ExternalLink, Paintbrush } from 'lucide-react';
-import { magazines, pages as pagesApi, sites } from '@/lib/api';
+import { Plus, Edit, Trash2, BookOpen, Search, ExternalLink, Paintbrush, Layers, Eye } from 'lucide-react';
+import { magazines, pages as pagesApi, sites, issueComposer, dtpDesigner } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -165,6 +165,9 @@ export default function MagazineList() {
         </div>
       )}
 
+      {/* DTP Beta Editor — Issue Composer Issues */}
+      <DtpIssueSection siteId={siteId} />
+
       {/* Issue Composer handoff pages */}
       {composerPages && composerPages.length > 0 && (
         <div className="mt-8">
@@ -230,6 +233,122 @@ export default function MagazineList() {
         onConfirm={() => deleteComposerPage && deleteComposerMutation.mutate(deleteComposerPage.id)}
         onClose={() => setDeleteComposerPage(null)}
       />
+    </div>
+  );
+}
+
+/** DTP Beta Editor section — shows issue composer issues with rollout status */
+function DtpIssueSection({ siteId }: { siteId: string }) {
+  const navigate = useNavigate();
+  const { data: issues } = useQuery<any[]>({
+    queryKey: ['dtp-issues', siteId],
+    queryFn: () => issueComposer.list(siteId).then((r: any) => {
+      const raw = r.data.data?.data ?? r.data.data ?? r.data ?? [];
+      return Array.isArray(raw) ? raw : [];
+    }),
+  });
+
+  if (!issues || issues.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-sm font-medium text-base-content/70 mb-3 flex items-center gap-2">
+        <Layers size={14} className="text-blue-500/60" />
+        DTP Beta Editor
+        <span className="text-[9px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded font-medium">BETA</span>
+      </h2>
+      <p className="text-[11px] text-base-content/40 mb-3">
+        Open issues in the DTP desktop publishing editor. Requires the DTP feature flag to be enabled.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {issues.map(issue => (
+          <DtpIssueCard key={issue.id} siteId={siteId} issue={issue} onOpen={() => navigate(`/sites/${siteId}/magazine-issues/${issue.id}/dtp-editor`)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Single issue card with rollout status */
+function DtpIssueCard({ siteId, issue, onOpen }: { siteId: string; issue: any; onOpen: () => void }) {
+  const { data: rollout } = useQuery({
+    queryKey: ['dtp-rollout', siteId, issue.id],
+    queryFn: () => dtpDesigner.getRolloutStatus(siteId, issue.id).then((r: any) => r.data.data),
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  const statusLabel = rollout?.status === 'dtp_ready' ? 'Ready' :
+    rollout?.status === 'dtp_beta' ? 'Beta' :
+    rollout?.status === 'legacy' ? 'Legacy' : '...';
+  const statusColor = rollout?.status === 'dtp_ready' ? 'bg-success/10 text-success' :
+    rollout?.status === 'dtp_beta' ? 'bg-warning/10 text-warning' :
+    'bg-base-200 text-base-content/40';
+
+  return (
+    <div className="card bg-base-100 border border-base-300/40 hover:border-blue-400/40 transition-all">
+      <div className="card-body p-4 gap-3">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-base-content/90 truncate">{issue.title || 'Untitled Issue'}</h3>
+            <p className="text-[11px] text-base-content/30 mt-0.5">{(issue.status || 'draft').replace(/^\w/, (c: string) => c.toUpperCase())}</p>
+          </div>
+          <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${statusColor}`}>{statusLabel}</span>
+        </div>
+
+        {/* Rollout details */}
+        {rollout && (
+          <div className="space-y-1 text-[10px]">
+            <div className="flex justify-between">
+              <span className="text-base-content/40">DTP Feature</span>
+              <span className={rollout.capabilities?.dtpFeatureEnabled ? 'text-success' : 'text-error'}>
+                {rollout.capabilities?.dtpFeatureEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-base-content/40">Document</span>
+              <span>{rollout.capabilities?.hasDtpDocument ? `${rollout.dtpStats?.spreads || 0} spreads, ${rollout.dtpStats?.pages || 0} pages` : 'Empty'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-base-content/40">Preview link</span>
+              <span className={rollout.capabilities?.previewLinkAvailable ? 'text-success' : 'text-base-content/30'}>
+                {rollout.capabilities?.previewLinkAvailable ? 'Available' : 'Not available'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-base-content/40">Render health</span>
+              <span className={rollout.capabilities?.previewRenderable ? 'text-success' : 'text-warning'}>
+                {rollout.capabilities?.previewRenderable ? 'Renderable' : 'Not renderable'}
+              </span>
+            </div>
+            {rollout.preflight && (
+              <div className="flex justify-between">
+                <span className="text-base-content/40">Preflight</span>
+                <span className={rollout.preflight.status === 'pass' ? 'text-success' : rollout.preflight.status === 'warning' ? 'text-warning' : 'text-error'}>
+                  {rollout.preflight.status === 'pass' ? 'Pass' : rollout.preflight.status === 'warning' ? 'Warnings' : 'Errors'} ({rollout.preflight.score}/100)
+                </span>
+              </div>
+            )}
+            {rollout.blockingReasons?.length > 0 && (
+              <div className="text-[9px] text-error/80 mt-1">{rollout.blockingReasons.join(' ')}</div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 pt-2 border-t border-base-300/20">
+          <button onClick={onOpen} disabled={!rollout?.canOpenDtp}
+            className="btn btn-primary btn-xs text-[10px] gap-1 flex-1" title={!rollout?.canOpenDtp ? 'DTP feature flag is disabled' : ''}>
+            <Edit className="h-3 w-3" /> Open DTP Editor
+          </button>
+          {rollout?.capabilities?.previewLinkAvailable && rollout?.links?.dtpPreview && (
+            <a href={rollout.links.dtpPreview} target="_blank" rel="noopener noreferrer"
+              className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-success" title="Preview">
+              <Eye className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
