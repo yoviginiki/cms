@@ -115,34 +115,57 @@ User opened `/admin/sites/{site}/magazines/{magazine}/edit` and saw:
 - Renders spreads/pages/frames in scroll layout
 - Minimal, dark background
 
-## 5. Gap Matrix
+## 5. MAG-P10 Manual Acceptance Status
 
-| Requirement | Old Editor (MagEditorV2) | Viewer (magazine.blade) | DTP Beta Editor | DTP API (P3-P8) | Status |
-|------------|------------------------|----------------------|----------------|----------------|--------|
-| Page/spread canvas | ✅ WORKING | ✅ WORKING | ✅ WORKING | ✅ | DONE |
-| Add page | ✅ WORKING | — | ✅ WORKING | ✅ | DONE |
-| Side-by-side spread | ✅ WORKING | ✅ WORKING | ✅ WORKING | — | DONE |
-| Zoom | ✅ 0.25-4x | — | ✅ 0.25-2x | — | DONE |
-| Add text frame | ✅ 6 types | — | ✅ basic | ✅ | DONE |
-| Add image frame | ✅ 6 types | — | ✅ basic | ✅ | DONE |
-| Select/move/resize | ✅ WORKING | — | ✅ WORKING | — | DONE |
-| Inline text editing | ✅ WORKING | — | ✗ props only | — | OLD EDITOR |
-| Image picker | ✅ WORKING | — | ✗ MISSING | — | OLD EDITOR |
-| Text threading | ✅ WORKING | ✅ WORKING | ✗ MISSING | — | OLD EDITOR |
-| Properties panel | ✅ 9 panels | — | ✅ basic | — | OLD EDITOR |
-| Layers panel | ✅ WORKING | — | ✅ WORKING | — | DONE |
-| Undo/redo | ✅ 50-state | — | ✗ MISSING | — | OLD EDITOR |
-| Preflight | ✗ MISSING | — | ✅ panel | ✅ 16 checks | BETA+API |
-| Preview/render | — | ✅ WORKING | ✅ basic | ✅ | DONE |
-| Rollout status | — | — | ✅ WORKING | ✅ | BETA+API |
-| Flipbook viewing | — | ✅ 3D turns | — | — | VIEWER |
-| Save/load | ✅ WORKING | — | ✅ WORKING | ✅ | DONE |
-| Keyboard shortcuts | ✅ WORKING | ✅ nav | ✅ basic | — | DONE |
-| Styles system | ✅ WORKING | — | ✗ MISSING | — | OLD EDITOR |
-| Master pages | ✅ fields exist | — | ✅ prototype | — | PARTIAL |
-| Mobile responsive | — | ✅ WORKING | — | — | VIEWER |
+**P10 — PARTIAL.** The 106-check manual acceptance protocol was created but the DTP beta editor lacked frame tools and had a 500 bug during initial browser testing. Fixed in MAG-P11 session. The old magazine editor (MagazineEditorV2) IS fully functional but the DTP beta editor needs the same capabilities. See [magazine-p10-production-dtp-manual-acceptance.md](magazine-p10-production-dtp-manual-acceptance.md).
 
-## 6. Root Cause of User's Experience
+## 6. Minimum Magazine Builder Requirements
+
+The DTP beta editor must have at minimum:
+
+1. **Pages/spreads** — multi-page, side-by-side spread view, add/delete page
+2. **Canvas** — zoom (0.25x–4x), pan, scroll, page boundaries, margins
+3. **Text frames** — add, edit inline (contentEditable), heading/paragraph styles, font controls
+4. **Image frames** — add, image picker, fit/fill/crop, focal point, alt/caption
+5. **Text threading** — linked text frames, continue to next frame/page, overflow indicator
+6. **Frame operations** — select, move, resize, duplicate, delete, z-index ordering
+7. **Typography** — font family/size/weight/style, line height, color, drop caps
+8. **Visual design** — border, radius, shadow, background color, opacity
+9. **Undo/redo** — full snapshot-based undo stack
+10. **Properties panels** — Transform, Typography, Fill/Stroke, Effects, TextFrame, TextWrap, Image, Align, Page
+11. **Preflight** — missing images, text overflow, empty frames, invalid state
+12. **Save/load** — persist pages/frames via DTP API, reload preserves all data
+13. **Viewer parity** — saved document renderable by flipbook viewer or DTP preview
+14. **Keyboard shortcuts** — arrow keys, Delete, Ctrl+D, Ctrl+Z/Y
+
+## 7. Gap Matrix
+
+| Requirement | Old Editor (MagEditorV2) | Viewer (magazine.blade) | DTP Prototype (mock) | DTP Beta Editor | DTP API (P3-P8) | Status |
+|------------|------------------------|----------------------|---------------------|----------------|----------------|--------|
+| Page/spread canvas | ✅ WORKING | ✅ WORKING | ✅ mock | ✅ WORKING | ✅ | DONE |
+| Add page | ✅ WORKING | — | ✗ mock | ✅ WORKING | ✅ | DONE |
+| Side-by-side spread | ✅ WORKING | ✅ WORKING | ✅ mock | ✅ WORKING | — | DONE |
+| Zoom | ✅ 0.25-4x | — | ✅ mock | ✅ 0.25-2x | — | DONE |
+| Add text frame | ✅ 6 types | — | ✅ mock | ✅ basic | ✅ | DONE |
+| Add image frame | ✅ 6 types | — | ✅ mock | ✅ basic | ✅ | DONE |
+| Select/move/resize | ✅ WORKING | — | ✅ mock | ✅ WORKING | — | DONE |
+| Inline text editing | ✅ WORKING | — | ✗ | ✗ props only | — | OLD EDITOR |
+| Image picker | ✅ WORKING | — | ✗ | ✗ MISSING | — | OLD EDITOR |
+| Text threading | ✅ WORKING | ✅ WORKING | ✗ | ✗ MISSING | — | OLD EDITOR |
+| Properties panel | ✅ 9 panels | — | ✅ basic mock | ✅ basic | — | OLD EDITOR |
+| Layers panel | ✅ WORKING | — | ✅ mock | ✅ WORKING | — | DONE |
+| Undo/redo | ✅ 50-state | — | ✗ | ✗ MISSING | — | OLD EDITOR |
+| Preflight | ✗ MISSING | — | ✅ mock | ✅ panel | ✅ 16 checks | BETA+API |
+| Preview/render | — | ✅ WORKING | ✗ | ✅ basic | ✅ | DONE |
+| Rollout status | — | — | ✗ | ✅ WORKING | ✅ | BETA+API |
+| Flipbook viewing | — | ✅ 3D turns | ✗ | — | — | VIEWER |
+| Save/load | ✅ WORKING | — | ✗ mock | ✅ WORKING | ✅ | DONE |
+| Keyboard shortcuts | ✅ WORKING | ✅ nav | ✅ mock | ✅ basic | — | DONE |
+| Styles system | ✅ WORKING | — | ✗ | ✗ MISSING | — | OLD EDITOR |
+| Master pages | ✅ fields exist | — | ✅ mock | ✅ prototype | — | PARTIAL |
+| Mobile responsive | — | ✅ WORKING | ✗ | — | — | VIEWER |
+
+## 8. Root Cause of User's Experience
 
 The user navigated to the **old magazine editor** (`/magazines/:id/edit`) which showed an empty new magazine — one blank page. This is **correct behavior for a new magazine** but looks broken because:
 
@@ -152,20 +175,30 @@ The user navigated to the **old magazine editor** (`/magazines/:id/edit`) which 
 
 **The old editor IS a full magazine builder.** It just needed better onboarding for new magazines.
 
-## 7. Recommended Architecture
+## 9. Recommended Architecture
 
-### **Option B: Use both editors, connect to shared viewer**
+### **Option A: Port old editor features into DTP beta editor**
 
-The old editor (MagazineEditorV2) is already production-capable with 39 element types, full canvas, undo/redo, text threading, and inline editing. The DTP beta editor is a simpler parallel system built on different data tables.
+**User decision:** The DTP beta editor at `/magazine-issues/:id/dtp-editor` must become the primary magazine editor with at minimum the same capabilities as MagazineEditorV2.
 
-**Recommendation:**
-1. **Keep MagazineEditorV2 as the primary magazine editor** — it already works
-2. **Keep DTP beta editor for magazine-issues** (wizard flow) — it serves a different use case
-3. **Connect both to the existing flipbook viewer** via their respective render pipelines
-4. **Add preflight/rollout from DTP pipeline to old editor** where useful
-5. **Do NOT rebuild** what MagazineEditorV2 already has
+**Strategy: Reuse old editor components inside DTP beta editor.**
 
-## 8. Reusable Assets
+Rather than rebuilding from scratch, import and wire the proven components:
+- `MagazineCanvas` — full canvas with zoom, pan, guides, selection, inline editing
+- `magazineStore` — Zustand store with undo/redo, page management, element CRUD
+- `MagElementRenderer` — renders all 39 element types
+- `MagSelectionEngine` — selection, drag, resize
+- `MagElementPalette` — element type picker with all 39 types
+- `MagazineToolbar` — toolbar with zoom, page nav, tools, save
+- `PageNavigator` — page thumbnails, add/delete page
+- All 9 property panels (Transform, Typography, Fill/Stroke, Effects, TextFrame, TextWrap, Image, AlignDistribute, Page)
+- `MagLayersPanel`, `StylesPanel`
+
+**Data bridge:** The DTP beta editor uses `magazine_spreads` / `magazine_dtp_pages` / `magazine_frames` tables (MAG-P3 schema). The old editor uses `magazines` / `magazine_pages` / `magazine_elements`. The store and canvas components are data-model-agnostic — they work with `MagPageData` / `MagElement` types. An adapter layer converts between DTP API format and the store format.
+
+**Viewer connection:** Both the flipbook viewer (`magazine.blade.php`) and DTP preview (`dtp-preview.blade.php`) can render the saved document. The DTP render pipeline (MAG-P5) already produces HTML from `magazine_frames`.
+
+## 10. Reusable Assets
 
 | Asset | Source | Reusable? | For |
 |-------|--------|-----------|-----|
@@ -182,67 +215,127 @@ The old editor (MagazineEditorV2) is already production-capable with 39 element 
 | SpreadCanvas prototype | DTP prototype | ⚠️ reference | Canvas reference only |
 | DTP save/load API | DTP API | ✅ for issues | Issue-based documents |
 
-## 9. Roadmap
+## 11. Roadmap
 
-### MAG-P12 — Old Editor Polish + Empty State Fix
-- Add clear empty state for new magazines ("Add your first element")
-- Add element palette hint/tooltip
-- Verify all 39 element types work
-- Manual acceptance of existing canvas features
+### MAG-P12 — DTP Beta Editor: Canvas + Store Integration
+Replace the simple prototype canvas in DtpEditorBeta with the full MagazineCanvas and magazineStore:
+- Import MagazineCanvas, magazineStore, MagElementRenderer, MagSelectionEngine
+- Write adapter: DTP API response → MagPageData/MagElement store format
+- Write adapter: store format → DTP API save payload
+- Wire MagazineToolbar with zoom, page nav, undo/redo, save
+- Wire PageNavigator with add/delete page
+- Wire MagElementPalette (all 39 element types)
+- Inline text editing (contentEditable from MagazineCanvas)
+- Keep DTP status panel, preview, preflight from MAG-P9
+- Empty state: "Add your first element" prompt for new issues
 
-### MAG-P13 — Connect Old Editor to Viewer
-- Old editor → save → viewer renders same data
-- Verify magazine.blade.php renders V2 elements correctly
-- Test flipbook with real magazine data
+### MAG-P13 — DTP Beta Editor: Property Panels + Image Picker
+- Wire all 9 property panels (Transform, Typography, Fill/Stroke, Effects, TextFrame, TextWrap, Image, AlignDistribute, Page)
+- Image picker integration for image frames (AssetField)
+- Layers panel (MagLayersPanel)
+- Styles panel (StylesPanel)
 
-### MAG-P14 — Preflight for Old Editor
-- Port DTP preflight checks to old magazine data model
-- Or add adapter from old data → preflight service
-- Show preflight panel in old editor
+### MAG-P14 — Text Frame Workflow
+- Inline text editing verified end-to-end
+- Text threading (linked frames across pages)
+- Text overflow indicator
+- Column text wrapping
+- Drop caps, ligatures, paragraph spacing
 
-### MAG-P15 — Rollout for Old Editor
-- Connect rollout status to old magazine route
-- Show DTP feature status in old editor
-- Preview render health for old data
+### MAG-P15 — Viewer Integration
+- DTP save → flipbook viewer renders same data
+- Adapter from DTP document format → magazine.blade.php render format
+- Or extend DTP preview (dtp-preview.blade.php) to match flipbook quality
+- Mobile reading mode
 
-### MAG-P16 — DTP Beta Editor + Old Editor Convergence Decision
-- Evaluate whether to keep two editors or merge
-- If merge: identify data migration path
-- If keep both: clarify when to use each
+### MAG-P16 — Preflight + Rollout in Editor
+- Preflight panel inside editor (from DTP API)
+- Rollout status visible
+- Preview render health
+- Blocking reasons shown
 
-### MAG-P17 — Final Production Acceptance
-- Full manual acceptance with both editors
-- Viewer parity check
-- Mobile testing
-- Performance testing
+### MAG-P17 — Templates + Master Pages
+- Page templates (cover, article, gallery)
+- Master/parent pages
+- Duplicate/reorder pages
+- Page thumbnails enhanced
 
-## 10. Detailed MAG-P12 Acceptance Criteria
+### MAG-P18 — Final Production Acceptance
+- Full manual acceptance
+- Both editors work or old editor deprecated
+- Viewer parity confirmed
+- Mobile + performance testing
 
-1. Open new magazine → clear empty state with "Add your first element" prompt
-2. Element palette visible and accessible
-3. Add text frame → inline editing works
-4. Add image frame → image picker works
-5. Multi-page → add page works
-6. Spread view → side-by-side works
-7. Zoom → 0.25x to 4x works
-8. Undo/redo → works for add/move/resize/delete
-9. Save → preserves all elements
-10. Reload → all elements restored
-11. Old viewer → opens saved magazine correctly
-12. No data loss
-13. DTP beta editor still works separately
+## 12. Detailed MAG-P12 Acceptance Criteria
 
-## 11. Risks
+**Goal:** DTP beta editor becomes a real magazine builder by reusing old editor components.
+
+1. DTP beta editor route opens MagazineCanvas (not prototype SpreadCanvas)
+2. Full zoom (0.25x–4x) with toolbar controls
+3. Pan & scroll on canvas
+4. PageNavigator shows page thumbnails, add/delete page
+5. MagElementPalette available (all 39 element types)
+6. Click element in palette → frame appears on canvas
+7. Select frame → drag to move, handles to resize
+8. Double-click text frame → inline contentEditable editing
+9. Properties panel shows Transform (x/y/w/h/rotation)
+10. Undo/redo works (magazineStore, 50-state)
+11. Save → DTP API preserves pages/frames via adapter
+12. Reload → all pages/frames restored via adapter
+13. DTP status panel still shows rollout/preview/preflight (MAG-P9)
+14. Preview button still works
+15. Old magazine editor at `/magazines/:id/edit` still works unchanged
+16. No data loss
+17. Empty issue → clear "Add your first element" prompt
+
+### Implementation approach:
+```
+DtpEditorBeta.tsx
+  └─ import MagazineCanvas, magazineStore, MagazineToolbar, PageNavigator, MagElementPalette
+  └─ apiToStore(dtpApiResponse) → MagPageData[] (adapter)
+  └─ storeToApi(storePagesstate) → DTP API payload (adapter)
+  └─ Wire save/load through adapters
+  └─ Keep DTP status panel, preview button, preflight from MAG-P9
+```
+
+### Components to reuse from old editor:
+
+| Component | Lines | What it does |
+|-----------|-------|-------------|
+| `MagazineCanvas.tsx` | 519 | Canvas with zoom, pan, guides, selection, inline editing |
+| `magazineStore.ts` | 710 | Zustand store: pages, elements, undo/redo, selection |
+| `MagElementRenderer.tsx` | 394 | Renders all 39 element types |
+| `MagSelectionEngine.tsx` | 247 | Selection, drag, resize with handles |
+| `MagazineToolbar.tsx` | ~200 | Toolbar: zoom, page nav, tools, save |
+| `PageNavigator.tsx` | ~150 | Page thumbnails, add/delete |
+| `MagElementPalette.tsx` | ~200 | Element type picker |
+| `MagLayersPanel.tsx` | ~200 | Layer list with visibility/lock |
+| `StylesPanel.tsx` | ~200 | Paragraph/character styles |
+| 9 property panels | ~1200 | Transform, Typography, Fill, Effects, TextFrame, TextWrap, Image, Align, Page |
+| `TextThreading.ts` | ~150 | Text overflow and threading |
+| `magazine.ts` (types) | 348 | MagElement, MagPageData, MagTypography, etc. |
+
+**Total reusable code: ~4300 lines** — zero rebuilding needed.
+
+### Adapter needed (new code):
+```typescript
+// Convert DTP API response to magazineStore format
+function dtpApiToPages(apiData: DtpApiResponse): MagPageData[]
+// Convert magazineStore state to DTP API save payload
+function pagesToDtpApi(pages: MagPageData[]): DtpApiPayload
+```
+Estimated: ~150 lines.
+
+## 13. Risks
 
 | Risk | Severity | Mitigation |
 |------|----------|------------|
-| Two editors with different data models | HIGH | Document when to use each; plan convergence |
-| Old viewer doesn't render V2 elements | MEDIUM | Test and fix render gaps |
-| Empty state misleads users | LOW | Add empty state UI (MAG-P12) |
-| DTP beta editor orphaned | MEDIUM | Clear roadmap for convergence or deprecation |
+| Adapter data loss (DTP ↔ MagElement mapping) | HIGH | Round-trip tests |
+| Old editor breaks if shared components change | MEDIUM | Don't modify shared components in P12 |
+| DTP schema doesn't support all 39 element types | MEDIUM | Map unsupported types to closest match |
+| Performance with large documents (50+ pages) | LOW | Defer to P18 |
+| Two save formats diverge | MEDIUM | Document mapping, plan convergence |
 
-## 12. Recommendation
+## 14. Recommendation
 
-**The old MagazineEditorV2 is the real production magazine builder.** It has 39 element types, full canvas, undo/redo, text threading, inline editing, zoom, multi-page, spread view — everything requested. The user's experience of "one page with one paragraph" was simply a new/empty magazine.
-
-**Next step: MAG-P12 — Polish the existing editor's empty state and verify all features work, rather than building a new editor from scratch.**
+**MAG-P12: Wire the DTP beta editor to use the old editor's proven components (MagazineCanvas, magazineStore, all panels) via a thin adapter layer.** This gives the DTP beta editor the full 39-type, zoom, undo/redo, inline-editing, text-threading capability with ~150 lines of new adapter code instead of ~4300 lines of rebuilding.
