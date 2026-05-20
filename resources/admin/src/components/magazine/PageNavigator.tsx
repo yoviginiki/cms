@@ -105,6 +105,11 @@ interface PageNavigatorProps {
   onDuplicatePage?: (n: number) => void;
   onReorderPages?: (fromIndex: number, toIndex: number) => void;
   onApplyTemplate?: (pageNumber: number, frames: MagElement[]) => void;
+  masterPages?: MagPageData[];
+  onAssignMaster?: (pageNumber: number, masterPageId: string | null) => void;
+  onAssignMasterToAll?: (masterPageId: string | null) => void;
+  onEditMaster?: (masterPageId: string | null) => void;
+  editingMasterId?: string | null;
 }
 
 export default function PageNavigator({
@@ -116,6 +121,11 @@ export default function PageNavigator({
   onDuplicatePage,
   onReorderPages,
   onApplyTemplate,
+  masterPages = [],
+  onAssignMaster,
+  onAssignMasterToAll,
+  onEditMaster,
+  editingMasterId,
 }: PageNavigatorProps) {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmTemplate, setConfirmTemplate] = useState<{ pageNumber: number; template: PageTemplate } | null>(null);
@@ -162,6 +172,46 @@ export default function PageNavigator({
   return (
     <div className="flex flex-col items-center gap-2 py-3 px-2 bg-base-200/50 h-full overflow-y-auto w-24 shrink-0"
       onClick={() => { setContextMenu(null); setShowTemplates(null); }}>
+      {/* Master pages section */}
+      {masterPages.length > 0 && (
+        <div className="w-full mb-2 pb-2 border-b border-base-300/20">
+          <span className="text-[8px] font-semibold uppercase tracking-wider text-base-content/30">Masters</span>
+          {masterPages.map(mp => (
+            <button key={mp.id} onClick={() => onEditMaster?.(editingMasterId === mp.id ? null : mp.id)}
+              className={`w-full text-left px-1.5 py-1 rounded text-[9px] mt-0.5 transition-colors ${editingMasterId === mp.id ? 'bg-warning/20 text-warning font-medium' : 'text-base-content/50 hover:bg-base-300/20'}`}>
+              {(mp as any)._masterName || `Master ${Math.abs(mp.pageNumber)}`}
+              {editingMasterId === mp.id && <span className="text-[7px] ml-1 text-warning/60">editing</span>}
+            </button>
+          ))}
+          {editingMasterId && (
+            <button onClick={() => onEditMaster?.(null)} className="w-full text-[8px] text-primary mt-1 hover:underline">
+              ← Back to pages
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Master assignment for current page */}
+      {!editingMasterId && masterPages.length > 0 && (
+        <div className="w-full mb-2">
+          <label className="text-[8px] text-base-content/30 block mb-0.5">Master for p.{currentPage}</label>
+          <select
+            value={sorted.find(p => p.pageNumber === currentPage)?.masterPageId || ''}
+            onChange={e => onAssignMaster?.(currentPage, e.target.value || null)}
+            className="select select-bordered select-xs w-full text-[9px]"
+          >
+            <option value="">None</option>
+            {masterPages.map(mp => (
+              <option key={mp.id} value={mp.id}>{(mp as any)._masterName || `Master ${Math.abs(mp.pageNumber)}`}</option>
+            ))}
+          </select>
+          <button onClick={() => onAssignMasterToAll?.(sorted.find(p => p.pageNumber === currentPage)?.masterPageId || null)}
+            className="text-[7px] text-primary/60 hover:text-primary mt-0.5 block">
+            Apply to all pages
+          </button>
+        </div>
+      )}
+
       <span className="text-[9px] font-semibold uppercase tracking-wider text-base-content/40 mb-1">Pages</span>
 
       {sorted.map((page, index) => {

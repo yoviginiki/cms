@@ -458,6 +458,33 @@ export function MagazineCanvas({
               </div>
             )}
 
+            {/* Master elements (read-only, rendered behind page elements) */}
+            {(() => {
+              if (!page.masterPageId || !allPages) return null;
+              const masterPage = allPages.find(p => p.id === page.masterPageId && p.isMaster);
+              if (!masterPage) return null;
+              return masterPage.elements.map(mel => {
+                // Resolve dynamic page number
+                const resolvedEl = mel.type === 'page_number'
+                  ? { ...mel, data: { ...mel.data, startAt: page.pageNumber } }
+                  : mel;
+                return (
+                  <div key={`master-${mel.id}`} style={{ position: 'absolute', left: mel.x, top: mel.y, width: mel.width, height: mel.height, zIndex: mel.zIndex, opacity: 0.6, pointerEvents: 'none' }}>
+                    <MagElementRenderer
+                      element={resolvedEl}
+                      isSelected={false}
+                      isHovered={false}
+                      zoom={zoom}
+                      onPointerDown={() => {}}
+                      onDoubleClick={() => {}}
+                    />
+                    <div className="absolute top-0 left-0 bg-warning/20 text-warning text-[6px] px-1 rounded-br font-bold pointer-events-none">MASTER</div>
+                    <div className="absolute inset-0 border border-dashed border-warning/30 rounded pointer-events-none" />
+                  </div>
+                );
+              });
+            })()}
+
             {/* Elements */}
             {sortedEls.map(el => (
               <MagElementRenderer

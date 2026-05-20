@@ -37,6 +37,7 @@ interface MagazineState {
   isDirty: boolean;
   isSaving: boolean;
   styles: MagStyleDefinition[];
+  editingMasterId: string | null;
 }
 
 interface MagazineActions {
@@ -89,6 +90,14 @@ interface MagazineActions {
   toggleSnap: () => void;
   setViewMode: (mode: ViewMode) => void;
   setGridColumns: (cols: number) => void;
+
+  // Master pages
+  getMasterPages: () => MagPageData[];
+  addMasterPage: (name: string) => void;
+  assignMaster: (pageNumber: number, masterPageId: string | null) => void;
+  assignMasterToAll: (masterPageId: string | null) => void;
+  setEditingMaster: (masterPageId: string | null) => void;
+  editingMasterId: string | null;
 
   // Persistence
   setDirty: (d: boolean) => void;
@@ -284,6 +293,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   isDirty: false,
   isSaving: false,
   styles: [],
+  editingMasterId: null,
 
   // ─── Document ───
 
@@ -894,6 +904,70 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
 
   setStyles(styles) {
     set({ styles });
+  },
+
+  // ─── Master Pages ───
+
+  getMasterPages() {
+    return get().pages.filter(p => p.isMaster);
+  },
+
+  addMasterPage(name) {
+    const state = get();
+    get().pushSnapshot();
+
+    const masterPage: MagPageData = {
+      id: crypto.randomUUID(),
+      pageNumber: -(state.pages.filter(p => p.isMaster).length + 1), // Negative numbers for masters
+      pageSize: state.pages[0]?.pageSize || { width: 595, height: 842 },
+      margins: state.pages[0]?.margins || { top: 36, right: 36, bottom: 36, left: 36 },
+      bleed: state.pages[0]?.bleed || { top: 9, right: 9, bottom: 9, left: 9 },
+      columns: { count: 1, gutter: 12 },
+      baselineGrid: { increment: 14, start: 36 },
+      isMaster: true,
+      masterPageId: null,
+      spreadWith: null,
+      backgroundColor: '#ffffff',
+      backgroundAssetId: null,
+      elements: [],
+    };
+    // Store name in a safe way — use the id prefix approach
+    (masterPage as any)._masterName = name;
+
+    set({ pages: [...state.pages, masterPage], isDirty: true });
+  },
+
+  assignMaster(pageNumber, masterPageId) {
+    get().pushSnapshot();
+    set(state => ({
+      pages: state.pages.map(p =>
+        p.pageNumber === pageNumber ? { ...p, masterPageId } : p
+      ),
+      isDirty: true,
+    }));
+  },
+
+  assignMasterToAll(masterPageId) {
+    get().pushSnapshot();
+    set(state => ({
+      pages: state.pages.map(p =>
+        p.isMaster ? p : { ...p, masterPageId }
+      ),
+      isDirty: true,
+    }));
+  },
+
+  setEditingMaster(masterPageId) {
+    get().pushSnapshot();
+    if (masterPageId) {
+      const master = get().pages.find(p => p.id === masterPageId && p.isMaster);
+      if (master) {
+        set({ editingMasterId: masterPageId, currentPageNumber: master.pageNumber, selectedIds: [] });
+      }
+    } else {
+      const firstContent = get().pages.find(p => !p.isMaster);
+      set({ editingMasterId: null, currentPageNumber: firstContent?.pageNumber || 1, selectedIds: [] });
+    }
   },
 
   addStyle(style) {

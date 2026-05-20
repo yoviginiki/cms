@@ -33,6 +33,19 @@ import PagePanel from '@/components/magazine/properties/PagePanel';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 
+// ─── Helper: create a frame for master pages ───
+function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
+  const isText = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'running_header'].includes(type);
+  return {
+    id: crypto.randomUUID(), type: type as any, name, data,
+    x, y, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1, zIndex: 0,
+    locked: false, visible: true, layerName: null,
+    style: { ...DEFAULT_ELEMENT_STYLE }, typography: isText ? { ...DEFAULT_TYPOGRAPHY, fontSize: 10 } : null,
+    textWrap: { ...DEFAULT_TEXT_WRAP }, threadId: null, threadOrder: null,
+    pageNumber, onMaster: true, parentId: null, children: [], responsiveOverrides: {},
+  };
+}
+
 // ─── Adapter: DTP API → magazineStore format ───
 
 function dtpApiToPages(apiData: any): MagPageData[] {
@@ -270,6 +283,42 @@ export default function DtpEditorBeta() {
     setApiLayers(apiData.layers || []);
     setApiAssetRefs(apiData.asset_references || []);
     store.setDocument(pages, []);
+
+    // Create default master pages if none exist
+    if (!pages.some(p => p.isMaster)) {
+      store.addMasterPage('A — Standard');
+      store.addMasterPage('B — Editorial');
+      // Add default elements to master A
+      const masters = store.getMasterPages();
+      const masterA = masters.find(m => ((m as any)._masterName || '').includes('Standard'));
+      if (masterA) {
+        const ps = masterA.pageSize;
+        const mg = masterA.margins;
+        store.updatePage(masterA.pageNumber, {
+          elements: [
+            makeFrame('page_number', 'Page Number', ps.width / 2 - 20, ps.height - mg.bottom + 10, 40, 20,
+              { format: 'decimal', prefix: '', suffix: '', startAt: 1 }, masterA.pageNumber),
+            makeFrame('decorative_rule', 'Footer Line', mg.left, ps.height - mg.bottom, ps.width - mg.left - mg.right, 2,
+              { strokeColor: '#ccc', strokeWidth: 1, strokeStyle: 'solid', ornament: 'none' }, masterA.pageNumber),
+          ],
+        } as any);
+      }
+      const masterB = masters.find(m => ((m as any)._masterName || '').includes('Editorial'));
+      if (masterB) {
+        const ps = masterB.pageSize;
+        const mg = masterB.margins;
+        store.updatePage(masterB.pageNumber, {
+          elements: [
+            makeFrame('page_number', 'Page Number', ps.width / 2 - 20, ps.height - mg.bottom + 10, 40, 20,
+              { format: 'decimal', prefix: '', suffix: '', startAt: 1 }, masterB.pageNumber),
+            makeFrame('running_header', 'Header', mg.left, mg.top - 24, ps.width - mg.left - mg.right, 20,
+              { source: 'custom', customText: 'Magazine Title' }, masterB.pageNumber),
+            makeFrame('decorative_rule', 'Footer Line', mg.left, ps.height - mg.bottom, ps.width - mg.left - mg.right, 2,
+              { strokeColor: '#999', strokeWidth: 1, strokeStyle: 'solid', ornament: 'none' }, masterB.pageNumber),
+          ],
+        } as any);
+      }
+    }
   }, [apiData]);
 
   // Save mutation
@@ -452,7 +501,7 @@ export default function DtpEditorBeta() {
       <div className="flex flex-1 overflow-hidden">
         {/* ─── LEFT: Page navigator ─── */}
         <PageNavigator
-          pages={store.pages}
+          pages={store.pages.filter(p => !p.isMaster)}
           currentPage={store.currentPageNumber}
           onChangePage={store.setCurrentPage}
           onAddPage={() => store.addPage(store.currentPageNumber)}
@@ -465,6 +514,11 @@ export default function DtpEditorBeta() {
             if (!page) return;
             store.updatePage(pageNumber, { elements: [...page.elements, ...frames] } as any);
           }}
+          masterPages={store.pages.filter(p => p.isMaster)}
+          onAssignMaster={(pageNumber, masterPageId) => store.assignMaster(pageNumber, masterPageId)}
+          onAssignMasterToAll={(masterPageId) => store.assignMasterToAll(masterPageId)}
+          onEditMaster={(masterPageId) => store.setEditingMaster(masterPageId)}
+          editingMasterId={store.editingMasterId}
         />
 
         {/* ─── CENTER: Canvas ─── */}
