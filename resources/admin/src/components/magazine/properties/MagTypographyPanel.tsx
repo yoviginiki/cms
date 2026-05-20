@@ -10,6 +10,27 @@ const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 const ALIGN_OPTIONS: MagTypography['textAlign'][] = ['left', 'center', 'right', 'justify'];
 const TRANSFORM_OPTIONS: MagTypography['textTransform'][] = ['none', 'uppercase', 'lowercase', 'capitalize', 'small-caps'];
 
+const CURATED_FONTS = [
+  'Inter', 'Roboto', 'Open Sans', 'Montserrat', 'Lato', 'Poppins',
+  'Merriweather', 'Playfair Display', 'Source Sans 3', 'Barlow',
+  'Barlow Condensed', 'Manrope', 'Nunito Sans', 'Raleway', 'Oswald',
+  'Georgia', 'Times New Roman', 'Arial', 'Helvetica',
+];
+
+interface ParagraphPreset {
+  id: string;
+  label: string;
+  typography: Partial<MagTypography>;
+}
+
+const PARAGRAPH_PRESETS: ParagraphPreset[] = [
+  { id: 'headline', label: 'Headline', typography: { fontFamily: 'Playfair Display', fontSize: 48, fontWeight: 700, lineHeight: 1.1, letterSpacing: -0.02, textColor: '#1a1a1a' } },
+  { id: 'subheading', label: 'Subheading', typography: { fontFamily: 'Inter', fontSize: 24, fontWeight: 600, lineHeight: 1.3, letterSpacing: -0.01, textColor: '#333333' } },
+  { id: 'body', label: 'Body', typography: { fontFamily: 'Inter', fontSize: 14, fontWeight: 400, lineHeight: 1.6, letterSpacing: 0, textColor: '#1a1a1a' } },
+  { id: 'caption', label: 'Caption', typography: { fontFamily: 'Inter', fontSize: 11, fontWeight: 400, lineHeight: 1.4, letterSpacing: 0.01, textColor: '#666666', fontStyle: 'italic' as const } },
+  { id: 'quote', label: 'Quote', typography: { fontFamily: 'Merriweather', fontSize: 20, fontWeight: 400, lineHeight: 1.5, letterSpacing: 0, textColor: '#333333', fontStyle: 'italic' as const } },
+];
+
 export default function MagTypographyPanel({ value, onChange }: MagTypographyPanelProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -17,16 +38,44 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
     <div className="space-y-3">
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Typography</h3>
 
+      {/* Paragraph style preset */}
+      <div>
+        <label className="text-[10px] text-base-content/40 mb-0.5 block">Style preset</label>
+        <select
+          value=""
+          onChange={(e) => {
+            const preset = PARAGRAPH_PRESETS.find(p => p.id === e.target.value);
+            if (preset) onChange({ ...preset.typography, paragraphStyleId: preset.id });
+          }}
+          className="select select-bordered select-xs w-full"
+        >
+          <option value="" disabled>Apply preset...</option>
+          {PARAGRAPH_PRESETS.map(p => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
+        {value.paragraphStyleId && (
+          <p className="text-[9px] text-primary/60 mt-0.5">Based on: {PARAGRAPH_PRESETS.find(p => p.id === value.paragraphStyleId)?.label || value.paragraphStyleId}</p>
+        )}
+      </div>
+
       {/* Font family */}
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Font family</label>
-        <input
-          type="text"
-          value={value.fontFamily}
-          onChange={(e) => onChange({ fontFamily: e.target.value })}
-          className="input input-bordered input-xs w-full"
-          placeholder="Inter, Georgia..."
-        />
+        <select
+          value={CURATED_FONTS.includes(value.fontFamily) ? value.fontFamily : '__custom'}
+          onChange={(e) => {
+            if (e.target.value !== '__custom') onChange({ fontFamily: e.target.value });
+          }}
+          className="select select-bordered select-xs w-full"
+        >
+          {CURATED_FONTS.map(f => (
+            <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+          ))}
+          {!CURATED_FONTS.includes(value.fontFamily) && (
+            <option value="__custom">{value.fontFamily} (custom)</option>
+          )}
+        </select>
       </div>
 
       {/* Size & Weight */}
@@ -340,10 +389,18 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Paragraph style</label>
         <select
           value={value.paragraphStyleId ?? ''}
-          onChange={(e) => onChange({ paragraphStyleId: e.target.value || null })}
+          onChange={(e) => {
+            const id = e.target.value || null;
+            const preset = PARAGRAPH_PRESETS.find(p => p.id === id);
+            if (preset) onChange({ ...preset.typography, paragraphStyleId: id });
+            else onChange({ paragraphStyleId: id });
+          }}
           className="select select-bordered select-xs w-full"
         >
           <option value="">None</option>
+          {PARAGRAPH_PRESETS.map(p => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
         </select>
       </div>
 
