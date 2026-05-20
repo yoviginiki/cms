@@ -18,9 +18,11 @@ class DtpDocumentController extends Controller
     /**
      * Load full DTP document for an issue.
      */
-    public function show(Site $site, string $issueId): JsonResponse
+    public function show(Site $site, MagazineIssue $issue): JsonResponse
     {
-        $issue = MagazineIssue::where('site_id', $site->id)->findOrFail($issueId);
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
 
         return response()->json([
             'data' => $this->documentService->loadDocument($issue),
@@ -30,9 +32,11 @@ class DtpDocumentController extends Controller
     /**
      * Save full DTP document (atomic replace).
      */
-    public function save(SaveDtpDocumentRequest $request, Site $site, string $issueId): JsonResponse
+    public function save(SaveDtpDocumentRequest $request, Site $site, MagazineIssue $issue): JsonResponse
     {
-        $issue = MagazineIssue::where('site_id', $site->id)->findOrFail($issueId);
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
 
         $document = $this->documentService->saveDocument($issue, $request->validated());
 

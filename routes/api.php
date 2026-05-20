@@ -204,6 +204,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/posts/{post}/versions/{version}', [VersionController::class, 'showForPost']);
         Route::post('sites/{site}/posts/{post}/versions/{version}/restore', [VersionController::class, 'restoreForPost']);
 
+        // Magazine Issues CRUD (DTP)
+        Route::get('sites/{site}/magazine-issues', [\App\Http\Controllers\Api\V1\MagazineIssueController::class, 'index']);
+        Route::post('sites/{site}/magazine-issues', [\App\Http\Controllers\Api\V1\MagazineIssueController::class, 'store']);
+        Route::delete('sites/{site}/magazine-issues/{issue}', [\App\Http\Controllers\Api\V1\MagazineIssueController::class, 'destroy']);
+
         // DTP Rollout status (always available — reports status even when flag is off)
         Route::get('sites/{site}/magazine-issues/{issue}/dtp-rollout', [\App\Http\Controllers\Api\V1\DtpRolloutController::class, 'status']);
 

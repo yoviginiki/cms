@@ -240,7 +240,8 @@ export default function MagazineList() {
 /** DTP Beta Editor section — shows issue composer issues with rollout status */
 function DtpIssueSection({ siteId }: { siteId: string }) {
   const navigate = useNavigate();
-  const { data: issues } = useQuery<any[]>({
+  const queryClient = useQueryClient();
+  const { data: issues, isLoading } = useQuery<any[]>({
     queryKey: ['dtp-issues', siteId],
     queryFn: () => issueComposer.list(siteId).then((r: any) => {
       const raw = r.data.data?.data ?? r.data.data ?? r.data ?? [];
@@ -248,23 +249,58 @@ function DtpIssueSection({ siteId }: { siteId: string }) {
     }),
   });
 
-  if (!issues || issues.length === 0) return null;
+  const createIssueMut = useMutation({
+    mutationFn: (title: string) => issueComposer.create(siteId, { title, status: 'draft' }),
+    onSuccess: (r: any) => {
+      const id = r.data?.data?.id ?? r.data?.id;
+      queryClient.invalidateQueries({ queryKey: ['dtp-issues', siteId] });
+      if (id) navigate(`/sites/${siteId}/magazine-issues/${id}/dtp-editor`);
+    },
+  });
+
+  const handleNewIssue = () => {
+    const title = window.prompt('DTP Issue title:');
+    if (title?.trim()) createIssueMut.mutate(title.trim());
+  };
 
   return (
     <div className="mt-8">
-      <h2 className="text-sm font-medium text-base-content/70 mb-3 flex items-center gap-2">
-        <Layers size={14} className="text-blue-500/60" />
-        DTP Beta Editor
-        <span className="text-[9px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded font-medium">BETA</span>
-      </h2>
-      <p className="text-[11px] text-base-content/40 mb-3">
-        Open issues in the DTP desktop publishing editor. Requires the DTP feature flag to be enabled.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {issues.map(issue => (
-          <DtpIssueCard key={issue.id} siteId={siteId} issue={issue} onOpen={() => navigate(`/sites/${siteId}/magazine-issues/${issue.id}/dtp-editor`)} />
-        ))}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-medium text-base-content/70 flex items-center gap-2">
+          <Layers size={14} className="text-blue-500/60" />
+          DTP Magazine Editor
+          <span className="text-[9px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded font-medium">BETA</span>
+        </h2>
+        <button onClick={handleNewIssue} disabled={createIssueMut.isPending}
+          className="btn btn-sm btn-outline btn-primary text-[12px] gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> New DTP issue
+        </button>
       </div>
+      <p className="text-[11px] text-base-content/40 mb-3">
+        Desktop publishing editor for magazine layout. Create an issue and design spreads, pages, and frames.
+      </p>
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-10">
+          <span className="loading loading-spinner loading-sm text-base-content/20"></span>
+        </div>
+      )}
+
+      {issues && issues.length === 0 && (
+        <div className="text-center py-10 text-base-content/30">
+          <Layers size={32} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">No DTP issues yet</p>
+          <p className="text-[11px] mt-1">Click "New DTP issue" to create your first magazine layout.</p>
+        </div>
+      )}
+
+      {issues && issues.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {issues.map(issue => (
+            <DtpIssueCard key={issue.id} siteId={siteId} issue={issue} onOpen={() => navigate(`/sites/${siteId}/magazine-issues/${issue.id}/dtp-editor`)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

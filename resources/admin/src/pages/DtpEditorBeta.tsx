@@ -7,7 +7,12 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Loader2, AlertTriangle, Eye, ShieldCheck, Info, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import {
+  ArrowLeft, Save, Loader2, AlertTriangle, Eye, Info, ChevronDown, ChevronUp, ExternalLink,
+  Type, Image, Square, Quote, Hash, Plus, Trash2, Copy,
+  ZoomIn, ZoomOut, Maximize2,
+  Magnet, Ruler,
+} from 'lucide-react';
 import { dtpDesigner } from '@/lib/api';
 
 // Reuse prototype components
@@ -173,11 +178,14 @@ export default function DtpEditorBeta() {
   const [isDirty, setIsDirty] = useState(false);
   const [activeSpreadIdx, setActiveSpreadIdx] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [zoom] = useState(0.5);
+  const [zoom, setZoom] = useState(0.5);
   const [rightTab, setRightTab] = useState<'properties' | 'layers' | 'templates' | 'preflight' | 'export'>('properties');
-  const [showGuides] = useState(true);
-  const [snapEnabled] = useState(true);
+  const [showGuides, setShowGuides] = useState(true);
+  const [showRulers, setShowRulers] = useState(true);
+  const [snapEnabled, setSnapEnabled] = useState(true);
   const [showStatusPanel, setShowStatusPanel] = useState(false);
+
+  const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
   // DTP rollout status (always available, not behind feature flag)
   const { data: rolloutData, refetch: refetchRollout } = useQuery({
@@ -233,6 +241,117 @@ export default function DtpEditorBeta() {
     setIsDirty(true);
   }, [activeSpreadIdx]);
 
+  // ─── Add frame ───
+  const addFrame = useCallback((type: DtpFrame['type']) => {
+    if (!doc) return;
+    const id = crypto.randomUUID();
+    const frame: DtpFrame = {
+      id,
+      type,
+      pageIndex: 0,
+      x: 40 + Math.random() * 100,
+      y: 40 + Math.random() * 100,
+      width: type === 'image' ? 300 : type === 'text' ? 400 : 200,
+      height: type === 'image' ? 200 : type === 'text' ? 120 : 100,
+      rotation: 0,
+      zIndex: (doc.spreads[activeSpreadIdx]?.frames.length || 0) + 1,
+      content: type === 'text' ? '<p>New text frame</p>' : type === 'quote' ? '<p>Quote text</p>' : '',
+      label: type.charAt(0).toUpperCase() + type.slice(1),
+      visible: true,
+      locked: false,
+      isMasterObject: false,
+      image: type === 'image' ? { src: '', alt: '', caption: '', fitMode: 'fill' as const, focalPoint: { x: 50, y: 50 }, opacity: 100 } : undefined,
+    };
+    setDoc(prev => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev));
+      next.spreads[activeSpreadIdx]?.frames.push(frame);
+      return next;
+    });
+    setSelectedIds([id]);
+    setIsDirty(true);
+  }, [doc, activeSpreadIdx]);
+
+  // ─── Delete selected frames ───
+  const deleteSelected = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    setDoc(prev => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev));
+      const spread = next.spreads[activeSpreadIdx];
+      if (spread) spread.frames = spread.frames.filter((f: DtpFrame) => !selectedIds.includes(f.id));
+      return next;
+    });
+    setSelectedIds([]);
+    setIsDirty(true);
+  }, [selectedIds, activeSpreadIdx]);
+
+  // ─── Duplicate selected frame ───
+  const duplicateSelected = useCallback(() => {
+    if (selectedIds.length !== 1 || !doc) return;
+    const frame = doc.spreads[activeSpreadIdx]?.frames.find(f => f.id === selectedIds[0]);
+    if (!frame) return;
+    const newId = crypto.randomUUID();
+    const clone = { ...JSON.parse(JSON.stringify(frame)), id: newId, x: frame.x + 20, y: frame.y + 20 };
+    setDoc(prev => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev));
+      next.spreads[activeSpreadIdx]?.frames.push(clone);
+      return next;
+    });
+    setSelectedIds([newId]);
+    setIsDirty(true);
+  }, [selectedIds, doc, activeSpreadIdx]);
+
+  // ─── Add spread ───
+  const addSpread = useCallback(() => {
+    if (!doc) return;
+    const pageNum = doc.spreads.reduce((acc, s) => acc + s.pages.length, 0) + 1;
+    const newSpread: DtpSpread = {
+      id: crypto.randomUUID(),
+      label: `Spread ${doc.spreads.length + 1}`,
+      pages: [{
+        id: crypto.randomUUID(), pageNumber: pageNum, width: 595, height: 842,
+        margins: { top: 36, right: 36, bottom: 36, left: 36 }, backgroundColor: '#ffffff',
+      }],
+      frames: [],
+    };
+    setDoc(prev => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev));
+      next.spreads.push(newSpread);
+      return next;
+    });
+    setActiveSpreadIdx(doc.spreads.length);
+    setSelectedIds([]);
+    setIsDirty(true);
+  }, [doc]);
+
+  // ─── Keyboard shortcuts ───
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelected(); }
+      if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); duplicateSelected(); }
+      if (selectedIds.length === 0 || !doc) return;
+      const step = e.shiftKey ? 10 : 1;
+      let dx = 0, dy = 0;
+      if (e.key === 'ArrowLeft') dx = -step;
+      else if (e.key === 'ArrowRight') dx = step;
+      else if (e.key === 'ArrowUp') dy = -step;
+      else if (e.key === 'ArrowDown') dy = step;
+      else return;
+      e.preventDefault();
+      for (const id of selectedIds) {
+        const frame = doc.spreads[activeSpreadIdx]?.frames.find(f => f.id === id);
+        if (frame && !frame.locked) updateFrame(id, { x: frame.x + dx, y: frame.y + dy });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedIds, activeSpreadIdx, doc, updateFrame, deleteSelected, duplicateSelected]);
+
   const activeSpread = doc?.spreads[activeSpreadIdx];
   const selectedFrames = activeSpread?.frames.filter(f => selectedIds.includes(f.id)) ?? [];
   const selectedFrame = selectedFrames.length === 1 ? selectedFrames[0] : null;
@@ -269,15 +388,54 @@ export default function DtpEditorBeta() {
       {/* Toolbar */}
       <div className="flex items-center justify-between h-10 px-3 bg-neutral-900 border-b border-neutral-700 shrink-0">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate(`/sites/${siteId}/magazines`)} className="p-1 text-neutral-400 hover:text-white">
+          <button onClick={() => navigate(`/sites/${siteId}/magazines`)} className="p-1 text-neutral-400 hover:text-white" title="Back to magazines">
             <ArrowLeft size={16} />
           </button>
-          <span className="text-[11px] font-medium text-neutral-300 truncate max-w-[200px]">{doc.title}</span>
+          <span className="text-[11px] font-medium text-neutral-300 truncate max-w-[160px]">{doc.title}</span>
           <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-medium">BETA</span>
           {isDirty && <span className="text-[9px] text-amber-400">Unsaved</span>}
         </div>
-        <div className="flex items-center gap-2">
-          {/* Preview button — gated on capability + link */}
+
+        <div className="flex items-center gap-0.5">
+          {/* ─── Add frame tools ─── */}
+          <div className="flex bg-neutral-700 rounded p-0.5 gap-0.5">
+            <button onClick={() => addFrame('text')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add text frame (T)"><Type size={14} /></button>
+            <button onClick={() => addFrame('image')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add image frame"><Image size={14} /></button>
+            <button onClick={() => addFrame('text')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add shape (as text)"><Square size={14} /></button>
+            <button onClick={() => addFrame('quote')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add quote"><Quote size={14} /></button>
+            <button onClick={() => addFrame('pageNumber')} className="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-600" title="Add page number"><Hash size={14} /></button>
+          </div>
+
+          <div className="w-px h-5 bg-neutral-600 mx-1" />
+
+          {/* ─── Frame actions ─── */}
+          <button onClick={duplicateSelected} disabled={selectedIds.length !== 1} className="p-1.5 rounded text-neutral-400 hover:text-white disabled:opacity-25" title="Duplicate (Ctrl+D)"><Copy size={14} /></button>
+          <button onClick={deleteSelected} disabled={selectedIds.length === 0} className="p-1.5 rounded text-neutral-400 hover:text-red-400 disabled:opacity-25" title="Delete (Del)"><Trash2 size={14} /></button>
+
+          <div className="w-px h-5 bg-neutral-600 mx-1" />
+
+          {/* ─── Toggles ─── */}
+          <button onClick={() => setShowRulers(!showRulers)}
+            className={`p-1.5 rounded transition-colors ${showRulers ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Rulers"><Ruler size={14} /></button>
+          <button onClick={() => setShowGuides(!showGuides)}
+            className={`p-1.5 rounded transition-colors ${showGuides ? 'bg-neutral-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Guides"><span className="text-[10px] font-bold">G</span></button>
+          <button onClick={() => setSnapEnabled(!snapEnabled)}
+            className={`p-1.5 rounded transition-colors ${snapEnabled ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white'}`}
+            title="Snap"><Magnet size={14} /></button>
+
+          <div className="w-px h-5 bg-neutral-600 mx-1" />
+
+          {/* ─── Zoom ─── */}
+          <button onClick={() => { const i = ZOOM_STEPS.findIndex(z => z >= zoom); if (i > 0) setZoom(ZOOM_STEPS[i - 1]); }} className="p-1 text-neutral-400 hover:text-white"><ZoomOut size={14} /></button>
+          <span className="text-[11px] text-neutral-400 w-10 text-center font-mono">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => { const i = ZOOM_STEPS.findIndex(z => z >= zoom); if (i < ZOOM_STEPS.length - 1) setZoom(ZOOM_STEPS[i + 1]); }} className="p-1 text-neutral-400 hover:text-white"><ZoomIn size={14} /></button>
+          <button onClick={() => setZoom(0.5)} className="p-1 text-neutral-400 hover:text-white" title="Fit"><Maximize2 size={14} /></button>
+
+          <div className="w-px h-5 bg-neutral-600 mx-1" />
+
+          {/* ─── Preview / Save / Status ─── */}
           {rolloutData?.capabilities?.previewLinkAvailable && rolloutData?.links?.dtpPreview ? (
             <a href={rolloutData.links.dtpPreview} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1 px-2 py-1 text-[11px] rounded bg-neutral-700 text-neutral-300 hover:bg-neutral-600">
@@ -297,7 +455,6 @@ export default function DtpEditorBeta() {
           {saveMut.isError && (
             <span className="text-[10px] text-red-400">{(saveMut.error as any)?.response?.data?.message || 'Save failed'}</span>
           )}
-          {/* Status panel toggle */}
           <button onClick={() => setShowStatusPanel(p => !p)}
             className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded ${showStatusPanel ? 'bg-blue-500/20 text-blue-300' : 'bg-neutral-700 text-neutral-400 hover:text-neutral-200'}`}>
             <Info size={12} /> Status {showStatusPanel ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
@@ -408,7 +565,7 @@ export default function DtpEditorBeta() {
 
             {/* Refresh */}
             <button onClick={() => refetchRollout()} className="text-neutral-400 hover:text-white flex items-center gap-1">
-              <ShieldCheck size={11} /> Refresh status
+              ↻ Refresh status
             </button>
           </div>
         </div>
@@ -419,7 +576,10 @@ export default function DtpEditorBeta() {
         {/* Left: Spread Navigator */}
         <div className="w-20 border-r border-neutral-700 overflow-y-auto shrink-0" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="p-1.5 space-y-1.5">
-            <div className="text-[8px] text-neutral-500 uppercase tracking-wider px-1 py-1">Spreads</div>
+            <div className="flex items-center justify-between px-1 py-1">
+              <div className="text-[8px] text-neutral-500 uppercase tracking-wider">Spreads</div>
+              <button onClick={addSpread} className="text-neutral-500 hover:text-white" title="Add spread"><Plus size={12} /></button>
+            </div>
             {doc.spreads.map((spread, idx) => (
               <button key={spread.id} onClick={() => { setActiveSpreadIdx(idx); setSelectedIds([]); }}
                 className={`w-full rounded overflow-hidden border transition-colors ${idx === activeSpreadIdx ? 'border-blue-500' : 'border-neutral-600 hover:border-neutral-400'}`}>
@@ -449,7 +609,7 @@ export default function DtpEditorBeta() {
             }}
             onUpdateFrame={(id, updates) => { updateFrame(id, updates); }}
             showGuides={showGuides}
-            showRulers={true}
+            showRulers={showRulers}
             snapEnabled={snapEnabled}
           />
         </div>

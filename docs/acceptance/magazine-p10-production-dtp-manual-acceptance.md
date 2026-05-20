@@ -1,5 +1,7 @@
 # MAG-P10 Production DTP Editor — Manual Acceptance Protocol
 
+**Status: PARTIAL** — Initial browser testing revealed missing frame tools and 500 errors from route model binding. Fixed in MAG-P11 session. Re-testing required. See [magazine-p11-production-dtp-canvas-gap.md](magazine-p11-production-dtp-canvas-gap.md).
+
 ## 1. Purpose
 
 This is the structured manual acceptance run for the production Magazine DTP editor pipeline completed through MAG-P6 to MAG-P9:

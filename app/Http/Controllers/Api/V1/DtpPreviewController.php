@@ -17,9 +17,12 @@ class DtpPreviewController extends Controller
     /**
      * Render DTP magazine as HTML preview.
      */
-    public function preview(Site $site, string $issueId): Response
+    public function preview(Site $site, MagazineIssue $issue): Response
     {
-        $issue = MagazineIssue::where('site_id', $site->id)->findOrFail($issueId);
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+
         $data = $this->renderService->render($issue);
 
         return response()->view('dtp-preview', [

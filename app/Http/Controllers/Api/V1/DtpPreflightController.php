@@ -17,9 +17,11 @@ class DtpPreflightController extends Controller
     /**
      * Run preflight checks on a DTP issue.
      */
-    public function run(Site $site, string $issueId): JsonResponse
+    public function run(Site $site, MagazineIssue $issue): JsonResponse
     {
-        $issue = MagazineIssue::where('site_id', $site->id)->findOrFail($issueId);
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
 
         return response()->json([
             'data' => $this->preflightService->runForIssue($issue),
