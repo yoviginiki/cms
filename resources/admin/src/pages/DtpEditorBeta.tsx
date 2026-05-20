@@ -347,8 +347,8 @@ export default function DtpEditorBeta() {
             {/* Preview link */}
             <div className="flex items-center gap-2">
               <span className="text-neutral-500">Preview link:</span>
-              {rolloutData.capabilities?.previewLinkAvailable ? (
-                <a href={rolloutData.links?.dtpPreview} target="_blank" rel="noopener noreferrer"
+              {rolloutData.capabilities?.previewLinkAvailable && rolloutData.links?.dtpPreview ? (
+                <a href={rolloutData.links.dtpPreview} target="_blank" rel="noopener noreferrer"
                   className="text-blue-400 hover:underline flex items-center gap-1">
                   Available <ExternalLink size={9} />
                 </a>
