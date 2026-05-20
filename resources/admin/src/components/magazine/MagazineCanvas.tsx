@@ -26,6 +26,7 @@ interface MagazineCanvasProps {
   onSelectElement: (id: string | null) => void;
   onPageClick?: (pageNumber: number) => void;
   onContinueText?: (elementId: string) => void;
+  onMoveToPage?: (elementId: string, direction: 'prev' | 'next', newX: number, newY: number) => void;
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -63,6 +64,7 @@ export function MagazineCanvas({
   onSelectElement,
   onPageClick,
   onContinueText,
+  onMoveToPage,
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -80,6 +82,7 @@ export function MagazineCanvas({
   const selection = useMagSelection(
     elements, zoom, pageW, pageH, margins,
     onUpdateElement, onAddElement, onDeleteElements, onDuplicateElements,
+    onMoveToPage,
   );
 
   // Sync selection to parent — use ref to avoid infinite loops

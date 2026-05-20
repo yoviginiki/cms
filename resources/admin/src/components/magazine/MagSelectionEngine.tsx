@@ -28,6 +28,7 @@ export function useMagSelection(
   _onAddElement: (type: string, x: number, y: number, w: number, h: number) => void,
   onDeleteElements: (ids: string[]) => void,
   onDuplicateElements: (ids: string[]) => void,
+  onMoveToPage?: (elementId: string, direction: 'prev' | 'next', newX: number, newY: number) => void,
 ) {
   const [state, setState] = useState<SelectionState>({
     selectedIds: [],
@@ -179,13 +180,36 @@ export function useMagSelection(
   }, [state, elements, zoom, pageWidth, pageHeight, margins, onUpdateElement]);
 
   const handlePointerUp = useCallback(() => {
-    if (state.isDragging || state.isResizing || state.isRotating) {
+    if (state.isDragging) {
+      // Check if any selected element was dragged outside the current page bounds
+      if (onMoveToPage && state.selectedIds.length === 1) {
+        const el = elements.find(e => e.id === state.selectedIds[0]);
+        if (el && !el.locked) {
+          const centerX = el.x + el.width / 2;
+
+          if (centerX > pageWidth) {
+            // Dragged to the right — move to next page
+            const newX = centerX - pageWidth - 24 / zoom; // account for page gap
+            onMoveToPage(el.id, 'next', Math.max(0, newX - el.width / 2), el.y);
+          } else if (centerX < 0) {
+            // Dragged to the left — move to previous page
+            const newX = pageWidth + centerX - 24 / zoom;
+            onMoveToPage(el.id, 'prev', Math.max(0, newX - el.width / 2), el.y);
+          }
+        }
+      }
+
+      setState(s => ({ ...s, isDragging: false, isResizing: false, isRotating: false, resizeHandle: null, guides: [], marquee: null }));
+      dragStartRef.current = null;
+      resizeStartRef.current = null;
+      rotationStartRef.current = null;
+    } else if (state.isResizing || state.isRotating) {
       setState(s => ({ ...s, isDragging: false, isResizing: false, isRotating: false, resizeHandle: null, guides: [], marquee: null }));
       dragStartRef.current = null;
       resizeStartRef.current = null;
       rotationStartRef.current = null;
     }
-  }, [state]);
+  }, [state, elements, pageWidth, zoom, onMoveToPage]);
 
   useEffect(() => {
     window.addEventListener('pointermove', handlePointerMove);

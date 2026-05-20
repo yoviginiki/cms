@@ -536,6 +536,15 @@ export default function DtpEditorBeta() {
           onDuplicateElements={(ids) => store.duplicateElements(ids)}
           onSelectElement={(id) => id ? store.selectElement(id) : store.clearSelection()}
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
+          onMoveToPage={(elementId, direction, newX, newY) => {
+            const currentPageNum = store.currentPageNumber;
+            const contentPages = store.pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
+            const currentIdx = contentPages.findIndex(p => p.pageNumber === currentPageNum);
+            const targetIdx = direction === 'next' ? currentIdx + 1 : currentIdx - 1;
+            if (targetIdx >= 0 && targetIdx < contentPages.length) {
+              store.moveElementToPage(elementId, currentPageNum, contentPages[targetIdx].pageNumber, newX, newY);
+            }
+          }}
           onPageClick={(n) => {
             if (n === -1) store.setViewMode('single');
             else if (n === -2) store.setViewMode('spread');
