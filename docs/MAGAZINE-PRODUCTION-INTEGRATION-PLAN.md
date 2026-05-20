@@ -278,4 +278,18 @@ Feature flag: magazine_dtp_designer_enabled (per-site setting)
 
 **MP1: COMPLETE** — See [MAGAZINE-DTP-DATA-MODEL-PLAN.md](MAGAZINE-DTP-DATA-MODEL-PLAN.md). Finding: zero migrations needed for beta. All prototype fields map to existing `mag_elements` columns.
 
-**Next: MP2** — Define shared TypeScript types and normalizers (code task, planned). Prepares for MP3 (save/load).
+**MP2: COMPLETE** — Production schema (5 tables + RLS), Eloquent models, FrameType enum, feature flag.
+
+**MAG-P3: COMPLETE** — DTP Save/Load API with atomic document persistence.
+
+**MAG-P4: COMPLETE** — Beta DTP editor connected to real API.
+
+**MAG-P5: COMPLETE** — DTP HTML render pipeline + preview route.
+
+**MAG-P6: COMPLETE** — Production DTP preflight service (16 checks, score 0-100).
+
+**MAG-P7: COMPLETE** — Controlled rollout status API. Four-state model (legacy/dtp_beta/dtp_ready/dtp_production). `dtp_production` reserved for persisted promotion (MAG-P8).
+
+**MAG-P7 Hotfix: COMPLETE** — Codex audit fixes: four-state docs, frame-only readiness fix, capabilities object, rollback instructions, SPA route documentation, automated tests.
+
+**Next: MAG-P8** — Add `editor_mode` column to `magazine_issues` for persisted production promotion. Enables `dtp_production` rollout state.

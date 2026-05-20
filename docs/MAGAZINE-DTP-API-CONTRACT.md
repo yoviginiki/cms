@@ -409,9 +409,69 @@ GET .../dtp-document
 
 ---
 
-## 10. Rollout Note
+## 10. Rollout Status Endpoint (MAG-P7)
+
+### Endpoint
+```
+GET /api/v1/sites/{site}/magazine-issues/{issue}/dtp-rollout
+Authorization: Sanctum + tenant scope
+Feature flag: NOT required — always available (reports status even when flag off)
+```
+
+### Response
+```json
+{
+  "data": {
+    "status": "legacy | dtp_beta | dtp_ready",
+    "canOpenDtp": true,
+    "canPromote": false,
+    "hasDtpData": true,
+    "dtpStats": { "spreads": 3, "pages": 5, "frames": 16 },
+    "preflight": { "status": "warning", "score": 85, "counts": {} },
+    "blockingReasons": [],
+    "warnings": [],
+    "links": {
+      "legacyEditor": "/admin/sites/.../magazines/.../edit",
+      "dtpEditor": "/admin/sites/.../magazine-issues/.../dtp-editor (SPA route)",
+      "dtpPreview": "/api/v1/sites/.../magazine-issues/.../dtp-preview",
+      "preflight": "/api/v1/sites/.../magazine-issues/.../dtp-preflight"
+    },
+    "capabilities": {
+      "dtpFeatureEnabled": true,
+      "hasDtpDocument": true,
+      "hasSpreadOrPage": true,
+      "previewLinkAvailable": true,
+      "previewRenderable": false,
+      "legacyFallbackAvailable": true,
+      "productionStatePersisted": false
+    }
+  }
+}
+```
+
+### Rollout States
+| State | Condition | Notes |
+|-------|-----------|-------|
+| legacy | Flag off or no DTP document | Default state |
+| dtp_beta | DTP document exists, preflight has blocking errors | Beta testing |
+| dtp_ready | DTP document exists, preflight passes | Ready for promotion |
+| dtp_production | Persisted editor_mode = production | **Reserved — MAG-P8** |
+
+### Link Types
+- `links.dtpEditor` is a React SPA route (not a Laravel route)
+- `links.legacyEditor` is always present regardless of feature flag
+
+### Capabilities
+- `previewLinkAvailable` — true when feature flag on and DTP document exists; indicates the preview link can be shown to the user
+- `previewRenderable` — **false** until real render health check is implemented (deferred to MAG-P8). Does not mirror `previewLinkAvailable`.
+- `productionStatePersisted` — false until `editor_mode` column is added (MAG-P8)
+
+---
+
+## 11. Rollout Note
 
 - Old editor remains available at existing routes
 - DTP designer route requires feature flag
-- No production replacement until MAG-P5+ acceptance
+- No production replacement until MAG-P8+ acceptance
 - Rollback: disable feature flag → designer hidden instantly
+- DTP document requires at least one spread or page (frames alone are not sufficient)

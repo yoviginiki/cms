@@ -17,9 +17,12 @@ class DtpRolloutController extends Controller
     /**
      * Get editor status and readiness report for an issue.
      */
-    public function status(Site $site, string $issueId): JsonResponse
+    public function status(Site $site, MagazineIssue $issue): JsonResponse
     {
-        $issue = MagazineIssue::where('site_id', $site->id)->findOrFail($issueId);
+        // Enforce site ownership — 404 if issue doesn't belong to this site
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
 
         return response()->json([
             'data' => $this->rolloutService->getReadinessReport($issue, $site->id),
