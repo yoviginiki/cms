@@ -90,7 +90,7 @@ Added to `DtpEditorBeta.tsx`:
 | Master page assignment | LOW | MAG-P14 |
 | Auto-save | MEDIUM | MAG-P13 |
 
-## Files Changed
+## Files Changed (already committed in MAG-P11 commit bae6402, not new changes)
 
 - `app/Http/Controllers/Api/V1/DtpDocumentController.php` — route model binding fix
 - `app/Http/Controllers/Api/V1/DtpPreviewController.php` — route model binding fix

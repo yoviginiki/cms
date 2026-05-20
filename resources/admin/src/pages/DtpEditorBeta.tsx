@@ -576,10 +576,7 @@ export default function DtpEditorBeta() {
         {/* Left: Spread Navigator */}
         <div className="w-20 border-r border-neutral-700 overflow-y-auto shrink-0" style={{ backgroundColor: '#1a1a1a' }}>
           <div className="p-1.5 space-y-1.5">
-            <div className="flex items-center justify-between px-1 py-1">
-              <div className="text-[8px] text-neutral-500 uppercase tracking-wider">Spreads</div>
-              <button onClick={addSpread} className="text-neutral-500 hover:text-white" title="Add spread"><Plus size={12} /></button>
-            </div>
+            <div className="text-[8px] text-neutral-500 uppercase tracking-wider px-1 py-1">Spreads</div>
             {doc.spreads.map((spread, idx) => (
               <button key={spread.id} onClick={() => { setActiveSpreadIdx(idx); setSelectedIds([]); }}
                 className={`w-full rounded overflow-hidden border transition-colors ${idx === activeSpreadIdx ? 'border-blue-500' : 'border-neutral-600 hover:border-neutral-400'}`}>
@@ -593,6 +590,12 @@ export default function DtpEditorBeta() {
                 </div>
               </button>
             ))}
+            <button onClick={addSpread}
+              className="w-full rounded border-2 border-dashed border-neutral-600 hover:border-blue-500 hover:bg-neutral-700/50 transition-colors py-3 flex flex-col items-center gap-1 mt-1"
+              title="Add new spread/page">
+              <Plus size={18} className="text-neutral-500" />
+              <span className="text-[8px] text-neutral-500">Add Page</span>
+            </button>
           </div>
         </div>
 
