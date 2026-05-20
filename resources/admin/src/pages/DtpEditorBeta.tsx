@@ -457,6 +457,14 @@ export default function DtpEditorBeta() {
           onChangePage={store.setCurrentPage}
           onAddPage={() => store.addPage(store.currentPageNumber)}
           onDeletePage={(n) => store.deletePage(n)}
+          onDuplicatePage={(n) => store.duplicatePage(n)}
+          onReorderPages={(from, to) => store.reorderPages(from, to)}
+          onApplyTemplate={(pageNumber, frames) => {
+            store.pushSnapshot();
+            const page = store.pages.find(p => p.pageNumber === pageNumber);
+            if (!page) return;
+            store.updatePage(pageNumber, { elements: [...page.elements, ...frames] } as any);
+          }}
         />
 
         {/* ─── CENTER: Canvas ─── */}

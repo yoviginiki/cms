@@ -48,6 +48,8 @@ interface MagazineActions {
   setCurrentPage: (n: number) => void;
   addPage: (afterPage: number) => void;
   deletePage: (pageNumber: number) => void;
+  duplicatePage: (pageNumber: number) => void;
+  reorderPages: (fromIndex: number, toIndex: number) => void;
   updatePage: (pageNumber: number, updates: Partial<MagPageData>) => void;
 
   // Elements
@@ -379,6 +381,77 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       editingElementId: null,
       isDirty: true,
     });
+  },
+
+  duplicatePage(pageNumber) {
+    const state = get();
+    get().pushSnapshot();
+
+    const sourcePage = state.pages.find(p => p.pageNumber === pageNumber);
+    if (!sourcePage) return;
+
+    // Deep clone page with new IDs for page and all elements (recursive)
+    const newPageId = crypto.randomUUID();
+    function reIdElement(el: MagElement): MagElement {
+      return {
+        ...structuredClone(el),
+        id: crypto.randomUUID(),
+        children: el.children.map(c => reIdElement(c)),
+      };
+    }
+    const newElements = sourcePage.elements.map(el => reIdElement(el));
+
+    // Relink thread references within the duplicated page
+    newElements.forEach(el => {
+      if (el.threadId) {
+        // Only keep thread link if both source and target are on this page
+        const threadOnPage = newElements.some(other => other.id !== el.id && other.threadId === el.threadId);
+        if (!threadOnPage) {
+          el.threadId = null;
+          el.threadOrder = null;
+        }
+      }
+    });
+
+    const newPage: MagPageData = {
+      ...structuredClone(sourcePage),
+      id: newPageId,
+      elements: newElements,
+    };
+
+    // Insert after source page and renumber
+    const insertAfter = pageNumber;
+    const pages = state.pages.map(p =>
+      p.pageNumber > insertAfter ? { ...p, pageNumber: p.pageNumber + 1 } : p
+    );
+    const newPageNumber = insertAfter + 1;
+    newPage.pageNumber = newPageNumber;
+    newElements.forEach(el => { el.pageNumber = newPageNumber; });
+
+    const insertIdx = pages.findIndex(p => p.pageNumber === newPageNumber);
+    if (insertIdx === -1) pages.push(newPage);
+    else pages.splice(insertIdx, 0, newPage);
+
+    set({ pages, currentPageNumber: newPageNumber, selectedIds: [], isDirty: true });
+  },
+
+  reorderPages(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+    const state = get();
+    get().pushSnapshot();
+
+    const sorted = [...state.pages].sort((a, b) => a.pageNumber - b.pageNumber);
+    const [moved] = sorted.splice(fromIndex, 1);
+    sorted.splice(toIndex, 0, moved);
+
+    // Renumber all pages
+    const renumbered = sorted.map((p, i) => ({
+      ...p,
+      pageNumber: i + 1,
+      elements: p.elements.map(el => ({ ...el, pageNumber: i + 1 })),
+    }));
+
+    set({ pages: renumbered, isDirty: true });
   },
 
   updatePage(pageNumber, updates) {
