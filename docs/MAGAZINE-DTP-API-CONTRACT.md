@@ -441,7 +441,7 @@ Feature flag: NOT required — always available (reports status even when flag o
       "hasDtpDocument": true,
       "hasSpreadOrPage": true,
       "previewLinkAvailable": true,
-      "previewRenderable": false,
+      "previewRenderable": true,
       "legacyFallbackAvailable": true,
       "productionStatePersisted": false
     }
@@ -455,7 +455,7 @@ Feature flag: NOT required — always available (reports status even when flag o
 | legacy | Flag off or no DTP document | Default state |
 | dtp_beta | DTP document exists, preflight has blocking errors | Beta testing |
 | dtp_ready | DTP document exists, preflight passes | Ready for promotion |
-| dtp_production | Persisted editor_mode = production | **Reserved — MAG-P8** |
+| dtp_production | Persisted editor_mode = production | **Reserved** |
 
 ### Link Types
 - `links.dtpEditor` is a React SPA route (not a Laravel route)
@@ -463,8 +463,8 @@ Feature flag: NOT required — always available (reports status even when flag o
 
 ### Capabilities
 - `previewLinkAvailable` — true when feature flag on and DTP document exists; indicates the preview link can be shown to the user
-- `previewRenderable` — **false** until real render health check is implemented (deferred to MAG-P8). Does not mirror `previewLinkAvailable`.
-- `productionStatePersisted` — false until `editor_mode` column is added (MAG-P8)
+- `previewRenderable` — true when the full render pipeline is available: feature flag on, DTP document exists, `DtpRenderService` resolvable, and `dtp-preview` Blade view exists. Fails closed (false if any component missing). Does not simply mirror `previewLinkAvailable`.
+- `productionStatePersisted` — false until `editor_mode` column is added
 
 ---
 

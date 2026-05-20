@@ -16,7 +16,7 @@ use App\Domain\Magazine\Models\MagazineSpread;
  *  - legacy:          Feature flag off OR no usable DTP document (no spreads/pages)
  *  - dtp_beta:        DTP data exists but preflight has blocking errors
  *  - dtp_ready:       DTP data passes preflight (no blocking errors)
- *  - dtp_production:  Reserved — requires persisted editor_mode field (MAG-P8)
+ *  - dtp_production:  Reserved — requires persisted editor_mode field (future)
  */
 class DtpRolloutService
 {
@@ -46,9 +46,7 @@ class DtpRolloutService
         ] : null;
 
         $previewLinkAvailable = $featureEnabled && $hasDtpDocument;
-        // Real render availability check deferred to MAG-P8.
-        // Until then, previewRenderable is false — we only verify link presence.
-        $previewRenderable = false;
+        $previewRenderable = $this->canRenderPreview($featureEnabled, $hasDtpDocument);
 
         $blockingReasons = [];
         $warnings = [];
@@ -90,26 +88,52 @@ class DtpRolloutService
                 'previewLinkAvailable' => $previewLinkAvailable,
                 'previewRenderable' => $previewRenderable,
                 'legacyFallbackAvailable' => true,
-                'productionStatePersisted' => false, // Future MAG-P8: editor_mode column
+                'productionStatePersisted' => false, // Future: editor_mode column
             ],
         ];
     }
 
     /**
-     * Compute editor status (no DB field — fully derived).
+     * Check if the preview render pipeline is available.
      *
-     * States:
-     *  - legacy:         flag off or no usable DTP document
-     *  - dtp_beta:       has DTP doc but preflight has blocking errors
-     *  - dtp_ready:      has DTP doc and preflight passes
-     *  - dtp_production: reserved for persisted promotion (MAG-P8, requires editor_mode column)
+     * Real render check — verifies:
+     *  1. Feature flag is enabled
+     *  2. DTP document exists (at least one spread or page)
+     *  3. DtpRenderService is resolvable from the container
+     *  4. Blade view 'dtp-preview' exists
+     *
+     * Fails closed: returns false if any component is missing.
+     */
+    private function canRenderPreview(bool $featureEnabled, bool $hasDtpDocument): bool
+    {
+        if (!$featureEnabled || !$hasDtpDocument) {
+            return false;
+        }
+
+        // Verify the render service class exists and is resolvable
+        try {
+            app()->make(DtpRenderService::class);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        // Verify the Blade view exists
+        if (!view()->exists('dtp-preview')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Compute editor status (no DB field — fully derived).
      */
     private function computeStatus(bool $featureEnabled, bool $hasDtpDocument, bool $hasBlockingErrors): string
     {
         if (!$featureEnabled || !$hasDtpDocument) return 'legacy';
         if ($hasBlockingErrors) return 'dtp_beta';
         return 'dtp_ready';
-        // dtp_production: not returned until editor_mode column exists (MAG-P8)
+        // dtp_production: not returned until editor_mode column exists
     }
 
     /**

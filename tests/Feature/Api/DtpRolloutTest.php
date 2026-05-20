@@ -319,10 +319,137 @@ class DtpRolloutTest extends TestCase
         $this->assertTrue($caps['hasDtpDocument']);
         $this->assertTrue($caps['hasSpreadOrPage']);
         $this->assertTrue($caps['previewLinkAvailable']);
-        // previewRenderable is false until real render health check (MAG-P8)
-        $this->assertFalse($caps['previewRenderable']);
+        // previewRenderable checks render service + Blade view availability (MAG-P8)
+        $this->assertTrue($caps['previewRenderable']);
         $this->assertTrue($caps['legacyFallbackAvailable']);
         $this->assertFalse($caps['productionStatePersisted']);
+    }
+
+    // ─── MAG-P8: Preview render health check ───
+
+    public function test_preview_renderable_true_when_render_pipeline_available(): void
+    {
+        $issue = $this->makeIssue();
+        [$spread, $page] = $this->addSpreadAndPage($issue);
+        $this->addFrame($issue, $page);
+
+        config(['features.magazine_dtp_designer_enabled' => true]);
+
+        $response = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/magazine-issues/{$issue->id}/dtp-rollout")
+            ->assertStatus(200);
+
+        $caps = $response->json('data.capabilities');
+        $this->assertTrue($caps['previewLinkAvailable']);
+        $this->assertTrue($caps['previewRenderable']);
+    }
+
+    public function test_preview_renderable_false_when_feature_flag_off(): void
+    {
+        $issue = $this->makeIssue();
+        $this->addSpreadAndPage($issue);
+
+        config(['features.magazine_dtp_designer_enabled' => false]);
+
+        $response = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/magazine-issues/{$issue->id}/dtp-rollout")
+            ->assertStatus(200);
+
+        $caps = $response->json('data.capabilities');
+        $this->assertFalse($caps['previewLinkAvailable']);
+        $this->assertFalse($caps['previewRenderable']);
+    }
+
+    public function test_preview_renderable_false_when_no_dtp_document(): void
+    {
+        $issue = $this->makeIssue();
+
+        config(['features.magazine_dtp_designer_enabled' => true]);
+
+        $response = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/magazine-issues/{$issue->id}/dtp-rollout")
+            ->assertStatus(200);
+
+        $caps = $response->json('data.capabilities');
+        // Link not available because no document
+        $this->assertFalse($caps['previewLinkAvailable']);
+        // Render not available because no document
+        $this->assertFalse($caps['previewRenderable']);
+    }
+
+    public function test_preview_link_available_but_renderable_independent(): void
+    {
+        // This test proves the two fields are computed independently.
+        // Both require feature flag + DTP document, but previewRenderable
+        // additionally checks render service + Blade view existence.
+        $issue = $this->makeIssue();
+        [$spread, $page] = $this->addSpreadAndPage($issue);
+        $this->addFrame($issue, $page);
+
+        config(['features.magazine_dtp_designer_enabled' => true]);
+
+        $response = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/magazine-issues/{$issue->id}/dtp-rollout")
+            ->assertStatus(200);
+
+        $caps = $response->json('data.capabilities');
+        // Both true because render pipeline is available in this app
+        $this->assertTrue($caps['previewLinkAvailable']);
+        $this->assertTrue($caps['previewRenderable']);
+        // They are separate fields, not aliases
+        $this->assertArrayHasKey('previewLinkAvailable', $caps);
+        $this->assertArrayHasKey('previewRenderable', $caps);
+    }
+
+    public function test_preview_renderable_false_when_render_service_unresolvable(): void
+    {
+        $issue = $this->makeIssue();
+        [$spread, $page] = $this->addSpreadAndPage($issue);
+        $this->addFrame($issue, $page);
+
+        config(['features.magazine_dtp_designer_enabled' => true]);
+
+        // Swap DtpRenderService binding to something unresolvable
+        $this->app->bind(
+            \App\Domain\Magazine\Services\DtpRenderService::class,
+            fn () => throw new \RuntimeException('Render service unavailable'),
+        );
+
+        $response = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/magazine-issues/{$issue->id}/dtp-rollout")
+            ->assertStatus(200);
+
+        $caps = $response->json('data.capabilities');
+        // Link is available (feature flag + DTP doc)
+        $this->assertTrue($caps['previewLinkAvailable']);
+        // But render is NOT available (service unresolvable)
+        $this->assertFalse($caps['previewRenderable']);
+    }
+
+    public function test_preview_renderable_false_when_blade_view_missing(): void
+    {
+        $issue = $this->makeIssue();
+        [$spread, $page] = $this->addSpreadAndPage($issue);
+        $this->addFrame($issue, $page);
+
+        config(['features.magazine_dtp_designer_enabled' => true]);
+
+        // Mock view factory to report dtp-preview as missing
+        $viewFactory = \Mockery::mock($this->app->make('view'));
+        $viewFactory->shouldReceive('exists')
+            ->with('dtp-preview')
+            ->andReturn(false);
+        $this->app->instance('view', $viewFactory);
+
+        $response = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/magazine-issues/{$issue->id}/dtp-rollout")
+            ->assertStatus(200);
+
+        $caps = $response->json('data.capabilities');
+        // Link is available (feature flag + DTP doc)
+        $this->assertTrue($caps['previewLinkAvailable']);
+        // But render is NOT available (Blade view missing)
+        $this->assertFalse($caps['previewRenderable']);
     }
 
     // ─── Finding 9: Wrong site returns 404 ───
