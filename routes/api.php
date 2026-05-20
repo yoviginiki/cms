@@ -204,6 +204,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/posts/{post}/versions/{version}', [VersionController::class, 'showForPost']);
         Route::post('sites/{site}/posts/{post}/versions/{version}/restore', [VersionController::class, 'restoreForPost']);
 
+        // DTP Rollout status (always available — reports status even when flag is off)
+        Route::get('sites/{site}/magazine-issues/{issue}/dtp-rollout', [\App\Http\Controllers\Api\V1\DtpRolloutController::class, 'status']);
+
         // DTP Designer (feature-flagged)
         Route::middleware(\App\Http\Middleware\RequireDtpDesigner::class)->group(function () {
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-document', [\App\Http\Controllers\Api\V1\DtpDocumentController::class, 'show']);
