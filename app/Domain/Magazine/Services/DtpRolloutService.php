@@ -11,6 +11,12 @@ use App\Domain\Magazine\Models\MagazineSpread;
  * Controlled rollout for Magazine DTP editor.
  * Determines editor status, readiness, and provides entry point URLs.
  * No destructive migration — computed status only.
+ *
+ * Four rollout states:
+ *  - legacy:          Feature flag off OR no usable DTP document (no spreads/pages)
+ *  - dtp_beta:        DTP data exists but preflight has blocking errors
+ *  - dtp_ready:       DTP data passes preflight (no blocking errors)
+ *  - dtp_production:  Reserved — requires persisted editor_mode field (MAG-P8)
  */
 class DtpRolloutService
 {
@@ -24,16 +30,25 @@ class DtpRolloutService
     public function getReadinessReport(MagazineIssue $issue, string $siteId): array
     {
         $featureEnabled = config('features.magazine_dtp_designer_enabled', false);
-        $hasDtpData = $this->hasDtpData($issue);
-        $preflightResult = $hasDtpData ? $this->preflightService->runForIssue($issue) : null;
+        $hasDtpDocument = $this->hasDtpDocument($issue);
+        $preflightResult = $hasDtpDocument ? $this->preflightService->runForIssue($issue) : null;
         $hasBlockingErrors = $preflightResult && ($preflightResult['counts']['blocking'] ?? 0) > 0;
-        $status = $this->computeStatus($featureEnabled, $hasDtpData, $hasBlockingErrors);
+        $status = $this->computeStatus($featureEnabled, $hasDtpDocument, $hasBlockingErrors);
 
-        $dtpStats = $hasDtpData ? [
-            'spreads' => MagazineSpread::where('issue_id', $issue->id)->count(),
-            'pages' => MagazineDtpPage::where('issue_id', $issue->id)->count(),
-            'frames' => MagazineFrame::where('issue_id', $issue->id)->count(),
+        $spreadCount = MagazineSpread::where('issue_id', $issue->id)->count();
+        $pageCount = MagazineDtpPage::where('issue_id', $issue->id)->count();
+        $frameCount = MagazineFrame::where('issue_id', $issue->id)->count();
+
+        $dtpStats = $hasDtpDocument ? [
+            'spreads' => $spreadCount,
+            'pages' => $pageCount,
+            'frames' => $frameCount,
         ] : null;
+
+        $previewLinkAvailable = $featureEnabled && $hasDtpDocument;
+        // Real render availability check deferred to MAG-P8.
+        // Until then, previewRenderable is false — we only verify link presence.
+        $previewRenderable = false;
 
         $blockingReasons = [];
         $warnings = [];
@@ -41,8 +56,8 @@ class DtpRolloutService
         if (!$featureEnabled) {
             $blockingReasons[] = 'DTP Designer feature flag is disabled.';
         }
-        if (!$hasDtpData) {
-            $warnings[] = 'No DTP data saved for this issue yet.';
+        if ($featureEnabled && !$hasDtpDocument) {
+            $warnings[] = 'No DTP document saved for this issue yet (requires at least one spread or page).';
         }
         if ($hasBlockingErrors) {
             $blockingReasons[] = 'Preflight has blocking errors (' . $preflightResult['counts']['blocking'] . ').';
@@ -51,8 +66,8 @@ class DtpRolloutService
         return [
             'status' => $status,
             'canOpenDtp' => $featureEnabled,
-            'canPromote' => $featureEnabled && $hasDtpData && !$hasBlockingErrors,
-            'hasDtpData' => $hasDtpData,
+            'canPromote' => $featureEnabled && $hasDtpDocument && !$hasBlockingErrors,
+            'hasDtpData' => $hasDtpDocument,
             'dtpStats' => $dtpStats,
             'preflight' => $preflightResult ? [
                 'status' => $preflightResult['status'],
@@ -63,30 +78,47 @@ class DtpRolloutService
             'warnings' => $warnings,
             'links' => [
                 'legacyEditor' => "/admin/sites/{$siteId}/magazines/{$issue->id}/edit",
+                // React SPA route — not a Laravel route. Rendered by resources/admin/src/App.tsx.
                 'dtpEditor' => $featureEnabled ? "/admin/sites/{$siteId}/magazine-issues/{$issue->id}/dtp-editor" : null,
-                'dtpPreview' => $featureEnabled && $hasDtpData ? "/api/v1/sites/{$siteId}/magazine-issues/{$issue->id}/dtp-preview" : null,
+                'dtpPreview' => $previewLinkAvailable ? "/api/v1/sites/{$siteId}/magazine-issues/{$issue->id}/dtp-preview" : null,
                 'preflight' => $featureEnabled ? "/api/v1/sites/{$siteId}/magazine-issues/{$issue->id}/dtp-preflight" : null,
+            ],
+            'capabilities' => [
+                'dtpFeatureEnabled' => $featureEnabled,
+                'hasDtpDocument' => $hasDtpDocument,
+                'hasSpreadOrPage' => $spreadCount > 0 || $pageCount > 0,
+                'previewLinkAvailable' => $previewLinkAvailable,
+                'previewRenderable' => $previewRenderable,
+                'legacyFallbackAvailable' => true,
+                'productionStatePersisted' => false, // Future MAG-P8: editor_mode column
             ],
         ];
     }
 
     /**
      * Compute editor status (no DB field — fully derived).
+     *
+     * States:
+     *  - legacy:         flag off or no usable DTP document
+     *  - dtp_beta:       has DTP doc but preflight has blocking errors
+     *  - dtp_ready:      has DTP doc and preflight passes
+     *  - dtp_production: reserved for persisted promotion (MAG-P8, requires editor_mode column)
      */
-    private function computeStatus(bool $featureEnabled, bool $hasDtpData, bool $hasBlockingErrors): string
+    private function computeStatus(bool $featureEnabled, bool $hasDtpDocument, bool $hasBlockingErrors): string
     {
-        if (!$featureEnabled || !$hasDtpData) return 'legacy';
+        if (!$featureEnabled || !$hasDtpDocument) return 'legacy';
         if ($hasBlockingErrors) return 'dtp_beta';
         return 'dtp_ready';
+        // dtp_production: not returned until editor_mode column exists (MAG-P8)
     }
 
     /**
-     * Check if issue has any DTP data saved.
+     * Check if issue has a usable DTP document.
+     * Requires at least one spread or page — frames alone are not enough.
      */
-    private function hasDtpData(MagazineIssue $issue): bool
+    private function hasDtpDocument(MagazineIssue $issue): bool
     {
         return MagazineSpread::where('issue_id', $issue->id)->exists()
-            || MagazineDtpPage::where('issue_id', $issue->id)->exists()
-            || MagazineFrame::where('issue_id', $issue->id)->exists();
+            || MagazineDtpPage::where('issue_id', $issue->id)->exists();
     }
 }
