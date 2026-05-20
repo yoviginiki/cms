@@ -43,7 +43,7 @@ A usable DTP document requires at least one DTP **spread** or **page**. Frames a
       "hasDtpDocument": true,
       "hasSpreadOrPage": true,
       "previewLinkAvailable": true,
-      "previewRenderable": false,
+      "previewRenderable": true,
       "legacyFallbackAvailable": true,
       "productionStatePersisted": false
     }
@@ -59,7 +59,7 @@ A usable DTP document requires at least one DTP **spread** or **page**. Frames a
 
 ### Capabilities
 - `previewLinkAvailable` — true when feature flag on and DTP document exists (link can be shown to the user)
-- `previewRenderable` — **false** until real render health check is implemented. Real render verification (loading document, checking render output) is deferred to MAG-P8. Does NOT mirror `previewLinkAvailable`.
+- `previewRenderable` — true when the full render pipeline is available: feature flag on, DTP document exists, `DtpRenderService` resolvable, and `dtp-preview` Blade view exists. Fails closed (false if any component missing). Implemented in MAG-P8. Does NOT simply mirror `previewLinkAvailable`.
 - `productionStatePersisted` — false until `editor_mode` column is added (MAG-P8)
 - `legacyFallbackAvailable` — always true (legacy editor is never removed)
 
@@ -110,5 +110,5 @@ If the DTP beta editor causes issues, follow these steps:
 - No auto-migration of old issues
 - No UI integration in magazine list (API-only for now)
 - PDF/export not implemented
-- `previewRenderable` is false — real render health check deferred to MAG-P8
+- `previewRenderable` checks render service + Blade view availability (implemented in MAG-P8)
 - `dtpEditor` link is a React SPA route, not a Laravel server route
