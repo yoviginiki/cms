@@ -400,6 +400,10 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
           <div className="w-full h-full flex items-center justify-center p-2">
             <svg viewBox="0 0 100 100" width="80%" height="80%">
               {slices.map((s, i) => {
+                // Single item = full circle (SVG arc with identical endpoints renders nothing)
+                if (s.angle >= 359.99) {
+                  return <circle key={i} cx={cx} cy={cy} r={r} fill={s.color} />;
+                }
                 const startRad = (s.start - 90) * Math.PI / 180;
                 const endRad = (s.start + s.angle - 90) * Math.PI / 180;
                 const largeArc = s.angle > 180 ? 1 : 0;
@@ -455,8 +459,8 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     }
 
     if (el.type === 'progress_indicator') {
-      const value = Math.min(100, Math.max(0, Number(data.value) || 60));
-      const max = Number(data.max) || 100;
+      const max = Math.min(100, Math.max(1, Number(data.max) || 100));
+      const value = Math.min(max, Math.max(0, Number(data.value) || 0));
       const pct = Math.round((value / max) * 100);
       return (
         <div className="w-full h-full flex flex-col justify-center px-2 gap-1">
