@@ -113,36 +113,67 @@ export function MagazineCanvas({
   const editingIdRef = useRef<string | null>(null);
   useEffect(() => { editingIdRef.current = editingId; }, [editingId]);
 
+  // Use ref to always have latest elements for flush — prevents stale closure content loss
+  const elementsRef = useRef(elements);
+  useEffect(() => { elementsRef.current = elements; }, [elements]);
+
+  // (page-change flush moved after exitEditing definition)
+
+  // Also track allPages for cross-page element lookup during flush
+  const allPagesRef = useRef(allPages);
+  useEffect(() => { allPagesRef.current = allPages; }, [allPages]);
+
   const exitEditing = useCallback(() => {
     const currentEditId = editingIdRef.current;
     if (!currentEditId) return;
-    // Flush content from the contentEditable DOM before React unmounts it — scoped by data attribute
+    // Flush content from the contentEditable DOM before React unmounts it
     const editableEl = document.querySelector(`[data-editing-id="${CSS.escape(currentEditId)}"]`) as HTMLElement | null
       ?? document.querySelector('[contenteditable="true"]') as HTMLElement | null;
     if (editableEl) {
-      const el = elements.find(e => e.id === currentEditId);
-      onUpdateElement(currentEditId, { data: { ...(el?.data || {}), content: sanitizeHtml(editableEl.innerHTML) } } as any);
+      // Search current page elements first, then all pages (handles page switch during editing)
+      let el = elementsRef.current.find(e => e.id === currentEditId);
+      if (!el && allPagesRef.current) {
+        for (const p of allPagesRef.current) {
+          el = p.elements?.find(e => e.id === currentEditId);
+          if (el) break;
+        }
+      }
+      if (el) {
+        onUpdateElement(currentEditId, { data: { ...(el.data || {}), content: sanitizeHtml(editableEl.innerHTML) } } as any);
+      }
     }
     editingIdRef.current = null;
     setEditingId(null);
-  }, [elements, onUpdateElement]);
+  }, [onUpdateElement]);
+
+  // Flush editing when page changes — prevents content loss on page switch
+  const prevPageRef = useRef(page.pageNumber);
+  useEffect(() => {
+    if (page.pageNumber !== prevPageRef.current) {
+      exitEditing();
+      prevPageRef.current = page.pageNumber;
+    }
+  }, [page.pageNumber, exitEditing]);
 
   const handleDoubleClick = useCallback((_e: React.MouseEvent, id: string) => {
-    const el = elements.find(e => e.id === id);
+    const el = elementsRef.current.find(e => e.id === id);
     if (!el) return;
     const TEXT_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
     if (TEXT_TYPES.includes(el.type) && !el.locked) {
+      // Ensure any previous editing is flushed first
+      exitEditing();
       setEditingId(id);
     }
-  }, [elements]);
+  }, [exitEditing]);
 
   const handleContentChange = useCallback((id: string, html: string) => {
-    // Skip if exitEditing already flushed (editingIdRef is null)
-    if (!editingIdRef.current) return;
-    onUpdateElement(id, { data: { ...(elements.find(e => e.id === id)?.data || {}), content: sanitizeHtml(html) } } as any);
+    // Called on blur from contentEditable — save content
+    const el = elementsRef.current.find(e => e.id === id);
+    if (!el) return;
+    onUpdateElement(id, { data: { ...(el.data || {}), content: sanitizeHtml(html) } } as any);
     editingIdRef.current = null;
     setEditingId(null);
-  }, [elements, onUpdateElement]);
+  }, [onUpdateElement]);
 
   // Canvas background click -> clear selection or create element with active tool
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {

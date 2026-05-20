@@ -47,6 +47,8 @@ export function useMagSelection(
   });
 
   const dragStartRef = useRef<{ x: number; y: number; origPositions: Map<string, { x: number; y: number }> } | null>(null);
+  const dragPendingRef = useRef(false);
+  const DRAG_DEAD_ZONE = 3; // px — must move this far before drag activates
   const resizeStartRef = useRef<{ x: number; y: number; origBounds: { x: number; y: number; w: number; h: number } } | null>(null);
   const rotationStartRef = useRef<{ startAngle: number; initialRotation: number; cx: number; cy: number; pageRect: DOMRect | null } | null>(null);
 
@@ -91,7 +93,8 @@ export function useMagSelection(
     const addToSelection = e.shiftKey;
     select(id, addToSelection);
 
-    // Start drag
+    // Prepare drag but don't start until pointer moves beyond dead zone (3px)
+    // This prevents accidental drag during double-click
     const positions = new Map<string, { x: number; y: number }>();
     const ids = addToSelection ? [...state.selectedIds, id] : [id];
     ids.forEach(selId => {
@@ -99,11 +102,24 @@ export function useMagSelection(
       if (selEl) positions.set(selId, { x: selEl.x, y: selEl.y });
     });
     dragStartRef.current = { x: e.clientX, y: e.clientY, origPositions: positions };
-    setState(s => ({ ...s, isDragging: true }));
+    // isDragging starts false — handlePointerMove activates it after dead zone
+    setState(s => ({ ...s, isDragging: false }));
+    dragPendingRef.current = true;
   }, [elements, state.selectedIds, select, zoom]);
 
   // Pointer move (global)
   const handlePointerMove = useCallback((e: PointerEvent) => {
+    // Activate drag after dead zone (prevents drag during double-click)
+    if (dragPendingRef.current && dragStartRef.current && !state.isDragging) {
+      const dx = Math.abs(e.clientX - dragStartRef.current.x);
+      const dy = Math.abs(e.clientY - dragStartRef.current.y);
+      if (dx > DRAG_DEAD_ZONE || dy > DRAG_DEAD_ZONE) {
+        dragPendingRef.current = false;
+        setState(s => ({ ...s, isDragging: true }));
+      }
+      return; // Don't move yet until drag is activated
+    }
+
     if (state.isDragging && dragStartRef.current) {
       const dx = (e.clientX - dragStartRef.current.x) / zoom;
       const dy = (e.clientY - dragStartRef.current.y) / zoom;
@@ -180,6 +196,8 @@ export function useMagSelection(
   }, [state, elements, zoom, pageWidth, pageHeight, margins, onUpdateElement]);
 
   const handlePointerUp = useCallback(() => {
+    dragPendingRef.current = false;
+
     if (state.isDragging) {
       // Check if any selected element was dragged outside the current page bounds
       if (onMoveToPage && state.selectedIds.length === 1) {
