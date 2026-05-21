@@ -345,22 +345,72 @@ export default function PostEditor() {
           </div>
         ) : editorMode === 'block' ? (
           <BuilderDndProvider>
-            {/* Mobile floating sidebar toggle */}
-            <button
-              type="button"
-              onClick={() => setMobilePanelOpen(!mobilePanelOpen)}
-              className="fixed bottom-4 right-4 z-50 lg:hidden btn btn-primary btn-circle shadow-lg"
-              title={mobilePanelOpen ? 'Close panel' : 'Open panel'}
-            >
-              {mobilePanelOpen ? '✕' : '☰'}
-            </button>
+            {/* Mobile: floating + button opens block picker popup */}
+            <div className="lg:hidden">
+              <button
+                type="button"
+                onClick={() => setMobilePanelOpen(!mobilePanelOpen)}
+                className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-content shadow-xl flex items-center justify-center text-2xl"
+              >
+                {mobilePanelOpen ? '✕' : '+'}
+              </button>
+
+              {/* Mobile popup panel */}
+              {mobilePanelOpen && (
+                <div className="fixed inset-0 z-40 flex items-end justify-center" onClick={() => setMobilePanelOpen(false)}>
+                  <div className="absolute inset-0 bg-black/30" />
+                  <div className="relative bg-base-100 rounded-t-2xl shadow-2xl w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-base-300/20">
+                      <div className="flex gap-2">
+                        {([
+                          { key: 'blocks' as RightTab, label: '+ Add Block' },
+                          { key: 'settings' as RightTab, label: 'Block Settings' },
+                          { key: 'post' as RightTab, label: 'Post' },
+                        ]).map(tab => (
+                          <button key={tab.key} onClick={() => setRightTab(tab.key)}
+                            className={`px-3 py-1 text-[12px] font-medium rounded-full ${rightTab === tab.key ? 'bg-primary text-primary-content' : 'text-base-content/50'}`}>
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={() => setMobilePanelOpen(false)} className="text-base-content/40 text-xl px-2">✕</button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-2">
+                      {rightTab === 'blocks' && <BlockPicker />}
+                      {rightTab === 'settings' && <BlockSettings />}
+                      {rightTab === 'post' && (
+                        <PostMetaPanel
+                          slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
+                          slugManual={slugManual} setSlugManual={setSlugManual}
+                          title={title}
+                          status={status} setStatus={s => { setStatus(s); markMetaDirty(); }}
+                          categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
+                          excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
+                          featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
+                          videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
+                          thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
+                          postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
+                          publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
+                          scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
+                          layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
+                          layouts={layoutsList || []}
+                          categories={categoriesList || []}
+                          versions={versionsList || []}
+                          siteId={siteId} postId={postId}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto">
               <BuilderCanvas />
             </div>
-            {/* Sidebar — overlay on mobile, inline on desktop */}
-            <div className={`${mobilePanelOpen ? 'fixed inset-y-0 right-0 z-40' : 'hidden'} lg:relative lg:block w-80 min-w-[320px] bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 shadow-xl lg:shadow-none`}>
+            {/* Desktop sidebar — always visible on lg+ */}
+            <div className="hidden lg:flex w-80 min-w-[320px] bg-base-100 border-l border-base-300/30 flex-col shrink-0">
               <div className="flex border-b border-base-300/20 shrink-0">
                 {([
                   { key: 'post' as RightTab, label: 'Post' },
