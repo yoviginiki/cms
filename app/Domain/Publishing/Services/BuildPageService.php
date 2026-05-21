@@ -208,7 +208,7 @@ class BuildPageService
                 'navigation' => ($layoutSlug === 'standard') ? ($headerHtml ?? '') : '',
                 'footerNavigation' => ($layoutSlug === 'standard') ? ($footerHtml ?? '') : '',
                 'renderedBlocks' => $bodyContent,
-                'mainStyle' => ($layoutSlug === 'standard') ? 'max-width:' . ($layout?->supports['maxWidthValue'] ?? '48rem') . ';margin:0 auto;padding:0 1.5rem;' : '',
+                'mainStyle' => ($layoutSlug === 'standard') ? 'max-width:var(--container-width, 1200px);margin:0 auto;padding:0 var(--container-padding, 24px);' : '',
                 'designTokensCss' => $designTokensCss ?? '',
                 'hookHeadScripts' => $hookHeadScripts,
                 'hookBodyOpen' => $hookBodyOpen,

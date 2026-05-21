@@ -8,7 +8,7 @@ return [
         'wrapper_blade_view' => 'layouts.wrappers.standard',
         'supports' => [
             'header' => true, 'footer' => true, 'maxWidthContent' => true,
-            'maxWidthValue' => '48rem', 'sidebar' => false,
+            'maxWidthValue' => 'var(--container-width, 1200px)', 'sidebar' => false,
             'readingProgress' => false, 'stickyToc' => false, 'dropCap' => false,
             'lightbox' => false, 'persistentPlayer' => false, 'chapters' => false,
             'rssAutoInject' => false, 'viewportFitCover' => false, 'allowEmbedding' => false,
@@ -129,7 +129,7 @@ return [
         'wrapper_blade_view' => 'layouts.wrappers.podcast',
         'supports' => [
             'header' => true, 'footer' => true, 'maxWidthContent' => true,
-            'maxWidthValue' => '48rem', 'sidebar' => false,
+            'maxWidthValue' => 'var(--container-width, 1200px)', 'sidebar' => false,
             'readingProgress' => false, 'stickyToc' => false, 'dropCap' => false,
             'lightbox' => false, 'persistentPlayer' => true, 'chapters' => true,
             'rssAutoInject' => true, 'viewportFitCover' => false, 'allowEmbedding' => false,
