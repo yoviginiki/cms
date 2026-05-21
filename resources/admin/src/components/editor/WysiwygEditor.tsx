@@ -12,6 +12,100 @@ import {
   Unlink, ImageIcon,
 } from 'lucide-react';
 
+/**
+ * Smart plain-text to HTML converter.
+ * Detects headings, lists, quotes, and paragraphs from plain text structure.
+ */
+function plainTextToHtml(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i].trimEnd();
+    const nextLine = lines[i + 1]?.trimEnd() || '';
+
+    // Skip empty lines
+    if (!line.trim()) { i++; continue; }
+
+    // Detect ordered list (lines starting with number + dot/comma/parenthesis)
+    if (/^\d+[\.\),]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+[\.\),]\s/.test(lines[i]?.trimEnd() || '')) {
+        items.push(lines[i].trimEnd().replace(/^\d+[\.\),]\s+/, ''));
+        i++;
+      }
+      result.push('<ol>' + items.map(item => `<li>${esc(item)}</li>`).join('') + '</ol>');
+      continue;
+    }
+
+    // Detect unordered list (lines starting with - or • or *)
+    if (/^[\-\•\*]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[\-\•\*]\s/.test(lines[i]?.trimEnd() || '')) {
+        items.push(lines[i].trimEnd().replace(/^[\-\•\*]\s+/, ''));
+        i++;
+      }
+      result.push('<ul>' + items.map(item => `<li>${esc(item)}</li>`).join('') + '</ul>');
+      continue;
+    }
+
+    // Detect blockquote (lines starting with > or wrapped in „..." or "...")
+    if (/^>\s/.test(line) || /^[„"]/.test(line.trim())) {
+      const quoteLines: string[] = [];
+      while (i < lines.length) {
+        const l = lines[i]?.trimEnd() || '';
+        if (/^>\s/.test(l)) { quoteLines.push(l.replace(/^>\s+/, '')); i++; }
+        else if (/^[„"]/.test(l.trim()) && quoteLines.length === 0) { quoteLines.push(l); i++; }
+        else break;
+      }
+      result.push('<blockquote><p>' + quoteLines.map(esc).join('<br>') + '</p></blockquote>');
+      continue;
+    }
+
+    // Detect heading: short line (< 80 chars), not ending with common sentence punctuation,
+    // followed by empty line or longer content line
+    const isShort = line.trim().length < 80 && line.trim().length > 0;
+    const endsLikeTitle = !line.trim().match(/[\.!]\s*$/); // doesn't end with . or !
+    const nextIsEmpty = !nextLine.trim();
+    const nextIsLonger = nextLine.trim().length > line.trim().length;
+    const looksLikeHeading = isShort && endsLikeTitle && (nextIsEmpty || nextIsLonger);
+
+    // Main section headings (very short, standalone)
+    if (looksLikeHeading && line.trim().length < 40 && nextIsEmpty) {
+      // Check if it's a "Част X" / section-level heading
+      if (/^(Част|Part|Section|Глава|Chapter)\s/i.test(line.trim()) || line.trim().length < 25) {
+        result.push(`<h2>${esc(line.trim())}</h2>`);
+      } else {
+        result.push(`<h3>${esc(line.trim())}</h3>`);
+      }
+      i++;
+      continue;
+    }
+
+    // Sub-heading pattern: short line followed by content
+    if (looksLikeHeading && !nextIsEmpty && nextIsLonger) {
+      result.push(`<h3>${esc(line.trim())}</h3>`);
+      i++;
+      continue;
+    }
+
+    // Regular paragraph — collect consecutive non-empty lines
+    const paraLines: string[] = [];
+    while (i < lines.length && lines[i]?.trim()) {
+      paraLines.push(lines[i].trimEnd());
+      i++;
+    }
+    result.push('<p>' + paraLines.map(esc).join('<br>') + '</p>');
+  }
+
+  return result.join('');
+}
+
+function esc(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 interface WysiwygEditorProps {
   content: string;
   onChange: (html: string) => void;
@@ -59,6 +153,24 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
       editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content]);
+
+  // Smart plain-text paste handler — converts structured text to HTML
+  useEffect(() => {
+    if (!editor) return;
+    const el = editor.view.dom;
+    const handler = (e: ClipboardEvent) => {
+      const html = e.clipboardData?.getData('text/html');
+      if (html && html.trim().length > 30) return; // real HTML — let TipTap handle
+      const text = e.clipboardData?.getData('text/plain');
+      if (text && text.includes('\n')) {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.commands.insertContent(plainTextToHtml(text));
+      }
+    };
+    el.addEventListener('paste', handler, { capture: true });
+    return () => el.removeEventListener('paste', handler, { capture: true } as any);
+  }, [editor]);
 
   if (!editor) return null;
 
