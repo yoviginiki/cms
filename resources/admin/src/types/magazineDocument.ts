@@ -365,7 +365,9 @@ export function magazineDocumentToDtpApi(doc: MagazineDocument): Record<string, 
   };
 
   doc.pages.forEach((page, idx) => {
-    const spreadId = `spread-${page.id}`;
+    // Generate UUID-format spread ID from page ID (must be max 36 chars)
+    const pid = page.id.replace(/-/g, '');
+    const spreadId = [pid.slice(0,8), pid.slice(8,12), '4' + pid.slice(13,16), '8' + pid.slice(17,20), pid.slice(20,32)].join('-');
     spreads.push({ id: spreadId, spread_index: idx, name: page.name || `Spread ${idx + 1}` });
 
     pages.push({

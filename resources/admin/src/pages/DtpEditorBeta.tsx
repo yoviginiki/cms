@@ -176,9 +176,17 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
   const outPages: any[] = [];
   const frames: any[] = [];
 
+  // Generate stable spread IDs from page IDs (must be valid UUIDs, max 36 chars)
+  const spreadIdMap = new Map<string, string>();
+  pages.forEach((page) => {
+    // Create a deterministic UUID-like ID from page ID to keep spreads stable across saves
+    const pid = page.id.replace(/-/g, '');
+    const sid = [pid.slice(0,8), pid.slice(8,12), '4' + pid.slice(13,16), '8' + pid.slice(17,20), pid.slice(20,32)].join('-');
+    spreadIdMap.set(page.id, sid);
+  });
+
   pages.forEach((page, idx) => {
-    // Each page gets its own spread for simplicity
-    const spreadId = `spread-${page.id}`;
+    const spreadId = spreadIdMap.get(page.id) || crypto.randomUUID();
     spreads.push({ id: spreadId, spread_index: idx, name: `Spread ${idx + 1}` });
 
     outPages.push({
