@@ -334,9 +334,9 @@ export function BuilderCanvas() {
             <Eye size={12} /> Editing at {canvasDevice === 'tablet' ? '768px' : '390px'} width
           </div>
         )}
-        <div className="p-6">
+        <div className="p-2 sm:p-4 lg:p-6">
         <div
-          className={`mx-auto bg-white rounded-xl shadow-sm border min-h-[60vh] p-6 editor-canvas-light ${
+          className={`mx-auto bg-white rounded-xl shadow-sm border min-h-[60vh] p-3 sm:p-4 lg:p-6 editor-canvas-light ${
             canvasDevice !== 'desktop' ? 'border-info/30' : 'border-gray-200'
           }`}
           style={{

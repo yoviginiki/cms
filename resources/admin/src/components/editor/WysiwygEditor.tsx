@@ -41,12 +41,13 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
         class: 'prose prose-sm max-w-none focus:outline-none editor-canvas-light',
         style: `min-height: ${minHeight}px; padding: 12px;`,
       },
-      // Strip background-color and problematic color styles from pasted content
+      // Strip font-family and background from pasted content.
+      // Keep headings, bold, italic, lists, links, text colors.
       transformPastedHTML(html: string) {
         return html
+          .replace(/font-family\s*:\s*[^;"]+(;|")/gi, '$1')
           .replace(/background-color\s*:\s*[^;"]+(;|")/gi, '$1')
-          .replace(/background\s*:\s*[^;"]+(;|")/gi, '$1')
-          .replace(/color\s*:\s*(?:rgb\(0\s*,\s*0\s*,\s*0\)|#000(?:000)?|black)(;|")/gi, '$1');
+          .replace(/background\s*:\s*(?!none)[^;"]+(;|")/gi, '$1');
       },
     },
   });
@@ -61,7 +62,7 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
   if (!editor) return null;
 
   return (
-    <div className={`border border-base-300/40 rounded-lg overflow-hidden bg-base-100 ${className}`}>
+    <div className={`border border-base-300/40 rounded-lg overflow-hidden bg-white ${className}`}>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-base-300/30 bg-base-200/30">
         <ToolBtn active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} icon={Bold} title="Bold" />
