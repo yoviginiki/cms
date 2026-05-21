@@ -41,13 +41,14 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
         class: 'prose prose-sm max-w-none focus:outline-none editor-canvas-light',
         style: `min-height: ${minHeight}px; padding: 12px;`,
       },
-      // Strip font-family and background from pasted content.
       // Keep headings, bold, italic, lists, links, text colors.
+      // Only strip font-family, background-color, and class attributes.
       transformPastedHTML(html: string) {
         return html
           .replace(/font-family\s*:\s*[^;"]+(;|")/gi, '$1')
           .replace(/background-color\s*:\s*[^;"]+(;|")/gi, '$1')
-          .replace(/background\s*:\s*(?!none)[^;"]+(;|")/gi, '$1');
+          .replace(/background\s*:\s*(?!none)[^;"]+(;|")/gi, '$1')
+          .replace(/\sclass="[^"]*"/gi, '');
       },
     },
   });
