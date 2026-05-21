@@ -30,6 +30,21 @@
     ];
     $layout = $data['layout'] ?? '1/2+1/2';
     $gridCols = $layoutMap[$layout] ?? '1fr 1fr';
+
+    // Auto-collapse: if multi-column layout but only 1 column has real content, use 1fr
+    if ($gridCols !== '1fr' && isset($childrenArray) && is_array($childrenArray)) {
+        $populatedCols = 0;
+        foreach ($childrenArray as $colHtml) {
+            $stripped = trim(strip_tags(preg_replace('/<!--.*?-->/s', '', (string)$colHtml)));
+            $hasElements = preg_match('/<(img|video|iframe|svg|table|ul|ol|blockquote|hr|audio|figure|h[1-6])\b/i', (string)$colHtml);
+            $hasBlocks = preg_match('/class="[^"]*-block\b/i', (string)$colHtml);
+            if ($stripped !== '' || $hasElements || $hasBlocks) $populatedCols++;
+        }
+        if (count($childrenArray) > 0 && $populatedCols < 2) {
+            $gridCols = '1fr';
+        }
+    }
+
     $gap = BlockStyle::safeDim($data['gap'] ?? '16px') ?: '16px';
     $maxW = BlockStyle::safeDim($data['max_width'] ?? '');
     $validAligns = ['start', 'center', 'end', 'stretch'];
