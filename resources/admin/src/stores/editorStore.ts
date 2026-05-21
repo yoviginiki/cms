@@ -198,7 +198,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           data: deepClone(reg.definition.defaultData), children: [], order: 0,
         };
         const column: BlockData = { id: generateId(), type: 'column', level: 'column', data: deepClone(columnReg.definition.defaultData), children: [newBlock], order: 0 };
-        const row: BlockData = { id: generateId(), type: 'row', level: 'row', data: deepClone(rowReg.definition.defaultData), children: [column], order: 0 };
+        const rowData = deepClone(rowReg.definition.defaultData);
+        rowData.layout = '1/1'; // Single column — not the default 1/2+1/2
+        const row: BlockData = { id: generateId(), type: 'row', level: 'row', data: rowData, children: [column], order: 0 };
         const section: BlockData = { id: generateId(), type: 'section', level: 'section', data: deepClone(sectionReg.definition.defaultData), children: [row], order: 0 };
 
         const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
