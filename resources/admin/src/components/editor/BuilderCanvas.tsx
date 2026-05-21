@@ -12,14 +12,15 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Monitor, Tablet, Smartphone, LayoutList, Eye, PanelTop, Plus, Code } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Monitor, Tablet, Smartphone, LayoutList, Eye, PanelTop, Plus, Code, FileText } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import { BlockIcon } from './BlockIcon';
 import { presets as presetsList } from '@/presets';
+import WysiwygEditor from './WysiwygEditor';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
 import type { Active } from '@dnd-kit/core';
@@ -211,6 +212,50 @@ export function BuilderCanvas() {
 
   const [showAddPopup, setShowAddPopup] = useState(false);
 
+  // Simple editor mode — stores content as HTML, converts to rich-text block when leaving simple mode
+  const [simpleContent, setSimpleContent] = useState(() => {
+    // Initialize from first rich-text block if one exists
+    const firstRichText = blocks.flatMap(function findRichText(b: any): any[] {
+      if (b.type === 'rich-text') return [b];
+      return (b.children || []).flatMap(findRichText);
+    })[0];
+    return (firstRichText?.data?.content as string) || '';
+  });
+
+  // When switching away from simple mode, save content as a rich-text block
+  const prevCanvasModeRef = useRef(canvasMode);
+  useEffect(() => {
+    if (prevCanvasModeRef.current === 'simple' && canvasMode !== 'simple' && simpleContent && simpleContent !== '<p></p>') {
+      // Find existing rich-text block or create one
+      const findRichText = (bs: any[]): any => {
+        for (const b of bs) {
+          if (b.type === 'rich-text') return b;
+          const found = findRichText(b.children || []);
+          if (found) return found;
+        }
+        return null;
+      };
+      const existing = findRichText(blocks);
+      if (existing) {
+        // Update existing rich-text block
+        const { updateBlock } = useEditorStore.getState();
+        if (updateBlock) updateBlock(existing.id, { content: simpleContent });
+      } else {
+        // Create a new rich-text block with the content
+        addBlock('rich-text');
+        // After creation, update the newest rich-text block
+        setTimeout(() => {
+          const state = useEditorStore.getState();
+          const newest = findRichText(state.blocks);
+          if (newest && state.updateBlock) {
+            state.updateBlock(newest.id, { content: simpleContent });
+          }
+        }, 50);
+      }
+    }
+    prevCanvasModeRef.current = canvasMode;
+  }, [canvasMode]);
+
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Skip when typing in input/textarea/contenteditable
@@ -275,7 +320,7 @@ export function BuilderCanvas() {
               title="Visual Mode — live rendered preview"
             >
               <Eye size={14} />
-              <span>Visual</span>
+              <span className="hidden sm:inline">Visual</span>
             </button>
             <button
               type="button"
@@ -288,7 +333,7 @@ export function BuilderCanvas() {
               title="Wireframe Mode — structural outline"
             >
               <LayoutList size={14} />
-              <span>Wireframe</span>
+              <span className="hidden sm:inline">Wireframe</span>
             </button>
             <button
               type="button"
@@ -301,7 +346,20 @@ export function BuilderCanvas() {
               title="HTML Mode — raw code editor"
             >
               <Code size={14} />
-              <span>HTML</span>
+              <span className="hidden sm:inline">HTML</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCanvasMode('simple'); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                canvasMode === 'simple'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Simple Editor — just type, like a classic editor"
+            >
+              <FileText size={14} />
+              <span className="hidden sm:inline">Simple</span>
             </button>
           </div>
 
@@ -344,7 +402,15 @@ export function BuilderCanvas() {
             transition: 'max-width 0.3s ease',
           }}
         >
-          {canvasMode === 'html' ? (
+          {canvasMode === 'simple' ? (
+            /* ── Simple Mode: just type like a classic editor ── */
+            <WysiwygEditor
+              content={simpleContent}
+              onChange={setSimpleContent}
+              minHeight={400}
+              placeholder="Just start typing... headings, paragraphs, lists, links — everything works. When you switch to Visual or Wireframe mode, your content becomes a rich-text block."
+            />
+          ) : canvasMode === 'html' ? (
             /* ── HTML Mode: raw code editor ── */
             <HtmlEditor />
           ) : canvasMode === 'wireframe' ? (

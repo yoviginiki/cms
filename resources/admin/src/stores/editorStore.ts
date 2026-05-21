@@ -32,7 +32,7 @@ interface EditorState {
   isDirty: boolean;
   isSaving: boolean;
   editorMode: 'simple' | 'block' | 'magazine';
-  canvasMode: 'visual' | 'wireframe' | 'html';
+  canvasMode: 'visual' | 'wireframe' | 'html' | 'simple';
   canvasDevice: 'desktop' | 'tablet' | 'mobile';
   rawHtml: string;
   undoStack: BlockData[][];
@@ -42,7 +42,7 @@ interface EditorState {
   setRawHtml: (html: string) => void;
   setBlocks: (blocks: BlockData[]) => void;
   setEditorMode: (mode: 'simple' | 'block' | 'magazine') => void;
-  setCanvasMode: (mode: 'visual' | 'wireframe' | 'html') => void;
+  setCanvasMode: (mode: 'visual' | 'wireframe' | 'html' | 'simple') => void;
   setCanvasDevice: (device: 'desktop' | 'tablet' | 'mobile') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
   addPreset: (presetType: string, index?: number) => void;
@@ -118,7 +118,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
   isSaving: false,
   editorMode: 'block',
-  canvasMode: 'visual' as 'visual' | 'wireframe' | 'html',
+  canvasMode: 'visual' as 'visual' | 'wireframe' | 'html' | 'simple',
   canvasDevice: 'desktop' as 'desktop' | 'tablet' | 'mobile',
   rawHtml: '',
   undoStack: [],
