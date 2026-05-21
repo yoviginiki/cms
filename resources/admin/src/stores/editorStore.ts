@@ -186,7 +186,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         const parent = findInTree(state.blocks, resolvedParentId);
         if (parent && parent.block.level !== neededParentLevel) return;
       }
-      if (!resolvedParentId) return; // no valid parent exists
+      if (!resolvedParentId) {
+        // Auto-create section → row → column hierarchy, then add block inside
+        const sectionReg = blockRegistry.get('section');
+        const rowReg = blockRegistry.get('row');
+        const columnReg = blockRegistry.get('column');
+        if (!sectionReg || !rowReg || !columnReg) return;
+
+        const newBlock: BlockData = {
+          id: generateId(), type, level: reg.definition.level,
+          data: deepClone(reg.definition.defaultData), children: [], order: 0,
+        };
+        const column: BlockData = { id: generateId(), type: 'column', level: 'column', data: deepClone(columnReg.definition.defaultData), children: [newBlock], order: 0 };
+        const row: BlockData = { id: generateId(), type: 'row', level: 'row', data: deepClone(rowReg.definition.defaultData), children: [column], order: 0 };
+        const section: BlockData = { id: generateId(), type: 'section', level: 'section', data: deepClone(sectionReg.definition.defaultData), children: [row], order: 0 };
+
+        const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+        set({ blocks: [...state.blocks, section], selectedBlockId: newBlock.id, undoStack, redoStack: [], isDirty: true });
+        return;
+      }
     }
 
     const newBlock: BlockData = {
