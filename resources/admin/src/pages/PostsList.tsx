@@ -264,7 +264,8 @@ export default function PostsList() {
                     </button>
                   </td>
                   <td>
-                    <span className="text-[13px] font-medium text-base-content/90">{post.title}</span>
+                    <button onClick={() => navigate(`/sites/${siteId}/posts/${post.id}/edit`)}
+                      className="text-[13px] font-medium text-base-content/90 hover:text-primary hover:underline text-left cursor-pointer">{post.title}</button>
                     <p className="text-[11px] text-base-content/30 truncate max-w-xs">/{post.slug}</p>
                   </td>
                   <td className="text-[13px] text-base-content/50">

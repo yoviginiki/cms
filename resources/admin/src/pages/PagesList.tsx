@@ -157,7 +157,8 @@ export default function PagesList() {
                 <tr key={page.id} className={`hover:bg-gray-50 transition-colors ${isHomepage(page) ? 'bg-blue-50/50' : ''}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">{page.title}</span>
+                      <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
+                        className="font-medium text-gray-900 hover:text-blue-600 hover:underline text-left cursor-pointer">{page.title}</button>
                       {isHomepage(page) && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
                           <Home className="h-3 w-3" /> Front Page
