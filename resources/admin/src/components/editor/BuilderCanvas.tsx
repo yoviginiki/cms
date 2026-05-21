@@ -2,6 +2,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -122,6 +123,7 @@ export function BuilderDndProvider({ children }: { children: React.ReactNode }) 
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
   function handleDragStart(event: DragStartEvent) {
@@ -364,13 +366,17 @@ export function BuilderCanvas() {
             >
               <div className="space-y-3">
                 {blocks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); addBlock('hero'); }}
+                    className="flex flex-col items-center justify-center py-20 text-gray-400 hover:text-gray-600 transition-colors w-full cursor-pointer"
+                  >
                     <svg className="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     <p className="text-lg font-medium">No blocks yet</p>
-                    <p className="text-sm mt-1">Drag blocks from the sidebar or click to add</p>
-                  </div>
+                    <p className="text-sm mt-1">Tap to add a hero block, or use the + Add panel</p>
+                  </button>
                 ) : (
                   <>
                     {blocks.map((block, i) => (
