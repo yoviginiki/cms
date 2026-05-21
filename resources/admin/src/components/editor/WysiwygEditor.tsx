@@ -62,9 +62,9 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
   if (!editor) return null;
 
   return (
-    <div className={`border border-base-300/40 rounded-lg overflow-hidden bg-white ${className}`}>
+    <div className={`border border-gray-200 rounded-lg overflow-hidden bg-white ${className}`}>
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-base-300/30 bg-base-200/30">
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50">
         <ToolBtn active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} icon={Bold} title="Bold" />
         <ToolBtn active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} icon={Italic} title="Italic" />
         <ToolBtn active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} icon={UnderlineIcon} title="Underline" />
@@ -124,7 +124,7 @@ function ToolBtn({ active, onClick, icon: Icon, title, disabled, small }: {
   return (
     <button onClick={onClick} disabled={disabled} title={title}
       className={`${small ? 'p-1' : 'p-1.5'} rounded transition-colors ${
-        active ? 'bg-primary/10 text-primary' : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-200/50'
+        active ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-200'
       } disabled:opacity-30 disabled:cursor-default`}>
       <Icon size={small ? 13 : 14} />
     </button>
@@ -132,5 +132,5 @@ function ToolBtn({ active, onClick, icon: Icon, title, disabled, small }: {
 }
 
 function Divider() {
-  return <div className="w-px h-5 bg-base-300/30 mx-0.5" />;
+  return <div className="w-px h-5 bg-gray-300 mx-0.5" />;
 }
