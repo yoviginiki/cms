@@ -41,6 +41,13 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
         class: 'prose prose-sm max-w-none focus:outline-none editor-canvas-light',
         style: `min-height: ${minHeight}px; padding: 12px;`,
       },
+      // Strip background-color and problematic color styles from pasted content
+      transformPastedHTML(html: string) {
+        return html
+          .replace(/background-color\s*:\s*[^;"]+(;|")/gi, '$1')
+          .replace(/background\s*:\s*[^;"]+(;|")/gi, '$1')
+          .replace(/color\s*:\s*(?:rgb\(0\s*,\s*0\s*,\s*0\)|#000(?:000)?|black)(;|")/gi, '$1');
+      },
     },
   });
 
