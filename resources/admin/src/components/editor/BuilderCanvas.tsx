@@ -12,7 +12,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Monitor, Tablet, Smartphone, LayoutList, Eye, PanelTop, Plus, Code } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
@@ -20,6 +20,8 @@ import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import { BlockIcon } from './BlockIcon';
 import { presets as presetsList } from '@/presets';
+import { blockRegistry } from '@/components/blocks/registry';
+import '@/components/blocks';
 import type { Active } from '@dnd-kit/core';
 
 /**
@@ -207,6 +209,8 @@ export function BuilderCanvas() {
   const canvasMode = useEditorStore((s) => s.canvasMode);
   const setCanvasMode = useEditorStore((s) => s.setCanvasMode);
 
+  const [showAddPopup, setShowAddPopup] = useState(false);
+
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Skip when typing in input/textarea/contenteditable
@@ -368,14 +372,14 @@ export function BuilderCanvas() {
                 {blocks.length === 0 ? (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); addBlock('hero'); }}
+                    onClick={(e) => { e.stopPropagation(); setShowAddPopup(true); }}
                     className="flex flex-col items-center justify-center py-20 text-gray-400 hover:text-gray-600 transition-colors w-full cursor-pointer"
                   >
                     <svg className="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     <p className="text-lg font-medium">No blocks yet</p>
-                    <p className="text-sm mt-1">Tap to add a hero block, or use the + Add panel</p>
+                    <p className="text-sm mt-1">Tap to add a block</p>
                   </button>
                 ) : (
                   <>
@@ -424,6 +428,103 @@ export function BuilderCanvas() {
         </div>
         </div>
       </div>
+
+      {/* Floating + button to add blocks (visible when blocks exist too) */}
+      {!showAddPopup && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setShowAddPopup(true); }}
+          className="fixed bottom-20 right-4 z-30 w-12 h-12 rounded-full bg-primary text-primary-content shadow-lg flex items-center justify-center text-2xl hover:scale-110 transition-transform lg:bottom-4"
+          title="Add block"
+        >
+          +
+        </button>
+      )}
+
+      {/* Add block popup */}
+      {showAddPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowAddPopup(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative bg-base-100 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-base-300/20">
+              <h3 className="font-medium text-base-content">Add Block</h3>
+              <button onClick={() => setShowAddPopup(false)} className="text-base-content/40 hover:text-base-content text-xl px-2">✕</button>
+            </div>
+
+            {/* Quick add */}
+            <div className="px-4 py-3 border-b border-base-300/10 flex flex-wrap gap-2">
+              <button onClick={() => { addBlock('rich-text'); setShowAddPopup(false); }}
+                className="btn btn-sm btn-outline gap-1">📝 Simple Text</button>
+              <button onClick={() => { addBlock('hero'); setShowAddPopup(false); }}
+                className="btn btn-sm btn-outline gap-1">🖼 Hero</button>
+              <button onClick={() => { addBlock('image'); setShowAddPopup(false); }}
+                className="btn btn-sm btn-outline gap-1">📷 Image</button>
+              <button onClick={() => { addBlock('section'); setShowAddPopup(false); }}
+                className="btn btn-sm btn-outline gap-1">📦 Section</button>
+              <button onClick={() => { addBlock('heading'); setShowAddPopup(false); }}
+                className="btn btn-sm btn-outline gap-1">H Heading</button>
+            </div>
+
+            {/* Full block picker */}
+            <div className="flex-1 overflow-y-auto">
+              <BlockPickerClickable onAdd={(type) => { addBlock(type); setShowAddPopup(false); }} />
+            </div>
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+/** Click-only block picker for popup — no drag, just tap to add */
+function BlockPickerClickable({ onAdd }: { onAdd: (type: string) => void }) {
+  const [search, setSearch] = useState('');
+  const allBlocks = useMemo(() => {
+    const result: Array<{ type: string; label: string; category: string; description: string; icon: string }> = [];
+    for (const [, reg] of blockRegistry.getAll()) {
+      const d = reg.definition;
+      result.push({ type: d.type, label: d.label, category: d.category, description: d.description || '', icon: d.icon });
+    }
+    return result;
+  }, []);
+
+  const filtered = search
+    ? allBlocks.filter(b => b.label.toLowerCase().includes(search.toLowerCase()) || b.type.includes(search.toLowerCase()))
+    : allBlocks;
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    for (const b of filtered) {
+      if (!map.has(b.category)) map.set(b.category, []);
+      map.get(b.category)!.push(b);
+    }
+    return map;
+  }, [filtered]);
+
+  return (
+    <div className="p-3 space-y-3">
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search blocks..."
+        className="input input-bordered input-sm w-full"
+        autoFocus
+      />
+      {Array.from(grouped.entries()).map(([cat, blocks]) => (
+        <div key={cat}>
+          <div className="text-[9px] font-semibold uppercase tracking-wider text-base-content/30 mb-1">{cat}</div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {blocks.map(b => (
+              <button key={b.type} onClick={() => onAdd(b.type)}
+                className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-center hover:bg-primary/10 hover:text-primary transition-colors border border-transparent hover:border-primary/20">
+                <BlockIcon icon={b.icon} size={20} className="text-base-content/40" />
+                <span className="text-[10px] font-medium text-base-content/70 leading-tight">{b.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
