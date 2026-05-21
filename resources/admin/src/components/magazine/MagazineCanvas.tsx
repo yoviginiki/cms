@@ -130,11 +130,13 @@ export function MagazineCanvas({
   const exitEditing = useCallback(() => {
     const currentEditId = editingIdRef.current;
     if (!currentEditId) return;
-    // Flush content from the contentEditable DOM before React unmounts it
+    // Flush content from the contentEditable DOM before React unmounts it.
+    // Note: handleContentChange (blur) may have already saved — this is a safety net.
     const editableEl = document.querySelector(`[data-editing-id="${CSS.escape(currentEditId)}"]`) as HTMLElement | null
       ?? document.querySelector('[contenteditable="true"]') as HTMLElement | null;
     if (editableEl) {
-      // Search current page elements first, then all pages (handles page switch during editing)
+      const currentHtml = sanitizeHtml(editableEl.innerHTML);
+      // Search current page elements first, then all pages
       let el = elementsRef.current.find(e => e.id === currentEditId);
       if (!el && allPagesRef.current) {
         for (const p of allPagesRef.current) {
@@ -143,7 +145,11 @@ export function MagazineCanvas({
         }
       }
       if (el) {
-        onUpdateElement(currentEditId, { data: { ...(el.data || {}), content: sanitizeHtml(editableEl.innerHTML) } } as any);
+        // Only save if content actually differs from what's in the store
+        const storedContent = (el.data as any)?.content || '';
+        if (currentHtml !== storedContent) {
+          onUpdateElement(currentEditId, { data: { ...(el.data || {}), content: currentHtml } } as any);
+        }
       }
     }
     editingIdRef.current = null;
@@ -188,12 +194,13 @@ export function MagazineCanvas({
   }, [exitEditing]);
 
   const handleContentChange = useCallback((id: string, html: string) => {
-    // Called on blur from contentEditable — save content
+    // Called on blur from contentEditable — save content but DON'T exit editing.
+    // Exiting editing is handled by exitEditing() (canvas click, Escape, page switch).
+    // This prevents the race condition where clearing editingId causes re-render
+    // with stale content before the store update propagates.
     const el = elementsRef.current.find(e => e.id === id);
     if (!el) return;
     onUpdateElement(id, { data: { ...(el.data || {}), content: sanitizeHtml(html) } } as any);
-    editingIdRef.current = null;
-    setEditingId(null);
   }, [onUpdateElement]);
 
   // Canvas background click -> clear selection or create element with active tool
