@@ -27,6 +27,8 @@ interface MagazineCanvasProps {
   onPageClick?: (pageNumber: number) => void;
   onContinueText?: (elementId: string) => void;
   onMoveToPage?: (elementId: string, direction: 'prev' | 'next', newX: number, newY: number) => void;
+  onEditingChange?: (editingId: string | null) => void;
+  startEditingId?: string | null;
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -65,6 +67,8 @@ export function MagazineCanvas({
   onPageClick,
   onContinueText,
   onMoveToPage,
+  onEditingChange,
+  startEditingId,
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -154,6 +158,23 @@ export function MagazineCanvas({
       prevPageRef.current = page.pageNumber;
     }
   }, [page.pageNumber, exitEditing]);
+
+  // Notify parent when editing changes (for rich text toolbar in panel)
+  useEffect(() => { onEditingChange?.(editingId); }, [editingId, onEditingChange]);
+
+  // Handle external start-editing request (touchscreen "Edit text" button)
+  useEffect(() => {
+    if (startEditingId && startEditingId !== editingId) {
+      const el = elementsRef.current?.find(e => e.id === startEditingId);
+      if (el) {
+        const TEXT_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
+        if (TEXT_TYPES.includes(el.type) && !el.locked) {
+          exitEditing();
+          setEditingId(startEditingId);
+        }
+      }
+    }
+  }, [startEditingId, editingId, exitEditing]);
 
   const handleDoubleClick = useCallback((_e: React.MouseEvent, id: string) => {
     const el = elementsRef.current.find(e => e.id === id);

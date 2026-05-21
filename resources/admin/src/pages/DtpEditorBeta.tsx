@@ -29,6 +29,7 @@ import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import TextWrapPanel from '@/components/magazine/properties/TextWrapPanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
 import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
+import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
@@ -255,6 +256,8 @@ export default function DtpEditorBeta() {
   const [autoOpenImagePicker, setAutoOpenImagePicker] = useState(false);
   const [alignToPage, setAlignToPage] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [canvasEditingId, setCanvasEditingId] = useState<string | null>(null);
+  const [startEditingRequest, setStartEditingRequest] = useState<string | null>(null);
   const initializedRef = useRef(false);
 
   // Load DTP document from API
@@ -535,6 +538,8 @@ export default function DtpEditorBeta() {
           onDeleteElements={(ids) => store.deleteElements(ids)}
           onDuplicateElements={(ids) => store.duplicateElements(ids)}
           onSelectElement={(id) => id ? store.selectElement(id) : store.clearSelection()}
+          onEditingChange={(id) => { setCanvasEditingId(id); if (!id) setStartEditingRequest(null); }}
+          startEditingId={startEditingRequest}
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
           onMoveToPage={(elementId, direction, newX, newY) => {
             const currentPageNum = store.currentPageNumber;
@@ -580,6 +585,13 @@ export default function DtpEditorBeta() {
                     <div className="text-[10px] text-base-content/30 uppercase tracking-wider">{selectedEl.type.replace(/_/g, ' ')}</div>
                     <TransformPanel x={selectedEl.x} y={selectedEl.y} width={selectedEl.width} height={selectedEl.height} rotation={selectedEl.rotation}
                       onChange={(updates) => store.updateElement(selectedEl.id, updates as Partial<MagElement>)} />
+                    {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'].includes(selectedEl.type) && (
+                      <RichTextToolbar
+                        isEditing={canvasEditingId === selectedEl.id}
+                        onStartEditing={() => setStartEditingRequest(selectedEl.id)}
+                        elementId={selectedEl.id}
+                      />
+                    )}
                     {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame'].includes(selectedEl.type) && selectedEl.typography && (
                       <MagTypographyPanel value={selectedEl.typography} onChange={(v) => store.updateElement(selectedEl.id, { typography: { ...selectedEl.typography!, ...v } as MagTypography })} />
                     )}
