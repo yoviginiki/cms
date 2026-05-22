@@ -27,6 +27,8 @@ interface MagazineCanvasProps {
   onPageClick?: (pageNumber: number) => void;
   onContinueText?: (elementId: string) => void;
   onMoveToPage?: (elementId: string, direction: 'prev' | 'next', newX: number, newY: number) => void;
+  onToggleFixed?: (elementId: string, mode: 'free' | 'fixed') => void;
+  onToggleSpan?: (elementId: string, mode: 'page' | 'spread') => void;
   onEditingChange?: (editingId: string | null) => void;
   startEditingId?: string | null;
   layoutMode?: 'single' | 'book' | 'presentation';
@@ -73,6 +75,8 @@ export function MagazineCanvas({
   startEditingId,
   layoutMode = 'single',
   coverMode = 'standalone',
+  onToggleFixed,
+  onToggleSpan,
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -600,6 +604,8 @@ export function MagazineCanvas({
                 onDoubleClick={handleDoubleClick}
                 onContentChange={handleContentChange}
                 onContinueText={onContinueText}
+                onToggleFixed={onToggleFixed}
+                onToggleSpan={onToggleSpan}
                 onStartEditing={(id) => {
                   exitEditing();
                   setEditingId(id);

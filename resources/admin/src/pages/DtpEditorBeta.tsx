@@ -43,7 +43,7 @@ function makeFrame(type: string, name: string, x: number, y: number, w: number, 
     locked: false, visible: true, layerName: null,
     style: { ...DEFAULT_ELEMENT_STYLE }, typography: isText ? { ...DEFAULT_TYPOGRAPHY, fontSize: 10 } : null,
     textWrap: { ...DEFAULT_TEXT_WRAP }, threadId: null, threadOrder: null,
-    pageNumber, onMaster: true, parentId: null, children: [], responsiveOverrides: {},
+    pageNumber, onMaster: true, positionMode: 'free' as const, spanMode: 'page' as const, parentId: null, children: [], responsiveOverrides: {},
   };
 }
 
@@ -167,6 +167,8 @@ function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     threadOrder: f.metadata?.threadOrder ?? null,
     pageNumber,
     onMaster: f.metadata?.onMaster === true,
+    positionMode: (f.metadata?.positionMode || 'free') as 'free' | 'fixed',
+    spanMode: (f.metadata?.spanMode || 'page') as 'page' | 'spread',
     parentId: null,
     children: [],
     responsiveOverrides: {},
@@ -278,6 +280,8 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
         style: stripUndefined(el.style as unknown as Record<string, unknown> || {}),
         metadata: stripUndefined({
           onMaster: el.onMaster || false,
+          positionMode: el.positionMode || 'free',
+          spanMode: el.spanMode || 'page',
           _typography: el.typography || null,
           threadId: el.threadId || null,
           threadOrder: el.threadOrder ?? null,
@@ -600,6 +604,8 @@ export default function DtpEditorBeta() {
           startEditingId={startEditingRequest}
           layoutMode={store.issueSettings.layoutMode}
           coverMode={store.issueSettings.coverMode}
+          onToggleFixed={(id, mode) => store.updateElement(id, { positionMode: mode } as any)}
+          onToggleSpan={(id, mode) => store.updateElement(id, { spanMode: mode } as any)}
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
           onMoveToPage={(elementId, direction, newX, newY) => {
             const currentPageNum = store.currentPageNumber;

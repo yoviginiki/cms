@@ -21,10 +21,12 @@ interface Props {
   onContinueText?: (id: string) => void;
   onStartEditing?: (id: string) => void;
   onStopEditing?: () => void;
+  onToggleFixed?: (id: string, mode: 'free' | 'fixed') => void;
+  onToggleSpan?: (id: string, mode: 'page' | 'spread') => void;
   allPages?: Array<{ pageNumber: number; elements: MagElement[] }>;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, allPages }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed, onToggleSpan, allPages }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -711,6 +713,60 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
 
       {/* Edit/Done button is in the properties panel — not on the frame
            (overflow:hidden clips anything above the frame boundary) */}
+
+      {/* Fixed badge */}
+      {el.positionMode === 'fixed' && (
+        <div className="absolute top-1 left-1 bg-amber-500/80 text-white text-[7px] px-1.5 py-0.5 rounded font-bold pointer-events-none z-[9998]">
+          FIXED
+        </div>
+      )}
+
+      {/* Spread badge */}
+      {el.spanMode === 'spread' && (
+        <div className="absolute top-1 right-8 bg-purple-500/80 text-white text-[7px] px-1.5 py-0.5 rounded font-bold pointer-events-none z-[9998]">
+          SPREAD
+        </div>
+      )}
+
+      {/* Fix/Unfix button for image frames */}
+      {isSelected && IMAGE_FRAME_TYPES.includes(el.type) && !el.locked && (
+        <button
+          className={`absolute top-1 right-1 px-1.5 py-0.5 rounded text-[8px] font-medium z-[9999] ${
+            el.positionMode === 'fixed'
+              ? 'bg-amber-500 text-white hover:bg-amber-600'
+              : 'bg-base-content/20 text-base-content/60 hover:bg-base-content/30'
+          }`}
+          style={{ pointerEvents: 'auto' }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFixed?.(el.id, el.positionMode === 'fixed' ? 'free' : 'fixed');
+          }}
+          title={el.positionMode === 'fixed' ? 'Unfix — allow text to overlap' : 'Fix — text flows around this image'}
+        >
+          {el.positionMode === 'fixed' ? '📌 Unfix' : '📌 Fix'}
+        </button>
+      )}
+
+      {/* Span toggle for image frames in book mode */}
+      {isSelected && IMAGE_FRAME_TYPES.includes(el.type) && !el.locked && (
+        <button
+          className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-medium z-[9999] ${
+            el.spanMode === 'spread'
+              ? 'bg-purple-500 text-white hover:bg-purple-600'
+              : 'bg-base-content/20 text-base-content/60 hover:bg-base-content/30'
+          }`}
+          style={{ pointerEvents: 'auto' }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSpan?.(el.id, el.spanMode === 'spread' ? 'page' : 'spread');
+          }}
+          title={el.spanMode === 'spread' ? 'Single page image' : 'Span across two-page spread'}
+        >
+          {el.spanMode === 'spread' ? '📖 Single' : '📖 Spread'}
+        </button>
+      )}
 
       {/* Resize handles when selected */}
       {isSelected && !el.locked && (

@@ -67,6 +67,10 @@ export interface MagElement {
   parentId: string | null;
   children: MagElement[];
 
+  // Layout behavior (optional — defaults to free/page)
+  positionMode?: 'free' | 'fixed';
+  spanMode?: 'page' | 'spread';
+
   // Responsive
   responsiveOverrides: Record<string, unknown>;
 }

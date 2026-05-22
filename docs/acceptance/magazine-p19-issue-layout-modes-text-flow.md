@@ -43,9 +43,39 @@
 | 7 | Save + reload | Layout mode persists |
 | 8 | All existing features | Still work |
 
-## 5. Known Limitations
-- Spread image spanning not implemented in this slice
-- Fixed/unfixed objects not implemented in this slice
-- Text wrap around images not implemented in this slice
+## 5. Fixed / Unfixed Objects
+- Image frames show 📌 Fix / 📌 Unfix button (top-right when selected)
+- Fixed state: `positionMode: 'fixed'` — shows FIXED badge
+- Free state: `positionMode: 'free'` (default)
+- Fixed images treated as obstacles by text continuation
+- Saved in `metadata.positionMode`, loaded on init
+
+## 6. Spread Images
+- Image frames show 📖 Spread / 📖 Single button (bottom-left when selected)
+- Spread state: `spanMode: 'spread'` — shows SPREAD badge
+- Only meaningful in book mode
+- Saved in `metadata.spanMode`, loaded on init
+
+## 7. Text Flow Around Fixed Objects
+- `continueTextToNextPage` checks for fixed images on target page
+- Continuation frame Y position placed below any overlapping fixed images (8px gap)
+- Bounding-box avoidance only (not contour wrapping)
+
+## 8. Manual Acceptance (Phase 2)
+
+| # | Test | Expected |
+|---|------|----------|
+| 9 | Select image frame | Fix/Unfix + Spread/Single buttons visible |
+| 10 | Click 📌 Fix | FIXED badge appears |
+| 11 | Click 📌 Unfix | Badge disappears |
+| 12 | Click 📖 Spread | SPREAD badge appears |
+| 13 | Click 📖 Single | Badge disappears |
+| 14 | Save + reload | Fixed/spread state persists |
+| 15 | Add fixed image + continue text | Continuation avoids fixed image area |
+
+## 9. Known Limitations
+- Spread image visual rendering across two pages not yet implemented (badge only)
+- Text wrap is bounding-box avoidance during continuation, not CSS shape-outside
 - Reading direction RTL reserved for future
 - Presentation mode uses existing Single view (no slide transitions)
+- Fixed/unfixed does not affect drag behavior (frame can still be moved)

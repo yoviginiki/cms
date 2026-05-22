@@ -275,6 +275,8 @@ function makeDefaultElement(
     threadOrder: null,
     pageNumber,
     onMaster: false,
+    positionMode: 'free',
+    spanMode: 'page',
     parentId: null,
     children: [],
     responsiveOverrides: {},
@@ -661,15 +663,27 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       else pages.splice(insertIdx, 0, targetPage);
     }
 
-    // Create continuation frame
+    // Create continuation frame — find Y position that avoids fixed images
     const continuationId = crypto.randomUUID();
     const maxZ = Math.max(0, ...targetPage.elements.map(e => e.zIndex));
+    const margins = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
+    let contY = margins.top;
+
+    // Check for fixed images on target page — place continuation below them
+    const fixedImages = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
+    for (const fixed of fixedImages) {
+      const fixedBottom = fixed.y + fixed.height + 8; // 8px gap
+      if (contY < fixedBottom && sourceElement.x < fixed.x + fixed.width && sourceElement.x + sourceElement.width > fixed.x) {
+        contY = fixedBottom; // Move below the fixed image
+      }
+    }
+
     const continuation: MagElement = {
       ...structuredClone(sourceElement),
       id: continuationId,
       pageNumber: nextPageNumber,
       x: Number.isFinite(sourceElement.x) ? sourceElement.x : 40,
-      y: Number.isFinite(sourcePage.margins.top) ? sourcePage.margins.top : 36,
+      y: contY,
       threadId: sourceElement.threadId || crypto.randomUUID(),
       threadOrder: (sourceElement.threadOrder ?? 0) + 1,
       zIndex: maxZ + 1,
