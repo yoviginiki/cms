@@ -275,7 +275,7 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
         visible: el.visible,
         locked: el.locked,
         content: stripUndefined(content),
-        style: el.style || {},
+        style: stripUndefined(el.style as unknown as Record<string, unknown> || {}),
         metadata: stripUndefined({
           onMaster: el.onMaster || false,
           _typography: el.typography || null,
