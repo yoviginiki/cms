@@ -80,6 +80,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     }
   }, [el.id, onContentChange]);
   // Build inline styles from element properties
+  const isTextType = TEXT_FRAME_TYPES.includes(el.type);
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
     left: el.x,
@@ -91,6 +92,8 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     zIndex: el.zIndex,
     cursor: el.locked ? 'default' : 'move',
     pointerEvents: el.locked ? 'none' : 'auto',
+    // Text frames need overflow control for multi-column vertical scroll
+    overflow: isTextType ? (isEditing ? 'auto' : 'hidden') : undefined,
   };
 
   // Apply fill
@@ -129,6 +132,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
 
     if (TEXT_FRAME_TYPES.includes(el.type)) {
       const typo = el.typography;
+      const cols = data.columnsInFrame || 1;
       const textStyle: React.CSSProperties = {
         fontFamily: typo?.fontFamily || 'Inter',
         fontSize: typo?.fontSize || 14,
@@ -140,18 +144,28 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         color: typo?.textColor || '#1a1a1a',
         textTransform: (typo as any)?.textTransform || undefined,
         padding: data.textInset && typeof data.textInset === 'object' ? `${data.textInset.top ?? 8}px ${data.textInset.right ?? 8}px ${data.textInset.bottom ?? 8}px ${data.textInset.left ?? 8}px` : '8px',
-        // Disable columns while editing — CSS columns prevent vertical scroll
-        columnCount: isEditing ? 1 : (data.columnsInFrame || 1),
-        columnGap: isEditing ? undefined : (data.columnGap || 12),
-        columnFill: isEditing ? undefined : (data.columnFill === 'balance' ? 'balance' : 'auto'),
-        overflowX: 'hidden',
-        overflowY: isEditing ? 'auto' : 'hidden',
         wordBreak: 'break-word' as any,
         width: '100%',
-        height: '100%',
         outline: isEditing ? '2px solid #3b82f6' : undefined,
         cursor: isEditing ? 'text' : undefined,
       };
+
+      // Columns: use CSS columns with auto height so text flows DOWN then across.
+      // height:100% + column-count forces horizontal flow — use minHeight instead.
+      if (cols > 1) {
+        textStyle.columnCount = cols;
+        textStyle.columnGap = data.columnGap || 12;
+        textStyle.columnFill = data.columnFill === 'balance' ? 'balance' : 'auto';
+        // Auto height lets columns grow vertically, minHeight fills the frame
+        textStyle.minHeight = '100%';
+        textStyle.height = 'auto';
+      } else {
+        textStyle.height = '100%';
+      }
+
+      // Scroll: vertical only, hidden when not editing
+      textStyle.overflowX = 'hidden';
+      textStyle.overflowY = isEditing ? 'auto' : 'hidden';
 
       // Use threaded content if available (from threading engine), otherwise use frame's own content
       const rawContent = threadedContent !== undefined ? threadedContent : (data.content || '<p>Text frame</p>');
