@@ -34,6 +34,7 @@ body {
 .spread.single-layout .page { box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
 .page {
     position: relative;
+    color: #1a1a1a;
 }
 .page-frame { position: absolute; overflow: hidden; }
 .page-frame[data-frame-type="text"] { overflow: visible; }

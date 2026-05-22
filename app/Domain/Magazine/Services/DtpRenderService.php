@@ -21,15 +21,25 @@ class DtpRenderService
     private function sanitizeHtml(string $html): string
     {
         $html = strip_tags($html, '<p><br><b><i><u><em><strong><span><a><h1><h2><h3><h4><h5><h6><ul><ol><li><blockquote><sub><sup><hr><div>');
-        // Remove all attributes except safe href
+        // Keep safe attributes: href (http/https only) and style (CSS properties only)
         return preg_replace_callback(
             '/<(\w+)(\s[^>]*)?>/',
             function ($m) {
                 $tag = $m[1];
                 $attrs = $m[2] ?? '';
                 $safe = '';
+                // Allow href on links
                 if (strtolower($tag) === 'a' && preg_match('/href\s*=\s*"(https?:\/\/[^"]*)"/', $attrs, $hm)) {
-                    $safe = ' href="' . e($hm[1]) . '" rel="noopener noreferrer"';
+                    $safe .= ' href="' . e($hm[1]) . '" rel="noopener noreferrer"';
+                }
+                // Allow style attribute — strip dangerous CSS (expressions, url, javascript)
+                if (preg_match('/style\s*=\s*"([^"]*)"/', $attrs, $sm)) {
+                    $css = $sm[1];
+                    // Remove dangerous CSS
+                    $css = preg_replace('/expression\s*\(|url\s*\(|javascript:|behavior:|@import|-moz-binding/i', '', $css);
+                    if (trim($css)) {
+                        $safe .= ' style="' . e($css) . '"';
+                    }
                 }
                 return "<{$tag}{$safe}>";
             },
