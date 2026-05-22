@@ -23,16 +23,20 @@ Route::middleware(['auth', \App\Http\Middleware\SetTenantFromAuth::class])->pref
 });
 
 // ─── Public asset serve (for magazine viewer images) ───
-Route::get('/assets/{siteId}/serve/{assetId}/{variant?}', function (string $siteId, string $assetId, ?string $variant = null) {
-    // Set tenant context for RLS
-    $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
-    if ($tenant) {
-        $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
-        \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
+Route::get('/media/{siteId}/{assetId}/{variant?}', function (string $siteId, string $assetId, ?string $variant = null) {
+    try {
+        // Set tenant context for RLS
+        $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
+        if ($tenant) {
+            $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
+            \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
+        }
+        $site = \App\Models\Site::findOrFail($siteId);
+        $asset = \App\Models\Asset::where('site_id', $site->id)->findOrFail($assetId);
+        return app(\App\Http\Controllers\Api\V1\AssetServeController::class)->serve($site, $asset, $variant);
+    } catch (\Throwable $e) {
+        abort(404);
     }
-    $site = \App\Models\Site::findOrFail($siteId);
-    $asset = \App\Models\Asset::where('site_id', $site->id)->findOrFail($assetId);
-    return app(\App\Http\Controllers\Api\V1\AssetServeController::class)->serve($site, $asset, $variant);
 })->name('public.asset.serve');
 
 // ─── Magazine viewer (public) ───

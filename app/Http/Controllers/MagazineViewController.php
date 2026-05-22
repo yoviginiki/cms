@@ -224,7 +224,7 @@ class MagazineViewController extends Controller
         $spreads = json_decode(json_encode($data['spreads']), true);
         array_walk_recursive($spreads, function (&$value) {
             if (is_string($value) && preg_match('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $value, $m)) {
-                $value = str_replace($m[0], "/assets/{$m[1]}/serve/{$m[2]}", $value);
+                $value = str_replace($m[0], "/media/{$m[1]}/{$m[2]}", $value);
             }
         });
 

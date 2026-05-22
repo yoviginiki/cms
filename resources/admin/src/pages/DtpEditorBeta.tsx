@@ -322,6 +322,7 @@ export default function DtpEditorBeta() {
   const [canvasEditingId, setCanvasEditingId] = useState<string | null>(null);
   const [startEditingRequest, setStartEditingRequest] = useState<string | null>(null);
   const [issueStatus, setIssueStatus] = useState<string>('draft');
+  const [selectedInlineImg, setSelectedInlineImg] = useState<HTMLImageElement | null>(null);
   const [viewerSettings, setViewerSettings] = useState<Record<string, any>>({
     display_mode: 'spread',
     bg_color: '#0a0a0a',
@@ -493,6 +494,48 @@ export default function DtpEditorBeta() {
   };
 
   // ─── Loading / Error states ───
+  // Listen for clicks on inline images inside contentEditable
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'IMG' && target.closest('[data-editing-id]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedInlineImg(target as HTMLImageElement);
+      } else if (selectedInlineImg && !target.closest('.inline-img-panel')) {
+        setSelectedInlineImg(null);
+      }
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, [selectedInlineImg]);
+
+  // Clear inline image selection when exiting edit mode
+  useEffect(() => {
+    if (!canvasEditingId) setSelectedInlineImg(null);
+  }, [canvasEditingId]);
+
+  // Helper to update inline image style
+  const updateInlineImgStyle = (updates: Record<string, string>) => {
+    if (!selectedInlineImg) return;
+    Object.entries(updates).forEach(([k, v]) => { selectedInlineImg.style[k as any] = v; });
+    store.setDirty(true);
+  };
+
+  // Add selection outline to selected inline image
+  useEffect(() => {
+    if (selectedInlineImg) {
+      selectedInlineImg.style.outline = '2px solid #3b82f6';
+      selectedInlineImg.style.outlineOffset = '2px';
+      return () => {
+        if (selectedInlineImg) {
+          selectedInlineImg.style.outline = '';
+          selectedInlineImg.style.outlineOffset = '';
+        }
+      };
+    }
+  }, [selectedInlineImg]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-base-200">
@@ -772,6 +815,99 @@ export default function DtpEditorBeta() {
                         }}
                         onInsertImage={() => setInlineImagePickerOpen(true)}
                       />
+                    )}
+                    {/* Inline image properties panel */}
+                    {selectedInlineImg && canvasEditingId && (
+                      <div className="inline-img-panel space-y-3 p-3 bg-base-200/50 rounded border border-base-300/30">
+                        <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Inline Image</h3>
+
+                        {/* Size */}
+                        <div>
+                          <label className="text-[10px] text-base-content/40 mb-1 block">Width</label>
+                          <div className="flex gap-1 items-center">
+                            <input type="range" min="10" max="100" step="5"
+                              value={parseInt(selectedInlineImg.style.width) || 40}
+                              onChange={(e) => updateInlineImgStyle({ width: e.target.value + '%' })}
+                              className="range range-xs range-primary flex-1" />
+                            <span className="text-[10px] text-base-content/50 w-10 text-right">{parseInt(selectedInlineImg.style.width) || 40}%</span>
+                          </div>
+                        </div>
+
+                        {/* Float position */}
+                        <div>
+                          <label className="text-[10px] text-base-content/40 mb-1 block">Position</label>
+                          <div className="flex gap-1">
+                            {(['left', 'right', 'none'] as const).map(pos => (
+                              <button key={pos} onClick={() => updateInlineImgStyle({
+                                float: pos,
+                                margin: pos === 'left' ? '0 12px 8px 0' : pos === 'right' ? '0 0 8px 12px' : '8px auto',
+                                display: pos === 'none' ? 'block' : '',
+                              })}
+                                className={`btn btn-xs flex-1 ${(selectedInlineImg.style.float || 'left') === pos ? 'btn-primary' : 'btn-ghost'}`}>
+                                {pos === 'left' ? 'Left' : pos === 'right' ? 'Right' : 'Center'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Border radius */}
+                        <div>
+                          <label className="text-[10px] text-base-content/40 mb-1 block">Border Radius</label>
+                          <div className="flex gap-1 items-center">
+                            <input type="range" min="0" max="50" step="2"
+                              value={parseInt(selectedInlineImg.style.borderRadius) || 0}
+                              onChange={(e) => updateInlineImgStyle({ borderRadius: e.target.value + 'px' })}
+                              className="range range-xs flex-1" />
+                            <span className="text-[10px] text-base-content/50 w-10 text-right">{parseInt(selectedInlineImg.style.borderRadius) || 0}px</span>
+                          </div>
+                        </div>
+
+                        {/* Border */}
+                        <div>
+                          <label className="text-[10px] text-base-content/40 mb-1 block">Border Width</label>
+                          <div className="flex gap-1 items-center">
+                            <input type="range" min="0" max="10" step="1"
+                              value={parseInt(selectedInlineImg.style.borderWidth) || 0}
+                              onChange={(e) => {
+                                const w = e.target.value;
+                                updateInlineImgStyle({
+                                  borderWidth: w + 'px',
+                                  borderStyle: parseInt(w) > 0 ? 'solid' : 'none',
+                                  borderColor: selectedInlineImg.style.borderColor || '#000000',
+                                });
+                              }}
+                              className="range range-xs flex-1" />
+                            <span className="text-[10px] text-base-content/50 w-10 text-right">{parseInt(selectedInlineImg.style.borderWidth) || 0}px</span>
+                          </div>
+                        </div>
+
+                        {/* Border color */}
+                        {(parseInt(selectedInlineImg.style.borderWidth) || 0) > 0 && (
+                          <div>
+                            <label className="text-[10px] text-base-content/40 mb-1 block">Border Color</label>
+                            <input type="color"
+                              value={selectedInlineImg.style.borderColor || '#000000'}
+                              onChange={(e) => updateInlineImgStyle({ borderColor: e.target.value })}
+                              className="w-8 h-8 rounded cursor-pointer border border-base-300/30" />
+                          </div>
+                        )}
+
+                        {/* Padding (space between border and image) */}
+                        <div>
+                          <label className="text-[10px] text-base-content/40 mb-1 block">Inner Padding</label>
+                          <div className="flex gap-1 items-center">
+                            <input type="range" min="0" max="20" step="2"
+                              value={parseInt(selectedInlineImg.style.padding) || 0}
+                              onChange={(e) => updateInlineImgStyle({ padding: e.target.value + 'px' })}
+                              className="range range-xs flex-1" />
+                            <span className="text-[10px] text-base-content/50 w-10 text-right">{parseInt(selectedInlineImg.style.padding) || 0}px</span>
+                          </div>
+                        </div>
+
+                        {/* Delete */}
+                        <button onClick={() => { selectedInlineImg.remove(); setSelectedInlineImg(null); store.setDirty(true); }}
+                          className="btn btn-xs btn-ghost text-error w-full">Remove Image</button>
+                      </div>
                     )}
                     {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame'].includes(selectedEl.type) && selectedEl.typography && (
                       <MagTypographyPanel value={selectedEl.typography} onChange={(v) => store.updateElement(selectedEl.id, { typography: { ...selectedEl.typography!, ...v } as MagTypography })} />

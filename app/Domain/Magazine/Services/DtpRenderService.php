@@ -183,9 +183,16 @@ class DtpRenderService
         ];
     }
 
+    /** Convert API asset URLs to public media URLs in HTML content */
+    private function convertAssetUrls(string $html): string
+    {
+        return preg_replace('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', '/media/$1/$2', $html) ?: $html;
+    }
+
     private function renderTextFrame(array $content): string
     {
         $html = $this->sanitizeHtml($content['html'] ?? '');
+        $html = $this->convertAssetUrls($html);
         return $html ?: '<p></p>';
     }
 
