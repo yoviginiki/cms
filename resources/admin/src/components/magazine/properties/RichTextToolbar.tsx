@@ -1,4 +1,5 @@
-import { Bold, Italic, Underline, List, ListOrdered, Quote, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Strikethrough, Subscript, Superscript, RemoveFormatting, Pencil } from 'lucide-react';
+// Rich text toolbar for DTP text frames
+import { Bold, Italic, Underline, List, ListOrdered, Quote, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Strikethrough, RemoveFormatting, Pencil } from 'lucide-react';
 
 interface RichTextToolbarProps {
   isEditing: boolean;
@@ -6,27 +7,45 @@ interface RichTextToolbarProps {
   elementId: string;
 }
 
-function exec(command: string, value?: string) {
-  document.execCommand(command, false, value);
+// Store last selection so we can restore it when clicking toolbar buttons
+let savedRange: Range | null = null;
+
+function saveSelection() {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    savedRange = sel.getRangeAt(0).cloneRange();
+  }
 }
 
-function ToolBtn({ icon: Icon, label, command, value, active }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  label: string;
-  command: string;
-  value?: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      onPointerDown={(e) => { e.preventDefault(); exec(command, value); }}
-      className={`p-1 rounded transition-colors ${active ? 'bg-primary/20 text-primary' : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'}`}
-    >
-      <Icon size={14} />
-    </button>
-  );
+function restoreSelection() {
+  const sel = window.getSelection();
+  if (sel && savedRange) {
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+}
+
+// Listen for selection changes in contentEditable to keep savedRange updated
+if (typeof window !== 'undefined') {
+  document.addEventListener('selectionchange', () => {
+    const active = document.activeElement;
+    if (active?.getAttribute('contenteditable') === 'true') {
+      saveSelection();
+    }
+  });
+}
+
+function execCommand(command: string, value?: string) {
+  // Re-focus the contentEditable and restore selection before executing
+  const editable = document.querySelector('[data-editing-id]') as HTMLElement
+    ?? document.querySelector('[contenteditable="true"]') as HTMLElement;
+  if (editable) {
+    editable.focus();
+    restoreSelection();
+  }
+  document.execCommand(command, false, value);
+  // Re-save selection after command
+  saveSelection();
 }
 
 export default function RichTextToolbar({ isEditing, onStartEditing, elementId: _elementId }: RichTextToolbarProps) {
@@ -35,11 +54,7 @@ export default function RichTextToolbar({ isEditing, onStartEditing, elementId: 
       <div className="flex items-center justify-between">
         <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Content</h3>
         {!isEditing && (
-          <button
-            type="button"
-            onClick={onStartEditing}
-            className="btn btn-xs btn-primary gap-1"
-          >
+          <button type="button" onClick={onStartEditing} className="btn btn-xs btn-primary gap-1">
             <Pencil size={10} /> Edit text
           </button>
         )}
@@ -49,47 +64,42 @@ export default function RichTextToolbar({ isEditing, onStartEditing, elementId: 
         <>
           {/* Headings */}
           <div className="flex gap-0.5">
-            <button type="button" title="Heading 1" onPointerDown={e => { e.preventDefault(); exec('formatBlock', 'h1'); }}
-              className="p-1 rounded text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30"><Heading1 size={14} /></button>
-            <button type="button" title="Heading 2" onPointerDown={e => { e.preventDefault(); exec('formatBlock', 'h2'); }}
-              className="p-1 rounded text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30"><Heading2 size={14} /></button>
-            <button type="button" title="Heading 3" onPointerDown={e => { e.preventDefault(); exec('formatBlock', 'h3'); }}
-              className="p-1 rounded text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30"><Heading3 size={14} /></button>
-            <button type="button" title="Paragraph" onPointerDown={e => { e.preventDefault(); exec('formatBlock', 'p'); }}
-              className="p-1 rounded text-[10px] font-medium text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30">P</button>
+            <ToolBtn icon={Heading1} label="Heading 1" onExec={() => execCommand('formatBlock', 'h1')} />
+            <ToolBtn icon={Heading2} label="Heading 2" onExec={() => execCommand('formatBlock', 'h2')} />
+            <ToolBtn icon={Heading3} label="Heading 3" onExec={() => execCommand('formatBlock', 'h3')} />
+            <ToolBtn label="P" title="Paragraph" onExec={() => execCommand('formatBlock', 'p')} />
           </div>
 
           {/* Inline formatting */}
           <div className="flex gap-0.5 flex-wrap">
-            <ToolBtn icon={Bold} label="Bold (Ctrl+B)" command="bold" />
-            <ToolBtn icon={Italic} label="Italic (Ctrl+I)" command="italic" />
-            <ToolBtn icon={Underline} label="Underline (Ctrl+U)" command="underline" />
-            <ToolBtn icon={Strikethrough} label="Strikethrough" command="strikeThrough" />
-            <ToolBtn icon={Subscript} label="Subscript" command="subscript" />
-            <ToolBtn icon={Superscript} label="Superscript" command="superscript" />
+            <ToolBtn icon={Bold} label="Bold (Ctrl+B)" onExec={() => execCommand('bold')} />
+            <ToolBtn icon={Italic} label="Italic (Ctrl+I)" onExec={() => execCommand('italic')} />
+            <ToolBtn icon={Underline} label="Underline (Ctrl+U)" onExec={() => execCommand('underline')} />
+            <ToolBtn icon={Strikethrough} label="Strikethrough" onExec={() => execCommand('strikeThrough')} />
           </div>
 
           {/* Lists & quote */}
           <div className="flex gap-0.5">
-            <ToolBtn icon={List} label="Bullet list" command="insertUnorderedList" />
-            <ToolBtn icon={ListOrdered} label="Numbered list" command="insertOrderedList" />
-            <ToolBtn icon={Quote} label="Block quote" command="formatBlock" value="blockquote" />
+            <ToolBtn icon={List} label="Bullet list" onExec={() => execCommand('insertUnorderedList')} />
+            <ToolBtn icon={ListOrdered} label="Numbered list" onExec={() => execCommand('insertOrderedList')} />
+            <ToolBtn icon={Quote} label="Block quote" onExec={() => execCommand('formatBlock', 'blockquote')} />
           </div>
 
           {/* Alignment */}
           <div className="flex gap-0.5">
-            <ToolBtn icon={AlignLeft} label="Align left" command="justifyLeft" />
-            <ToolBtn icon={AlignCenter} label="Align center" command="justifyCenter" />
-            <ToolBtn icon={AlignRight} label="Align right" command="justifyRight" />
-            <ToolBtn icon={AlignJustify} label="Justify" command="justifyFull" />
+            <ToolBtn icon={AlignLeft} label="Align left" onExec={() => execCommand('justifyLeft')} />
+            <ToolBtn icon={AlignCenter} label="Align center" onExec={() => execCommand('justifyCenter')} />
+            <ToolBtn icon={AlignRight} label="Align right" onExec={() => execCommand('justifyRight')} />
+            <ToolBtn icon={AlignJustify} label="Justify" onExec={() => execCommand('justifyFull')} />
           </div>
 
-          {/* Font size shortcuts */}
+          {/* Font size */}
           <div className="flex gap-1 items-center">
             <label className="text-[9px] text-base-content/30">Size:</label>
             {[1, 2, 3, 4, 5, 6, 7].map(size => (
               <button key={size} type="button" title={`Font size ${size}`}
-                onPointerDown={e => { e.preventDefault(); exec('fontSize', String(size)); }}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => execCommand('fontSize', String(size))}
                 className="w-5 h-5 flex items-center justify-center rounded text-[8px] text-base-content/40 hover:bg-base-300/30 hover:text-base-content/70">
                 {size}
               </button>
@@ -101,7 +111,8 @@ export default function RichTextToolbar({ isEditing, onStartEditing, elementId: 
             <label className="text-[9px] text-base-content/30">Color:</label>
             {['#1a1a1a', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#666666'].map(color => (
               <button key={color} type="button" title={color}
-                onPointerDown={e => { e.preventDefault(); exec('foreColor', color); }}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => execCommand('foreColor', color)}
                 className="w-4 h-4 rounded border border-base-300/30 cursor-pointer"
                 style={{ backgroundColor: color }}
               />
@@ -110,16 +121,36 @@ export default function RichTextToolbar({ isEditing, onStartEditing, elementId: 
 
           {/* Clear formatting */}
           <button type="button" title="Clear formatting"
-            onPointerDown={e => { e.preventDefault(); exec('removeFormat'); }}
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => execCommand('removeFormat')}
             className="flex items-center gap-1 text-[9px] text-base-content/40 hover:text-base-content/60">
             <RemoveFormatting size={12} /> Clear formatting
           </button>
 
           <p className="text-[8px] text-base-content/25 italic">
-            Click on the text frame to edit. Use the controls above to format selected text.
+            Select text in the frame, then use controls above to format.
           </p>
         </>
       )}
     </div>
+  );
+}
+
+function ToolBtn({ icon: Icon, label, onExec, title }: {
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  onExec: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      title={title || label}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onExec}
+      className="p-1 rounded transition-colors text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30"
+    >
+      {Icon ? <Icon size={14} /> : <span className="text-[10px] font-medium">{label}</span>}
+    </button>
   );
 }

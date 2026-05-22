@@ -42,9 +42,10 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     return () => clearTimeout(timer);
   }, [el.type, el.width, el.height, (el.data as any)?.content, isEditing]);
 
-  // When entering edit mode, focus the contentEditable
+  // When entering edit mode, focus the contentEditable and snapshot content
   useEffect(() => {
     if (isEditing && editRef.current) {
+      lastSavedRef.current = editRef.current.innerHTML;
       editRef.current.focus();
       // Place cursor at end
       const sel = window.getSelection();
@@ -55,9 +56,15 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     }
   }, [isEditing]);
 
+  const lastSavedRef = useRef<string>('');
   const handleBlur = useCallback(() => {
     if (editRef.current && onContentChange) {
-      onContentChange(el.id, editRef.current.innerHTML);
+      const current = editRef.current.innerHTML;
+      // Only save if content actually changed since last save
+      if (current !== lastSavedRef.current) {
+        lastSavedRef.current = current;
+        onContentChange(el.id, current);
+      }
     }
   }, [el.id, onContentChange]);
   // Build inline styles from element properties
