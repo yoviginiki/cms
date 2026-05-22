@@ -1,14 +1,15 @@
 // Rich text toolbar for DTP text frames
-import { Bold, Italic, Underline, List, ListOrdered, Quote, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Strikethrough, RemoveFormatting, Pencil } from 'lucide-react';
+import { Bold, Italic, Underline, List, ListOrdered, Quote, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Strikethrough, RemoveFormatting, Pencil, ImageIcon } from 'lucide-react';
 
 interface RichTextToolbarProps {
   isEditing: boolean;
   onStartEditing: () => void;
   elementId: string;
   onFormatText?: (command: string, value?: string) => void;
+  onInsertImage?: () => void;
 }
 
-export default function RichTextToolbar({ isEditing, onStartEditing, elementId: _elementId, onFormatText }: RichTextToolbarProps) {
+export default function RichTextToolbar({ isEditing, onStartEditing, elementId: _elementId, onFormatText, onInsertImage }: RichTextToolbarProps) {
   const fmt = (command: string, value?: string) => {
     if (onFormatText) {
       onFormatText(command, value);
@@ -58,6 +59,16 @@ export default function RichTextToolbar({ isEditing, onStartEditing, elementId: 
             <ToolBtn icon={AlignRight} label="Align right" onExec={() => fmt('justifyRight')} />
             <ToolBtn icon={AlignJustify} label="Justify" onExec={() => fmt('justifyFull')} />
           </div>
+
+          {/* Insert image into text */}
+          {onInsertImage && (
+            <button type="button"
+              onMouseDown={e => e.preventDefault()}
+              onClick={onInsertImage}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-base-300/30 text-base-content/60 hover:text-base-content/80 hover:bg-base-300/50 w-full">
+              <ImageIcon size={12} /> Insert Image
+            </button>
+          )}
 
           {/* Clear formatting */}
           <button type="button"

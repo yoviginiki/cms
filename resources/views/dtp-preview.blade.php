@@ -38,6 +38,7 @@ body {
     overflow: hidden;
 }
 .page-frame { position: absolute; overflow: hidden; }
+.page-frame img { max-width: 100%; height: auto; }
 .page-frame img { display: block; }
 
 /* Book mode navigation */

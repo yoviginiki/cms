@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 
-const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'], ALLOW_DATA_ATTR: false };
+const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
 
 const TEXT_FRAME_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
 const IMAGE_FRAME_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];

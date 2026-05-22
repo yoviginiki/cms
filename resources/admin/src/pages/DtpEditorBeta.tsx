@@ -31,6 +31,7 @@ import ImagePanel from '@/components/magazine/properties/ImagePanel';
 import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
 import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
+import { AssetPicker } from '@/components/ui/AssetPicker';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 // Threading imports removed — Pour handles content splitting directly
@@ -315,6 +316,7 @@ export default function DtpEditorBeta() {
   const [apiLayers, setApiLayers] = useState<any[]>([]);
   const [apiAssetRefs, setApiAssetRefs] = useState<any[]>([]);
   const [autoOpenImagePicker, setAutoOpenImagePicker] = useState(false);
+  const [inlineImagePickerOpen, setInlineImagePickerOpen] = useState(false);
   const [alignToPage, setAlignToPage] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [canvasEditingId, setCanvasEditingId] = useState<string | null>(null);
@@ -768,6 +770,7 @@ export default function DtpEditorBeta() {
                             }
                           } catch (_) {}
                         }}
+                        onInsertImage={() => setInlineImagePickerOpen(true)}
                       />
                     )}
                     {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame'].includes(selectedEl.type) && selectedEl.typography && (
@@ -1017,6 +1020,34 @@ export default function DtpEditorBeta() {
           </div>
         </div>
       </div>
+
+      {/* Inline image picker for text frames */}
+      <AssetPicker
+        open={inlineImagePickerOpen}
+        onClose={() => setInlineImagePickerOpen(false)}
+        onSelect={(asset) => {
+          setInlineImagePickerOpen(false);
+          // Insert image into contentEditable at cursor position
+          const editable = document.querySelector('[data-editing-id]') as HTMLElement
+            ?? document.querySelector('[contenteditable="true"]') as HTMLElement;
+          if (!editable) return;
+          editable.focus();
+          // Restore saved selection
+          const savedSel = (window as any).__dtpSavedSelection as Range | null;
+          if (savedSel) {
+            try {
+              const sel = window.getSelection();
+              if (sel) { sel.removeAllRanges(); sel.addRange(savedSel); }
+            } catch (_) {}
+          }
+          // Insert image with float and resize handles via CSS
+          const imgHtml = `<img src="${asset.url}" alt="${asset.filename || ''}" style="float:left;width:40%;max-width:100%;height:auto;margin:0 12px 8px 0;border-radius:4px;" />`;
+          document.execCommand('insertHTML', false, imgHtml);
+          store.setDirty(true);
+        }}
+        accept="image"
+        currentUrl=""
+      />
     </div>
   );
 }

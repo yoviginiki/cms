@@ -20,7 +20,7 @@ class DtpRenderService
      */
     private function sanitizeHtml(string $html): string
     {
-        $html = strip_tags($html, '<p><br><b><i><u><em><strong><span><a><h1><h2><h3><h4><h5><h6><ul><ol><li><blockquote><sub><sup><hr><div>');
+        $html = strip_tags($html, '<p><br><b><i><u><em><strong><span><a><h1><h2><h3><h4><h5><h6><ul><ol><li><blockquote><sub><sup><hr><div><img>');
         // Keep safe attributes: href (http/https only) and style (CSS properties only)
         return preg_replace_callback(
             '/<(\w+)(\s[^>]*)?>/',
@@ -31,6 +31,15 @@ class DtpRenderService
                 // Allow href on links
                 if (strtolower($tag) === 'a' && preg_match('/href\s*=\s*"(https?:\/\/[^"]*)"/', $attrs, $hm)) {
                     $safe .= ' href="' . e($hm[1]) . '" rel="noopener noreferrer"';
+                }
+                // Allow src and alt on images (http/https and relative paths only)
+                if (strtolower($tag) === 'img') {
+                    if (preg_match('/src\s*=\s*"((?:https?:\/\/|\/)[^"]*)"/', $attrs, $sm)) {
+                        $safe .= ' src="' . e($sm[1]) . '"';
+                    }
+                    if (preg_match('/alt\s*=\s*"([^"]*)"/', $attrs, $am)) {
+                        $safe .= ' alt="' . e($am[1]) . '"';
+                    }
                 }
                 // Allow style attribute — strip dangerous CSS
                 if (preg_match('/style\s*=\s*"([^"]*)"/', $attrs, $sm)) {
