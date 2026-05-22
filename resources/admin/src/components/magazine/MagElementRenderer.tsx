@@ -152,6 +152,24 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
             suppressContentEditableWarning
             onBlur={handleBlur}
             onKeyDown={(e) => e.stopPropagation()}
+            onKeyUp={() => {
+              // Save selection on every keystroke for toolbar formatting
+              try {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                  (window as any).__dtpSavedSelection = sel.getRangeAt(0).cloneRange();
+                }
+              } catch (_) {}
+            }}
+            onMouseUp={() => {
+              // Save selection on mouse up (text selection)
+              try {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                  (window as any).__dtpSavedSelection = sel.getRangeAt(0).cloneRange();
+                }
+              } catch (_) {}
+            }}
             onPointerDown={(e) => e.stopPropagation()}
             dangerouslySetInnerHTML={{ __html: safeContent }}
           />

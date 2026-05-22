@@ -599,16 +599,31 @@ export default function DtpEditorBeta() {
                         onStartEditing={() => setStartEditingRequest(selectedEl.id)}
                         elementId={selectedEl.id}
                         onFormatText={(command, value) => {
-                          // Find the contentEditable, focus it, restore selection, exec command
                           const editable = document.querySelector('[data-editing-id]') as HTMLElement
                             ?? document.querySelector('[contenteditable="true"]') as HTMLElement;
-                          if (editable) {
-                            editable.focus();
-                            // Small delay to ensure focus is established before exec
-                            requestAnimationFrame(() => {
-                              document.execCommand(command, false, value);
-                            });
+                          if (!editable) return;
+
+                          // Restore saved selection inside the contentEditable
+                          editable.focus();
+                          const savedSel = (window as any).__dtpSavedSelection as Range | null;
+                          if (savedSel) {
+                            try {
+                              const sel = window.getSelection();
+                              if (sel) {
+                                sel.removeAllRanges();
+                                sel.addRange(savedSel);
+                              }
+                            } catch (_) {}
                           }
+                          document.execCommand(command, false, value);
+
+                          // Re-save selection after formatting
+                          try {
+                            const sel = window.getSelection();
+                            if (sel && sel.rangeCount > 0) {
+                              (window as any).__dtpSavedSelection = sel.getRangeAt(0).cloneRange();
+                            }
+                          } catch (_) {}
                         }}
                       />
                     )}
