@@ -638,153 +638,132 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     }
     if (!sourcePage || !sourceElement) return;
 
-    // Find next content page (skip master pages)
+    const sourceHtml = (sourceElement.data as any)?.content || '';
+    if (!sourceHtml || sourceHtml.length < 10) return;
+
+    // ─── Measure what fits in the source frame ───
+    const measure = document.createElement('div');
+    const typo = sourceElement.typography;
+    const data = sourceElement.data as Record<string, any>;
+    const pageW = sourcePage.pageSize?.width || 595;
+    const visibleW = Math.min(sourceElement.width, pageW - sourceElement.x);
+    const cols = data.columnsInFrame || 1;
+    const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
+
+    measure.style.cssText = `position:fixed;top:-9999px;left:-9999px;visibility:hidden;
+      width:${visibleW}px;height:auto;overflow:visible;
+      font-family:${typo?.fontFamily || 'Inter'};font-size:${typo?.fontSize || 14}px;
+      font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};
+      column-count:${cols};column-gap:${data.columnGap || 12}px;column-fill:auto;
+      padding:${inset.top || 0}px ${inset.right || 0}px ${inset.bottom || 0}px ${inset.left || 0}px;`;
+    document.body.appendChild(measure);
+
+    // Parse blocks
+    const parser = new DOMParser();
+    const doc = parser.parseFromString('<body>' + sourceHtml + '</body>', 'text/html');
+    let root: Element = doc.body;
+    while (root.children.length === 1) {
+      const tag = root.children[0].tagName;
+      if (['P','H1','H2','H3','H4','BLOCKQUOTE','UL','OL','LI'].includes(tag)) break;
+      root = root.children[0];
+    }
+    const allBlocks: HTMLElement[] = [];
+    for (let i = 0; i < root.childNodes.length; i++) {
+      if (root.childNodes[i].nodeType === 1) allBlocks.push(root.childNodes[i] as HTMLElement);
+    }
+
+    // Binary search: find exactly how many blocks fit in the source frame height
+    let fitCount = allBlocks.length; // default: all fit
+    if (allBlocks.length >= 2) {
+      let lo = 1, hi = allBlocks.length;
+      fitCount = allBlocks.length;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        measure.innerHTML = allBlocks.slice(0, mid).map(b => b.outerHTML).join('');
+        if (measure.scrollHeight <= sourceElement.height) {
+          fitCount = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      // Ensure at least 1 block stays
+      fitCount = Math.max(1, Math.min(fitCount, allBlocks.length - 1));
+    }
+    measure.remove();
+
+    const keepHtml = allBlocks.slice(0, fitCount).map(b => b.outerHTML).join('');
+    const moveHtml = allBlocks.slice(fitCount).map(b => b.outerHTML).join('');
+    if (!moveHtml) return; // everything fits, nothing to pour
+
+    // ─── Find or create next page ───
     let pages = [...state.pages];
     const contentPages = pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
     const sourceIdx = contentPages.findIndex(p => p.pageNumber === sourcePage.pageNumber);
     let targetPage = sourceIdx >= 0 && sourceIdx < contentPages.length - 1 ? contentPages[sourceIdx + 1] : null;
     const nextPageNumber = targetPage ? targetPage.pageNumber : sourcePage.pageNumber + 1;
 
-    // Create next page if it doesn't exist
     if (!targetPage) {
       targetPage = {
-        id: crypto.randomUUID(),
-        pageNumber: nextPageNumber,
-        pageSize: { ...sourcePage.pageSize },
-        margins: { ...sourcePage.margins },
-        bleed: { ...sourcePage.bleed },
-        columns: { ...sourcePage.columns },
+        id: crypto.randomUUID(), pageNumber: nextPageNumber,
+        pageSize: { ...sourcePage.pageSize }, margins: { ...sourcePage.margins },
+        bleed: { ...sourcePage.bleed }, columns: { ...sourcePage.columns },
         baselineGrid: { ...sourcePage.baselineGrid },
-        isMaster: false,
-        masterPageId: sourcePage.masterPageId,
-        spreadWith: null,
-        backgroundColor: sourcePage.backgroundColor,
-        backgroundAssetId: null,
-        elements: [],
+        isMaster: false, masterPageId: sourcePage.masterPageId,
+        spreadWith: null, backgroundColor: sourcePage.backgroundColor,
+        backgroundAssetId: null, elements: [],
       };
-      // Renumber existing pages and insert
       pages = pages.map(p => p.pageNumber >= nextPageNumber ? { ...p, pageNumber: p.pageNumber + 1 } : p);
       const insertIdx = pages.findIndex(p => p.pageNumber > nextPageNumber);
       if (insertIdx === -1) pages.push(targetPage);
       else pages.splice(insertIdx, 0, targetPage);
     }
 
-    // Create continuation frame — find Y position that avoids fixed images
+    // ─── Calculate continuation position avoiding fixed images ───
+    const mg = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
+    let contY = mg.top || 36;
+    const fixedImages = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
+    const tPageW = targetPage.pageSize?.width || 595;
+    const tPageH = targetPage.pageSize?.height || 842;
+    const contX = mg.left || 36;
+    const contWidth = tPageW - (mg.left || 36) - (mg.right || 36);
+
+    for (const fixed of fixedImages) {
+      const fixedBottom = fixed.y + fixed.height + 8;
+      if (contY < fixedBottom && contX < fixed.x + fixed.width && contX + contWidth > fixed.x) {
+        contY = fixedBottom;
+      }
+    }
+    const contHeight = Math.max(100, tPageH - contY - (mg.bottom || 36));
+
+    // ─── Create continuation and update source ───
+    const threadId = sourceElement.threadId || crypto.randomUUID();
     const continuationId = crypto.randomUUID();
     const maxZ = Math.max(0, ...targetPage.elements.map(e => e.zIndex));
-    const margins = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
-    let contY = margins.top;
-
-    // Check for fixed images on target page — place continuation below them
-    const fixedImages = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
-    for (const fixed of fixedImages) {
-      const fixedBottom = fixed.y + fixed.height + 8; // 8px gap
-      if (contY < fixedBottom && sourceElement.x < fixed.x + fixed.width && sourceElement.x + sourceElement.width > fixed.x) {
-        contY = fixedBottom; // Move below the fixed image
-      }
-    }
-
-    // Calculate continuation frame dimensions: fill the page content area
-    const pageW = targetPage.pageSize?.width || 595;
-    const pageH = targetPage.pageSize?.height || 842;
-    const contX = margins.left || 36;
-    const contWidth = pageW - (margins.left || 36) - (margins.right || 36);
-    const contHeight = Math.max(100, pageH - contY - (margins.bottom || 36));
-
-    // Split source content at paragraph level — move overflow to continuation
-    const sourceHtml = (sourceElement.data as any)?.content || '';
-    let keepHtml = sourceHtml;
-    let moveHtml = '';
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString('<body>' + sourceHtml + '</body>', 'text/html');
-      const body = doc.body;
-
-      // Unwrap single wrapper elements (div, span, etc.)
-      let root: Element = body;
-      while (root.children.length === 1) {
-        const child = root.children[0];
-        const tag = child.tagName;
-        if (tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'BLOCKQUOTE' || tag === 'UL' || tag === 'OL') break;
-        root = child;
-      }
-
-      // Collect block elements
-      const allBlocks: Element[] = [];
-      for (let i = 0; i < root.childNodes.length; i++) {
-        const node = root.childNodes[i];
-        if (node.nodeType === 1) allBlocks.push(node as Element);
-      }
-
-      if (allBlocks.length >= 2) {
-        // Split at midpoint
-        const mid = Math.ceil(allBlocks.length / 2);
-        keepHtml = allBlocks.slice(0, mid).map(b => (b as HTMLElement).outerHTML).join('');
-        moveHtml = allBlocks.slice(mid).map(b => (b as HTMLElement).outerHTML).join('');
-      } else {
-        // Single block — try splitting by sentences at rough midpoint
-        const text = sourceHtml;
-        const midChar = Math.floor(text.length / 2);
-        // Find a paragraph/tag boundary near midpoint
-        const breakPoint = text.lastIndexOf('</p>', midChar + 100);
-        if (breakPoint > text.length * 0.2) {
-          const splitPos = breakPoint + 4; // after </p>
-          keepHtml = text.substring(0, splitPos);
-          moveHtml = text.substring(splitPos);
-        }
-        // If no good break point found, keep all in source (don't duplicate)
-      }
-    } catch (_) {
-      // DOMParser failed — keep all in source
-    }
-
-    const threadId = sourceElement.threadId || crypto.randomUUID();
 
     const continuation: MagElement = {
       ...structuredClone(sourceElement),
-      id: continuationId,
-      pageNumber: nextPageNumber,
-      x: contX,
-      y: contY,
-      width: contWidth,
-      height: contHeight,
-      threadId,
-      threadOrder: (sourceElement.threadOrder ?? 0) + 1,
+      id: continuationId, pageNumber: nextPageNumber,
+      x: contX, y: contY, width: contWidth, height: contHeight,
+      threadId, threadOrder: (sourceElement.threadOrder ?? 0) + 1,
       zIndex: maxZ + 1,
       data: { ...sourceElement.data, content: moveHtml },
     };
 
-    // Update source: keep first half of content and link to thread
+    // Update source frame: keep only what fits
     pages = pages.map(p => ({
       ...p,
-      elements: p.elements.map(e => {
-        if (e.id === elementId) {
-          return {
-            ...e,
-            threadId,
-            threadOrder: e.threadOrder ?? 0,
-            data: { ...e.data, content: keepHtml },
-          };
-        }
-        return e;
-      }),
+      elements: p.elements.map(e =>
+        e.id === elementId ? { ...e, threadId, threadOrder: e.threadOrder ?? 0, data: { ...e.data, content: keepHtml } } : e
+      ),
     }));
 
     // Add continuation to target page
-    pages = pages.map(p => {
-      if (p.pageNumber === nextPageNumber) {
-        return { ...p, elements: [...p.elements, continuation] };
-      }
-      return p;
-    });
+    pages = pages.map(p =>
+      p.pageNumber === nextPageNumber ? { ...p, elements: [...p.elements, continuation] } : p
+    );
 
-    set({
-      pages,
-      currentPageNumber: nextPageNumber,
-      selectedIds: [continuationId],
-      isDirty: true,
-    });
+    set({ pages, currentPageNumber: nextPageNumber, selectedIds: [continuationId], isDirty: true });
   },
 
   // ─── Auto-flow text (run before save) ───
