@@ -307,6 +307,16 @@ function DtpIssueSection({ siteId }: { siteId: string }) {
 
 /** Single issue card with rollout status */
 function DtpIssueCard({ siteId, issue, onOpen }: { siteId: string; issue: any; onOpen: () => void }) {
+  const queryClient = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteMut = useMutation({
+    mutationFn: () => issueComposer.delete(siteId, issue.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dtp-issues', siteId] });
+      setConfirmDelete(false);
+    },
+  });
+
   const { data: rollout } = useQuery({
     queryKey: ['dtp-rollout', siteId, issue.id],
     queryFn: () => dtpDesigner.getRolloutStatus(siteId, issue.id).then((r: any) => r.data.data),
@@ -375,15 +385,37 @@ function DtpIssueCard({ siteId, issue, onOpen }: { siteId: string; issue: any; o
         <div className="flex items-center gap-1.5 pt-2 border-t border-base-300/20">
           <button onClick={onOpen} disabled={!rollout?.canOpenDtp}
             className="btn btn-primary btn-xs text-[10px] gap-1 flex-1" title={!rollout?.canOpenDtp ? 'DTP feature flag is disabled' : ''}>
-            <Edit className="h-3 w-3" /> Open DTP Editor
+            <Edit className="h-3 w-3" /> Edit
           </button>
           {rollout?.capabilities?.previewLinkAvailable && rollout?.links?.dtpPreview && (
             <a href={rollout.links.dtpPreview} target="_blank" rel="noopener noreferrer"
-              className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-success" title="Preview">
+              className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-success" title="View preview">
               <Eye className="h-3.5 w-3.5" />
             </a>
           )}
+          <button onClick={() => setConfirmDelete(true)}
+            className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-error" title="Delete issue">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
+
+        {/* Delete confirmation */}
+        {confirmDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-base-content/20" onClick={() => setConfirmDelete(false)}>
+            <div className="bg-base-100 rounded-xl shadow-xl p-5 max-w-xs mx-4" onClick={e => e.stopPropagation()}>
+              <h4 className="font-semibold text-base-content mb-2">Delete "{issue.title || 'Untitled'}"?</h4>
+              <p className="text-sm text-base-content/60 mb-4">
+                This will permanently remove the issue and all its pages, frames, and content.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button className="btn btn-error btn-sm" onClick={() => deleteMut.mutate()} disabled={deleteMut.isPending}>
+                  {deleteMut.isPending ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
