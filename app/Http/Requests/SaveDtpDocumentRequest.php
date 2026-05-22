@@ -77,7 +77,7 @@ class SaveDtpDocumentRequest extends FormRequest
             'meta.issueSettings.readingDirection' => ['nullable', 'string', 'in:ltr,rtl'],
             'meta.viewerSettings' => ['nullable', 'array'],
             'meta.viewerSettings.display_mode' => ['nullable', 'string', 'in:spread,single,scroll,flipbook'],
-            'meta.viewerSettings.bg_color' => ['nullable', 'string', 'max:20'],
+            'meta.viewerSettings.bg_color' => ['nullable', 'string', 'max:20', 'regex:/^#[0-9a-fA-F]{3,8}$/'],
             'meta.viewerSettings.ui_theme' => ['nullable', 'string', 'in:dark,light'],
             'meta.viewerSettings.page_transition' => ['nullable', 'string', 'in:slide,fade,flip,turn,none'],
             'meta.viewerSettings.transition_speed' => ['nullable', 'integer', 'min:100', 'max:2000'],

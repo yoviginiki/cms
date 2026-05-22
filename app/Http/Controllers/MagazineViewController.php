@@ -203,6 +203,7 @@ class MagazineViewController extends Controller
 
     /**
      * Public viewer for DTP magazine issues.
+     * Uses server-rendered HTML (dtp-preview) for reliable display.
      */
     public function showDtpIssue(string $issueId)
     {
@@ -211,143 +212,29 @@ class MagazineViewController extends Controller
 
         $issue = MagazineIssue::where('id', $issueId)->firstOrFail();
 
-        $pages = MagazineDtpPage::where('issue_id', $issue->id)->orderBy('page_index')->get();
-        $frames = MagazineFrame::where('issue_id', $issue->id)->where('visible', true)->orderBy('z_index')->get();
+        // Use DtpRenderService for server-side HTML rendering
+        $renderService = app(\App\Domain\Magazine\Services\DtpRenderService::class);
+        $data = $renderService->render($issue);
 
-        if ($pages->isEmpty()) {
+        if (empty($data['spreads'])) {
             abort(404, 'No DTP content.');
         }
 
-        $firstPage = $pages->first();
-        $pageW = $firstPage->width ?? 595;
-        $pageH = $firstPage->height ?? 842;
+        // Convert API asset URLs to public serve URLs in rendered HTML
+        $spreads = json_decode(json_encode($data['spreads']), true);
+        array_walk_recursive($spreads, function (&$value) {
+            if (is_string($value) && preg_match('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $value, $m)) {
+                $value = str_replace($m[0], "/assets/{$m[1]}/serve/{$m[2]}", $value);
+            }
+        });
 
-        $issueSettings = $issue->layout_final['issueSettings'] ?? [];
-        // Load viewer settings from issue layout_final
-        $viewerSettings = $issue->layout_final['viewerSettings'] ?? [];
-        $displayMode = $viewerSettings['display_mode'] ?? 'spread';
-        $bgColor = BlockStyle::safeColor($viewerSettings['bg_color'] ?? '#0a0a0a') ?: '#0a0a0a';
-
-        $magazine = (object) [
-            'title' => $issue->title ?? 'DTP Issue',
-            'description' => $issue->subtitle ?? '',
-            'cover_image' => null,
-            'page_width' => $pageW,
-            'page_height' => $pageH,
-            'settings' => [
-                'display_mode' => $displayMode,
-                'view_mode' => 'full',
-                'bg_color' => $bgColor,
-                'ui_theme' => $viewerSettings['ui_theme'] ?? 'dark',
-                'page_transition' => $displayMode === 'spread' ? 'turn' : ($viewerSettings['page_transition'] ?? 'slide'),
-                'transition_speed' => (int) ($viewerSettings['transition_speed'] ?? 500),
-                'show_thumbnails' => ($viewerSettings['show_thumbnails'] ?? true) !== false,
-                'show_page_numbers' => ($viewerSettings['show_page_numbers'] ?? true) !== false,
-                'show_header' => true,
-                'show_controls' => true,
-                'show_toc' => true,
-                'auto_hide_ui' => ($viewerSettings['auto_hide_ui'] ?? true) !== false,
-                'pn_position' => 'bottom',
-                'pn_align' => 'outer',
-                'pn_size' => '9px',
-            ],
-        ];
-
-        $pagesJson = $pages->map(function ($page) use ($frames) {
-            $pw = $page->width ?? 595;
-            $ph = $page->height ?? 842;
-            $bg = $page->background ?? [];
-
-            $pageFrames = $frames->where('page_id', $page->id)->sortBy('z_index');
-
-            $elements = $pageFrames->map(function ($frame) use ($pw, $ph) {
-                $content = is_array($frame->content) ? $frame->content : [];
-                $metadata = is_array($frame->metadata) ? $frame->metadata : [];
-                $frameType = is_string($frame->frame_type) ? $frame->frame_type : ($frame->frame_type->value ?? 'text');
-
-                $xPct = ($frame->x / $pw) * 100;
-                $yPct = ($frame->y / $ph) * 100;
-                $wPct = ($frame->width / $pw) * 100;
-                $hPct = ($frame->height / $ph) * 100;
-
-                $viewerContent = [];
-                $viewerType = 'text';
-
-                if (in_array($frameType, ['text', 'quote'])) {
-                    $viewerType = 'text';
-                    $typo = $metadata['_typography'] ?? [];
-
-                    $style = '';
-                    if (!empty($typo['fontFamily'])) $style .= "font-family:{$typo['fontFamily']};";
-                    if (!empty($typo['fontSize'])) $style .= "font-size:{$typo['fontSize']}pt;";
-                    if (!empty($typo['fontWeight'])) $style .= "font-weight:{$typo['fontWeight']};";
-                    if (!empty($typo['lineHeight'])) $style .= "line-height:{$typo['lineHeight']};";
-                    if (!empty($typo['textAlign'])) $style .= "text-align:{$typo['textAlign']};";
-                    if (!empty($typo['textColor'])) $style .= "color:{$typo['textColor']};";
-                    if (!empty($typo['letterSpacing'])) $style .= "letter-spacing:{$typo['letterSpacing']}em;";
-                    if (!empty($typo['textTransform'])) $style .= "text-transform:{$typo['textTransform']};";
-
-                    $cols = $content['columnsInFrame'] ?? 1;
-                    if ($cols > 1) $style .= "column-count:{$cols};column-gap:" . ($content['columnGap'] ?? 12) . "pt;";
-
-                    $inset = $content['textInset'] ?? ['top' => 0, 'right' => 0, 'bottom' => 0, 'left' => 0];
-                    $style .= "padding:{$inset['top']}pt {$inset['right']}pt {$inset['bottom']}pt {$inset['left']}pt;";
-                    $style .= "overflow:hidden;width:100%;height:100%;";
-
-                    $html = $content['html'] ?? '';
-                    $viewerContent['html'] = '<div style="' . e($style) . '">' . $html . '</div>';
-
-                } elseif ($frameType === 'image') {
-                    $viewerType = 'image';
-                    $src = $content['src'] ?? '';
-                    // Convert API asset URLs to public serve URLs
-                    if (is_string($src) && preg_match('#^/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $src, $m)) {
-                        $src = "/assets/{$m[1]}/serve/{$m[2]}";
-                    }
-                    $scheme = is_string($src) ? strtolower((string) parse_url($src, PHP_URL_SCHEME)) : '';
-                    $viewerContent['src'] = ($src && (in_array($scheme, ['http', 'https']) || str_starts_with($src, '/'))) ? $src : '';
-                    $viewerContent['alt'] = $content['alt'] ?? '';
-                    $viewerContent['objectFit'] = $content['fitMode'] ?? 'cover';
-
-                } elseif ($frameType === 'shape') {
-                    $viewerType = 'shape';
-                    $viewerContent['fill'] = BlockStyle::safeColor($content['fillColor'] ?? '#e5e7eb') ?: '#e5e7eb';
-
-                } elseif ($frameType === 'decorative') {
-                    $viewerType = 'shape';
-                    $viewerContent['fill'] = BlockStyle::safeColor($content['strokeColor'] ?? '#ccc') ?: '#ccc';
-
-                } else {
-                    $viewerType = 'text';
-                    $viewerContent['html'] = '';
-                }
-
-                return [
-                    'type' => $viewerType,
-                    'content' => $viewerContent,
-                    'x' => round($xPct, 2),
-                    'y' => round($yPct, 2),
-                    'width' => round($wPct, 2),
-                    'height' => round($hPct, 2),
-                    'rotation' => (float) $frame->rotation,
-                    'z_index' => $frame->z_index ?? 0,
-                    'style' => is_array($frame->style) ? $frame->style : [],
-                ];
-            })->values();
-
-            return [
-                'id' => $page->id,
-                'title' => 'Page ' . ($page->page_index + 1),
-                'background_color' => BlockStyle::safeColor($bg['color'] ?? '#ffffff') ?: '#ffffff',
-                'background_image' => null,
-                'elements' => $elements,
-            ];
-        })->toJson();
-
-        return view('magazine', [
-            'magazine' => $magazine,
-            'site' => $site,
-            'pagesJson' => $pagesJson,
+        return response()->view('dtp-preview', [
+            'issue' => $data['issue'],
+            'spreads' => $spreads,
+            'pageCount' => $data['pageCount'],
+            'frameCount' => $data['frameCount'],
+            'layoutMode' => $data['layoutMode'] ?? 'single',
+            'coverMode' => $data['coverMode'] ?? 'standalone',
         ]);
     }
 

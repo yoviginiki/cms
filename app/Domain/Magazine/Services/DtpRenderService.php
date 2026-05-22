@@ -174,7 +174,8 @@ class DtpRenderService
     {
         $src = $content['src'] ?? '';
         $scheme = is_string($src) ? strtolower((string) parse_url($src, PHP_URL_SCHEME)) : '';
-        if (!$src || !in_array($scheme, ['http', 'https'], true)) {
+        $isRelative = is_string($src) && str_starts_with($src, '/');
+        if (!$src || (!in_array($scheme, ['http', 'https'], true) && !$isRelative)) {
             return '<div style="width:100%;height:100%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>';
         }
 
