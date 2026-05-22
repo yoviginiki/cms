@@ -198,7 +198,28 @@ class DtpRenderService
     {
         $html = $this->sanitizeHtml($content['html'] ?? '');
         $html = $this->convertAssetUrls($html);
-        return $html ?: '<p></p>';
+        if (!$html) return '<p></p>';
+
+        // Apply text frame layout settings
+        $style = '';
+        $cols = (int) ($content['columnsInFrame'] ?? 1);
+        if ($cols > 1 && $cols <= 6) {
+            $gap = (int) ($content['columnGap'] ?? 12);
+            $fill = ($content['columnFill'] ?? 'auto') === 'balance' ? 'balance' : 'auto';
+            $style .= "column-count:{$cols};column-gap:{$gap}px;column-fill:{$fill};";
+        }
+        $inset = $content['textInset'] ?? null;
+        if (is_array($inset)) {
+            $t = (int) ($inset['top'] ?? 0);
+            $r = (int) ($inset['right'] ?? 0);
+            $b = (int) ($inset['bottom'] ?? 0);
+            $l = (int) ($inset['left'] ?? 0);
+            $style .= "padding:{$t}px {$r}px {$b}px {$l}px;";
+        }
+        if ($style) {
+            return '<div style="width:100%;height:100%;' . $style . '">' . $html . '</div>';
+        }
+        return $html;
     }
 
     private function renderImageFrame(array $content): string
