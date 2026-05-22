@@ -33,11 +33,20 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
   useEffect(() => {
     if (!TEXT_FRAME_TYPES.includes(el.type)) return;
     const check = () => {
-      const node = textRef.current || editRef.current;
-      if (node) setIsOverflowing(node.scrollHeight > node.clientHeight + 2);
+      // Use the non-editing text ref for overflow check (stable, not affected by scroll)
+      // Fall back to frame dimensions vs content
+      const node = textRef.current;
+      if (node) {
+        setIsOverflowing(node.scrollHeight > node.clientHeight + 2);
+      } else {
+        // During editing, compare content scroll height vs frame height
+        const editNode = editRef.current;
+        if (editNode) {
+          setIsOverflowing(editNode.scrollHeight > el.height - 4);
+        }
+      }
     };
     check();
-    // Re-check after fonts load
     const timer = setTimeout(check, 500);
     return () => clearTimeout(timer);
   }, [el.type, el.width, el.height, (el.data as any)?.content, isEditing]);
@@ -69,15 +78,20 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
   }, [isEditing]);
 
   const lastSavedRef = useRef<string>('');
-  const handleBlur = useCallback(() => {
-    if (editRef.current && onContentChange) {
-      const current = editRef.current.innerHTML;
-      // Only save if content actually changed since last save
-      if (current !== lastSavedRef.current) {
-        lastSavedRef.current = current;
-        onContentChange(el.id, current);
+  const handleBlur = useCallback((_e: React.FocusEvent) => {
+    // Delay blur handling — scrollbar clicks fire blur but focus returns
+    setTimeout(() => {
+      // If focus returned to our contentEditable (scrollbar click), skip
+      if (document.activeElement === editRef.current) return;
+
+      if (editRef.current && onContentChange) {
+        const current = editRef.current.innerHTML;
+        if (current !== lastSavedRef.current) {
+          lastSavedRef.current = current;
+          onContentChange(el.id, current);
+        }
       }
-    }
+    }, 100);
   }, [el.id, onContentChange]);
   // Build inline styles from element properties
   const isTextType = TEXT_FRAME_TYPES.includes(el.type);
