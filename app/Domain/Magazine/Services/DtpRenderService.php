@@ -53,19 +53,6 @@ class DtpRenderService
         $pages = MagazineDtpPage::where('issue_id', $issue->id)->orderBy('page_index')->get();
         $frames = MagazineFrame::where('issue_id', $issue->id)->where('visible', true)->orderBy('z_index')->get();
 
-        // Build thread map: threadId → source frame (order 0) content
-        $threadSources = [];
-        $threadMembers = [];
-        foreach ($frames as $frame) {
-            $threadId = $frame->metadata['threadId'] ?? null;
-            if (!$threadId) continue;
-            $threadMembers[$frame->id] = $threadId;
-            $order = $frame->metadata['threadOrder'] ?? 0;
-            if ($order === 0) {
-                $threadSources[$threadId] = $frame;
-            }
-        }
-
         $renderedSpreads = [];
 
         foreach ($spreads as $spread) {
@@ -77,13 +64,7 @@ class DtpRenderService
                 $renderedFrames = [];
 
                 foreach ($pageFrames as $frame) {
-                    $threadId = $threadMembers[$frame->id] ?? null;
-                    $threadOrder = $frame->metadata['threadOrder'] ?? 0;
-
-                    // Skip continuation frames (order > 0) — source frame shows all text
-                    if ($threadId && $threadOrder > 0) continue;
-
-                    $renderedFrames[] = $this->renderFrame($frame, $page, $threadId !== null);
+                    $renderedFrames[] = $this->renderFrame($frame, $page);
                 }
 
                 $renderedPages[] = [
@@ -165,10 +146,10 @@ class DtpRenderService
         ];
     }
 
-    private function renderFrame(MagazineFrame $frame, MagazineDtpPage $page, bool $isThreadSource = false): array
+    private function renderFrame(MagazineFrame $frame, MagazineDtpPage $page): array
     {
         $content = is_array($frame->content) ? $frame->content : [];
-        $style = $this->buildFrameStyle($frame, $isThreadSource ? $page : null);
+        $style = $this->buildFrameStyle($frame);
         $type = $frame->frame_type->value ?? (string) $frame->frame_type;
 
         $html = match ($type) {
@@ -254,7 +235,7 @@ class DtpRenderService
         return '<div style="width:100%;height:100%;background:' . $fill . ';border-radius:' . $radius . 'px;"></div>';
     }
 
-    private function buildFrameStyle(MagazineFrame $frame, ?MagazineDtpPage $expandToPage = null): string
+    private function buildFrameStyle(MagazineFrame $frame): string
     {
         $x = round((float) $frame->x);
         $y = round((float) $frame->y);
@@ -264,14 +245,6 @@ class DtpRenderService
         $z = (int) $frame->z_index;
         $type = is_string($frame->frame_type) ? $frame->frame_type : ($frame->frame_type->value ?? 'text');
         $overflow = in_array($type, ['text', 'quote']) ? 'visible' : 'hidden';
-
-        // For threaded source frames, expand height to fill remaining page
-        if ($expandToPage) {
-            $pageH = max(1, (int) $expandToPage->height);
-            $margins = $expandToPage->margins ?? [];
-            $bottomMargin = (int) ($margins['bottom'] ?? 36);
-            $h = max($h, $pageH - $y - $bottomMargin);
-        }
 
         $style = "position:absolute;left:{$x}px;top:{$y}px;width:{$w}px;height:{$h}px;z-index:{$z};overflow:{$overflow};";
         if ($r !== 0) {

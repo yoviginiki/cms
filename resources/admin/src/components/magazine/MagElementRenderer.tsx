@@ -671,28 +671,19 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {/* Lock indicator */}
       {el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
 
-      {/* Overflow indicator + Continue button */}
-      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && (() => {
-        // Show Continue button if this is the last frame in the thread (or no thread)
-        const isLastInThread = !el.threadId || (() => {
-          if (!allPages) return true;
-          const allEls = allPages.flatMap(p => p.elements || []);
-          const threadFrames = allEls.filter(e => e.threadId === el.threadId);
-          const maxOrder = Math.max(...threadFrames.map(e => e.threadOrder ?? 0));
-          return (el.threadOrder ?? 0) >= maxOrder;
-        })();
-        return isLastInThread ? (
-          <button
-            className="absolute bottom-0 right-0 h-6 px-1.5 bg-error hover:bg-error/80 text-error-content flex items-center gap-0.5 text-[8px] font-bold rounded-tl cursor-pointer z-[9998]"
-            title="Continue text to next page"
-            onClick={(e) => { e.stopPropagation(); onContinueText?.(el.id); }}
-            onPointerDown={(e) => e.stopPropagation()}
-          >+ Continue</button>
-        ) : (
-          <div className="absolute bottom-0 right-0 w-5 h-5 bg-warning text-warning-content flex items-center justify-center text-[9px] font-bold rounded-tl cursor-help"
-            title="Text overflows — linked to continuation frame">...</div>
-        );
-      })()}
+      {/* Pour text to next page button — always visible on text frames when selected */}
+      {TEXT_FRAME_TYPES.includes(el.type) && isSelected && !isEditing && (
+        <button
+          className="absolute bottom-0 left-0 right-0 h-7 bg-primary hover:bg-primary/80 text-primary-content flex items-center justify-center gap-1 text-[9px] font-bold cursor-pointer z-[9998]"
+          title="Pour text to next page — creates a continuation frame"
+          onClick={(e) => { e.stopPropagation(); onContinueText?.(el.id); }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >Pour to Next Page →</button>
+      )}
+      {/* Overflow indicator when not selected */}
+      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && !isSelected && (
+        <div className="absolute bottom-0 right-0 w-4 h-4 bg-error text-error-content flex items-center justify-center text-[8px] font-bold rounded-tl z-[9998]">+</div>
+      )}
 
       {/* Thread / linked frame indicators */}
       {el.threadId && (() => {
