@@ -80,8 +80,8 @@ export function MagazineCanvas({
   const [showColumns, setShowColumns] = useState(false);
   const [showBaseline, setShowBaseline] = useState(false);
 
-  const { width: pageW, height: pageH } = page.pageSize;
-  const margins = page.margins;
+  const { width: pageW, height: pageH } = page.pageSize || { width: 595, height: 842 };
+  const margins = page.margins || { top: 36, right: 36, bottom: 36, left: 36 };
 
   const selection = useMagSelection(
     elements, zoom, pageW, pageH, margins,
@@ -331,7 +331,7 @@ export function MagazineCanvas({
 
   // Column guides
   const columnGuides: number[] = [];
-  if (showColumns && page.columns.count > 1) {
+  if (showColumns && page.columns?.count > 1) {
     const contentW = pageW - margins.left - margins.right;
     const colW = (contentW - (page.columns.count - 1) * page.columns.gutter) / page.columns.count;
     for (let i = 0; i < page.columns.count; i++) {
@@ -343,8 +343,8 @@ export function MagazineCanvas({
 
   // Baseline grid lines
   const baselineLines: number[] = [];
-  if (showBaseline && page.baselineGrid.increment > 0) {
-    let y = page.baselineGrid.start || margins.top;
+  if (showBaseline && page.baselineGrid?.increment > 0) {
+    let y = page.baselineGrid?.start || margins.top;
     while (y < pageH - margins.bottom) {
       baselineLines.push(y);
       y += page.baselineGrid.increment;
