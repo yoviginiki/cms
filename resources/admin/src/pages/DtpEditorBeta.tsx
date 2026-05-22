@@ -117,13 +117,32 @@ function dtpFrameToElement(f: any, pageNumber: number): MagElement {
   const data: Record<string, unknown> = {};
   if (['text', 'quote', 'articleReference'].includes(f.frame_type)) {
     data.content = content.html || content.text || '';
+    // Restore text frame settings from saved content
+    if (content.overflow) data.overflow = content.overflow;
+    if (content.columnsInFrame) data.columnsInFrame = content.columnsInFrame;
+    if (content.columnGap) data.columnGap = content.columnGap;
+    if (content.columnFill) data.columnFill = content.columnFill;
+    if (content.columnRule != null) data.columnRule = content.columnRule;
+    if (content.autoSize) data.autoSize = content.autoSize;
+    if (content.textInset) data.textInset = content.textInset;
+    if (content.verticalAlign) data.verticalAlign = content.verticalAlign;
   }
   if (f.frame_type === 'image') {
     data.src = content.src || '';
     data.alt = content.alt || '';
+    data.caption = content.caption || '';
+    data.showCaption = content.showCaption;
     data.fit = content.fitMode || 'fill';
     data.focalPoint = content.focalPoint || { x: 50, y: 50 };
+    data.opacity = content.opacity ?? 100;
+    data.borderRadius = content.borderRadius;
+    data.shadowPreset = content.shadowPreset;
+    data.shadowCss = content.shadowCss;
+    data.backgroundColor = content.backgroundColor;
   }
+
+  // Restore typography from metadata if saved
+  const savedTypography = f.metadata?._typography;
 
   return {
     id: f.id,
@@ -141,8 +160,8 @@ function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     locked: f.locked === true,
     visible: f.visible !== false,
     layerName: null,
-    style: { ...DEFAULT_ELEMENT_STYLE },
-    typography: ['text', 'quote', 'articleReference'].includes(f.frame_type) ? { ...DEFAULT_TYPOGRAPHY } : null,
+    style: f.style && Object.keys(f.style).length > 0 ? f.style : { ...DEFAULT_ELEMENT_STYLE },
+    typography: savedTypography ? { ...DEFAULT_TYPOGRAPHY, ...savedTypography } : (['text', 'quote', 'articleReference'].includes(f.frame_type) ? { ...DEFAULT_TYPOGRAPHY } : null),
     textWrap: { ...DEFAULT_TEXT_WRAP },
     threadId: f.metadata?.threadId || null,
     threadOrder: f.metadata?.threadOrder ?? null,
@@ -208,13 +227,28 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
 
       if (['text', 'quote'].includes(frameType)) {
         content.html = (el.data as any)?.content || '';
+        // Preserve text frame settings
+        content.overflow = (el.data as any)?.overflow;
+        content.columnsInFrame = (el.data as any)?.columnsInFrame;
+        content.columnGap = (el.data as any)?.columnGap;
+        content.columnFill = (el.data as any)?.columnFill;
+        content.columnRule = (el.data as any)?.columnRule;
+        content.autoSize = (el.data as any)?.autoSize;
+        content.textInset = (el.data as any)?.textInset;
+        content.verticalAlign = (el.data as any)?.verticalAlign;
       }
       if (frameType === 'image') {
         content.src = (el.data as any)?.src || '';
         content.alt = (el.data as any)?.alt || '';
+        content.caption = (el.data as any)?.caption || '';
+        content.showCaption = (el.data as any)?.showCaption;
         content.fitMode = (el.data as any)?.fit || 'fill';
         content.focalPoint = (el.data as any)?.focalPoint || { x: 50, y: 50 };
-        content.opacity = 100;
+        content.opacity = (el.data as any)?.opacity ?? 100;
+        content.borderRadius = (el.data as any)?.borderRadius;
+        content.shadowPreset = (el.data as any)?.shadowPreset;
+        content.shadowCss = (el.data as any)?.shadowCss;
+        content.backgroundColor = (el.data as any)?.backgroundColor;
       }
 
       frames.push({
@@ -232,9 +266,10 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
         visible: el.visible,
         locked: el.locked,
         content,
-        style: {},
+        style: el.style || {},
         metadata: {
           onMaster: el.onMaster || false,
+          _typography: el.typography || null,
           threadId: el.threadId || null,
           threadOrder: el.threadOrder ?? null,
           _magType: el.type, // Preserve original type for round-trip
