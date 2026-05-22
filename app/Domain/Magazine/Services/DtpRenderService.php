@@ -186,7 +186,8 @@ class DtpRenderService
     /** Convert API asset URLs to public media URLs in HTML content */
     private function convertAssetUrls(string $html): string
     {
-        return preg_replace('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', '/media/$1/$2', $html) ?: $html;
+        $adminUrl = rtrim(config('app.url', 'https://sys.ensodo.eu'), '/');
+        return preg_replace('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $adminUrl . '/media/$1/$2', $html) ?: $html;
     }
 
     private function renderTextFrame(array $content): string

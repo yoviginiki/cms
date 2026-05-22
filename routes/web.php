@@ -35,6 +35,7 @@ Route::get('/media/{siteId}/{assetId}/{variant?}', function (string $siteId, str
         $asset = \App\Models\Asset::where('site_id', $site->id)->findOrFail($assetId);
         return app(\App\Http\Controllers\Api\V1\AssetServeController::class)->serve($site, $asset, $variant);
     } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('Public asset serve failed: ' . $e->getMessage());
         abort(404);
     }
 })->name('public.asset.serve');

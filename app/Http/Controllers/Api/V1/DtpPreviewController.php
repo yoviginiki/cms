@@ -126,7 +126,7 @@ class DtpPreviewController extends Controller
                     $src = $content['src'] ?? '';
                     // Convert API asset URLs to public serve URLs
                     if (is_string($src) && preg_match('#^/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $src, $m)) {
-                        $src = "/media/{$m[1]}/{$m[2]}";
+                        $src = "https://sys.ensodo.eu/media/{$m[1]}/{$m[2]}";
                     }
                     $scheme = is_string($src) ? strtolower((string) parse_url($src, PHP_URL_SCHEME)) : '';
                     $viewerContent['src'] = ($src && (in_array($scheme, ['http', 'https']) || str_starts_with($src, '/'))) ? $src : '';
