@@ -140,9 +140,10 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         color: typo?.textColor || '#1a1a1a',
         textTransform: (typo as any)?.textTransform || undefined,
         padding: data.textInset && typeof data.textInset === 'object' ? `${data.textInset.top ?? 8}px ${data.textInset.right ?? 8}px ${data.textInset.bottom ?? 8}px ${data.textInset.left ?? 8}px` : '8px',
-        columnCount: data.columnsInFrame || 1,
-        columnGap: data.columnGap || 12,
-        columnFill: data.columnFill === 'balance' ? 'balance' : 'auto',
+        // Disable columns while editing — CSS columns prevent vertical scroll
+        columnCount: isEditing ? 1 : (data.columnsInFrame || 1),
+        columnGap: isEditing ? undefined : (data.columnGap || 12),
+        columnFill: isEditing ? undefined : (data.columnFill === 'balance' ? 'balance' : 'auto'),
         overflowX: 'hidden',
         overflowY: isEditing ? 'auto' : 'hidden',
         wordBreak: 'break-word' as any,
