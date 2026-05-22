@@ -165,8 +165,10 @@ class DtpRenderService
         $style = $this->buildFrameStyle($frame);
         $type = $frame->frame_type->value ?? (string) $frame->frame_type;
 
+        $pageW = (int) $page->width;
+        $frameW = max(1, round((float) $frame->width));
         $html = match ($type) {
-            'text' => $this->renderTextFrame($content),
+            'text' => $this->renderTextFrame($content, min($frameW, $pageW)),
             'image' => $this->renderImageFrame($content),
             'quote' => $this->renderQuoteFrame($content),
             'pageNumber' => $this->renderPageNumberFrame($page),
@@ -194,14 +196,18 @@ class DtpRenderService
         return preg_replace('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $adminUrl . '/media/$1/$2', $html) ?: $html;
     }
 
-    private function renderTextFrame(array $content): string
+    private function renderTextFrame(array $content, int $maxWidth = 0): string
     {
         $html = $this->sanitizeHtml($content['html'] ?? '');
         $html = $this->convertAssetUrls($html);
         if (!$html) return '<p></p>';
 
         // Apply text frame layout settings
-        $style = '';
+        $style = 'width:100%;height:100%;';
+        // Cap width to page boundary so columns calculate correctly
+        if ($maxWidth > 0) {
+            $style = "max-width:{$maxWidth}px;height:100%;";
+        }
         $cols = (int) ($content['columnsInFrame'] ?? 1);
         if ($cols > 1 && $cols <= 6) {
             $gap = (int) ($content['columnGap'] ?? 12);
@@ -216,10 +222,7 @@ class DtpRenderService
             $l = (int) ($inset['left'] ?? 0);
             $style .= "padding:{$t}px {$r}px {$b}px {$l}px;";
         }
-        if ($style) {
-            return '<div style="width:100%;height:100%;' . $style . '">' . $html . '</div>';
-        }
-        return $html;
+        return '<div style="' . $style . '">' . $html . '</div>';
     }
 
     private function renderImageFrame(array $content): string
