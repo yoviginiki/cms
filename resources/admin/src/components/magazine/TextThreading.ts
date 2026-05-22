@@ -139,8 +139,8 @@ export function distributeThreadContent(
         fontSize: typo?.fontSize,
         fontWeight: typo?.fontWeight,
         lineHeight: typo?.lineHeight,
-        padding: data.textInset
-          ? `${data.textInset.top}px ${data.textInset.right}px ${data.textInset.bottom}px ${data.textInset.left}px`
+        padding: data.textInset && typeof data.textInset === 'object'
+          ? `${data.textInset.top ?? 8}px ${data.textInset.right ?? 8}px ${data.textInset.bottom ?? 8}px ${data.textInset.left ?? 8}px`
           : '8px',
         columnCount: data.columnsInFrame || 1,
         columnGap: data.columnGap || 12,
