@@ -812,12 +812,8 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           const html = data?.content || '';
           if (!html || html.length < 10) continue;
 
-          // Already has continuation — skip (Pour handles those)
-          if (frame.threadId) {
-            const allEls = pages.flatMap(p => p.elements);
-            const hasNext = allEls.some(e => e.threadId === frame.threadId && (e.threadOrder ?? 0) > (frame.threadOrder ?? 0));
-            if (hasNext) continue;
-          }
+          // Skip all threaded frames — Pour manages those manually
+          if (frame.threadId) continue;
 
           // Measure if text overflows the frame
           const typo = frame.typography;
