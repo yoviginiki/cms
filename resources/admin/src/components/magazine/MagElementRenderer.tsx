@@ -24,7 +24,7 @@ interface Props {
   allPages?: Array<{ pageNumber: number; elements: MagElement[] }>;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing, onStopEditing, allPages }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, allPages }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -92,8 +92,9 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     zIndex: el.zIndex,
     cursor: el.locked ? 'default' : 'move',
     pointerEvents: el.locked ? 'none' : 'auto',
-    // Overflow handled by inner text div, not container (keeps buttons visible)
-    overflow: isTextType ? 'visible' : undefined,
+    // hidden: clips text + enables overflow detection + shows Continue button
+    // auto when editing: allows vertical scroll inside frame
+    overflow: isTextType ? (isEditing ? 'auto' : 'hidden') : undefined,
   };
 
   // Apply fill
@@ -694,28 +695,8 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         );
       })()}
 
-      {/* Edit Text / Done button for text frames — visible on selected frame */}
-      {isSelected && TEXT_FRAME_TYPES.includes(el.type) && !el.locked && (
-        <button
-          className={`absolute -top-8 left-0 px-2 py-1 rounded text-[10px] font-medium shadow-md z-[10000] ${
-            isEditing
-              ? 'bg-green-500 text-white hover:bg-green-600'
-              : 'bg-blue-500 text-white hover:bg-blue-600'
-          }`}
-          style={{ pointerEvents: 'auto' }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isEditing) {
-              onStopEditing?.();
-            } else {
-              onStartEditing?.(el.id);
-            }
-          }}
-        >
-          {isEditing ? '✓ Done' : '✎ Edit Text'}
-        </button>
-      )}
+      {/* Edit/Done button is in the properties panel — not on the frame
+           (overflow:hidden clips anything above the frame boundary) */}
 
       {/* Resize handles when selected */}
       {isSelected && !el.locked && (
