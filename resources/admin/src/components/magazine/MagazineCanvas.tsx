@@ -1,9 +1,9 @@
-import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import type { MagPageData, MagElement } from '@/types/magazine';
 import { MagElementRenderer } from './MagElementRenderer';
 import { useMagSelection } from './MagSelectionEngine';
-import { getThreadFrames, distributeThreadContent } from './TextThreading';
+// Threading engine disabled — Pour splits content at save time
 import {
   MousePointer2, Type, ImageIcon, Square, Circle, Minus,
   ZoomIn, ZoomOut, Grid3X3, Magnet, Columns3, AlignVerticalSpaceAround,
@@ -334,25 +334,7 @@ export function MagazineCanvas({
 
   // (editing state, exitEditing, handleDoubleClick, handleContentChange moved above handleCanvasPointerDown)
 
-  // Text threading: compute distributed content for threaded frames
-  const threadedContentMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (!allPages || allPages.length === 0) return map;
-    const processedThreads = new Set<string>();
-    const allElements = allPages.flatMap(p => p.elements || []);
-    for (const el of allElements) {
-      if (!el.threadId || processedThreads.has(el.threadId)) continue;
-      processedThreads.add(el.threadId);
-      const threadFrames = getThreadFrames(allPages, el.threadId);
-      if (threadFrames.length < 2) continue;
-      // Source content is from the first frame in the thread
-      const sourceContent = (threadFrames[0].data as any)?.content || '';
-      if (!sourceContent) continue;
-      const distributed = distributeThreadContent(threadFrames, sourceContent);
-      distributed.forEach((tc, fid) => { map.set(fid, tc.visibleHtml); });
-    }
-    return map;
-  }, [allPages]);
+  // Text threading disabled — Pour splits content at save time, each frame has its own content
 
   // Column guides
   const columnGuides: number[] = [];
@@ -660,7 +642,7 @@ export function MagazineCanvas({
                 isSelected={selection.selectedIds.includes(el.id)}
                 isHovered={selection.hoveredId === el.id}
                 isEditing={editingId === el.id}
-                threadedContent={el.threadId ? threadedContentMap.get(el.id) : undefined}
+                threadedContent={undefined}
                 zoom={zoom}
                 onPointerDown={(e, id) => { try { exitEditing(); } catch(_) {} selection.handleElementPointerDown(e, id); }}
                 onDoubleClick={handleDoubleClick}
