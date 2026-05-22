@@ -755,14 +755,23 @@ export default function DtpEditorBeta() {
                         </button>
                       )}
                     </div>
-                    {/* Pour to Next Page for text frames */}
+                    {/* Text flow controls */}
                     {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'].includes(selectedEl.type) && (
-                      <button
-                        onClick={() => store.continueTextToNextPage(selectedEl.id)}
-                        className="btn btn-sm btn-primary w-full gap-1"
-                      >
-                        Pour to Next Page →
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => store.continueTextToNextPage(selectedEl.id)}
+                          className="btn btn-sm btn-primary flex-1 gap-1"
+                        >
+                          Pour →
+                        </button>
+                        <button
+                          onClick={() => { store.autoFlowText(); }}
+                          className="btn btn-sm btn-secondary flex-1 gap-1"
+                          title="Auto-flow all overflowing text to next pages"
+                        >
+                          Auto-flow
+                        </button>
+                      </div>
                     )}
                     {/* Fix/Unfix + Spread controls for image frames */}
                     {IMAGE_TYPES.includes(selectedEl.type) && !selectedEl.locked && (

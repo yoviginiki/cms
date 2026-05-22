@@ -701,10 +701,13 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       const doc = parser.parseFromString('<body>' + sourceHtml + '</body>', 'text/html');
       const body = doc.body;
 
-      // Unwrap single wrapper div
+      // Unwrap single wrapper elements (div, span, etc.)
       let root: Element = body;
-      if (body.children.length === 1 && body.children[0].tagName === 'DIV') {
-        root = body.children[0];
+      while (root.children.length === 1) {
+        const child = root.children[0];
+        const tag = child.tagName;
+        if (tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'BLOCKQUOTE' || tag === 'UL' || tag === 'OL') break;
+        root = child;
       }
 
       // Collect block elements
@@ -845,8 +848,12 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           const parser = new DOMParser();
           const doc = parser.parseFromString('<body>' + html + '</body>', 'text/html');
           let root: Element = doc.body;
-          if (root.children.length === 1 && root.children[0].tagName === 'DIV') {
-            root = root.children[0];
+          // Unwrap single wrapper elements (div, span, etc.) to find actual paragraphs
+          while (root.children.length === 1) {
+            const child = root.children[0];
+            const tag = child.tagName;
+            if (tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'BLOCKQUOTE' || tag === 'UL' || tag === 'OL') break; // actual content block
+            root = child;
           }
 
           const allBlocks: Element[] = [];
