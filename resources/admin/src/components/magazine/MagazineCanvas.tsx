@@ -475,11 +475,12 @@ export function MagazineCanvas({
               if (!allPages || allPages.length === 0) return [page];
               if (viewMode === 'single') return [page];
               if (viewMode === 'spread') {
-                const idx = allPages.findIndex(p => p.pageNumber === page.pageNumber);
+                const contentPages = allPages.filter(p => !p.isMaster);
+                const idx = contentPages.findIndex(p => p.pageNumber === page.pageNumber);
                 const startIdx = idx % 2 === 0 ? idx : Math.max(0, idx - 1);
-                return allPages.slice(startIdx, startIdx + 2);
+                return contentPages.slice(startIdx, startIdx + 2);
               }
-              return allPages; // grid: show all
+              return allPages.filter(p => !p.isMaster); // grid: show all content pages
             })();
 
             const cols = viewMode === 'grid' ? gridColumns : viewMode === 'spread' ? pagesToShow.length : 1;
@@ -546,7 +547,7 @@ export function MagazineCanvas({
                   ? { ...mel, data: { ...mel.data, startAt: page.pageNumber } }
                   : mel;
                 return (
-                  <div key={`master-${mel.id}`} style={{ position: 'absolute', left: mel.x, top: mel.y, width: mel.width, height: mel.height, zIndex: mel.zIndex, opacity: 0.6, pointerEvents: 'none' }}>
+                  <div key={`master-${mel.id}`} style={{ position: 'absolute', left: mel.x || 0, top: mel.y || 0, width: mel.width || 100, height: mel.height || 20, zIndex: mel.zIndex || 0, opacity: 0.6, pointerEvents: 'none' }}>
                     <MagElementRenderer
                       element={resolvedEl}
                       isSelected={false}

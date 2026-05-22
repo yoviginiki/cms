@@ -118,7 +118,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         textAlign: (typo?.textAlign || 'left') as any,
         color: typo?.textColor || '#1a1a1a',
         textTransform: (typo as any)?.textTransform || undefined,
-        padding: data.textInset ? `${data.textInset.top}px ${data.textInset.right}px ${data.textInset.bottom}px ${data.textInset.left}px` : '8px',
+        padding: data.textInset && typeof data.textInset === 'object' ? `${data.textInset.top ?? 8}px ${data.textInset.right ?? 8}px ${data.textInset.bottom ?? 8}px ${data.textInset.left ?? 8}px` : '8px',
         columnCount: data.columnsInFrame || 1,
         columnGap: data.columnGap || 12,
         columnFill: data.columnFill === 'balance' ? 'balance' : 'auto',
