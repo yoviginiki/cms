@@ -241,13 +241,15 @@ export function useMagSelection(
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape always works — even from contentEditable (exits editing)
+      if (e.key === 'Escape') { clearSelection(); return; }
+
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
 
       if (e.key === 'Delete') { if (state.selectedIds.length) { e.preventDefault(); onDeleteElements(state.selectedIds); clearSelection(); } }
       // Backspace does NOT delete frames — too easy to hit accidentally. Use Delete key only.
       if (e.key === 'd' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onDuplicateElements(state.selectedIds); }
       if (e.key === 'a' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setState(s => ({ ...s, selectedIds: elements.filter(el => !el.locked).map(el => el.id) })); }
-      if (e.key === 'Escape') clearSelection();
 
       // Tool shortcuts
       if (e.key === 'v') setTool('select');

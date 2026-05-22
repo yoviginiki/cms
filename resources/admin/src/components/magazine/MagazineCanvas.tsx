@@ -98,6 +98,7 @@ export function MagazineCanvas({
     if (selection.selectedIds.length === 1) {
       onSelectElement(selection.selectedIds[0]);
     } else if (selection.selectedIds.length === 0) {
+      try { exitEditing(); } catch(_) {}
       onSelectElement(null);
     }
   }, [selection.selectedIds]); // intentionally omit onSelectElement

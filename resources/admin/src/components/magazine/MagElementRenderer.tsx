@@ -163,7 +163,10 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
             contentEditable
             suppressContentEditableWarning
             onBlur={handleBlur}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              // Let Escape propagate to exit editing, stop everything else
+              if (e.key !== 'Escape') e.stopPropagation();
+            }}
             onKeyUp={() => {
               try {
                 const sel = window.getSelection();
