@@ -107,17 +107,20 @@ export default function TextFramePanel({ data, onChange, threadInfo, threadId, o
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Text inset</label>
         <div className="grid grid-cols-4 gap-1">
-          {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
-            <div key={side}>
-              <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase()}</label>
-              <input
-                type="number"
-                value={data.textInset[side]}
-                onChange={(e) => onChange({ textInset: { ...data.textInset, [side]: Number(e.target.value) } })}
-                className="input input-bordered input-xs w-full"
-              />
-            </div>
-          ))}
+          {(['top', 'right', 'bottom', 'left'] as const).map((side) => {
+            const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
+            return (
+              <div key={side}>
+                <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase()}</label>
+                <input
+                  type="number"
+                  value={inset[side] ?? 8}
+                  onChange={(e) => onChange({ textInset: { ...inset, [side]: Number(e.target.value) } })}
+                  className="input input-bordered input-xs w-full"
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
 
