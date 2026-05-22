@@ -233,8 +233,10 @@ class DtpRenderService
         $h = max(1, round((float) $frame->height));
         $r = round((float) $frame->rotation);
         $z = (int) $frame->z_index;
+        $type = is_string($frame->frame_type) ? $frame->frame_type : ($frame->frame_type->value ?? 'text');
+        $overflow = in_array($type, ['text', 'quote']) ? 'visible' : 'hidden';
 
-        $style = "position:absolute;left:{$x}px;top:{$y}px;width:{$w}px;height:{$h}px;z-index:{$z};overflow:hidden;";
+        $style = "position:absolute;left:{$x}px;top:{$y}px;width:{$w}px;height:{$h}px;z-index:{$z};overflow:{$overflow};";
         if ($r !== 0) {
             $style .= "transform:rotate({$r}deg);";
         }
