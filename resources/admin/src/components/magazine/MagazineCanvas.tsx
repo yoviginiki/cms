@@ -127,30 +127,42 @@ export function MagazineCanvas({
   const allPagesRef = useRef(allPages);
   useEffect(() => { allPagesRef.current = allPages; }, [allPages]);
 
+  // Track whether blur already saved content — prevents double-save crash
+  const blurSavedRef = useRef(false);
+
   const exitEditing = useCallback(() => {
     const currentEditId = editingIdRef.current;
     if (!currentEditId) return;
+
+    // If blur already saved, just clear editing state — don't re-process DOM
+    if (blurSavedRef.current) {
+      blurSavedRef.current = false;
+      editingIdRef.current = null;
+      setEditingId(null);
+      return;
+    }
+
     // Flush content from the contentEditable DOM before React unmounts it.
-    // Note: handleContentChange (blur) may have already saved — this is a safety net.
-    const editableEl = document.querySelector(`[data-editing-id="${CSS.escape(currentEditId)}"]`) as HTMLElement | null
-      ?? document.querySelector('[contenteditable="true"]') as HTMLElement | null;
-    if (editableEl) {
-      const currentHtml = sanitizeHtml(editableEl.innerHTML);
-      // Search current page elements first, then all pages
-      let el = elementsRef.current.find(e => e.id === currentEditId);
-      if (!el && allPagesRef.current) {
-        for (const p of allPagesRef.current) {
-          el = p.elements?.find(e => e.id === currentEditId);
-          if (el) break;
+    try {
+      const editableEl = document.querySelector(`[data-editing-id="${CSS.escape(currentEditId)}"]`) as HTMLElement | null;
+      if (editableEl) {
+        const currentHtml = sanitizeHtml(editableEl.innerHTML);
+        let el = elementsRef.current.find(e => e.id === currentEditId);
+        if (!el && allPagesRef.current) {
+          for (const p of allPagesRef.current) {
+            el = p.elements?.find(e => e.id === currentEditId);
+            if (el) break;
+          }
+        }
+        if (el) {
+          const storedContent = (el.data as any)?.content || '';
+          if (currentHtml !== storedContent) {
+            onUpdateElement(currentEditId, { data: { ...(el.data || {}), content: currentHtml } } as any);
+          }
         }
       }
-      if (el) {
-        // Only save if content actually differs from what's in the store
-        const storedContent = (el.data as any)?.content || '';
-        if (currentHtml !== storedContent) {
-          onUpdateElement(currentEditId, { data: { ...(el.data || {}), content: currentHtml } } as any);
-        }
-      }
+    } catch (_e) {
+      // DOM query failed — content was already saved by blur or element was unmounted
     }
     editingIdRef.current = null;
     setEditingId(null);
@@ -194,13 +206,16 @@ export function MagazineCanvas({
   }, [exitEditing]);
 
   const handleContentChange = useCallback((id: string, html: string) => {
-    // Called on blur from contentEditable — save content but DON'T exit editing.
-    // Exiting editing is handled by exitEditing() (canvas click, Escape, page switch).
-    // This prevents the race condition where clearing editingId causes re-render
-    // with stale content before the store update propagates.
+    // Called on blur from contentEditable — save content.
+    // Mark as saved so exitEditing() doesn't re-process the DOM.
     const el = elementsRef.current.find(e => e.id === id);
     if (!el) return;
-    onUpdateElement(id, { data: { ...(el.data || {}), content: sanitizeHtml(html) } } as any);
+    try {
+      onUpdateElement(id, { data: { ...(el.data || {}), content: sanitizeHtml(html) } } as any);
+      blurSavedRef.current = true;
+    } catch (_e) {
+      // Sanitize or update failed — don't crash the app
+    }
   }, [onUpdateElement]);
 
   // Canvas background click -> clear selection or create element with active tool
