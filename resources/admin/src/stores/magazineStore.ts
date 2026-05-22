@@ -825,18 +825,20 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
 
           measure.style.width = visibleW + 'px';
-          measure.style.height = frame.height + 'px';
-          measure.style.overflow = 'hidden';
+          measure.style.height = 'auto'; // no height constraint — measure natural height
+          measure.style.overflow = 'visible';
           measure.style.fontFamily = typo?.fontFamily || 'Inter';
           measure.style.fontSize = (typo?.fontSize || 14) + 'px';
           measure.style.fontWeight = String(typo?.fontWeight || 400);
           measure.style.lineHeight = String(typo?.lineHeight || 1.5);
           measure.style.columnCount = String(cols);
           measure.style.columnGap = colGap + 'px';
+          measure.style.columnFill = 'auto';
           measure.style.padding = `${inset.top || 0}px ${inset.right || 0}px ${inset.bottom || 0}px ${inset.left || 0}px`;
           measure.innerHTML = html;
 
-          const overflows = measure.scrollHeight > frame.height + 4;
+          const naturalHeight = measure.scrollHeight;
+          const overflows = naturalHeight > frame.height + 4;
           if (!overflows) continue;
 
           // Text overflows — split and create continuation

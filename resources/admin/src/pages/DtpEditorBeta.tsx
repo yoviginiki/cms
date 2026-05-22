@@ -427,7 +427,9 @@ export default function DtpEditorBeta() {
       setSaveError(null);
       // Auto-flow overflowing text to next pages before save
       store.autoFlowText();
-      const payload = pagesToDtpApi(store.pages, apiLayers, apiAssetRefs, store.issueSettings, viewerSettings);
+      // Read fresh state after autoFlowText modified pages
+      const freshState = useMagazineStore.getState();
+      const payload = pagesToDtpApi(freshState.pages, apiLayers, apiAssetRefs, freshState.issueSettings, viewerSettings);
       await dtpDesigner.saveDocument(siteId, issueId, payload);
     },
     onSuccess: () => {
