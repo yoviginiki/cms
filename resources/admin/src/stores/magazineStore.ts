@@ -688,40 +688,49 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     const contWidth = pageW - (margins.left || 36) - (margins.right || 36);
     const contHeight = Math.max(100, pageH - contY - (margins.bottom || 36));
 
-    // Split source content at paragraph level
+    // Split source content at paragraph level — move overflow to continuation
     const sourceHtml = (sourceElement.data as any)?.content || '';
-
-    // Parse HTML to find paragraph-level blocks for splitting
     let keepHtml = sourceHtml;
-    let moveHtml = sourceHtml; // default: duplicate all content
+    let moveHtml = '';
 
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString('<body>' + sourceHtml + '</body>', 'text/html');
       const body = doc.body;
 
-      // Collect all top-level block elements, unwrapping single wrapper divs
+      // Unwrap single wrapper div
       let root: Element = body;
       if (body.children.length === 1 && body.children[0].tagName === 'DIV') {
         root = body.children[0];
       }
 
+      // Collect block elements
       const allBlocks: Element[] = [];
       for (let i = 0; i < root.childNodes.length; i++) {
         const node = root.childNodes[i];
-        if (node.nodeType === 1) { // Element
-          allBlocks.push(node as Element);
-        }
+        if (node.nodeType === 1) allBlocks.push(node as Element);
       }
 
       if (allBlocks.length >= 2) {
+        // Split at midpoint
         const mid = Math.ceil(allBlocks.length / 2);
         keepHtml = allBlocks.slice(0, mid).map(b => (b as HTMLElement).outerHTML).join('');
         moveHtml = allBlocks.slice(mid).map(b => (b as HTMLElement).outerHTML).join('');
+      } else {
+        // Single block — try splitting by sentences at rough midpoint
+        const text = sourceHtml;
+        const midChar = Math.floor(text.length / 2);
+        // Find a paragraph/tag boundary near midpoint
+        const breakPoint = text.lastIndexOf('</p>', midChar + 100);
+        if (breakPoint > text.length * 0.2) {
+          const splitPos = breakPoint + 4; // after </p>
+          keepHtml = text.substring(0, splitPos);
+          moveHtml = text.substring(splitPos);
+        }
+        // If no good break point found, keep all in source (don't duplicate)
       }
-      // If 0 or 1 blocks, both get full content (duplicate)
     } catch (_) {
-      // DOMParser failed — both frames get full content
+      // DOMParser failed — keep all in source
     }
 
     const threadId = sourceElement.threadId || crypto.randomUUID();

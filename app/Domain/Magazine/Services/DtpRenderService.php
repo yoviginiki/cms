@@ -32,11 +32,11 @@ class DtpRenderService
                 if (strtolower($tag) === 'a' && preg_match('/href\s*=\s*"(https?:\/\/[^"]*)"/', $attrs, $hm)) {
                     $safe .= ' href="' . e($hm[1]) . '" rel="noopener noreferrer"';
                 }
-                // Allow style attribute — strip dangerous CSS (expressions, url, javascript)
+                // Allow style attribute — strip dangerous CSS
                 if (preg_match('/style\s*=\s*"([^"]*)"/', $attrs, $sm)) {
                     $css = $sm[1];
-                    // Remove dangerous CSS
-                    $css = preg_replace('/expression\s*\(|url\s*\(|javascript:|behavior:|@import|-moz-binding/i', '', $css);
+                    // Remove dangerous CSS patterns
+                    $css = preg_replace('/expression\s*\(|url\s*\(|javascript:|behavior:|@import|-moz-binding|data\s*:|position\s*:\s*fixed|position\s*:\s*absolute/i', '', $css);
                     if (trim($css)) {
                         $safe .= ' style="' . e($css) . '"';
                     }

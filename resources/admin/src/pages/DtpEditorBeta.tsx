@@ -33,7 +33,7 @@ import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
-import { getThreadFrames, distributeThreadContent } from '@/components/magazine/TextThreading';
+// Threading imports removed — Pour handles content splitting directly
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -207,20 +207,7 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
   const outPages: any[] = [];
   const frames: any[] = [];
 
-  // Pre-compute threaded content distribution so each frame saves its visible portion
-  const threadedContentMap = new Map<string, string>();
-  const processedThreads = new Set<string>();
-  const allElements = pages.flatMap(p => p.elements || []);
-  for (const el of allElements) {
-    if (!el.threadId || processedThreads.has(el.threadId)) continue;
-    processedThreads.add(el.threadId);
-    const threadFrames = getThreadFrames(pages, el.threadId);
-    if (threadFrames.length < 2) continue;
-    const sourceContent = (threadFrames[0].data as any)?.content || '';
-    if (!sourceContent) continue;
-    const distributed = distributeThreadContent(threadFrames, sourceContent);
-    distributed.forEach((tc, fid) => { if (tc.visibleHtml) threadedContentMap.set(fid, tc.visibleHtml); });
-  }
+  // Each frame saves its own data.content directly (no threading redistribution)
 
   // Generate stable spread IDs from page IDs (must be valid UUIDs, max 36 chars)
   const spreadIdMap = new Map<string, string>();
@@ -253,8 +240,7 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
       const content: Record<string, unknown> = {};
 
       if (['text', 'quote'].includes(frameType)) {
-        // Use threaded distributed content if available, otherwise use stored content
-        content.html = threadedContentMap.get(el.id) || (el.data as any)?.content || '';
+        content.html = (el.data as any)?.content || '';
         // Preserve text frame settings
         content.overflow = (el.data as any)?.overflow;
         content.columnsInFrame = (el.data as any)?.columnsInFrame;
