@@ -71,9 +71,13 @@ class DtpRenderService
             foreach ($spreadPages as $page) {
                 $pageFrames = $frames->where('page_id', $page->id)->sortBy('z_index');
                 $renderedFrames = [];
+                $hasSpreadImage = false;
 
                 foreach ($pageFrames as $frame) {
                     $renderedFrames[] = $this->renderFrame($frame, $page);
+                    if (($frame->metadata['spanMode'] ?? 'page') === 'spread') {
+                        $hasSpreadImage = true;
+                    }
                 }
 
                 $renderedPages[] = [
@@ -82,7 +86,7 @@ class DtpRenderService
                     'width' => $page->width,
                     'height' => $page->height,
                     'background' => $page->background ?? ['color' => '#ffffff'],
-                    'style' => $this->buildPageStyle($page),
+                    'style' => $this->buildPageStyle($page, $hasSpreadImage),
                     'frames' => $renderedFrames,
                 ];
             }
@@ -270,11 +274,12 @@ class DtpRenderService
         return $style;
     }
 
-    private function buildPageStyle(MagazineDtpPage $page): string
+    private function buildPageStyle(MagazineDtpPage $page, bool $hasSpreadImage = false): string
     {
         $w = max(1, (int) $page->width);
         $h = max(1, (int) $page->height);
         $bg = BlockStyle::safeColor($page->background['color'] ?? '#ffffff') ?: '#ffffff';
-        return "position:relative;width:{$w}px;height:{$h}px;background:{$bg};overflow:hidden;";
+        $overflow = $hasSpreadImage ? 'visible' : 'hidden';
+        return "position:relative;width:{$w}px;height:{$h}px;background:{$bg};overflow:{$overflow};";
     }
 }
