@@ -42,10 +42,17 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     return () => clearTimeout(timer);
   }, [el.type, el.width, el.height, (el.data as any)?.content, isEditing]);
 
-  // When entering edit mode, focus the contentEditable and snapshot content
+  // When entering edit mode, set initial content ONCE and focus
+  const editInitializedRef = useRef(false);
   useEffect(() => {
-    if (isEditing && editRef.current) {
-      lastSavedRef.current = editRef.current.innerHTML;
+    if (isEditing && editRef.current && !editInitializedRef.current) {
+      editInitializedRef.current = true;
+      // Set content from store ONCE — after this, contentEditable manages its own DOM
+      const data = el.data as Record<string, any>;
+      const rawContent = threadedContent !== undefined ? threadedContent : (data?.content || '');
+      const safeContent = DOMPurify.sanitize(rawContent, SAFE_HTML_CONFIG);
+      editRef.current.innerHTML = safeContent;
+      lastSavedRef.current = safeContent;
       editRef.current.focus();
       // Place cursor at end
       const sel = window.getSelection();
@@ -54,6 +61,11 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         sel.collapseToEnd();
       }
     }
+  }, [isEditing]);
+
+  // Reset init flag when exiting edit mode
+  useEffect(() => {
+    if (!isEditing) editInitializedRef.current = false;
   }, [isEditing]);
 
   const lastSavedRef = useRef<string>('');
@@ -153,7 +165,6 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
             onBlur={handleBlur}
             onKeyDown={(e) => e.stopPropagation()}
             onKeyUp={() => {
-              // Save selection on every keystroke for toolbar formatting
               try {
                 const sel = window.getSelection();
                 if (sel && sel.rangeCount > 0) {
@@ -162,7 +173,6 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
               } catch (_) {}
             }}
             onMouseUp={() => {
-              // Save selection on mouse up (text selection)
               try {
                 const sel = window.getSelection();
                 if (sel && sel.rangeCount > 0) {
@@ -171,8 +181,9 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
               } catch (_) {}
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            dangerouslySetInnerHTML={{ __html: safeContent }}
           />
+          /* Content set via useEffect editInitializedRef — NOT dangerouslySetInnerHTML
+             This prevents React re-renders from overwriting user's typed content */
         );
       }
 
