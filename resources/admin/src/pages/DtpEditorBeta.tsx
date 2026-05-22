@@ -201,7 +201,7 @@ function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
-function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any[], issueSettings?: any): Record<string, unknown> {
+function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any[], issueSettings?: any, viewerSettings?: any): Record<string, unknown> {
   const spreads: any[] = [];
   const outPages: any[] = [];
   const frames: any[] = [];
@@ -293,7 +293,7 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
     });
   });
 
-  return { spreads, pages: outPages, layers: apiLayers, frames, asset_references: apiAssetRefs, meta: { issueSettings } };
+  return { spreads, pages: outPages, layers: apiLayers, frames, asset_references: apiAssetRefs, meta: { issueSettings, viewerSettings } };
 }
 
 // ─── Editor Component ───
@@ -317,6 +317,13 @@ export default function DtpEditorBeta() {
   const [canvasEditingId, setCanvasEditingId] = useState<string | null>(null);
   const [startEditingRequest, setStartEditingRequest] = useState<string | null>(null);
   const [issueStatus, setIssueStatus] = useState<string>('draft');
+  const [viewerSettings, setViewerSettings] = useState<Record<string, any>>({
+    display_mode: 'spread',
+    bg_color: '#0a0a0a',
+    show_thumbnails: true,
+    show_page_numbers: true,
+    auto_hide_ui: true,
+  });
   const initializedRef = useRef(false);
 
   // Load DTP document from API
@@ -350,11 +357,11 @@ export default function DtpEditorBeta() {
     const savedSettings = apiData.meta?.issueSettings;
     if (savedSettings) {
       store.setIssueSettings(savedSettings);
-      // Auto-switch view mode to match layout mode
-      if (savedSettings.layoutMode === 'book') {
-        store.setViewMode('spread');
-      }
+      if (savedSettings.layoutMode === 'book') store.setViewMode('spread');
     }
+    // Restore viewer settings
+    const savedViewer = apiData.meta?.viewerSettings;
+    if (savedViewer) setViewerSettings(prev => ({ ...prev, ...savedViewer }));
 
     // Create default master pages if none exist
     if (!pages.some(p => p.isMaster)) {
@@ -412,7 +419,7 @@ export default function DtpEditorBeta() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       setSaveError(null);
-      const payload = pagesToDtpApi(store.pages, apiLayers, apiAssetRefs, store.issueSettings);
+      const payload = pagesToDtpApi(store.pages, apiLayers, apiAssetRefs, store.issueSettings, viewerSettings);
       await dtpDesigner.saveDocument(siteId, issueId, payload);
     },
     onSuccess: () => {
@@ -895,6 +902,83 @@ export default function DtpEditorBeta() {
                   {store.issueSettings.layoutMode === 'single' && 'Use Single view in the toolbar for vertical page layout.'}
                   {store.issueSettings.layoutMode === 'book' && 'Use Spread view in the toolbar to see side-by-side pages.'}
                   {store.issueSettings.layoutMode === 'presentation' && 'Use Single view for slide-by-slide navigation.'}
+                </div>
+
+                {/* ─── Viewer Settings ─── */}
+                <div className="border-t border-base-300/20 pt-4">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-3">Display Mode</h3>
+                  <div className="space-y-1.5">
+                    {([
+                      { value: 'spread', label: 'Two-page spread', desc: 'Side-by-side pages with page turn animation' },
+                      { value: 'single', label: 'Single page', desc: 'One page at a time with slide navigation' },
+                      { value: 'scroll', label: 'Scroll', desc: 'All pages stacked, scroll to read' },
+                      { value: 'flipbook', label: 'Flipbook', desc: 'Realistic 3D page turns with curl, shadows & swipe gestures' },
+                    ]).map(opt => (
+                      <label key={opt.value} className="flex items-start gap-2 cursor-pointer group">
+                        <input type="radio" name="viewer_display_mode" value={opt.value}
+                          checked={viewerSettings.display_mode === opt.value}
+                          onChange={() => { setViewerSettings(s => ({ ...s, display_mode: opt.value })); store.setDirty(true); }}
+                          className="radio radio-xs radio-primary mt-0.5" />
+                        <div>
+                          <span className="text-[11px] text-base-content/70 group-hover:text-base-content/90">{opt.label}</span>
+                          <p className="text-[9px] text-base-content/30">{opt.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-base-300/20 pt-4">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-3">Viewer Background</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {([
+                      { value: '#0a0a0a', label: 'Black' },
+                      { value: '#1a1a2e', label: 'Navy' },
+                      { value: '#2d2d2d', label: 'Charcoal' },
+                      { value: '#f5f3ef', label: 'Warm' },
+                      { value: '#f0f0f0', label: 'Light' },
+                      { value: '#ffffff', label: 'White' },
+                    ]).map(c => (
+                      <button key={c.value}
+                        onClick={() => { setViewerSettings(s => ({ ...s, bg_color: c.value })); store.setDirty(true); }}
+                        className={`w-7 h-7 rounded-full border-2 transition-all ${
+                          viewerSettings.bg_color === c.value
+                            ? 'border-primary scale-110' : 'border-base-300/30 hover:border-base-300/60'
+                        }`}
+                        style={{ backgroundColor: c.value }}
+                        title={c.label} />
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    <input type="color" value={viewerSettings.bg_color || '#0a0a0a'}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, bg_color: e.target.value })); store.setDirty(true); }}
+                      className="w-7 h-7 rounded cursor-pointer border border-base-300/30" />
+                    <input type="text" value={viewerSettings.bg_color || '#0a0a0a'}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, bg_color: e.target.value })); store.setDirty(true); }}
+                      className="input input-bordered input-xs flex-1 text-[10px] font-mono" placeholder="#hex" />
+                  </div>
+                </div>
+
+                <div className="border-t border-base-300/20 pt-4 space-y-2">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Viewer Options</h3>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={viewerSettings.show_page_numbers !== false}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, show_page_numbers: e.target.checked })); store.setDirty(true); }}
+                      className="checkbox checkbox-xs checkbox-primary" />
+                    <span className="text-[11px] text-base-content/60">Show page numbers</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={viewerSettings.show_thumbnails !== false}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, show_thumbnails: e.target.checked })); store.setDirty(true); }}
+                      className="checkbox checkbox-xs checkbox-primary" />
+                    <span className="text-[11px] text-base-content/60">Show thumbnails</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={viewerSettings.auto_hide_ui !== false}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, auto_hide_ui: e.target.checked })); store.setDirty(true); }}
+                      className="checkbox checkbox-xs checkbox-primary" />
+                    <span className="text-[11px] text-base-content/60">Auto-hide UI</span>
+                  </label>
                 </div>
               </div>
             )}

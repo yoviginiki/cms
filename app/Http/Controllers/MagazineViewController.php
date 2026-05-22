@@ -223,7 +223,11 @@ class MagazineViewController extends Controller
         $pageH = $firstPage->height ?? 842;
 
         $issueSettings = $issue->layout_final['issueSettings'] ?? [];
-        // Always use scroll for public viewer — shows all pages stacked, easy to read
+        // Load viewer settings from issue layout_final
+        $viewerSettings = $issue->layout_final['viewerSettings'] ?? [];
+        $displayMode = $viewerSettings['display_mode'] ?? 'spread';
+        $bgColor = BlockStyle::safeColor($viewerSettings['bg_color'] ?? '#0a0a0a') ?: '#0a0a0a';
+
         $magazine = (object) [
             'title' => $issue->title ?? 'DTP Issue',
             'description' => $issue->subtitle ?? '',
@@ -231,18 +235,18 @@ class MagazineViewController extends Controller
             'page_width' => $pageW,
             'page_height' => $pageH,
             'settings' => [
-                'display_mode' => 'scroll',
+                'display_mode' => $displayMode,
                 'view_mode' => 'full',
-                'bg_color' => '#0a0a0a',
-                'ui_theme' => 'dark',
-                'page_transition' => 'slide',
-                'transition_speed' => 500,
-                'show_thumbnails' => false,
-                'show_page_numbers' => true,
+                'bg_color' => $bgColor,
+                'ui_theme' => $viewerSettings['ui_theme'] ?? 'dark',
+                'page_transition' => $displayMode === 'spread' ? 'turn' : ($viewerSettings['page_transition'] ?? 'slide'),
+                'transition_speed' => (int) ($viewerSettings['transition_speed'] ?? 500),
+                'show_thumbnails' => ($viewerSettings['show_thumbnails'] ?? true) !== false,
+                'show_page_numbers' => ($viewerSettings['show_page_numbers'] ?? true) !== false,
                 'show_header' => true,
-                'show_controls' => false,
+                'show_controls' => true,
                 'show_toc' => true,
-                'auto_hide_ui' => false,
+                'auto_hide_ui' => ($viewerSettings['auto_hide_ui'] ?? true) !== false,
                 'pn_position' => 'bottom',
                 'pn_align' => 'outer',
                 'pn_size' => '9px',

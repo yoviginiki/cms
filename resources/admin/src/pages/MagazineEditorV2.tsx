@@ -53,6 +53,7 @@ function MagazineEditorV2Inner() {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [magazineSettings, setMagazineSettings] = useState<Record<string, any>>({});
+  const [magStatus, setMagStatus] = useState<string>('draft');
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const initializedRef = useRef(false);
@@ -74,6 +75,7 @@ function MagazineEditorV2Inner() {
     setTitle(magData.title);
     setSlug(magData.slug);
     setMagazineSettings(magData.settings || {});
+    setMagStatus(magData.status || 'draft');
 
     // Convert magazine pages/elements to MagPageData format
     const defaultPageW = magData.page_width * 2.83;  // mm to pt
@@ -310,6 +312,11 @@ function MagazineEditorV2Inner() {
         onSave={() => saveMutation.mutate()}
         isDirty={store.isDirty}
         isSaving={saveMutation.isPending}
+        status={magStatus}
+        onStatusChange={(s) => {
+          setMagStatus(s);
+          magazines.update(siteId, magazineId, { status: s, ...(s === 'published' ? { published_at: new Date().toISOString() } : {}) });
+        }}
       />
 
       {/* ─── Save error banner ─── */}

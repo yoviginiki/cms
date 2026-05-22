@@ -75,6 +75,15 @@ class SaveDtpDocumentRequest extends FormRequest
             'meta.issueSettings.layoutMode' => ['nullable', 'string', 'in:single,book,presentation'],
             'meta.issueSettings.coverMode' => ['nullable', 'string', 'in:standalone,spread'],
             'meta.issueSettings.readingDirection' => ['nullable', 'string', 'in:ltr,rtl'],
+            'meta.viewerSettings' => ['nullable', 'array'],
+            'meta.viewerSettings.display_mode' => ['nullable', 'string', 'in:spread,single,scroll,flipbook'],
+            'meta.viewerSettings.bg_color' => ['nullable', 'string', 'max:20'],
+            'meta.viewerSettings.ui_theme' => ['nullable', 'string', 'in:dark,light'],
+            'meta.viewerSettings.page_transition' => ['nullable', 'string', 'in:slide,fade,flip,turn,none'],
+            'meta.viewerSettings.transition_speed' => ['nullable', 'integer', 'min:100', 'max:2000'],
+            'meta.viewerSettings.show_thumbnails' => ['nullable', 'boolean'],
+            'meta.viewerSettings.show_page_numbers' => ['nullable', 'boolean'],
+            'meta.viewerSettings.auto_hide_ui' => ['nullable', 'boolean'],
 
             // Asset references
             'asset_references' => ['sometimes', 'array', 'max:500'],

@@ -97,6 +97,7 @@ class DtpDocumentService
                 'page_count' => $pages->count(),
                 'frame_count' => $frames->count(),
                 'issueSettings' => $issue->layout_final['issueSettings'] ?? null,
+                'viewerSettings' => $issue->layout_final['viewerSettings'] ?? null,
             ],
         ];
     }
@@ -109,13 +110,21 @@ class DtpDocumentService
         return DB::transaction(function () use ($issue, $data) {
             $issueId = $issue->id;
 
-            // Persist issue settings (layout mode, cover mode, etc.)
+            // Persist issue settings + viewer settings
             $meta = $data['meta'] ?? [];
+            $layoutFinal = $issue->layout_final ?? [];
+            $changed = false;
             if (!empty($meta['issueSettings'])) {
-                $layoutFinal = $issue->layout_final ?? [];
                 $allowed = ['layoutMode', 'coverMode', 'readingDirection'];
-                $settings = array_intersect_key((array) $meta['issueSettings'], array_flip($allowed));
-                $layoutFinal['issueSettings'] = $settings;
+                $layoutFinal['issueSettings'] = array_intersect_key((array) $meta['issueSettings'], array_flip($allowed));
+                $changed = true;
+            }
+            if (!empty($meta['viewerSettings'])) {
+                $allowed = ['display_mode', 'bg_color', 'ui_theme', 'page_transition', 'transition_speed', 'show_thumbnails', 'show_page_numbers', 'auto_hide_ui'];
+                $layoutFinal['viewerSettings'] = array_intersect_key((array) $meta['viewerSettings'], array_flip($allowed));
+                $changed = true;
+            }
+            if ($changed) {
                 $issue->update(['layout_final' => $layoutFinal]);
             }
 
