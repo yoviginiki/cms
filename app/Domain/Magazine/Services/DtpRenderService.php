@@ -162,13 +162,26 @@ class DtpRenderService
     private function renderFrame(MagazineFrame $frame, MagazineDtpPage $page): array
     {
         $content = is_array($frame->content) ? $frame->content : [];
-        $style = $this->buildFrameStyle($frame);
         $type = $frame->frame_type->value ?? (string) $frame->frame_type;
 
-        $pageW = (int) $page->width;
-        $frameW = max(1, round((float) $frame->width));
+        // Build frame style — add columns/padding directly for text frames
+        $style = $this->buildFrameStyle($frame);
+        if (in_array($type, ['text', 'quote'])) {
+            $cols = (int) ($content['columnsInFrame'] ?? 1);
+            if ($cols > 1 && $cols <= 6) {
+                $gap = (int) ($content['columnGap'] ?? 12);
+                $style .= "column-count:{$cols};column-gap:{$gap}px;column-fill:auto;";
+            }
+            $inset = $content['textInset'] ?? null;
+            if (is_array($inset)) {
+                $t = (int) ($inset['top'] ?? 0); $r = (int) ($inset['right'] ?? 0);
+                $b = (int) ($inset['bottom'] ?? 0); $l = (int) ($inset['left'] ?? 0);
+                $style .= "padding:{$t}px {$r}px {$b}px {$l}px;";
+            }
+        }
+
         $html = match ($type) {
-            'text' => $this->renderTextFrame($content, min($frameW, $pageW)),
+            'text' => $this->renderTextFrame($content),
             'image' => $this->renderImageFrame($content),
             'quote' => $this->renderQuoteFrame($content),
             'pageNumber' => $this->renderPageNumberFrame($page),
@@ -196,32 +209,11 @@ class DtpRenderService
         return preg_replace('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $adminUrl . '/media/$1/$2', $html) ?: $html;
     }
 
-    private function renderTextFrame(array $content, int $maxWidth = 0): string
+    private function renderTextFrame(array $content): string
     {
         $html = $this->sanitizeHtml($content['html'] ?? '');
         $html = $this->convertAssetUrls($html);
-        if (!$html) return '<p></p>';
-
-        // Apply text frame layout settings
-        $style = '';
-        if ($maxWidth > 0) {
-            $style = "max-width:{$maxWidth}px;";
-        }
-        $cols = (int) ($content['columnsInFrame'] ?? 1);
-        if ($cols > 1 && $cols <= 6) {
-            $gap = (int) ($content['columnGap'] ?? 12);
-            $fill = 'balance';
-            $style .= "column-count:{$cols};column-gap:{$gap}px;column-fill:{$fill};";
-        }
-        $inset = $content['textInset'] ?? null;
-        if (is_array($inset)) {
-            $t = (int) ($inset['top'] ?? 0);
-            $r = (int) ($inset['right'] ?? 0);
-            $b = (int) ($inset['bottom'] ?? 0);
-            $l = (int) ($inset['left'] ?? 0);
-            $style .= "padding:{$t}px {$r}px {$b}px {$l}px;";
-        }
-        return '<div style="' . $style . '">' . $html . '</div>';
+        return $html ?: '<p></p>';
     }
 
     private function renderImageFrame(array $content): string
