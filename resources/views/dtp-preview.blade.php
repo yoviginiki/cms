@@ -35,9 +35,9 @@ body {
 .page {
     position: relative;
     color: #1a1a1a;
+    overflow: hidden;
 }
 .page-frame { position: absolute; overflow: hidden; }
-.page-frame[data-frame-type="text"] { overflow: visible; }
 .page-frame img { display: block; }
 
 /* Book mode navigation */
