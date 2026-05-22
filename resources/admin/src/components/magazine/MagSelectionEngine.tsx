@@ -243,7 +243,8 @@ export function useMagSelection(
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
 
-      if (e.key === 'Delete' || e.key === 'Backspace') { if (state.selectedIds.length) { e.preventDefault(); onDeleteElements(state.selectedIds); clearSelection(); } }
+      if (e.key === 'Delete') { if (state.selectedIds.length) { e.preventDefault(); onDeleteElements(state.selectedIds); clearSelection(); } }
+      // Backspace does NOT delete frames — too easy to hit accidentally. Use Delete key only.
       if (e.key === 'd' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onDuplicateElements(state.selectedIds); }
       if (e.key === 'a' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setState(s => ({ ...s, selectedIds: elements.filter(el => !el.locked).map(el => el.id) })); }
       if (e.key === 'Escape') clearSelection();

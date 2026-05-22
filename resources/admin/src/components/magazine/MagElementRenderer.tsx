@@ -640,6 +640,33 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         );
       })()}
 
+      {/* Edit Text / Done button for text frames — visible on selected frame */}
+      {isSelected && TEXT_FRAME_TYPES.includes(el.type) && !el.locked && (
+        <button
+          className={`absolute -top-8 left-0 px-2 py-1 rounded text-[10px] font-medium shadow-md z-[10000] ${
+            isEditing
+              ? 'bg-green-500 text-white hover:bg-green-600'
+              : 'bg-blue-500 text-white hover:bg-blue-600'
+          }`}
+          style={{ pointerEvents: 'auto' }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isEditing) {
+              // Done — trigger blur to save
+              const editable = document.querySelector('[contenteditable="true"]') as HTMLElement;
+              editable?.blur();
+            } else {
+              // Start editing — use the onContinueText path but for editing
+              // Actually, double-click handler is on the parent — simulate it
+              onDoubleClick(e as any, el.id);
+            }
+          }}
+        >
+          {isEditing ? '✓ Done' : '✎ Edit Text'}
+        </button>
+      )}
+
       {/* Resize handles when selected */}
       {isSelected && !el.locked && (
         <>
