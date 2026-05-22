@@ -223,12 +223,7 @@ class MagazineViewController extends Controller
         $pageH = $firstPage->height ?? 842;
 
         $issueSettings = $issue->layout_final['issueSettings'] ?? [];
-        $displayMode = match ($issueSettings['layoutMode'] ?? 'single') {
-            'book' => 'spread',
-            'presentation' => 'single',
-            default => 'scroll',
-        };
-
+        // Always use scroll for public viewer — shows all pages stacked, easy to read
         $magazine = (object) [
             'title' => $issue->title ?? 'DTP Issue',
             'description' => $issue->subtitle ?? '',
@@ -236,16 +231,16 @@ class MagazineViewController extends Controller
             'page_width' => $pageW,
             'page_height' => $pageH,
             'settings' => [
-                'display_mode' => $displayMode,
+                'display_mode' => 'scroll',
                 'view_mode' => 'full',
                 'bg_color' => '#0a0a0a',
                 'ui_theme' => 'dark',
-                'page_transition' => $displayMode === 'spread' ? 'turn' : 'slide',
+                'page_transition' => 'slide',
                 'transition_speed' => 500,
-                'show_thumbnails' => true,
+                'show_thumbnails' => false,
                 'show_page_numbers' => true,
                 'show_header' => true,
-                'show_controls' => true,
+                'show_controls' => false,
                 'show_toc' => true,
                 'auto_hide_ui' => false,
                 'pn_position' => 'bottom',
