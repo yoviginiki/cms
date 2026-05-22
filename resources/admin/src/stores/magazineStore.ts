@@ -689,10 +689,26 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     const sourceHtml = (sourceElement.data as any)?.content || '';
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = sourceHtml;
-    const blocks = Array.from(tempDiv.children);
-    const splitAt = Math.max(1, Math.ceil(blocks.length / 2));
-    const keepHtml = blocks.slice(0, splitAt).map(b => (b as HTMLElement).outerHTML).join('');
-    const moveHtml = blocks.slice(splitAt).map(b => (b as HTMLElement).outerHTML).join('');
+
+    // Unwrap single wrapper div to get actual content blocks
+    let contentRoot = tempDiv;
+    if (tempDiv.children.length === 1 && tempDiv.children[0].tagName === 'DIV') {
+      contentRoot = tempDiv.children[0] as HTMLDivElement;
+    }
+    const blocks = Array.from(contentRoot.children);
+
+    // If only 1 block or no blocks, try splitting by <br> or just duplicate
+    let keepHtml: string;
+    let moveHtml: string;
+    if (blocks.length <= 1) {
+      // Can't split by blocks — give full content to both (source keeps all, continuation gets all)
+      keepHtml = sourceHtml;
+      moveHtml = sourceHtml;
+    } else {
+      const splitAt = Math.max(1, Math.ceil(blocks.length / 2));
+      keepHtml = blocks.slice(0, splitAt).map(b => (b as HTMLElement).outerHTML).join('');
+      moveHtml = blocks.slice(splitAt).map(b => (b as HTMLElement).outerHTML).join('');
+    }
 
     const threadId = sourceElement.threadId || crypto.randomUUID();
 
