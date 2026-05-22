@@ -573,10 +573,17 @@ export function MagazineCanvas({
                 isEditing={editingId === el.id}
                 threadedContent={el.threadId ? threadedContentMap.get(el.id) : undefined}
                 zoom={zoom}
-                onPointerDown={(e, id) => { exitEditing(); selection.handleElementPointerDown(e, id); }}
+                onPointerDown={(e, id) => { try { exitEditing(); } catch(_) {} selection.handleElementPointerDown(e, id); }}
                 onDoubleClick={handleDoubleClick}
                 onContentChange={handleContentChange}
                 onContinueText={onContinueText}
+                onStartEditing={(id) => {
+                  exitEditing();
+                  setEditingId(id);
+                }}
+                onStopEditing={() => {
+                  exitEditing();
+                }}
                 allPages={allPages}
               />
             ))}

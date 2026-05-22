@@ -19,10 +19,12 @@ interface Props {
   onDoubleClick: (e: React.MouseEvent, id: string) => void;
   onContentChange?: (id: string, html: string) => void;
   onContinueText?: (id: string) => void;
+  onStartEditing?: (id: string) => void;
+  onStopEditing?: () => void;
   allPages?: Array<{ pageNumber: number; elements: MagElement[] }>;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, allPages }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing, onStopEditing, allPages }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -653,13 +655,9 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
           onClick={(e) => {
             e.stopPropagation();
             if (isEditing) {
-              // Done — trigger blur to save
-              const editable = document.querySelector('[contenteditable="true"]') as HTMLElement;
-              editable?.blur();
+              onStopEditing?.();
             } else {
-              // Start editing — use the onContinueText path but for editing
-              // Actually, double-click handler is on the parent — simulate it
-              onDoubleClick(e as any, el.id);
+              onStartEditing?.(el.id);
             }
           }}
         >
