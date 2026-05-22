@@ -678,31 +678,49 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       }
     }
 
-    // Calculate continuation frame height: fill from contY to bottom margin
+    // Calculate continuation frame dimensions: fill the page content area
+    const pageW = targetPage.pageSize?.width || 595;
     const pageH = targetPage.pageSize?.height || 842;
+    const contX = margins.left || 36;
+    const contWidth = pageW - (margins.left || 36) - (margins.right || 36);
     const contHeight = Math.max(100, pageH - contY - (margins.bottom || 36));
+
+    // Split source content: keep first half in source, move rest to continuation
+    const sourceHtml = (sourceElement.data as any)?.content || '';
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = sourceHtml;
+    const blocks = Array.from(tempDiv.children);
+    const splitAt = Math.max(1, Math.ceil(blocks.length / 2));
+    const keepHtml = blocks.slice(0, splitAt).map(b => (b as HTMLElement).outerHTML).join('');
+    const moveHtml = blocks.slice(splitAt).map(b => (b as HTMLElement).outerHTML).join('');
+
+    const threadId = sourceElement.threadId || crypto.randomUUID();
 
     const continuation: MagElement = {
       ...structuredClone(sourceElement),
       id: continuationId,
       pageNumber: nextPageNumber,
-      x: Number.isFinite(sourceElement.x) ? sourceElement.x : margins.left,
+      x: contX,
       y: contY,
-      width: sourceElement.width,
+      width: contWidth,
       height: contHeight,
-      threadId: sourceElement.threadId || crypto.randomUUID(),
+      threadId,
       threadOrder: (sourceElement.threadOrder ?? 0) + 1,
       zIndex: maxZ + 1,
-      data: { ...sourceElement.data, content: '<p>Continued text...</p>' },
+      data: { ...sourceElement.data, content: moveHtml || '<p></p>' },
     };
 
-    // Link source → continuation
-    const threadId = continuation.threadId;
+    // Update source: keep first half of content and link to thread
     pages = pages.map(p => ({
       ...p,
       elements: p.elements.map(e => {
         if (e.id === elementId) {
-          return { ...e, threadId, threadOrder: e.threadOrder ?? 0 };
+          return {
+            ...e,
+            threadId,
+            threadOrder: e.threadOrder ?? 0,
+            data: { ...e.data, content: keepHtml },
+          };
         }
         return e;
       }),
