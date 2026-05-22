@@ -190,6 +190,15 @@ const REVERSE_TYPE_MAP: Record<string, string> = {
   group: 'text', component_instance: 'text', clipping_group: 'text',
 };
 
+/** Remove undefined values from an object to prevent silent JSON data loss */
+function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) result[k] = v;
+  }
+  return result;
+}
+
 function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any[]): Record<string, unknown> {
   const spreads: any[] = [];
   const outPages: any[] = [];
@@ -265,15 +274,15 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
         z_index: el.zIndex,
         visible: el.visible,
         locked: el.locked,
-        content,
+        content: stripUndefined(content),
         style: el.style || {},
-        metadata: {
+        metadata: stripUndefined({
           onMaster: el.onMaster || false,
           _typography: el.typography || null,
           threadId: el.threadId || null,
           threadOrder: el.threadOrder ?? null,
-          _magType: el.type, // Preserve original type for round-trip
-        },
+          _magType: el.type,
+        }),
       });
     });
   });
