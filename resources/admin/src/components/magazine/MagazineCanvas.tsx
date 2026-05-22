@@ -29,6 +29,8 @@ interface MagazineCanvasProps {
   onMoveToPage?: (elementId: string, direction: 'prev' | 'next', newX: number, newY: number) => void;
   onEditingChange?: (editingId: string | null) => void;
   startEditingId?: string | null;
+  layoutMode?: 'single' | 'book' | 'presentation';
+  coverMode?: 'standalone' | 'spread';
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -69,6 +71,8 @@ export function MagazineCanvas({
   onMoveToPage,
   onEditingChange,
   startEditingId,
+  layoutMode = 'single',
+  coverMode = 'standalone',
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -474,14 +478,32 @@ export function MagazineCanvas({
             // Determine which pages to show
             const pagesToShow: MagPageData[] = (() => {
               if (!allPages || allPages.length === 0) return [page];
+              const contentPages = allPages.filter(p => !p.isMaster);
+
               if (viewMode === 'single') return [page];
+
               if (viewMode === 'spread') {
-                const contentPages = allPages.filter(p => !p.isMaster);
+                if (layoutMode === 'book') {
+                  // Book mode: cover alone (page 1), then pairs (2-3, 4-5, ...)
+                  const idx = contentPages.findIndex(p => p.pageNumber === page.pageNumber);
+                  if (coverMode === 'standalone' && idx === 0) return [contentPages[0]]; // cover alone
+                  // Adjust index for standalone cover offset
+                  const adjIdx = coverMode === 'standalone' ? idx - 1 : idx;
+                  const startIdx = adjIdx % 2 === 0 ? idx : Math.max(coverMode === 'standalone' ? 1 : 0, idx - 1);
+                  return contentPages.slice(startIdx, startIdx + 2);
+                }
+                // Default spread: pair by index
                 const idx = contentPages.findIndex(p => p.pageNumber === page.pageNumber);
                 const startIdx = idx % 2 === 0 ? idx : Math.max(0, idx - 1);
                 return contentPages.slice(startIdx, startIdx + 2);
               }
-              return allPages.filter(p => !p.isMaster); // grid: show all content pages
+
+              if (viewMode === 'grid' && layoutMode === 'presentation') {
+                // Presentation: show only current page (one slide at a time)
+                return [page];
+              }
+
+              return contentPages; // grid: show all
             })();
 
             const cols = viewMode === 'grid' ? gridColumns : viewMode === 'spread' ? pagesToShow.length : 1;

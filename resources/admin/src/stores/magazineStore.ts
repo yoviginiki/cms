@@ -16,6 +16,13 @@ import {
 type ToolType = 'select' | 'text' | 'image' | 'rectangle' | 'ellipse' | 'line';
 
 type ViewMode = 'single' | 'spread' | 'grid';
+type LayoutMode = 'single' | 'book' | 'presentation';
+
+interface IssueSettings {
+  layoutMode: LayoutMode;
+  coverMode: 'standalone' | 'spread';
+  readingDirection: 'ltr' | 'rtl';
+}
 
 interface MagazineState {
   pages: MagPageData[];
@@ -38,6 +45,7 @@ interface MagazineState {
   isSaving: boolean;
   styles: MagStyleDefinition[];
   editingMasterId: string | null;
+  issueSettings: IssueSettings;
 }
 
 interface MagazineActions {
@@ -90,6 +98,9 @@ interface MagazineActions {
   toggleSnap: () => void;
   setViewMode: (mode: ViewMode) => void;
   setGridColumns: (cols: number) => void;
+
+  // Issue settings
+  setIssueSettings: (settings: Partial<IssueSettings>) => void;
 
   // Master pages
   getMasterPages: () => MagPageData[];
@@ -294,6 +305,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   isSaving: false,
   styles: [],
   editingMasterId: null,
+  issueSettings: { layoutMode: 'single', coverMode: 'standalone', readingDirection: 'ltr' },
 
   // ─── Document ───
 
@@ -898,6 +910,16 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
 
   setSaving(s) {
     set({ isSaving: s });
+  },
+
+  // ─── Issue Settings ───
+
+  setIssueSettings(settings) {
+    get().pushSnapshot();
+    set(state => ({
+      issueSettings: { ...state.issueSettings, ...settings },
+      isDirty: true,
+    }));
   },
 
   // ─── Styles ───

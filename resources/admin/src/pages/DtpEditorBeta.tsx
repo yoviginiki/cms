@@ -199,7 +199,7 @@ function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
-function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any[]): Record<string, unknown> {
+function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any[], issueSettings?: any): Record<string, unknown> {
   const spreads: any[] = [];
   const outPages: any[] = [];
   const frames: any[] = [];
@@ -287,12 +287,12 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
     });
   });
 
-  return { spreads, pages: outPages, layers: apiLayers, frames, asset_references: apiAssetRefs };
+  return { spreads, pages: outPages, layers: apiLayers, frames, asset_references: apiAssetRefs, meta: { issueSettings } };
 }
 
 // ─── Editor Component ───
 
-type RightTab = 'add' | 'properties' | 'layers' | 'styles';
+type RightTab = 'add' | 'properties' | 'layers' | 'styles' | 'issue';
 
 export default function DtpEditorBeta() {
   const { siteId = '', issueId = '' } = useParams();
@@ -339,6 +339,12 @@ export default function DtpEditorBeta() {
     setApiAssetRefs(apiData.asset_references || []);
     store.setDocument(pages, []);
 
+    // Restore issue settings from API metadata
+    const savedSettings = apiData.meta?.issueSettings;
+    if (savedSettings) {
+      store.setIssueSettings(savedSettings);
+    }
+
     // Create default master pages if none exist
     if (!pages.some(p => p.isMaster)) {
       store.addMasterPage('A — Standard');
@@ -380,7 +386,7 @@ export default function DtpEditorBeta() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       setSaveError(null);
-      const payload = pagesToDtpApi(store.pages, apiLayers, apiAssetRefs);
+      const payload = pagesToDtpApi(store.pages, apiLayers, apiAssetRefs, store.issueSettings);
       await dtpDesigner.saveDocument(siteId, issueId, payload);
     },
     onSuccess: () => {
@@ -592,6 +598,8 @@ export default function DtpEditorBeta() {
           onSelectElement={(id) => id ? store.selectElement(id) : store.clearSelection()}
           onEditingChange={(id) => { setCanvasEditingId(id); if (!id) setStartEditingRequest(null); }}
           startEditingId={startEditingRequest}
+          layoutMode={store.issueSettings.layoutMode}
+          coverMode={store.issueSettings.coverMode}
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
           onMoveToPage={(elementId, direction, newX, newY) => {
             const currentPageNum = store.currentPageNumber;
@@ -616,9 +624,10 @@ export default function DtpEditorBeta() {
           <div className="flex border-b border-base-300/20 shrink-0">
             {([
               { key: 'add' as RightTab, label: '+ Add' },
-              { key: 'properties' as RightTab, label: 'Properties' },
+              { key: 'properties' as RightTab, label: 'Props' },
               { key: 'layers' as RightTab, label: 'Layers' },
               { key: 'styles' as RightTab, label: 'Styles' },
+              { key: 'issue' as RightTab, label: 'Issue' },
             ]).map(tab => (
               <button key={tab.key} onClick={() => setRightTab(tab.key)}
                 className={`flex-1 px-2 py-2 text-[11px] font-medium transition-colors ${rightTab === tab.key ? 'border-b-2 border-primary text-primary' : 'text-base-content/40'}`}>
@@ -782,6 +791,56 @@ export default function DtpEditorBeta() {
                   // Style deletion deferred to MAG-P13
                 }}
               />
+            )}
+
+            {rightTab === 'issue' && (
+              <div className="p-3 space-y-4">
+                <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Issue Settings</h3>
+
+                <div>
+                  <label className="text-[10px] text-base-content/40 mb-1 block">Layout Mode</label>
+                  <div className="flex flex-col gap-1">
+                    {([
+                      { value: 'single' as const, label: 'Single Page', desc: 'Pages stacked vertically' },
+                      { value: 'book' as const, label: 'Magazine / Book', desc: 'Cover alone, inside pages side-by-side' },
+                      { value: 'presentation' as const, label: 'Presentation', desc: 'One slide at a time' },
+                    ]).map(opt => (
+                      <button key={opt.value}
+                        onClick={() => store.setIssueSettings({ layoutMode: opt.value })}
+                        className={`text-left px-3 py-2 rounded border text-[11px] transition-colors ${
+                          store.issueSettings.layoutMode === opt.value
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-base-300/30 text-base-content/60 hover:border-base-300/50'
+                        }`}>
+                        <div className="font-medium">{opt.label}</div>
+                        <div className="text-[9px] opacity-60">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {store.issueSettings.layoutMode === 'book' && (
+                  <div>
+                    <label className="text-[10px] text-base-content/40 mb-1 block">Cover Page</label>
+                    <div className="flex gap-1">
+                      <button onClick={() => store.setIssueSettings({ coverMode: 'standalone' })}
+                        className={`btn btn-xs flex-1 ${store.issueSettings.coverMode === 'standalone' ? 'btn-primary' : 'btn-ghost'}`}>
+                        Cover Alone
+                      </button>
+                      <button onClick={() => store.setIssueSettings({ coverMode: 'spread' })}
+                        className={`btn btn-xs flex-1 ${store.issueSettings.coverMode === 'spread' ? 'btn-primary' : 'btn-ghost'}`}>
+                        Cover in Spread
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-[9px] text-base-content/30 bg-base-200/50 rounded p-2">
+                  {store.issueSettings.layoutMode === 'single' && 'Use Single view in the toolbar for vertical page layout.'}
+                  {store.issueSettings.layoutMode === 'book' && 'Use Spread view in the toolbar to see side-by-side pages.'}
+                  {store.issueSettings.layoutMode === 'presentation' && 'Use Single view for slide-by-slide navigation.'}
+                </div>
+              </div>
             )}
           </div>
 
