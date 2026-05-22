@@ -203,15 +203,15 @@ class DtpRenderService
         if (!$html) return '<p></p>';
 
         // Apply text frame layout settings
-        $style = 'width:100%;height:100%;';
+        $style = 'width:100%;';
         // Cap width to page boundary so columns calculate correctly
         if ($maxWidth > 0) {
-            $style = "max-width:{$maxWidth}px;height:100%;";
+            $style = "max-width:{$maxWidth}px;";
         }
         $cols = (int) ($content['columnsInFrame'] ?? 1);
         if ($cols > 1 && $cols <= 6) {
             $gap = (int) ($content['columnGap'] ?? 12);
-            $fill = ($content['columnFill'] ?? 'auto') === 'balance' ? 'balance' : 'auto';
+            $fill = 'balance'; // always balance for viewer — auto fills only left column
             $style .= "column-count:{$cols};column-gap:{$gap}px;column-fill:{$fill};";
         }
         $inset = $content['textInset'] ?? null;
