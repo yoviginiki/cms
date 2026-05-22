@@ -63,6 +63,7 @@ class DtpRolloutService
 
         return [
             'status' => $status,
+            'issueStatus' => $issue->status ?? 'draft',
             'canOpenDtp' => $featureEnabled,
             'canPromote' => $featureEnabled && $hasDtpDocument && !$hasBlockingErrors,
             'hasDtpData' => $hasDtpDocument,
@@ -79,6 +80,8 @@ class DtpRolloutService
                 // React SPA route — not a Laravel route. Rendered by resources/admin/src/App.tsx.
                 'dtpEditor' => $featureEnabled ? "/admin/sites/{$siteId}/magazine-issues/{$issue->id}/dtp-editor" : null,
                 'dtpPreview' => $previewLinkAvailable ? "/api/v1/sites/{$siteId}/magazine-issues/{$issue->id}/dtp-preview" : null,
+                'publicViewer' => $hasDtpDocument ? "/magazine/dtp/{$issue->id}" : null,
+                'publicDomain' => $this->getPublicDomain($siteId),
                 'preflight' => $featureEnabled ? "/api/v1/sites/{$siteId}/magazine-issues/{$issue->id}/dtp-preflight" : null,
             ],
             'capabilities' => [
@@ -134,6 +137,12 @@ class DtpRolloutService
         if ($hasBlockingErrors) return 'dtp_beta';
         return 'dtp_ready';
         // dtp_production: not returned until editor_mode column exists
+    }
+
+    private function getPublicDomain(string $siteId): ?string
+    {
+        $site = \App\Models\Site::find($siteId);
+        return $site?->custom_domain;
     }
 
     /**

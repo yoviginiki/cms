@@ -26,7 +26,7 @@ interface Props {
   allPages?: Array<{ pageNumber: number; elements: MagElement[] }>;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed, onToggleSpan, allPages }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -672,18 +672,27 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
 
       {/* Overflow indicator + Continue button */}
-      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && !el.threadId && (
-        <button
-          className="absolute bottom-0 right-0 h-6 px-1.5 bg-error hover:bg-error/80 text-error-content flex items-center gap-0.5 text-[8px] font-bold rounded-tl cursor-pointer z-[9998]"
-          title="Continue text to next page"
-          onClick={(e) => { e.stopPropagation(); onContinueText?.(el.id); }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >+ Continue</button>
-      )}
-      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && el.threadId && (
-        <div className="absolute bottom-0 right-0 w-5 h-5 bg-warning text-warning-content flex items-center justify-center text-[9px] font-bold rounded-tl cursor-help"
-          title="Text overflows — already linked to continuation frame">⋯</div>
-      )}
+      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && (() => {
+        // Show Continue button if this is the last frame in the thread (or no thread)
+        const isLastInThread = !el.threadId || (() => {
+          if (!allPages) return true;
+          const allEls = allPages.flatMap(p => p.elements || []);
+          const threadFrames = allEls.filter(e => e.threadId === el.threadId);
+          const maxOrder = Math.max(...threadFrames.map(e => e.threadOrder ?? 0));
+          return (el.threadOrder ?? 0) >= maxOrder;
+        })();
+        return isLastInThread ? (
+          <button
+            className="absolute bottom-0 right-0 h-6 px-1.5 bg-error hover:bg-error/80 text-error-content flex items-center gap-0.5 text-[8px] font-bold rounded-tl cursor-pointer z-[9998]"
+            title="Continue text to next page"
+            onClick={(e) => { e.stopPropagation(); onContinueText?.(el.id); }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >+ Continue</button>
+        ) : (
+          <div className="absolute bottom-0 right-0 w-5 h-5 bg-warning text-warning-content flex items-center justify-center text-[9px] font-bold rounded-tl cursor-help"
+            title="Text overflows — linked to continuation frame">...</div>
+        );
+      })()}
 
       {/* Thread / linked frame indicators */}
       {el.threadId && (() => {
@@ -728,45 +737,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         </div>
       )}
 
-      {/* Fix/Unfix button for image frames */}
-      {isSelected && IMAGE_FRAME_TYPES.includes(el.type) && !el.locked && (
-        <button
-          className={`absolute top-1 right-1 px-1.5 py-0.5 rounded text-[8px] font-medium z-[9999] ${
-            el.positionMode === 'fixed'
-              ? 'bg-amber-500 text-white hover:bg-amber-600'
-              : 'bg-base-content/20 text-base-content/60 hover:bg-base-content/30'
-          }`}
-          style={{ pointerEvents: 'auto' }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFixed?.(el.id, el.positionMode === 'fixed' ? 'free' : 'fixed');
-          }}
-          title={el.positionMode === 'fixed' ? 'Unfix — allow text to overlap' : 'Fix — text flows around this image'}
-        >
-          {el.positionMode === 'fixed' ? '📌 Unfix' : '📌 Fix'}
-        </button>
-      )}
-
-      {/* Span toggle for image frames in book mode */}
-      {isSelected && IMAGE_FRAME_TYPES.includes(el.type) && !el.locked && (
-        <button
-          className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-medium z-[9999] ${
-            el.spanMode === 'spread'
-              ? 'bg-purple-500 text-white hover:bg-purple-600'
-              : 'bg-base-content/20 text-base-content/60 hover:bg-base-content/30'
-          }`}
-          style={{ pointerEvents: 'auto' }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleSpan?.(el.id, el.spanMode === 'spread' ? 'page' : 'spread');
-          }}
-          title={el.spanMode === 'spread' ? 'Single page image' : 'Span across two-page spread'}
-        >
-          {el.spanMode === 'spread' ? '📖 Single' : '📖 Spread'}
-        </button>
-      )}
+      {/* Fix/Unfix and Spread/Single controls moved to right panel (DtpEditorBeta properties tab) */}
 
       {/* Resize handles when selected */}
       {isSelected && !el.locked && (

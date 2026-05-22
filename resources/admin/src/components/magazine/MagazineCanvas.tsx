@@ -189,8 +189,24 @@ export function MagazineCanvas({
   // Notify parent when editing changes (for rich text toolbar in panel)
   useEffect(() => { onEditingChange?.(editingId); }, [editingId, onEditingChange]);
 
-  // Handle external start-editing request (touchscreen "Edit text" button)
+  // Direct Escape handler — ensures editing exits even if selection engine doesn't trigger effect
   useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && editingIdRef.current) {
+        exitEditing();
+      }
+    };
+    window.addEventListener('keydown', handleEscape, true); // capture phase
+    return () => window.removeEventListener('keydown', handleEscape, true);
+  }, [exitEditing]);
+
+  // Handle external start-editing request (touchscreen "Edit text" button)
+  // Also handles '__exit__' sentinel to force exit editing from Done button
+  useEffect(() => {
+    if (startEditingId === '__exit__') {
+      exitEditing();
+      return;
+    }
     if (startEditingId && startEditingId !== editingId) {
       const el = elementsRef.current?.find(e => e.id === startEditingId);
       if (el) {
@@ -511,15 +527,30 @@ export function MagazineCanvas({
             })();
 
             const cols = viewMode === 'grid' ? gridColumns : viewMode === 'spread' ? pagesToShow.length : 1;
-            const pageGap = viewMode === 'single' ? 0 : 24;
+            const isBookSpread = viewMode === 'spread' && layoutMode === 'book' && pagesToShow.length === 2;
+            const pageGap = viewMode === 'single' ? 0 : isBookSpread ? 0 : 24;
 
             return (
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${cols}, ${pageW}px)`,
                 gap: pageGap,
+                position: 'relative',
               }}>
-                {pagesToShow.map(pg => {
+                {/* Red divider line between spread pages in book mode */}
+                {isBookSpread && (
+                  <div style={{
+                    position: 'absolute',
+                    left: pageW,
+                    top: -4,
+                    bottom: -4,
+                    width: 2,
+                    background: '#ef4444',
+                    zIndex: 10001,
+                    pointerEvents: 'none',
+                  }} />
+                )}
+                {pagesToShow.map((pg, pgIdx) => {
                   const pgElements = pg.elements || [];
                   const sortedEls = [...pgElements].sort((a, b) => a.zIndex - b.zIndex);
                   const isActivePage = pg.pageNumber === page.pageNumber;
@@ -527,11 +558,19 @@ export function MagazineCanvas({
                   const pgW = pg.pageSize?.width || pageW;
                   const pgH = pg.pageSize?.height || pageH;
 
+                  // For spread images: find elements spanning across both pages
+                  const spreadElements = isBookSpread ? pgElements.filter(e => e.spanMode === 'spread') : [];
+                  const isLeftPage = isBookSpread && pgIdx === 0;
+
                   return (
                     <div key={pg.id || pg.pageNumber} style={{ position: 'relative' }}
                       onClick={() => onPageClick && !isActivePage && onPageClick(pg.pageNumber)}>
-                      {/* Page shadow */}
-                      <div style={{ width: pgW, height: pgH, position: 'absolute', boxShadow: '0 2px 16px rgba(0,0,0,0.15)', borderRadius: 1 }} />
+                      {/* Page shadow — full spread shadow for book mode */}
+                      {isBookSpread ? (
+                        pgIdx === 0 && <div style={{ width: pgW * 2, height: pgH, position: 'absolute', boxShadow: '0 2px 16px rgba(0,0,0,0.15)', borderRadius: 1 }} />
+                      ) : (
+                        <div style={{ width: pgW, height: pgH, position: 'absolute', boxShadow: '0 2px 16px rgba(0,0,0,0.15)', borderRadius: 1 }} />
+                      )}
 
                       {/* Page number label */}
                       {viewMode !== 'single' && (
@@ -543,7 +582,7 @@ export function MagazineCanvas({
                       )}
 
                       {/* Active page indicator */}
-                      {viewMode !== 'single' && isActivePage && (
+                      {viewMode !== 'single' && isActivePage && !isBookSpread && (
                         <div style={{ position: 'absolute', inset: -2, border: '2px solid #3b82f6', borderRadius: 2, pointerEvents: 'none', zIndex: 9999 }} />
                       )}
 
@@ -552,14 +591,37 @@ export function MagazineCanvas({
                         <div style={{ position: 'absolute', inset: 0, zIndex: 9998, cursor: 'pointer' }} />
                       )}
 
-                      <div data-canvas="page" style={{ width: pgW, height: pgH, position: 'relative', background: pg.backgroundColor || '#ffffff', overflow: 'hidden' }}>
-            {/* Margin guides */}
+                      <div data-canvas="page" style={{ width: pgW, height: pgH, position: 'relative', background: pg.backgroundColor || '#ffffff', overflow: isBookSpread ? 'visible' : 'hidden' }}>
+                        {/* Spread image elements that span across both pages */}
+                        {isLeftPage && spreadElements.map(el => (
+                          <div key={`spread-${el.id}`} style={{
+                            position: 'absolute',
+                            left: el.x,
+                            top: el.y,
+                            width: pgW * 2 - el.x, // span to right edge of right page
+                            height: el.height,
+                            zIndex: el.zIndex + 1,
+                            pointerEvents: 'none',
+                            overflow: 'hidden',
+                          }}>
+                            {(el.data as any)?.src && (
+                              <img
+                                src={(el.data as any).src}
+                                alt={(el.data as any)?.alt || ''}
+                                style={{ width: '100%', height: '100%', objectFit: (el.data as any)?.fit || 'cover' }}
+                              />
+                            )}
+                            <div style={{ position: 'absolute', top: 2, left: 2, background: 'rgba(168,85,247,0.8)', color: 'white', fontSize: 7, padding: '1px 4px', borderRadius: 2, fontWeight: 700 }}>SPREAD</div>
+                          </div>
+                        ))}
+            {/* Margin guides — hide inner edges in book spread */}
             {showMargins && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
                 <div style={{ position: 'absolute', top: pgMargins.top, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
                 <div style={{ position: 'absolute', bottom: pgMargins.bottom, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
-                <div style={{ position: 'absolute', left: pgMargins.left, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />
-                <div style={{ position: 'absolute', right: pgMargins.right, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />
+                {/* Hide left margin on right page in book spread, hide right margin on left page */}
+                {!(isBookSpread && pgIdx === 1) && <div style={{ position: 'absolute', left: pgMargins.left, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />}
+                {!(isBookSpread && pgIdx === 0) && <div style={{ position: 'absolute', right: pgMargins.right, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />}
               </div>
             )}
 

@@ -69,6 +69,13 @@ class SaveDtpDocumentRequest extends FormRequest
             'frames.*.style' => ['nullable', 'array'],
             'frames.*.metadata' => ['nullable', 'array'],
 
+            // Issue metadata (layout mode, cover mode, etc.)
+            'meta' => ['nullable', 'array'],
+            'meta.issueSettings' => ['nullable', 'array'],
+            'meta.issueSettings.layoutMode' => ['nullable', 'string', 'in:single,book,presentation'],
+            'meta.issueSettings.coverMode' => ['nullable', 'string', 'in:standalone,spread'],
+            'meta.issueSettings.readingDirection' => ['nullable', 'string', 'in:ltr,rtl'],
+
             // Asset references
             'asset_references' => ['sometimes', 'array', 'max:500'],
             'asset_references.*.frame_id' => ['nullable', 'string'],
@@ -82,11 +89,11 @@ class SaveDtpDocumentRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($v) {
-            // Reject unsafe image URLs
+            // Reject unsafe image URLs (allow http/https and relative /paths)
             foreach ($this->input('frames', []) as $i => $frame) {
                 $src = $frame['content']['src'] ?? null;
-                if (is_string($src) && $src !== '' && !preg_match('#^https?://#i', $src)) {
-                    $v->errors()->add("frames.{$i}.content.src", 'Image URL must use http or https.');
+                if (is_string($src) && $src !== '' && !preg_match('#^(https?://|/)#i', $src)) {
+                    $v->errors()->add("frames.{$i}.content.src", 'Image URL must use http, https, or a relative path.');
                 }
             }
             foreach ($this->input('asset_references', []) as $i => $ref) {

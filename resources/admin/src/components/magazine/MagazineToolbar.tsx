@@ -19,6 +19,10 @@ interface MagazineToolbarProps {
   onSave: () => void;
   isDirty: boolean;
   isSaving: boolean;
+  // Status & preview
+  status?: string;
+  onStatusChange?: (status: string) => void;
+  viewUrl?: string | null;
 }
 
 const TOOLS = [
@@ -46,6 +50,7 @@ export default function MagazineToolbar({
   activeTool, onSetTool, zoom, onZoomChange, currentPage, totalPages, onChangePage,
   showGrid, showGuides, showBaseline, onToggleGrid, onToggleGuides, onToggleBaseline,
   onUndo, onRedo, canUndo, canRedo, onSave, isDirty, isSaving,
+  status, onStatusChange, viewUrl,
 }: MagazineToolbarProps) {
   const zoomPercent = Math.round(zoom * 100);
 
@@ -156,6 +161,36 @@ export default function MagazineToolbar({
       </div>
 
       <div className="flex-1" />
+
+      {/* Status dropdown */}
+      {onStatusChange && (
+        <Tip text="Set issue status — Published issues are viewable publicly">
+          <select
+            className={`select select-sm select-bordered text-[11px] font-medium ${
+              status === 'published' ? 'border-success text-success' : 'border-warning text-warning'
+            }`}
+            value={status || 'draft'}
+            onChange={(e) => onStatusChange(e.target.value)}
+          >
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+        </Tip>
+      )}
+
+      {/* View button */}
+      {viewUrl && (
+        <Tip text="View magazine in viewer">
+          <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+            className="btn btn-sm btn-ghost gap-1 text-base-content/60 hover:text-success">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            View
+          </a>
+        </Tip>
+      )}
 
       {/* Save */}
       <Tip text={isDirty ? 'Save changes — you have unsaved edits' : 'All changes saved'}>

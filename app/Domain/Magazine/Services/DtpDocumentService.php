@@ -96,6 +96,7 @@ class DtpDocumentService
                 'spread_count' => $spreads->count(),
                 'page_count' => $pages->count(),
                 'frame_count' => $frames->count(),
+                'issueSettings' => $issue->layout_final['issueSettings'] ?? null,
             ],
         ];
     }
@@ -107,6 +108,16 @@ class DtpDocumentService
     {
         return DB::transaction(function () use ($issue, $data) {
             $issueId = $issue->id;
+
+            // Persist issue settings (layout mode, cover mode, etc.)
+            $meta = $data['meta'] ?? [];
+            if (!empty($meta['issueSettings'])) {
+                $layoutFinal = $issue->layout_final ?? [];
+                $allowed = ['layoutMode', 'coverMode', 'readingDirection'];
+                $settings = array_intersect_key((array) $meta['issueSettings'], array_flip($allowed));
+                $layoutFinal['issueSettings'] = $settings;
+                $issue->update(['layout_final' => $layoutFinal]);
+            }
 
             // Delete existing DTP data for this issue
             MagazineAssetReference::where('issue_id', $issueId)->delete();

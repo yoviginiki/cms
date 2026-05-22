@@ -678,12 +678,18 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       }
     }
 
+    // Calculate continuation frame height: fill from contY to bottom margin
+    const pageH = targetPage.pageSize?.height || 842;
+    const contHeight = Math.max(100, pageH - contY - (margins.bottom || 36));
+
     const continuation: MagElement = {
       ...structuredClone(sourceElement),
       id: continuationId,
       pageNumber: nextPageNumber,
-      x: Number.isFinite(sourceElement.x) ? sourceElement.x : 40,
+      x: Number.isFinite(sourceElement.x) ? sourceElement.x : margins.left,
       y: contY,
+      width: sourceElement.width,
+      height: contHeight,
       threadId: sourceElement.threadId || crypto.randomUUID(),
       threadOrder: (sourceElement.threadOrder ?? 0) + 1,
       zIndex: maxZ + 1,

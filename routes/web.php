@@ -22,8 +22,23 @@ Route::middleware(['auth', \App\Http\Middleware\SetTenantFromAuth::class])->pref
     Route::get('/{slug}', [DynamicSiteController::class, 'page'])->name('site.page');
 });
 
+// ─── Public asset serve (for magazine viewer images) ───
+Route::get('/assets/{siteId}/serve/{assetId}/{variant?}', function (string $siteId, string $assetId, ?string $variant = null) {
+    // Set tenant context for RLS
+    $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
+    if ($tenant) {
+        $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
+        \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
+    }
+    $site = \App\Models\Site::findOrFail($siteId);
+    $asset = \App\Models\Asset::where('site_id', $site->id)->findOrFail($assetId);
+    return app(\App\Http\Controllers\Api\V1\AssetServeController::class)->serve($site, $asset, $variant);
+})->name('public.asset.serve');
+
 // ─── Magazine viewer (public) ───
 Route::get('/magazine', [MagazineViewController::class, 'index'])->name('magazine.index');
+Route::get('/magazines', [MagazineViewController::class, 'index']); // alias
+Route::get('/magazine/dtp/{issueId}', [MagazineViewController::class, 'showDtpIssue'])->name('magazine.dtp');
 Route::get('/magazine/{slug}', [MagazineViewController::class, 'show'])->name('magazine.show');
 Route::get('/issue/{slug}', [MagazineViewController::class, 'showPage'])->name('magazine.page');
 

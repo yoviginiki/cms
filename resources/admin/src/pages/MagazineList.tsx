@@ -387,9 +387,9 @@ function DtpIssueCard({ siteId, issue, onOpen }: { siteId: string; issue: any; o
             className="btn btn-primary btn-xs text-[10px] gap-1 flex-1" title={!rollout?.canOpenDtp ? 'DTP feature flag is disabled' : ''}>
             <Edit className="h-3 w-3" /> Edit
           </button>
-          {rollout?.capabilities?.previewLinkAvailable && rollout?.links?.dtpPreview && (
-            <a href={rollout.links.dtpPreview} target="_blank" rel="noopener noreferrer"
-              className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-success" title="View preview">
+          {rollout?.hasDtpData && rollout?.links?.publicViewer && (
+            <a href={rollout.links.publicViewer} target="_blank" rel="noopener noreferrer"
+              className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-success" title="View magazine">
               <Eye className="h-3.5 w-3.5" />
             </a>
           )}

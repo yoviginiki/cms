@@ -249,7 +249,9 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
         content.verticalAlign = (el.data as any)?.verticalAlign;
       }
       if (frameType === 'image') {
-        content.src = (el.data as any)?.src || '';
+        const imgSrc = (el.data as any)?.src || '';
+        // Allow http(s) URLs and relative paths (/storage/...), reject empty and unsafe schemes
+        content.src = imgSrc && (/^https?:\/\//i.test(imgSrc) || imgSrc.startsWith('/')) ? imgSrc : null;
         content.alt = (el.data as any)?.alt || '';
         content.caption = (el.data as any)?.caption || '';
         content.showCaption = (el.data as any)?.showCaption;
@@ -314,6 +316,7 @@ export default function DtpEditorBeta() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [canvasEditingId, setCanvasEditingId] = useState<string | null>(null);
   const [startEditingRequest, setStartEditingRequest] = useState<string | null>(null);
+  const [issueStatus, setIssueStatus] = useState<string>('draft');
   const initializedRef = useRef(false);
 
   // Load DTP document from API
@@ -332,10 +335,10 @@ export default function DtpEditorBeta() {
     refetchOnWindowFocus: false,
   });
 
-  // Initialize store from API data
+  // Initialize store from API data (only once — not after save-triggered refetch)
   useEffect(() => {
     if (!apiData) return;
-    if (initializedRef.current && store.isDirty) return;
+    if (initializedRef.current) return;
     initializedRef.current = true;
 
     const pages = dtpApiToPages(apiData);
@@ -347,6 +350,10 @@ export default function DtpEditorBeta() {
     const savedSettings = apiData.meta?.issueSettings;
     if (savedSettings) {
       store.setIssueSettings(savedSettings);
+      // Auto-switch view mode to match layout mode
+      if (savedSettings.layoutMode === 'book') {
+        store.setViewMode('spread');
+      }
     }
 
     // Create default master pages if none exist
@@ -385,6 +392,21 @@ export default function DtpEditorBeta() {
       }
     }
   }, [apiData]);
+
+  // Load issue status from rollout data
+  useEffect(() => {
+    if (rolloutData?.issueStatus) setIssueStatus(rolloutData.issueStatus);
+  }, [rolloutData]);
+
+  // Status change mutation
+  const statusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      await dtpDesigner.updateIssue(siteId, issueId, { status: newStatus });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dtp-rollout', siteId, issueId] });
+    },
+  });
 
   // Save mutation
   const saveMutation = useMutation({
@@ -512,6 +534,13 @@ export default function DtpEditorBeta() {
         onSave={() => saveMutation.mutate()}
         isDirty={store.isDirty}
         isSaving={saveMutation.isPending}
+        status={issueStatus}
+        onStatusChange={(s) => { setIssueStatus(s); statusMutation.mutate(s); }}
+        viewUrl={(() => {
+          const domain = rolloutData?.links?.publicDomain;
+          const path = `/magazine/dtp/${issueId}`;
+          return domain ? `https://${domain}${path}` : path;
+        })()}
       />
 
       {/* ─── DTP Status + Save error ─── */}
@@ -655,11 +684,8 @@ export default function DtpEditorBeta() {
                         <button
                           onClick={() => {
                             if (canvasEditingId === selectedEl.id) {
-                              // Done — exit editing
-                              const editable = document.querySelector('[data-editing-id]') as HTMLElement;
-                              if (editable) editable.blur();
-                              setStartEditingRequest(null);
-                              setCanvasEditingId(null);
+                              // Done — tell canvas to exit editing via sentinel value
+                              setStartEditingRequest('__exit__');
                             } else {
                               setStartEditingRequest(selectedEl.id);
                             }
@@ -670,6 +696,25 @@ export default function DtpEditorBeta() {
                         </button>
                       )}
                     </div>
+                    {/* Fix/Unfix + Spread controls for image frames */}
+                    {IMAGE_TYPES.includes(selectedEl.type) && !selectedEl.locked && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => store.updateElement(selectedEl.id, { positionMode: selectedEl.positionMode === 'fixed' ? 'free' : 'fixed' } as any)}
+                          className={`btn btn-xs flex-1 gap-1 ${selectedEl.positionMode === 'fixed' ? 'btn-warning' : 'btn-ghost'}`}
+                          title={selectedEl.positionMode === 'fixed' ? 'Unfix — allow text to overlap' : 'Fix — text flows around this image'}
+                        >
+                          {selectedEl.positionMode === 'fixed' ? 'Unfix' : 'Fix Position'}
+                        </button>
+                        <button
+                          onClick={() => store.updateElement(selectedEl.id, { spanMode: selectedEl.spanMode === 'spread' ? 'page' : 'spread' } as any)}
+                          className={`btn btn-xs flex-1 gap-1 ${selectedEl.spanMode === 'spread' ? 'btn-secondary' : 'btn-ghost'}`}
+                          title={selectedEl.spanMode === 'spread' ? 'Single page' : 'Span across spread'}
+                        >
+                          {selectedEl.spanMode === 'spread' ? 'Single Page' : 'Spread'}
+                        </button>
+                      </div>
+                    )}
                     <TransformPanel x={selectedEl.x} y={selectedEl.y} width={selectedEl.width} height={selectedEl.height} rotation={selectedEl.rotation}
                       onChange={(updates) => store.updateElement(selectedEl.id, updates as Partial<MagElement>)} />
                     {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'].includes(selectedEl.type) && (
@@ -812,7 +857,12 @@ export default function DtpEditorBeta() {
                       { value: 'presentation' as const, label: 'Presentation', desc: 'One slide at a time' },
                     ]).map(opt => (
                       <button key={opt.value}
-                        onClick={() => store.setIssueSettings({ layoutMode: opt.value })}
+                        onClick={() => {
+                          store.setIssueSettings({ layoutMode: opt.value });
+                          // Auto-switch view mode to match
+                          if (opt.value === 'book') store.setViewMode('spread');
+                          else store.setViewMode('single');
+                        }}
                         className={`text-left px-3 py-2 rounded border text-[11px] transition-colors ${
                           store.issueSettings.layoutMode === opt.value
                             ? 'border-primary bg-primary/10 text-primary'

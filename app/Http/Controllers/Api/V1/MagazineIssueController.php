@@ -37,6 +37,22 @@ class MagazineIssueController extends Controller
         return response()->json(['data' => $issue], 201);
     }
 
+    public function update(Request $request, Site $site, MagazineIssue $issue): JsonResponse
+    {
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'title' => 'sometimes|string|max:255',
+            'status' => 'sometimes|string|in:draft,published,archived',
+        ]);
+
+        $issue->update($validated);
+
+        return response()->json(['data' => $issue]);
+    }
+
     public function destroy(Site $site, MagazineIssue $issue): JsonResponse
     {
         if ($issue->site_id !== $site->id) {

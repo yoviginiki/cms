@@ -265,6 +265,9 @@ export const dtpDesigner = {
   // Preflight (feature-flagged)
   runPreflight: (siteId: string, issueId: string) =>
     api.get(`/sites/${siteId}/magazine-issues/${issueId}/dtp-preflight`),
+  // Update issue (status, title)
+  updateIssue: (siteId: string, issueId: string, data: Record<string, unknown>) =>
+    api.patch(`/sites/${siteId}/magazine-issues/${issueId}`, data),
 };
 
 export default api;

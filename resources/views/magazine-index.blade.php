@@ -27,12 +27,33 @@
 <body>
     <div class="container">
         <h1>Magazines</h1>
-        <p class="subtitle">{{ $magazines->count() }} {{ $magazines->count() === 1 ? 'issue' : 'issues' }} published</p>
+        @php
+            $totalCount = $magazines->count() + (isset($dtpIssues) ? $dtpIssues->count() : 0);
+        @endphp
+        <p class="subtitle">{{ $totalCount }} {{ $totalCount === 1 ? 'issue' : 'issues' }} published</p>
 
-        @if($magazines->isEmpty())
+        @if($totalCount === 0)
             <div class="empty">No magazines published yet.</div>
         @else
             <div class="grid">
+                {{-- DTP Issues --}}
+                @if(isset($dtpIssues))
+                @foreach($dtpIssues as $issue)
+                    <a href="/magazine/dtp/{{ $issue->id }}" class="card">
+                        <div class="cover">
+                            <span class="placeholder">&#x1F4D6;</span>
+                        </div>
+                        <div class="info">
+                            <h2>{{ $issue->title ?? 'Untitled' }}</h2>
+                            @if($issue->subtitle)
+                                <p>{{ Str::limit($issue->subtitle, 100) }}</p>
+                            @endif
+                        </div>
+                    </a>
+                @endforeach
+                @endif
+
+                {{-- Legacy magazines --}}
                 @foreach($magazines as $mag)
                     <a href="/magazine/{{ $mag->slug }}" class="card">
                         <div class="cover">

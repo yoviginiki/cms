@@ -76,6 +76,52 @@ class DtpRenderService
             ];
         }
 
+        $issueSettings = $issue->layout_final['issueSettings'] ?? [];
+
+        // Re-group spreads by layout mode for viewer
+        $layoutMode = $issueSettings['layoutMode'] ?? 'single';
+        $coverMode = $issueSettings['coverMode'] ?? 'standalone';
+
+        // For book mode, regroup pages into proper 2-page spreads
+        if ($layoutMode === 'book') {
+            $allRenderedPages = [];
+            foreach ($renderedSpreads as $spread) {
+                foreach ($spread['pages'] as $rp) {
+                    $allRenderedPages[] = $rp;
+                }
+            }
+            usort($allRenderedPages, fn($a, $b) => $a['index'] - $b['index']);
+
+            $renderedSpreads = [];
+            $i = 0;
+            $total = count($allRenderedPages);
+            while ($i < $total) {
+                if ($i === 0 && $coverMode === 'standalone') {
+                    // Cover page alone
+                    $renderedSpreads[] = [
+                        'id' => 'spread-cover',
+                        'index' => count($renderedSpreads),
+                        'name' => 'Cover',
+                        'pages' => [$allRenderedPages[$i]],
+                    ];
+                    $i++;
+                } else {
+                    // Pair pages
+                    $pair = [$allRenderedPages[$i]];
+                    if ($i + 1 < $total) {
+                        $pair[] = $allRenderedPages[$i + 1];
+                    }
+                    $renderedSpreads[] = [
+                        'id' => 'spread-' . count($renderedSpreads),
+                        'index' => count($renderedSpreads),
+                        'name' => 'Spread ' . count($renderedSpreads),
+                        'pages' => $pair,
+                    ];
+                    $i += 2;
+                }
+            }
+        }
+
         return [
             'issue' => [
                 'id' => $issue->id,
@@ -85,6 +131,8 @@ class DtpRenderService
             'spreads' => $renderedSpreads,
             'pageCount' => $pages->count(),
             'frameCount' => $frames->count(),
+            'layoutMode' => $layoutMode,
+            'coverMode' => $coverMode,
         ];
     }
 
