@@ -99,6 +99,9 @@ interface MagazineActions {
   setViewMode: (mode: ViewMode) => void;
   setGridColumns: (cols: number) => void;
 
+  // Text auto-flow
+  autoFlowText: () => void;
+
   // Issue settings
   setIssueSettings: (settings: Partial<IssueSettings>) => void;
 
@@ -779,6 +782,171 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       selectedIds: [continuationId],
       isDirty: true,
     });
+  },
+
+  // ─── Auto-flow text (run before save) ───
+
+  autoFlowText() {
+    const state = get();
+    let pages = [...state.pages];
+    const TEXT_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
+    let changed = false;
+
+    // Measure which text frames overflow using a hidden div
+    const measure = document.createElement('div');
+    measure.style.cssText = 'position:fixed;top:-9999px;left:-9999px;visibility:hidden;';
+    document.body.appendChild(measure);
+
+    try {
+      // Process each content page
+      const contentPages = pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
+
+      for (const page of contentPages) {
+        const textFrames = page.elements.filter(e => TEXT_TYPES.includes(e.type) && e.visible);
+
+        for (const frame of textFrames) {
+          const data = frame.data as Record<string, any>;
+          const html = data?.content || '';
+          if (!html || html.length < 10) continue;
+
+          // Already has continuation — skip (Pour handles those)
+          if (frame.threadId) {
+            const allEls = pages.flatMap(p => p.elements);
+            const hasNext = allEls.some(e => e.threadId === frame.threadId && (e.threadOrder ?? 0) > (frame.threadOrder ?? 0));
+            if (hasNext) continue;
+          }
+
+          // Measure if text overflows the frame
+          const typo = frame.typography;
+          const pageW = page.pageSize?.width || 595;
+          const visibleW = Math.min(frame.width, pageW - frame.x);
+          const cols = data.columnsInFrame || 1;
+          const colGap = data.columnGap || 12;
+          const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
+
+          measure.style.width = visibleW + 'px';
+          measure.style.height = frame.height + 'px';
+          measure.style.overflow = 'hidden';
+          measure.style.fontFamily = typo?.fontFamily || 'Inter';
+          measure.style.fontSize = (typo?.fontSize || 14) + 'px';
+          measure.style.fontWeight = String(typo?.fontWeight || 400);
+          measure.style.lineHeight = String(typo?.lineHeight || 1.5);
+          measure.style.columnCount = String(cols);
+          measure.style.columnGap = colGap + 'px';
+          measure.style.padding = `${inset.top || 0}px ${inset.right || 0}px ${inset.bottom || 0}px ${inset.left || 0}px`;
+          measure.innerHTML = html;
+
+          const overflows = measure.scrollHeight > frame.height + 4;
+          if (!overflows) continue;
+
+          // Text overflows — split and create continuation
+          const parser = new DOMParser();
+          const doc = parser.parseFromString('<body>' + html + '</body>', 'text/html');
+          let root: Element = doc.body;
+          if (root.children.length === 1 && root.children[0].tagName === 'DIV') {
+            root = root.children[0];
+          }
+
+          const allBlocks: Element[] = [];
+          for (let i = 0; i < root.childNodes.length; i++) {
+            if (root.childNodes[i].nodeType === 1) allBlocks.push(root.childNodes[i] as Element);
+          }
+          if (allBlocks.length < 2) continue;
+
+          // Binary search: find how many blocks fit
+          let lo = 1, hi = allBlocks.length - 1, fitCount = 1;
+          while (lo <= hi) {
+            const mid = Math.floor((lo + hi) / 2);
+            measure.innerHTML = allBlocks.slice(0, mid).map(b => (b as HTMLElement).outerHTML).join('');
+            if (measure.scrollHeight <= frame.height + 4) {
+              fitCount = mid;
+              lo = mid + 1;
+            } else {
+              hi = mid - 1;
+            }
+          }
+
+          const keepHtml = allBlocks.slice(0, fitCount).map(b => (b as HTMLElement).outerHTML).join('');
+          const moveHtml = allBlocks.slice(fitCount).map(b => (b as HTMLElement).outerHTML).join('');
+          if (!moveHtml) continue;
+
+          // Find or create next content page
+          const cpIdx = contentPages.findIndex(p => p.pageNumber === page.pageNumber);
+          let targetPage = cpIdx < contentPages.length - 1 ? contentPages[cpIdx + 1] : null;
+          const nextPageNum = targetPage ? targetPage.pageNumber : page.pageNumber + 1;
+
+          if (!targetPage) {
+            targetPage = {
+              id: crypto.randomUUID(),
+              pageNumber: nextPageNum,
+              pageSize: { ...page.pageSize },
+              margins: { ...page.margins },
+              bleed: { ...page.bleed },
+              columns: { ...page.columns },
+              baselineGrid: { ...page.baselineGrid },
+              isMaster: false,
+              masterPageId: page.masterPageId,
+              spreadWith: null,
+              backgroundColor: page.backgroundColor,
+              backgroundAssetId: null,
+              elements: [],
+            };
+            pages.push(targetPage);
+            contentPages.push(targetPage);
+          }
+
+          // Create continuation frame
+          const margins = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
+          const tPageW = targetPage.pageSize?.width || 595;
+          const tPageH = targetPage.pageSize?.height || 842;
+          const contW = tPageW - (margins.left || 36) - (margins.right || 36);
+          const contH = tPageH - (margins.top || 36) - (margins.bottom || 36);
+          const threadId = frame.threadId || crypto.randomUUID();
+          const contId = crypto.randomUUID();
+
+          const continuation: MagElement = {
+            ...structuredClone(frame),
+            id: contId,
+            pageNumber: nextPageNum,
+            x: margins.left || 36,
+            y: margins.top || 36,
+            width: contW,
+            height: contH,
+            threadId,
+            threadOrder: (frame.threadOrder ?? 0) + 1,
+            zIndex: 1,
+            data: { ...frame.data, content: moveHtml },
+          };
+
+          // Update source frame
+          pages = pages.map(p => ({
+            ...p,
+            elements: p.elements.map(e => {
+              if (e.id === frame.id) {
+                return { ...e, threadId, threadOrder: e.threadOrder ?? 0, data: { ...e.data, content: keepHtml } };
+              }
+              return e;
+            }),
+          }));
+
+          // Add continuation to target page
+          pages = pages.map(p => {
+            if (p.pageNumber === nextPageNum) {
+              return { ...p, elements: [...p.elements, continuation] };
+            }
+            return p;
+          });
+
+          changed = true;
+        }
+      }
+    } finally {
+      measure.remove();
+    }
+
+    if (changed) {
+      set({ pages, isDirty: true });
+    }
   },
 
   // ─── Selection ───

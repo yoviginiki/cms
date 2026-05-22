@@ -425,6 +425,8 @@ export default function DtpEditorBeta() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       setSaveError(null);
+      // Auto-flow overflowing text to next pages before save
+      store.autoFlowText();
       const payload = pagesToDtpApi(store.pages, apiLayers, apiAssetRefs, store.issueSettings, viewerSettings);
       await dtpDesigner.saveDocument(siteId, issueId, payload);
     },
