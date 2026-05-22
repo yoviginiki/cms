@@ -635,9 +635,12 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     }
     if (!sourcePage || !sourceElement) return;
 
-    const nextPageNumber = sourcePage.pageNumber + 1;
+    // Find next content page (skip master pages)
     let pages = [...state.pages];
-    let targetPage = pages.find(p => p.pageNumber === nextPageNumber);
+    const contentPages = pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
+    const sourceIdx = contentPages.findIndex(p => p.pageNumber === sourcePage.pageNumber);
+    let targetPage = sourceIdx >= 0 && sourceIdx < contentPages.length - 1 ? contentPages[sourceIdx + 1] : null;
+    const nextPageNumber = targetPage ? targetPage.pageNumber : sourcePage.pageNumber + 1;
 
     // Create next page if it doesn't exist
     if (!targetPage) {
@@ -685,29 +688,40 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     const contWidth = pageW - (margins.left || 36) - (margins.right || 36);
     const contHeight = Math.max(100, pageH - contY - (margins.bottom || 36));
 
-    // Split source content: keep first half in source, move rest to continuation
+    // Split source content at paragraph level
     const sourceHtml = (sourceElement.data as any)?.content || '';
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = sourceHtml;
 
-    // Unwrap single wrapper div to get actual content blocks
-    let contentRoot = tempDiv;
-    if (tempDiv.children.length === 1 && tempDiv.children[0].tagName === 'DIV') {
-      contentRoot = tempDiv.children[0] as HTMLDivElement;
-    }
-    const blocks = Array.from(contentRoot.children);
+    // Parse HTML to find paragraph-level blocks for splitting
+    let keepHtml = sourceHtml;
+    let moveHtml = sourceHtml; // default: duplicate all content
 
-    // If only 1 block or no blocks, try splitting by <br> or just duplicate
-    let keepHtml: string;
-    let moveHtml: string;
-    if (blocks.length <= 1) {
-      // Can't split by blocks — give full content to both (source keeps all, continuation gets all)
-      keepHtml = sourceHtml;
-      moveHtml = sourceHtml;
-    } else {
-      const splitAt = Math.max(1, Math.ceil(blocks.length / 2));
-      keepHtml = blocks.slice(0, splitAt).map(b => (b as HTMLElement).outerHTML).join('');
-      moveHtml = blocks.slice(splitAt).map(b => (b as HTMLElement).outerHTML).join('');
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString('<body>' + sourceHtml + '</body>', 'text/html');
+      const body = doc.body;
+
+      // Collect all top-level block elements, unwrapping single wrapper divs
+      let root: Element = body;
+      if (body.children.length === 1 && body.children[0].tagName === 'DIV') {
+        root = body.children[0];
+      }
+
+      const allBlocks: Element[] = [];
+      for (let i = 0; i < root.childNodes.length; i++) {
+        const node = root.childNodes[i];
+        if (node.nodeType === 1) { // Element
+          allBlocks.push(node as Element);
+        }
+      }
+
+      if (allBlocks.length >= 2) {
+        const mid = Math.ceil(allBlocks.length / 2);
+        keepHtml = allBlocks.slice(0, mid).map(b => (b as HTMLElement).outerHTML).join('');
+        moveHtml = allBlocks.slice(mid).map(b => (b as HTMLElement).outerHTML).join('');
+      }
+      // If 0 or 1 blocks, both get full content (duplicate)
+    } catch (_) {
+      // DOMParser failed — both frames get full content
     }
 
     const threadId = sourceElement.threadId || crypto.randomUUID();
@@ -723,7 +737,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       threadId,
       threadOrder: (sourceElement.threadOrder ?? 0) + 1,
       zIndex: maxZ + 1,
-      data: { ...sourceElement.data, content: moveHtml || '<p></p>' },
+      data: { ...sourceElement.data, content: moveHtml },
     };
 
     // Update source: keep first half of content and link to thread
