@@ -634,7 +634,27 @@ export default function DtpEditorBeta() {
               <div className="p-3 space-y-4">
                 {selectedEl ? (
                   <>
-                    <div className="text-[10px] text-base-content/30 uppercase tracking-wider">{selectedEl.type.replace(/_/g, ' ')}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] text-base-content/30 uppercase tracking-wider">{selectedEl.type.replace(/_/g, ' ')}</div>
+                      {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'].includes(selectedEl.type) && (
+                        <button
+                          onClick={() => {
+                            if (canvasEditingId === selectedEl.id) {
+                              // Done — exit editing
+                              const editable = document.querySelector('[data-editing-id]') as HTMLElement;
+                              if (editable) editable.blur();
+                              setStartEditingRequest(null);
+                              setCanvasEditingId(null);
+                            } else {
+                              setStartEditingRequest(selectedEl.id);
+                            }
+                          }}
+                          className={`btn btn-xs gap-1 ${canvasEditingId === selectedEl.id ? 'btn-success' : 'btn-primary'}`}
+                        >
+                          {canvasEditingId === selectedEl.id ? '✓ Done' : '✎ Edit'}
+                        </button>
+                      )}
+                    </div>
                     <TransformPanel x={selectedEl.x} y={selectedEl.y} width={selectedEl.width} height={selectedEl.height} rotation={selectedEl.rotation}
                       onChange={(updates) => store.updateElement(selectedEl.id, updates as Partial<MagElement>)} />
                     {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'].includes(selectedEl.type) && (

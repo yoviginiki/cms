@@ -92,8 +92,8 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     zIndex: el.zIndex,
     cursor: el.locked ? 'default' : 'move',
     pointerEvents: el.locked ? 'none' : 'auto',
-    // Text frames need overflow control for multi-column vertical scroll
-    overflow: isTextType ? (isEditing ? 'auto' : 'hidden') : undefined,
+    // Overflow handled by inner text div, not container (keeps buttons visible)
+    overflow: isTextType ? 'visible' : undefined,
   };
 
   // Apply fill
@@ -150,20 +150,15 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         cursor: isEditing ? 'text' : undefined,
       };
 
-      // Columns: use CSS columns with auto height so text flows DOWN then across.
-      // height:100% + column-count forces horizontal flow — use minHeight instead.
+      // Columns
       if (cols > 1) {
         textStyle.columnCount = cols;
         textStyle.columnGap = data.columnGap || 12;
         textStyle.columnFill = data.columnFill === 'balance' ? 'balance' : 'auto';
-        // Auto height lets columns grow vertically, minHeight fills the frame
-        textStyle.minHeight = '100%';
-        textStyle.height = 'auto';
-      } else {
-        textStyle.height = '100%';
       }
 
-      // Scroll: vertical only, hidden when not editing
+      // Height and scroll — text div fills frame and scrolls vertically
+      textStyle.height = '100%';
       textStyle.overflowX = 'hidden';
       textStyle.overflowY = isEditing ? 'auto' : 'hidden';
 
@@ -201,6 +196,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
               } catch (_) {}
             }}
             onPointerDown={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
           />
           /* Content set via useEffect editInitializedRef — NOT dangerouslySetInnerHTML
              This prevents React re-renders from overwriting user's typed content */
