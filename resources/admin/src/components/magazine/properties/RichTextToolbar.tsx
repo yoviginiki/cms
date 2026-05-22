@@ -5,50 +5,16 @@ interface RichTextToolbarProps {
   isEditing: boolean;
   onStartEditing: () => void;
   elementId: string;
+  onFormatText?: (command: string, value?: string) => void;
 }
 
-// Store last selection so we can restore it when clicking toolbar buttons
-let savedRange: Range | null = null;
-
-function saveSelection() {
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
-    savedRange = sel.getRangeAt(0).cloneRange();
-  }
-}
-
-function restoreSelection() {
-  const sel = window.getSelection();
-  if (sel && savedRange) {
-    sel.removeAllRanges();
-    sel.addRange(savedRange);
-  }
-}
-
-// Listen for selection changes in contentEditable to keep savedRange updated
-if (typeof window !== 'undefined') {
-  document.addEventListener('selectionchange', () => {
-    const active = document.activeElement;
-    if (active?.getAttribute('contenteditable') === 'true') {
-      saveSelection();
+export default function RichTextToolbar({ isEditing, onStartEditing, elementId: _elementId, onFormatText }: RichTextToolbarProps) {
+  const fmt = (command: string, value?: string) => {
+    if (onFormatText) {
+      onFormatText(command, value);
     }
-  });
-}
+  };
 
-function execCommand(command: string, value?: string) {
-  // Re-focus the contentEditable and restore selection before executing
-  const editable = document.querySelector('[data-editing-id]') as HTMLElement
-    ?? document.querySelector('[contenteditable="true"]') as HTMLElement;
-  if (editable) {
-    editable.focus();
-    restoreSelection();
-  }
-  document.execCommand(command, false, value);
-  // Re-save selection after command
-  saveSelection();
-}
-
-export default function RichTextToolbar({ isEditing, onStartEditing, elementId: _elementId }: RichTextToolbarProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -64,71 +30,45 @@ export default function RichTextToolbar({ isEditing, onStartEditing, elementId: 
         <>
           {/* Headings */}
           <div className="flex gap-0.5">
-            <ToolBtn icon={Heading1} label="Heading 1" onExec={() => execCommand('formatBlock', 'h1')} />
-            <ToolBtn icon={Heading2} label="Heading 2" onExec={() => execCommand('formatBlock', 'h2')} />
-            <ToolBtn icon={Heading3} label="Heading 3" onExec={() => execCommand('formatBlock', 'h3')} />
-            <ToolBtn label="P" title="Paragraph" onExec={() => execCommand('formatBlock', 'p')} />
+            <ToolBtn icon={Heading1} label="Heading 1" onExec={() => fmt('formatBlock', 'h1')} />
+            <ToolBtn icon={Heading2} label="Heading 2" onExec={() => fmt('formatBlock', 'h2')} />
+            <ToolBtn icon={Heading3} label="Heading 3" onExec={() => fmt('formatBlock', 'h3')} />
+            <ToolBtn label="P" title="Paragraph" onExec={() => fmt('formatBlock', 'p')} />
           </div>
 
           {/* Inline formatting */}
           <div className="flex gap-0.5 flex-wrap">
-            <ToolBtn icon={Bold} label="Bold (Ctrl+B)" onExec={() => execCommand('bold')} />
-            <ToolBtn icon={Italic} label="Italic (Ctrl+I)" onExec={() => execCommand('italic')} />
-            <ToolBtn icon={Underline} label="Underline (Ctrl+U)" onExec={() => execCommand('underline')} />
-            <ToolBtn icon={Strikethrough} label="Strikethrough" onExec={() => execCommand('strikeThrough')} />
+            <ToolBtn icon={Bold} label="Bold" onExec={() => fmt('bold')} />
+            <ToolBtn icon={Italic} label="Italic" onExec={() => fmt('italic')} />
+            <ToolBtn icon={Underline} label="Underline" onExec={() => fmt('underline')} />
+            <ToolBtn icon={Strikethrough} label="Strikethrough" onExec={() => fmt('strikeThrough')} />
           </div>
 
           {/* Lists & quote */}
           <div className="flex gap-0.5">
-            <ToolBtn icon={List} label="Bullet list" onExec={() => execCommand('insertUnorderedList')} />
-            <ToolBtn icon={ListOrdered} label="Numbered list" onExec={() => execCommand('insertOrderedList')} />
-            <ToolBtn icon={Quote} label="Block quote" onExec={() => execCommand('formatBlock', 'blockquote')} />
+            <ToolBtn icon={List} label="Bullet list" onExec={() => fmt('insertUnorderedList')} />
+            <ToolBtn icon={ListOrdered} label="Numbered list" onExec={() => fmt('insertOrderedList')} />
+            <ToolBtn icon={Quote} label="Block quote" onExec={() => fmt('formatBlock', 'blockquote')} />
           </div>
 
           {/* Alignment */}
           <div className="flex gap-0.5">
-            <ToolBtn icon={AlignLeft} label="Align left" onExec={() => execCommand('justifyLeft')} />
-            <ToolBtn icon={AlignCenter} label="Align center" onExec={() => execCommand('justifyCenter')} />
-            <ToolBtn icon={AlignRight} label="Align right" onExec={() => execCommand('justifyRight')} />
-            <ToolBtn icon={AlignJustify} label="Justify" onExec={() => execCommand('justifyFull')} />
-          </div>
-
-          {/* Font size */}
-          <div className="flex gap-1 items-center">
-            <label className="text-[9px] text-base-content/30">Size:</label>
-            {[1, 2, 3, 4, 5, 6, 7].map(size => (
-              <button key={size} type="button" title={`Font size ${size}`}
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => execCommand('fontSize', String(size))}
-                className="w-5 h-5 flex items-center justify-center rounded text-[8px] text-base-content/40 hover:bg-base-300/30 hover:text-base-content/70">
-                {size}
-              </button>
-            ))}
-          </div>
-
-          {/* Color */}
-          <div className="flex gap-1 items-center">
-            <label className="text-[9px] text-base-content/30">Color:</label>
-            {['#1a1a1a', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#666666'].map(color => (
-              <button key={color} type="button" title={color}
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => execCommand('foreColor', color)}
-                className="w-4 h-4 rounded border border-base-300/30 cursor-pointer"
-                style={{ backgroundColor: color }}
-              />
-            ))}
+            <ToolBtn icon={AlignLeft} label="Align left" onExec={() => fmt('justifyLeft')} />
+            <ToolBtn icon={AlignCenter} label="Align center" onExec={() => fmt('justifyCenter')} />
+            <ToolBtn icon={AlignRight} label="Align right" onExec={() => fmt('justifyRight')} />
+            <ToolBtn icon={AlignJustify} label="Justify" onExec={() => fmt('justifyFull')} />
           </div>
 
           {/* Clear formatting */}
-          <button type="button" title="Clear formatting"
+          <button type="button"
             onMouseDown={e => e.preventDefault()}
-            onClick={() => execCommand('removeFormat')}
+            onClick={() => fmt('removeFormat')}
             className="flex items-center gap-1 text-[9px] text-base-content/40 hover:text-base-content/60">
             <RemoveFormatting size={12} /> Clear formatting
           </button>
 
           <p className="text-[8px] text-base-content/25 italic">
-            Select text in the frame, then use controls above to format.
+            Select text in the frame, then click a formatting button.
           </p>
         </>
       )}

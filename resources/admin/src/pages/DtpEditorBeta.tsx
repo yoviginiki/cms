@@ -598,6 +598,18 @@ export default function DtpEditorBeta() {
                         isEditing={canvasEditingId === selectedEl.id}
                         onStartEditing={() => setStartEditingRequest(selectedEl.id)}
                         elementId={selectedEl.id}
+                        onFormatText={(command, value) => {
+                          // Find the contentEditable, focus it, restore selection, exec command
+                          const editable = document.querySelector('[data-editing-id]') as HTMLElement
+                            ?? document.querySelector('[contenteditable="true"]') as HTMLElement;
+                          if (editable) {
+                            editable.focus();
+                            // Small delay to ensure focus is established before exec
+                            requestAnimationFrame(() => {
+                              document.execCommand(command, false, value);
+                            });
+                          }
+                        }}
                       />
                     )}
                     {['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame'].includes(selectedEl.type) && selectedEl.typography && (
