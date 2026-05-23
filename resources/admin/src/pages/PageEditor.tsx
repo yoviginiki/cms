@@ -984,19 +984,19 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
             <label className="text-[10px] text-gray-400 mb-0.5 block">Meta Title</label>
             <input type="text" defaultValue={page?.seo_meta?.title || ''} className="input input-bordered input-sm w-full text-[12px]"
               placeholder={page?.title || 'Page title'}
-              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), title: e.target.value })} />
+              onBlur={e => saveSetting('seo_meta', { ...localMeta, title: e.target.value })} />
           </div>
           <div>
             <label className="text-[10px] text-gray-400 mb-0.5 block">Meta Description</label>
             <textarea defaultValue={page?.seo_meta?.description || ''} className="textarea textarea-bordered textarea-sm w-full text-[12px] min-h-[60px]"
               placeholder="Brief description for search engines..."
-              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), description: e.target.value })} />
+              onBlur={e => saveSetting('seo_meta', { ...localMeta, description: e.target.value })} />
           </div>
           <div>
             <AssetField
               label="OG Image"
               value={page?.seo_meta?.og_image || ''}
-              onChange={(url) => saveSetting('seo_meta', { ...(page?.seo_meta || {}), og_image: url })}
+              onChange={(url) => saveSetting('seo_meta', { ...localMeta, og_image: url })}
               accept="image"
             />
           </div>
@@ -1011,19 +1011,19 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
             <label className="text-[10px] text-gray-400 mb-0.5 block">Head Scripts</label>
             <textarea defaultValue={page?.seo_meta?.head_scripts || ''} className="textarea textarea-bordered textarea-xs w-full text-[10px] font-mono min-h-[50px]"
               placeholder="<script>...</script>"
-              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), head_scripts: e.target.value })} />
+              onBlur={e => saveSetting('seo_meta', { ...localMeta, head_scripts: e.target.value })} />
           </div>
           <div>
             <label className="text-[10px] text-gray-400 mb-0.5 block">Body Scripts</label>
             <textarea defaultValue={page?.seo_meta?.body_scripts || ''} className="textarea textarea-bordered textarea-xs w-full text-[10px] font-mono min-h-[50px]"
               placeholder="<script>...</script>"
-              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), body_scripts: e.target.value })} />
+              onBlur={e => saveSetting('seo_meta', { ...localMeta, body_scripts: e.target.value })} />
           </div>
           <div>
             <label className="text-[10px] text-gray-400 mb-0.5 block">Custom CSS</label>
             <textarea defaultValue={page?.seo_meta?.custom_css || ''} className="textarea textarea-bordered textarea-xs w-full text-[10px] font-mono min-h-[50px]"
               placeholder="body { ... }"
-              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), custom_css: e.target.value })} />
+              onBlur={e => saveSetting('seo_meta', { ...localMeta, custom_css: e.target.value })} />
           </div>
         </div>
       </details>

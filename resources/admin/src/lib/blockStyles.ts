@@ -140,8 +140,12 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
   const lay = style.layout;
   if (lay) {
     if (safeDim(lay.width)) css.width = safeDim(lay.width);
-    if (safeDim(lay.maxWidth)) css.maxWidth = safeDim(lay.maxWidth);
+    if (safeDim(lay.height)) css.height = safeDim(lay.height);
+    if (safeDim(lay.minWidth)) css.minWidth = safeDim(lay.minWidth);
     if (safeDim(lay.minHeight)) css.minHeight = safeDim(lay.minHeight);
+    if (safeDim(lay.maxWidth)) css.maxWidth = safeDim(lay.maxWidth);
+    if (safeDim(lay.maxHeight)) css.maxHeight = safeDim(lay.maxHeight);
+    if (lay.overflow && lay.overflow !== 'visible') css.overflow = lay.overflow;
     if (lay.zIndex !== undefined && lay.zIndex !== null) {
       const z = Math.max(-100, Math.min(9999, Math.round(Number(lay.zIndex))));
       if (Number.isFinite(z)) css.zIndex = z;
