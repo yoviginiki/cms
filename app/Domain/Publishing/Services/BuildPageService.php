@@ -514,8 +514,6 @@ class BuildPageService
             $css = '
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,sans-serif;line-height:1.6;color:#1a1a1a}
-main{max-width:var(--container-width,1200px);margin:0 auto;padding:0 var(--container-padding,1rem)}
-main[style*="max-width:none"]{max-width:none;padding:0}
 img{max-width:100%;height:auto;display:block}
 .hero-section{position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;color:#fff;background-size:cover;background-position:center}
 .hero-content{position:relative;z-index:1}
