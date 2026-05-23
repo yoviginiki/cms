@@ -160,8 +160,18 @@ export default function PageEditor() {
   useThemeFonts(siteId);
 
   // Load blocks only on initial fetch — never overwrite after user starts editing.
-  // React Query refetch (e.g. window focus) must not reset the editor store.
+  // Reset when pageId changes (navigating to different page).
   const blocksLoadedRef = useRef(false);
+  const prevPageIdRef = useRef(pageId);
+  useEffect(() => {
+    if (prevPageIdRef.current !== pageId) {
+      blocksLoadedRef.current = false;
+      prevPageIdRef.current = pageId;
+      // Clear old blocks immediately to prevent flash of old content
+      setBlocks([]);
+      setDirty(false);
+    }
+  }, [pageId, setBlocks, setDirty]);
   useEffect(() => {
     if (fetchedBlocks && !blocksLoadedRef.current) {
       setBlocks(fetchedBlocks);
