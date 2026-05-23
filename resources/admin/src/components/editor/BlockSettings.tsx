@@ -102,7 +102,7 @@ export function BlockSettings() {
             applied it — blocks that need typography implement it directly. */}
 
         {/* Typography */}
-        <Section title="Typography">
+        <Section title="Typography" defaultOpen={true}>
           <TypographyPanel
             value={style.typography || {}}
             onChange={v => updateStyle('typography', v)}
