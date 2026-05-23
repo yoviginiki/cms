@@ -878,6 +878,121 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
         </select>
       </div>
 
+      {/* Page Appearance */}
+      <details className="border-t border-gray-100 pt-3">
+        <summary className="text-[11px] text-gray-500 cursor-pointer font-medium">Page Appearance</summary>
+        <div className="space-y-3 mt-2">
+          {/* Background Color */}
+          <div>
+            <label className="text-[10px] text-gray-400 mb-0.5 block">Background Color</label>
+            <div className="flex gap-1.5 items-center">
+              <input type="color" value={page?.seo_meta?.page_bg_color || '#ffffff'}
+                onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_bg_color: e.target.value })}
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
+              <input type="text" defaultValue={page?.seo_meta?.page_bg_color || '#ffffff'}
+                className="input input-bordered input-xs flex-1 text-[10px] font-mono"
+                onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_bg_color: e.target.value })} />
+            </div>
+          </div>
+          {/* Background Image */}
+          <div>
+            <label className="text-[10px] text-gray-400 mb-0.5 block">Background Image</label>
+            <AssetField label="" value={page?.seo_meta?.page_bg_image || ''}
+              onChange={url => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_bg_image: url })} accept="image" />
+          </div>
+          {page?.seo_meta?.page_bg_image && (
+            <>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[10px] text-gray-400 mb-0.5 block">Size</label>
+                  <select defaultValue={page?.seo_meta?.page_bg_size || 'cover'} className="select select-bordered select-xs w-full"
+                    onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_bg_size: e.target.value })}>
+                    <option value="cover">Cover</option><option value="contain">Contain</option><option value="auto">Auto</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-400 mb-0.5 block">Position</label>
+                  <select defaultValue={page?.seo_meta?.page_bg_position || 'center'} className="select select-bordered select-xs w-full"
+                    onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_bg_position: e.target.value })}>
+                    <option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-400 mb-0.5 block">Attachment</label>
+                  <select defaultValue={page?.seo_meta?.page_bg_attachment || 'scroll'} className="select select-bordered select-xs w-full"
+                    onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_bg_attachment: e.target.value })}>
+                    <option value="scroll">Scroll</option><option value="fixed">Fixed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-400 mb-0.5 block">Opacity ({Math.round((page?.seo_meta?.page_bg_opacity ?? 1) * 100)}%)</label>
+                  <input type="range" min="0" max="100" defaultValue={Math.round((page?.seo_meta?.page_bg_opacity ?? 1) * 100)}
+                    className="range range-xs w-full"
+                    onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_bg_opacity: parseInt(e.target.value) / 100 })} />
+                </div>
+              </div>
+            </>
+          )}
+          {/* Gradient Overlay */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={page?.seo_meta?.page_gradient_enabled || false}
+                onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_gradient_enabled: e.target.checked })}
+                className="checkbox checkbox-xs" />
+              <span className="text-[10px] text-gray-500">Gradient Overlay</span>
+            </label>
+            {page?.seo_meta?.page_gradient_enabled && (
+              <div className="flex gap-1.5 mt-1.5">
+                <input type="color" value={page?.seo_meta?.page_gradient_from || '#000000'}
+                  onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_gradient_from: e.target.value })}
+                  className="w-7 h-7 rounded cursor-pointer" />
+                <input type="color" value={page?.seo_meta?.page_gradient_to || '#ffffff'}
+                  onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_gradient_to: e.target.value })}
+                  className="w-7 h-7 rounded cursor-pointer" />
+                <input type="range" min="0" max="100" defaultValue={Math.round((page?.seo_meta?.page_gradient_opacity ?? 0.5) * 100)}
+                  className="range range-xs flex-1"
+                  onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_gradient_opacity: parseInt(e.target.value) / 100 })} />
+              </div>
+            )}
+          </div>
+          {/* Padding */}
+          <div>
+            <label className="text-[10px] text-gray-400 mb-0.5 block">Padding</label>
+            <input type="text" defaultValue={page?.seo_meta?.page_padding || '0'}
+              className="input input-bordered input-xs w-full text-[10px] font-mono" placeholder="0 or 20px or 1rem 2rem"
+              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_padding: e.target.value })} />
+          </div>
+          {/* Margin */}
+          <div>
+            <label className="text-[10px] text-gray-400 mb-0.5 block">Margin</label>
+            <input type="text" defaultValue={page?.seo_meta?.page_margin || '0'}
+              className="input input-bordered input-xs w-full text-[10px] font-mono" placeholder="0 or 20px auto"
+              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_margin: e.target.value })} />
+          </div>
+          {/* Max Width */}
+          <div>
+            <label className="text-[10px] text-gray-400 mb-0.5 block">Max Width</label>
+            <input type="text" defaultValue={page?.seo_meta?.page_max_width || 'none'}
+              className="input input-bordered input-xs w-full text-[10px] font-mono" placeholder="none or 1200px or 80vw"
+              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_max_width: e.target.value })} />
+          </div>
+          {/* Min Height */}
+          <div>
+            <label className="text-[10px] text-gray-400 mb-0.5 block">Min Height</label>
+            <input type="text" defaultValue={page?.seo_meta?.page_min_height || 'auto'}
+              className="input input-bordered input-xs w-full text-[10px] font-mono" placeholder="auto or 100vh"
+              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_min_height: e.target.value })} />
+          </div>
+          {/* Shadow */}
+          <div>
+            <label className="text-[10px] text-gray-400 mb-0.5 block">Box Shadow</label>
+            <input type="text" defaultValue={page?.seo_meta?.page_shadow || 'none'}
+              className="input input-bordered input-xs w-full text-[10px] font-mono" placeholder="none or 0 4px 20px rgba(0,0,0,0.1)"
+              onBlur={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), page_shadow: e.target.value })} />
+          </div>
+        </div>
+      </details>
+
       {/* Page Theme Override */}
       <PageThemePicker siteId={siteId} pageId={pageId} />
 
