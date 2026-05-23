@@ -182,6 +182,13 @@ export const themeEngine = {
   studioFrames: (siteId: string) => api.get(`/sites/${siteId}/theme-engine/studio/frames`),
 };
 
+export const customFonts = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/fonts`),
+  upload: (siteId: string, formData: FormData) => api.post(`/sites/${siteId}/fonts`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  remove: (siteId: string, fontId: string) => api.delete(`/sites/${siteId}/fonts/${fontId}`),
+  serveUrl: (siteId: string, filename: string) => `/api/v1/sites/${siteId}/fonts/${filename}/serve`,
+};
+
 export const preview = {
   page: (siteId: string, pageId: string) => `/api/v1/sites/${siteId}/pages/${pageId}/preview`,
   post: (siteId: string, postId: string) => `/api/v1/sites/${siteId}/posts/${postId}/preview`,

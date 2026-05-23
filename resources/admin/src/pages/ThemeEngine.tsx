@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Palette, Copy, Loader2, Check, Upload, Eye, Power } from 'lucide-react';
-import { themeEngine } from '@/lib/api';
+import { Palette, Copy, Loader2, Check, Upload, Eye, Power, Trash2, Type } from 'lucide-react';
+import { themeEngine, customFonts } from '@/lib/api';
 
 interface ThemeItem {
   id: string;
@@ -139,6 +139,9 @@ export default function ThemeEngine() {
         )}
       </div>
 
+      {/* Custom Fonts */}
+      <CustomFontsSection siteId={siteId} />
+
       {/* Import dialog */}
       {showImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowImport(false)}>
@@ -155,6 +158,142 @@ export default function ThemeEngine() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Custom Fonts Section
+// ═══════════════════════════════════════════
+
+function CustomFontsSection({ siteId }: { siteId: string }) {
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [familyName, setFamilyName] = useState('');
+  const [weight, setWeight] = useState(400);
+  const [fontStyle, setFontStyle] = useState('normal');
+  const [uploading, setUploading] = useState(false);
+
+  const { data: fonts } = useQuery<any[]>({
+    queryKey: ['custom-fonts', siteId],
+    queryFn: () => customFonts.list(siteId).then((r: any) => r.data.data),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (fontId: string) => customFonts.remove(siteId, fontId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['custom-fonts', siteId] }),
+  });
+
+  const handleUpload = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file || !familyName.trim()) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('font', file);
+      fd.append('family', familyName.trim());
+      fd.append('weight', String(weight));
+      fd.append('style', fontStyle);
+      await customFonts.upload(siteId, fd);
+      queryClient.invalidateQueries({ queryKey: ['custom-fonts', siteId] });
+      setFamilyName('');
+      if (fileRef.current) fileRef.current.value = '';
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Load custom fonts for preview
+  useEffect(() => {
+    (fonts || []).forEach((f: any) => {
+      const url = customFonts.serveUrl(siteId, f.filename);
+      const id = `custom-font-${f.id}`;
+      if (document.getElementById(id)) return;
+      const style = document.createElement('style');
+      style.id = id;
+      style.textContent = `@font-face { font-family: '${f.family}'; font-weight: ${f.weight}; font-style: ${f.style}; src: url('${url}') format('${f.format}'); font-display: swap; }`;
+      document.head.appendChild(style);
+    });
+  }, [fonts, siteId]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, any[]>();
+    (fonts || []).forEach((f: any) => {
+      const arr = map.get(f.family) || [];
+      arr.push(f);
+      map.set(f.family, arr);
+    });
+    return map;
+  }, [fonts]);
+
+  return (
+    <div className="mb-8">
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <Type size={14} /> Custom Fonts
+      </h2>
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Font Family Name</label>
+            <input type="text" value={familyName} onChange={e => setFamilyName(e.target.value)}
+              placeholder="e.g. Montserrat" className="input input-bordered input-sm w-full text-xs" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Font File</label>
+            <input ref={fileRef} type="file" accept=".ttf,.woff,.woff2,.otf"
+              className="file-input file-input-bordered file-input-sm w-full text-xs" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Weight</label>
+            <select value={weight} onChange={e => setWeight(Number(e.target.value))}
+              className="select select-bordered select-sm w-full text-xs">
+              {[100,200,300,400,500,600,700,800,900].map(w => (
+                <option key={w} value={w}>{w}{w===400?' Regular':w===700?' Bold':''}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Style</label>
+            <select value={fontStyle} onChange={e => setFontStyle(e.target.value)}
+              className="select select-bordered select-sm w-full text-xs">
+              <option value="normal">Normal</option>
+              <option value="italic">Italic</option>
+            </select>
+          </div>
+        </div>
+        <button onClick={handleUpload} disabled={uploading || !familyName.trim()}
+          className="btn btn-primary btn-sm w-full gap-1">
+          {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+          Upload Font
+        </button>
+      </div>
+      {grouped.size === 0 ? (
+        <div className="text-center py-6 text-xs text-gray-400">No custom fonts uploaded yet</div>
+      ) : (
+        <div className="space-y-2">
+          {Array.from(grouped.entries()).map(([family, variants]) => (
+            <div key={family} className="bg-white rounded-lg border border-gray-200 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold" style={{ fontFamily: `'${family}', sans-serif` }}>{family}</span>
+                <span className="text-[10px] text-gray-400">{variants.length} variant{variants.length > 1 ? 's' : ''}</span>
+              </div>
+              <p className="text-lg mb-2" style={{ fontFamily: `'${family}', sans-serif` }}>
+                The quick brown fox jumps over the lazy dog
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {variants.map((v: any) => (
+                  <div key={v.id} className="flex items-center gap-1 bg-gray-50 rounded px-2 py-0.5">
+                    <span className="text-[10px] text-gray-500">{v.weight} {v.style}</span>
+                    <button onClick={() => deleteMut.mutate(v.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={10} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

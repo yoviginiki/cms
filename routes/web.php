@@ -44,6 +44,19 @@ Route::get('/media/{siteId}/{assetId}/{variant?}', function (string $siteId, str
     }
 })->name('public.asset.serve');
 
+// ─── Public font serve (for published sites) ───
+Route::get('/fonts/{siteId}/{filename}', function (string $siteId, string $filename) {
+    try {
+        $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
+        if ($tenant) {
+            $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
+            \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
+        }
+        $site = \App\Models\Site::findOrFail($siteId);
+        return app(\App\Http\Controllers\Api\V1\CustomFontController::class)->serve($site, $filename);
+    } catch (\Throwable) { abort(404); }
+});
+
 // ─── Magazine viewer (public) ───
 Route::get('/magazine', [MagazineViewController::class, 'index'])->name('magazine.index');
 Route::get('/magazines', [MagazineViewController::class, 'index']); // alias

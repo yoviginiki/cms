@@ -92,8 +92,11 @@ class DesignTokenGenerator
             $tokens = array_merge($tokens, $docTokens);
         }
 
+        // Custom font @font-face rules (must come before everything)
+        $css = $this->generateCustomFontFaces($site);
+
         // Font imports must come before style rules per CSS spec
-        $css = $this->generateFontImports($tokens);
+        $css .= $this->generateFontImports($tokens);
 
         $css .= ":root {\n";
         foreach ($tokens as $key => $value) {
@@ -201,6 +204,36 @@ class DesignTokenGenerator
      * Generate Google Fonts @import for all font tokens.
      * Collects unique font families from heading, body, mono, h1-h6, button, nav tokens.
      */
+    /**
+     * Generate @font-face rules for custom uploaded fonts.
+     */
+    private function generateCustomFontFaces(\App\Models\Site $site): string
+    {
+        $fonts = $site->settings['custom_fonts'] ?? [];
+        if (empty($fonts)) return '';
+
+        $css = '';
+        foreach ($fonts as $font) {
+            $family = preg_replace('/[^a-zA-Z0-9\s\-]/', '', $font['family'] ?? '');
+            $weight = max(100, min(900, (int) ($font['weight'] ?? 400)));
+            $fontStyle = in_array($font['style'] ?? '', ['normal', 'italic']) ? $font['style'] : 'normal';
+            $format = preg_replace('/[^a-z0-9]/', '', $font['format'] ?? 'truetype');
+            $filename = preg_replace('/[^a-zA-Z0-9.\-_]/', '', $font['filename'] ?? '');
+
+            if (!$family || !$filename) continue;
+
+            // Use relative path for static site (fonts are copied during publish)
+            $css .= "@font-face {\n";
+            $css .= "  font-family: '{$family}';\n";
+            $css .= "  font-weight: {$weight};\n";
+            $css .= "  font-style: {$fontStyle};\n";
+            $css .= "  src: url('/fonts/{$filename}') format('{$format}');\n";
+            $css .= "  font-display: swap;\n";
+            $css .= "}\n";
+        }
+        return $css;
+    }
+
     private function generateFontImports(array $tokens): string
     {
         // Collect all font token keys and their values

@@ -134,6 +134,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sites.assets', AssetController::class)->except(['update']);
         Route::get('sites/{site}/assets/{asset}/serve/{variant?}', [AssetServeController::class, 'serve']);
 
+        // Custom Fonts
+        Route::get('sites/{site}/fonts', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'index']);
+        Route::post('sites/{site}/fonts', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'store']);
+        Route::delete('sites/{site}/fonts/{fontId}', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'destroy']);
+        Route::get('sites/{site}/fonts/{filename}/serve', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'serve']);
+
         // Publishing
         Route::post('sites/{site}/publish', [PublishController::class, 'publish']);
         Route::post('sites/{site}/publish/clear', [PublishController::class, 'clear']);

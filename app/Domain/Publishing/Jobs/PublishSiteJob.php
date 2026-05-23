@@ -91,6 +91,9 @@ class PublishSiteJob implements ShouldQueue
             // Compile theme CSS artifacts (before page rendering)
             $this->compileThemeArtifacts($site, $stagingPath);
 
+            // Copy custom fonts to staging
+            $this->copyCustomFonts($site, $stagingPath);
+
             // Get publishable content
             $pages = $site->pages()->where('status', 'published')->orderBy('sort_order')->get();
             $posts = $site->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
@@ -662,6 +665,28 @@ class PublishSiteJob implements ShouldQueue
 
         foreach ($dirs->slice(3) as $old) {
             File::deleteDirectory($old);
+        }
+    }
+
+    /**
+     * Copy custom font files to the staging directory.
+     */
+    private function copyCustomFonts(Site $site, string $stagingPath): void
+    {
+        $fonts = $site->settings['custom_fonts'] ?? [];
+        if (empty($fonts)) return;
+
+        $fontsDir = $stagingPath . '/fonts';
+        File::ensureDirectoryExists($fontsDir);
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('assets');
+        foreach ($fonts as $font) {
+            $path = $font['path'] ?? '';
+            $filename = $font['filename'] ?? '';
+            if (!$path || !$filename || !$disk->exists($path)) continue;
+
+            $dest = $fontsDir . '/' . preg_replace('/[^a-zA-Z0-9.\-_]/', '', $filename);
+            file_put_contents($dest, $disk->get($path));
         }
     }
 }

@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, Check, ChevronDown, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
+import { customFonts as customFontsApi } from '@/lib/api';
 import {
   ALL_FONTS, FONT_CATEGORIES, SYSTEM_FONT_STACK,
   buildGoogleFontUrl, buildFontStack, findFont,
@@ -33,12 +36,27 @@ export function FontPicker({ label, value, onChange, showWeights, selectedWeight
   const [category, setCategory] = useState<FontCategory | 'all'>('all');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { siteId } = useParams<{ siteId: string }>();
+
+  // Load custom fonts for this site
+  const { data: siteCustomFonts } = useQuery<any[]>({
+    queryKey: ['custom-fonts', siteId],
+    queryFn: () => siteId ? customFontsApi.list(siteId).then((r: any) => r.data.data) : Promise.resolve([]),
+    enabled: !!siteId,
+  });
+
+  // Unique custom font families
+  const customFamilies = useMemo(() => {
+    const families = new Set<string>();
+    (siteCustomFonts || []).forEach((f: any) => families.add(f.family));
+    return Array.from(families);
+  }, [siteCustomFonts]);
 
   // Resolve current font from value
   const currentFont = findFont(value);
   const displayName = currentFont?.family || (value ? value.split(',')[0].replace(/['"]/g, '').trim() : 'System Default');
 
-  // Filter fonts
+  // Filter fonts — custom fonts at top
   const filtered = useMemo(() => {
     let list = ALL_FONTS;
     if (category !== 'all') list = list.filter(f => f.category === category);
@@ -46,7 +64,6 @@ export function FontPicker({ label, value, onChange, showWeights, selectedWeight
       const q = search.toLowerCase();
       list = list.filter(f => f.family.toLowerCase().includes(q));
     }
-    // Popular first, then alphabetical (spread to avoid mutating shared array)
     return [...list].sort((a, b) => {
       if (a.popular && !b.popular) return -1;
       if (!a.popular && b.popular) return 1;
@@ -169,7 +186,33 @@ export function FontPicker({ label, value, onChange, showWeights, selectedWeight
               const newFonts = filtered.slice(0, visibleIdx).map(f => f.family);
               newFonts.forEach(loadFontPreview);
             }}>
-            {filtered.length === 0 && (
+            {/* Custom uploaded fonts — always at top */}
+            {customFamilies.length > 0 && !search && (
+              <>
+                <div className="px-3 py-1 text-[9px] text-primary font-semibold uppercase tracking-wider bg-primary/5 sticky top-0">
+                  Custom Fonts
+                </div>
+                {customFamilies.map(family => {
+                  const sel = displayName === family;
+                  return (
+                    <button key={`custom-${family}`}
+                      onClick={() => onChange(`'${family}', sans-serif`)}
+                      className={`flex items-center gap-3 w-full px-3 py-2 text-left hover:bg-base-200/50 ${sel ? 'bg-primary/5' : ''}`}>
+                      <span className="text-lg w-8 text-center" style={{ fontFamily: `'${family}', sans-serif` }}>Aa</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-medium truncate">{family}</span>
+                          <span className="text-[8px] bg-success/10 text-success px-1 rounded">Custom</span>
+                        </div>
+                      </div>
+                      {sel && <Check size={14} className="text-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+                <div className="border-b border-base-300/20 my-1" />
+              </>
+            )}
+            {filtered.length === 0 && customFamilies.length === 0 && (
               <div className="p-4 text-center text-[11px] text-base-content/30">No fonts found</div>
             )}
             {filtered.map(font => {
