@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Sun, Moon, Maximize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { themeEngine } from '@/lib/api';
+import { FontPicker } from '@/components/editor/fields/FontPicker';
 
 interface FrameDef { slug: string; title: string; description: string; }
 interface SelectedElement {
@@ -310,7 +311,18 @@ export default function ThemeStudio() {
                         </div>
                       )}
 
-                      {!isSystem && !isColor && (
+                      {!isSystem && !isColor && path.includes('.font.family') && (
+                        <FontPicker
+                          label=""
+                          value={typeof value === 'string' ? value : ''}
+                          onChange={v => {
+                            const family = v.split(',')[0].replace(/['"]/g, '').trim();
+                            updateToken(path, family);
+                            updateTokenInDoc(path, { $type: 'font', $value: family });
+                          }}
+                        />
+                      )}
+                      {!isSystem && !isColor && !path.includes('.font.family') && (
                         <input type="text" value={typeof value === 'string' ? value : JSON.stringify(value) || ''}
                           onChange={e => {
                             updateToken(path, e.target.value);
