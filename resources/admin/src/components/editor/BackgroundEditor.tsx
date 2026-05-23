@@ -50,6 +50,15 @@ export default function BackgroundEditor({ data, onChange, defaultExpanded }: Pr
   const update = (field: string, value: unknown) => {
     const updates: Record<string, unknown> = { [field]: value };
 
+    // When setting to 'none', clear all background fields
+    if (field === 'bg_type' && value === 'none') {
+      updates.bg_color = '';
+      updates.bg_image = '';
+      updates.bg_asset_id = null;
+      updates.bg_gradient_stops = DEFAULTS.bg_gradient_stops;
+      updates.bg_overlay_opacity = 0;
+    }
+
     // Auto-set bg_type when user changes a bg field without explicitly selecting type
     if (field !== 'bg_type' && field.startsWith('bg_')) {
       const currentType = bg.bg_type;
