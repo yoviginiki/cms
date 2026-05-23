@@ -46,8 +46,9 @@ export default function PagesList() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (title: string) => pages.create(siteId, { title, slug: title.toLowerCase().replace(/\s+/g, '-'), status: 'draft' }),
+    mutationFn: (title: string) => pages.create(siteId, { title, status: 'draft' }),
     onSuccess: (r) => navigate(`/sites/${siteId}/pages/${r.data.data.id}/edit`),
+    onError: (e: any) => alert(e?.response?.data?.message || 'Failed to create page'),
   });
 
   const handleCreate = () => {
