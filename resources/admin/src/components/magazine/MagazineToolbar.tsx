@@ -1,4 +1,5 @@
 interface MagazineToolbarProps {
+  onBack?: () => void;
   activeTool: string;
   onSetTool: (t: string) => void;
   zoom: number;
@@ -49,13 +50,24 @@ function Divider() {
 export default function MagazineToolbar({
   activeTool, onSetTool, zoom, onZoomChange, currentPage, totalPages, onChangePage,
   showGrid, showGuides, showBaseline, onToggleGrid, onToggleGuides, onToggleBaseline,
-  onUndo, onRedo, canUndo, canRedo, onSave, isDirty, isSaving,
+  onBack, onUndo, onRedo, canUndo, canRedo, onSave, isDirty, isSaving,
   status, onStatusChange, viewUrl,
 }: MagazineToolbarProps) {
   const zoomPercent = Math.round(zoom * 100);
 
   return (
     <div className="flex items-center gap-1 px-3 py-1.5 bg-base-200/80 border-b border-base-content/10">
+      {/* Back to dashboard */}
+      {onBack && (
+        <Tip text="Back to magazine dashboard">
+          <button className="btn btn-ghost btn-sm btn-square mr-1" onClick={onBack}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        </Tip>
+      )}
+
       {/* Tool buttons */}
       <div className="flex items-center gap-0.5">
         {TOOLS.map((tool) => (

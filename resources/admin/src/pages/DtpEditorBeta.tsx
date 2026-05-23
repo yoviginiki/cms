@@ -594,6 +594,7 @@ export default function DtpEditorBeta() {
     <div className="flex flex-col h-screen bg-base-200" data-theme={adminTheme}>
       {/* ─── Toolbar ─── */}
       <MagazineToolbar
+        onBack={() => navigate(`/sites/${siteId}/magazines`)}
         activeTool={store.activeTool}
         onSetTool={(t) => store.setTool(t as any)}
         zoom={store.zoom}
@@ -939,7 +940,17 @@ export default function DtpEditorBeta() {
                         </div>
 
                         {/* Delete */}
-                        <button onClick={() => { selectedInlineImg.remove(); setSelectedInlineImg(null); store.setDirty(true); }}
+                        <button onClick={() => {
+                          const editable = selectedInlineImg.closest('[data-editing-id]') as HTMLElement;
+                          selectedInlineImg.remove();
+                          setSelectedInlineImg(null);
+                          // Persist removal to store
+                          if (editable && canvasEditingId) {
+                            const el = store.pages.flatMap(p => p.elements).find(e => e.id === canvasEditingId);
+                            if (el) store.updateElement(canvasEditingId, { data: { ...el.data, content: editable.innerHTML } } as any);
+                          }
+                          store.setDirty(true);
+                        }}
                           className="btn btn-xs btn-ghost text-error w-full">Remove Image</button>
                       </div>
                     )}
