@@ -642,23 +642,30 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     if (!sourceHtml || sourceHtml.length < 10) return;
 
     // ─── Measure what fits in the source frame ───
+    // Strategy: measure as SINGLE column (no CSS columns complications),
+    // then the available height = frame.height * numberOfColumns
     const measure = document.createElement('div');
     const typo = sourceElement.typography;
     const data = sourceElement.data as Record<string, any>;
     const pageW = sourcePage.pageSize?.width || 595;
     const visibleW = Math.min(sourceElement.width, pageW - sourceElement.x);
     const cols = data.columnsInFrame || 1;
+    const colGap = data.columnGap || 12;
     const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
 
-    // Use FIXED height + column-fill:auto so CSS columns work properly:
-    // text fills left column up to frame height, then wraps to right column.
-    // scrollHeight > clientHeight means content overflows.
+    // Single column width = (visibleW - padding - gaps) / cols
+    const padH = (inset.left || 0) + (inset.right || 0);
+    const padV = (inset.top || 0) + (inset.bottom || 0);
+    const singleColW = cols > 1
+      ? (visibleW - padH - (cols - 1) * colGap) / cols
+      : visibleW - padH;
+    // Total available text height across all columns
+    const availableHeight = (sourceElement.height - padV) * cols;
+
     measure.style.cssText = `position:fixed;top:-9999px;left:-9999px;visibility:hidden;
-      width:${visibleW}px;height:${sourceElement.height}px;overflow:hidden;
+      width:${Math.max(50, singleColW)}px;height:auto;overflow:visible;
       font-family:${typo?.fontFamily || 'Inter'};font-size:${typo?.fontSize || 14}px;
-      font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};
-      column-count:${cols};column-gap:${data.columnGap || 12}px;column-fill:auto;
-      padding:${inset.top || 0}px ${inset.right || 0}px ${inset.bottom || 0}px ${inset.left || 0}px;`;
+      font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};`;
     document.body.appendChild(measure);
 
     // Parse blocks
@@ -675,18 +682,11 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       if (root.childNodes[i].nodeType === 1) allBlocks.push(root.childNodes[i] as HTMLElement);
     }
 
-    // Check if content overflows: put ALL content in the fixed-height div
+    // Check if ALL content fits
     measure.innerHTML = sourceHtml;
-    const allFits = measure.scrollHeight <= measure.clientHeight + 2;
-    if (allFits) { measure.remove(); return; } // everything fits, nothing to pour
+    if (measure.scrollHeight <= availableHeight + 4) { measure.remove(); return; }
 
-    // Binary search: measure with column-fill:balance (no height) to find how many blocks fit.
-    // With balance + no height, scrollHeight = height of ONE balanced column.
-    // If scrollHeight <= frame.height, those blocks fit in the multi-column frame.
-    measure.style.height = 'auto';
-    measure.style.overflow = 'visible';
-    measure.style.columnFill = 'balance';
-
+    // Binary search: single-column height <= availableHeight means it fits
     let fitCount = allBlocks.length;
     if (allBlocks.length >= 2) {
       let lo = 1, hi = allBlocks.length;
@@ -694,8 +694,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
         measure.innerHTML = allBlocks.slice(0, mid).map(b => b.outerHTML).join('');
-        // With balance, scrollHeight = balanced column height
-        if (measure.scrollHeight <= sourceElement.height) {
+        if (measure.scrollHeight <= availableHeight) {
           fitCount = mid;
           lo = mid + 1;
         } else {
@@ -816,52 +815,48 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           // Skip all threaded frames — Pour manages those manually
           if (frame.threadId) continue;
 
-          // Measure if text overflows the frame
+          // Measure using single-column approach (same as Pour)
           const typo = frame.typography;
           const pageW = page.pageSize?.width || 595;
           const visibleW = Math.min(frame.width, pageW - frame.x);
           const cols = data.columnsInFrame || 1;
           const colGap = data.columnGap || 12;
           const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
+          const padH = (inset.left || 0) + (inset.right || 0);
+          const padV = (inset.top || 0) + (inset.bottom || 0);
+          const singleColW = cols > 1 ? (visibleW - padH - (cols - 1) * colGap) / cols : visibleW - padH;
+          const availH = (frame.height - padV) * cols;
 
-          // First check: does content overflow with fixed height?
           measure.style.cssText = `position:fixed;top:-9999px;left:-9999px;visibility:hidden;
-            width:${visibleW}px;height:${frame.height}px;overflow:hidden;
+            width:${Math.max(50, singleColW)}px;height:auto;overflow:visible;
             font-family:${typo?.fontFamily || 'Inter'};font-size:${(typo?.fontSize || 14)}px;
-            font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};
-            column-count:${cols};column-gap:${colGap}px;column-fill:auto;
-            padding:${inset.top || 0}px ${inset.right || 0}px ${inset.bottom || 0}px ${inset.left || 0}px;`;
+            font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};`;
           measure.innerHTML = html;
-          const overflows = measure.scrollHeight > measure.clientHeight + 2;
+          const overflows = measure.scrollHeight > availH + 4;
           if (!overflows) continue;
 
-          // Text overflows — split and create continuation
+          // Parse blocks
           const parser = new DOMParser();
           const doc = parser.parseFromString('<body>' + html + '</body>', 'text/html');
           let root: Element = doc.body;
-          // Unwrap single wrapper elements (div, span, etc.) to find actual paragraphs
           while (root.children.length === 1) {
             const child = root.children[0];
             const tag = child.tagName;
-            if (tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'BLOCKQUOTE' || tag === 'UL' || tag === 'OL') break; // actual content block
+            if (tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'BLOCKQUOTE' || tag === 'UL' || tag === 'OL') break;
             root = child;
           }
-
           const allBlocks: Element[] = [];
           for (let i = 0; i < root.childNodes.length; i++) {
             if (root.childNodes[i].nodeType === 1) allBlocks.push(root.childNodes[i] as Element);
           }
           if (allBlocks.length < 2) continue;
 
-          // Binary search with column-fill:balance (no height) for accurate column measurement
-          measure.style.height = 'auto';
-          measure.style.overflow = 'visible';
-          measure.style.columnFill = 'balance';
+          // Binary search: single-column height <= availH means it fits
           let lo = 1, hi = allBlocks.length - 1, fitCount = 1;
           while (lo <= hi) {
             const mid = Math.floor((lo + hi) / 2);
             measure.innerHTML = allBlocks.slice(0, mid).map(b => (b as HTMLElement).outerHTML).join('');
-            if (measure.scrollHeight <= frame.height + 4) {
+            if (measure.scrollHeight <= availH) {
               fitCount = mid;
               lo = mid + 1;
             } else {
