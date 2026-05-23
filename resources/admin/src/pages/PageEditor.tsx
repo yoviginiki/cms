@@ -824,17 +824,22 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
 }) {
   const [saving, setSaving] = useState(false);
   const [localMeta, setLocalMeta] = useState<Record<string, any>>(page?.seo_meta || {});
-  useEffect(() => { if (page?.seo_meta) setLocalMeta(page.seo_meta); }, [page?.seo_meta]);
-
-  // Keep ref in sync so parent Save can read it
-  useEffect(() => { if (metaRef) metaRef.current = localMeta; }, [localMeta, metaRef]);
+  useEffect(() => {
+    if (page?.seo_meta) {
+      setLocalMeta(page.seo_meta);
+      if (metaRef) metaRef.current = page.seo_meta;
+    }
+  }, [page?.seo_meta]);
 
   const saveSetting = async (field: string, value: unknown) => {
     if (field === 'seo_meta') {
-      setLocalMeta(value as Record<string, any>);
-      if (onDirty) onDirty(); // Mark editor as dirty so Save button activates
+      const meta = value as Record<string, any>;
+      setLocalMeta(meta);
+      // Update ref IMMEDIATELY so Save button can read it
+      if (metaRef) metaRef.current = meta;
+      if (onDirty) onDirty();
     }
-    // Non-appearance fields save immediately (title, slug, status, layout)
+    // Non-appearance fields save immediately
     if (field !== 'seo_meta') {
       setSaving(true);
       try {
@@ -845,7 +850,6 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
         setSaving(false);
       }
     }
-    // seo_meta is saved by the main Save button via metaRef
   };
 
   return (
