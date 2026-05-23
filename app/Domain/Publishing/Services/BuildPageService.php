@@ -7,6 +7,7 @@ use App\Domain\Hooks\HookDispatcher;
 use App\Domain\Menus\Services\MenuRenderer;
 use App\Domain\Theme\Services\DesignTokenGenerator;
 use App\Domain\Publishing\Services\AssetPublisher;
+use App\Support\Blocks\BlockStyle;
 use App\Models\Asset;
 use App\Models\Block;
 use App\Models\Page;
@@ -587,63 +588,15 @@ img{max-width:100%;height:auto;display:block}
      */
     private function buildPageAppearanceCss(array $meta): string
     {
-        $css = '';
-        $safe = fn(string $v) => preg_replace('/[{}<>;\\\\]/', '', $v);
+        $pageStyle = $meta['pageStyle'] ?? [];
+        $pageData = $meta['pageData'] ?? [];
 
-        // Main element styles
-        $mainProps = [];
-        if (!empty($meta['page_padding']) && $meta['page_padding'] !== '0') {
-            $mainProps[] = "padding:" . $safe($meta['page_padding']);
-        }
-        if (!empty($meta['page_margin']) && $meta['page_margin'] !== '0') {
-            $mainProps[] = "margin:" . $safe($meta['page_margin']);
-        }
-        if (!empty($meta['page_max_width']) && $meta['page_max_width'] !== 'none') {
-            $mainProps[] = "max-width:" . $safe($meta['page_max_width']);
-        }
-        if (!empty($meta['page_min_height']) && $meta['page_min_height'] !== 'auto') {
-            $mainProps[] = "min-height:" . $safe($meta['page_min_height']);
-        }
-        if (!empty($meta['page_shadow']) && $meta['page_shadow'] !== 'none') {
-            $mainProps[] = "box-shadow:" . $safe($meta['page_shadow']);
-        }
-        if ($mainProps) {
-            $css .= "main[role=main]{" . implode(';', $mainProps) . "}\n";
-        }
+        if (empty($pageStyle) && empty($pageData)) return '';
 
-        // Body background
-        $bodyProps = [];
-        if (!empty($meta['page_bg_color']) && $meta['page_bg_color'] !== '#ffffff') {
-            $bodyProps[] = "background-color:" . $safe($meta['page_bg_color']);
-        }
-        if ($bodyProps) {
-            $css .= "body{" . implode(';', $bodyProps) . "}\n";
-        }
+        // Generate inline CSS using the same BlockStyle engine as blocks
+        $style = BlockStyle::buildStyle($pageStyle, [], $pageData);
+        if (!$style) return '';
 
-        // Background image via pseudo-element
-        if (!empty($meta['page_bg_image'])) {
-            $src = $meta['page_bg_image'];
-            if (preg_match('#^(https?://|/[^/])#', $src)) {
-                $opacity = max(0, min(1, (float) ($meta['page_bg_opacity'] ?? 1)));
-                $size = preg_replace('/[^a-z]/', '', $meta['page_bg_size'] ?? 'cover');
-                $pos = preg_replace('/[^a-z\s]/', '', $meta['page_bg_position'] ?? 'center');
-                $att = preg_replace('/[^a-z]/', '', $meta['page_bg_attachment'] ?? 'scroll');
-                $css .= "body::after{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;";
-                $css .= "background-image:url('" . addcslashes($src, "'\\") . "');";
-                $css .= "background-size:{$size};background-position:{$pos};background-attachment:{$att};";
-                $css .= "opacity:{$opacity}}\n";
-            }
-        }
-
-        // Gradient overlay
-        if (!empty($meta['page_gradient_enabled'])) {
-            $from = $safe($meta['page_gradient_from'] ?? '#000000');
-            $to = $safe($meta['page_gradient_to'] ?? '#ffffff');
-            $opacity = max(0, min(1, (float) ($meta['page_gradient_opacity'] ?? 0.5)));
-            $css .= "body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;";
-            $css .= "background:linear-gradient(to bottom,{$from},{$to});opacity:{$opacity}}\n";
-        }
-
-        return $css;
+        return "main[role=main]{{$style}}\n";
     }
 }

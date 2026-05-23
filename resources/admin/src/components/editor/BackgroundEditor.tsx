@@ -40,11 +40,12 @@ const DEFAULTS: BackgroundData = {
 interface Props {
   data: Record<string, unknown>;
   onChange: (updates: Record<string, unknown>) => void;
+  defaultExpanded?: boolean;
 }
 
-export default function BackgroundEditor({ data, onChange }: Props) {
+export default function BackgroundEditor({ data, onChange, defaultExpanded }: Props) {
   const bg: BackgroundData = { ...DEFAULTS, ...(data as any) };
-  const [expanded, setExpanded] = useState(bg.bg_type !== 'none');
+  const [expanded, setExpanded] = useState(defaultExpanded || bg.bg_type !== 'none');
 
   const update = (field: string, value: unknown) => {
     const updates: Record<string, unknown> = { [field]: value };

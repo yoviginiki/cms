@@ -812,8 +812,15 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
   layouts: any[]; publicBase: string; siteSlug: string;
 }) {
   const [saving, setSaving] = useState(false);
+  // Local state for seo_meta to make changes immediately visible in panels
+  const [localMeta, setLocalMeta] = useState<Record<string, any>>(page?.seo_meta || {});
+  useEffect(() => { if (page?.seo_meta) setLocalMeta(page.seo_meta); }, [page?.seo_meta]);
 
   const saveSetting = async (field: string, value: unknown) => {
+    // Update local state immediately for reactive UI
+    if (field === 'seo_meta') {
+      setLocalMeta(value as Record<string, any>);
+    }
     setSaving(true);
     try {
       await pagesApi.update(siteId, pageId, { [field]: value });
@@ -887,14 +894,14 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
 
       {/* Page Appearance — same controls as blocks */}
       {(() => {
-        const pageStyle = page?.seo_meta?.pageStyle || {};
-        const pageData = page?.seo_meta?.pageData || {};
+        const pageStyle = localMeta.pageStyle || {};
+        const pageData = localMeta.pageData || {};
         const updatePageStyle = (key: string, val: any) => {
-          const updated = { ...(page?.seo_meta || {}), pageStyle: { ...pageStyle, [key]: val } };
+          const updated = { ...localMeta, pageStyle: { ...pageStyle, [key]: val } };
           saveSetting('seo_meta', updated);
         };
         const updatePageData = (updates: Record<string, any>) => {
-          const updated = { ...(page?.seo_meta || {}), pageData: { ...pageData, ...updates } };
+          const updated = { ...localMeta, pageData: { ...pageData, ...updates } };
           saveSetting('seo_meta', updated);
         };
         return (
@@ -908,7 +915,7 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
             <details className="border-t border-gray-100 pt-3">
               <summary className="text-[11px] text-gray-500 cursor-pointer font-medium">Background</summary>
               <div className="mt-2">
-                <BackgroundEditor data={pageData} onChange={updatePageData} />
+                <BackgroundEditor data={pageData} onChange={updatePageData} defaultExpanded />
               </div>
             </details>
             <details className="border-t border-gray-100 pt-3">
@@ -918,7 +925,7 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
               </div>
             </details>
             <details className="border-t border-gray-100 pt-3">
-              <summary className="text-[11px] text-gray-500 cursor-pointer font-medium">Layout</summary>
+              <summary className="text-[11px] text-gray-500 cursor-pointer font-medium">Size & Layout</summary>
               <div className="mt-2">
                 <LayoutPanel value={pageStyle.layout || {}} onChange={v => updatePageStyle('layout', v)} style={pageStyle} />
               </div>
@@ -926,19 +933,19 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
             <details className="border-t border-gray-100 pt-3">
               <summary className="text-[11px] text-gray-500 cursor-pointer font-medium">Animation</summary>
               <div className="mt-2">
-                <AnimationPanel value={page?.seo_meta?.pageAnimation || {}} onChange={v => saveSetting('seo_meta', { ...(page?.seo_meta || {}), pageAnimation: v })} />
+                <AnimationPanel value={localMeta.pageAnimation || {}} onChange={v => saveSetting('seo_meta', { ...localMeta, pageAnimation: v })} />
               </div>
             </details>
             <details className="border-t border-gray-100 pt-3">
               <summary className="text-[11px] text-gray-500 cursor-pointer font-medium">Responsive</summary>
               <div className="mt-2">
-                <ResponsivePanel value={page?.seo_meta?.pageResponsive || {}} onChange={v => saveSetting('seo_meta', { ...(page?.seo_meta || {}), pageResponsive: v })} />
+                <ResponsivePanel value={localMeta.pageResponsive || {}} onChange={v => saveSetting('seo_meta', { ...localMeta, pageResponsive: v })} />
               </div>
             </details>
             <details className="border-t border-gray-100 pt-3">
               <summary className="text-[11px] text-gray-500 cursor-pointer font-medium">Advanced</summary>
               <div className="mt-2">
-                <AdvancedPanel value={page?.seo_meta?.pageAdvanced || {}} onChange={v => saveSetting('seo_meta', { ...(page?.seo_meta || {}), pageAdvanced: v })} />
+                <AdvancedPanel value={localMeta.pageAdvanced || {}} onChange={v => saveSetting('seo_meta', { ...localMeta, pageAdvanced: v })} />
               </div>
             </details>
           </>

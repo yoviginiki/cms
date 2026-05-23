@@ -283,12 +283,19 @@ class BlockStyle
 
         // Layout
         $lay = $blockStyle['layout'] ?? [];
-        $w = self::safeDim($lay['width'] ?? '');
-        if ($w) $parts[] = "width:{$w}";
-        $mw = self::safeDim($lay['maxWidth'] ?? '');
-        if ($mw) $parts[] = "max-width:{$mw}";
-        $mh = self::safeDim($lay['minHeight'] ?? '');
-        if ($mh) $parts[] = "min-height:{$mh}";
+        // Size properties
+        foreach ([
+            'width' => 'width', 'minWidth' => 'min-width', 'maxWidth' => 'max-width',
+            'height' => 'height', 'minHeight' => 'min-height', 'maxHeight' => 'max-height',
+        ] as $key => $cssProp) {
+            $v = self::safeDim($lay[$key] ?? '');
+            if ($v) $parts[] = "{$cssProp}:{$v}";
+        }
+        // Overflow
+        $overflow = $lay['overflow'] ?? '';
+        if ($overflow && in_array($overflow, ['hidden', 'auto', 'scroll'])) {
+            $parts[] = "overflow:{$overflow}";
+        }
         $z = $lay['zIndex'] ?? null;
         if ($z !== null && $z !== '' && is_numeric($z)) {
             $parts[] = "z-index:" . max(-100, min(9999, intval($z)));
@@ -466,7 +473,8 @@ class BlockStyle
         // Layout overrides
         $layout = $overrides['layout'] ?? [];
         $layoutMap = [
-            'width' => 'width', 'maxWidth' => 'max-width', 'minHeight' => 'min-height',
+            'width' => 'width', 'minWidth' => 'min-width', 'maxWidth' => 'max-width',
+            'height' => 'height', 'minHeight' => 'min-height', 'maxHeight' => 'max-height',
         ];
         foreach ($layoutMap as $key => $cssProp) {
             $val = self::safeDim($layout[$key] ?? '');

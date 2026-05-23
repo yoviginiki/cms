@@ -49,8 +49,12 @@ export interface VisualProps {
 // ─── Layout ───
 export interface LayoutProps {
   width?: string;
+  minWidth?: string;
   maxWidth?: string;
+  height?: string;
   minHeight?: string;
+  maxHeight?: string;
+  overflow?: 'visible' | 'hidden' | 'auto' | 'scroll';
   alignment?: 'left' | 'center' | 'right' | 'stretch';
   display?: 'block' | 'flex' | 'grid' | 'none';
   flexDirection?: 'row' | 'column';

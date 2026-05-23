@@ -16,7 +16,7 @@ interface Props {
 }
 
 // Keys that are most useful as responsive overrides
-const RESPONSIVE_KEYS = ['width', 'maxWidth', 'minHeight', 'display', 'alignment'] as const;
+const RESPONSIVE_KEYS = ['width', 'minWidth', 'maxWidth', 'height', 'minHeight', 'maxHeight', 'display', 'alignment', 'overflow'] as const;
 
 export function LayoutPanel({ value, onChange, style, responsive, onResponsiveChange }: Props) {
   const canvasDevice = useEditorStore((s) => s.canvasDevice);
@@ -74,29 +74,27 @@ export function LayoutPanel({ value, onChange, style, responsive, onResponsiveCh
         </div>
       )}
 
+      {/* ─── Size ─── */}
+      <div className="text-[9px] text-base-content/30 uppercase tracking-wider font-medium">Size</div>
       <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-base-content/40">Width</label>
-          <input value={effective.width || ''} onChange={e => update('width', e.target.value)}
-            className={`input input-bordered input-xs w-full text-[11px] ${
-              isResponsive && bp !== 'desktop' && hasResponsiveStyleOverride(responsive, 'layout', 'width', bp) ? 'border-warning/50' : ''
-            }`} placeholder="auto" />
-        </div>
-        <div>
-          <label className="text-[10px] text-base-content/40">Max width</label>
-          <input value={effective.maxWidth || ''} onChange={e => update('maxWidth', e.target.value)}
-            className={`input input-bordered input-xs w-full text-[11px] ${
-              isResponsive && bp !== 'desktop' && hasResponsiveStyleOverride(responsive, 'layout', 'maxWidth', bp) ? 'border-warning/50' : ''
-            }`} placeholder="100%" />
-        </div>
+        <SizeField label="Width" prop="width" placeholder="auto / 100% / 50vw" effective={effective} update={update} responsive={responsive} bp={bp} isResponsive={isResponsive} />
+        <SizeField label="Height" prop="height" placeholder="auto / 100vh" effective={effective} update={update} responsive={responsive} bp={bp} isResponsive={isResponsive} />
+        <SizeField label="Min Width" prop="minWidth" placeholder="0" effective={effective} update={update} responsive={responsive} bp={bp} isResponsive={isResponsive} />
+        <SizeField label="Min Height" prop="minHeight" placeholder="0 / 100vh" effective={effective} update={update} responsive={responsive} bp={bp} isResponsive={isResponsive} />
+        <SizeField label="Max Width" prop="maxWidth" placeholder="100% / 1200px" effective={effective} update={update} responsive={responsive} bp={bp} isResponsive={isResponsive} />
+        <SizeField label="Max Height" prop="maxHeight" placeholder="none" effective={effective} update={update} responsive={responsive} bp={bp} isResponsive={isResponsive} />
       </div>
 
+      {/* Overflow */}
       <div>
-        <label className="text-[10px] text-base-content/40">Min height</label>
-        <input value={effective.minHeight || ''} onChange={e => update('minHeight', e.target.value)}
-          className={`input input-bordered input-xs w-full text-[11px] ${
-            isResponsive && bp !== 'desktop' && hasResponsiveStyleOverride(responsive, 'layout', 'minHeight', bp) ? 'border-warning/50' : ''
-          }`} placeholder="auto" />
+        <label className="text-[10px] text-base-content/40">Overflow</label>
+        <select value={effective.overflow || 'visible'} onChange={e => update('overflow', e.target.value === 'visible' ? undefined : e.target.value)}
+          className="select select-bordered select-xs w-full text-[11px]">
+          <option value="visible">Visible</option>
+          <option value="hidden">Hidden</option>
+          <option value="auto">Auto (scroll if needed)</option>
+          <option value="scroll">Scroll</option>
+        </select>
       </div>
 
       <div>
@@ -151,6 +149,22 @@ export function LayoutPanel({ value, onChange, style, responsive, onResponsiveCh
         <input type="number" value={effective.zIndex ?? ''} onChange={e => update('zIndex', e.target.value ? Number(e.target.value) : undefined)}
           className="input input-bordered input-xs w-full text-[11px]" placeholder="auto" />
       </div>
+    </div>
+  );
+}
+
+function SizeField({ label, prop, placeholder, effective, update, responsive, bp, isResponsive }: {
+  label: string; prop: string; placeholder: string;
+  effective: any; update: (k: any, v: any) => void;
+  responsive?: any; bp: string; isResponsive: boolean;
+}) {
+  const hasOverride = isResponsive && bp !== 'desktop' && hasResponsiveStyleOverride(responsive, 'layout', prop, bp as any);
+  return (
+    <div>
+      <label className="text-[10px] text-base-content/40">{label}</label>
+      <input value={effective[prop] || ''} onChange={e => update(prop, e.target.value)}
+        className={`input input-bordered input-xs w-full text-[11px] ${hasOverride ? 'border-warning/50' : ''}`}
+        placeholder={placeholder} />
     </div>
   );
 }
