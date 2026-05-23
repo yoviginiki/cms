@@ -2,14 +2,20 @@
 export interface TypographyProps {
   fontFamily?: string;
   fontSize?: string;
-  fontWeight?: 400 | 500;
+  fontWeight?: number;
+  fontStyle?: string;
   lineHeight?: string;
   letterSpacing?: string;
+  wordSpacing?: string;
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
   textColor?: string;
   maxCharactersPerLine?: number;
   paragraphSpacingAfter?: string;
+  // Scalable font size helpers (internal)
+  _fontSizeMin?: string;
+  _fontSizePref?: string;
+  _fontSizeMax?: string;
 }
 
 // ─── Spacing ───

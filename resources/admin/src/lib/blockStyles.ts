@@ -136,6 +136,21 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
     }
   }
 
+  // Typography
+  const typo = style.typography;
+  if (typo) {
+    if (typo.fontFamily) css.fontFamily = typo.fontFamily;
+    if (typo.fontSize) css.fontSize = typo.fontSize;
+    if (typo.fontWeight) css.fontWeight = typo.fontWeight;
+    if (typo.fontStyle) css.fontStyle = typo.fontStyle as any;
+    if (typo.lineHeight) css.lineHeight = typo.lineHeight;
+    if (typo.letterSpacing) css.letterSpacing = typo.letterSpacing;
+    if (typo.wordSpacing) css.wordSpacing = typo.wordSpacing;
+    if (typo.textAlign) css.textAlign = typo.textAlign;
+    if (typo.textTransform) css.textTransform = typo.textTransform;
+    if (typo.textColor) css.color = typo.textColor;
+  }
+
   // Layout
   const lay = style.layout;
   if (lay) {

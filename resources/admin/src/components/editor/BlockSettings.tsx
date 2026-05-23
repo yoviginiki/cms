@@ -9,6 +9,7 @@ import { LayoutPanel } from './properties/LayoutPanel';
 import { AnimationPanel } from './properties/AnimationPanel';
 import { AdvancedPanel } from './properties/AdvancedPanel';
 import { ResponsivePanel } from './properties/ResponsivePanel';
+import { TypographyPanel } from './properties/TypographyPanel';
 import BackgroundEditor from './BackgroundEditor';
 
 function findBlock(blocks: BlockData[], id: string): BlockData | null {
@@ -99,6 +100,14 @@ export function BlockSettings() {
         {/* Typography is handled per-block (Heading, Hero have their own controls).
             The shared TypographyPanel was removed because it stored data but never
             applied it — blocks that need typography implement it directly. */}
+
+        {/* Typography */}
+        <Section title="Typography">
+          <TypographyPanel
+            value={style.typography || {}}
+            onChange={v => updateStyle('typography', v)}
+          />
+        </Section>
 
         {/* Spacing */}
         <Section title="Spacing">

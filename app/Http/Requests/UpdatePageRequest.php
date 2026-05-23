@@ -31,6 +31,7 @@ class UpdatePageRequest extends FormRequest
             'seo_meta.pageStyle.spacing' => ['sometimes', 'nullable', 'array'],
             'seo_meta.pageStyle.visual' => ['sometimes', 'nullable', 'array'],
             'seo_meta.pageStyle.layout' => ['sometimes', 'nullable', 'array'],
+            'seo_meta.pageStyle.typography' => ['sometimes', 'nullable', 'array'],
             'seo_meta.pageData' => ['sometimes', 'nullable', 'array'],
             'seo_meta.pageAnimation' => ['sometimes', 'nullable', 'array'],
             'seo_meta.pageResponsive' => ['sometimes', 'nullable', 'array'],

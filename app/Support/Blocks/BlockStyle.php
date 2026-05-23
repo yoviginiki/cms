@@ -285,6 +285,21 @@ class BlockStyle
             }
         }
 
+        // Typography
+        $typo = $blockStyle['typography'] ?? [];
+        foreach ([
+            'fontFamily' => 'font-family', 'fontSize' => 'font-size',
+            'fontWeight' => 'font-weight', 'fontStyle' => 'font-style',
+            'lineHeight' => 'line-height', 'letterSpacing' => 'letter-spacing',
+            'wordSpacing' => 'word-spacing', 'textAlign' => 'text-align',
+            'textTransform' => 'text-transform',
+        ] as $key => $cssProp) {
+            $v = self::safeCssVal($typo[$key] ?? '');
+            if ($v) $parts[] = "{$cssProp}:{$v}";
+        }
+        $tc = self::safeColor($typo['textColor'] ?? '');
+        if ($tc) $parts[] = "color:{$tc}";
+
         // Layout
         $lay = $blockStyle['layout'] ?? [];
         // Size properties
@@ -471,6 +486,13 @@ class BlockStyle
         ];
         foreach ($spacingMap as $key => $cssProp) {
             $val = self::safeDim($spacing[$key] ?? '');
+            if ($val !== '') $rules .= "{$cssProp}:{$val}!important;";
+        }
+
+        // Typography overrides
+        $typo = $overrides['typography'] ?? [];
+        foreach (['fontSize' => 'font-size', 'lineHeight' => 'line-height', 'letterSpacing' => 'letter-spacing'] as $key => $cssProp) {
+            $val = self::safeCssVal($typo[$key] ?? '');
             if ($val !== '') $rules .= "{$cssProp}:{$val}!important;";
         }
 

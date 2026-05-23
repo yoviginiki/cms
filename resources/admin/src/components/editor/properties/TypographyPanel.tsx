@@ -1,66 +1,131 @@
+import { useState } from 'react';
 import type { TypographyProps } from '@/types/blocks';
+import { FontPicker } from '@/components/editor/fields/FontPicker';
 
 interface Props {
   value: TypographyProps;
   onChange: (v: TypographyProps) => void;
 }
 
-const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px', '48px', '56px', '72px'];
-const FONT_FAMILIES = [
-  { value: '', label: 'Theme default' },
-  { value: "'Inter', system-ui, sans-serif", label: 'Inter' },
-  { value: "'Instrument Serif', Georgia, serif", label: 'Instrument Serif' },
-  { value: "Georgia, 'Times New Roman', serif", label: 'Georgia' },
-  { value: "system-ui, sans-serif", label: 'System' },
-  { value: "'SF Mono', 'Fira Code', monospace", label: 'Monospace' },
+const WEIGHTS = [
+  { value: '', label: 'Default' },
+  { value: '100', label: '100 Thin' },
+  { value: '200', label: '200 Extra Light' },
+  { value: '300', label: '300 Light' },
+  { value: '400', label: '400 Regular' },
+  { value: '500', label: '500 Medium' },
+  { value: '600', label: '600 Semi Bold' },
+  { value: '700', label: '700 Bold' },
+  { value: '800', label: '800 Extra Bold' },
+  { value: '900', label: '900 Black' },
 ];
 
 export function TypographyPanel({ value, onChange }: Props) {
   const update = (key: keyof TypographyProps, v: unknown) => onChange({ ...value, [key]: v || undefined });
+  const [sizeMode, setSizeMode] = useState<'fixed' | 'scalable'>(
+    value.fontSize?.includes('clamp') ? 'scalable' : 'fixed'
+  );
 
   return (
     <div className="space-y-3">
+      {/* Font Family — uses FontPicker with custom fonts */}
+      <FontPicker
+        label="Font Family"
+        value={value.fontFamily || ''}
+        onChange={v => update('fontFamily', v)}
+      />
+
+      {/* Font Size — fixed or scalable */}
       <div>
-        <label className="text-[10px] text-base-content/40">Font family</label>
-        <select value={value.fontFamily || ''} onChange={e => update('fontFamily', e.target.value)}
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[10px] text-base-content/40">Font Size</label>
+          <div className="flex bg-base-200 rounded p-0.5">
+            <button onClick={() => setSizeMode('fixed')}
+              className={`px-1.5 py-0.5 text-[9px] rounded ${sizeMode === 'fixed' ? 'bg-base-100 shadow-sm' : 'text-base-content/40'}`}>
+              Fixed
+            </button>
+            <button onClick={() => setSizeMode('scalable')}
+              className={`px-1.5 py-0.5 text-[9px] rounded ${sizeMode === 'scalable' ? 'bg-base-100 shadow-sm' : 'text-base-content/40'}`}>
+              Scalable
+            </button>
+          </div>
+        </div>
+        {sizeMode === 'fixed' ? (
+          <input value={value.fontSize?.includes('clamp') ? '' : (value.fontSize || '')}
+            onChange={e => update('fontSize', e.target.value)}
+            className="input input-bordered input-xs w-full text-[11px]"
+            placeholder="16px, 1.2rem, 2vw" />
+        ) : (
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-3 gap-1">
+              <div>
+                <label className="text-[9px] text-base-content/30">Min</label>
+                <input value={value._fontSizeMin || '14px'}
+                  onChange={e => {
+                    const min = e.target.value || '14px';
+                    const pref = value._fontSizePref || '1vw + 12px';
+                    const max = value._fontSizeMax || '18px';
+                    update('fontSize', `clamp(${min}, ${pref}, ${max})`);
+                    onChange({ ...value, fontSize: `clamp(${min}, ${pref}, ${max})`, _fontSizeMin: min } as any);
+                  }}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="14px" />
+              </div>
+              <div>
+                <label className="text-[9px] text-base-content/30">Preferred</label>
+                <input value={value._fontSizePref || '1vw + 12px'}
+                  onChange={e => {
+                    const min = value._fontSizeMin || '14px';
+                    const pref = e.target.value || '1vw + 12px';
+                    const max = value._fontSizeMax || '18px';
+                    update('fontSize', `clamp(${min}, ${pref}, ${max})`);
+                    onChange({ ...value, fontSize: `clamp(${min}, ${pref}, ${max})`, _fontSizePref: pref } as any);
+                  }}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="1vw + 12px" />
+              </div>
+              <div>
+                <label className="text-[9px] text-base-content/30">Max</label>
+                <input value={value._fontSizeMax || '18px'}
+                  onChange={e => {
+                    const min = value._fontSizeMin || '14px';
+                    const pref = value._fontSizePref || '1vw + 12px';
+                    const max = e.target.value || '18px';
+                    update('fontSize', `clamp(${min}, ${pref}, ${max})`);
+                    onChange({ ...value, fontSize: `clamp(${min}, ${pref}, ${max})`, _fontSizeMax: max } as any);
+                  }}
+                  className="input input-bordered input-xs w-full text-[10px]" placeholder="18px" />
+              </div>
+            </div>
+            <p className="text-[9px] text-base-content/25">
+              Scales between min and max based on viewport. Use vw units in preferred.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Weight */}
+      <div>
+        <label className="text-[10px] text-base-content/40">Weight</label>
+        <select value={String(value.fontWeight || '')} onChange={e => update('fontWeight', e.target.value ? Number(e.target.value) : undefined)}
           className="select select-bordered select-xs w-full text-[11px]">
-          {FONT_FAMILIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+          {WEIGHTS.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
         </select>
       </div>
 
+      {/* Line height + Letter spacing */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40">Size</label>
-          <select value={value.fontSize || ''} onChange={e => update('fontSize', e.target.value)}
-            className="select select-bordered select-xs w-full text-[11px]">
-            <option value="">Default</option>
-            {FONT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] text-base-content/40">Weight</label>
-          <select value={String(value.fontWeight || '')} onChange={e => update('fontWeight', e.target.value ? Number(e.target.value) : undefined)}
-            className="select select-bordered select-xs w-full text-[11px]">
-            <option value="">Default</option>
-            <option value="400">Regular (400)</option>
-            <option value="500">Medium (500)</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-base-content/40">Line height</label>
+          <label className="text-[10px] text-base-content/40">Line Height</label>
           <input value={value.lineHeight || ''} onChange={e => update('lineHeight', e.target.value)}
             className="input input-bordered input-xs w-full text-[11px]" placeholder="1.6" />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40">Letter spacing</label>
+          <label className="text-[10px] text-base-content/40">Letter Spacing</label>
           <input value={value.letterSpacing || ''} onChange={e => update('letterSpacing', e.target.value)}
             className="input input-bordered input-xs w-full text-[11px]" placeholder="-0.02em" />
         </div>
       </div>
 
+      {/* Alignment */}
       <div>
         <label className="text-[10px] text-base-content/40 mb-1 block">Alignment</label>
         <div className="flex gap-0.5">
@@ -73,6 +138,7 @@ export function TypographyPanel({ value, onChange }: Props) {
         </div>
       </div>
 
+      {/* Transform */}
       <div>
         <label className="text-[10px] text-base-content/40">Transform</label>
         <select value={value.textTransform || 'none'} onChange={e => update('textTransform', e.target.value === 'none' ? undefined : e.target.value)}
@@ -84,8 +150,9 @@ export function TypographyPanel({ value, onChange }: Props) {
         </select>
       </div>
 
+      {/* Color */}
       <div>
-        <label className="text-[10px] text-base-content/40">Text color</label>
+        <label className="text-[10px] text-base-content/40">Text Color</label>
         <div className="flex gap-2">
           <input type="color" value={value.textColor || '#000000'} onChange={e => update('textColor', e.target.value)}
             className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
@@ -94,10 +161,21 @@ export function TypographyPanel({ value, onChange }: Props) {
         </div>
       </div>
 
+      {/* Font style */}
       <div>
-        <label className="text-[10px] text-base-content/40">Paragraph spacing after</label>
-        <input value={value.paragraphSpacingAfter || ''} onChange={e => update('paragraphSpacingAfter', e.target.value)}
-          className="input input-bordered input-xs w-full text-[11px]" placeholder="1.2em" />
+        <label className="text-[10px] text-base-content/40">Style</label>
+        <select value={value.fontStyle || 'normal'} onChange={e => update('fontStyle', e.target.value === 'normal' ? undefined : e.target.value)}
+          className="select select-bordered select-xs w-full text-[11px]">
+          <option value="normal">Normal</option>
+          <option value="italic">Italic</option>
+        </select>
+      </div>
+
+      {/* Word spacing */}
+      <div>
+        <label className="text-[10px] text-base-content/40">Word Spacing</label>
+        <input value={value.wordSpacing || ''} onChange={e => update('wordSpacing', e.target.value)}
+          className="input input-bordered input-xs w-full text-[11px]" placeholder="normal" />
       </div>
     </div>
   );
