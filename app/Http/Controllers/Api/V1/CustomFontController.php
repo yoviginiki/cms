@@ -26,17 +26,20 @@ class CustomFontController extends Controller
     public function store(Request $request, Site $site): JsonResponse
     {
         $request->validate([
-            'font' => ['required', 'file', 'max:5120', 'mimes:ttf,woff,woff2,otf'],
+            'font' => ['required', 'file', 'max:5120'],
             'family' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9\s\-]+$/'],
             'weight' => ['sometimes', 'integer', 'min:100', 'max:900'],
             'style' => ['sometimes', 'string', 'in:normal,italic'],
         ]);
 
         $file = $request->file('font');
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (!in_array($ext, ['ttf', 'woff', 'woff2', 'otf'])) {
+            return response()->json(['message' => 'Font must be TTF, WOFF, WOFF2 or OTF.'], 422);
+        }
         $family = $request->input('family');
         $weight = $request->input('weight', 400);
         $fontStyle = $request->input('style', 'normal');
-        $ext = $file->getClientOriginalExtension() ?: 'ttf';
 
         // Sanitize family name for filename
         $safeFamily = Str::slug($family);
