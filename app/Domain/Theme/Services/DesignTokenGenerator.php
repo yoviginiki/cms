@@ -105,6 +105,41 @@ class DesignTokenGenerator
         }
         $css .= "}\n";
 
+        // Site Background from theme document
+        if ($theme->document && isset($theme->document['siteBackground'])) {
+            $bg = $theme->document['siteBackground'];
+            $css .= "body {\n";
+            if (!empty($bg['color'])) {
+                $css .= "  background-color: " . preg_replace('/[^a-zA-Z0-9#(),.\s%]/', '', $bg['color']) . ";\n";
+            }
+            if (!empty($bg['image'])) {
+                $src = $bg['image'];
+                // Only allow safe URL patterns
+                if (preg_match('#^(https?://|/)#', $src)) {
+                    $css .= "  background-image: url('" . addcslashes($src, "'\\") . "');\n";
+                    $css .= "  background-size: " . preg_replace('/[^a-z]/', '', $bg['imageSize'] ?? 'cover') . ";\n";
+                    $css .= "  background-position: " . preg_replace('/[^a-z\s]/', '', $bg['imagePosition'] ?? 'center') . ";\n";
+                    $css .= "  background-repeat: " . preg_replace('/[^a-z\-]/', '', $bg['imageRepeat'] ?? 'no-repeat') . ";\n";
+                    $css .= "  background-attachment: " . preg_replace('/[^a-z]/', '', $bg['imageAttachment'] ?? 'scroll') . ";\n";
+                }
+            }
+            $css .= "  min-height: 100vh;\n";
+            $css .= "}\n";
+
+            // Gradient overlay via ::before pseudo-element
+            if (!empty($bg['gradientEnabled'])) {
+                $from = preg_replace('/[^a-zA-Z0-9#(),.\s%]/', '', $bg['gradientFrom'] ?? '#000000');
+                $to = preg_replace('/[^a-zA-Z0-9#(),.\s%]/', '', $bg['gradientTo'] ?? '#ffffff');
+                $dir = preg_replace('/[^a-z\s]/', '', $bg['gradientDirection'] ?? 'to bottom');
+                $opacity = max(0, min(1, (float) ($bg['gradientOpacity'] ?? 0.5)));
+                $css .= "body::before {\n";
+                $css .= "  content: '';\n  position: fixed;\n  inset: 0;\n  z-index: -1;\n  pointer-events: none;\n";
+                $css .= "  background: linear-gradient({$dir}, {$from}, {$to});\n";
+                $css .= "  opacity: {$opacity};\n";
+                $css .= "}\n";
+            }
+        }
+
         return $css;
     }
 

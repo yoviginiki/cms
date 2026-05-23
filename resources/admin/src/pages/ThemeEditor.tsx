@@ -121,6 +121,7 @@ export default function ThemeEditor() {
   const [isDirty, setIsDirty] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [bgTab, setBgTab] = useState<'color'|'image'|'gradient'>('color');
 
   const { data: theme, isLoading } = useQuery<any>({
     queryKey: ['theme-detail', siteId, themeId],
@@ -281,6 +282,187 @@ export default function ThemeEditor() {
                 className="input input-bordered input-sm w-full text-xs"
               />
             </div>
+
+            {/* ─── Site Background ─── */}
+            {!searchQuery && (() => {
+              const bg = (editDoc as any)?.siteBackground || {};
+              const updateBg = (updates: Record<string, any>) => {
+                if (!editDoc || isSystem) return;
+                const updated = JSON.parse(JSON.stringify(editDoc));
+                updated.siteBackground = { ...(updated.siteBackground || {}), ...updates };
+                setEditDoc(updated);
+                setIsDirty(true);
+              };
+              return (
+                <div className="bg-base-100 rounded-xl border border-base-300/30 p-4 space-y-3">
+                  <h3 className="text-xs font-semibold text-base-content/60 uppercase tracking-wider">Site Background</h3>
+
+                  {/* Tabs */}
+                  <div className="flex gap-1">
+                    {(['color', 'image', 'gradient'] as const).map(t => (
+                      <button key={t} onClick={() => setBgTab(t)}
+                        className={`btn btn-xs flex-1 ${bgTab === t ? 'btn-primary' : 'btn-ghost'}`}>
+                        {t === 'color' ? 'Color' : t === 'image' ? 'Image' : 'Gradient'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Color */}
+                  {bgTab === 'color' && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-base-content/40">Background Color</label>
+                      <div className="flex gap-2 items-center">
+                        <input type="color" value={bg.color || '#ffffff'}
+                          onChange={e => updateBg({ color: e.target.value })}
+                          className="w-10 h-10 rounded cursor-pointer border border-base-300/30" disabled={isSystem} />
+                        <input type="text" value={bg.color || '#ffffff'}
+                          onChange={e => updateBg({ color: e.target.value })}
+                          className="input input-bordered input-sm flex-1 text-xs font-mono" disabled={isSystem} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image */}
+                  {bgTab === 'image' && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-base-content/40">Background Image URL</label>
+                      <input type="text" value={bg.image || ''}
+                        onChange={e => updateBg({ image: e.target.value })}
+                        placeholder="/assets/files/... or https://..."
+                        className="input input-bordered input-sm w-full text-xs" disabled={isSystem} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-base-content/40">Size</label>
+                          <select value={bg.imageSize || 'cover'} onChange={e => updateBg({ imageSize: e.target.value })}
+                            className="select select-bordered select-xs w-full" disabled={isSystem}>
+                            <option value="cover">Cover</option>
+                            <option value="contain">Contain</option>
+                            <option value="auto">Auto</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-base-content/40">Position</label>
+                          <select value={bg.imagePosition || 'center'} onChange={e => updateBg({ imagePosition: e.target.value })}
+                            className="select select-bordered select-xs w-full" disabled={isSystem}>
+                            <option value="center">Center</option>
+                            <option value="top">Top</option>
+                            <option value="bottom">Bottom</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-base-content/40">Repeat</label>
+                          <select value={bg.imageRepeat || 'no-repeat'} onChange={e => updateBg({ imageRepeat: e.target.value })}
+                            className="select select-bordered select-xs w-full" disabled={isSystem}>
+                            <option value="no-repeat">No Repeat</option>
+                            <option value="repeat">Repeat</option>
+                            <option value="repeat-x">Repeat X</option>
+                            <option value="repeat-y">Repeat Y</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-base-content/40">Attachment</label>
+                          <select value={bg.imageAttachment || 'scroll'} onChange={e => updateBg({ imageAttachment: e.target.value })}
+                            className="select select-bordered select-xs w-full" disabled={isSystem}>
+                            <option value="scroll">Scroll</option>
+                            <option value="fixed">Fixed</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-base-content/40">Image Opacity ({Math.round((bg.imageOpacity ?? 1) * 100)}%)</label>
+                        <input type="range" min="0" max="100" value={Math.round((bg.imageOpacity ?? 1) * 100)}
+                          onChange={e => updateBg({ imageOpacity: parseInt(e.target.value) / 100 })}
+                          className="range range-xs range-primary w-full" disabled={isSystem} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Gradient Overlay */}
+                  {bgTab === 'gradient' && (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={bg.gradientEnabled || false}
+                          onChange={e => updateBg({ gradientEnabled: e.target.checked })}
+                          className="checkbox checkbox-xs checkbox-primary" disabled={isSystem} />
+                        <span className="text-[11px] text-base-content/60">Enable Gradient Overlay</span>
+                      </label>
+                      {bg.gradientEnabled && (
+                        <>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-[10px] text-base-content/40">From</label>
+                              <div className="flex gap-1 items-center">
+                                <input type="color" value={bg.gradientFrom || '#000000'}
+                                  onChange={e => updateBg({ gradientFrom: e.target.value })}
+                                  className="w-7 h-7 rounded cursor-pointer" disabled={isSystem} />
+                                <input type="text" value={bg.gradientFrom || '#000000'}
+                                  onChange={e => updateBg({ gradientFrom: e.target.value })}
+                                  className="input input-bordered input-xs flex-1 text-[10px] font-mono" disabled={isSystem} />
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[10px] text-base-content/40">To</label>
+                              <div className="flex gap-1 items-center">
+                                <input type="color" value={bg.gradientTo || '#ffffff'}
+                                  onChange={e => updateBg({ gradientTo: e.target.value })}
+                                  className="w-7 h-7 rounded cursor-pointer" disabled={isSystem} />
+                                <input type="text" value={bg.gradientTo || '#ffffff'}
+                                  onChange={e => updateBg({ gradientTo: e.target.value })}
+                                  className="input input-bordered input-xs flex-1 text-[10px] font-mono" disabled={isSystem} />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-base-content/40">Direction</label>
+                              <select value={bg.gradientDirection || 'to bottom'} onChange={e => updateBg({ gradientDirection: e.target.value })}
+                                className="select select-bordered select-xs w-full" disabled={isSystem}>
+                                <option value="to bottom">Top → Bottom</option>
+                                <option value="to top">Bottom → Top</option>
+                                <option value="to right">Left → Right</option>
+                                <option value="to left">Right → Left</option>
+                                <option value="to bottom right">Diagonal ↘</option>
+                                <option value="to bottom left">Diagonal ↙</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-base-content/40">Opacity ({Math.round((bg.gradientOpacity ?? 0.5) * 100)}%)</label>
+                              <input type="range" min="0" max="100" value={Math.round((bg.gradientOpacity ?? 0.5) * 100)}
+                                onChange={e => updateBg({ gradientOpacity: parseInt(e.target.value) / 100 })}
+                                className="range range-xs w-full" disabled={isSystem} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Preview */}
+                  <div className="rounded-lg h-20 border border-base-300/20 overflow-hidden relative">
+                    <div className="absolute inset-0" style={{ backgroundColor: bg.color || '#ffffff' }} />
+                    {bg.image && (
+                      <div className="absolute inset-0" style={{
+                        backgroundImage: `url(${bg.image})`,
+                        backgroundSize: bg.imageSize || 'cover',
+                        backgroundPosition: bg.imagePosition || 'center',
+                        backgroundRepeat: bg.imageRepeat || 'no-repeat',
+                        backgroundAttachment: bg.imageAttachment || 'scroll',
+                        opacity: bg.imageOpacity ?? 1,
+                      }} />
+                    )}
+                    {bg.gradientEnabled && (
+                      <div className="absolute inset-0" style={{
+                        background: `linear-gradient(${bg.gradientDirection || 'to bottom'}, ${bg.gradientFrom || '#000000'}, ${bg.gradientTo || '#ffffff'})`,
+                        opacity: bg.gradientOpacity ?? 0.5,
+                      }} />
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center text-[10px] text-base-content/40 font-medium">
+                      Preview
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             {tree.map(tier => (
               <TierSection key={tier.path} tier={tier} tokens={tokens} selectedPath={selectedPath}
                 onSelect={setSelectedPath} isSystem={isSystem}
