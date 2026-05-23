@@ -112,19 +112,26 @@ class DesignTokenGenerator
             if (!empty($bg['color'])) {
                 $css .= "  background-color: " . preg_replace('/[^a-zA-Z0-9#(),.\s%]/', '', $bg['color']) . ";\n";
             }
+            $css .= "  min-height: 100vh;\n  position: relative;\n";
+            $css .= "}\n";
+
+            // Background image via ::after (supports opacity without affecting content)
             if (!empty($bg['image'])) {
                 $src = $bg['image'];
-                // Only allow safe URL patterns
-                if (preg_match('#^(https?://|/)#', $src)) {
+                // Only allow safe URL patterns — block protocol-relative //
+                if (preg_match('#^(https?://|/[^/])#', $src)) {
+                    $imgOpacity = max(0, min(1, (float) ($bg['imageOpacity'] ?? 1)));
+                    $css .= "body::after {\n";
+                    $css .= "  content: '';\n  position: fixed;\n  inset: 0;\n  z-index: -2;\n  pointer-events: none;\n";
                     $css .= "  background-image: url('" . addcslashes($src, "'\\") . "');\n";
                     $css .= "  background-size: " . preg_replace('/[^a-z]/', '', $bg['imageSize'] ?? 'cover') . ";\n";
                     $css .= "  background-position: " . preg_replace('/[^a-z\s]/', '', $bg['imagePosition'] ?? 'center') . ";\n";
                     $css .= "  background-repeat: " . preg_replace('/[^a-z\-]/', '', $bg['imageRepeat'] ?? 'no-repeat') . ";\n";
                     $css .= "  background-attachment: " . preg_replace('/[^a-z]/', '', $bg['imageAttachment'] ?? 'scroll') . ";\n";
+                    $css .= "  opacity: {$imgOpacity};\n";
+                    $css .= "}\n";
                 }
             }
-            $css .= "  min-height: 100vh;\n";
-            $css .= "}\n";
 
             // Gradient overlay via ::before pseudo-element
             if (!empty($bg['gradientEnabled'])) {

@@ -31,6 +31,10 @@ Route::get('/media/{siteId}/{assetId}/{variant?}', function (string $siteId, str
             $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
             \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
         }
+        // Validate UUIDs to prevent injection
+        if (!preg_match('/^[0-9a-f\-]{36}$/', $siteId) || !preg_match('/^[0-9a-f\-]{36}$/', $assetId)) {
+            abort(404);
+        }
         $site = \App\Models\Site::findOrFail($siteId);
         $asset = \App\Models\Asset::where('site_id', $site->id)->findOrFail($assetId);
         return app(\App\Http\Controllers\Api\V1\AssetServeController::class)->serve($site, $asset, $variant);

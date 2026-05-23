@@ -42,7 +42,12 @@ class DeployService
         if ($site->custom_domain) {
             // Deploy to the domain's own public_html directory
             $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-            $domainPath = $tenantBase . '/' . $site->custom_domain . '/public_html';
+            // Sanitize domain — prevent path traversal
+            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
+            if (!$safeDomain || str_contains($safeDomain, '..')) {
+                throw new \RuntimeException("Invalid custom domain: {$site->custom_domain}");
+            }
+            $domainPath = $tenantBase . '/' . $safeDomain . '/public_html';
 
             if (!is_dir($domainPath)) {
                 throw new \RuntimeException("Deploy target does not exist: {$domainPath}. Create the domain in Hestia first.");

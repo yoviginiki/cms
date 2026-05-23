@@ -80,7 +80,8 @@ class PublishSiteJob implements ShouldQueue
             $deployTarget = null;
             if ($site->custom_domain) {
                 $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-                $deployTarget = $tenantBase . '/' . $site->custom_domain . '/public_html';
+                $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
+                $deployTarget = $tenantBase . '/' . $safeDomain . '/public_html';
             } else {
                 $deployTarget = config('publishing.public_path') . '/' . $site->slug;
             }

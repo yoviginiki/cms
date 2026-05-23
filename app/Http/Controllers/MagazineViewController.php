@@ -284,11 +284,7 @@ class MagazineViewController extends Controller
             ->first();
 
         if (!$site) {
-            $site = Site::first();
-        }
-
-        if (!$site) {
-            abort(404, 'No site found.');
+            abort(404, 'No site found for this domain.');
         }
 
         return $site;
