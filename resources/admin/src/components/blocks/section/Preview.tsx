@@ -61,28 +61,27 @@ export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
     zIndex: 1,
   };
 
-  // Apply size from layout panel
-  if (layout.width) outerStyle.width = layout.width;
-  if (layout.height) outerStyle.height = layout.height;
-  if (layout.minWidth) outerStyle.minWidth = layout.minWidth;
-  if (layout.minHeight) outerStyle.minHeight = layout.minHeight;
-  if (layout.maxHeight) outerStyle.maxHeight = layout.maxHeight;
-  if (layout.overflow) outerStyle.overflow = layout.overflow;
-  // Apply spacing panel margins
-  if (spacing.marginTop) outerStyle.marginTop = spacing.marginTop;
-  if (spacing.marginBottom) outerStyle.marginBottom = spacing.marginBottom;
-  if (spacing.marginLeft) outerStyle.marginLeft = spacing.marginLeft;
-  if (spacing.marginRight) outerStyle.marginRight = spacing.marginRight;
-  if (spacing.paddingLeft) outerStyle.paddingLeft = spacing.paddingLeft;
-  if (spacing.paddingRight) outerStyle.paddingRight = spacing.paddingRight;
+  // Apply size from layout panel (sanitized)
+  if (safeDim(layout.width)) outerStyle.width = safeDim(layout.width);
+  if (safeDim(layout.height)) outerStyle.height = safeDim(layout.height);
+  if (safeDim(layout.minWidth)) outerStyle.minWidth = safeDim(layout.minWidth);
+  if (safeDim(layout.minHeight)) outerStyle.minHeight = safeDim(layout.minHeight);
+  if (safeDim(layout.maxHeight)) outerStyle.maxHeight = safeDim(layout.maxHeight);
+  if (layout.overflow && layout.overflow !== 'visible') outerStyle.overflow = layout.overflow;
+  // Apply spacing panel margins (sanitized)
+  if (safeDim(spacing.marginTop)) outerStyle.marginTop = safeDim(spacing.marginTop);
+  if (safeDim(spacing.marginBottom)) outerStyle.marginBottom = safeDim(spacing.marginBottom);
+  if (safeDim(spacing.marginLeft)) outerStyle.marginLeft = safeDim(spacing.marginLeft);
+  if (safeDim(spacing.marginRight)) outerStyle.marginRight = safeDim(spacing.marginRight);
+  if (safeDim(spacing.paddingLeft)) outerStyle.paddingLeft = safeDim(spacing.paddingLeft);
+  if (safeDim(spacing.paddingRight)) outerStyle.paddingRight = safeDim(spacing.paddingRight);
 
-  // Apply visual (borders, shadow)
+  // Apply visual (borders, shadow — sanitized)
   const visual = (style as any).visual || {};
-  if (visual.borderRadius) outerStyle.borderRadius = visual.borderRadius;
-  if (visual.borderWidth) outerStyle.borderWidth = visual.borderWidth;
-  if (visual.borderColor) outerStyle.borderColor = visual.borderColor;
-  if (visual.borderStyle) outerStyle.borderStyle = visual.borderStyle;
-  if (visual.shadow) outerStyle.boxShadow = visual.shadow;
+  if (safeDim(visual.borderRadius)) outerStyle.borderRadius = safeDim(visual.borderRadius);
+  if (safeDim(visual.borderWidth)) outerStyle.borderWidth = safeDim(visual.borderWidth);
+  if (safeColor(visual.borderColor)) outerStyle.borderColor = safeColor(visual.borderColor);
+  if (visual.borderStyle && ['solid','dashed','dotted','none'].includes(visual.borderStyle)) outerStyle.borderStyle = visual.borderStyle;
 
   return (
     <div

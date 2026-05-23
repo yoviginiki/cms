@@ -1,6 +1,6 @@
 import type { BlockComponentProps } from '@/types/blocks';
 import { InlineTextField } from '@/components/editor/fields';
-import { resolveTextShadow } from '@/lib/blockStyles';
+import { resolveTextShadow, safeDim } from '@/lib/blockStyles';
 
 const sizeClassMap: Record<string, string> = {
   h1: 'text-4xl', h2: 'text-3xl', h3: 'text-2xl', h4: 'text-xl', h5: 'text-lg', h6: 'text-base',
@@ -38,22 +38,22 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
   const layout = (blockStyle as any).layout || {};
   const spacing = (blockStyle as any).spacing || {};
   const visual = (blockStyle as any).visual || {};
+  const sd = safeDim;
 
-  if (layout.width) style.width = layout.width;
-  if (layout.height) style.height = layout.height;
-  if (layout.minWidth) style.minWidth = layout.minWidth;
-  if (layout.minHeight) style.minHeight = layout.minHeight;
-  if (layout.maxWidth) style.maxWidth = layout.maxWidth;
-  if (layout.maxHeight) style.maxHeight = layout.maxHeight;
-  if (layout.overflow) style.overflow = layout.overflow as any;
-  if (spacing.paddingTop) style.paddingTop = spacing.paddingTop;
-  if (spacing.paddingBottom) style.paddingBottom = spacing.paddingBottom;
-  if (spacing.paddingLeft) style.paddingLeft = spacing.paddingLeft;
-  if (spacing.paddingRight) style.paddingRight = spacing.paddingRight;
-  if (spacing.marginTop) style.marginTop = spacing.marginTop;
-  if (spacing.marginBottom) style.marginBottom = spacing.marginBottom;
-  if (visual.borderRadius) style.borderRadius = visual.borderRadius;
-  if (visual.shadow) style.boxShadow = visual.shadow;
+  if (sd(layout.width)) style.width = sd(layout.width);
+  if (sd(layout.height)) style.height = sd(layout.height);
+  if (sd(layout.minWidth)) style.minWidth = sd(layout.minWidth);
+  if (sd(layout.minHeight)) style.minHeight = sd(layout.minHeight);
+  if (sd(layout.maxWidth)) style.maxWidth = sd(layout.maxWidth);
+  if (sd(layout.maxHeight)) style.maxHeight = sd(layout.maxHeight);
+  if (layout.overflow && layout.overflow !== 'visible') style.overflow = layout.overflow as any;
+  if (sd(spacing.paddingTop)) style.paddingTop = sd(spacing.paddingTop);
+  if (sd(spacing.paddingBottom)) style.paddingBottom = sd(spacing.paddingBottom);
+  if (sd(spacing.paddingLeft)) style.paddingLeft = sd(spacing.paddingLeft);
+  if (sd(spacing.paddingRight)) style.paddingRight = sd(spacing.paddingRight);
+  if (sd(spacing.marginTop)) style.marginTop = sd(spacing.marginTop);
+  if (sd(spacing.marginBottom)) style.marginBottom = sd(spacing.marginBottom);
+  if (sd(visual.borderRadius)) style.borderRadius = sd(visual.borderRadius);
 
   // Use Tailwind size class only when no custom fontSize is set
   const sizeClass = fontSize ? '' : (sizeClassMap[tag] || sizeClassMap.h2);
