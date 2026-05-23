@@ -650,8 +650,11 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     const cols = data.columnsInFrame || 1;
     const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
 
+    // Use FIXED height + column-fill:auto so CSS columns work properly:
+    // text fills left column up to frame height, then wraps to right column.
+    // scrollHeight > clientHeight means content overflows.
     measure.style.cssText = `position:fixed;top:-9999px;left:-9999px;visibility:hidden;
-      width:${visibleW}px;height:auto;overflow:visible;
+      width:${visibleW}px;height:${sourceElement.height}px;overflow:hidden;
       font-family:${typo?.fontFamily || 'Inter'};font-size:${typo?.fontSize || 14}px;
       font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};
       column-count:${cols};column-gap:${data.columnGap || 12}px;column-fill:auto;
@@ -672,14 +675,26 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       if (root.childNodes[i].nodeType === 1) allBlocks.push(root.childNodes[i] as HTMLElement);
     }
 
-    // Binary search: find exactly how many blocks fit in the source frame height
-    let fitCount = allBlocks.length; // default: all fit
+    // Check if content overflows: put ALL content in the fixed-height div
+    measure.innerHTML = sourceHtml;
+    const allFits = measure.scrollHeight <= measure.clientHeight + 2;
+    if (allFits) { measure.remove(); return; } // everything fits, nothing to pour
+
+    // Binary search: measure with column-fill:balance (no height) to find how many blocks fit.
+    // With balance + no height, scrollHeight = height of ONE balanced column.
+    // If scrollHeight <= frame.height, those blocks fit in the multi-column frame.
+    measure.style.height = 'auto';
+    measure.style.overflow = 'visible';
+    measure.style.columnFill = 'balance';
+
+    let fitCount = allBlocks.length;
     if (allBlocks.length >= 2) {
       let lo = 1, hi = allBlocks.length;
       fitCount = allBlocks.length;
       while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
         measure.innerHTML = allBlocks.slice(0, mid).map(b => b.outerHTML).join('');
+        // With balance, scrollHeight = balanced column height
         if (measure.scrollHeight <= sourceElement.height) {
           fitCount = mid;
           lo = mid + 1;
@@ -687,14 +702,13 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           hi = mid - 1;
         }
       }
-      // Ensure at least 1 block stays
       fitCount = Math.max(1, Math.min(fitCount, allBlocks.length - 1));
     }
     measure.remove();
 
     const keepHtml = allBlocks.slice(0, fitCount).map(b => b.outerHTML).join('');
     const moveHtml = allBlocks.slice(fitCount).map(b => b.outerHTML).join('');
-    if (!moveHtml) return; // everything fits, nothing to pour
+    if (!moveHtml) return;
 
     // ─── Find or create next page ───
     let pages = [...state.pages];
@@ -810,21 +824,15 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           const colGap = data.columnGap || 12;
           const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
 
-          measure.style.width = visibleW + 'px';
-          measure.style.height = 'auto'; // no height constraint — measure natural height
-          measure.style.overflow = 'visible';
-          measure.style.fontFamily = typo?.fontFamily || 'Inter';
-          measure.style.fontSize = (typo?.fontSize || 14) + 'px';
-          measure.style.fontWeight = String(typo?.fontWeight || 400);
-          measure.style.lineHeight = String(typo?.lineHeight || 1.5);
-          measure.style.columnCount = String(cols);
-          measure.style.columnGap = colGap + 'px';
-          measure.style.columnFill = 'auto';
-          measure.style.padding = `${inset.top || 0}px ${inset.right || 0}px ${inset.bottom || 0}px ${inset.left || 0}px`;
+          // First check: does content overflow with fixed height?
+          measure.style.cssText = `position:fixed;top:-9999px;left:-9999px;visibility:hidden;
+            width:${visibleW}px;height:${frame.height}px;overflow:hidden;
+            font-family:${typo?.fontFamily || 'Inter'};font-size:${(typo?.fontSize || 14)}px;
+            font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};
+            column-count:${cols};column-gap:${colGap}px;column-fill:auto;
+            padding:${inset.top || 0}px ${inset.right || 0}px ${inset.bottom || 0}px ${inset.left || 0}px;`;
           measure.innerHTML = html;
-
-          const naturalHeight = measure.scrollHeight;
-          const overflows = naturalHeight > frame.height + 4;
+          const overflows = measure.scrollHeight > measure.clientHeight + 2;
           if (!overflows) continue;
 
           // Text overflows — split and create continuation
@@ -845,7 +853,10 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           }
           if (allBlocks.length < 2) continue;
 
-          // Binary search: find how many blocks fit
+          // Binary search with column-fill:balance (no height) for accurate column measurement
+          measure.style.height = 'auto';
+          measure.style.overflow = 'visible';
+          measure.style.columnFill = 'balance';
           let lo = 1, hi = allBlocks.length - 1, fitCount = 1;
           while (lo <= hi) {
             const mid = Math.floor((lo + hi) / 2);
