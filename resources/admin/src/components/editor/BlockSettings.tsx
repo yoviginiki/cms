@@ -121,8 +121,8 @@ export function BlockSettings() {
           <VisualPanel value={style.visual || {}} onChange={v => updateStyle('visual', v)} hideBg />
         </Section>
 
-        {/* Layout */}
-        <Section title="Layout">
+        {/* Size & Layout */}
+        <Section title="Size & Layout">
           <LayoutPanel
             value={style.layout || {}}
             onChange={v => updateStyle('layout', v)}

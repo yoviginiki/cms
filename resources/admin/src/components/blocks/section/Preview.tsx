@@ -4,10 +4,13 @@ import { safeDim, safeColor } from '@/lib/blockStyles';
 
 export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, unknown>;
+  const style = block.style || {};
+  const layout = (style as any).layout || {};
+  const spacing = (style as any).spacing || {};
 
-  const paddingTop = safeDim(data.padding_top) || '2rem';
-  const paddingBottom = safeDim(data.padding_bottom) || '2rem';
-  const maxWidth = safeDim(data.max_width) || '1200px';
+  const paddingTop = safeDim(spacing.paddingTop) || safeDim(data.padding_top) || '2rem';
+  const paddingBottom = safeDim(spacing.paddingBottom) || safeDim(data.padding_bottom) || '2rem';
+  const maxWidth = safeDim(layout.maxWidth) || safeDim(data.max_width) || '1200px';
   const anchorId = (data.anchor_id as string) || '';
 
   // New px fields take priority; legacy padding preset as fallback only (matches Blade)
@@ -57,6 +60,29 @@ export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
     position: 'relative',
     zIndex: 1,
   };
+
+  // Apply size from layout panel
+  if (layout.width) outerStyle.width = layout.width;
+  if (layout.height) outerStyle.height = layout.height;
+  if (layout.minWidth) outerStyle.minWidth = layout.minWidth;
+  if (layout.minHeight) outerStyle.minHeight = layout.minHeight;
+  if (layout.maxHeight) outerStyle.maxHeight = layout.maxHeight;
+  if (layout.overflow) outerStyle.overflow = layout.overflow;
+  // Apply spacing panel margins
+  if (spacing.marginTop) outerStyle.marginTop = spacing.marginTop;
+  if (spacing.marginBottom) outerStyle.marginBottom = spacing.marginBottom;
+  if (spacing.marginLeft) outerStyle.marginLeft = spacing.marginLeft;
+  if (spacing.marginRight) outerStyle.marginRight = spacing.marginRight;
+  if (spacing.paddingLeft) outerStyle.paddingLeft = spacing.paddingLeft;
+  if (spacing.paddingRight) outerStyle.paddingRight = spacing.paddingRight;
+
+  // Apply visual (borders, shadow)
+  const visual = (style as any).visual || {};
+  if (visual.borderRadius) outerStyle.borderRadius = visual.borderRadius;
+  if (visual.borderWidth) outerStyle.borderWidth = visual.borderWidth;
+  if (visual.borderColor) outerStyle.borderColor = visual.borderColor;
+  if (visual.borderStyle) outerStyle.borderStyle = visual.borderStyle;
+  if (visual.shadow) outerStyle.boxShadow = visual.shadow;
 
   return (
     <div

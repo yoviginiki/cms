@@ -22,8 +22,6 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
   const textAlign = (data.textAlign as string) || '';
   const textShadow = resolveTextShadow(data.textShadow);
 
-  const hasCustomStyle = color || fontSize || fontWeight || lineHeight || letterSpacing || textTransform || textAlign || textShadow;
-
   const style: React.CSSProperties = {
     ...(fontSize ? { fontSize } : {}),
     ...(fontWeight ? { fontWeight } : {}),
@@ -35,6 +33,28 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
     ...(textShadow ? { textShadow } : {}),
   };
 
+  // Apply shared style properties from panels (spacing, layout, visual)
+  const blockStyle = block.style || {};
+  const layout = (blockStyle as any).layout || {};
+  const spacing = (blockStyle as any).spacing || {};
+  const visual = (blockStyle as any).visual || {};
+
+  if (layout.width) style.width = layout.width;
+  if (layout.height) style.height = layout.height;
+  if (layout.minWidth) style.minWidth = layout.minWidth;
+  if (layout.minHeight) style.minHeight = layout.minHeight;
+  if (layout.maxWidth) style.maxWidth = layout.maxWidth;
+  if (layout.maxHeight) style.maxHeight = layout.maxHeight;
+  if (layout.overflow) style.overflow = layout.overflow as any;
+  if (spacing.paddingTop) style.paddingTop = spacing.paddingTop;
+  if (spacing.paddingBottom) style.paddingBottom = spacing.paddingBottom;
+  if (spacing.paddingLeft) style.paddingLeft = spacing.paddingLeft;
+  if (spacing.paddingRight) style.paddingRight = spacing.paddingRight;
+  if (spacing.marginTop) style.marginTop = spacing.marginTop;
+  if (spacing.marginBottom) style.marginBottom = spacing.marginBottom;
+  if (visual.borderRadius) style.borderRadius = visual.borderRadius;
+  if (visual.shadow) style.boxShadow = visual.shadow;
+
   // Use Tailwind size class only when no custom fontSize is set
   const sizeClass = fontSize ? '' : (sizeClassMap[tag] || sizeClassMap.h2);
 
@@ -45,7 +65,7 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
       placeholder="Add heading"
       onChange={(v) => onUpdate({ ...block.data, text: v })}
       className={`${sizeClass} font-bold block`}
-      style={hasCustomStyle ? style : undefined}
+      style={style}
     />
   );
 };
