@@ -167,7 +167,7 @@ class DynamicSiteController extends Controller
   <a href="/admin/sites/{$site->id}" target="_blank" style="padding:4px 12px;background:#334155;color:#94a3b8;border-radius:6px;text-decoration:none;font-size:12px;">Dashboard</a>
   <span style="color:#64748b;font-size:11px;">{$user?->name}</span>
 </div>
-<style>#cms-toolbar ~ *:first-of-type, body > :not(#cms-toolbar):first-child { margin-top: 40px !important; } .site-grid-wrap, .site-grid { margin-top: 0 !important; } body { padding-top: 40px; }</style>
+<style>body { padding-top: 40px; }</style>
 HTML;
     }
 
