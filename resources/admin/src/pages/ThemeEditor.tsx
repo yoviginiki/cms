@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Download, Sun, Moon, ChevronRight, Info, History, RotateCcw } from 'lucide-react';
 import { api, themeEngine } from '@/lib/api';
 import { FontPicker } from '@/components/editor/fields/FontPicker';
+import { AssetField } from '@/components/ui/AssetPicker';
 
 // ═══════════════════════════════════════════
 // Token descriptions — explains what each token does and where it's used
@@ -325,11 +326,18 @@ export default function ThemeEditor() {
                   {/* Image */}
                   {bgTab === 'image' && (
                     <div className="space-y-2">
-                      <label className="text-[10px] text-base-content/40">Background Image URL</label>
-                      <input type="text" value={bg.image || ''}
-                        onChange={e => updateBg({ image: e.target.value })}
-                        placeholder="/assets/files/... or https://..."
-                        className="input input-bordered input-sm w-full text-xs" disabled={isSystem} />
+                      <label className="text-[10px] text-base-content/40">Background Image</label>
+                      {!isSystem ? (
+                        <AssetField
+                          label=""
+                          value={bg.image || ''}
+                          onChange={(url) => updateBg({ image: url })}
+                          accept="image"
+                        />
+                      ) : (
+                        <input type="text" value={bg.image || ''} disabled
+                          className="input input-bordered input-sm w-full text-xs" />
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="text-[10px] text-base-content/40">Size</label>
