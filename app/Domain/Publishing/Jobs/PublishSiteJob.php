@@ -16,6 +16,7 @@ use App\Events\DeploymentProgressEvent;
 use App\Models\Deployment;
 use App\Models\Grid;
 use App\Models\Page;
+use App\Models\Site;
 use App\Models\PageVersion;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
