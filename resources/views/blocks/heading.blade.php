@@ -33,7 +33,10 @@
     $fontFamily = BlockStyle::safeCssVal($typo['fontFamily'] ?? '') ?: 'var(--font-heading,inherit)';
     $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
     $textShadow = $tsShadowPresets[$data['textShadow'] ?? ''] ?? '';
+    $linkUrl = BlockStyle::safeCssVal($data['linkUrl'] ?? '');
+    $linkTarget = in_array($data['linkTarget'] ?? '', ['_self', '_blank']) ? ($data['linkTarget'] ?? '_self') : '_self';
+    $hasLink = !empty($linkUrl) && ($data['linkType'] ?? 'none') !== 'none';
 @endphp
-<{{ $level }} style="margin:0;font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:{{ $fontFamily }};line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif @if($textShadow)text-shadow:{{ $textShadow }};@endif">{{ $data['text'] ?? '' }}</{{ $level }}>
+<{{ $level }} style="margin:0;font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:{{ $fontFamily }};line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif @if($textShadow)text-shadow:{{ $textShadow }};@endif">@if($hasLink)<a href="{{ e($linkUrl) }}" target="{{ $linkTarget }}" style="color:inherit;text-decoration:none;" rel="noopener">@endif{{ $data['text'] ?? '' }}@if($hasLink)</a>@endif</{{ $level }}>
 
 </div>

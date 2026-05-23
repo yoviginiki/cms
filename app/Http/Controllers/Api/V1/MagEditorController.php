@@ -20,6 +20,8 @@ class MagEditorController extends Controller
      */
     public function show(Site $site, Page $page): JsonResponse
     {
+        abort_if($page->site_id !== $site->id, 404);
+        $this->authorize('view', $page);
         $doc = $this->service->getDocument($page);
 
         return response()->json(['data' => $doc]);
@@ -30,6 +32,8 @@ class MagEditorController extends Controller
      */
     public function sync(Request $request, Site $site, Page $page): JsonResponse
     {
+        abort_if($page->site_id !== $site->id, 404);
+        $this->authorize('update', $page);
         $request->validate([
             'pages' => 'required|array',
             'pages.*.page_number' => 'required|integer',
