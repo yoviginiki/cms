@@ -722,11 +722,19 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     // ─── Calculate continuation position avoiding fixed images ───
     const mg = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
     let contY = mg.top || 36;
-    const fixedImages = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
     const tPageW = targetPage.pageSize?.width || 595;
     const tPageH = targetPage.pageSize?.height || 842;
     const contX = mg.left || 36;
     const contWidth = tPageW - (mg.left || 36) - (mg.right || 36);
+
+    // Check fixed images on target page
+    const fixedImages = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
+    // Also check spread images from previous page (they span into target page visually)
+    const prevPage = contentPages[contentPages.findIndex(p => p.pageNumber === nextPageNumber) - 1];
+    if (prevPage) {
+      const spreadFromPrev = prevPage.elements.filter(e => e.positionMode === 'fixed' && e.spanMode === 'spread' && e.visible);
+      fixedImages.push(...spreadFromPrev);
+    }
 
     for (const fixed of fixedImages) {
       const fixedBottom = fixed.y + fixed.height + 8;
@@ -879,12 +887,21 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
             contentPages.push(targetPage);
           }
 
-          // Create continuation frame
+          // Create continuation frame — avoid fixed/spread images
           const margins = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
           const tPageW = targetPage.pageSize?.width || 595;
           const tPageH = targetPage.pageSize?.height || 842;
           const contW = tPageW - (margins.left || 36) - (margins.right || 36);
-          const contH = tPageH - (margins.top || 36) - (margins.bottom || 36);
+          let contStartY = margins.top || 36;
+          // Check fixed images on target + spread images from previous page
+          const fixedOnTarget = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
+          const prevCp = contentPages[contentPages.findIndex(p => p.pageNumber === nextPageNum) - 1];
+          if (prevCp) fixedOnTarget.push(...prevCp.elements.filter(e => e.positionMode === 'fixed' && e.spanMode === 'spread' && e.visible));
+          for (const fx of fixedOnTarget) {
+            const fxBottom = fx.y + fx.height + 8;
+            if (contStartY < fxBottom) contStartY = fxBottom;
+          }
+          const contH = Math.max(100, tPageH - contStartY - (margins.bottom || 36));
           const threadId = frame.threadId || crypto.randomUUID();
           const contId = crypto.randomUUID();
 
@@ -893,7 +910,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
             id: contId,
             pageNumber: nextPageNum,
             x: margins.left || 36,
-            y: margins.top || 36,
+            y: contStartY,
             width: contW,
             height: contH,
             threadId,
