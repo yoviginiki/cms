@@ -498,44 +498,46 @@ export default function DtpEditorBeta() {
   };
 
   // ─── Loading / Error states ───
-  // Listen for clicks on inline images inside contentEditable
+  // Listen for clicks on inline images inside contentEditable (only when editing)
   useEffect(() => {
+    if (!canvasEditingId) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'IMG' && target.closest('[data-editing-id]')) {
-        e.preventDefault();
-        e.stopPropagation();
         setSelectedInlineImg(target as HTMLImageElement);
-      } else if (selectedInlineImg && !target.closest('.inline-img-panel')) {
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [canvasEditingId]);
+
+  // Clear inline image selection when exiting edit mode or clicking elsewhere
+  useEffect(() => {
+    if (!canvasEditingId) { setSelectedInlineImg(null); return; }
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (selectedInlineImg && target.tagName !== 'IMG' && !target.closest('.inline-img-panel')) {
         setSelectedInlineImg(null);
       }
     };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  }, [selectedInlineImg]);
-
-  // Clear inline image selection when exiting edit mode
-  useEffect(() => {
-    if (!canvasEditingId) setSelectedInlineImg(null);
-  }, [canvasEditingId]);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [canvasEditingId, selectedInlineImg]);
 
   // Helper to update inline image style
   const updateInlineImgStyle = (updates: Record<string, string>) => {
-    if (!selectedInlineImg) return;
+    if (!selectedInlineImg || !selectedInlineImg.isConnected) return;
     Object.entries(updates).forEach(([k, v]) => { selectedInlineImg.style[k as any] = v; });
     store.setDirty(true);
   };
 
   // Add selection outline to selected inline image
   useEffect(() => {
-    if (selectedInlineImg) {
+    if (selectedInlineImg && selectedInlineImg.isConnected) {
       selectedInlineImg.style.outline = '2px solid #3b82f6';
       selectedInlineImg.style.outlineOffset = '2px';
       return () => {
-        if (selectedInlineImg) {
-          selectedInlineImg.style.outline = '';
-          selectedInlineImg.style.outlineOffset = '';
-        }
+        try { selectedInlineImg.style.outline = ''; selectedInlineImg.style.outlineOffset = ''; } catch(_) {}
       };
     }
   }, [selectedInlineImg]);
