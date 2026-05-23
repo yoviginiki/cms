@@ -200,6 +200,11 @@ export default function PageEditor() {
   async function handleSave() {
     setSaving(true);
     try {
+      // Save page appearance FIRST (before block sync which may trigger refetch)
+      if (pageMetaRef.current) {
+        await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current });
+      }
+
       if (editorMode === 'magazine' || page?.editor_mode === 'magazine') {
         // Save magazine/canvas data
         const pages = magStore.pages.map(p => ({
@@ -240,10 +245,6 @@ export default function PageEditor() {
         // Save block data + raw HTML
         const rawHtml = useEditorStore.getState().rawHtml;
         await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
-      }
-      // Also save page appearance/settings if changed
-      if (pageMetaRef.current) {
-        await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current });
       }
       setDirty(false);
     } catch (err) {
@@ -824,8 +825,13 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
 }) {
   const [saving, setSaving] = useState(false);
   const [localMeta, setLocalMeta] = useState<Record<string, any>>(page?.seo_meta || {});
+  const metaDirtyRef = useRef(false);
+  // Reset dirty flag when parent save completes
+  const parentDirty = useEditorStore((s) => s.isDirty);
+  useEffect(() => { if (!parentDirty) metaDirtyRef.current = false; }, [parentDirty]);
   useEffect(() => {
-    if (page?.seo_meta) {
+    // Only sync from server if we don't have pending local changes
+    if (page?.seo_meta && !metaDirtyRef.current) {
       setLocalMeta(page.seo_meta);
       if (metaRef) metaRef.current = page.seo_meta;
     }
@@ -835,8 +841,8 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
     if (field === 'seo_meta') {
       const meta = value as Record<string, any>;
       setLocalMeta(meta);
-      // Update ref IMMEDIATELY so Save button can read it
       if (metaRef) metaRef.current = meta;
+      metaDirtyRef.current = true; // Prevent server refetch from overwriting
       if (onDirty) onDirty();
     }
     // Non-appearance fields save immediately
