@@ -55,6 +55,7 @@ export default function PageEditor() {
   const setDirty = useEditorStore((s) => s.setDirty);
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
+  const pageMetaRef = useRef<Record<string, any> | null>(null);
 
   const { data: siteData } = useQuery<any>({
     queryKey: ['site', siteId],
@@ -240,6 +241,10 @@ export default function PageEditor() {
         const rawHtml = useEditorStore.getState().rawHtml;
         await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
       }
+      // Also save page appearance/settings if changed
+      if (pageMetaRef.current) {
+        await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current });
+      }
       setDirty(false);
     } catch (err) {
       console.error('Save failed:', err);
@@ -359,7 +364,8 @@ export default function PageEditor() {
                 <BuilderCanvas />
               </div>
               <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
-                layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''} />
+                layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''}
+                metaRef={pageMetaRef} onDirty={() => setDirty(true)} />
             </div>
           </BuilderDndProvider>
         ) : (
@@ -703,9 +709,11 @@ export default function PageEditor() {
 // ═══════════════════════════════════════════
 // Page Editor Sidebar — Page settings + Block settings + Add blocks
 // ═══════════════════════════════════════════
-function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug }: {
+function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug, metaRef, onDirty }: {
   page: any; siteId: string; pageId: string;
   layouts: any[]; publicBase: string; siteSlug: string;
+  metaRef?: React.MutableRefObject<Record<string, any> | null>;
+  onDirty?: () => void;
 }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add' | 'seo' | 'history'>('page');
@@ -736,7 +744,8 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'page' && (
           <PageSettingsPanel page={page} siteId={siteId} pageId={pageId}
-            layouts={layouts} publicBase={publicBase} siteSlug={siteSlug} />
+            layouts={layouts} publicBase={publicBase} siteSlug={siteSlug}
+            metaRef={metaRef} onDirty={onDirty} />
         )}
         {activeTab === 'block' && <BlockSettings />}
         {activeTab === 'add' && <BlockPicker />}
@@ -807,28 +816,36 @@ function PageThemePicker({ siteId, pageId }: { siteId: string; pageId: string })
   );
 }
 
-function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug }: {
+function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug, metaRef, onDirty }: {
   page: any; siteId: string; pageId: string;
   layouts: any[]; publicBase: string; siteSlug: string;
+  metaRef?: React.MutableRefObject<Record<string, any> | null>;
+  onDirty?: () => void;
 }) {
   const [saving, setSaving] = useState(false);
-  // Local state for seo_meta to make changes immediately visible in panels
   const [localMeta, setLocalMeta] = useState<Record<string, any>>(page?.seo_meta || {});
   useEffect(() => { if (page?.seo_meta) setLocalMeta(page.seo_meta); }, [page?.seo_meta]);
 
+  // Keep ref in sync so parent Save can read it
+  useEffect(() => { if (metaRef) metaRef.current = localMeta; }, [localMeta, metaRef]);
+
   const saveSetting = async (field: string, value: unknown) => {
-    // Update local state immediately for reactive UI
     if (field === 'seo_meta') {
       setLocalMeta(value as Record<string, any>);
+      if (onDirty) onDirty(); // Mark editor as dirty so Save button activates
     }
-    setSaving(true);
-    try {
-      await pagesApi.update(siteId, pageId, { [field]: value });
-    } catch (e) {
-      console.error('Save failed:', e);
-    } finally {
-      setSaving(false);
+    // Non-appearance fields save immediately (title, slug, status, layout)
+    if (field !== 'seo_meta') {
+      setSaving(true);
+      try {
+        await pagesApi.update(siteId, pageId, { [field]: value });
+      } catch (e) {
+        console.error('Save failed:', e);
+      } finally {
+        setSaving(false);
+      }
     }
+    // seo_meta is saved by the main Save button via metaRef
   };
 
   return (
