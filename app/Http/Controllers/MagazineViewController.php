@@ -207,6 +207,10 @@ class MagazineViewController extends Controller
      */
     public function showDtpIssue(string $issueId)
     {
+        // Validate UUID format
+        if (!preg_match('/^[0-9a-f\-]{36}$/', $issueId)) {
+            abort(404);
+        }
         // Set tenant context first (RLS requires it before any query)
         $site = $this->resolveSite();
 

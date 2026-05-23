@@ -311,7 +311,9 @@ class DtpRenderService
         $r = round((float) $frame->rotation);
         $z = (int) $frame->z_index;
         $type = is_string($frame->frame_type) ? $frame->frame_type : ($frame->frame_type->value ?? 'text');
-        $overflow = 'hidden';
+        // Spread images need overflow:visible to extend beyond page; all others hidden
+        $spanMode = $frame->metadata['spanMode'] ?? 'page';
+        $overflow = ($spanMode === 'spread') ? 'visible' : 'hidden';
 
         $style = "position:absolute;left:{$x}px;top:{$y}px;width:{$w}px;height:{$h}px;z-index:{$z};overflow:{$overflow};";
         if ($r !== 0) {
@@ -325,7 +327,7 @@ class DtpRenderService
         $w = max(1, (int) $page->width);
         $h = max(1, (int) $page->height);
         $bg = BlockStyle::safeColor($page->background['color'] ?? '#ffffff') ?: '#ffffff';
-        $overflow = $hasSpreadImage ? 'visible' : 'hidden';
-        return "position:relative;width:{$w}px;height:{$h}px;background:{$bg};overflow:{$overflow};";
+        // Always clip page content — spread images use their own overflow:visible on the frame
+        return "position:relative;width:{$w}px;height:{$h}px;background:{$bg};overflow:hidden;";
     }
 }

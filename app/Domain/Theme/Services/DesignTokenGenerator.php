@@ -100,7 +100,7 @@ class DesignTokenGenerator
             if (is_array($value)) $value = implode(', ', $value);
             // Sanitize: strip characters that could break out of CSS declarations
             $safeKey = preg_replace('/[^a-zA-Z0-9\-_]/', '', $key);
-            $safeValue = preg_replace('/[{}<>]/', '', (string) $value);
+            $safeValue = preg_replace('/[{}<>;\\\\]/', '', (string) $value);
             $css .= "  --{$safeKey}: {$safeValue};\n";
         }
         $css .= "}\n";
