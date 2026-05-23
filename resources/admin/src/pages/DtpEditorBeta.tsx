@@ -430,7 +430,8 @@ export default function DtpEditorBeta() {
       if (editableEl) {
         const editId = editableEl.getAttribute('data-editing-id');
         if (editId) {
-          const html = editableEl.innerHTML;
+          const DOMPurify = (await import('dompurify')).default;
+          const html = DOMPurify.sanitize(editableEl.innerHTML, { ALLOWED_TAGS: ['p','br','b','i','u','em','strong','span','a','h1','h2','h3','h4','h5','h6','ul','ol','li','blockquote','sub','sup','hr','div','img'], ALLOWED_ATTR: ['href','target','rel','class','style','src','alt','width','height'], ALLOW_DATA_ATTR: false });
           const el = useMagazineStore.getState().pages.flatMap(p => p.elements).find(e => e.id === editId);
           if (el) store.updateElement(editId, { data: { ...el.data, content: html } } as any);
         }
@@ -1221,9 +1222,12 @@ export default function DtpEditorBeta() {
               if (sel) { sel.removeAllRanges(); sel.addRange(savedSel); }
             } catch (_) {}
           }
-          // Insert image with float and resize handles via CSS
-          const imgHtml = `<img src="${asset.url}" alt="${asset.filename || ''}" style="float:left;width:40%;max-width:100%;height:auto;margin:0 12px 8px 0;border-radius:4px;" />`;
-          document.execCommand('insertHTML', false, imgHtml);
+          // Insert image — use DOM API for safe attribute escaping
+          const img = document.createElement('img');
+          img.src = asset.url;
+          img.alt = asset.filename || '';
+          img.style.cssText = 'float:left;width:40%;max-width:100%;height:auto;margin:0 12px 8px 0;border-radius:4px;';
+          document.execCommand('insertHTML', false, img.outerHTML);
           store.setDirty(true);
         }}
         accept="image"
