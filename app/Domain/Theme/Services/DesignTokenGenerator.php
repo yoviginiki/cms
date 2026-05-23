@@ -92,11 +92,11 @@ class DesignTokenGenerator
             $tokens = array_merge($tokens, $docTokens);
         }
 
-        // Custom font @font-face rules (must come before everything)
-        $css = $this->generateCustomFontFaces($site);
+        // Google Font @import must come first per CSS spec
+        $css = $this->generateFontImports($tokens);
 
-        // Font imports must come before style rules per CSS spec
-        $css .= $this->generateFontImports($tokens);
+        // Custom font @font-face rules (after @import, before :root)
+        $css .= $this->generateCustomFontFaces($site);
 
         $css .= ":root {\n";
         foreach ($tokens as $key => $value) {
@@ -222,12 +222,13 @@ class DesignTokenGenerator
 
             if (!$family || !$filename) continue;
 
-            // Use relative path for static site (fonts are copied during publish)
+            // Static site: /fonts/{filename}. Dynamic preview: /fonts/{siteId}/{filename}
+            $siteId = $site->id;
             $css .= "@font-face {\n";
             $css .= "  font-family: '{$family}';\n";
             $css .= "  font-weight: {$weight};\n";
             $css .= "  font-style: {$fontStyle};\n";
-            $css .= "  src: url('/fonts/{$filename}') format('{$format}');\n";
+            $css .= "  src: url('/fonts/{$filename}') format('{$format}'), url('/fonts/{$siteId}/{$filename}') format('{$format}');\n";
             $css .= "  font-display: swap;\n";
             $css .= "}\n";
         }

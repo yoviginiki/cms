@@ -27,7 +27,7 @@ class CustomFontController extends Controller
     {
         $request->validate([
             'font' => ['required', 'file', 'max:5120', 'mimes:ttf,woff,woff2,otf'],
-            'family' => ['required', 'string', 'max:100'],
+            'family' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9\s\-]+$/'],
             'weight' => ['sometimes', 'integer', 'min:100', 'max:900'],
             'style' => ['sometimes', 'string', 'in:normal,italic'],
         ]);
