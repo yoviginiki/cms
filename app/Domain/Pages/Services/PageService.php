@@ -24,6 +24,11 @@ class PageService
             $data['slug'] = $this->generateUniqueSlug($data['slug'], $page->site, $page->id);
         }
 
+        // Merge seo_meta instead of replacing — prevents losing fields
+        if (isset($data['seo_meta']) && is_array($data['seo_meta'])) {
+            $data['seo_meta'] = array_merge($page->seo_meta ?? [], $data['seo_meta']);
+        }
+
         $page->update($data);
 
         return $page->fresh();

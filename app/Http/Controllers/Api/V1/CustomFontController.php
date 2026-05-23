@@ -25,6 +25,7 @@ class CustomFontController extends Controller
      */
     public function store(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $request->validate([
             'font' => ['required', 'file', 'max:5120'],
             'family' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9\s\-]+$/'],
@@ -84,6 +85,7 @@ class CustomFontController extends Controller
      */
     public function destroy(Request $request, Site $site, string $fontId): JsonResponse
     {
+        $this->authorize('update', $site);
         $settings = $site->settings ?? [];
         $fonts = $settings['custom_fonts'] ?? [];
 
