@@ -120,6 +120,7 @@ export default function ThemeEditor() {
   const [editDoc, setEditDoc] = useState<Record<string, unknown> | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: theme, isLoading } = useQuery<any>({
     queryKey: ['theme-detail', siteId, themeId],
@@ -197,7 +198,18 @@ export default function ThemeEditor() {
     return base;
   }, [resolved, editDoc]);
 
-  const tree = buildTree(editDoc || theme?.document || {});
+  const fullTree = buildTree(editDoc || theme?.document || {});
+  // Filter tree by search query
+  const tree = searchQuery ? fullTree.map(tier => ({
+    ...tier,
+    children: tier.children?.filter((node: any) => {
+      const q = searchQuery.toLowerCase();
+      const info = TOKEN_INFO[node.path];
+      return node.path.toLowerCase().includes(q)
+        || (info?.label || '').toLowerCase().includes(q)
+        || (info?.desc || '').toLowerCase().includes(q);
+    }),
+  })).filter(tier => (tier.children?.length || 0) > 0) : fullTree;
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>;
@@ -226,7 +238,7 @@ export default function ThemeEditor() {
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium ${mode === 'light' ? 'bg-base-100 shadow-sm' : 'text-base-content/40'}`}>
               <Sun size={12} /> Light
             </button>
-            <button onClick={() => setMode('dark')}
+            <button onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium ${mode === 'dark' ? 'bg-base-100 shadow-sm' : 'text-base-content/40'}`}>
               <Moon size={12} /> Dark
             </button>
@@ -259,6 +271,16 @@ export default function ThemeEditor() {
         {/* Left: All tokens as a flat editable list grouped by category */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="max-w-3xl mx-auto space-y-6">
+            {/* Search */}
+            <div className="sticky top-0 z-10 bg-base-200/80 backdrop-blur-sm pb-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search tokens... (background, font, color, border)"
+                className="input input-bordered input-sm w-full text-xs"
+              />
+            </div>
             {tree.map(tier => (
               <TierSection key={tier.path} tier={tier} tokens={tokens} selectedPath={selectedPath}
                 onSelect={setSelectedPath} isSystem={isSystem}
