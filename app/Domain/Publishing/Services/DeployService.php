@@ -31,15 +31,26 @@ class DeployService
 
     /**
      * Deploy locally (copy/symlink to public_path).
+     *
+     * For custom_domain sites: deploy to /home/cytechno/web/{domain}/public_html/
+     * For slug-based sites: deploy to {public_path}/{slug}/
      */
     private function deployLocal(Deployment $deployment, string $stagingPath): void
     {
         $site = $deployment->site;
-        $basePath = config('publishing.public_path');
 
         if ($site->custom_domain) {
-            $this->copyDeploy($stagingPath, $basePath, $deployment);
+            // Deploy to the domain's own public_html directory
+            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
+            $domainPath = $tenantBase . '/' . $site->custom_domain . '/public_html';
+
+            if (!is_dir($domainPath)) {
+                throw new \RuntimeException("Deploy target does not exist: {$domainPath}. Create the domain in Hestia first.");
+            }
+
+            $this->copyDeploy($stagingPath, $domainPath, $deployment);
         } else {
+            $basePath = config('publishing.public_path');
             $publicPath = $basePath . '/' . $site->slug;
             $strategy = $this->resolveLocalStrategy();
             $strategy->deploy($stagingPath, $publicPath, $deployment);

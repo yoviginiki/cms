@@ -3,6 +3,7 @@
 namespace App\Domain\Publishing\Jobs;
 
 use App\Domain\Grid\Services\GridRenderer;
+use App\Domain\Publishing\Services\AssetPublisher;
 use App\Domain\Publishing\Services\BuildPageService;
 use App\Domain\Publishing\Services\DeployService;
 use App\Domain\Publishing\Services\SeoService;
@@ -74,6 +75,17 @@ class PublishSiteJob implements ShouldQueue
         try {
             $this->updateStatus('building', 'Starting build...');
             File::ensureDirectoryExists($stagingPath);
+
+            // Set asset deploy target for this site's domain
+            $deployTarget = null;
+            if ($site->custom_domain) {
+                $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
+                $deployTarget = $tenantBase . '/' . $site->custom_domain . '/public_html';
+            } else {
+                $deployTarget = config('publishing.public_path') . '/' . $site->slug;
+            }
+            AssetPublisher::reset();
+            AssetPublisher::setDeployTarget($deployTarget);
 
             // Compile theme CSS artifacts (before page rendering)
             $this->compileThemeArtifacts($site, $stagingPath);

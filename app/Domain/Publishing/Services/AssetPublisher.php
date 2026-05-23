@@ -12,6 +12,16 @@ use Illuminate\Support\Facades\Storage;
 class AssetPublisher
 {
     private static array $published = [];
+    private static ?string $deployTarget = null;
+
+    /**
+     * Set the deploy target path for asset publishing.
+     * Called by PublishSiteJob before building pages.
+     */
+    public static function setDeployTarget(?string $path): void
+    {
+        self::$deployTarget = $path;
+    }
 
     /**
      * Resolve an asset ID or API URL to a static public URL.
@@ -48,8 +58,9 @@ class AssetPublisher
         $hash = $asset->checksum ?: md5($asset->id);
         $publicPath = "/assets/files/{$hash}.{$ext}";
 
-        // Copy to public_html
-        $fullPath = base_path('../../public_html' . $publicPath);
+        // Copy to deploy target (public_html of the correct domain)
+        $targetBase = self::$deployTarget ?: base_path('../../public_html');
+        $fullPath = $targetBase . $publicPath;
         $dir = dirname($fullPath);
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
@@ -86,5 +97,6 @@ class AssetPublisher
     public static function reset(): void
     {
         self::$published = [];
+        self::$deployTarget = null;
     }
 }
