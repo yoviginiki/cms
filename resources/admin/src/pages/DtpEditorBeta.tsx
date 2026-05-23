@@ -425,11 +425,23 @@ export default function DtpEditorBeta() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       setSaveError(null);
+      // Flush any active contentEditable before save
+      const editableEl = document.querySelector('[data-editing-id]') as HTMLElement;
+      if (editableEl) {
+        const editId = editableEl.getAttribute('data-editing-id');
+        if (editId) {
+          const html = editableEl.innerHTML;
+          const el = useMagazineStore.getState().pages.flatMap(p => p.elements).find(e => e.id === editId);
+          if (el) store.updateElement(editId, { data: { ...el.data, content: html } } as any);
+        }
+      }
       // Auto-flow overflowing text to next pages before save
       store.autoFlowText();
       // Read fresh state after autoFlowText modified pages
       const freshState = useMagazineStore.getState();
-      const payload = pagesToDtpApi(freshState.pages, apiLayers, apiAssetRefs, freshState.issueSettings, viewerSettings);
+      // Filter out master pages — they're editor-only, not saved to API
+      const contentPages = freshState.pages.filter(p => !p.isMaster);
+      const payload = pagesToDtpApi(contentPages, apiLayers, apiAssetRefs, freshState.issueSettings, viewerSettings);
       await dtpDesigner.saveDocument(siteId, issueId, payload);
     },
     onSuccess: () => {

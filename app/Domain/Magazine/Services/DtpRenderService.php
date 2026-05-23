@@ -183,14 +183,26 @@ class DtpRenderService
         $content = is_array($frame->content) ? $frame->content : [];
         $type = $frame->frame_type->value ?? (string) $frame->frame_type;
 
-        // Build frame style — add columns/padding directly for text frames
+        // Build frame style — add typography/columns/padding for text frames
         $style = $this->buildFrameStyle($frame);
         if (in_array($type, ['text', 'quote'])) {
+            $metadata = is_array($frame->metadata) ? $frame->metadata : [];
+            $typo = $metadata['_typography'] ?? [];
+            // Typography
+            if (!empty($typo['fontFamily'])) $style .= "font-family:" . preg_replace('/[^a-zA-Z0-9\s,\-]/', '', $typo['fontFamily']) . ";";
+            if (!empty($typo['fontSize'])) $style .= "font-size:" . ((int)$typo['fontSize']) . "px;";
+            if (!empty($typo['fontWeight'])) $style .= "font-weight:" . ((int)$typo['fontWeight']) . ";";
+            if (!empty($typo['lineHeight'])) $style .= "line-height:" . ((float)$typo['lineHeight']) . ";";
+            if (!empty($typo['textAlign'])) $style .= "text-align:" . preg_replace('/[^a-z]/', '', $typo['textAlign']) . ";";
+            if (!empty($typo['textColor'])) $style .= "color:" . preg_replace('/[^a-zA-Z0-9#(),.\s]/', '', $typo['textColor']) . ";";
+            if (!empty($typo['letterSpacing'])) $style .= "letter-spacing:" . ((float)$typo['letterSpacing']) . "em;";
+            // Columns
             $cols = (int) ($content['columnsInFrame'] ?? 1);
             if ($cols > 1 && $cols <= 6) {
                 $gap = (int) ($content['columnGap'] ?? 12);
                 $style .= "column-count:{$cols};column-gap:{$gap}px;column-fill:auto;";
             }
+            // Padding
             $inset = $content['textInset'] ?? null;
             if (is_array($inset)) {
                 $t = (int) ($inset['top'] ?? 0); $r = (int) ($inset['right'] ?? 0);

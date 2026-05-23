@@ -210,7 +210,10 @@ class MagazineViewController extends Controller
         // Set tenant context first (RLS requires it before any query)
         $site = $this->resolveSite();
 
-        $issue = MagazineIssue::where('id', $issueId)->firstOrFail();
+        $issue = MagazineIssue::where('id', $issueId)
+            ->where('site_id', $site->id)
+            ->where('status', 'published')
+            ->firstOrFail();
 
         // Use DtpRenderService for server-side HTML rendering
         $renderService = app(\App\Domain\Magazine\Services\DtpRenderService::class);
