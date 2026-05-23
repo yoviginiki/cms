@@ -21,9 +21,17 @@ class UpdatePageRequest extends FormRequest
             'editor_mode' => ['sometimes', 'in:block,magazine'],
             'layout_id' => ['sometimes', 'nullable', 'uuid'],
             'seo_meta' => ['sometimes', 'array'],
+            'seo_meta.title' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'seo_meta.description' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'seo_meta.og_image' => ['sometimes', 'nullable', 'string', 'max:500'],
             'seo_meta.head_scripts' => ['sometimes', 'nullable', 'string', 'max:65536'],
             'seo_meta.body_scripts' => ['sometimes', 'nullable', 'string', 'max:65536'],
             'seo_meta.custom_css' => ['sometimes', 'nullable', 'string', 'max:65536'],
+            'seo_meta.pageStyle' => ['sometimes', 'nullable', 'array'],
+            'seo_meta.pageData' => ['sometimes', 'nullable', 'array'],
+            'seo_meta.pageAnimation' => ['sometimes', 'nullable', 'array'],
+            'seo_meta.pageResponsive' => ['sometimes', 'nullable', 'array'],
+            'seo_meta.pageAdvanced' => ['sometimes', 'nullable', 'array'],
         ];
     }
 
