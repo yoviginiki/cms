@@ -524,10 +524,17 @@ export default function DtpEditorBeta() {
     return () => document.removeEventListener('mousedown', handler);
   }, [canvasEditingId, selectedInlineImg]);
 
-  // Helper to update inline image style
+  // Helper to update inline image style and persist to store
   const updateInlineImgStyle = (updates: Record<string, string>) => {
     if (!selectedInlineImg || !selectedInlineImg.isConnected) return;
     Object.entries(updates).forEach(([k, v]) => { selectedInlineImg.style[k as any] = v; });
+    // Persist: read the contentEditable HTML and save to store
+    const editable = selectedInlineImg.closest('[data-editing-id]') as HTMLElement;
+    if (editable && canvasEditingId) {
+      const html = editable.innerHTML;
+      const el = store.pages.flatMap(p => p.elements).find(e => e.id === canvasEditingId);
+      if (el) store.updateElement(canvasEditingId, { data: { ...el.data, content: html } });
+    }
     store.setDirty(true);
   };
 

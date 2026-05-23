@@ -41,13 +41,32 @@ class DtpRenderService
                         $safe .= ' alt="' . e($am[1]) . '"';
                     }
                 }
-                // Allow style attribute — strip dangerous CSS
+                // Allow style — only safe CSS properties via allowlist
                 if (preg_match('/style\s*=\s*"([^"]*)"/', $attrs, $sm)) {
                     $css = $sm[1];
-                    // Remove dangerous CSS patterns
-                    $css = preg_replace('/expression\s*\(|url\s*\(|javascript:|behavior:|@import|-moz-binding|data\s*:|position\s*:\s*fixed|position\s*:\s*absolute/i', '', $css);
-                    if (trim($css)) {
-                        $safe .= ' style="' . e($css) . '"';
+                    $safeCss = [];
+                    $allowed = ['font-family','font-size','font-weight','font-style','font-variant',
+                        'line-height','letter-spacing','word-spacing','text-align','text-transform',
+                        'text-decoration','text-indent','vertical-align','white-space',
+                        'color','background-color','background','opacity',
+                        'margin','margin-top','margin-bottom','margin-left','margin-right',
+                        'padding','padding-top','padding-bottom','padding-left','padding-right',
+                        'border','border-radius','border-width','border-style','border-color',
+                        'float','width','height','max-width','display',
+                        'column-count','column-gap','column-fill','overflow'];
+                    foreach (explode(';', $css) as $decl) {
+                        $decl = trim($decl);
+                        if (!$decl) continue;
+                        $parts = explode(':', $decl, 2);
+                        if (count($parts) !== 2) continue;
+                        $prop = strtolower(trim($parts[0]));
+                        $val = trim($parts[1]);
+                        // Block dangerous values
+                        if (preg_match('/expression|url\s*\(|javascript:|data:/i', $val)) continue;
+                        if (in_array($prop, $allowed)) $safeCss[] = "$prop:$val";
+                    }
+                    if ($safeCss) {
+                        $safe .= ' style="' . e(implode(';', $safeCss)) . '"';
                     }
                 }
                 return "<{$tag}{$safe}>";
