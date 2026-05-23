@@ -732,7 +732,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       else pages.splice(insertIdx, 0, targetPage);
     }
 
-    // ─── Calculate continuation position avoiding fixed images ───
+    // ─── Calculate continuation position avoiding ALL images on target page ───
     const mg = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
     let contY = mg.top || 36;
     const tPageW = targetPage.pageSize?.width || 595;
@@ -740,19 +740,19 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     const contX = mg.left || 36;
     const contWidth = tPageW - (mg.left || 36) - (mg.right || 36);
 
-    // Check fixed images on target page
-    const fixedImages = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
-    // Also check spread images from previous page (they span into target page visually)
+    // Avoid ALL image frames on target page (not just fixed)
+    const IMAGE_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];
+    const imagesOnTarget = targetPage.elements.filter(e => IMAGE_TYPES.includes(e.type) && e.visible);
+    // Also check spread images from previous page
     const prevPage = contentPages[contentPages.findIndex(p => p.pageNumber === nextPageNumber) - 1];
     if (prevPage) {
-      const spreadFromPrev = prevPage.elements.filter(e => e.positionMode === 'fixed' && e.spanMode === 'spread' && e.visible);
-      fixedImages.push(...spreadFromPrev);
+      imagesOnTarget.push(...prevPage.elements.filter(e => IMAGE_TYPES.includes(e.type) && e.spanMode === 'spread' && e.visible));
     }
 
-    for (const fixed of fixedImages) {
-      const fixedBottom = fixed.y + fixed.height + 8;
-      if (contY < fixedBottom && contX < fixed.x + fixed.width && contX + contWidth > fixed.x) {
-        contY = fixedBottom;
+    for (const img of imagesOnTarget) {
+      const imgBottom = img.y + img.height + 8;
+      if (contY < imgBottom && contX < img.x + img.width && contX + contWidth > img.x) {
+        contY = imgBottom;
       }
     }
     const contHeight = Math.max(100, tPageH - contY - (mg.bottom || 36));
@@ -893,17 +893,17 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
             contentPages.push(targetPage);
           }
 
-          // Create continuation frame — avoid fixed/spread images
+          // Create continuation frame — avoid ALL images on target page
           const margins = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
           const tPageW = targetPage.pageSize?.width || 595;
           const tPageH = targetPage.pageSize?.height || 842;
           const contW = tPageW - (margins.left || 36) - (margins.right || 36);
           let contStartY = margins.top || 36;
-          // Check fixed images on target + spread images from previous page
-          const fixedOnTarget = targetPage.elements.filter(e => e.positionMode === 'fixed' && e.visible);
+          const IMG_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];
+          const imgsOnTarget = targetPage.elements.filter(e => IMG_TYPES.includes(e.type) && e.visible);
           const prevCp = contentPages[contentPages.findIndex(p => p.pageNumber === nextPageNum) - 1];
-          if (prevCp) fixedOnTarget.push(...prevCp.elements.filter(e => e.positionMode === 'fixed' && e.spanMode === 'spread' && e.visible));
-          for (const fx of fixedOnTarget) {
+          if (prevCp) imgsOnTarget.push(...prevCp.elements.filter(e => IMG_TYPES.includes(e.type) && e.spanMode === 'spread' && e.visible));
+          for (const fx of imgsOnTarget) {
             const fxBottom = fx.y + fx.height + 8;
             if (contStartY < fxBottom) contStartY = fxBottom;
           }
