@@ -204,7 +204,11 @@ class BlockStyle
         } else {
             // Legacy: style.visual background fields
             if (!empty($vis['backgroundGradient'])) {
-                $parts[] = "background:{$vis['backgroundGradient']}";
+                // Sanitize gradient — only allow linear-gradient/radial-gradient with safe color values
+                $grad = preg_replace('/[{}<>;\\\\]/', '', (string) $vis['backgroundGradient']);
+                if (preg_match('/^(linear|radial)-gradient\(/', $grad)) {
+                    $parts[] = "background:{$grad}";
+                }
             } elseif (!empty($vis['backgroundColor'])) {
                 $bc = self::safeColor($vis['backgroundColor']);
                 if ($bc) $parts[] = "background-color:{$bc}";
