@@ -222,13 +222,14 @@ class DesignTokenGenerator
 
             if (!$family || !$filename) continue;
 
-            // Static site: /fonts/{filename}. Dynamic preview: /fonts/{siteId}/{filename}
             $siteId = $site->id;
             $css .= "@font-face {\n";
             $css .= "  font-family: '{$family}';\n";
             $css .= "  font-weight: {$weight};\n";
             $css .= "  font-style: {$fontStyle};\n";
-            $css .= "  src: url('/fonts/{$filename}') format('{$format}'), url('/fonts/{$siteId}/{$filename}') format('{$format}');\n";
+            $fontSlug = pathinfo($filename, PATHINFO_FILENAME); // no extension = bypasses nginx static catch
+            // /serve-font/ for admin preview, /fonts/ for published static site
+            $css .= "  src: url('/serve-font/{$siteId}/{$fontSlug}') format('{$format}'), url('/fonts/{$filename}') format('{$format}');\n";
             $css .= "  font-display: swap;\n";
             $css .= "}\n";
         }

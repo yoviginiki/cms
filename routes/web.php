@@ -44,8 +44,8 @@ Route::get('/media/{siteId}/{assetId}/{variant?}', function (string $siteId, str
     }
 })->name('public.asset.serve');
 
-// ─── Public font serve (for published sites) ───
-Route::get('/fonts/{siteId}/{filename}', function (string $siteId, string $filename) {
+// ─── Public font serve (nginx catches .ttf/.woff, so no extension in URL) ───
+Route::get('/serve-font/{siteId}/{fontSlug}', function (string $siteId, string $fontSlug) {
     try {
         $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
         if ($tenant) {
@@ -53,7 +53,11 @@ Route::get('/fonts/{siteId}/{filename}', function (string $siteId, string $filen
             \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
         }
         $site = \App\Models\Site::findOrFail($siteId);
-        return app(\App\Http\Controllers\Api\V1\CustomFontController::class)->serve($site, $filename);
+        // fontSlug is filename without extension — find matching font
+        $fonts = $site->settings['custom_fonts'] ?? [];
+        $font = collect($fonts)->first(fn($f) => pathinfo($f['filename'] ?? '', PATHINFO_FILENAME) === $fontSlug);
+        if (!$font) abort(404);
+        return app(\App\Http\Controllers\Api\V1\CustomFontController::class)->serve($site, $font['filename']);
     } catch (\Throwable) { abort(404); }
 });
 

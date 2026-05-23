@@ -186,7 +186,7 @@ export const customFonts = {
   list: (siteId: string) => api.get(`/sites/${siteId}/fonts`),
   upload: (siteId: string, formData: FormData) => api.post(`/sites/${siteId}/fonts`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   remove: (siteId: string, fontId: string) => api.delete(`/sites/${siteId}/fonts/${fontId}`),
-  serveUrl: (siteId: string, filename: string) => `/api/v1/sites/${siteId}/fonts/${filename}/serve`,
+  serveUrl: (siteId: string, filename: string) => `/serve-font/${siteId}/${filename.replace(/\.[^.]+$/, '')}`,
 };
 
 export const preview = {
