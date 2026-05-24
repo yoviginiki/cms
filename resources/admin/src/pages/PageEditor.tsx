@@ -159,28 +159,22 @@ export default function PageEditor() {
   useEditorShortcuts(siteId, 'pages', pageId);
   useThemeFonts(siteId);
 
-  // Load blocks only on initial fetch — never overwrite after user starts editing.
-  // Reset when pageId changes (navigating to different page).
+  // Clear store on mount / pageId change — prevents old page content showing
   const blocksLoadedRef = useRef(false);
-  const prevPageIdRef = useRef(pageId);
   useEffect(() => {
-    if (prevPageIdRef.current !== pageId) {
-      blocksLoadedRef.current = false;
-      prevPageIdRef.current = pageId;
-      // Clear old blocks immediately to prevent flash of old content
-      setBlocks([]);
-      setDirty(false);
-    }
-  }, [pageId, setBlocks, setDirty]);
+    blocksLoadedRef.current = false;
+    setBlocks([]);
+    setDirty(false);
+    useEditorStore.setState({ rawHtml: '' });
+  }, [pageId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load blocks when fetch completes
   useEffect(() => {
-    if (fetchedBlocks && !blocksLoadedRef.current) {
-      setBlocks(fetchedBlocks);
-      // Load raw HTML from page data (without marking dirty)
+    if (fetchedBlocks !== undefined && !blocksLoadedRef.current) {
+      setBlocks(fetchedBlocks || []);
       if (page?.raw_html) {
         useEditorStore.setState({ rawHtml: page.raw_html });
       }
-      // Restore undo history from sessionStorage if available
-      useEditorStore.getState().restoreUndoState();
       blocksLoadedRef.current = true;
     }
   }, [fetchedBlocks, setBlocks, page]);
