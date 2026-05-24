@@ -62,6 +62,8 @@ class MagEditorController extends Controller
      */
     public function addPage(Request $request, Site $site, Page $page): JsonResponse
     {
+        abort_if($page->site_id !== $site->id, 404);
+        $this->authorize('update', $page);
         $request->validate([
             'after_page' => 'required|integer|min:0',
         ]);
@@ -76,6 +78,8 @@ class MagEditorController extends Controller
      */
     public function deletePage(Site $site, Page $page, int $pageNumber): JsonResponse
     {
+        abort_if($page->site_id !== $site->id, 404);
+        $this->authorize('update', $page);
         $this->service->deletePage($page, $pageNumber);
 
         return response()->json(['message' => 'Page deleted']);

@@ -12,6 +12,7 @@ class MagazineIssueController extends Controller
 {
     public function index(Site $site): JsonResponse
     {
+        $this->authorize('view', $site);
         $issues = MagazineIssue::where('site_id', $site->id)
             ->orderByDesc('updated_at')
             ->get(['id', 'title', 'status', 'created_at', 'updated_at']);

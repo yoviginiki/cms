@@ -16,6 +16,7 @@ class CustomFontController extends Controller
      */
     public function index(Site $site): JsonResponse
     {
+        $this->authorize('view', $site);
         $fonts = $site->settings['custom_fonts'] ?? [];
         return response()->json(['data' => array_values($fonts)]);
     }
@@ -109,6 +110,8 @@ class CustomFontController extends Controller
      */
     public function serve(Site $site, string $filename)
     {
+        // Validate filename — only allow safe characters
+        if (!preg_match('/^[a-zA-Z0-9._\-]+$/', $filename)) abort(404);
         $path = "fonts/{$site->id}/{$filename}";
         $disk = Storage::disk('assets');
 

@@ -89,6 +89,8 @@ export default function PageEditor() {
   // Initialize magazine store from API data — only on first load.
   // Subsequent React Query refetches must NOT overwrite unsaved edits.
   const magLoadedRef = useRef(false);
+  // Reset magazine loaded flag on pageId change
+  useEffect(() => { magLoadedRef.current = false; }, [pageId]);
   useEffect(() => {
     if (!magData || !isMagazineMode || magLoadedRef.current) return;
     magLoadedRef.current = true;
