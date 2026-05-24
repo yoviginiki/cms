@@ -6,16 +6,22 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronDown, ChevronRight, X, Trash2, Copy, Download, AlertTriangle } from 'lucide-react';
 import { useMagazineStore } from '@/stores/magazineStore';
+import type { ConsistencyResult } from '@/lib/dtpConsistencyChecker';
+import DtpConsistencyPanel from './DtpConsistencyPanel';
 
 // ─── Types ───
 
 interface DtpDebugPanelProps {
   lastSavePayload: any;
   lastLoadPayload: any;
+  consistencyResult: ConsistencyResult | null;
+  onRunConsistencyCheck: () => void;
+  onSelectFrame?: (frameId: string) => void;
+  onSelectPage?: (pageNumber: number) => void;
   onClose: () => void;
 }
 
-type DebugTab = 'log' | 'diff' | 'state';
+type DebugTab = 'log' | 'diff' | 'state' | 'check';
 
 // ─── Important fields for lost-field detection ───
 
@@ -196,7 +202,7 @@ function DiffTree({ node, depth = 0 }: { node: DiffNode; depth?: number }) {
 
 // ─── Main Panel ───
 
-export default function DtpDebugPanel({ lastSavePayload, lastLoadPayload, onClose }: DtpDebugPanelProps) {
+export default function DtpDebugPanel({ lastSavePayload, lastLoadPayload, consistencyResult, onRunConsistencyCheck, onSelectFrame, onSelectPage, onClose }: DtpDebugPanelProps) {
   const [tab, setTab] = useState<DebugTab>('log');
   const [panelHeight, setPanelHeight] = useState(300);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -351,6 +357,7 @@ export default function DtpDebugPanel({ lastSavePayload, lastLoadPayload, onClos
             {([
               { key: 'log' as DebugTab, label: `Event Log (${store.debugLog.length})` },
               { key: 'diff' as DebugTab, label: `Diff${lostFieldCount > 0 ? ` (${lostFieldCount})` : ''}` },
+              { key: 'check' as DebugTab, label: `Check${consistencyResult ? ` ${consistencyResult.status === 'pass' ? '\u2713' : consistencyResult.status === 'fail' ? `\u2717${consistencyResult.summary.failures}` : `\u26A0${consistencyResult.summary.warnings}`}` : ''}` },
               { key: 'state' as DebugTab, label: 'Store State' },
             ]).map(t => (
               <button
@@ -385,6 +392,16 @@ export default function DtpDebugPanel({ lastSavePayload, lastLoadPayload, onClos
                 <Copy size={10} /> Copy
               </button>
               <button onClick={() => exportJson({ load: lastLoadPayload, save: lastSavePayload, changedPaths: collectChangedPaths(diffResult) }, `dtp-diff-${Date.now()}.json`)} className="btn btn-ghost btn-xs gap-1 text-base-content/30 hover:text-info" title="Export diff">
+                <Download size={10} /> Export
+              </button>
+            </>
+          )}
+          {tab === 'check' && consistencyResult && (
+            <>
+              <button onClick={() => copyToClipboard(consistencyResult, 'consistency report')} className="btn btn-ghost btn-xs gap-1 text-base-content/30 hover:text-info" title="Copy report">
+                <Copy size={10} /> Copy
+              </button>
+              <button onClick={() => exportJson(consistencyResult, `dtp-consistency-${Date.now()}.json`)} className="btn btn-ghost btn-xs gap-1 text-base-content/30 hover:text-info" title="Export report">
                 <Download size={10} /> Export
               </button>
             </>
@@ -440,6 +457,17 @@ export default function DtpDebugPanel({ lastSavePayload, lastLoadPayload, onClos
               </div>
             )}
           </div>
+        )}
+
+        {tab === 'check' && (
+          <DtpConsistencyPanel
+            result={consistencyResult}
+            onRun={onRunConsistencyCheck}
+            onSelectFrame={onSelectFrame}
+            onSelectPage={onSelectPage}
+            onCopy={copyToClipboard}
+            onExport={exportJson}
+          />
         )}
 
         {tab === 'state' && (

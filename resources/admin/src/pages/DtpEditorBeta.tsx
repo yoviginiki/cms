@@ -7,7 +7,7 @@
  *
  * Feature-flagged — old magazine editor remains unchanged.
  */
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink, Bug } from 'lucide-react';
@@ -33,6 +33,8 @@ import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import { AssetPicker } from '@/components/ui/AssetPicker';
 const DtpDebugPanel = lazy(() => import('@/components/magazine/DtpDebugPanel'));
+import { extractEditorDoc, extractPayloadDoc, extractLoadedDoc, runConsistencyCheck } from '@/lib/dtpConsistencyChecker';
+import type { ConsistencyResult } from '@/lib/dtpConsistencyChecker';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 // Threading imports removed — Pour handles content splitting directly
@@ -338,6 +340,26 @@ export default function DtpEditorBeta() {
   const [debugOpen, setDebugOpen] = useState(false);
   const [lastSavePayload, setLastSavePayload] = useState<any>(null);
   const [lastLoadPayload, setLastLoadPayload] = useState<any>(null);
+  const [consistencyResult, setConsistencyResult] = useState<ConsistencyResult | null>(null);
+
+  const runConsistency = useCallback(() => {
+    if (!isDebugMode) return;
+    const freshState = useMagazineStore.getState();
+    const editorDoc = extractEditorDoc(freshState.pages, freshState.issueSettings, {
+      showGrid: freshState.showGrid, showGuides: freshState.showGuides, snapEnabled: freshState.snapEnabled,
+    });
+    const payloadDoc = extractPayloadDoc(lastSavePayload, freshState.issueSettings);
+    const loadedDoc = extractLoadedDoc(lastLoadPayload);
+    const result = runConsistencyCheck(editorDoc, payloadDoc, loadedDoc, null);
+    setConsistencyResult(result);
+    store.pushDebugLog('consistency:check', 'checker', {
+      status: result.status,
+      failures: result.summary.failures,
+      warnings: result.summary.warnings,
+      lostFields: result.summary.lostFields,
+      checkedPaths: result.summary.checkedPaths,
+    });
+  }, [isDebugMode, lastSavePayload, lastLoadPayload]);
 
   // Load DTP document from API
   const { data: apiData, isLoading, error: loadError } = useQuery({
@@ -468,7 +490,11 @@ export default function DtpEditorBeta() {
     },
     onSuccess: () => {
       store.setDirty(false);
-      if (isDebugMode) store.pushDebugLog('save:success', 'editor');
+      if (isDebugMode) {
+        store.pushDebugLog('save:success', 'editor');
+        // Auto-run consistency check after successful save
+        setTimeout(() => runConsistency(), 100);
+      }
       queryClient.invalidateQueries({ queryKey: ['dtp-document', siteId, issueId] });
       queryClient.invalidateQueries({ queryKey: ['dtp-rollout', siteId, issueId] });
     },
@@ -1239,6 +1265,10 @@ export default function DtpEditorBeta() {
           <DtpDebugPanel
             lastSavePayload={lastSavePayload}
             lastLoadPayload={lastLoadPayload}
+            consistencyResult={consistencyResult}
+            onRunConsistencyCheck={runConsistency}
+            onSelectFrame={(id) => store.selectElement(id)}
+            onSelectPage={(n) => store.setCurrentPage(n)}
             onClose={() => setDebugOpen(false)}
           />
         </Suspense>
