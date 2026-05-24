@@ -1,8 +1,18 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { categories as categoriesApi } from '@/lib/api';
 import type { BlockEditorProps } from '@/types/blocks';
 
 export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as { categoryId: string; limit: number; columns: number; cardStyle: string; showExcerpt: boolean };
+  const { siteId = '' } = useParams();
+
+  const { data: cats } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['categories-for-block', siteId],
+    queryFn: () => categoriesApi.list(siteId).then((r: any) => r.data.data),
+    enabled: !!siteId,
+  });
 
   const update = (field: string, value: unknown) => {
     onUpdate({ ...block.data, [field]: value });
@@ -11,8 +21,11 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-[11px] text-base-content/50 mb-1 block">Category ID</label>
-        <input type="text" className="input input-bordered input-sm w-full" value={data.categoryId || ''} onChange={(e) => update('categoryId', e.target.value)} placeholder="Leave empty for all" />
+        <label className="text-[11px] text-base-content/50 mb-1 block">Category</label>
+        <select className="select select-bordered select-sm w-full" value={data.categoryId || ''} onChange={(e) => update('categoryId', e.target.value)}>
+          <option value="">All categories</option>
+          {(cats || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
       <div>
         <label className="text-[11px] text-base-content/50 mb-1 block">Limit</label>
