@@ -24,6 +24,20 @@ interface IssueSettings {
   readingDirection: 'ltr' | 'rtl';
 }
 
+type DebugSeverity = 'info' | 'warn' | 'error';
+
+interface DebugLogEntry {
+  ts: number;
+  action: string;
+  severity: DebugSeverity;
+  source: string;
+  selectedId?: string | null;
+  elementType?: string | null;
+  pageNumber?: number | null;
+  pageId?: string | null;
+  detail?: any;
+}
+
 interface MagazineState {
   pages: MagPageData[];
   currentPageNumber: number;
@@ -46,6 +60,7 @@ interface MagazineState {
   styles: MagStyleDefinition[];
   editingMasterId: string | null;
   issueSettings: IssueSettings;
+  debugLog: DebugLogEntry[];
 }
 
 interface MagazineActions {
@@ -112,6 +127,10 @@ interface MagazineActions {
   assignMasterToAll: (masterPageId: string | null) => void;
   setEditingMaster: (masterPageId: string | null) => void;
   editingMasterId: string | null;
+
+  // Debug
+  pushDebugLog: (action: string, source: string, detail?: any, severity?: DebugSeverity) => void;
+  clearDebugLog: () => void;
 
   // Persistence
   setDirty: (d: boolean) => void;
@@ -311,6 +330,34 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   styles: [],
   editingMasterId: null,
   issueSettings: { layoutMode: 'single', coverMode: 'standalone', readingDirection: 'ltr' },
+  debugLog: [],
+
+  // ─── Debug ───
+
+  pushDebugLog(action, source, detail, severity = 'info') {
+    // No-op when debug mode is off — avoid perf cost of logging in production
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('dtp-debug') !== '1') return;
+    const state = get();
+    const selectedId = state.selectedIds[0] || null;
+    const selectedEl = selectedId
+      ? state.pages.flatMap(p => p.elements).find(e => e.id === selectedId)
+      : null;
+    const page = state.pages.find(p => p.pageNumber === state.currentPageNumber);
+    set(s => {
+      const entry: DebugLogEntry = {
+        ts: Date.now(), action, severity, source, detail,
+        selectedId, elementType: selectedEl?.type || null,
+        pageNumber: state.currentPageNumber, pageId: page?.id || null,
+      };
+      const log = [...s.debugLog, entry];
+      if (log.length > 500) log.splice(0, log.length - 500);
+      return { debugLog: log };
+    });
+  },
+
+  clearDebugLog() {
+    set({ debugLog: [] });
+  },
 
   // ─── Document ───
 
@@ -325,6 +372,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       redoStack: [],
       isDirty: false,
     });
+    get().pushDebugLog('load:success', 'store', { pageCount: pages.length, styleCount: styles.length });
   },
 
   getCurrentPageElements() {
@@ -388,6 +436,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     }
 
     set({ pages, currentPageNumber: newPageNumber, isDirty: true });
+    get().pushDebugLog('page:add', 'store', { afterPage, newPageNumber });
   },
 
   deletePage(pageNumber) {
@@ -408,6 +457,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       editingElementId: null,
       isDirty: true,
     });
+    get().pushDebugLog('page:delete', 'store', { pageNumber });
   },
 
   duplicatePage(pageNumber) {
@@ -522,16 +572,34 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       isDirty: true,
     }));
 
+    get().pushDebugLog('frame:add', 'store', { type: elementType, x, y, width, height, id: newElement.id });
     return newElement.id;
   },
 
   updateElement(id, updates) {
-    set((state) => ({
-      pages: updateCurrentPageElements(state.pages, state.currentPageNumber, (els) =>
+    const state = get();
+    const page = getCurrentPage(state);
+    const oldEl = page ? findElementById(page.elements, id) : undefined;
+    if (!oldEl) {
+      get().pushDebugLog('frame:update', 'store', { id, error: 'element not found on current page' }, 'error');
+    }
+    const changedPaths: Record<string, { old: any; new: any }> = {};
+    if (oldEl) {
+      for (const k of Object.keys(updates)) {
+        const oldVal = (oldEl as any)[k];
+        const newVal = (updates as any)[k];
+        if (oldVal !== newVal) changedPaths[k] = { old: oldVal, new: newVal };
+      }
+    }
+    set((s) => ({
+      pages: updateCurrentPageElements(s.pages, s.currentPageNumber, (els) =>
         updateElementInList(els, id, updates),
       ),
       isDirty: true,
     }));
+    get().pushDebugLog('frame:update', 'store', {
+      id, type: oldEl?.type, keys: Object.keys(updates), changedPaths,
+    });
   },
 
   deleteElements(ids) {
@@ -549,6 +617,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           : state.editingElementId,
       isDirty: true,
     }));
+    get().pushDebugLog('frame:delete', 'store', { ids });
   },
 
   duplicateElements(ids) {
@@ -1096,6 +1165,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       editingElementId: null,
       isDirty: true,
     });
+    get().pushDebugLog('undo', 'store', { pagesRestored: pages.length });
   },
 
   redo() {
@@ -1114,6 +1184,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       editingElementId: null,
       isDirty: true,
     });
+    get().pushDebugLog('redo', 'store', { pagesRestored: pages.length });
   },
 
   // ─── View ───
@@ -1167,11 +1238,13 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   // ─── Issue Settings ───
 
   setIssueSettings(settings) {
+    const old = get().issueSettings;
     get().pushSnapshot();
     set(state => ({
       issueSettings: { ...state.issueSettings, ...settings },
       isDirty: true,
     }));
+    get().pushDebugLog('settings:change', 'store', { changed: Object.keys(settings), old, new: { ...old, ...settings } });
   },
 
   // ─── Styles ───

@@ -7,10 +7,10 @@
  *
  * Feature-flagged — old magazine editor remains unchanged.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Loader2, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink, Bug } from 'lucide-react';
 import { dtpDesigner } from '@/lib/api';
 
 // ─── Production editor components (from old MagazineEditorV2) ───
@@ -32,6 +32,7 @@ import AlignDistributePanel from '@/components/magazine/properties/AlignDistribu
 import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import { AssetPicker } from '@/components/ui/AssetPicker';
+const DtpDebugPanel = lazy(() => import('@/components/magazine/DtpDebugPanel'));
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 // Threading imports removed — Pour handles content splitting directly
@@ -332,6 +333,12 @@ export default function DtpEditorBeta() {
   });
   const initializedRef = useRef(false);
 
+  // Debug mode
+  const isDebugMode = localStorage.getItem('dtp-debug') === '1';
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [lastSavePayload, setLastSavePayload] = useState<any>(null);
+  const [lastLoadPayload, setLastLoadPayload] = useState<any>(null);
+
   // Load DTP document from API
   const { data: apiData, isLoading, error: loadError } = useQuery({
     queryKey: ['dtp-document', siteId, issueId],
@@ -353,6 +360,11 @@ export default function DtpEditorBeta() {
     if (!apiData) return;
     if (initializedRef.current) return;
     initializedRef.current = true;
+
+    if (isDebugMode) {
+      setLastLoadPayload(structuredClone(apiData));
+      store.pushDebugLog('load:start', 'editor', { pageCount: (apiData.pages || []).length, frameCount: (apiData.frames || []).length });
+    }
 
     const pages = dtpApiToPages(apiData);
     setApiLayers(apiData.layers || []);
@@ -425,6 +437,7 @@ export default function DtpEditorBeta() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       setSaveError(null);
+      if (isDebugMode) store.pushDebugLog('save:start', 'editor');
       // Flush any active contentEditable before save
       const editableEl = document.querySelector('[data-editing-id]') as HTMLElement;
       if (editableEl) {
@@ -443,15 +456,26 @@ export default function DtpEditorBeta() {
       // Filter out master pages — they're editor-only, not saved to API
       const contentPages = freshState.pages.filter(p => !p.isMaster);
       const payload = pagesToDtpApi(contentPages, apiLayers, apiAssetRefs, freshState.issueSettings, viewerSettings);
+      if (isDebugMode) {
+        setLastSavePayload(structuredClone(payload));
+        store.pushDebugLog('save:payload', 'editor', {
+          pageCount: (payload.pages as any[])?.length,
+          frameCount: (payload.frames as any[])?.length,
+          spreadCount: (payload.spreads as any[])?.length,
+        });
+      }
       await dtpDesigner.saveDocument(siteId, issueId, payload);
     },
     onSuccess: () => {
       store.setDirty(false);
+      if (isDebugMode) store.pushDebugLog('save:success', 'editor');
       queryClient.invalidateQueries({ queryKey: ['dtp-document', siteId, issueId] });
       queryClient.invalidateQueries({ queryKey: ['dtp-rollout', siteId, issueId] });
     },
     onError: (err: any) => {
-      setSaveError(err?.response?.data?.message || err?.message || 'Save failed');
+      const msg = err?.response?.data?.message || err?.message || 'Save failed';
+      setSaveError(msg);
+      if (isDebugMode) store.pushDebugLog('save:fail', 'editor', { error: msg }, 'error');
     },
   });
 
@@ -1199,9 +1223,26 @@ export default function DtpEditorBeta() {
               className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded ${showStatusPanel ? 'bg-primary/10 text-primary' : 'text-base-content/30 hover:text-base-content/60'}`}>
               <Info size={10} /> Status {showStatusPanel ? <ChevronUp size={8} /> : <ChevronDown size={8} />}
             </button>
+            {isDebugMode && (
+              <button onClick={() => setDebugOpen(p => !p)}
+                className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded ${debugOpen ? 'bg-warning/20 text-warning' : 'text-base-content/30 hover:text-warning/60'}`}>
+                <Bug size={10} /> Debug
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Debug panel */}
+      {isDebugMode && debugOpen && (
+        <Suspense fallback={null}>
+          <DtpDebugPanel
+            lastSavePayload={lastSavePayload}
+            lastLoadPayload={lastLoadPayload}
+            onClose={() => setDebugOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {/* Inline image picker for text frames */}
       <AssetPicker
