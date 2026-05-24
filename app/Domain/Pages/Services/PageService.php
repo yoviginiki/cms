@@ -74,14 +74,14 @@ class PageService
         $original = $slug;
         $count = 1;
 
-        $query = Page::where('site_id', $site->id)->where('slug', $slug);
+        $query = Page::withTrashed()->where('site_id', $site->id)->where('slug', $slug);
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);
         }
 
         while ($query->exists()) {
             $slug = $original . '-' . $count++;
-            $query = Page::where('site_id', $site->id)->where('slug', $slug);
+            $query = Page::withTrashed()->where('site_id', $site->id)->where('slug', $slug);
             if ($excludeId) {
                 $query->where('id', '!=', $excludeId);
             }
