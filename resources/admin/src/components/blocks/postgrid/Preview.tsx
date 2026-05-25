@@ -28,6 +28,22 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const excerptPadding = data.excerptPadding || '0';
   const excerptMargin = data.excerptMargin || '0.25rem 0 0 0';
 
+  // Card border
+  const cardBorder = data.cardBorder !== false;
+  const cardBorderWidth = data.cardBorderWidth ?? 1;
+  const cardBorderColor = data.cardBorderColor || '#e5e7eb';
+  const cardBorderStyle = data.cardBorderStyle || 'solid';
+  const cardBorderRadius = data.cardBorderRadius ?? 12;
+  const cardShadow = data.cardShadow || 'none';
+  const cardBg = data.cardBg || '';
+  const cardPadding = data.cardPadding || '0';
+
+  const SHADOW_MAP: Record<string, string> = {
+    none: 'none', sm: '0 1px 2px rgba(0,0,0,0.05)',
+    md: '0 4px 6px rgba(0,0,0,0.07)', lg: '0 10px 15px rgba(0,0,0,0.1)',
+    xl: '0 20px 25px rgba(0,0,0,0.15)',
+  };
+
   // Responsive clamp
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;
   const gapVal = `clamp(${Math.round(gap * 0.4)}px, ${(gap / 10).toFixed(1)}vw, ${gap}px)`;
@@ -41,9 +57,12 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
       }}>
         {Array.from({ length: limit }).map((_, i) => (
           <div key={i} style={{
-            borderRadius: '0.75rem',
-            border: '1px solid #e5e7eb',
+            borderRadius: `${cardBorderRadius}px`,
+            border: cardBorder ? `${cardBorderWidth}px ${cardBorderStyle} ${cardBorderColor}` : 'none',
             overflow: 'hidden',
+            boxShadow: SHADOW_MAP[cardShadow] || 'none',
+            backgroundColor: cardBg || undefined,
+            padding: cardPadding,
             ...(isHorizontal ? { display: 'flex' } : {}),
           }}>
             {showImage && (

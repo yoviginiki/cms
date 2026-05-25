@@ -14,6 +14,10 @@ const ALIGN_OPTIONS = ['left', 'center', 'right'] as const;
 
 interface PostgridData {
   categoryId: string; limit: number; columns: number; cardStyle: string; gap: number;
+  // Card border
+  cardBorder: boolean; cardBorderWidth: number; cardBorderColor: string;
+  cardBorderRadius: number; cardBorderStyle: string; cardShadow: string;
+  cardBg: string; cardPadding: string;
   // Image
   showImage: boolean; imageHeight: number; imageWidth: string;
   // Heading
@@ -137,6 +141,73 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
         </div>
         <div>
           <RangeField label="Gap" value={data.gap ?? 24} min={0} max={64} step={4} unit="px" onChange={(v) => update('gap', v)} />
+        </div>
+      </div>
+
+      {/* ─── Card Style ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <label className="flex items-center justify-between mb-2 cursor-pointer">
+          <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Card Border</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-base-content/30">{data.cardBorder !== false ? 'On' : 'Off'}</span>
+            <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={data.cardBorder !== false} onChange={(e) => update('cardBorder', e.target.checked)} />
+          </div>
+        </label>
+        {data.cardBorder !== false && (
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <RangeField label="Width" value={data.cardBorderWidth ?? 1} min={0} max={8} step={1} unit="px" onChange={(v) => update('cardBorderWidth', v)} />
+              </div>
+              <div>
+                <label className="text-[11px] text-base-content/50 mb-1 block">Style</label>
+                <select className="select select-bordered select-xs w-full" value={data.cardBorderStyle || 'solid'} onChange={(e) => update('cardBorderStyle', e.target.value)}>
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                  <option value="double">Double</option>
+                  <option value="none">None</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] text-base-content/50 mb-1 block">Color</label>
+                <div className="flex gap-1">
+                  <input type="color" className="w-7 h-7 rounded cursor-pointer border border-base-300/30"
+                    value={data.cardBorderColor || '#e5e7eb'} onChange={(e) => update('cardBorderColor', e.target.value)} />
+                  <input type="text" className="input input-bordered input-xs flex-1 font-mono text-[10px]"
+                    value={data.cardBorderColor || '#e5e7eb'} onChange={(e) => update('cardBorderColor', e.target.value)} placeholder="#e5e7eb" />
+                </div>
+              </div>
+              <div>
+                <RangeField label="Radius" value={data.cardBorderRadius ?? 12} min={0} max={32} step={2} unit="px" onChange={(v) => update('cardBorderRadius', v)} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-2 space-y-2">
+          <div>
+            <label className="text-[11px] text-base-content/50 mb-1 block">Shadow</label>
+            <select className="select select-bordered select-xs w-full" value={data.cardShadow || 'none'} onChange={(e) => update('cardShadow', e.target.value)}>
+              <option value="none">None</option>
+              <option value="sm">Small</option>
+              <option value="md">Medium</option>
+              <option value="lg">Large</option>
+              <option value="xl">Extra Large</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] text-base-content/50 mb-1 block">Card Background</label>
+            <div className="flex gap-1">
+              <input type="color" className="w-7 h-7 rounded cursor-pointer border border-base-300/30"
+                value={data.cardBg || '#ffffff'} onChange={(e) => update('cardBg', e.target.value)} />
+              <input type="text" className="input input-bordered input-xs flex-1 font-mono text-[10px]"
+                value={data.cardBg || ''} onChange={(e) => update('cardBg', e.target.value)} placeholder="transparent" />
+            </div>
+          </div>
+          <SpacingField label="Card Padding" value={data.cardPadding || '0'} onChange={(v) => update('cardPadding', v)} />
         </div>
       </div>
 

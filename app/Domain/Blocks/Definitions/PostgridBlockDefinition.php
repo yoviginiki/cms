@@ -15,6 +15,15 @@ class PostgridBlockDefinition implements BlockDefinition
             'columns'        => ['sometimes', 'integer', 'min:1', 'max:6'],
             'cardStyle'      => ['sometimes', 'in:vertical,horizontal'],
             'gap'            => ['sometimes', 'integer', 'min:0', 'max:64'],
+            // Card border
+            'cardBorder'       => ['sometimes', 'boolean'],
+            'cardBorderWidth'  => ['sometimes', 'integer', 'min:0', 'max:8'],
+            'cardBorderColor'  => ['sometimes', 'string', 'max:20'],
+            'cardBorderStyle'  => ['sometimes', 'in:solid,dashed,dotted,double,none'],
+            'cardBorderRadius' => ['sometimes', 'integer', 'min:0', 'max:32'],
+            'cardShadow'       => ['sometimes', 'in:none,sm,md,lg,xl'],
+            'cardBg'           => ['sometimes', 'nullable', 'string', 'max:20'],
+            'cardPadding'      => ['sometimes', 'string', 'max:50'],
             // Image
             'showImage'      => ['sometimes', 'boolean'],
             'imageHeight'    => ['sometimes', 'integer', 'min:40', 'max:600'],

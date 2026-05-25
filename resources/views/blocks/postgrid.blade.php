@@ -32,6 +32,17 @@
     $gapPx = max(0, min(64, intval($data['gap'] ?? 24)));
     $gap = 'clamp(' . round($gapPx * 0.4) . 'px, ' . round($gapPx / 10, 1) . 'vw, ' . $gapPx . 'px)';
 
+    // Card border
+    $cardBorder = $data['cardBorder'] ?? true;
+    $cardBorderWidth = max(0, min(8, intval($data['cardBorderWidth'] ?? 1)));
+    $cardBorderColor = preg_match('/^#[0-9a-fA-F]{3,8}$/', $data['cardBorderColor'] ?? '') ? $data['cardBorderColor'] : '#e5e7eb';
+    $cardBorderStyle = in_array($data['cardBorderStyle'] ?? 'solid', ['solid','dashed','dotted','double','none']) ? ($data['cardBorderStyle'] ?? 'solid') : 'solid';
+    $cardBorderRadius = max(0, min(32, intval($data['cardBorderRadius'] ?? 12)));
+    $shadowMap = ['none' => 'none', 'sm' => '0 1px 2px rgba(0,0,0,0.05)', 'md' => '0 4px 6px rgba(0,0,0,0.07)', 'lg' => '0 10px 15px rgba(0,0,0,0.1)', 'xl' => '0 20px 25px rgba(0,0,0,0.15)'];
+    $cardShadow = $shadowMap[$data['cardShadow'] ?? 'none'] ?? 'none';
+    $cardBg = preg_match('/^(#[0-9a-fA-F]{3,8}|transparent|inherit)$/', $data['cardBg'] ?? '') ? $data['cardBg'] : '';
+    $cardPadding = preg_match('/^[\d\s.]+(?:px|rem|em|%)?(?:\s+[\d.]+(?:px|rem|em|%)?){0,3}$/', $data['cardPadding'] ?? '') ? $data['cardPadding'] : '0';
+
     // Heading
     $showHeading = $data['showHeading'] ?? true;
     $headingTag = in_array($data['headingTag'] ?? 'h3', ['h2','h3','h4']) ? ($data['headingTag'] ?? 'h3') : 'h3';
@@ -66,7 +77,7 @@
 @else
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
-        <article style="border:1px solid var(--color-border,#e5e7eb);border-radius:0.75rem;overflow:hidden;{{ $isHorizontal ? 'display:flex;' : '' }}">
+        <article style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:hidden;box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $isHorizontal ? 'display:flex;' : '' }}">
             @if($showImage)
             <div style="background:#f3f4f6;{{ $isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';' }}{{ $imageWidth !== '100%' && !$isHorizontal ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
