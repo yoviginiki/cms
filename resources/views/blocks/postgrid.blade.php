@@ -105,6 +105,7 @@
                 {!! $__overlayHtml !!}
             </div>
             @endif
+            @if($showHeading || ($showExcerpt && $post->excerpt))
             <div style="padding:1rem;{{ $isHorizontal ? 'flex:1;' : '' }}">
                 @if($showHeading)
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};text-align:{{ $headingAlign }};padding:{{ $headingPadding }};margin:{{ $headingMargin }};">
@@ -115,6 +116,7 @@
                     <p style="color:#6b7280;font-size:{{ $excerptSizePx }}px;font-family:{{ $excerptFont }};text-align:{{ $excerptAlign }};padding:{{ $excerptPadding }};margin:{{ $excerptMargin }};">{{ $excerptLength > 0 ? \Illuminate\Support\Str::limit($post->excerpt, $excerptLength) : $post->excerpt }}</p>
                 @endif
             </div>
+            @endif
         </article>
     @endforeach
 </div>
