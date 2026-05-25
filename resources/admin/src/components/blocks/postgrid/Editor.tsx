@@ -42,6 +42,41 @@ function RangeField({ label, value, min, max, step, unit, onChange }: {
   );
 }
 
+function SpacingField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  // Parse "10px 20px 10px 20px" or "10px" into 4 values
+  const parts = (value || '0').trim().split(/\s+/);
+  const top = parts[0] || '0';
+  const right = parts[1] || top;
+  const bottom = parts[2] || top;
+  const left = parts[3] || right;
+
+  const rebuild = (t: string, r: string, b: string, l: string) => {
+    if (t === r && r === b && b === l) return t || '0';
+    if (t === b && r === l) return `${t} ${r}`;
+    return `${t} ${r} ${b} ${l}`;
+  };
+
+  return (
+    <div>
+      <label className="text-[10px] text-base-content/40 mb-1 block">{label}</label>
+      <div className="grid grid-cols-4 gap-1">
+        {[
+          { lbl: 'T', val: top, set: (v: string) => onChange(rebuild(v, right, bottom, left)) },
+          { lbl: 'R', val: right, set: (v: string) => onChange(rebuild(top, v, bottom, left)) },
+          { lbl: 'B', val: bottom, set: (v: string) => onChange(rebuild(top, right, v, left)) },
+          { lbl: 'L', val: left, set: (v: string) => onChange(rebuild(top, right, bottom, v)) },
+        ].map(s => (
+          <div key={s.lbl} className="relative">
+            <span className="absolute top-0.5 left-1 text-[7px] text-base-content/20">{s.lbl}</span>
+            <input type="text" className="input input-bordered input-xs w-full text-[10px] text-center pt-2.5"
+              value={s.val} onChange={(e) => s.set(e.target.value)} placeholder="0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AlignButtons({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex gap-0.5">
@@ -163,16 +198,8 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
               <label className="text-[11px] text-base-content/50 mb-1 block">Alignment</label>
               <AlignButtons value={data.headingAlign || 'left'} onChange={(v) => update('headingAlign', v)} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] text-base-content/50 mb-1 block">Padding</label>
-                <input type="text" className="input input-bordered input-xs w-full" value={data.headingPadding || ''} onChange={(e) => update('headingPadding', e.target.value)} placeholder="0" />
-              </div>
-              <div>
-                <label className="text-[11px] text-base-content/50 mb-1 block">Margin</label>
-                <input type="text" className="input input-bordered input-xs w-full" value={data.headingMargin || ''} onChange={(e) => update('headingMargin', e.target.value)} placeholder="0 0 0.25rem 0" />
-              </div>
-            </div>
+            <SpacingField label="Padding" value={data.headingPadding || '0'} onChange={(v) => update('headingPadding', v)} />
+            <SpacingField label="Margin" value={data.headingMargin || '0 0 0.25rem 0'} onChange={(v) => update('headingMargin', v)} />
           </div>
         )}
       </div>
@@ -207,16 +234,8 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
               <label className="text-[11px] text-base-content/50 mb-1 block">Alignment</label>
               <AlignButtons value={data.excerptAlign || 'left'} onChange={(v) => update('excerptAlign', v)} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] text-base-content/50 mb-1 block">Padding</label>
-                <input type="text" className="input input-bordered input-xs w-full" value={data.excerptPadding || ''} onChange={(e) => update('excerptPadding', e.target.value)} placeholder="0" />
-              </div>
-              <div>
-                <label className="text-[11px] text-base-content/50 mb-1 block">Margin</label>
-                <input type="text" className="input input-bordered input-xs w-full" value={data.excerptMargin || ''} onChange={(e) => update('excerptMargin', e.target.value)} placeholder="0.25rem 0 0 0" />
-              </div>
-            </div>
+            <SpacingField label="Padding" value={data.excerptPadding || '0'} onChange={(v) => update('excerptPadding', v)} />
+            <SpacingField label="Margin" value={data.excerptMargin || '0.25rem 0 0 0'} onChange={(v) => update('excerptMargin', v)} />
           </div>
         )}
       </div>
