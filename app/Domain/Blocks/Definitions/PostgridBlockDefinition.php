@@ -44,7 +44,7 @@ class PostgridBlockDefinition implements BlockDefinition
             'excerptAlign'   => ['sometimes', 'in:left,center,right'],
             'excerptPadding' => ['sometimes', 'string', 'max:50'],
             'excerptMargin'  => ['sometimes', 'string', 'max:50'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

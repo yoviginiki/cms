@@ -2,6 +2,8 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { categories as categoriesApi } from '@/lib/api';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 import type { BlockEditorProps } from '@/types/blocks';
 
 const FONT_OPTIONS = [
@@ -310,6 +312,14 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
             <SpacingField label="Margin" value={data.excerptMargin || '0.25rem 0 0 0'} onChange={(v) => update('excerptMargin', v)} />
           </div>
         )}
+      </div>
+
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
       </div>
     </div>
   );

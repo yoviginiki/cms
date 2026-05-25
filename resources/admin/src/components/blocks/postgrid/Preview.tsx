@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle } from '@/lib/blockEffects';
 
 export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, any>;
@@ -44,6 +45,14 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
     xl: '0 20px 25px rgba(0,0,0,0.15)',
   };
 
+  // Card effects
+  const effects = normalizeCardEffects(data.effects);
+  const cardBaseStyles = buildCardBaseStyle(effects);
+  const cardHoverStyles = buildCardHoverStyle(effects);
+  const imageFilterCss = buildImageFilterCss(effects);
+  const overlayStyles = buildOverlayStyle(effects);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+
   // Responsive clamp
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;
   const gapVal = `clamp(${Math.round(gap * 0.4)}px, ${(gap / 10).toFixed(1)}vw, ${gap}px)`;
@@ -56,15 +65,21 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
         gap: gapVal,
       }}>
         {Array.from({ length: limit }).map((_, i) => (
-          <div key={i} style={{
-            borderRadius: `${cardBorderRadius}px`,
-            border: cardBorder ? `${cardBorderWidth}px ${cardBorderStyle} ${cardBorderColor}` : 'none',
-            overflow: 'hidden',
-            boxShadow: SHADOW_MAP[cardShadow] || 'none',
-            backgroundColor: cardBg || undefined,
-            padding: cardPadding,
-            ...(isHorizontal ? { display: 'flex' } : {}),
-          }}>
+          <div key={i}
+            onMouseEnter={() => setHoveredCard(i)}
+            onMouseLeave={() => setHoveredCard(null)}
+            style={{
+              borderRadius: `${cardBorderRadius}px`,
+              border: cardBorder ? `${cardBorderWidth}px ${cardBorderStyle} ${cardBorderColor}` : 'none',
+              overflow: effects.enabled ? 'visible' : 'hidden',
+              boxShadow: SHADOW_MAP[cardShadow] || 'none',
+              backgroundColor: cardBg || undefined,
+              padding: cardPadding,
+              position: 'relative',
+              ...cardBaseStyles,
+              ...(hoveredCard === i ? cardHoverStyles : {}),
+              ...(isHorizontal ? { display: 'flex' } : {}),
+            }}>
             {showImage && (
               <div style={{
                 background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
@@ -75,7 +90,12 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#d1d5db',
+                position: 'relative',
+                overflow: 'hidden',
+                borderRadius: 'inherit',
+                ...(imageFilterCss ? { filter: imageFilterCss } : {}),
               }}>
+                {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />

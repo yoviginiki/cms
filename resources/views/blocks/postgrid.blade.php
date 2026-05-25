@@ -1,4 +1,5 @@
 @use('App\Support\Blocks\BlockStyle')
+@use('App\Support\Blocks\BlockEffects')
 @php
     $__bs = $blockStyle ?? [];
     $__ba = $blockAnimation ?? [];
@@ -69,7 +70,16 @@
         $query->where('category_id', $categoryId);
     }
     $posts = $query->orderByDesc('published_at')->limit($limit)->get();
+
+    // Card effects
+    $__effectsEnabled = BlockEffects::isEnabled($data);
+    $__cardBaseStyle = BlockEffects::cardBaseStyle($data);
+    $__imageFilter = BlockEffects::imageFilterStyle($data);
+    $__overlayHtml = BlockEffects::overlayHtml($data);
+    $__effectScope = $__effectsEnabled ? 'pgfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
+    $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data, $__effectScope) : '';
 @endphp
+@if($__hoverCss)<style>{{ $__hoverCss }}</style>@endif
 @if($posts->isEmpty())
     <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:0.5rem;">
         No posts found{{ $categoryId ? ' in this category' : '' }}.
@@ -77,12 +87,13 @@
 @else
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
-        <article style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:hidden;box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $isHorizontal ? 'display:flex;' : '' }}">
+        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}">
             @if($showImage)
-            <div style="background:#f3f4f6;{{ $isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';' }}{{ $imageWidth !== '100%' && !$isHorizontal ? 'margin:0 auto;' : '' }}">
+            <div style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';' }}{{ $imageWidth !== '100%' && !$isHorizontal ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
-                    <img src="{{ $post->featured_image }}" alt="" style="width:100%;height:100%;object-fit:cover;" />
+                    <img src="{{ $post->featured_image }}" alt="" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
                 @endif
+                {!! $__overlayHtml !!}
             </div>
             @endif
             <div style="padding:1rem;{{ $isHorizontal ? 'flex:1;' : '' }}">
