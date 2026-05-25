@@ -85,7 +85,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
             }}>
             {showImage && (
               <div style={{
-                background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                background: revealActive ? 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)' : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                 width: isHorizontal ? '33%' : imageWidth,
                 height: imgH,
                 ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
@@ -99,19 +99,17 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
                 ...(!revealActive && imageFilterCss ? { filter: imageFilterCss } : {}),
               }}>
                 {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
-                {/* Filtered overlay for reveal effect */}
+                {/* Filtered overlay for reveal effect — dark tinted layer simulates filter */}
                 {revealActive && (
                   <div style={{
                     ...revealBaseStyle,
                     ...(hoveredCard === i ? revealHoverStyle : {}),
-                    background: 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
+                    background: imageFilterCss.includes('grayscale') ? '#555' : imageFilterCss.includes('sepia') ? '#8b7355' : '#777',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e5e7eb" strokeWidth="1.5" style={{ opacity: 0.5 }}>
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <path d="m21 15-5-5L5 21" />
-                    </svg>
+                    <span style={{ color: '#fff', fontSize: '0.55rem', opacity: 0.6, textAlign: 'center' as const, lineHeight: 1.2 }}>
+                      {hoveredCard === i ? '' : (effects.imageFilter?.preset || 'filtered')}
+                    </span>
                   </div>
                 )}
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
