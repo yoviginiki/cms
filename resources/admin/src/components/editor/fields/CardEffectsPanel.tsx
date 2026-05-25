@@ -35,12 +35,8 @@ const FILTER_OPTIONS: Array<{ value: FilterPreset; label: string }> = [
 const REVEAL_OPTIONS: Array<{ value: RevealMode; label: string }> = [
   { value: 'none', label: 'None' },
   { value: 'fade', label: 'Fade to original' },
-  { value: 'reveal-left', label: 'Reveal left to right' },
-  { value: 'reveal-right', label: 'Reveal right to left' },
-  { value: 'reveal-top', label: 'Reveal top to bottom' },
-  { value: 'reveal-bottom', label: 'Reveal bottom to top' },
-  { value: 'circle', label: 'Circle reveal' },
-  { value: 'diagonal', label: 'Diagonal reveal' },
+  // Directional reveal modes planned for future slice:
+  // reveal-left, reveal-right, reveal-top, reveal-bottom, circle, diagonal
 ];
 
 export function CardEffectsPanel({ value, onChange, showHover = true, showFilter = true, showOverlay = true, showReveal = true }: Props) {

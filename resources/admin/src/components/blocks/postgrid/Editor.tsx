@@ -29,6 +29,8 @@ interface PostgridData {
   // Excerpt
   showExcerpt: boolean; excerptLength: number; excerptSize: number; excerptFont: string;
   excerptAlign: string; excerptPadding: string; excerptMargin: string;
+  // Effects
+  effects: any;
 }
 
 function RangeField({ label, value, min, max, step, unit, onChange }: {
@@ -340,7 +342,7 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
       {/* ─── Card Effects ─── */}
       <div className="border-t border-base-300/20 pt-3">
         <CardEffectsPanel
-          value={(data as any).effects || {}}
+          value={data.effects || {}}
           onChange={(v: CardEffects) => update('effects', v)}
         />
       </div>
