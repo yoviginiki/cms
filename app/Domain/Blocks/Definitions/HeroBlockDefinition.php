@@ -187,7 +187,7 @@ class HeroBlockDefinition implements BlockDefinition
 
             // Accessibility fields
             'alt'                => ['sometimes', 'nullable', 'string', 'max:255'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

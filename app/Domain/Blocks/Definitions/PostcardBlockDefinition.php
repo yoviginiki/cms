@@ -15,7 +15,7 @@ class PostcardBlockDefinition implements BlockDefinition
             'showExcerpt'  => ['sometimes', 'boolean'],
             'showDate'     => ['sometimes', 'boolean'],
             'showCategory' => ['sometimes', 'boolean'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

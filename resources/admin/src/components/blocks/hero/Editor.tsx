@@ -7,6 +7,8 @@ import { ResponsiveField } from '@/components/editor/fields/ResponsiveField';
 import type { Breakpoint } from '@/lib/responsiveValues';
 import { getResponsiveValue, setResponsiveValue, clearResponsiveValue } from '@/lib/responsiveValues';
 import { useEditorStore } from '@/stores/editorStore';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -503,6 +505,13 @@ export const HeroEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
 
       {/* mediaLoading: reserved for future <img>/<video> element; Hero uses CSS background */}
 
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

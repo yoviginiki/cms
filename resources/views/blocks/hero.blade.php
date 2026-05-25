@@ -1,4 +1,5 @@
 @use('App\Support\Blocks\BlockStyle')
+@use('App\Support\Blocks\BlockEffects')
 @use('App\Domain\Publishing\Services\AssetPublisher')
 @php
     // Sanitize CSS values to prevent style injection
@@ -177,6 +178,25 @@
     $animAttr = BlockStyle::animationAttr($ba);
     $hideOn = BlockStyle::buildHideOnCss($bResp, $htmlId);
 
+    // Card effects
+    $__effectsEnabled = BlockEffects::isEnabled($data ?? []);
+    $__imageFilter = BlockEffects::imageFilterStyle($data ?? []);
+    $__overlayHtml = BlockEffects::overlayHtml($data ?? []);
+    $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($htmlId ?: uniqid('', true)), 0, 8) : '';
+    $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
+    $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);
+    $__revealMode = in_array(($data['effects']['imageHoverReveal']['mode'] ?? 'fade'), ['none','fade','reveal-left','reveal-right','reveal-top','reveal-bottom','circle','diagonal']) ? ($data['effects']['imageHoverReveal']['mode'] ?? 'fade') : 'fade';
+    $__isFadeReveal = $__revealMode === 'fade' || $__revealMode === 'none';
+    $__revealDuration = max(150, min(1500, intval($data['effects']['imageHoverReveal']['duration'] ?? 500)));
+    $__revealEasing = in_array($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out', ['ease','ease-out','ease-in-out']) ? ($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out') : 'ease-out';
+    if ($__revealEnabled && $__effectScope && $__isFadeReveal) {
+        $__revealImgCss = ".{$__effectScope}:hover .img-filtered{filter:none!important}.{$__effectScope} .img-filtered{transition:filter {$__revealDuration}ms {$__revealEasing}}@media(prefers-reduced-motion:reduce){.{$__effectScope} .img-filtered{transition:none!important}}";
+    } elseif ($__revealEnabled && $__effectScope) {
+        $__revealImgCss = BlockEffects::revealCss($data ?? [], $__effectScope);
+    } else {
+        $__revealImgCss = '';
+    }
+
     // ── Responsive overrides (block.data.responsive) ──
     $resp = is_array($data['responsive'] ?? null) ? $data['responsive'] : [];
     $respTablet = is_array($resp['tablet'] ?? null) ? $resp['tablet'] : [];
@@ -243,8 +263,9 @@
 @if($hideOn['css'] || $respCss)
 <style>{{ $hideOn['css'] }}{{ $respCss }}</style>
 @endif
+@if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
 <section
-    class="hero-section {{ $customClass }} {{ $hideOn['scopeClass'] }} {{ $respScopeClass }}"
+    class="hero-section {{ $customClass }} {{ $hideOn['scopeClass'] }} {{ $respScopeClass }} {{ $__effectScope }}"
     style="{{ $style }}{{ $sharedStyle ? ";{$sharedStyle}" : '' }}"
     @if($htmlId) id="{{ $htmlId }}" @endif
     @if($animAttr) data-animation="{{ $animAttr }}" @endif

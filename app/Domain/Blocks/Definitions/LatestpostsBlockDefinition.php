@@ -21,7 +21,7 @@ class LatestpostsBlockDefinition implements BlockDefinition
             'showCategory' => ['sometimes', 'boolean'],
             'showContent'  => ['sometimes', 'boolean'],
             'excerptLength'=> ['sometimes', 'integer', 'min:0', 'max:500'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

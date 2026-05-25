@@ -12,7 +12,7 @@ class RelatedpostsBlockDefinition implements BlockDefinition
         return [
             'limit'   => ['sometimes', 'integer', 'min:1', 'max:20'],
             'basedOn' => ['sometimes', 'in:category,manual'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

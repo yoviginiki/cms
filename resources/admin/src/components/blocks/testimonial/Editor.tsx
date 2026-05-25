@@ -3,6 +3,8 @@ import { TextField, SelectField, ColorField } from '@/components/editor/fields';
 import { ShadowField } from '@/components/editor/fields/ShadowField';
 import { CornerRadiusField } from '@/components/editor/fields/CornerRadiusField';
 import type { ShadowCustom } from '@/lib/shadowStyles';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 interface TestimonialItem { quote: string; author: string; role: string; avatar: string }
 
@@ -55,6 +57,14 @@ export const TestimonialEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
         </div>
       ))}
       <button type="button" onClick={addItem} className="btn btn-ghost btn-sm btn-block text-[11px] border-dashed border-base-content/20">+ Add Testimonial</button>
+
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

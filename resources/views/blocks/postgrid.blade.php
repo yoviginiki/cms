@@ -82,7 +82,7 @@
     $__effectScope = $__effectsEnabled ? 'pgfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data, $__effectScope) : '';
     $__revealEnabled = BlockEffects::isRevealEnabled($data);
-    $__revealMode = $data['effects']['imageHoverReveal']['mode'] ?? 'fade';
+    $__revealMode = in_array($data['effects']['imageHoverReveal']['mode'] ?? 'fade', ['none','fade','reveal-left','reveal-right','reveal-top','reveal-bottom','circle','diagonal']) ? ($data['effects']['imageHoverReveal']['mode'] ?? 'fade') : 'fade';
     $__revealDuration = max(150, min(1500, intval($data['effects']['imageHoverReveal']['duration'] ?? 500)));
     $__revealEasing = in_array($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out', ['ease','ease-out','ease-in-out']) ? ($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out') : 'ease-out';
     $__isFadeReveal = $__revealMode === 'fade' || $__revealMode === 'none';

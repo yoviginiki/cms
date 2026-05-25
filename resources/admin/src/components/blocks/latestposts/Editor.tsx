@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { categories as categoriesApi } from '@/lib/api';
 import type { BlockEditorProps } from '@/types/blocks';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as {
@@ -102,6 +104,14 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
           <input type="checkbox" className="checkbox checkbox-sm" checked={data.showCategory !== false} onChange={(e) => update('showCategory', e.target.checked)} />
           <span className="text-[11px] text-base-content/50">Show category badge</span>
         </label>
+      </div>
+
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
       </div>
     </div>
   );

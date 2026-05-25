@@ -30,7 +30,7 @@ interface PostgridData {
   showExcerpt: boolean; excerptLength: number; excerptSize: number; excerptFont: string;
   excerptAlign: string; excerptPadding: string; excerptMargin: string;
   // Effects
-  effects: any;
+  effects: CardEffects;
 }
 
 function RangeField({ label, value, min, max, step, unit, onChange }: {

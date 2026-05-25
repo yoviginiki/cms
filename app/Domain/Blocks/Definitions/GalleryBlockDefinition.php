@@ -15,7 +15,7 @@ class GalleryBlockDefinition implements BlockDefinition
             'layout'          => ['sometimes', 'in:grid,masonry,carousel'],
             'columns'         => ['sometimes', 'integer', 'min:1', 'max:6'],
             'gap'             => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

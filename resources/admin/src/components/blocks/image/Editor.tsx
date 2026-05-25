@@ -4,6 +4,8 @@ import { TextField, SelectField, ColorField } from '@/components/editor/fields';
 import { CornerRadiusField } from '@/components/editor/fields/CornerRadiusField';
 import { ShadowField } from '@/components/editor/fields/ShadowField';
 import type { ShadowCustom } from '@/lib/shadowStyles';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const ImageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -25,6 +27,14 @@ export const ImageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
         onChangeCustom={(v) => update('shadowCustom', { ...((data.shadowCustom as ShadowCustom) || {}), ...v })} />
       <ColorField label="Border Color" value={(data.borderColor as string) || ''} onChange={(v) => update('borderColor', v)} />
       <TextField label="Border Width" value={(data.borderWidth as string) || ''} onChange={(v) => update('borderWidth', v)} placeholder="e.g. 1px" />
+
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

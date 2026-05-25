@@ -1,5 +1,7 @@
 import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const PostcardEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as { postId: string; style: string; showExcerpt: boolean; showDate: boolean; showCategory: boolean };
@@ -33,6 +35,14 @@ export const PostcardEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
         <input type="checkbox" className="checkbox checkbox-sm" checked={!!data.showCategory} onChange={(e) => update('showCategory', e.target.checked)} />
         <span className="text-[11px] text-base-content/50">Show Category</span>
       </label>
+
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };
