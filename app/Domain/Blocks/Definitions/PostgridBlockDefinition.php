@@ -10,11 +10,30 @@ class PostgridBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'categoryId'  => ['sometimes', 'nullable', 'string', 'max:36'],
-            'limit'       => ['sometimes', 'integer', 'min:1', 'max:50'],
-            'columns'     => ['sometimes', 'integer', 'min:1', 'max:6'],
-            'cardStyle'   => ['sometimes', 'in:vertical,horizontal'],
-            'showExcerpt' => ['sometimes', 'boolean'],
+            'categoryId'     => ['sometimes', 'nullable', 'string', 'max:36'],
+            'limit'          => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'columns'        => ['sometimes', 'integer', 'min:1', 'max:6'],
+            'cardStyle'      => ['sometimes', 'in:vertical,horizontal'],
+            'gap'            => ['sometimes', 'integer', 'min:0', 'max:64'],
+            // Image
+            'showImage'      => ['sometimes', 'boolean'],
+            'imageHeight'    => ['sometimes', 'integer', 'min:40', 'max:600'],
+            'imageWidth'     => ['sometimes', 'string', 'regex:/^(auto|\d{1,3}%)$/'],
+            // Heading
+            'showHeading'    => ['sometimes', 'boolean'],
+            'headingTag'     => ['sometimes', 'in:h2,h3,h4'],
+            'headingSize'    => ['sometimes', 'integer', 'min:10', 'max:48'],
+            'headingFont'    => ['sometimes', 'string', 'max:100'],
+            'headingAlign'   => ['sometimes', 'in:left,center,right'],
+            'headingPadding' => ['sometimes', 'string', 'max:50'],
+            'headingMargin'  => ['sometimes', 'string', 'max:50'],
+            // Excerpt
+            'showExcerpt'    => ['sometimes', 'boolean'],
+            'excerptSize'    => ['sometimes', 'integer', 'min:10', 'max:32'],
+            'excerptFont'    => ['sometimes', 'string', 'max:100'],
+            'excerptAlign'   => ['sometimes', 'in:left,center,right'],
+            'excerptPadding' => ['sometimes', 'string', 'max:50'],
+            'excerptMargin'  => ['sometimes', 'string', 'max:50'],
         ];
     }
 
