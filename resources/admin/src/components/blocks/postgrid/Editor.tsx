@@ -23,7 +23,8 @@ interface PostgridData {
   // Image
   showImage: boolean; imageHeight: number; imageWidth: string;
   // Heading
-  showHeading: boolean; headingTag: string; headingSize: number; headingFont: string;
+  showHeading: boolean; headingPosition: string; headingVerticalDir: string;
+  headingTag: string; headingSize: number; headingFont: string;
   headingAlign: string; headingPadding: string; headingMargin: string;
   // Excerpt
   showExcerpt: boolean; excerptLength: number; excerptSize: number; excerptFont: string;
@@ -263,9 +264,10 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
               <div>
                 <label className="text-[11px] text-base-content/50 mb-1 block">Text Direction</label>
                 <select className="select select-bordered select-xs w-full" value={data.headingVerticalDir || 'up'} onChange={(e) => update('headingVerticalDir', e.target.value)}>
-                  <option value="up">Letters face up ↑</option>
-                  <option value="down">Letters face down ↓</option>
-                  <option value="away">Away from image ←→</option>
+                  <option value="up">Up ↑</option>
+                  <option value="down">Down ↓</option>
+                  <option value="left">Left ←</option>
+                  <option value="right">Right →</option>
                 </select>
               </div>
             )}

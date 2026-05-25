@@ -48,7 +48,7 @@
     $showHeading = $data['showHeading'] ?? true;
     $headingPosition = in_array($data['headingPosition'] ?? 'below', ['above','below','vertical-left','vertical-right']) ? ($data['headingPosition'] ?? 'below') : 'below';
     $isVerticalHeading = in_array($headingPosition, ['vertical-left', 'vertical-right']);
-    $headingVerticalDir = in_array($data['headingVerticalDir'] ?? 'up', ['up','down','away']) ? ($data['headingVerticalDir'] ?? 'up') : 'up';
+    $headingVerticalDir = in_array($data['headingVerticalDir'] ?? 'up', ['up','down','left','right']) ? ($data['headingVerticalDir'] ?? 'up') : 'up';
     $headingTag = in_array($data['headingTag'] ?? 'h3', ['h2','h3','h4']) ? ($data['headingTag'] ?? 'h3') : 'h3';
     $headingSizePx = max(10, min(48, intval($data['headingSize'] ?? 16)));
     $headingFont = $data['headingFont'] ?? 'inherit';
@@ -111,8 +111,7 @@
             {{-- Vertical heading LEFT --}}
             @if($showHeading && $headingPosition === 'vertical-left')
             @php
-                // up = bottom-to-top reading; down = top-to-bottom; away = face away from image (= up for left side)
-                $vlMode = ($headingVerticalDir === 'down') ? 'vertical-rl' : 'vertical-lr';
+                $vlMode = match($headingVerticalDir) { 'down' => 'vertical-rl', 'left' => 'sideways-lr', 'right' => 'sideways-rl', default => 'vertical-lr' };
             @endphp
             <div style="writing-mode:{{ $vlMode }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
@@ -131,11 +130,7 @@
             {{-- Vertical heading RIGHT --}}
             @if($showHeading && $headingPosition === 'vertical-right')
             @php
-                // up = bottom-to-top; down = top-to-bottom; away = face away from image (= down for right side)
-                $vrMode = ($headingVerticalDir === 'up' || $headingVerticalDir === 'away') ? 'vertical-lr' : 'vertical-rl';
-                // For right side: vertical-lr reads bottom-to-top, vertical-rl reads top-to-bottom
-                // away on right = down = vertical-rl
-                $vrMode = $headingVerticalDir === 'up' ? 'vertical-lr' : ($headingVerticalDir === 'away' ? 'vertical-rl' : 'vertical-rl');
+                $vrMode = match($headingVerticalDir) { 'down' => 'vertical-rl', 'left' => 'sideways-lr', 'right' => 'sideways-rl', default => 'vertical-lr' };
             @endphp
             <div style="writing-mode:{{ $vrMode }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">

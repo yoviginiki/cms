@@ -31,7 +31,7 @@ class PostgridBlockDefinition implements BlockDefinition
             // Heading
             'showHeading'    => ['sometimes', 'boolean'],
             'headingPosition'    => ['sometimes', 'in:above,below,vertical-left,vertical-right'],
-            'headingVerticalDir' => ['sometimes', 'in:up,down,away'],
+            'headingVerticalDir' => ['sometimes', 'in:up,down,left,right'],
             'headingTag'     => ['sometimes', 'in:h2,h3,h4'],
             'headingSize'    => ['sometimes', 'integer', 'min:10', 'max:48'],
             'headingFont'    => ['sometimes', 'string', 'max:100'],

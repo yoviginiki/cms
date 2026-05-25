@@ -65,15 +65,13 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   }));
 
   const headingVerticalDir = data.headingVerticalDir || 'up';
-  const renderVerticalHeading = (idx: number) => {
-    const isLeft = headingPosition === 'vertical-left';
-    // vertical-lr = bottom-to-top (letters face up), vertical-rl = top-to-bottom (letters face down)
-    let writingMode: string;
-    if (isLeft) {
-      writingMode = headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr';
-    } else {
-      writingMode = (headingVerticalDir === 'up') ? 'vertical-lr' : 'vertical-rl';
-    }
+  const renderVerticalHeading = (_idx: number) => {
+    // up = vertical-lr (bottom-to-top), down = vertical-rl (top-to-bottom)
+    // left = sideways-lr, right = sideways-rl
+    const writingMode = headingVerticalDir === 'down' ? 'vertical-rl'
+      : headingVerticalDir === 'left' ? 'sideways-lr'
+      : headingVerticalDir === 'right' ? 'sideways-rl'
+      : 'vertical-lr'; // 'up' default
     return (
       <div style={{ writingMode: writingMode as any, textOrientation: 'mixed', padding: '0.5rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: `${headingSize + 8}px` }}>
         {React.createElement(headingTag, {
@@ -110,6 +108,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
               padding: cardPadding,
               position: 'relative',
               ...cardBaseStyles,
+              ...(hoveredCard === i ? cardHoverStyles : {}),
               ...(isHorizontal ? { display: 'flex' } : {}),
               ...(headingPosition === 'vertical-left' || headingPosition === 'vertical-right' ? { display: 'flex', flexDirection: 'row' as const } : {}),
             }}>

@@ -125,7 +125,7 @@ export function normalizeCardEffects(raw: any): CardEffects {
     } : undefined,
     imageHoverReveal: raw.imageHoverReveal ? {
       enabled: !!raw.imageHoverReveal.enabled,
-      mode: REVEAL_MODES.includes(raw.imageHoverReveal?.mode) ? raw.imageHoverReveal.mode : 'none',
+      mode: REVEAL_MODES.includes(raw.imageHoverReveal?.mode) ? raw.imageHoverReveal.mode : 'fade',
       duration: clamp(raw.imageHoverReveal?.duration ?? 500, 150, 1500),
       easing: ['ease', 'ease-out', 'ease-in-out'].includes(raw.imageHoverReveal?.easing) ? raw.imageHoverReveal.easing : 'ease-out',
     } : undefined,
