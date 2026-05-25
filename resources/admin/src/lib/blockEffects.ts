@@ -14,6 +14,7 @@ export interface CardEffects {
   hover?: CardHoverEffects;
   imageFilter?: ImageFilterEffects;
   overlay?: ImageOverlayEffects;
+  imageHoverReveal?: ImageHoverRevealEffects;
 }
 
 export interface CardHoverEffects {
@@ -42,6 +43,17 @@ export interface ImageOverlayEffects {
   opacity?: number;
   blendMode?: 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
 }
+
+export interface ImageHoverRevealEffects {
+  enabled?: boolean;
+  mode?: RevealMode;
+  duration?: number;
+  easing?: 'ease' | 'ease-out' | 'ease-in-out';
+}
+
+export type RevealMode = 'none' | 'fade' | 'reveal-left' | 'reveal-right' | 'reveal-top' | 'reveal-bottom' | 'circle' | 'diagonal';
+
+export const REVEAL_MODES: RevealMode[] = ['none', 'fade', 'reveal-left', 'reveal-right', 'reveal-top', 'reveal-bottom', 'circle', 'diagonal'];
 
 export type HoverPreset = 'none' | 'lift' | 'scale' | 'lift-scale' | 'soft-pop' | 'strong-pop';
 export type FilterPreset = 'none' | 'grayscale' | 'sepia' | 'muted' | 'high-contrast' | 'custom';
@@ -110,6 +122,12 @@ export function normalizeCardEffects(raw: any): CardEffects {
       color: safeColor(raw.overlay?.color || '#000000'),
       opacity: clamp(raw.overlay?.opacity ?? 30, 0, 100),
       blendMode: ['normal', 'multiply', 'screen', 'overlay', 'soft-light'].includes(raw.overlay?.blendMode) ? raw.overlay.blendMode : 'normal',
+    } : undefined,
+    imageHoverReveal: raw.imageHoverReveal ? {
+      enabled: !!raw.imageHoverReveal.enabled,
+      mode: REVEAL_MODES.includes(raw.imageHoverReveal?.mode) ? raw.imageHoverReveal.mode : 'none',
+      duration: clamp(raw.imageHoverReveal?.duration ?? 500, 150, 1500),
+      easing: ['ease', 'ease-out', 'ease-in-out'].includes(raw.imageHoverReveal?.easing) ? raw.imageHoverReveal.easing : 'ease-out',
     } : undefined,
   };
 }
@@ -182,6 +200,84 @@ export function buildOverlayStyle(effects: CardEffects): React.CSSProperties | n
     mixBlendMode: o.blendMode || 'normal',
     pointerEvents: 'none',
     borderRadius: 'inherit',
+  };
+}
+
+// ═══════════════════════════════════════
+// Image Hover Reveal
+// ═══════════════════════════════════════
+
+/** Check if hover reveal is active */
+export function isRevealEnabled(effects: CardEffects): boolean {
+  return !!effects.enabled && !!effects.imageHoverReveal?.enabled &&
+    effects.imageHoverReveal.mode !== 'none' && !!effects.imageFilter?.enabled;
+}
+
+/** Get the clip-path for the filtered overlay in its DEFAULT (visible) state */
+function getRevealClipDefault(mode: RevealMode): string {
+  switch (mode) {
+    case 'reveal-left': return 'inset(0 0 0 0)';
+    case 'reveal-right': return 'inset(0 0 0 0)';
+    case 'reveal-top': return 'inset(0 0 0 0)';
+    case 'reveal-bottom': return 'inset(0 0 0 0)';
+    case 'circle': return 'circle(100% at 50% 50%)';
+    case 'diagonal': return 'polygon(0 0, 100% 0, 100% 100%, 0 100%)';
+    default: return '';
+  }
+}
+
+/** Get the clip-path for the filtered overlay on HOVER (hidden/revealing original) */
+function getRevealClipHover(mode: RevealMode): string {
+  switch (mode) {
+    case 'reveal-left': return 'inset(0 100% 0 0)';
+    case 'reveal-right': return 'inset(0 0 0 100%)';
+    case 'reveal-top': return 'inset(100% 0 0 0)';
+    case 'reveal-bottom': return 'inset(0 0 100% 0)';
+    case 'circle': return 'circle(0% at 50% 50%)';
+    case 'diagonal': return 'polygon(0 0, 0 0, 0 100%, 0 100%)';
+    default: return '';
+  }
+}
+
+/** Build filtered overlay layer style (default state — filter visible) */
+export function buildRevealFilteredStyle(effects: CardEffects): React.CSSProperties {
+  if (!isRevealEnabled(effects)) return {};
+  const r = effects.imageHoverReveal!;
+  const mode = r.mode || 'fade';
+  const duration = r.duration ?? 500;
+  const easing = r.easing ?? 'ease-out';
+  const filterCss = buildImageFilterCss(effects);
+  const clipDefault = getRevealClipDefault(mode);
+
+  return {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
+    filter: filterCss || undefined,
+    opacity: 1,
+    clipPath: clipDefault || undefined,
+    transition: mode === 'fade'
+      ? `opacity ${duration}ms ${easing}`
+      : `clip-path ${duration}ms ${easing}, opacity ${duration}ms ${easing}`,
+    pointerEvents: 'none',
+    zIndex: 1,
+  };
+}
+
+/** Build filtered overlay layer style on HOVER (filter disappearing) */
+export function buildRevealFilteredHoverStyle(effects: CardEffects): React.CSSProperties {
+  if (!isRevealEnabled(effects)) return {};
+  const mode = effects.imageHoverReveal!.mode || 'fade';
+  const clipHover = getRevealClipHover(mode);
+
+  if (mode === 'fade') {
+    return { opacity: 0 };
+  }
+  return {
+    clipPath: clipHover || undefined,
+    opacity: clipHover ? undefined : 0,
   };
 }
 

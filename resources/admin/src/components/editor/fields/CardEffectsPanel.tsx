@@ -2,7 +2,7 @@
  * BLOCK-EFFECTS-1 — Reusable Card/Image Effects Panel.
  * Drop into any block editor that renders cards or images.
  */
-import type { CardEffects, HoverPreset, FilterPreset } from '@/lib/blockEffects';
+import type { CardEffects, HoverPreset, FilterPreset, RevealMode } from '@/lib/blockEffects';
 import { HOVER_PRESETS, FILTER_PRESETS } from '@/lib/blockEffects';
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
   showHover?: boolean;
   showFilter?: boolean;
   showOverlay?: boolean;
+  showReveal?: boolean;
 }
 
 const HOVER_OPTIONS: Array<{ value: HoverPreset; label: string; desc: string }> = [
@@ -31,7 +32,18 @@ const FILTER_OPTIONS: Array<{ value: FilterPreset; label: string }> = [
   { value: 'custom', label: 'Custom' },
 ];
 
-export function CardEffectsPanel({ value, onChange, showHover = true, showFilter = true, showOverlay = true }: Props) {
+const REVEAL_OPTIONS: Array<{ value: RevealMode; label: string }> = [
+  { value: 'none', label: 'None' },
+  { value: 'fade', label: 'Fade to original' },
+  { value: 'reveal-left', label: 'Reveal left to right' },
+  { value: 'reveal-right', label: 'Reveal right to left' },
+  { value: 'reveal-top', label: 'Reveal top to bottom' },
+  { value: 'reveal-bottom', label: 'Reveal bottom to top' },
+  { value: 'circle', label: 'Circle reveal' },
+  { value: 'diagonal', label: 'Diagonal reveal' },
+];
+
+export function CardEffectsPanel({ value, onChange, showHover = true, showFilter = true, showOverlay = true, showReveal = true }: Props) {
   const update = (patch: Partial<CardEffects>) => onChange({ ...value, ...patch });
   const updateHover = (patch: Partial<NonNullable<CardEffects['hover']>>) =>
     update({ hover: { ...value.hover, ...patch } });
@@ -39,6 +51,8 @@ export function CardEffectsPanel({ value, onChange, showHover = true, showFilter
     update({ imageFilter: { ...value.imageFilter, ...patch } });
   const updateOverlay = (patch: Partial<NonNullable<CardEffects['overlay']>>) =>
     update({ overlay: { ...value.overlay, ...patch } });
+  const updateReveal = (patch: Partial<NonNullable<CardEffects['imageHoverReveal']>>) =>
+    update({ imageHoverReveal: { ...value.imageHoverReveal, ...patch } });
 
   return (
     <div className="space-y-3">
@@ -156,6 +170,50 @@ export function CardEffectsPanel({ value, onChange, showHover = true, showFilter
                       <FilterSlider label="Saturation" value={value.imageFilter.saturation ?? 100} min={0} max={200} onChange={(v) => updateFilter({ saturation: v })} />
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Image Hover Reveal ─── */}
+          {showReveal && value.imageFilter?.enabled && (
+            <div className="border-t border-base-300/20 pt-3">
+              <label className="flex items-center justify-between cursor-pointer mb-2">
+                <span className="text-[10px] text-base-content/40 uppercase tracking-wider font-medium">Image Hover Reveal</span>
+                <input type="checkbox" className="toggle toggle-xs toggle-primary"
+                  checked={!!value.imageHoverReveal?.enabled} onChange={(e) => updateReveal({ enabled: e.target.checked })} />
+              </label>
+
+              {value.imageHoverReveal?.enabled && (
+                <div className="space-y-2">
+                  <p className="text-[9px] text-base-content/25">Shows the filtered image normally and reveals the original image on hover.</p>
+                  <div>
+                    <label className="text-[10px] text-base-content/40 mb-1 block">Reveal Mode</label>
+                    <select className="select select-bordered select-xs w-full"
+                      value={value.imageHoverReveal.mode || 'fade'}
+                      onChange={(e) => updateReveal({ mode: e.target.value as RevealMode })}>
+                      {REVEAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-base-content/40 mb-0.5 block">Duration</label>
+                      <input type="range" className="range range-xs range-primary w-full" min={150} max={1500} step={50}
+                        value={value.imageHoverReveal.duration ?? 500}
+                        onChange={(e) => updateReveal({ duration: Number(e.target.value) })} />
+                      <span className="text-[9px] text-base-content/30">{value.imageHoverReveal.duration ?? 500}ms</span>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-base-content/40 mb-0.5 block">Easing</label>
+                      <select className="select select-bordered select-xs w-full"
+                        value={value.imageHoverReveal.easing || 'ease-out'}
+                        onChange={(e) => updateReveal({ easing: e.target.value as any })}>
+                        <option value="ease">Ease</option>
+                        <option value="ease-out">Ease out</option>
+                        <option value="ease-in-out">Ease in-out</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

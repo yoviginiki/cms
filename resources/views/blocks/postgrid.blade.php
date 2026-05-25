@@ -78,8 +78,10 @@
     $__overlayHtml = BlockEffects::overlayHtml($data);
     $__effectScope = $__effectsEnabled ? 'pgfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data, $__effectScope) : '';
+    $__revealEnabled = BlockEffects::isRevealEnabled($data);
+    $__revealCss = $__revealEnabled && $__effectScope ? BlockEffects::revealCss($data, $__effectScope) : '';
 @endphp
-@if($__hoverCss)<style>{{ $__hoverCss }}</style>@endif
+@if($__hoverCss || $__revealCss)<style>{{ $__hoverCss }}{{ $__revealCss }}</style>@endif
 @if($posts->isEmpty())
     <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:0.5rem;">
         No posts found{{ $categoryId ? ' in this category' : '' }}.
@@ -91,7 +93,11 @@
             @if($showImage)
             <div style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';' }}{{ $imageWidth !== '100%' && !$isHorizontal ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
-                    <img src="{{ $post->featured_image }}" alt="" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
+                    @if($__revealEnabled)
+                        {!! \App\Support\Blocks\BlockEffects::revealImageHtml($post->featured_image, $post->title ?? '') !!}
+                    @else
+                        <img src="{{ $post->featured_image }}" alt="" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
+                    @endif
                 @endif
                 {!! $__overlayHtml !!}
             </div>

@@ -41,6 +41,20 @@ class BlockEffects
 
     private const BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'soft-light'];
 
+    private const REVEAL_MODES = ['none', 'fade', 'reveal-left', 'reveal-right', 'reveal-top', 'reveal-bottom', 'circle', 'diagonal'];
+
+    private const REVEAL_CLIP_DEFAULT = [
+        'reveal-left' => 'inset(0 0 0 0)', 'reveal-right' => 'inset(0 0 0 0)',
+        'reveal-top' => 'inset(0 0 0 0)', 'reveal-bottom' => 'inset(0 0 0 0)',
+        'circle' => 'circle(100% at 50% 50%)', 'diagonal' => 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+    ];
+
+    private const REVEAL_CLIP_HOVER = [
+        'reveal-left' => 'inset(0 100% 0 0)', 'reveal-right' => 'inset(0 0 0 100%)',
+        'reveal-top' => 'inset(100% 0 0 0)', 'reveal-bottom' => 'inset(0 0 100% 0)',
+        'circle' => 'circle(0% at 50% 50%)', 'diagonal' => 'polygon(0 0, 0 0, 0 100%, 0 100%)',
+    ];
+
     // ═══════════════════════════════════════
     // Public API
     // ═══════════════════════════════════════
@@ -153,6 +167,76 @@ class BlockEffects
     }
 
     // ═══════════════════════════════════════
+    // Image Hover Reveal
+    // ═══════════════════════════════════════
+
+    /**
+     * Check if image hover reveal is active.
+     */
+    public static function isRevealEnabled(array $data): bool
+    {
+        $effects = $data['effects'] ?? [];
+        return !empty($effects['enabled'])
+            && !empty($effects['imageHoverReveal']['enabled'])
+            && ($effects['imageHoverReveal']['mode'] ?? 'none') !== 'none'
+            && !empty($effects['imageFilter']['enabled']);
+    }
+
+    /**
+     * Build scoped CSS for image hover reveal.
+     * The filtered image layer sits on top and clips/fades away on hover.
+     */
+    public static function revealCss(array $data, string $scopeClass): string
+    {
+        if (!self::isRevealEnabled($data)) return '';
+
+        $reveal = $data['effects']['imageHoverReveal'];
+        $mode = in_array($reveal['mode'] ?? 'fade', self::REVEAL_MODES) ? $reveal['mode'] : 'fade';
+        $duration = max(150, min(1500, intval($reveal['duration'] ?? 500)));
+        $rawEasing = $reveal['easing'] ?? 'ease-out';
+        $easing = in_array($rawEasing, ['ease', 'ease-out', 'ease-in-out']) ? $rawEasing : 'ease-out';
+
+        $filterStyle = self::imageFilterStyle($data);
+        $clipDefault = self::REVEAL_CLIP_DEFAULT[$mode] ?? '';
+        $clipHover = self::REVEAL_CLIP_HOVER[$mode] ?? '';
+
+        $css = '';
+
+        // Filtered layer base state
+        $filteredBase = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:1;{$filterStyle}";
+        if ($mode === 'fade') {
+            $filteredBase .= "opacity:1;transition:opacity {$duration}ms {$easing};";
+        } else {
+            $filteredBase .= "clip-path:{$clipDefault};transition:clip-path {$duration}ms {$easing},opacity {$duration}ms {$easing};";
+        }
+        $css .= ".{$scopeClass} .img-reveal-filtered{" . $filteredBase . "}";
+
+        // Filtered layer hover state
+        if ($mode === 'fade') {
+            $css .= ".{$scopeClass}:hover .img-reveal-filtered{opacity:0}";
+        } else {
+            $css .= ".{$scopeClass}:hover .img-reveal-filtered{clip-path:{$clipHover}}";
+        }
+
+        // Reduced motion
+        $css .= "@media(prefers-reduced-motion:reduce){.{$scopeClass} .img-reveal-filtered{transition:none!important}}";
+
+        return $css;
+    }
+
+    /**
+     * Render the layered reveal image HTML.
+     * Original image below, filtered duplicate on top.
+     */
+    public static function revealImageHtml(string $src, string $alt, string $extraStyle = ''): string
+    {
+        $safeSrc = htmlspecialchars($src, ENT_QUOTES, 'UTF-8');
+        $safeAlt = htmlspecialchars($alt, ENT_QUOTES, 'UTF-8');
+        return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:100%;height:100%;object-fit:cover;' . $extraStyle . '" />'
+             . '<img src="' . $safeSrc . '" alt="" aria-hidden="true" class="img-reveal-filtered" />';
+    }
+
+    // ═══════════════════════════════════════
     // Validation rules (for PHP block definitions)
     // ═══════════════════════════════════════
 
@@ -186,6 +270,11 @@ class BlockEffects
             'effects.overlay.color'          => ['sometimes', 'string', 'max:20'],
             'effects.overlay.opacity'        => ['sometimes', 'integer', 'min:0', 'max:100'],
             'effects.overlay.blendMode'      => ['sometimes', 'in:normal,multiply,screen,overlay,soft-light'],
+            'effects.imageHoverReveal'            => ['sometimes', 'array'],
+            'effects.imageHoverReveal.enabled'    => ['sometimes', 'boolean'],
+            'effects.imageHoverReveal.mode'       => ['sometimes', 'in:none,fade,reveal-left,reveal-right,reveal-top,reveal-bottom,circle,diagonal'],
+            'effects.imageHoverReveal.duration'   => ['sometimes', 'integer', 'min:150', 'max:1500'],
+            'effects.imageHoverReveal.easing'     => ['sometimes', 'in:ease,ease-out,ease-in-out'],
         ];
     }
 

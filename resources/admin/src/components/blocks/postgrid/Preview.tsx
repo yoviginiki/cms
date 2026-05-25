@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle } from '@/lib/blockEffects';
+import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle, isRevealEnabled, buildRevealFilteredStyle, buildRevealFilteredHoverStyle } from '@/lib/blockEffects';
 
 export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, any>;
@@ -51,6 +51,9 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const cardHoverStyles = buildCardHoverStyle(effects);
   const imageFilterCss = buildImageFilterCss(effects);
   const overlayStyles = buildOverlayStyle(effects);
+  const revealActive = isRevealEnabled(effects);
+  const revealBaseStyle = buildRevealFilteredStyle(effects);
+  const revealHoverStyle = buildRevealFilteredHoverStyle(effects);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   // Responsive clamp
@@ -93,9 +96,24 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: 'inherit',
-                ...(imageFilterCss ? { filter: imageFilterCss } : {}),
+                ...(!revealActive && imageFilterCss ? { filter: imageFilterCss } : {}),
               }}>
                 {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
+                {/* Filtered overlay for reveal effect */}
+                {revealActive && (
+                  <div style={{
+                    ...revealBaseStyle,
+                    ...(hoveredCard === i ? revealHoverStyle : {}),
+                    background: 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e5e7eb" strokeWidth="1.5" style={{ opacity: 0.5 }}>
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="m21 15-5-5L5 21" />
+                    </svg>
+                  </div>
+                )}
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
