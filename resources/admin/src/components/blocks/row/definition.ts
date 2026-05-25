@@ -10,8 +10,9 @@ export type RowLayout =
   | '1/4+3/4'
   | '3/4+1/4';
 
-export const LAYOUT_GRID: Record<RowLayout, string> = {
+export const LAYOUT_GRID: Record<string, string> = {
   '1': '1fr',
+  '1/1': '1fr',
   '1/2+1/2': '1fr 1fr',
   '1/3+2/3': '1fr 2fr',
   '2/3+1/3': '2fr 1fr',
@@ -32,8 +33,9 @@ export const LAYOUT_LABELS: Record<RowLayout, string> = {
   '3/4+1/4': '2 Col — 3/4 + 1/4',
 };
 
-export const LAYOUT_COLUMN_COUNT: Record<RowLayout, number> = {
+export const LAYOUT_COLUMN_COUNT: Record<string, number> = {
   '1': 1,
+  '1/1': 1,
   '1/2+1/2': 2,
   '1/3+2/3': 2,
   '2/3+1/3': 2,
