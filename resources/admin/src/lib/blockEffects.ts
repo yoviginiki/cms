@@ -239,47 +239,58 @@ function getRevealClipHover(mode: RevealMode): string {
   }
 }
 
-/** Build filtered overlay layer style (default state — filter visible) */
+/** Build filtered overlay layer STATIC style (position/size only — no opacity/clipPath) */
 export function buildRevealFilteredStyle(effects: CardEffects): React.CSSProperties {
   if (!isRevealEnabled(effects)) return {};
-  const r = effects.imageHoverReveal!;
-  const mode = r.mode || 'fade';
-  const duration = r.duration ?? 500;
-  const easing = r.easing ?? 'ease-out';
-  const filterCss = buildImageFilterCss(effects);
-  const clipDefault = getRevealClipDefault(mode);
-
   return {
     position: 'absolute',
     inset: 0,
     width: '100%',
     height: '100%',
     objectFit: 'cover' as const,
-    filter: filterCss || undefined,
-    opacity: 1,
-    clipPath: clipDefault || undefined,
-    transition: mode === 'fade'
-      ? `opacity ${duration}ms ${easing}`
-      : `clip-path ${duration}ms ${easing}, opacity ${duration}ms ${easing}`,
     pointerEvents: 'none',
     zIndex: 1,
   };
 }
 
-/** Build filtered overlay layer style on HOVER (filter disappearing) */
-export function buildRevealFilteredHoverStyle(effects: CardEffects): React.CSSProperties {
-  if (!isRevealEnabled(effects)) return {};
-  const mode = effects.imageHoverReveal!.mode || 'fade';
+/** Build the CSS rules for reveal (base + hover). Opacity/clipPath handled by CSS only. */
+export function buildRevealCssRules(effects: CardEffects, cardClass: string, filteredClass: string): string {
+  if (!isRevealEnabled(effects)) return '';
+  const r = effects.imageHoverReveal!;
+  const mode = r.mode || 'fade';
+  const duration = r.duration ?? 500;
+  const easing = r.easing ?? 'ease-out';
+  const filterCss = buildImageFilterCss(effects);
+  const clipDefault = getRevealClipDefault(mode);
   const clipHover = getRevealClipHover(mode);
 
+  const rules: string[] = [];
+
+  // Base state
+  const baseParts = [`position:absolute`, `inset:0`, `width:100%`, `height:100%`, `object-fit:cover`, `pointer-events:none`, `z-index:1`];
+  if (filterCss) baseParts.push(`filter:${filterCss}`);
   if (mode === 'fade') {
-    return { opacity: 0 };
+    baseParts.push(`opacity:1`, `transition:opacity ${duration}ms ${easing}`);
+  } else {
+    baseParts.push(`clip-path:${clipDefault}`, `transition:clip-path ${duration}ms ${easing}`);
   }
-  return {
-    clipPath: clipHover || undefined,
-    opacity: clipHover ? undefined : 0,
-  };
+  rules.push(`.${cardClass} .${filteredClass}{${baseParts.join(';')}}`);
+
+  // Hover state
+  if (mode === 'fade') {
+    rules.push(`.${cardClass}:hover .${filteredClass}{opacity:0}`);
+  } else {
+    rules.push(`.${cardClass}:hover .${filteredClass}{clip-path:${clipHover}}`);
+  }
+
+  // Reduced motion
+  rules.push(`@media(prefers-reduced-motion:reduce){.${cardClass} .${filteredClass}{transition:none!important}}`);
+
+  return rules.join('');
 }
+
+// buildRevealFilteredHoverStyle removed — hover now handled entirely by CSS rules
+// via buildRevealCssRules() to avoid inline style specificity issues
 
 // ═══════════════════════════════════════
 // Helpers

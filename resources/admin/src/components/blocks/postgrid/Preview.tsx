@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle, isRevealEnabled, buildRevealFilteredStyle, buildRevealFilteredHoverStyle } from '@/lib/blockEffects';
+import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle, isRevealEnabled, buildRevealFilteredStyle, buildRevealCssRules } from '@/lib/blockEffects';
 
 export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, any>;
@@ -53,7 +53,6 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const overlayStyles = buildOverlayStyle(effects);
   const revealActive = isRevealEnabled(effects);
   const revealBaseStyle = buildRevealFilteredStyle(effects);
-  const revealHoverStyle = buildRevealFilteredHoverStyle(effects);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   // Generate unique scope for CSS-based hover (more reliable than JS in editor)
@@ -63,7 +62,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;
   const gapVal = `clamp(${Math.round(gap * 0.4)}px, ${(gap / 10).toFixed(1)}vw, ${gap}px)`;
 
-  // Build scoped CSS for hover effects (works more reliably than JS hover in editor)
+  // Build scoped CSS for hover effects (CSS :hover is more reliable than JS in editor)
   const scopedCss = (() => {
     const rules: string[] = [];
     // Card hover
@@ -74,15 +73,9 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
       if (hs.boxShadow) hoverRules.push(`box-shadow:${hs.boxShadow}`);
       if (hoverRules.length) rules.push(`.${scopeId}-card:hover{${hoverRules.join(';')}}`);
     }
-    // Reveal hover
+    // Reveal — entirely CSS-driven (no inline opacity/clipPath)
     if (revealActive) {
-      const mode = effects.imageHoverReveal?.mode || 'fade';
-      if (mode === 'fade') {
-        rules.push(`.${scopeId}-card:hover .${scopeId}-filtered{opacity:0}`);
-      } else {
-        const rhs = revealHoverStyle;
-        if (rhs.clipPath) rules.push(`.${scopeId}-card:hover .${scopeId}-filtered{clip-path:${rhs.clipPath}}`);
-      }
+      rules.push(buildRevealCssRules(effects, `${scopeId}-card`, `${scopeId}-filtered`));
     }
     return rules.length > 0 ? rules.join('') : '';
   })();
