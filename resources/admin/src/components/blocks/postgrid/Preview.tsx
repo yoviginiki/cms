@@ -56,12 +56,42 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const revealHoverStyle = buildRevealFilteredHoverStyle(effects);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
+  // Generate unique scope for CSS-based hover (more reliable than JS in editor)
+  const scopeId = `pg-${block.id?.slice(0, 8) || 'prev'}`;
+
   // Responsive clamp
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;
   const gapVal = `clamp(${Math.round(gap * 0.4)}px, ${(gap / 10).toFixed(1)}vw, ${gap}px)`;
 
+  // Build scoped CSS for hover effects (works more reliably than JS hover in editor)
+  const scopedCss = (() => {
+    const rules: string[] = [];
+    // Card hover
+    if (effects.enabled && effects.hover?.enabled) {
+      const hs = cardHoverStyles;
+      const hoverRules: string[] = [];
+      if (hs.transform) hoverRules.push(`transform:${hs.transform}`);
+      if (hs.boxShadow) hoverRules.push(`box-shadow:${hs.boxShadow}`);
+      if (hoverRules.length) rules.push(`.${scopeId}-card:hover{${hoverRules.join(';')}}`);
+    }
+    // Reveal hover
+    if (revealActive) {
+      const mode = effects.imageHoverReveal?.mode || 'fade';
+      if (mode === 'fade') {
+        rules.push(`.${scopeId}-card:hover .${scopeId}-filtered{opacity:0}`);
+      } else {
+        const rhs = revealHoverStyle;
+        if (rhs.clipPath) rules.push(`.${scopeId}-card:hover .${scopeId}-filtered{clip-path:${rhs.clipPath}}`);
+      }
+    }
+    return rules.length > 0 ? rules.join('') : '';
+  })();
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 0.75rem' }}>
+      {/* Scoped CSS for hover — more reliable than JS onMouseEnter in editor */}
+      {scopedCss && <style>{scopedCss}</style>}
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
@@ -69,6 +99,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
       }}>
         {Array.from({ length: limit }).map((_, i) => (
           <div key={i}
+            className={effects.enabled ? `${scopeId}-card` : ''}
             onMouseEnter={() => setHoveredCard(i)}
             onMouseLeave={() => setHoveredCard(null)}
             style={{
@@ -80,43 +111,51 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
               padding: cardPadding,
               position: 'relative',
               ...cardBaseStyles,
-              ...(hoveredCard === i ? cardHoverStyles : {}),
               ...(isHorizontal ? { display: 'flex' } : {}),
             }}>
             {showImage && (
               <div style={{
-                background: revealActive ? 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)' : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                background: revealActive
+                  ? 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)'
+                  : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                 width: isHorizontal ? '33%' : imageWidth,
                 height: imgH,
                 ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#d1d5db',
+                color: revealActive ? '#fff' : '#d1d5db',
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: 'inherit',
                 ...(!revealActive && imageFilterCss ? { filter: imageFilterCss } : {}),
               }}>
                 {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
-                {/* Filtered overlay for reveal effect — dark tinted layer simulates filter */}
+                {/* Filtered overlay for reveal — uses CSS :hover class for reliability */}
                 {revealActive && (
-                  <div style={{
-                    ...revealBaseStyle,
-                    ...(hoveredCard === i ? revealHoverStyle : {}),
-                    background: imageFilterCss.includes('grayscale') ? '#555' : imageFilterCss.includes('sepia') ? '#8b7355' : '#777',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ color: '#fff', fontSize: '0.55rem', opacity: 0.6, textAlign: 'center' as const, lineHeight: 1.2 }}>
-                      {hoveredCard === i ? '' : (effects.imageFilter?.preset || 'filtered')}
+                  <div
+                    className={`${scopeId}-filtered`}
+                    style={{
+                      ...revealBaseStyle,
+                      background: imageFilterCss.includes('grayscale') ? '#444'
+                        : imageFilterCss.includes('sepia') ? '#8b7355' : '#666',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                    <span style={{ color: '#fff', fontSize: '0.6rem', opacity: 0.7, textAlign: 'center' as const }}>
+                      {effects.imageFilter?.preset || 'filtered'}
                     </span>
                   </div>
                 )}
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="m21 15-5-5L5 21" />
-                </svg>
+                {/* Original image indicator */}
+                {revealActive ? (
+                  <span style={{ fontSize: '0.6rem', opacity: 0.8, zIndex: 0 }}>original</span>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="m21 15-5-5L5 21" />
+                  </svg>
+                )}
               </div>
             )}
             <div style={{ padding: '0.75rem', flex: isHorizontal ? '1' : undefined }}>
@@ -164,6 +203,8 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
         <span>gap:{gap}px</span>
         {showHeading && <span>{data.headingTag || 'h3'}:{headingSize}px</span>}
         {showExcerpt && <span>exc:{excerptSize}px</span>}
+        {effects.enabled && <span style={{ color: '#3b82f6' }}>fx:on</span>}
+        {revealActive && <span style={{ color: '#8b5cf6' }}>reveal:{effects.imageHoverReveal?.mode}</span>}
       </div>
     </div>
   );
