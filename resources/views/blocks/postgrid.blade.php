@@ -46,6 +46,8 @@
 
     // Heading
     $showHeading = $data['showHeading'] ?? true;
+    $headingPosition = in_array($data['headingPosition'] ?? 'below', ['above','below','vertical-left','vertical-right']) ? ($data['headingPosition'] ?? 'below') : 'below';
+    $isVerticalHeading = in_array($headingPosition, ['vertical-left', 'vertical-right']);
     $headingTag = in_array($data['headingTag'] ?? 'h3', ['h2','h3','h4']) ? ($data['headingTag'] ?? 'h3') : 'h3';
     $headingSizePx = max(10, min(48, intval($data['headingSize'] ?? 16)));
     $headingFont = $data['headingFont'] ?? 'inherit';
@@ -96,18 +98,43 @@
 @else
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
-        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}">
+        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;' . ($headingPosition === 'vertical-right' ? 'flex-direction:row;' : 'flex-direction:row-reverse;') : '' }}">
+            {{-- Heading ABOVE image --}}
+            @if($showHeading && $headingPosition === 'above')
+            <div style="padding:0.75rem 1rem 0.25rem;">
+                <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};text-align:{{ $headingAlign }};padding:{{ $headingPadding }};margin:{{ $headingMargin }};">
+                    <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
+                </{{ $headingTag }}>
+            </div>
+            @endif
+            {{-- Vertical heading LEFT --}}
+            @if($showHeading && $headingPosition === 'vertical-left')
+            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
+                <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
+                    <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
+                </{{ $headingTag }}>
+            </div>
+            @endif
             @if($showImage)
-            <div style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';' }}{{ $imageWidth !== '100%' && !$isHorizontal ? 'margin:0 auto;' : '' }}">
+            <div style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isVerticalHeading ? 'flex:1;height:' . $imageHeight . ';' : ($isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';') }}{{ $imageWidth !== '100%' && !$isHorizontal && !$isVerticalHeading ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
                     <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
                 @endif
                 {!! $__overlayHtml !!}
             </div>
             @endif
-            @if($showHeading || ($showExcerpt && $post->excerpt))
+            {{-- Vertical heading RIGHT --}}
+            @if($showHeading && $headingPosition === 'vertical-right')
+            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
+                <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
+                    <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
+                </{{ $headingTag }}>
+            </div>
+            @endif
+            {{-- Content below (heading below + excerpt) --}}
+            @if(($showHeading && $headingPosition === 'below') || ($showExcerpt && $post->excerpt))
             <div style="padding:1rem;{{ $isHorizontal ? 'flex:1;' : '' }}">
-                @if($showHeading)
+                @if($showHeading && $headingPosition === 'below')
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};text-align:{{ $headingAlign }};padding:{{ $headingPadding }};margin:{{ $headingMargin }};">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>

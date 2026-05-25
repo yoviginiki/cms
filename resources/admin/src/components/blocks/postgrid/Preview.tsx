@@ -16,6 +16,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   // Heading
   const headingTag = data.headingTag || 'h3';
+  const headingPosition = data.headingPosition || 'below';
   const headingSize = data.headingSize || 16;
   const headingFont = data.headingFont || 'inherit';
   const headingAlign = data.headingAlign || 'left';
@@ -56,6 +57,23 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const revealEasing = effects.imageHoverReveal?.easing ?? 'ease-out';
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
+  // Heading renderers
+  const renderHeading = (idx: number) => React.createElement(headingTag, {
+    style: { fontSize: `${headingSize}px`, fontFamily: headingFont, textAlign: headingAlign as any, padding: headingPadding, margin: headingMargin, fontWeight: 600 },
+  }, React.createElement('span', {
+    style: { display: 'inline-block', height: `${Math.max(10, headingSize * 0.7)}px`, background: '#e5e7eb', borderRadius: '0.25rem', width: `${60 + (idx % 3) * 12}%`, verticalAlign: 'middle' },
+  }));
+
+  const renderVerticalHeading = (idx: number) => (
+    <div style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', padding: '0.5rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: `${headingSize + 8}px` }}>
+      {React.createElement(headingTag, {
+        style: { fontSize: `${headingSize}px`, fontFamily: headingFont, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' as const },
+      }, React.createElement('span', {
+        style: { display: 'inline-block', width: `${Math.max(10, headingSize * 0.7)}px`, height: `${40 + (idx % 3) * 10}px`, background: '#e5e7eb', borderRadius: '0.25rem', verticalAlign: 'middle' },
+      }))}
+    </div>
+  );
+
   // Responsive clamp
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;
   const gapVal = `clamp(${Math.round(gap * 0.4)}px, ${(gap / 10).toFixed(1)}vw, ${gap}px)`;
@@ -82,11 +100,17 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
               position: 'relative',
               ...cardBaseStyles,
               ...(isHorizontal ? { display: 'flex' } : {}),
+              ...(headingPosition === 'vertical-left' || headingPosition === 'vertical-right' ? { display: 'flex', flexDirection: headingPosition === 'vertical-right' ? 'row' as const : 'row-reverse' as const } : {}),
             }}>
+            {/* Heading ABOVE image */}
+            {showHeading && headingPosition === 'above' && renderHeading(i)}
+
+            {/* Vertical heading LEFT */}
+            {showHeading && headingPosition === 'vertical-left' && renderVerticalHeading(i)}
+
             {showImage && (() => {
               const isHovered = hoveredCard === i;
               const showFiltered = imageFilterCss && !(revealEnabled && isHovered);
-              // Use colorful background so grayscale filter is actually visible
               const bgColor = imageFilterCss
                 ? `linear-gradient(135deg, #e74c3c ${(i * 13) % 20}%, #3498db ${50 + (i * 7) % 20}%, #2ecc71 100%)`
                 : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
@@ -96,63 +120,39 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
                   width: isHorizontal ? '33%' : imageWidth,
                   height: imgH,
                   ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: showFiltered ? '#999' : '#fff',
-                  fontSize: '0.6rem',
-                  fontWeight: 600,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  borderRadius: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: showFiltered ? '#999' : '#fff', fontSize: '0.6rem', fontWeight: 600,
+                  position: 'relative', overflow: 'hidden', borderRadius: 'inherit',
                   filter: showFiltered ? imageFilterCss : undefined,
                   transition: revealEnabled ? `filter ${revealDuration}ms ${revealEasing}` : undefined,
+                  flex: (headingPosition === 'vertical-left' || headingPosition === 'vertical-right') ? '1' : undefined,
                 }}>
                   {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
                   {revealEnabled && isHovered ? 'COLOR' : showFiltered ? (effects.imageFilter?.preset || 'filtered') : ''}
                   {!imageFilterCss && (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <path d="m21 15-5-5L5 21" />
+                      <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" />
                     </svg>
                   )}
                 </div>
               );
             })()}
-            <div style={{ padding: '0.75rem', flex: isHorizontal ? '1' : undefined }}>
-              {showHeading && React.createElement(headingTag, {
-                style: {
-                  fontSize: `${headingSize}px`,
-                  fontFamily: headingFont,
-                  textAlign: headingAlign as any,
-                  padding: headingPadding,
-                  margin: headingMargin,
-                  fontWeight: 600,
-                },
-              }, React.createElement('span', {
-                style: {
-                  display: 'inline-block',
-                  height: `${Math.max(10, headingSize * 0.7)}px`,
-                  background: '#e5e7eb',
-                  borderRadius: '0.25rem',
-                  width: `${60 + (i % 3) * 12}%`,
-                  verticalAlign: 'middle',
-                },
-              }))}
-              {showExcerpt && (
-                <div style={{
-                  fontSize: `${excerptSize}px`,
-                  fontFamily: excerptFont,
-                  textAlign: excerptAlign as any,
-                  padding: excerptPadding,
-                  margin: excerptMargin,
-                }}>
-                  <span style={{ display: 'block', height: `${Math.max(8, excerptSize * 0.5)}px`, background: '#f3f4f6', borderRadius: '0.25rem', width: '100%', marginBottom: '0.2rem' }} />
-                  <span style={{ display: 'block', height: `${Math.max(8, excerptSize * 0.5)}px`, background: '#f3f4f6', borderRadius: '0.25rem', width: '70%' }} />
-                </div>
-              )}
-            </div>
+
+            {/* Vertical heading RIGHT */}
+            {showHeading && headingPosition === 'vertical-right' && renderVerticalHeading(i)}
+
+            {/* Content below (heading below + excerpt) */}
+            {(showHeading && headingPosition === 'below') || showExcerpt ? (
+              <div style={{ padding: '0.75rem', flex: isHorizontal ? '1' : undefined }}>
+                {showHeading && headingPosition === 'below' && renderHeading(i)}
+                {showExcerpt && (
+                  <div style={{ fontSize: `${excerptSize}px`, fontFamily: excerptFont, textAlign: excerptAlign as any, padding: excerptPadding, margin: excerptMargin }}>
+                    <span style={{ display: 'block', height: `${Math.max(8, excerptSize * 0.5)}px`, background: '#f3f4f6', borderRadius: '0.25rem', width: '100%', marginBottom: '0.2rem' }} />
+                    <span style={{ display: 'block', height: `${Math.max(8, excerptSize * 0.5)}px`, background: '#f3f4f6', borderRadius: '0.25rem', width: '70%' }} />
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

@@ -249,6 +249,15 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
         </label>
         {data.showHeading !== false && (
           <div className="space-y-2">
+            <div>
+              <label className="text-[11px] text-base-content/50 mb-1 block">Position</label>
+              <select className="select select-bordered select-xs w-full" value={data.headingPosition || 'below'} onChange={(e) => update('headingPosition', e.target.value)}>
+                <option value="above">Above image</option>
+                <option value="below">Below image</option>
+                <option value="vertical-left">Vertical left</option>
+                <option value="vertical-right">Vertical right</option>
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[11px] text-base-content/50 mb-1 block">Tag</label>
