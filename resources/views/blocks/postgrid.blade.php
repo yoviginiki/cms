@@ -79,9 +79,16 @@
     $__effectScope = $__effectsEnabled ? 'pgfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data, $__effectScope) : '';
     $__revealEnabled = BlockEffects::isRevealEnabled($data);
-    $__revealCss = $__revealEnabled && $__effectScope ? BlockEffects::revealCss($data, $__effectScope) : '';
+    // Simple approach: transition filter to none on hover
+    $__revealDuration = max(150, min(1500, intval($data['effects']['imageHoverReveal']['duration'] ?? 500)));
+    $__revealEasing = in_array($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out', ['ease','ease-out','ease-in-out']) ? ($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out') : 'ease-out';
+    $__revealImgCss = $__revealEnabled && $__effectScope
+        ? ".{$__effectScope}:hover .img-filtered{filter:none!important}"
+          . ".{$__effectScope} .img-filtered{transition:filter {$__revealDuration}ms {$__revealEasing}}"
+          . "@media(prefers-reduced-motion:reduce){.{$__effectScope} .img-filtered{transition:none!important}}"
+        : '';
 @endphp
-@if($__hoverCss || $__revealCss)<style>{{ $__hoverCss }}{{ $__revealCss }}</style>@endif
+@if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
 @if($posts->isEmpty())
     <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:0.5rem;">
         No posts found{{ $categoryId ? ' in this category' : '' }}.
@@ -93,11 +100,7 @@
             @if($showImage)
             <div style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';' }}{{ $imageWidth !== '100%' && !$isHorizontal ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
-                    @if($__revealEnabled)
-                        {!! \App\Support\Blocks\BlockEffects::revealImageHtml($post->featured_image, $post->title ?? '') !!}
-                    @else
-                        <img src="{{ $post->featured_image }}" alt="" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
-                    @endif
+                    <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
                 @endif
                 {!! $__overlayHtml !!}
             </div>

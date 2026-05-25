@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle, isRevealEnabled } from '@/lib/blockEffects';
+import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle } from '@/lib/blockEffects';
 
 export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, any>;
@@ -51,8 +51,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const cardHoverStyles = buildCardHoverStyle(effects);
   const imageFilterCss = buildImageFilterCss(effects);
   const overlayStyles = buildOverlayStyle(effects);
-  const revealActive = isRevealEnabled(effects);
-  const revealMode = effects.imageHoverReveal?.mode || 'fade';
+  const revealEnabled = !!effects.enabled && !!effects.imageHoverReveal?.enabled && !!effects.imageFilter?.enabled;
   const revealDuration = effects.imageHoverReveal?.duration ?? 500;
   const revealEasing = effects.imageHoverReveal?.easing ?? 'ease-out';
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -61,17 +60,6 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;
   const gapVal = `clamp(${Math.round(gap * 0.4)}px, ${(gap / 10).toFixed(1)}vw, ${gap}px)`;
 
-  // Reveal clip-path values for JS-driven hover
-  const CLIP_DEFAULT: Record<string, string> = {
-    'reveal-left': 'inset(0 0 0 0)', 'reveal-right': 'inset(0 0 0 0)',
-    'reveal-top': 'inset(0 0 0 0)', 'reveal-bottom': 'inset(0 0 0 0)',
-    'circle': 'circle(100% at 50% 50%)', 'diagonal': 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-  };
-  const CLIP_HOVER: Record<string, string> = {
-    'reveal-left': 'inset(0 100% 0 0)', 'reveal-right': 'inset(0 0 0 100%)',
-    'reveal-top': 'inset(100% 0 0 0)', 'reveal-bottom': 'inset(0 0 100% 0)',
-    'circle': 'circle(0% at 50% 50%)', 'diagonal': 'polygon(0 0, 0 0, 0 100%, 0 100%)',
-  };
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 0.75rem' }}>
@@ -97,63 +85,26 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
             }}>
             {showImage && (
               <div style={{
-                background: revealActive
-                  ? 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)'
-                  : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                 width: isHorizontal ? '33%' : imageWidth,
                 height: imgH,
                 ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: revealActive ? '#fff' : '#d1d5db',
+                color: '#d1d5db',
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: 'inherit',
-                ...(!revealActive && imageFilterCss ? { filter: imageFilterCss } : {}),
+                filter: imageFilterCss && !(revealEnabled && hoveredCard === i) ? imageFilterCss : undefined,
+                transition: revealEnabled ? `filter ${revealDuration}ms ${revealEasing}` : undefined,
               }}>
                 {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
-                {/* Filtered overlay for reveal — pure inline styles driven by JS hover */}
-                {revealActive && (() => {
-                  const isHovered = hoveredCard === i;
-                  const filteredStyle: React.CSSProperties = {
-                    position: 'absolute', inset: 0, width: '100%', height: '100%',
-                    pointerEvents: 'none', zIndex: 1,
-                    background: imageFilterCss.includes('grayscale') ? '#444'
-                      : imageFilterCss.includes('sepia') ? '#8b7355' : '#666',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: revealMode === 'fade'
-                      ? `opacity ${revealDuration}ms ${revealEasing}`
-                      : `clip-path ${revealDuration}ms ${revealEasing}`,
-                  };
-                  // Apply hover state
-                  if (revealMode === 'fade') {
-                    filteredStyle.opacity = isHovered ? 0 : 1;
-                  } else {
-                    filteredStyle.clipPath = isHovered
-                      ? (CLIP_HOVER[revealMode] || 'inset(0 100% 0 0)')
-                      : (CLIP_DEFAULT[revealMode] || 'inset(0 0 0 0)');
-                  }
-                  return (
-                    <div style={filteredStyle}>
-                      {!isHovered && (
-                        <span style={{ color: '#fff', fontSize: '0.6rem', opacity: 0.7 }}>
-                          {effects.imageFilter?.preset || 'filtered'}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-                {/* Original image indicator */}
-                {revealActive ? (
-                  <span style={{ fontSize: '0.6rem', opacity: 0.8, zIndex: 0 }}>original</span>
-                ) : (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <path d="m21 15-5-5L5 21" />
-                  </svg>
-                )}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="m21 15-5-5L5 21" />
+                </svg>
               </div>
             )}
             <div style={{ padding: '0.75rem', flex: isHorizontal ? '1' : undefined }}>
@@ -202,7 +153,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
         {showHeading && <span>{data.headingTag || 'h3'}:{headingSize}px</span>}
         {showExcerpt && <span>exc:{excerptSize}px</span>}
         {effects.enabled && <span style={{ color: '#3b82f6' }}>fx:on</span>}
-        {revealActive && <span style={{ color: '#8b5cf6' }}>reveal:{effects.imageHoverReveal?.mode}</span>}
+        {revealEnabled && <span style={{ color: '#8b5cf6' }}>reveal:{effects.imageHoverReveal?.mode}</span>}
       </div>
     </div>
   );
