@@ -65,7 +65,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   }));
 
   const headingVerticalDir = data.headingVerticalDir || 'up';
-  const renderVerticalHeading = (_idx: number) => {
+  const renderVerticalHeading = (idx: number) => {
     // up/down use vertical writing mode, left/right use transform rotate fallback
     const isRotate = headingVerticalDir === 'left' || headingVerticalDir === 'right';
     const writingMode = isRotate ? undefined : (headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr');
