@@ -82,14 +82,21 @@
     $__effectScope = $__effectsEnabled ? 'pgfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data, $__effectScope) : '';
     $__revealEnabled = BlockEffects::isRevealEnabled($data);
-    // Simple approach: transition filter to none on hover
+    $__revealMode = $data['effects']['imageHoverReveal']['mode'] ?? 'fade';
     $__revealDuration = max(150, min(1500, intval($data['effects']['imageHoverReveal']['duration'] ?? 500)));
     $__revealEasing = in_array($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out', ['ease','ease-out','ease-in-out']) ? ($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out') : 'ease-out';
-    $__revealImgCss = $__revealEnabled && $__effectScope
-        ? ".{$__effectScope}:hover .img-filtered{filter:none!important}"
+    $__isFadeReveal = $__revealMode === 'fade' || $__revealMode === 'none';
+    // Fade mode: transition filter to none on hover
+    // Clip-path modes: use BlockEffects::revealCss for layered approach
+    if ($__revealEnabled && $__effectScope && $__isFadeReveal) {
+        $__revealImgCss = ".{$__effectScope}:hover .img-filtered{filter:none!important}"
           . ".{$__effectScope} .img-filtered{transition:filter {$__revealDuration}ms {$__revealEasing}}"
-          . "@media(prefers-reduced-motion:reduce){.{$__effectScope} .img-filtered{transition:none!important}}"
-        : '';
+          . "@media(prefers-reduced-motion:reduce){.{$__effectScope} .img-filtered{transition:none!important}}";
+    } elseif ($__revealEnabled && $__effectScope && !$__isFadeReveal) {
+        $__revealImgCss = BlockEffects::revealCss($data, $__effectScope);
+    } else {
+        $__revealImgCss = '';
+    }
 @endphp
 @if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
 @if($posts->isEmpty())
@@ -125,7 +132,14 @@
             @if($showImage)
             <div style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isVerticalHeading ? 'flex:1;height:' . $imageHeight . ';' : ($isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';') }}{{ $imageWidth !== '100%' && !$isHorizontal && !$isVerticalHeading ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
-                    <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
+                    @if($__revealEnabled && !$__isFadeReveal)
+                        {{-- Clip-path mode: two layers — original below, filtered on top --}}
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" style="width:100%;height:100%;object-fit:cover;" />
+                        <img src="{{ $post->featured_image }}" alt="" aria-hidden="true" class="img-reveal-filtered" style="width:100%;height:100%;object-fit:cover;" />
+                    @else
+                        {{-- Fade mode or no reveal: single image with filter --}}
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
+                    @endif
                 @endif
                 {!! $__overlayHtml !!}
             </div>

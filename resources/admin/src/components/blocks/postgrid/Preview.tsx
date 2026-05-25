@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle } from '@/lib/blockEffects';
+import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle, isRevealEnabled } from '@/lib/blockEffects';
 
 export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, any>;
@@ -52,9 +52,24 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const cardHoverStyles = buildCardHoverStyle(effects);
   const imageFilterCss = buildImageFilterCss(effects);
   const overlayStyles = buildOverlayStyle(effects);
-  const revealEnabled = !!effects.enabled && !!effects.imageHoverReveal?.enabled && !!effects.imageFilter?.enabled;
+  const revealEnabled = isRevealEnabled(effects);
+  const revealMode = effects.imageHoverReveal?.mode || 'fade';
   const revealDuration = effects.imageHoverReveal?.duration ?? 500;
   const revealEasing = effects.imageHoverReveal?.easing ?? 'ease-out';
+  const isFadeReveal = revealMode === 'fade';
+  const isClipReveal = revealEnabled && !isFadeReveal;
+
+  // Clip-path values for directional reveals
+  const CLIP_DEFAULT: Record<string, string> = {
+    'reveal-left': 'inset(0 0 0 0)', 'reveal-right': 'inset(0 0 0 0)',
+    'reveal-top': 'inset(0 0 0 0)', 'reveal-bottom': 'inset(0 0 0 0)',
+    'circle': 'circle(100% at 50% 50%)', 'diagonal': 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+  };
+  const CLIP_HOVER: Record<string, string> = {
+    'reveal-left': 'inset(0 100% 0 0)', 'reveal-right': 'inset(0 0 0 100%)',
+    'reveal-top': 'inset(100% 0 0 0)', 'reveal-bottom': 'inset(0 0 100% 0)',
+    'circle': 'circle(0% at 50% 50%)', 'diagonal': 'polygon(0 0, 0 0, 0 100%, 0 100%)',
+  };
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   // Heading renderers
@@ -124,26 +139,75 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
             {showImage && (() => {
               const isHovered = hoveredCard === i;
-              const showFiltered = imageFilterCss && !(revealEnabled && isHovered);
-              const bgColor = imageFilterCss
-                ? `linear-gradient(135deg, #e74c3c ${(i * 13) % 20}%, #3498db ${50 + (i * 7) % 20}%, #2ecc71 100%)`
-                : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+              const colorBg = `linear-gradient(135deg, #e74c3c ${(i * 13) % 20}%, #3498db ${50 + (i * 7) % 20}%, #2ecc71 100%)`;
+              const grayBg = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+              const containerFlex = (headingPosition === 'vertical-left' || headingPosition === 'vertical-right') ? '1' : undefined;
+
+              // Fade mode: single layer, filter on/off
+              if (revealEnabled && isFadeReveal) {
+                const showFilter = !(isHovered);
+                return (
+                  <div style={{
+                    background: colorBg, width: isHorizontal ? '33%' : imageWidth, height: imgH,
+                    ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: showFilter ? '#999' : '#fff', fontSize: '0.6rem', fontWeight: 600,
+                    position: 'relative', overflow: 'hidden', borderRadius: 'inherit',
+                    filter: showFilter ? imageFilterCss : undefined,
+                    transition: `filter ${revealDuration}ms ${revealEasing}`,
+                    flex: containerFlex,
+                  }}>
+                    {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
+                    {isHovered ? 'COLOR' : (effects.imageFilter?.preset || 'filtered')}
+                  </div>
+                );
+              }
+
+              // Clip-path modes: two layers — original below, filtered on top with clip-path
+              if (isClipReveal) {
+                const clipDefault = CLIP_DEFAULT[revealMode] || 'inset(0 0 0 0)';
+                const clipHover = CLIP_HOVER[revealMode] || 'inset(0 100% 0 0)';
+                const darkBg = imageFilterCss.includes('grayscale') ? '#555' : imageFilterCss.includes('sepia') ? '#8b7355' : '#666';
+                return (
+                  <div style={{
+                    width: isHorizontal ? '33%' : imageWidth, height: imgH,
+                    ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
+                    position: 'relative', overflow: 'hidden', borderRadius: 'inherit', flex: containerFlex,
+                  }}>
+                    {/* Original layer (colorful) */}
+                    <div style={{ position: 'absolute', inset: 0, background: colorBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.6rem', fontWeight: 600 }}>
+                      COLOR
+                    </div>
+                    {/* Filtered layer (dark) with clip-path */}
+                    <div style={{
+                      position: 'absolute', inset: 0, background: darkBg,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#999', fontSize: '0.6rem', fontWeight: 600,
+                      clipPath: isHovered ? clipHover : clipDefault,
+                      transition: `clip-path ${revealDuration}ms ${revealEasing}`,
+                      zIndex: 1,
+                    }}>
+                      {!isHovered && (effects.imageFilter?.preset || 'filtered')}
+                    </div>
+                    {overlayStyles && <div style={{ ...overlayStyles as React.CSSProperties, zIndex: 2 }} />}
+                  </div>
+                );
+              }
+
+              // No reveal — normal image with optional filter
+              const showFiltered = !!imageFilterCss;
               return (
                 <div style={{
-                  background: bgColor,
-                  width: isHorizontal ? '33%' : imageWidth,
-                  height: imgH,
+                  background: showFiltered ? colorBg : grayBg,
+                  width: isHorizontal ? '33%' : imageWidth, height: imgH,
                   ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: showFiltered ? '#999' : '#fff', fontSize: '0.6rem', fontWeight: 600,
+                  color: showFiltered ? '#999' : '#d1d5db', fontSize: '0.6rem', fontWeight: 600,
                   position: 'relative', overflow: 'hidden', borderRadius: 'inherit',
-                  filter: showFiltered ? imageFilterCss : undefined,
-                  transition: revealEnabled ? `filter ${revealDuration}ms ${revealEasing}` : undefined,
-                  flex: (headingPosition === 'vertical-left' || headingPosition === 'vertical-right') ? '1' : undefined,
+                  filter: showFiltered ? imageFilterCss : undefined, flex: containerFlex,
                 }}>
                   {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
-                  {revealEnabled && isHovered ? 'COLOR' : showFiltered ? (effects.imageFilter?.preset || 'filtered') : ''}
-                  {!imageFilterCss && (
+                  {showFiltered ? (effects.imageFilter?.preset || 'filtered') : (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" />
                     </svg>
