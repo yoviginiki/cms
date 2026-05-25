@@ -66,23 +66,16 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   const headingVerticalDir = data.headingVerticalDir || 'up';
   const renderVerticalHeading = (idx: number) => {
-    // writing-mode + transform controls text direction
     const isLeft = headingPosition === 'vertical-left';
-    let writingMode: string = 'vertical-rl';
-    let transform: string | undefined;
-    if (headingVerticalDir === 'up') {
-      writingMode = 'vertical-rl';
-      transform = 'rotate(180deg)';
-    } else if (headingVerticalDir === 'down') {
-      writingMode = 'vertical-rl';
-      transform = undefined;
+    // vertical-lr = bottom-to-top (letters face up), vertical-rl = top-to-bottom (letters face down)
+    let writingMode: string;
+    if (isLeft) {
+      writingMode = headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr';
     } else {
-      // 'away' — face away from image
-      writingMode = 'vertical-rl';
-      transform = isLeft ? 'rotate(180deg)' : undefined;
+      writingMode = (headingVerticalDir === 'up') ? 'vertical-lr' : 'vertical-rl';
     }
     return (
-      <div style={{ writingMode: writingMode as any, textOrientation: 'mixed', padding: '0.5rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: `${headingSize + 8}px`, transform }}>
+      <div style={{ writingMode: writingMode as any, textOrientation: 'mixed', padding: '0.5rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: `${headingSize + 8}px` }}>
         {React.createElement(headingTag, {
           style: { fontSize: `${headingSize}px`, fontFamily: headingFont, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' as const },
         }, React.createElement('span', {
@@ -118,7 +111,7 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
               position: 'relative',
               ...cardBaseStyles,
               ...(isHorizontal ? { display: 'flex' } : {}),
-              ...(headingPosition === 'vertical-left' || headingPosition === 'vertical-right' ? { display: 'flex', flexDirection: headingPosition === 'vertical-right' ? 'row' as const : 'row-reverse' as const } : {}),
+              ...(headingPosition === 'vertical-left' || headingPosition === 'vertical-right' ? { display: 'flex', flexDirection: 'row' as const } : {}),
             }}>
             {/* Heading ABOVE image */}
             {showHeading && headingPosition === 'above' && renderHeading(i)}

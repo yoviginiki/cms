@@ -99,7 +99,7 @@
 @else
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
-        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;' . ($headingPosition === 'vertical-right' ? 'flex-direction:row;' : 'flex-direction:row-reverse;') : '' }}">
+        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
             {{-- Heading ABOVE image --}}
             @if($showHeading && $headingPosition === 'above')
             <div style="padding:0.75rem 1rem 0.25rem;">
@@ -111,9 +111,10 @@
             {{-- Vertical heading LEFT --}}
             @if($showHeading && $headingPosition === 'vertical-left')
             @php
-                $vlTransform = $headingVerticalDir === 'up' ? 'transform:rotate(180deg);' : ($headingVerticalDir === 'away' ? 'transform:rotate(180deg);' : '');
+                // up = bottom-to-top reading; down = top-to-bottom; away = face away from image (= up for left side)
+                $vlMode = ($headingVerticalDir === 'down') ? 'vertical-rl' : 'vertical-lr';
             @endphp
-            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vlTransform }}">
+            <div style="writing-mode:{{ $vlMode }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>
@@ -130,9 +131,13 @@
             {{-- Vertical heading RIGHT --}}
             @if($showHeading && $headingPosition === 'vertical-right')
             @php
-                $vrTransform = $headingVerticalDir === 'up' ? 'transform:rotate(180deg);' : ($headingVerticalDir === 'away' ? '' : '');
+                // up = bottom-to-top; down = top-to-bottom; away = face away from image (= down for right side)
+                $vrMode = ($headingVerticalDir === 'up' || $headingVerticalDir === 'away') ? 'vertical-lr' : 'vertical-rl';
+                // For right side: vertical-lr reads bottom-to-top, vertical-rl reads top-to-bottom
+                // away on right = down = vertical-rl
+                $vrMode = $headingVerticalDir === 'up' ? 'vertical-lr' : ($headingVerticalDir === 'away' ? 'vertical-rl' : 'vertical-rl');
             @endphp
-            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vrTransform }}">
+            <div style="writing-mode:{{ $vrMode }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>
