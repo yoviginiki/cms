@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle, isRevealEnabled, buildRevealFilteredStyle, buildRevealCssRules } from '@/lib/blockEffects';
+import { normalizeCardEffects, buildCardBaseStyle, buildCardHoverStyle, buildImageFilterCss, buildOverlayStyle, isRevealEnabled } from '@/lib/blockEffects';
 
 export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const data = block.data as Record<string, any>;
@@ -52,39 +52,29 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const imageFilterCss = buildImageFilterCss(effects);
   const overlayStyles = buildOverlayStyle(effects);
   const revealActive = isRevealEnabled(effects);
-  const revealBaseStyle = buildRevealFilteredStyle(effects);
+  const revealMode = effects.imageHoverReveal?.mode || 'fade';
+  const revealDuration = effects.imageHoverReveal?.duration ?? 500;
+  const revealEasing = effects.imageHoverReveal?.easing ?? 'ease-out';
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-
-  // Generate unique scope for CSS-based hover (more reliable than JS in editor)
-  const scopeId = `pg-${block.id?.slice(0, 8) || 'prev'}`;
 
   // Responsive clamp
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;
   const gapVal = `clamp(${Math.round(gap * 0.4)}px, ${(gap / 10).toFixed(1)}vw, ${gap}px)`;
 
-  // Build scoped CSS for hover effects (CSS :hover is more reliable than JS in editor)
-  const scopedCss = (() => {
-    const rules: string[] = [];
-    // Card hover
-    if (effects.enabled && effects.hover?.enabled) {
-      const hs = cardHoverStyles;
-      const hoverRules: string[] = [];
-      if (hs.transform) hoverRules.push(`transform:${hs.transform}`);
-      if (hs.boxShadow) hoverRules.push(`box-shadow:${hs.boxShadow}`);
-      if (hoverRules.length) rules.push(`.${scopeId}-card:hover{${hoverRules.join(';')}}`);
-    }
-    // Reveal — entirely CSS-driven (no inline opacity/clipPath)
-    if (revealActive) {
-      rules.push(buildRevealCssRules(effects, `${scopeId}-card`, `${scopeId}-filtered`));
-    }
-    return rules.length > 0 ? rules.join('') : '';
-  })();
+  // Reveal clip-path values for JS-driven hover
+  const CLIP_DEFAULT: Record<string, string> = {
+    'reveal-left': 'inset(0 0 0 0)', 'reveal-right': 'inset(0 0 0 0)',
+    'reveal-top': 'inset(0 0 0 0)', 'reveal-bottom': 'inset(0 0 0 0)',
+    'circle': 'circle(100% at 50% 50%)', 'diagonal': 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+  };
+  const CLIP_HOVER: Record<string, string> = {
+    'reveal-left': 'inset(0 100% 0 0)', 'reveal-right': 'inset(0 0 0 100%)',
+    'reveal-top': 'inset(100% 0 0 0)', 'reveal-bottom': 'inset(0 0 100% 0)',
+    'circle': 'circle(0% at 50% 50%)', 'diagonal': 'polygon(0 0, 0 0, 0 100%, 0 100%)',
+  };
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 0.75rem' }}>
-      {/* Scoped CSS for hover — more reliable than JS onMouseEnter in editor */}
-      {scopedCss && <style>{scopedCss}</style>}
-
       <div style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
@@ -92,7 +82,6 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
       }}>
         {Array.from({ length: limit }).map((_, i) => (
           <div key={i}
-            className={effects.enabled ? `${scopeId}-card` : ''}
             onMouseEnter={() => setHoveredCard(i)}
             onMouseLeave={() => setHoveredCard(null)}
             style={{
@@ -124,21 +113,37 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
                 ...(!revealActive && imageFilterCss ? { filter: imageFilterCss } : {}),
               }}>
                 {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
-                {/* Filtered overlay for reveal — uses CSS :hover class for reliability */}
-                {revealActive && (
-                  <div
-                    className={`${scopeId}-filtered`}
-                    style={{
-                      ...revealBaseStyle,
-                      background: imageFilterCss.includes('grayscale') ? '#444'
-                        : imageFilterCss.includes('sepia') ? '#8b7355' : '#666',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                    <span style={{ color: '#fff', fontSize: '0.6rem', opacity: 0.7, textAlign: 'center' as const }}>
-                      {effects.imageFilter?.preset || 'filtered'}
-                    </span>
-                  </div>
-                )}
+                {/* Filtered overlay for reveal — pure inline styles driven by JS hover */}
+                {revealActive && (() => {
+                  const isHovered = hoveredCard === i;
+                  const filteredStyle: React.CSSProperties = {
+                    position: 'absolute', inset: 0, width: '100%', height: '100%',
+                    pointerEvents: 'none', zIndex: 1,
+                    background: imageFilterCss.includes('grayscale') ? '#444'
+                      : imageFilterCss.includes('sepia') ? '#8b7355' : '#666',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: revealMode === 'fade'
+                      ? `opacity ${revealDuration}ms ${revealEasing}`
+                      : `clip-path ${revealDuration}ms ${revealEasing}`,
+                  };
+                  // Apply hover state
+                  if (revealMode === 'fade') {
+                    filteredStyle.opacity = isHovered ? 0 : 1;
+                  } else {
+                    filteredStyle.clipPath = isHovered
+                      ? (CLIP_HOVER[revealMode] || 'inset(0 100% 0 0)')
+                      : (CLIP_DEFAULT[revealMode] || 'inset(0 0 0 0)');
+                  }
+                  return (
+                    <div style={filteredStyle}>
+                      {!isHovered && (
+                        <span style={{ color: '#fff', fontSize: '0.6rem', opacity: 0.7 }}>
+                          {effects.imageFilter?.preset || 'filtered'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
                 {/* Original image indicator */}
                 {revealActive ? (
                   <span style={{ fontSize: '0.6rem', opacity: 0.8, zIndex: 0 }}>original</span>
