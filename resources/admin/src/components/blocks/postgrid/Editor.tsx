@@ -20,7 +20,7 @@ interface PostgridData {
   showHeading: boolean; headingTag: string; headingSize: number; headingFont: string;
   headingAlign: string; headingPadding: string; headingMargin: string;
   // Excerpt
-  showExcerpt: boolean; excerptSize: number; excerptFont: string;
+  showExcerpt: boolean; excerptLength: number; excerptSize: number; excerptFont: string;
   excerptAlign: string; excerptPadding: string; excerptMargin: string;
 }
 
@@ -131,12 +131,13 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
 
       {/* ─── Heading ─── */}
       <div className="border-t border-base-300/20 pt-3">
-        <div className="flex items-center justify-between mb-2">
+        <label className="flex items-center justify-between mb-2 cursor-pointer">
           <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Heading</div>
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-base-content/30">{data.showHeading !== false ? 'Visible' : 'Hidden'}</span>
             <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={data.showHeading !== false} onChange={(e) => update('showHeading', e.target.checked)} />
-          </label>
-        </div>
+          </div>
+        </label>
         {data.showHeading !== false && (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
@@ -178,14 +179,23 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
 
       {/* ─── Excerpt ─── */}
       <div className="border-t border-base-300/20 pt-3">
-        <div className="flex items-center justify-between mb-2">
+        <label className="flex items-center justify-between mb-2 cursor-pointer">
           <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Excerpt</div>
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-base-content/30">{data.showExcerpt ? 'Visible' : 'Hidden'}</span>
             <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!data.showExcerpt} onChange={(e) => update('showExcerpt', e.target.checked)} />
-          </label>
-        </div>
+          </div>
+        </label>
         {data.showExcerpt && (
           <div className="space-y-2">
+            <div>
+              <label className="text-[11px] text-base-content/50 mb-1 block">Character limit</label>
+              <div className="flex items-center gap-2">
+                <input type="number" className="input input-bordered input-xs w-20" min={0} max={1000}
+                  value={data.excerptLength ?? 120} onChange={(e) => update('excerptLength', Number(e.target.value))} />
+                <span className="text-[9px] text-base-content/30">0 = full excerpt</span>
+              </div>
+            </div>
             <RangeField label="Size" value={data.excerptSize || 14} min={10} max={32} step={1} unit="px" onChange={(v) => update('excerptSize', v)} />
             <div>
               <label className="text-[11px] text-base-content/50 mb-1 block">Font</label>

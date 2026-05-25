@@ -29,6 +29,7 @@ class PostgridBlockDefinition implements BlockDefinition
             'headingMargin'  => ['sometimes', 'string', 'max:50'],
             // Excerpt
             'showExcerpt'    => ['sometimes', 'boolean'],
+            'excerptLength'  => ['sometimes', 'integer', 'min:0', 'max:1000'],
             'excerptSize'    => ['sometimes', 'integer', 'min:10', 'max:32'],
             'excerptFont'    => ['sometimes', 'string', 'max:100'],
             'excerptAlign'   => ['sometimes', 'in:left,center,right'],

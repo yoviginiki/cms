@@ -45,6 +45,7 @@
 
     // Excerpt
     $showExcerpt = $data['showExcerpt'] ?? false;
+    $excerptLength = max(0, min(1000, intval($data['excerptLength'] ?? 120)));
     $excerptSizePx = max(10, min(32, intval($data['excerptSize'] ?? 14)));
     $excerptFont = preg_replace('/[^a-zA-Z0-9\s,]/', '', $data['excerptFont'] ?? 'inherit');
     $excerptAlign = in_array($data['excerptAlign'] ?? 'left', ['left','center','right']) ? ($data['excerptAlign'] ?? 'left') : 'left';
@@ -80,7 +81,7 @@
                 </{{ $headingTag }}>
                 @endif
                 @if($showExcerpt && $post->excerpt)
-                    <p style="color:#6b7280;font-size:{{ $excerptSizePx }}px;font-family:{{ $excerptFont }};text-align:{{ $excerptAlign }};padding:{{ $excerptPadding }};margin:{{ $excerptMargin }};">{{ \Illuminate\Support\Str::limit($post->excerpt, 120) }}</p>
+                    <p style="color:#6b7280;font-size:{{ $excerptSizePx }}px;font-family:{{ $excerptFont }};text-align:{{ $excerptAlign }};padding:{{ $excerptPadding }};margin:{{ $excerptMargin }};">{{ $excerptLength > 0 ? \Illuminate\Support\Str::limit($post->excerpt, $excerptLength) : $post->excerpt }}</p>
                 @endif
             </div>
         </article>
