@@ -111,9 +111,10 @@
             {{-- Vertical heading LEFT --}}
             @if($showHeading && $headingPosition === 'vertical-left')
             @php
-                $vlMode = match($headingVerticalDir) { 'down' => 'vertical-rl', 'left' => 'sideways-lr', 'right' => 'sideways-rl', default => 'vertical-lr' };
+                $vlWm = in_array($headingVerticalDir, ['left', 'right']) ? 'vertical-rl' : ($headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr');
+                $vlTransform = $headingVerticalDir === 'left' ? 'transform:rotate(180deg);' : '';
             @endphp
-            <div style="writing-mode:{{ $vlMode }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
+            <div style="writing-mode:{{ $vlWm }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vlTransform }}">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>
@@ -130,9 +131,10 @@
             {{-- Vertical heading RIGHT --}}
             @if($showHeading && $headingPosition === 'vertical-right')
             @php
-                $vrMode = match($headingVerticalDir) { 'down' => 'vertical-rl', 'left' => 'sideways-lr', 'right' => 'sideways-rl', default => 'vertical-lr' };
+                $vrWm = in_array($headingVerticalDir, ['left', 'right']) ? 'vertical-rl' : ($headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr');
+                $vrTransform = $headingVerticalDir === 'left' ? 'transform:rotate(180deg);' : '';
             @endphp
-            <div style="writing-mode:{{ $vrMode }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
+            <div style="writing-mode:{{ $vrWm }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vrTransform }}">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>
