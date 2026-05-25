@@ -64,15 +64,33 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
     style: { display: 'inline-block', height: `${Math.max(10, headingSize * 0.7)}px`, background: '#e5e7eb', borderRadius: '0.25rem', width: `${60 + (idx % 3) * 12}%`, verticalAlign: 'middle' },
   }));
 
-  const renderVerticalHeading = (idx: number) => (
-    <div style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', padding: '0.5rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: `${headingSize + 8}px` }}>
-      {React.createElement(headingTag, {
-        style: { fontSize: `${headingSize}px`, fontFamily: headingFont, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' as const },
-      }, React.createElement('span', {
-        style: { display: 'inline-block', width: `${Math.max(10, headingSize * 0.7)}px`, height: `${40 + (idx % 3) * 10}px`, background: '#e5e7eb', borderRadius: '0.25rem', verticalAlign: 'middle' },
-      }))}
-    </div>
-  );
+  const headingVerticalDir = data.headingVerticalDir || 'up';
+  const renderVerticalHeading = (idx: number) => {
+    // writing-mode + transform controls text direction
+    const isLeft = headingPosition === 'vertical-left';
+    let writingMode: string = 'vertical-rl';
+    let transform: string | undefined;
+    if (headingVerticalDir === 'up') {
+      writingMode = 'vertical-rl';
+      transform = 'rotate(180deg)';
+    } else if (headingVerticalDir === 'down') {
+      writingMode = 'vertical-rl';
+      transform = undefined;
+    } else {
+      // 'away' — face away from image
+      writingMode = 'vertical-rl';
+      transform = isLeft ? 'rotate(180deg)' : undefined;
+    }
+    return (
+      <div style={{ writingMode: writingMode as any, textOrientation: 'mixed', padding: '0.5rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: `${headingSize + 8}px`, transform }}>
+        {React.createElement(headingTag, {
+          style: { fontSize: `${headingSize}px`, fontFamily: headingFont, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' as const },
+        }, React.createElement('span', {
+          style: { display: 'inline-block', width: `${Math.max(10, headingSize * 0.7)}px`, height: `${40 + (idx % 3) * 10}px`, background: '#e5e7eb', borderRadius: '0.25rem', verticalAlign: 'middle' },
+        }))}
+      </div>
+    );
+  };
 
   // Responsive clamp
   const imgH = `clamp(${Math.round(imageHeight * 0.4)}px, ${(imageHeight / 10).toFixed(1)}vw, ${imageHeight}px)`;

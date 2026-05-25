@@ -215,12 +215,13 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
 
       {/* ─── Image ─── */}
       <div className="border-t border-base-300/20 pt-3">
-        <div className="flex items-center justify-between mb-2">
+        <label className="flex items-center justify-between mb-2 cursor-pointer">
           <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Image</div>
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-base-content/30">{data.showImage !== false ? 'Visible' : 'Hidden'}</span>
             <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={data.showImage !== false} onChange={(e) => update('showImage', e.target.checked)} />
-          </label>
-        </div>
+          </div>
+        </label>
         {data.showImage !== false && (
           <div className="space-y-2">
             <RangeField label="Height" value={data.imageHeight || 160} min={40} max={600} step={10} unit="px" onChange={(v) => update('imageHeight', v)} />
@@ -258,6 +259,16 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
                 <option value="vertical-right">Vertical right</option>
               </select>
             </div>
+            {(data.headingPosition === 'vertical-left' || data.headingPosition === 'vertical-right') && (
+              <div>
+                <label className="text-[11px] text-base-content/50 mb-1 block">Text Direction</label>
+                <select className="select select-bordered select-xs w-full" value={data.headingVerticalDir || 'up'} onChange={(e) => update('headingVerticalDir', e.target.value)}>
+                  <option value="up">Letters face up ↑</option>
+                  <option value="down">Letters face down ↓</option>
+                  <option value="away">Away from image ←→</option>
+                </select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[11px] text-base-content/50 mb-1 block">Tag</label>

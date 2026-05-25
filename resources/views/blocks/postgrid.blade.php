@@ -48,6 +48,7 @@
     $showHeading = $data['showHeading'] ?? true;
     $headingPosition = in_array($data['headingPosition'] ?? 'below', ['above','below','vertical-left','vertical-right']) ? ($data['headingPosition'] ?? 'below') : 'below';
     $isVerticalHeading = in_array($headingPosition, ['vertical-left', 'vertical-right']);
+    $headingVerticalDir = in_array($data['headingVerticalDir'] ?? 'up', ['up','down','away']) ? ($data['headingVerticalDir'] ?? 'up') : 'up';
     $headingTag = in_array($data['headingTag'] ?? 'h3', ['h2','h3','h4']) ? ($data['headingTag'] ?? 'h3') : 'h3';
     $headingSizePx = max(10, min(48, intval($data['headingSize'] ?? 16)));
     $headingFont = $data['headingFont'] ?? 'inherit';
@@ -109,7 +110,10 @@
             @endif
             {{-- Vertical heading LEFT --}}
             @if($showHeading && $headingPosition === 'vertical-left')
-            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
+            @php
+                $vlTransform = $headingVerticalDir === 'up' ? 'transform:rotate(180deg);' : ($headingVerticalDir === 'away' ? 'transform:rotate(180deg);' : '');
+            @endphp
+            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vlTransform }}">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>
@@ -125,7 +129,10 @@
             @endif
             {{-- Vertical heading RIGHT --}}
             @if($showHeading && $headingPosition === 'vertical-right')
-            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;">
+            @php
+                $vrTransform = $headingVerticalDir === 'up' ? 'transform:rotate(180deg);' : ($headingVerticalDir === 'away' ? '' : '');
+            @endphp
+            <div style="writing-mode:vertical-rl;text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vrTransform }}">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>
