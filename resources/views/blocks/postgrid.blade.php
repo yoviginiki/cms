@@ -48,7 +48,7 @@
     $showHeading = $data['showHeading'] ?? true;
     $headingPosition = in_array($data['headingPosition'] ?? 'below', ['above','below','vertical-left','vertical-right']) ? ($data['headingPosition'] ?? 'below') : 'below';
     $isVerticalHeading = in_array($headingPosition, ['vertical-left', 'vertical-right']);
-    $headingVerticalDir = in_array($data['headingVerticalDir'] ?? 'up', ['up','down','left','right']) ? ($data['headingVerticalDir'] ?? 'up') : 'up';
+    $headingVerticalDir = in_array($data['headingVerticalDir'] ?? 'up', ['up','down','left','right','stacked']) ? ($data['headingVerticalDir'] ?? 'up') : 'up';
     $headingTag = in_array($data['headingTag'] ?? 'h3', ['h2','h3','h4']) ? ($data['headingTag'] ?? 'h3') : 'h3';
     $headingSizePx = max(10, min(48, intval($data['headingSize'] ?? 16)));
     $headingFont = $data['headingFont'] ?? 'inherit';
@@ -111,10 +111,12 @@
             {{-- Vertical heading LEFT --}}
             @if($showHeading && $headingPosition === 'vertical-left')
             @php
-                $vlWm = in_array($headingVerticalDir, ['left', 'right']) ? 'vertical-rl' : ($headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr');
+                $vlWm = $headingVerticalDir === 'stacked' ? 'vertical-rl' : (in_array($headingVerticalDir, ['left', 'right']) ? 'vertical-rl' : ($headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr'));
+                $vlOr = $headingVerticalDir === 'stacked' ? 'upright' : 'mixed';
                 $vlTransform = $headingVerticalDir === 'left' ? 'transform:rotate(180deg);' : '';
+                $vlExtra = $headingVerticalDir === 'stacked' ? 'letter-spacing:0.1em;' : '';
             @endphp
-            <div style="writing-mode:{{ $vlWm }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vlTransform }}">
+            <div style="writing-mode:{{ $vlWm }};text-orientation:{{ $vlOr }};padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vlTransform }}{{ $vlExtra }}">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>
@@ -131,10 +133,12 @@
             {{-- Vertical heading RIGHT --}}
             @if($showHeading && $headingPosition === 'vertical-right')
             @php
-                $vrWm = in_array($headingVerticalDir, ['left', 'right']) ? 'vertical-rl' : ($headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr');
+                $vrWm = $headingVerticalDir === 'stacked' ? 'vertical-rl' : (in_array($headingVerticalDir, ['left', 'right']) ? 'vertical-rl' : ($headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr'));
+                $vrOr = $headingVerticalDir === 'stacked' ? 'upright' : 'mixed';
                 $vrTransform = $headingVerticalDir === 'left' ? 'transform:rotate(180deg);' : '';
+                $vrExtra = $headingVerticalDir === 'stacked' ? 'letter-spacing:0.1em;' : '';
             @endphp
-            <div style="writing-mode:{{ $vrWm }};text-orientation:mixed;padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vrTransform }}">
+            <div style="writing-mode:{{ $vrWm }};text-orientation:{{ $vrOr }};padding:0.5rem 0.25rem;display:flex;align-items:center;justify-content:center;min-width:{{ $headingSizePx + 8 }}px;{{ $vrTransform }}{{ $vrExtra }}">
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};margin:0;white-space:nowrap;">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
                 </{{ $headingTag }}>

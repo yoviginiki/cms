@@ -268,6 +268,7 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
                   <option value="down">Down ↓</option>
                   <option value="left">Left ←</option>
                   <option value="right">Right →</option>
+                  <option value="stacked">Stacked (letters upright)</option>
                 </select>
               </div>
             )}

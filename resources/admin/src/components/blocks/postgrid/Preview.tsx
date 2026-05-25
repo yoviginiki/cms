@@ -67,13 +67,16 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const headingVerticalDir = data.headingVerticalDir || 'up';
   const renderVerticalHeading = (idx: number) => {
     // up/down use vertical writing mode, left/right use transform rotate fallback
+    const isStacked = headingVerticalDir === 'stacked';
     const isRotate = headingVerticalDir === 'left' || headingVerticalDir === 'right';
-    const writingMode = isRotate ? undefined : (headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr');
-    const transform = headingVerticalDir === 'left' ? 'rotate(180deg)' : headingVerticalDir === 'right' ? 'rotate(0deg)' : undefined;
+    const writingMode = isStacked ? 'vertical-rl' : isRotate ? undefined : (headingVerticalDir === 'down' ? 'vertical-rl' : 'vertical-lr');
+    const textOrientation = isStacked ? 'upright' : 'mixed';
+    const transform = headingVerticalDir === 'left' ? 'rotate(180deg)' : undefined;
     return (
       <div style={{
-        ...(writingMode ? { writingMode: writingMode as any, textOrientation: 'mixed' } : { writingMode: 'vertical-rl' as any, transform }),
+        ...(writingMode ? { writingMode: writingMode as any, textOrientation } : { writingMode: 'vertical-rl' as any, transform, textOrientation }),
         padding: '0.5rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: `${headingSize + 8}px`,
+        ...(isStacked ? { letterSpacing: '0.1em' } : {}),
       }}>
         {React.createElement(headingTag, {
           style: { fontSize: `${headingSize}px`, fontFamily: headingFont, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' as const },
