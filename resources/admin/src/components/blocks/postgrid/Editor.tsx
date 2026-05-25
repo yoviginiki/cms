@@ -96,7 +96,7 @@ function AlignButtons({ value, onChange }: { value: string; onChange: (v: string
 }
 
 export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
-  const data = block.data as PostgridData;
+  const data = block.data as unknown as PostgridData;
   const { siteId = '' } = useParams();
 
   const { data: cats } = useQuery<Array<{ id: string; name: string }>>({
