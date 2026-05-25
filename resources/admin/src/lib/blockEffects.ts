@@ -210,7 +210,7 @@ export function buildOverlayStyle(effects: CardEffects): React.CSSProperties | n
 /** Check if hover reveal is active */
 export function isRevealEnabled(effects: CardEffects): boolean {
   return !!effects.enabled && !!effects.imageHoverReveal?.enabled &&
-    effects.imageHoverReveal.mode !== 'none' && !!effects.imageFilter?.enabled;
+    (effects.imageHoverReveal.mode || 'fade') !== 'none' && !!effects.imageFilter?.enabled;
 }
 
 /** Get the clip-path for the filtered overlay in its DEFAULT (visible) state */

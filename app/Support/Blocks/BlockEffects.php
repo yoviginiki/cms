@@ -178,7 +178,7 @@ class BlockEffects
         $effects = $data['effects'] ?? [];
         return !empty($effects['enabled'])
             && !empty($effects['imageHoverReveal']['enabled'])
-            && ($effects['imageHoverReveal']['mode'] ?? 'none') !== 'none'
+            && ($effects['imageHoverReveal']['mode'] ?? 'fade') !== 'none'
             && !empty($effects['imageFilter']['enabled']);
     }
 

@@ -83,30 +83,43 @@ export const PostgridPreview: React.FC<BlockComponentProps> = ({ block }) => {
               ...cardBaseStyles,
               ...(isHorizontal ? { display: 'flex' } : {}),
             }}>
-            {showImage && (
-              <div style={{
-                background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                width: isHorizontal ? '33%' : imageWidth,
-                height: imgH,
-                ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#d1d5db',
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: 'inherit',
-                filter: imageFilterCss && !(revealEnabled && hoveredCard === i) ? imageFilterCss : undefined,
-                transition: revealEnabled ? `filter ${revealDuration}ms ${revealEasing}` : undefined,
-              }}>
-                {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="m21 15-5-5L5 21" />
-                </svg>
-              </div>
-            )}
+            {showImage && (() => {
+              const isHovered = hoveredCard === i;
+              const showFiltered = imageFilterCss && !(revealEnabled && isHovered);
+              // Use colorful background so grayscale filter is actually visible
+              const bgColor = imageFilterCss
+                ? `linear-gradient(135deg, #e74c3c ${(i * 13) % 20}%, #3498db ${50 + (i * 7) % 20}%, #2ecc71 100%)`
+                : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+              return (
+                <div style={{
+                  background: bgColor,
+                  width: isHorizontal ? '33%' : imageWidth,
+                  height: imgH,
+                  ...(imageWidth !== '100%' && !isHorizontal ? { margin: '0 auto' } : {}),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: showFiltered ? '#999' : '#fff',
+                  fontSize: '0.6rem',
+                  fontWeight: 600,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 'inherit',
+                  filter: showFiltered ? imageFilterCss : undefined,
+                  transition: revealEnabled ? `filter ${revealDuration}ms ${revealEasing}` : undefined,
+                }}>
+                  {overlayStyles && <div style={overlayStyles as React.CSSProperties} />}
+                  {revealEnabled && isHovered ? 'COLOR' : showFiltered ? (effects.imageFilter?.preset || 'filtered') : ''}
+                  {!imageFilterCss && (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="m21 15-5-5L5 21" />
+                    </svg>
+                  )}
+                </div>
+              );
+            })()}
             <div style={{ padding: '0.75rem', flex: isHorizontal ? '1' : undefined }}>
               {showHeading && React.createElement(headingTag, {
                 style: {
