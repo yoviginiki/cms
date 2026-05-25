@@ -51,9 +51,10 @@ function SpacingField({ label, value, onChange }: { label: string; value: string
   const left = parts[3] || right;
 
   const rebuild = (t: string, r: string, b: string, l: string) => {
-    if (t === r && r === b && b === l) return t || '0';
-    if (t === b && r === l) return `${t} ${r}`;
-    return `${t} ${r} ${b} ${l}`;
+    const nt = t || '0', nr = r || '0', nb = b || '0', nl = l || '0';
+    if (nt === nr && nr === nb && nb === nl) return nt;
+    if (nt === nb && nr === nl) return `${nt} ${nr}`;
+    return `${nt} ${nr} ${nb} ${nl}`;
   };
 
   return (
