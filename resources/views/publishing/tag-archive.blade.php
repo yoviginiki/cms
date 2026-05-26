@@ -27,7 +27,7 @@
                 <div style="font-size: 0.875rem; color: #9ca3af;">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->format('M j, Y') }}</time>
                     @if($post->author) &middot; {{ $post->author->name }}@endif
-                    @if($post->category) &middot; <a href="/blog/category/{{ $post->category->slug }}" style="color: #6b7280;">{{ $post->category->name }}</a>@endif
+                    @if($post->category) &middot; <a href="/{{ $post->category->slug }}" style="color: #6b7280;">{{ $post->category->name }}</a>@endif
                 </div>
             </article>
         @endforeach

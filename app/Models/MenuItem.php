@@ -67,11 +67,11 @@ class MenuItem extends Model
         }
 
         if ($this->post_id && $this->post) {
-            return $baseUrl . '/blog/' . $this->post->slug;
+            return $baseUrl . '/' . ($this->post->category ? $this->post->category->slug . '/' : '') . $this->post->slug;
         }
 
         if ($this->category_id && $this->category) {
-            return $baseUrl . '/blog/category/' . $this->category->slug;
+            return $baseUrl . '/' . $this->category->slug;
         }
 
         return '#';

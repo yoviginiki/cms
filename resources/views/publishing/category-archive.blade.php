@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $category->name }} | {{ $site->name }}</title>
     <meta name="description" content="Posts in {{ $category->name }}">
-    <link rel="canonical" href="{{ $baseUrl }}/blog/category/{{ $category->slug }}">
+    <link rel="canonical" href="{{ $baseUrl }}/{{ $category->slug }}">
     @if(!empty($rssUrl))<link rel="alternate" type="application/rss+xml" title="{{ $site->name }} Feed" href="{{ $rssUrl }}">@endif
     @if(!empty($designTokensCss))<style>{!! $designTokensCss !!}</style>@endif
     @if(!empty($criticalCss))<style>{!! $criticalCss !!}</style>@endif
@@ -35,7 +35,7 @@
         @foreach($childCategories as $child)
             <section style="margin-top:var(--space-8,2rem);">
                 <h2 style="font-size:var(--font-size-lg,1.125rem);margin-bottom:var(--space-4,1rem);padding-bottom:var(--space-2,0.5rem);border-bottom:2px solid var(--color-border,#e5e7eb);">
-                    <a href="/blog/category/{{ $child['category']->slug }}" style="text-decoration:none;color:inherit;">{{ $child['category']->name }}</a>
+                    <a href="/{{ $child['category']->slug }}" style="text-decoration:none;color:inherit;">{{ $child['category']->name }}</a>
                 </h2>
                 @foreach($child['posts'] as $post)
                     <article style="margin-bottom:var(--space-6,1.5rem);padding-left:var(--space-4,1rem);border-left:3px solid var(--color-border,#e5e7eb);">

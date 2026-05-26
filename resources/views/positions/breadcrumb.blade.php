@@ -5,7 +5,7 @@
     if ($current instanceof \App\Models\Post) {
         $crumbs[] = ['label' => 'Blog', 'url' => '/blog'];
         if ($current->category) {
-            $crumbs[] = ['label' => $current->category->name, 'url' => '/blog/category/' . $current->category->slug];
+            $crumbs[] = ['label' => $current->category->name, 'url' => ''/' . $current->category->slug];
         }
         $crumbs[] = ['label' => $current->title, 'url' => null];
     } elseif ($current instanceof \App\Models\Page) {

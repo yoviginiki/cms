@@ -72,7 +72,7 @@ class RssFeedGenerator
         $xml .= '<rss version="2.0">' . "\n";
         $xml .= "  <channel>\n";
         $xml .= "    <title>" . e($category->name) . " | " . e($site->name) . "</title>\n";
-        $xml .= "    <link>{$baseUrl}/blog/category/{$category->slug}</link>\n";
+        $xml .= "    <link>{$baseUrl}/{$category->slug}</link>\n";
         $xml .= "    <description>" . e($category->description ?: "Posts in {$category->name}") . "</description>\n";
 
         foreach ($posts as $post) {

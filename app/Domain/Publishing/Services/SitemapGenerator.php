@@ -27,7 +27,7 @@ class SitemapGenerator
         $categories = $site->categories()->whereHas('posts', fn($q) => $q->where('status', 'published'))->get();
         foreach ($categories as $cat) {
             $urls[] = $this->urlEntry(
-                $baseUrl . '/blog/category/' . $cat->slug,
+                $baseUrl . '/' . $cat->slug,
                 '0.6', 'weekly'
             );
         }

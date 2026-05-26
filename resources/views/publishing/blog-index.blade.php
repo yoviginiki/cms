@@ -24,7 +24,7 @@
                 @if($post->excerpt)<p style="color:var(--color-text-muted,#64748b);margin-bottom:var(--space-2,0.5rem);">{{ $post->excerpt }}</p>@endif
                 <div style="font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#9ca3af);">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->format('M j, Y') }}</time>
-                    @if($post->category) &middot; <a href="/blog/category/{{ $post->category->slug }}">{{ $post->category->name }}</a>@endif
+                    @if($post->category) &middot; <a href="/{{ $post->category->slug }}">{{ $post->category->name }}</a>@endif
                 </div>
             </article>
         @endforeach

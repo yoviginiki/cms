@@ -266,8 +266,8 @@ class SmartPublisher
         $html = View::make('publishing.category-archive', array_merge($vars, [
             'category' => $category, 'posts' => $posts, 'childCategories' => $childData,
         ]))->render();
-        File::ensureDirectoryExists("{$path}/blog/category/{$slug}");
-        File::put("{$path}/blog/category/{$slug}/index.html", $html);
+        File::ensureDirectoryExists("{$path}/{$slug}");
+        File::put("{$path}/{$slug}/index.html", $html);
     }
 
     private function rebuildTagArchive(Site $site, string $slug, string $path, array $vars): void

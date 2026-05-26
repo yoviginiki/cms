@@ -349,7 +349,7 @@ class PublishSiteJob implements ShouldQueue
                 ]))->render();
             }
 
-            $path = "blog/category/{$category->slug}/index.html";
+            $path = "{$category->slug}/index.html";
             File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
             File::put("{$stagingPath}/{$path}", $html);
         }
@@ -370,7 +370,7 @@ class PublishSiteJob implements ShouldQueue
             '__archivePostCount' => $posts->count(),
             '__archiveCurrentPage' => 1,
             '__archiveTotalPages' => 1,
-            '__archiveBaseUrl' => "/blog/category/{$category->slug}",
+            '__archiveBaseUrl' => "/{$category->slug}",
         ];
 
         // Render template blocks with archive context (safe try/finally inside)
@@ -417,7 +417,7 @@ class PublishSiteJob implements ShouldQueue
                 'posts' => $posts,
             ]))->render();
 
-            $path = "blog/tag/{$tag->slug}/index.html";
+            $path = "tag/{$tag->slug}/index.html";
             File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
             File::put("{$stagingPath}/{$path}", $html);
         }
@@ -443,7 +443,7 @@ class PublishSiteJob implements ShouldQueue
             ]))->render();
 
             $slug = \Illuminate\Support\Str::slug($author->name);
-            $path = "blog/author/{$slug}/index.html";
+            $path = "author/{$slug}/index.html";
             File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
             File::put("{$stagingPath}/{$path}", $html);
         }

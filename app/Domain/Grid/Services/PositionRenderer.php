@@ -400,7 +400,7 @@ class PositionRenderer
                         if ($showCategory && $post->category_id) {
                             $cat = \App\Models\Category::withoutGlobalScopes()->find($post->category_id);
                             if ($cat) {
-                                $html .= '<a href="/blog/category/' . e($cat->slug) . '" style="font-size:0.75rem;color:var(--color-primary,#3b82f6);">' . e($cat->name) . '</a>';
+                                $html .= '<a href="/' . e($cat->slug) . '" style="font-size:0.75rem;color:var(--color-primary,#3b82f6);">' . e($cat->name) . '</a>';
                             }
                         }
                         $html .= '</li>';
@@ -416,7 +416,7 @@ class PositionRenderer
                     ->orderBy('name')->get();
                 $html .= $this->widgetTitle($widget['title'] ?? 'Categories') . '<ul style="list-style:none;padding:0;">';
                 foreach ($cats as $cat) {
-                    $html .= '<li style="margin-bottom:0.25rem;"><a href="/blog/category/' . e($cat->slug) . '" style="color:var(--color-text,#374151);text-decoration:none;">' . e($cat->name) . '</a>';
+                    $html .= '<li style="margin-bottom:0.25rem;"><a href="/' . e($cat->slug) . '" style="color:var(--color-text,#374151);text-decoration:none;">' . e($cat->name) . '</a>';
                     if (!empty($widget['show_count'])) $html .= ' <span style="color:var(--color-text-muted,#9ca3af);">(' . $cat->posts_count . ')</span>';
                     $html .= '</li>';
                 }
@@ -428,7 +428,7 @@ class PositionRenderer
                     ->where('site_id', $site->id)->withCount('posts')->orderBy('name')->get();
                 $html .= $this->widgetTitle($widget['title'] ?? 'Tags') . '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
                 foreach ($tags as $tag) {
-                    $html .= '<a href="/blog/tag/' . e($tag->slug) . '" style="display:inline-block;padding:0.25rem 0.75rem;background:#f3f4f6;border-radius:1rem;font-size:0.875rem;color:#374151;text-decoration:none;">' . e($tag->name) . '</a>';
+                    $html .= '<a href="/tag/' . e($tag->slug) . '" style="display:inline-block;padding:0.25rem 0.75rem;background:#f3f4f6;border-radius:1rem;font-size:0.875rem;color:#374151;text-decoration:none;">' . e($tag->name) . '</a>';
                 }
                 $html .= '</div>';
                 break;
@@ -550,7 +550,7 @@ class PositionRenderer
                     if ($showCategory && $post->category_id) {
                         $postCat = \App\Models\Category::withoutGlobalScopes()->find($post->category_id);
                         if ($postCat) {
-                            $html .= '<a href="/blog/category/' . e($postCat->slug) . '" style="display:inline-block;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-primary,#3b82f6);text-decoration:none;margin-bottom:0.375rem;">' . e($postCat->name) . '</a>';
+                            $html .= '<a href="/' . e($postCat->slug) . '" style="display:inline-block;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-primary,#3b82f6);text-decoration:none;margin-bottom:0.375rem;">' . e($postCat->name) . '</a>';
                         }
                     }
 
