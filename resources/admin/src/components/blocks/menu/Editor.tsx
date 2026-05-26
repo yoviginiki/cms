@@ -171,6 +171,13 @@ export const MenuEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
               { value: '4px', label: '4px' },
             ]}
           />
+          <TextField
+            label="Border Max Width"
+            value={(data.borderMaxWidth as string) || ''}
+            onChange={(v) => update('borderMaxWidth', v)}
+            placeholder="e.g. 400px, 50% (empty = full)"
+            helperText="Limits the border line width. Centered automatically."
+          />
         </>
       )}
       <TextField label="Font Size" value={(data.fontSize as string) || ''} onChange={(v) => update('fontSize', v)} placeholder="e.g. 0.875rem, 14px" />

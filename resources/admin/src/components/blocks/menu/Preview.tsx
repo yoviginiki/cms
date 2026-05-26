@@ -34,7 +34,7 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   const navStyle: React.CSSProperties = {
     background: bgColor || 'var(--color-bg, #fff)',
-    borderBottom: data.showBorder === false ? 'none' : `${(data.borderWidth as string) || '1px'} solid ${borderColor || 'var(--color-border, #e5e7eb)'}`,
+    borderBottom: 'none',
     padding,
     borderRadius: borderRadius || undefined,
     position: sticky ? 'sticky' : undefined,
@@ -50,7 +50,7 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
     transition: 'color 0.2s',
   };
 
-  return (
+  return (<>
     <nav style={navStyle}>
       <div style={{ display: 'flex', alignItems: isVertical ? 'flex-start' : 'center', flexDirection: isVertical ? 'column' : 'row', gap: isVertical ? '0.5rem' : itemGap, justifyContent: (data.alignment as string) || ({'left': 'flex-start', 'center': 'center', 'right': 'flex-end'} as Record<string, string>)[((data.__style as any)?.typography?.textAlign || (block.style as any)?.typography?.textAlign)] || 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: itemGap, flexDirection: isVertical ? 'column' : 'row' }}>
@@ -97,5 +97,13 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
         {sticky && <span className="text-[9px] bg-blue-100 text-blue-600 rounded px-1 py-0.5">Sticky</span>}
       </div>
     </nav>
+    {data.showBorder !== false && (
+      <div style={{
+        borderBottom: `${(data.borderWidth as string) || '1px'} solid ${borderColor || 'var(--color-border, #e5e7eb)'}`,
+        maxWidth: (data.borderMaxWidth as string) || '100%',
+        margin: '0 auto',
+      }} />
+    )}
+  </>
   );
 };
