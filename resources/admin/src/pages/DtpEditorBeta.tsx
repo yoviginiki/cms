@@ -589,6 +589,9 @@ export default function DtpEditorBeta() {
 
   // Helper to update inline image style and persist to store (debounced)
   const inlineImgPersistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => { if (inlineImgPersistTimer.current) clearTimeout(inlineImgPersistTimer.current); };
+  }, []);
   const updateInlineImgStyle = (updates: Record<string, string>) => {
     if (!selectedInlineImg || !selectedInlineImg.isConnected) return;
     Object.entries(updates).forEach(([k, v]) => { selectedInlineImg.style[k as any] = v; });
