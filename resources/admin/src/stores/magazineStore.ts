@@ -601,7 +601,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       isDirty: true,
     }));
     get().pushDebugLog('frame:update', 'store', {
-      id, type: oldEl?.type, keys: Object.keys(updates), changedPaths,
+      id, keys: Object.keys(updates), ...(changedPaths ? { changedPaths } : {}),
     });
   },
 
