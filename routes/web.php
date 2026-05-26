@@ -79,3 +79,28 @@ Route::prefix('docs')->group(function () {
 Route::get('/admin/{any?}', function () {
     return view('admin');
 })->where('any', '.*');
+
+// ─── Fallback: resolve /{slug} to a site page/category (for menu links on sys.ensodo.eu) ───
+Route::get('/{slug}', function (string $slug) {
+    // Try to find a page or category with this slug across all sites
+    try {
+        $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
+        if ($tenant) {
+            $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
+            \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
+        }
+        // Find page
+        $page = \App\Models\Page::where('slug', $slug)->where('status', 'published')->first();
+        if ($page) {
+            return redirect("/sites/{$page->site_id}/{$slug}");
+        }
+        // Find category
+        $category = \App\Models\Category::where('slug', $slug)->first();
+        if ($category) {
+            return redirect("/sites/{$category->site_id}/{$slug}");
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::debug("Fallback slug resolve failed for /{$slug}: " . $e->getMessage());
+    }
+    abort(404);
+})->where('slug', '[a-zA-Z0-9\-]+');
