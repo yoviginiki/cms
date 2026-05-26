@@ -77,8 +77,8 @@ function getTypeBadge(type: ItemType) {
 function getResolvedUrl(item: MenuItemData): string {
   if (item.url) return item.url;
   if (item.page_id && item.page) return item.page.slug === 'home' ? '/' : `/${item.page.slug}`;
-  if (item.post_id && item.post) return `/blog/${item.post.slug}`;
-  if (item.category_id && item.category) return `/blog/category/${item.category.slug}`;
+  if (item.post_id && item.post) return `/${item.post.category?.slug ? item.post.category.slug + '/' : ''}${item.post.slug}`;
+  if (item.category_id && item.category) return `/${item.category.slug}`;
   return '#';
 }
 
@@ -351,14 +351,14 @@ function SortableMenuItem({ flatItem, isOver, projectedDepth, onUpdate, onRemove
                 <div className="col-span-2 flex items-center gap-2 text-xs bg-purple-50 px-2 py-1.5 rounded">
                   <FileText className="h-3.5 w-3.5 text-purple-400" />
                   <span className="font-medium text-purple-700">{item.post.title}</span>
-                  <span className="text-purple-400">/blog/{item.post.slug}</span>
+                  <span className="text-purple-400">/{item.post.category?.slug}/{item.post.slug}</span>
                 </div>
               )}
               {type === 'category' && item.category && (
                 <div className="col-span-2 flex items-center gap-2 text-xs bg-green-50 px-2 py-1.5 rounded">
                   <FolderOpen className="h-3.5 w-3.5 text-green-400" />
                   <span className="font-medium text-green-700">{item.category.name}</span>
-                  <span className="text-green-400">/blog/category/{item.category.slug}</span>
+                  <span className="text-green-400">/{item.category.slug}</span>
                 </div>
               )}
               {type !== 'custom' && (
@@ -872,7 +872,7 @@ export default function MenuEditor() {
                       <button key={post.id} onClick={() => addItem({ label: post.title, post_id: post.id, post: { id: post.id, title: post.title, slug: post.slug || '' }, target: '_self', sort_order: 0, children: [] })}
                         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-purple-50 rounded-lg transition-colors group">
                         <FileText className="h-3.5 w-3.5 text-gray-300 group-hover:text-purple-400" />
-                        <div className="flex-1 min-w-0"><div className="text-xs font-medium text-gray-700 truncate">{post.title}</div><div className="text-[10px] text-gray-400 truncate">/blog/{post.slug}</div></div>
+                        <div className="flex-1 min-w-0"><div className="text-xs font-medium text-gray-700 truncate">{post.title}</div><div className="text-[10px] text-gray-400 truncate">/{post.slug}</div></div>
                         <Plus className="h-3 w-3 text-gray-300 group-hover:text-purple-500" />
                       </button>
                     ))}
@@ -885,7 +885,7 @@ export default function MenuEditor() {
                       <button key={cat.id} onClick={() => addItem({ label: cat.name, category_id: cat.id, category: { id: cat.id, name: cat.name, slug: cat.slug || '' }, target: '_self', sort_order: 0, children: [] })}
                         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-green-50 rounded-lg transition-colors group">
                         <FolderOpen className="h-3.5 w-3.5 text-gray-300 group-hover:text-green-400" />
-                        <div className="flex-1 min-w-0"><div className="text-xs font-medium text-gray-700 truncate">{cat.name}</div><div className="text-[10px] text-gray-400 truncate">/blog/category/{cat.slug}</div></div>
+                        <div className="flex-1 min-w-0"><div className="text-xs font-medium text-gray-700 truncate">{cat.name}</div><div className="text-[10px] text-gray-400 truncate">/{cat.slug}</div></div>
                         <Plus className="h-3 w-3 text-gray-300 group-hover:text-green-500" />
                       </button>
                     ))}
