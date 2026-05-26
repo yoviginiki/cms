@@ -15,7 +15,6 @@
     // Card effects
     $__effectsEnabled = BlockEffects::isEnabled($data ?? []);
     $__imageFilter = BlockEffects::imageFilterStyle($data ?? []);
-    $__overlayHtml = BlockEffects::overlayHtml($data ?? []);
     $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
     $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);
@@ -41,7 +40,7 @@
     // $posts would be populated at build time with related posts
     $posts = $posts ?? [];
 @endphp
-<div style="display:grid;grid-template-columns:repeat({{ min($limit, 4) }},1fr);gap:1.5rem;">
+<div style="display:grid;grid-template-columns:repeat({{ (int)min($limit, 4) }},1fr);gap:1.5rem;">
     @foreach($posts as $post)
         <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
             @if(!empty($post['image']))

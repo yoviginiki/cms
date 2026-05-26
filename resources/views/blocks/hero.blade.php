@@ -181,7 +181,6 @@
     // Card effects
     $__effectsEnabled = BlockEffects::isEnabled($data ?? []);
     $__imageFilter = BlockEffects::imageFilterStyle($data ?? []);
-    $__overlayHtml = BlockEffects::overlayHtml($data ?? []);
     $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
     $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);

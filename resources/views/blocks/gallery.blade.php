@@ -15,7 +15,6 @@
     // Card effects
     $__effectsEnabled = BlockEffects::isEnabled($data ?? []);
     $__imageFilter = BlockEffects::imageFilterStyle($data ?? []);
-    $__overlayHtml = BlockEffects::overlayHtml($data ?? []);
     $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
     $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);
@@ -39,7 +38,7 @@
     $images = $data['images'] ?? [];
     $layout = $data['layout'] ?? 'grid';
     $columns = $data['columns'] ?? 3;
-    $gap = $data['gap'] ?? '8px';
+    $gap = preg_match('/^\d+(\.\d+)?(px|rem|em|%)$/', $data['gap'] ?? '') ? $data['gap'] : '8px';
 @endphp
 <div class="gallery-block gallery-block--{{ $layout }}" style="display:grid;grid-template-columns:repeat({{ (int)$columns }}, 1fr);gap:{{ e($gap) }};">
     @foreach($images as $img)
