@@ -106,7 +106,18 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
 
   const { data: cats } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['categories-for-block', siteId],
-    queryFn: () => categoriesApi.list(siteId).then((r: any) => r.data.data),
+    queryFn: () => categoriesApi.list(siteId).then((r: any) => {
+      // Flatten category tree to flat list with indented names
+      const flat: Array<{ id: string; name: string }> = [];
+      const walk = (items: any[], depth = 0) => {
+        for (const c of items) {
+          flat.push({ id: c.id, name: (depth > 0 ? '  '.repeat(depth) + '↳ ' : '') + c.name });
+          if (c.children?.length) walk(c.children, depth + 1);
+        }
+      };
+      walk(r.data.data || []);
+      return flat;
+    }),
     enabled: !!siteId,
   });
 
