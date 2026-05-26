@@ -577,18 +577,21 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   },
 
   updateElement(id, updates) {
-    const state = get();
-    const page = getCurrentPage(state);
-    const oldEl = page ? findElementById(page.elements, id) : undefined;
-    if (!oldEl) {
-      get().pushDebugLog('frame:update', 'store', { id, error: 'element not found on current page' }, 'error');
-    }
-    const changedPaths: Record<string, { old: any; new: any }> = {};
-    if (oldEl) {
-      for (const k of Object.keys(updates)) {
-        const oldVal = (oldEl as any)[k];
-        const newVal = (updates as any)[k];
-        if (oldVal !== newVal) changedPaths[k] = { old: oldVal, new: newVal };
+    const isDebug = typeof localStorage !== 'undefined' && localStorage.getItem('dtp-debug') === '1';
+    // Only compute expensive diff when debug is on
+    let changedPaths: Record<string, { old: any; new: any }> | undefined;
+    if (isDebug) {
+      const page = getCurrentPage(get());
+      const oldEl = page ? findElementById(page.elements, id) : undefined;
+      if (!oldEl) {
+        get().pushDebugLog('frame:update', 'store', { id, error: 'element not found on current page' }, 'error');
+      } else {
+        changedPaths = {};
+        for (const k of Object.keys(updates)) {
+          const oldVal = (oldEl as any)[k];
+          const newVal = (updates as any)[k];
+          if (oldVal !== newVal) changedPaths[k] = { old: oldVal, new: newVal };
+        }
       }
     }
     set((s) => ({

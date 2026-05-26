@@ -587,18 +587,22 @@ export default function DtpEditorBeta() {
     return () => document.removeEventListener('mousedown', handler);
   }, [canvasEditingId, selectedInlineImg]);
 
-  // Helper to update inline image style and persist to store
+  // Helper to update inline image style and persist to store (debounced)
+  const inlineImgPersistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const updateInlineImgStyle = (updates: Record<string, string>) => {
     if (!selectedInlineImg || !selectedInlineImg.isConnected) return;
     Object.entries(updates).forEach(([k, v]) => { selectedInlineImg.style[k as any] = v; });
-    // Persist: read the contentEditable HTML and save to store
-    const editable = selectedInlineImg.closest('[data-editing-id]') as HTMLElement;
-    if (editable && canvasEditingId) {
-      const html = editable.innerHTML;
-      const el = store.pages.flatMap(p => p.elements).find(e => e.id === canvasEditingId);
-      if (el) store.updateElement(canvasEditingId, { data: { ...el.data, content: html } });
-    }
     store.setDirty(true);
+    // Debounce persist to avoid store thrashing on slider drag
+    if (inlineImgPersistTimer.current) clearTimeout(inlineImgPersistTimer.current);
+    inlineImgPersistTimer.current = setTimeout(() => {
+      const editable = selectedInlineImg?.closest('[data-editing-id]') as HTMLElement;
+      if (editable && canvasEditingId) {
+        const html = editable.innerHTML;
+        const el = useMagazineStore.getState().pages.flatMap(p => p.elements).find(e => e.id === canvasEditingId);
+        if (el) store.updateElement(canvasEditingId, { data: { ...el.data, content: html } } as any);
+      }
+    }, 300);
   };
 
   // Add selection outline to selected inline image
@@ -1280,26 +1284,36 @@ export default function DtpEditorBeta() {
         onClose={() => setInlineImagePickerOpen(false)}
         onSelect={(asset) => {
           setInlineImagePickerOpen(false);
-          // Insert image into contentEditable at cursor position
-          const editable = document.querySelector('[data-editing-id]') as HTMLElement
-            ?? document.querySelector('[contenteditable="true"]') as HTMLElement;
-          if (!editable) return;
-          editable.focus();
-          // Restore saved selection
-          const savedSel = (window as any).__dtpSavedSelection as Range | null;
-          if (savedSel) {
-            try {
-              const sel = window.getSelection();
-              if (sel) { sel.removeAllRanges(); sel.addRange(savedSel); }
-            } catch (_) {}
-          }
-          // Insert image — use DOM API for safe attribute escaping
-          const img = document.createElement('img');
-          img.src = asset.url;
-          img.alt = asset.filename || '';
-          img.style.cssText = 'float:left;width:40%;max-width:100%;height:auto;margin:0 12px 8px 0;border-radius:4px;';
-          document.execCommand('insertHTML', false, img.outerHTML);
-          store.setDirty(true);
+          // Delay insertion to next frame — lets React close the picker first
+          // and return focus to the contentEditable before mutating DOM
+          requestAnimationFrame(() => {
+            const editable = document.querySelector('[data-editing-id]') as HTMLElement
+              ?? document.querySelector('[contenteditable="true"]') as HTMLElement;
+            if (!editable) return;
+            editable.focus();
+            // Restore saved selection
+            const savedSel = (window as any).__dtpSavedSelection as Range | null;
+            if (savedSel) {
+              try {
+                const sel = window.getSelection();
+                if (sel) { sel.removeAllRanges(); sel.addRange(savedSel); }
+              } catch (_) {}
+            }
+            // Insert image — use DOM API for safe attribute escaping
+            const img = document.createElement('img');
+            img.src = asset.url;
+            img.alt = asset.filename || '';
+            img.style.cssText = 'float:left;width:40%;max-width:100%;height:auto;margin:0 12px 8px 0;border-radius:4px;';
+            document.execCommand('insertHTML', false, img.outerHTML);
+            // Persist immediately to store — don't wait for blur
+            const editId = editable.getAttribute('data-editing-id');
+            if (editId) {
+              const el = useMagazineStore.getState().pages.flatMap(p => p.elements).find(e => e.id === editId);
+              if (el) {
+                store.updateElement(editId, { data: { ...el.data, content: editable.innerHTML } } as any);
+              }
+            }
+          });
         }}
         accept="image"
         currentUrl=""
