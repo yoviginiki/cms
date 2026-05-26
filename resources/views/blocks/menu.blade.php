@@ -85,6 +85,12 @@
         return true;
     };
 
+    // Determine base URL for menu links — on sys.ensodo.eu preview, prefix with /sites/{slug}
+    $menuBaseUrl = '';
+    if (isset($site) && request()->getHost() !== ($site->custom_domain ?? $site->slug . '.ensodo.eu')) {
+        $menuBaseUrl = '/sites/' . ($site->slug ?? $site->id);
+    }
+
     // Scoped class for CSS
     $scopeClass = 'menu-' . substr(md5($__htmlId ?: uniqid()), 0, 8);
 
@@ -130,7 +136,7 @@
   <div style="display:flex;align-items:center;{{ $isVertical ? 'flex-direction:column;gap:0.5rem;' : "gap:{$itemGap};" }}justify-content:{{ $alignment }};">
     <div style="display:flex;align-items:center;{{ $isVertical ? 'flex-direction:column;gap:0.5rem;' : "gap:{$itemGap};" }}">
       @if($showLogo && isset($site))
-        <a href="/" style="font-weight:700;font-size:{{ $logoSize }};color:{{ $textColor ?: 'var(--color-text,#1e293b)' }};text-decoration:none;">{{ $site->name }}</a>
+        <a href="{{ $menuBaseUrl }}/" style="font-weight:700;font-size:{{ $logoSize }};color:{{ $textColor ?: 'var(--color-text,#1e293b)' }};text-decoration:none;">{{ $site->name }}</a>
       @endif
 
       {{-- Desktop links --}}
@@ -148,7 +154,7 @@
               $hasChildren = $visibleChildren->count() > 0;
             @endphp
             <div class="menu-item {{ $hasChildren ? 'has-children' : '' }}">
-              <a href="{{ $item->resolveUrl() }}" class="menu-top-link" @if($item->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
+              <a href="{{ $item->resolveUrl($menuBaseUrl) }}" class="menu-top-link" @if($item->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
                 {{ $item->label }}
               </a>
               @if($hasChildren)
@@ -159,13 +165,13 @@
                       $childHasChildren = $visibleGrandchildren->count() > 0;
                     @endphp
                     <div class="menu-item {{ $childHasChildren ? 'has-children' : '' }}">
-                      <a href="{{ $child->resolveUrl() }}" class="menu-link" @if($child->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
+                      <a href="{{ $child->resolveUrl($menuBaseUrl) }}" class="menu-link" @if($child->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
                         {{ $child->label }}
                       </a>
                       @if($childHasChildren)
                         <div class="submenu">
                           @foreach($visibleGrandchildren as $grandchild)
-                            <a href="{{ $grandchild->resolveUrl() }}" class="menu-link" @if($grandchild->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
+                            <a href="{{ $grandchild->resolveUrl($menuBaseUrl) }}" class="menu-link" @if($grandchild->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>
                               {{ $grandchild->label }}
                             </a>
                           @endforeach
@@ -202,10 +208,10 @@
     @else
       @foreach($items as $item)
         @if($isVisible($item))
-        <a href="{{ $item->resolveUrl() }}" class="menu-mobile-link" @if($item->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>{{ $item->label }}</a>
+        <a href="{{ $item->resolveUrl($menuBaseUrl) }}" class="menu-mobile-link" @if($item->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>{{ $item->label }}</a>
           @php $visibleChildren = $item->children ? $item->children->filter($isVisible) : collect(); @endphp
           @foreach($visibleChildren as $child)
-            <a href="{{ $child->resolveUrl() }}" class="menu-mobile-link" style="padding-left:1rem;font-size:calc({{ $fontSize }} - 0.0625rem);" @if($child->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>{{ $child->label }}</a>
+            <a href="{{ $child->resolveUrl($menuBaseUrl) }}" class="menu-mobile-link" style="padding-left:1rem;font-size:calc({{ $fontSize }} - 0.0625rem);" @if($child->target === '_blank') target="_blank" rel="noopener noreferrer" @endif>{{ $child->label }}</a>
           @endforeach
         @endif
       @endforeach

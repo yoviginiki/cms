@@ -174,7 +174,7 @@ class MenuRenderer
         // Mobile panel
         $html .= "    <div class=\"menu-hamburger-panel\">\n";
         foreach ($items as $item) {
-            $url = e($item->resolveUrl(''));
+            $url = e($item->resolveUrl($this->getMenuBaseUrl($site)));
             $label = e($item->label);
             $target = $item->target !== '_self' ? ' target="' . e($item->target) . '" rel="noopener"' : '';
             $html .= "      <a href=\"{$url}\"{$target} class=\"menu-custom-link\">{$label}</a>\n";
@@ -221,7 +221,7 @@ class MenuRenderer
             $html .= "    <nav style=\"margin-bottom:1.5rem;\">\n";
             $html .= "      <ul style=\"display:flex;flex-wrap:wrap;justify-content:center;gap:1.5rem;list-style:none;padding:0;margin:0;\">\n";
             foreach ($items as $item) {
-                $url = e($item->resolveUrl(''));
+                $url = e($item->resolveUrl($this->getMenuBaseUrl($site)));
                 $label = e($item->label);
                 $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:0.875rem;\">{$label}</a></li>\n";
             }
@@ -245,7 +245,7 @@ class MenuRenderer
 
     private function renderHeaderItem($item, string $scopeClass): string
     {
-        $url = e($item->resolveUrl(''));
+        $url = e($item->resolveUrl($this->getMenuBaseUrl($site)));
         $label = e($item->label);
         $target = $item->target !== '_self' ? ' target="' . e($item->target) . '" rel="noopener"' : '';
         $children = $item->children ?? collect();
@@ -257,7 +257,7 @@ class MenuRenderer
         if ($hasChildren) {
             $html .= "        <ul class=\"menu-submenu\">\n";
             foreach ($children as $child) {
-                $childUrl = e($child->resolveUrl(''));
+                $childUrl = e($child->resolveUrl($this->getMenuBaseUrl($site)));
                 $childLabel = e($child->label);
                 $childTarget = $child->target !== '_self' ? ' target="' . e($child->target) . '" rel="noopener"' : '';
                 $html .= "          <li><a href=\"{$childUrl}\"{$childTarget} class=\"menu-custom-link\">{$childLabel}</a></li>\n";
@@ -297,5 +297,20 @@ class MenuRenderer
         $html .= "      </div></li>\n";
 
         return $html;
+    }
+
+    /**
+     * Get base URL prefix for menu links.
+     * On sys.ensodo.eu (admin preview), prefix with /sites/{slug}.
+     * On the actual site domain, return empty string.
+     */
+    private function getMenuBaseUrl(Site $site): string
+    {
+        $host = request()->getHost();
+        $siteDomain = $site->custom_domain ?? ($site->slug . '.ensodo.eu');
+        if ($host !== $siteDomain) {
+            return '/sites/' . ($site->slug ?? $site->id);
+        }
+        return '';
     }
 }
