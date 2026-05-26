@@ -19,6 +19,7 @@
     $style = $data['style'] ?? 'horizontal';
     $sticky = $data['sticky'] ?? false;
     $showLogo = $data['showLogo'] ?? false;
+    $alignment = in_array($data['alignment'] ?? 'space-between', ['flex-start','center','flex-end','space-between','space-around','space-evenly']) ? $data['alignment'] : 'space-between';
     $mobileBreakpoint = max(0, min(1920, (int)($data['mobileBreakpoint'] ?? 768)));
 
     // Styling
@@ -117,7 +118,7 @@
 <div class="menu-block {{ $scopeClass }} {{ $isVertical ? 'menu-block--vertical' : '' }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 <nav style="{{ $sticky ? 'position:sticky;top:0;z-index:100;' : '' }}background:{{ $navBg }};border-bottom:1px solid {{ $navBorder }};padding:{{ $padding }};{{ $borderRadius ? "border-radius:{$borderRadius};" : '' }}">
-  <div style="display:flex;align-items:center;{{ $isVertical ? 'flex-direction:column;gap:0.5rem;' : "gap:{$itemGap};" }}justify-content:space-between;">
+  <div style="display:flex;align-items:center;{{ $isVertical ? 'flex-direction:column;gap:0.5rem;' : "gap:{$itemGap};" }}justify-content:{{ $alignment }};">
     <div style="display:flex;align-items:center;{{ $isVertical ? 'flex-direction:column;gap:0.5rem;' : "gap:{$itemGap};" }}">
       @if($showLogo && isset($site))
         <a href="/" style="font-weight:700;font-size:{{ $logoSize }};color:{{ $textColor ?: 'var(--color-text,#1e293b)' }};text-decoration:none;">{{ $site->name }}</a>

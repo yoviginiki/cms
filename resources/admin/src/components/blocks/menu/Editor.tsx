@@ -126,6 +126,19 @@ export const MenuEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
           { value: 'hamburger', label: 'Hamburger Only' },
         ]}
       />
+      <SelectField
+        label="Alignment"
+        value={(data.alignment as string) || 'space-between'}
+        onChange={(v) => update('alignment', v)}
+        options={[
+          { value: 'flex-start', label: 'Left' },
+          { value: 'center', label: 'Center' },
+          { value: 'flex-end', label: 'Right' },
+          { value: 'space-between', label: 'Space Between' },
+          { value: 'space-around', label: 'Space Around' },
+          { value: 'space-evenly', label: 'Space Evenly' },
+        ]}
+      />
       <ToggleField label="Show Logo" value={data.showLogo === true} onChange={(v) => update('showLogo', v)} />
       <ToggleField label="Sticky on Scroll" value={data.sticky === true} onChange={(v) => update('sticky', v)} />
       <TextField
