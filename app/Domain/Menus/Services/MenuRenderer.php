@@ -309,9 +309,9 @@ class MenuRenderer
      */
     private function getMenuBaseUrl(Site $site): string
     {
-        $host = request()->getHost();
-        $siteDomain = $site->custom_domain ?? ($site->slug . '.ensodo.eu');
-        if ($host !== $siteDomain) {
+        // Only prefix on dynamic site preview route (not during publish/build)
+        $route = request()->route();
+        if ($route && str_starts_with($route->uri(), 'sites/')) {
             return '/sites/' . ($site->slug ?? $site->id);
         }
         return '';

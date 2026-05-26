@@ -85,9 +85,9 @@
         return true;
     };
 
-    // Determine base URL for menu links — on sys.ensodo.eu preview, prefix with /sites/{slug}
+    // Determine base URL for menu links — only prefix on dynamic site preview route
     $menuBaseUrl = '';
-    if (isset($site) && request()->getHost() !== ($site->custom_domain ?? $site->slug . '.ensodo.eu')) {
+    if (isset($site) && request()->route() && str_starts_with(request()->route()->uri(), 'sites/')) {
         $menuBaseUrl = '/sites/' . ($site->slug ?? $site->id);
     }
 
