@@ -19,7 +19,8 @@
     $style = $data['style'] ?? 'horizontal';
     $sticky = $data['sticky'] ?? false;
     $showLogo = $data['showLogo'] ?? false;
-    $alignment = in_array($data['alignment'] ?? 'space-between', ['flex-start','center','flex-end','space-between','space-around','space-evenly']) ? $data['alignment'] : 'space-between';
+    $rawAlign = $data['alignment'] ?? 'space-between';
+    $alignment = in_array($rawAlign, ['flex-start','center','flex-end','space-between','space-around','space-evenly']) ? $rawAlign : 'space-between';
     $mobileBreakpoint = max(0, min(1920, (int)($data['mobileBreakpoint'] ?? 768)));
 
     // Styling
