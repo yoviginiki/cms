@@ -19,7 +19,12 @@
     $style = $data['style'] ?? 'horizontal';
     $sticky = $data['sticky'] ?? false;
     $showLogo = $data['showLogo'] ?? false;
-    $rawAlign = $data['alignment'] ?? 'space-between';
+    // Read alignment from menu data or map from shared typography textAlign
+    $rawAlign = $data['alignment'] ?? '';
+    if (!$rawAlign) {
+        $textAlign = $blockStyle['typography']['textAlign'] ?? ($data['__style']['typography']['textAlign'] ?? '');
+        $rawAlign = match($textAlign) { 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end', default => 'space-between' };
+    }
     $alignment = in_array($rawAlign, ['flex-start','center','flex-end','space-between','space-around','space-evenly']) ? $rawAlign : 'space-between';
     $mobileBreakpoint = max(0, min(1920, (int)($data['mobileBreakpoint'] ?? 768)));
 

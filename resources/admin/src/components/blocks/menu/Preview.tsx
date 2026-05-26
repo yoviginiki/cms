@@ -52,7 +52,7 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   return (
     <nav style={navStyle}>
-      <div style={{ display: 'flex', alignItems: isVertical ? 'flex-start' : 'center', flexDirection: isVertical ? 'column' : 'row', gap: isVertical ? '0.5rem' : itemGap, justifyContent: (data.alignment as string) || 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: isVertical ? 'flex-start' : 'center', flexDirection: isVertical ? 'column' : 'row', gap: isVertical ? '0.5rem' : itemGap, justifyContent: (data.alignment as string) || ({'left': 'flex-start', 'center': 'center', 'right': 'flex-end'} as Record<string, string>)[((data.__style as any)?.typography?.textAlign || (block.style as any)?.typography?.textAlign)] || 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: itemGap, flexDirection: isVertical ? 'column' : 'row' }}>
           {showLogo && (
             <span style={{ fontWeight: 700, fontSize: logoSize, color: textColor || 'var(--color-text, #1e293b)' }}>Logo</span>
