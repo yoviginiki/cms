@@ -7,6 +7,8 @@ use App\Models\Site;
 
 class MenuRenderer
 {
+    private string $menuBaseUrl = '';
+
     /** Sanitize a CSS value — whitelist safe characters only. */
     private static function safeCss(string $v): string
     {
@@ -30,6 +32,7 @@ class MenuRenderer
     public function render(?Menu $menu, Site $site, string $ariaLabel = 'Main navigation'): string
     {
         if (!$menu) return '';
+        $this->menuBaseUrl = $this->getMenuBaseUrl($site);
 
         $menu->load(['rootItems.children.children', 'rootItems.page', 'rootItems.post', 'rootItems.category']);
 
@@ -174,7 +177,7 @@ class MenuRenderer
         // Mobile panel
         $html .= "    <div class=\"menu-hamburger-panel\">\n";
         foreach ($items as $item) {
-            $url = e($item->resolveUrl($this->getMenuBaseUrl($site)));
+            $url = e($item->resolveUrl($this->menuBaseUrl));
             $label = e($item->label);
             $target = $item->target !== '_self' ? ' target="' . e($item->target) . '" rel="noopener"' : '';
             $html .= "      <a href=\"{$url}\"{$target} class=\"menu-custom-link\">{$label}</a>\n";
@@ -221,7 +224,7 @@ class MenuRenderer
             $html .= "    <nav style=\"margin-bottom:1.5rem;\">\n";
             $html .= "      <ul style=\"display:flex;flex-wrap:wrap;justify-content:center;gap:1.5rem;list-style:none;padding:0;margin:0;\">\n";
             foreach ($items as $item) {
-                $url = e($item->resolveUrl($this->getMenuBaseUrl($site)));
+                $url = e($item->resolveUrl($this->menuBaseUrl));
                 $label = e($item->label);
                 $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:0.875rem;\">{$label}</a></li>\n";
             }
@@ -245,7 +248,7 @@ class MenuRenderer
 
     private function renderHeaderItem($item, string $scopeClass): string
     {
-        $url = e($item->resolveUrl($this->getMenuBaseUrl($site)));
+        $url = e($item->resolveUrl($this->menuBaseUrl));
         $label = e($item->label);
         $target = $item->target !== '_self' ? ' target="' . e($item->target) . '" rel="noopener"' : '';
         $children = $item->children ?? collect();
@@ -257,7 +260,7 @@ class MenuRenderer
         if ($hasChildren) {
             $html .= "        <ul class=\"menu-submenu\">\n";
             foreach ($children as $child) {
-                $childUrl = e($child->resolveUrl($this->getMenuBaseUrl($site)));
+                $childUrl = e($child->resolveUrl($this->menuBaseUrl));
                 $childLabel = e($child->label);
                 $childTarget = $child->target !== '_self' ? ' target="' . e($child->target) . '" rel="noopener"' : '';
                 $html .= "          <li><a href=\"{$childUrl}\"{$childTarget} class=\"menu-custom-link\">{$childLabel}</a></li>\n";
