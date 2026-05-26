@@ -34,7 +34,7 @@ export const MenuPreview: React.FC<BlockComponentProps> = ({ block }) => {
 
   const navStyle: React.CSSProperties = {
     background: bgColor || 'var(--color-bg, #fff)',
-    borderBottom: `1px solid ${borderColor || 'var(--color-border, #e5e7eb)'}`,
+    borderBottom: data.showBorder === false ? 'none' : `${(data.borderWidth as string) || '1px'} solid ${borderColor || 'var(--color-border, #e5e7eb)'}`,
     padding,
     borderRadius: borderRadius || undefined,
     position: sticky ? 'sticky' : undefined,

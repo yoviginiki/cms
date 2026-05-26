@@ -155,7 +155,24 @@ export const MenuEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
       <ColorField label="Text Color" value={(data.textColor as string) || ''} onChange={(v) => update('textColor', v)} />
       <ColorField label="Hover Color" value={(data.hoverColor as string) || ''} onChange={(v) => update('hoverColor', v)} />
       <ColorField label="Active Color" value={(data.activeColor as string) || ''} onChange={(v) => update('activeColor', v)} />
-      <ColorField label="Border Color" value={(data.borderColor as string) || ''} onChange={(v) => update('borderColor', v)} />
+      <ToggleField label="Show Bottom Border" value={data.showBorder !== false} onChange={(v) => update('showBorder', v)} />
+      {data.showBorder !== false && (
+        <>
+          <ColorField label="Border Color" value={(data.borderColor as string) || ''} onChange={(v) => update('borderColor', v)} />
+          <SelectField
+            label="Border Width"
+            value={(data.borderWidth as string) || '1px'}
+            onChange={(v) => update('borderWidth', v)}
+            options={[
+              { value: '0', label: 'None' },
+              { value: '1px', label: '1px' },
+              { value: '2px', label: '2px' },
+              { value: '3px', label: '3px' },
+              { value: '4px', label: '4px' },
+            ]}
+          />
+        </>
+      )}
       <TextField label="Font Size" value={(data.fontSize as string) || ''} onChange={(v) => update('fontSize', v)} placeholder="e.g. 0.875rem, 14px" />
       <SelectField
         label="Font Weight"
