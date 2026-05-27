@@ -368,7 +368,7 @@ export default function PageEditor() {
           <BuilderDndProvider>
             <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
               <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
-                <BuilderCanvas />
+                <BuilderCanvas pageStyle={page?.seo_meta?.pageStyle} />
               </div>
               <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}
                 layouts={layoutsList || []} publicBase={publicBase} siteSlug={siteData?.slug || ''}
@@ -848,8 +848,18 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
       const meta = value as Record<string, any>;
       setLocalMeta(meta);
       if (metaRef) metaRef.current = meta;
-      metaDirtyRef.current = true; // Prevent server refetch from overwriting
+      metaDirtyRef.current = true;
       if (onDirty) onDirty();
+      // Save immediately for page appearance changes (not deferred to explicit save)
+      setSaving(true);
+      try {
+        await pagesApi.update(siteId, pageId, { seo_meta: meta });
+      } catch (e) {
+        console.error('Page style save failed:', e);
+      } finally {
+        setSaving(false);
+      }
+      return;
     }
     // Non-appearance fields save immediately
     if (field !== 'seo_meta') {

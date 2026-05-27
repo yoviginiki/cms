@@ -195,7 +195,7 @@ export function BuilderDndProvider({ children }: { children: React.ReactNode }) 
 import { CANVAS_WIDTHS, type Breakpoint } from '@/lib/breakpoints';
 type CanvasDevice = Breakpoint;
 
-export function BuilderCanvas() {
+export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }) {
   const blocks = useEditorStore((s) => s.blocks);
   const addBlock = useEditorStore((s) => s.addBlock);
   const addPresetAction = useEditorStore((s) => s.addPreset);
@@ -400,6 +400,15 @@ export function BuilderCanvas() {
           style={{
             maxWidth: CANVAS_WIDTHS[canvasDevice],
             transition: 'max-width 0.3s ease',
+            ...(pageStyle?.layout?.width ? { width: pageStyle.layout.width } : {}),
+            ...(pageStyle?.layout?.maxWidth ? { maxWidth: pageStyle.layout.maxWidth } : {}),
+            ...(pageStyle?.layout?.minWidth ? { minWidth: pageStyle.layout.minWidth } : {}),
+            ...(pageStyle?.layout?.height ? { minHeight: pageStyle.layout.height } : {}),
+            ...(pageStyle?.layout?.overflow ? { overflow: pageStyle.layout.overflow } : {}),
+            ...(pageStyle?.spacing?.paddingTop ? { paddingTop: pageStyle.spacing.paddingTop } : {}),
+            ...(pageStyle?.spacing?.paddingBottom ? { paddingBottom: pageStyle.spacing.paddingBottom } : {}),
+            ...(pageStyle?.spacing?.paddingLeft ? { paddingLeft: pageStyle.spacing.paddingLeft } : {}),
+            ...(pageStyle?.spacing?.paddingRight ? { paddingRight: pageStyle.spacing.paddingRight } : {}),
           }}
         >
           {canvasMode === 'simple' ? (
