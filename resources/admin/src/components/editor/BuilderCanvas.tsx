@@ -398,10 +398,8 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
             canvasDevice !== 'desktop' ? 'border-info/30' : 'border-gray-200'
           }`}
           style={{
-            maxWidth: CANVAS_WIDTHS[canvasDevice],
-            transition: 'max-width 0.3s ease',
+            // Page style applied first, device maxWidth overrides if smaller
             ...(pageStyle?.layout?.width ? { width: pageStyle.layout.width } : {}),
-            ...(pageStyle?.layout?.maxWidth ? { maxWidth: pageStyle.layout.maxWidth } : {}),
             ...(pageStyle?.layout?.minWidth ? { minWidth: pageStyle.layout.minWidth } : {}),
             ...(pageStyle?.layout?.height ? { minHeight: pageStyle.layout.height } : {}),
             ...(pageStyle?.layout?.overflow ? { overflow: pageStyle.layout.overflow } : {}),
@@ -409,6 +407,9 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
             ...(pageStyle?.spacing?.paddingBottom ? { paddingBottom: pageStyle.spacing.paddingBottom } : {}),
             ...(pageStyle?.spacing?.paddingLeft ? { paddingLeft: pageStyle.spacing.paddingLeft } : {}),
             ...(pageStyle?.spacing?.paddingRight ? { paddingRight: pageStyle.spacing.paddingRight } : {}),
+            // Device maxWidth always wins over page maxWidth
+            maxWidth: CANVAS_WIDTHS[canvasDevice],
+            transition: 'max-width 0.3s ease',
           }}
         >
           {canvasMode === 'simple' ? (
