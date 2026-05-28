@@ -595,6 +595,6 @@ img{max-width:100%;height:auto;display:block}
         $style = BlockStyle::buildStyle($pageStyle, [], $pageData);
         if (!$style) return '';
 
-        return "main[role=main]{{$style}}\n";
+        return "main,.page-content{{$style}}\n";
     }
 }
