@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, CheckCircle, AlertCircle, Upload, ChevronDown, Clock, RotateCcw, Eye, Download, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Upload, ChevronDown, Clock, RotateCcw, Eye, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useDeploymentStatus } from '@/hooks/useDeploymentStatus';
 import { useQuery } from '@tanstack/react-query';
