@@ -2,6 +2,8 @@ import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { TextField } from '@/components/editor/fields/TextField';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const SectionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -41,6 +43,13 @@ export const SectionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) =
         onChange={(v) => update('anchor_id', v)}
         placeholder="my-section"
       />
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

@@ -14,7 +14,7 @@ class AuthorboxBlockDefinition implements BlockDefinition
             'showBio'         => ['sometimes', 'boolean'],
             'showSocialLinks' => ['sometimes', 'boolean'],
             'layout'          => ['sometimes', 'in:horizontal,vertical'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

@@ -1,5 +1,7 @@
 import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const AuthorboxEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as { showAvatar: boolean; showBio: boolean; showSocialLinks: boolean; layout: string };
@@ -29,6 +31,13 @@ export const AuthorboxEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
         <input type="checkbox" className="checkbox checkbox-sm" checked={!!data.showSocialLinks} onChange={(e) => update('showSocialLinks', e.target.checked)} />
         <span className="text-[11px] text-base-content/50">Show Social Links</span>
       </label>
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

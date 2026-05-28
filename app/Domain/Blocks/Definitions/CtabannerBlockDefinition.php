@@ -17,7 +17,7 @@ class CtabannerBlockDefinition implements BlockDefinition
             'backgroundStyle' => ['sometimes', 'in:solid,gradient,image'],
             'backgroundColor' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
             'backgroundImage' => ['sometimes', 'nullable', 'string', 'max:2048'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

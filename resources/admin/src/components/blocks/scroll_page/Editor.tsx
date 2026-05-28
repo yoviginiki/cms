@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { AssetField } from '@/components/ui/AssetPicker';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const ScrollPageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as any;
@@ -237,6 +239,13 @@ export const ScrollPageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
       )}
 
       <p className="text-[9px] text-gray-400 mt-2">{pages.length} pages · Edit content in the block preview above</p>
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => updateField('effects', v)}
+        />
+      </div>
     </div>
   );
 };

@@ -16,7 +16,7 @@ class FullbleedBlockDefinition implements BlockDefinition
             'overlayPosition' => ['sometimes', 'in:center,top-left,top-right,bottom-left,bottom-right'],
             'scrimOpacity'    => ['sometimes', 'numeric', 'min:0', 'max:1'],
             'minHeight'       => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|vh|%)$/'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

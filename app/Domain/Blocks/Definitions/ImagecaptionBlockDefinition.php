@@ -14,7 +14,7 @@ class ImagecaptionBlockDefinition implements BlockDefinition
             'alt'             => ['sometimes', 'nullable', 'string', 'max:255'],
             'caption'         => ['sometimes', 'nullable', 'string', 'max:500'],
             'captionPosition' => ['sometimes', 'in:below,above,overlay'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

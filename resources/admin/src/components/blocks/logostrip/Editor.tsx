@@ -1,5 +1,7 @@
 import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const LogostripEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const { logos, grayscale, columns, gap } = block.data as {
@@ -61,6 +63,13 @@ export const LogostripEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
           value={gap || '32px'}
           onChange={(e) => update('gap', e.target.value)}
           className="input input-bordered input-sm w-full text-[12px]"
+        />
+      </div>
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
         />
       </div>
     </div>

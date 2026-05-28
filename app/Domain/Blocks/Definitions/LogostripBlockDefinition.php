@@ -15,7 +15,7 @@ class LogostripBlockDefinition implements BlockDefinition
             'grayscale'   => ['sometimes', 'boolean'],
             'columns'     => ['sometimes', 'integer', 'min:1', 'max:8'],
             'gap'         => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%)$/'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

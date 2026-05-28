@@ -1,5 +1,7 @@
 import type { BlockEditorProps } from '@/types/blocks';
 import { SelectField, TextField, ToggleField } from '@/components/editor/fields';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const PostLoopEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -33,6 +35,13 @@ export const PostLoopEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
           { value: '1:1', label: 'Square' }, { value: '3:2', label: '3:2' },
         ]} />
       <TextField label="Excerpt Lines" value={String(data.excerptLines ?? 3)} onChange={v => update('excerptLines', Number(v))} placeholder="3" />
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

@@ -1,6 +1,8 @@
 import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { AssetField } from '@/components/ui/AssetPicker';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const BeforeafterEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const { beforeSrc, afterSrc, beforeLabel, afterLabel, initialPosition } = block.data as {
@@ -49,6 +51,13 @@ export const BeforeafterEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
           value={initialPosition ?? 50}
           onChange={(e) => update('initialPosition', parseInt(e.target.value, 10))}
           className="range range-sm w-full"
+        />
+      </div>
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
         />
       </div>
     </div>

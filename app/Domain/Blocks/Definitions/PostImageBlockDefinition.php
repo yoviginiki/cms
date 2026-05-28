@@ -14,7 +14,7 @@ class PostImageBlockDefinition implements BlockDefinition
             'aspectRatio' => ['sometimes', 'nullable', 'string', 'max:10'],
             'borderRadius' => ['sometimes', 'nullable', 'string', 'max:20'],
             'objectFit' => ['sometimes', 'in:cover,contain,fill,none']
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

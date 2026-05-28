@@ -21,7 +21,7 @@ class PostLoopBlockDefinition implements BlockDefinition
             'imageAspectRatio' => ['sometimes', 'in:16:9,4:3,1:1,3:2'],
             'excerptLines' => ['sometimes', 'integer', 'min:0', 'max:10'],
             'gap' => ['sometimes', 'nullable', 'string', 'max:20'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array { return ['HTML.Allowed' => '']; }

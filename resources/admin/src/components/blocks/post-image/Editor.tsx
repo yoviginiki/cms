@@ -1,5 +1,7 @@
 import type { BlockEditorProps } from '@/types/blocks';
 import { SelectField, TextField } from '@/components/editor/fields';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const PostImageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -26,6 +28,13 @@ export const PostImageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
           { value: 'fill', label: 'Fill' },
           { value: 'none', label: 'None' },
         ]} />
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

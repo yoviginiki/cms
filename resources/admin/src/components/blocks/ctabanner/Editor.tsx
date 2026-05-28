@@ -1,6 +1,8 @@
 import type { BlockEditorProps } from '@/types/blocks';
 import BackgroundEditor from '@/components/editor/BackgroundEditor';
 import { TextField, ColorField, SelectField } from '@/components/editor/fields';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const CtabannerEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -38,6 +40,13 @@ export const CtabannerEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
       <ColorField label="Button Background" value={(data.btnBgColor as string) || ''} onChange={(v) => update('btnBgColor', v)} />
       <ColorField label="Button Text Color" value={(data.btnTextColor as string) || ''} onChange={(v) => update('btnTextColor', v)} />
       <TextField label="Button Border Radius" value={(data.btnBorderRadius as string) || ''} onChange={(v) => update('btnBorderRadius', v)} placeholder="e.g. 0.5rem, 8px" />
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
+      </div>
     </div>
   );
 };

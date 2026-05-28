@@ -1,6 +1,8 @@
 import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { AssetField } from '@/components/ui/AssetPicker';
+import { CardEffectsPanel } from '@/components/editor/fields/CardEffectsPanel';
+import type { CardEffects } from '@/lib/blockEffects';
 
 export const ImagecaptionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const { src, alt, caption, captionPosition } = block.data as {
@@ -47,6 +49,13 @@ export const ImagecaptionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate
           <option value="side-right">Side Right</option>
           <option value="side-left">Side Left</option>
         </select>
+      </div>
+      {/* ─── Card Effects ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <CardEffectsPanel
+          value={(block.data as any).effects || {}}
+          onChange={(v: CardEffects) => update('effects', v)}
+        />
       </div>
     </div>
   );

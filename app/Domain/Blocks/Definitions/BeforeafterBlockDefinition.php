@@ -15,7 +15,7 @@ class BeforeafterBlockDefinition implements BlockDefinition
             'beforeLabel'     => ['sometimes', 'nullable', 'string', 'max:100'],
             'afterLabel'      => ['sometimes', 'nullable', 'string', 'max:100'],
             'initialPosition' => ['sometimes', 'integer', 'min:0', 'max:100'],
-        ];
+        ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
     public function sanitizationConfig(): array

@@ -1,4 +1,5 @@
 @use('App\Support\Blocks\BlockStyle')
+@use('App\Support\Blocks\BlockEffects')
 @php
     $__bs = $blockStyle ?? [];
     $__ba = $blockAnimation ?? [];
@@ -10,8 +11,28 @@
     $__animAttr = BlockStyle::animationAttr($__ba);
     $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
 @endphp
+@php
+    // Card effects
+    $__effectsEnabled = BlockEffects::isEnabled($data ?? []);
+    $__imageFilter = BlockEffects::imageFilterStyle($data ?? []);
+    $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
+    $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
+    $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);
+    $__revealMode = in_array(($data['effects']['imageHoverReveal']['mode'] ?? 'fade'), ['none','fade','reveal-left','reveal-right','reveal-top','reveal-bottom','circle','diagonal']) ? ($data['effects']['imageHoverReveal']['mode'] ?? 'fade') : 'fade';
+    $__isFadeReveal = $__revealMode === 'fade' || $__revealMode === 'none';
+    $__revealDuration = max(150, min(1500, intval($data['effects']['imageHoverReveal']['duration'] ?? 500)));
+    $__revealEasing = in_array($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out', ['ease','ease-out','ease-in-out']) ? ($data['effects']['imageHoverReveal']['easing'] ?? 'ease-out') : 'ease-out';
+    if ($__revealEnabled && $__effectScope && $__isFadeReveal) {
+        $__revealImgCss = ".{$__effectScope}:hover .img-filtered{filter:none!important}.{$__effectScope} .img-filtered{transition:filter {$__revealDuration}ms {$__revealEasing}}@media(prefers-reduced-motion:reduce){.{$__effectScope} .img-filtered{transition:none!important}}";
+    } elseif ($__revealEnabled && $__effectScope) {
+        $__revealImgCss = BlockEffects::revealCss($data ?? [], $__effectScope);
+    } else {
+        $__revealImgCss = '';
+    }
+@endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
-<div class="post-loop-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif>
+@if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
+<div class="post-loop-block {{ $__effectScope }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $cssDim = fn($v) => preg_match('/^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/i', trim((string) $v)) ? trim((string) $v) : '';
@@ -42,7 +63,7 @@
     @if($layout === 'list')
     <article style="display:flex;gap:1rem;padding-bottom:1rem;border-bottom:1px solid var(--color-border-light,#eee);">
         @if($showImage && $post->featured_image)
-        <a href="{{ $postUrl }}" style="flex-shrink:0;"><img src="{{ $post->featured_image }}" alt="{{ e($post->title) }}" loading="lazy" style="width:200px;height:auto;object-fit:cover;aspect-ratio:{{ str_replace(':', '/', $imageAspectRatio) }};border-radius:var(--border-radius-sm,3px);" /></a>
+        <a href="{{ $postUrl }}" style="flex-shrink:0;"><img class="img-filtered" src="{{ $post->featured_image }}" alt="{{ e($post->title) }}" loading="lazy" style="width:200px;height:auto;object-fit:cover;aspect-ratio:{{ str_replace(':', '/', $imageAspectRatio) }};border-radius:var(--border-radius-sm,3px);{{ $__imageFilter }}" /></a>
         @endif
         <div>
             <h3 style="margin:0 0 0.25rem;"><a href="{{ $postUrl }}" style="color:var(--color-text,inherit);text-decoration:none;">{{ $post->title }}</a></h3>
@@ -61,7 +82,7 @@
     @else
     <article style="border:1px solid var(--color-border-light,#eee);border-radius:var(--border-radius-sm,3px);overflow:hidden;">
         @if($showImage && $post->featured_image)
-        <a href="{{ $postUrl }}"><img src="{{ $post->featured_image }}" alt="{{ e($post->title) }}" loading="lazy" style="width:100%;aspect-ratio:{{ str_replace(':', '/', $imageAspectRatio) }};object-fit:cover;" /></a>
+        <a href="{{ $postUrl }}"><img class="img-filtered" src="{{ $post->featured_image }}" alt="{{ e($post->title) }}" loading="lazy" style="width:100%;aspect-ratio:{{ str_replace(':', '/', $imageAspectRatio) }};object-fit:cover;{{ $__imageFilter }}" /></a>
         @endif
         <div style="padding:1rem;">
             <h3 style="margin:0 0 0.25rem;font-size:1rem;"><a href="{{ $postUrl }}" style="color:var(--color-text,inherit);text-decoration:none;">{{ $post->title }}</a></h3>
