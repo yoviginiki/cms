@@ -354,7 +354,7 @@ export default function PageEditor() {
             {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save
             {(isDirty || magStore.isDirty) && <span className="w-1.5 h-1.5 rounded-full bg-warning-content" />}
           </button>
-          <PublishButton siteId={siteId} />
+          <PublishButton siteId={siteId} publicBase={publicBase} />
           <a href={`${publicBase}/${page?.slug || ''}`} target="_blank" rel="noopener"
             className="btn btn-sm btn-ghost text-[12px] gap-1" title="View published page">
             <Globe size={13} /> Live
