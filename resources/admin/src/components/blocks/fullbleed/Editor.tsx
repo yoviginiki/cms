@@ -14,7 +14,7 @@ export const FullbleedEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
     minHeight: string;
   };
 
-  const update = (field: string, value: string | number) => {
+  const update = (field: string, value: unknown) => {
     onUpdate({ ...block.data, [field]: value });
   };
 

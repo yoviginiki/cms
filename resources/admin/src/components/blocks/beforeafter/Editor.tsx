@@ -13,7 +13,7 @@ export const BeforeafterEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
     initialPosition: number;
   };
 
-  const update = (field: string, value: string | number) => {
+  const update = (field: string, value: unknown) => {
     onUpdate({ ...block.data, [field]: value });
   };
 

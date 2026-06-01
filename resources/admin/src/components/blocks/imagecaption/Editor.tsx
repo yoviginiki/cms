@@ -12,7 +12,7 @@ export const ImagecaptionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate
     captionPosition: string;
   };
 
-  const update = (field: string, value: string) => {
+  const update = (field: string, value: unknown) => {
     onUpdate({ ...block.data, [field]: value });
   };
 
