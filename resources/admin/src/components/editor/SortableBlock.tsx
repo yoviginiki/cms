@@ -7,6 +7,7 @@ import { BlockToolbar } from './BlockToolbar';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, buildBackgroundFromData, buildOverlayFromData, safeDim } from '@/lib/blockStyles';
+import type { Breakpoint } from '@/lib/breakpoints';
 import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
 import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
@@ -55,11 +56,14 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const updateBlock = useEditorStore((s) => s.updateBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
+  const canvasDevice = useEditorStore((s) => s.canvasDevice) as Breakpoint;
 
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const isSelected = selectedBlockId === block.id;
   const registration = blockRegistry.get(block.type);
+  const hideOn = (block.responsive?.hideOn as string[]) || [];
+  const isHiddenAtDevice = hideOn.includes(canvasDevice);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -86,8 +90,9 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const blockData = block.data ?? {};
   const rowLayout = isRow ? ((blockData.layout as RowLayout) || '1/2+1/2') : undefined;
   const rowGap = isRow ? (safeDim(blockData.gap) || '16px') : undefined;
+  const isMobileStack = isRow && canvasDevice === 'mobile';
   const childrenStyle: React.CSSProperties = isRow
-    ? { display: 'grid', gridTemplateColumns: LAYOUT_GRID[rowLayout!] || '1fr 1fr', gap: rowGap }
+    ? { display: 'grid', gridTemplateColumns: isMobileStack ? '1fr' : (LAYOUT_GRID[rowLayout!] || '1fr 1fr'), gap: rowGap }
     : {};
 
   // Determine what the "+" button does for this level
@@ -118,12 +123,17 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         isSelected
           ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg'
           : 'hover:outline hover:outline-1 hover:outline-blue-200 hover:outline-offset-2 rounded-lg'
-      }`}
+      } ${isHiddenAtDevice ? 'opacity-25 outline-dashed outline-1 outline-warning/50' : ''}`}
       onClick={(e) => {
         e.stopPropagation();
         selectBlock(block.id);
       }}
     >
+      {isHiddenAtDevice && (
+        <div className="absolute top-1 right-1 z-10 text-[8px] bg-warning/20 text-warning px-1.5 py-0.5 rounded font-medium">
+          Hidden on {canvasDevice}
+        </div>
+      )}
       {isSelected && (
         <BlockToolbar
           block={block}
@@ -134,7 +144,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
       <div
         className={`relative ${buildBlockClasses(block.advanced, block.animation)}`}
         style={{
-          ...buildBlockWrapperStyle(block.style),
+          ...buildBlockWrapperStyle(block.style, block.responsive, canvasDevice),
           ...buildBackgroundFromData(block.data),
           ...buildAnimationStyle(block.animation),
         }}

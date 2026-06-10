@@ -8,8 +8,9 @@
  * so that preview and published output stay in sync.
  */
 
-import type { BlockStyleProps, AnimationProps, AdvancedProps } from '@/types/blocks';
+import type { BlockStyleProps, AnimationProps, AdvancedProps, ResponsiveOverrides } from '@/types/blocks';
 import type React from 'react';
+import type { Breakpoint } from '@/lib/breakpoints';
 import { buildShadowCss } from '@/lib/shadowStyles';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 import { resolveCornerRadius } from '@/lib/spacingHelpers';
@@ -60,12 +61,29 @@ const SHADOW_MAP: Record<string, string> = {
 /**
  * Build inline CSS from block.style for the preview wrapper.
  */
-export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProperties {
+export function buildBlockWrapperStyle(style?: BlockStyleProps, responsive?: ResponsiveOverrides, breakpoint: Breakpoint = 'desktop'): React.CSSProperties {
   if (!style) return {};
+
+  // Merge responsive overrides into effective style for current breakpoint
+  const effective: BlockStyleProps = { ...style };
+  if (breakpoint !== 'desktop' && responsive) {
+    const tabletOverrides = responsive.tablet || {};
+    const mobileOverrides = responsive.mobile || {};
+    // Merge: mobile > tablet > desktop
+    const overrides = breakpoint === 'mobile'
+      ? deepMergeStyle(tabletOverrides, mobileOverrides)
+      : tabletOverrides;
+    for (const section of Object.keys(overrides) as Array<keyof BlockStyleProps>) {
+      if (overrides[section] && typeof overrides[section] === 'object') {
+        (effective as any)[section] = { ...(style[section] as any || {}), ...(overrides[section] as any) };
+      }
+    }
+  }
+
   const css: React.CSSProperties = {};
 
   // Spacing
-  const sp = style.spacing;
+  const sp = effective.spacing;
   if (sp) {
     if (safeDim(sp.paddingTop)) css.paddingTop = safeDim(sp.paddingTop);
     if (safeDim(sp.paddingRight)) css.paddingRight = safeDim(sp.paddingRight);
@@ -79,7 +97,7 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
   }
 
   // Visual
-  const vis = style.visual;
+  const vis = effective.visual;
   if (vis) {
     // Background
     if (vis.backgroundGradient) {
@@ -137,7 +155,7 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
   }
 
   // Typography
-  const typo = style.typography;
+  const typo = effective.typography;
   if (typo) {
     if (typo.fontFamily) css.fontFamily = typo.fontFamily;
     if (typo.fontSize) css.fontSize = typo.fontSize;
@@ -152,7 +170,7 @@ export function buildBlockWrapperStyle(style?: BlockStyleProps): React.CSSProper
   }
 
   // Layout
-  const lay = style.layout;
+  const lay = effective.layout;
   if (lay) {
     if (safeDim(lay.width)) css.width = safeDim(lay.width);
     if (safeDim(lay.height)) css.height = safeDim(lay.height);
@@ -336,4 +354,16 @@ export function normalizeAnimation(v: unknown): string {
 export function normalizeCustomClass(v: unknown): string {
   if (!v) return '';
   return String(v).replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
+}
+
+function deepMergeStyle(a: Record<string, any>, b: Record<string, any>): Record<string, any> {
+  const result = { ...a };
+  for (const key of Object.keys(b)) {
+    if (b[key] && typeof b[key] === 'object' && !Array.isArray(b[key]) && a[key] && typeof a[key] === 'object') {
+      result[key] = { ...a[key], ...b[key] };
+    } else {
+      result[key] = b[key];
+    }
+  }
+  return result;
 }
