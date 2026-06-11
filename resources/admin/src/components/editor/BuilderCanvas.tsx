@@ -13,7 +13,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Monitor, Tablet, Smartphone, LayoutList, Eye, PanelTop, Plus, Code, FileText } from 'lucide-react';
+import { Monitor, Tablet, Smartphone, LayoutList, Eye, Plus, Code, FileText } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
