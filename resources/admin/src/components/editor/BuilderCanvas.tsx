@@ -19,7 +19,7 @@ import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import { BlockIcon } from './BlockIcon';
-import { presets as presetsList } from '@/presets';
+import { PresetBrowser } from './PresetBrowser';
 import WysiwygEditor from './WysiwygEditor';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
@@ -211,6 +211,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
   const setCanvasMode = useEditorStore((s) => s.setCanvasMode);
 
   const [showAddPopup, setShowAddPopup] = useState(false);
+  const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
 
   // Simple editor mode — stores content as HTML, converts to rich-text block when leaving simple mode
   const [simpleContent, setSimpleContent] = useState(() => {
@@ -476,26 +477,22 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
                         )}
                       </div>
                     ))}
-                    {/* Add section at end — with preset options */}
-                    <div className="flex flex-wrap justify-center gap-2 py-4">
+                    {/* Add section at end */}
+                    <div className="flex justify-center py-4">
                       <button
-                        onClick={(e) => { e.stopPropagation(); addBlock('section'); }}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm text-blue-500 hover:text-blue-600 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl transition-all hover:bg-blue-50"
+                        onClick={(e) => { e.stopPropagation(); setPresetBrowserOpen(true); }}
+                        className="flex items-center gap-2 px-6 py-3 text-sm text-purple-500 hover:text-purple-600 border-2 border-dashed border-purple-200 hover:border-purple-400 rounded-xl transition-all hover:bg-purple-50 hover:shadow-md"
                       >
-                        <PanelTop size={16} />
-                        Blank Section
+                        <Plus size={18} />
+                        Add Section
                       </button>
-                      {presetsList.map(p => (
-                        <button
-                          key={p.type}
-                          onClick={(e) => { e.stopPropagation(); addPresetAction(p.type); }}
-                          className="flex items-center gap-1.5 px-4 py-2.5 text-xs text-purple-500 hover:text-purple-600 border border-dashed border-purple-200 hover:border-purple-400 rounded-xl transition-all hover:bg-purple-50"
-                        >
-                          <BlockIcon icon={p.icon} size={14} className="text-purple-400" />
-                          {p.label}
-                        </button>
-                      ))}
                     </div>
+                    <PresetBrowser
+                      open={presetBrowserOpen}
+                      onClose={() => setPresetBrowserOpen(false)}
+                      onSelectPreset={(type) => addPresetAction(type)}
+                      onAddBlank={() => addBlock('section')}
+                    />
                   </>
                 )}
               </div>
