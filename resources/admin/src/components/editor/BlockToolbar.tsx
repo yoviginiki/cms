@@ -1,4 +1,6 @@
-import { ArrowUp, ArrowDown, Copy, Trash2, GripVertical } from 'lucide-react';
+import { ArrowUp, ArrowDown, Copy, Trash2, GripVertical, Save } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { api } from '@/lib/api';
 import type { BlockData } from '@/types/blocks';
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
@@ -14,6 +16,7 @@ export function BlockToolbar({ block, dragHandleProps }: BlockToolbarProps) {
   const duplicateBlock = useEditorStore((s) => s.duplicateBlock);
   const moveBlock = useEditorStore((s) => s.moveBlock);
   const blocks = useEditorStore((s) => s.blocks);
+  const { siteId = '' } = useParams();
 
   const reg = blockRegistry.get(block.type);
   const label = reg?.definition.label ?? block.type;
@@ -83,6 +86,22 @@ export function BlockToolbar({ block, dragHandleProps }: BlockToolbarProps) {
         title="Duplicate"
       >
         <Copy size={14} />
+      </button>
+
+      <button
+        className="hover:bg-blue-600 rounded p-0.5"
+        onClick={async (e) => {
+          e.stopPropagation();
+          const name = prompt('Template name:');
+          if (!name || !siteId) return;
+          try {
+            await api.post(`/sites/${siteId}/block-templates`, { name, blocks_data: [block], category: block.level || 'module' });
+            alert('Saved as template!');
+          } catch { alert('Failed to save template.'); }
+        }}
+        title="Save as Template"
+      >
+        <Save size={14} />
       </button>
 
       <button

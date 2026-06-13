@@ -141,6 +141,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/fonts/{filename}/serve', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'serve']);
 
         // Publishing
+        // Block templates
+        Route::get('sites/{site}/block-templates', [\App\Http\Controllers\Api\V1\BlockTemplateController::class, 'index']);
+        Route::post('sites/{site}/block-templates', [\App\Http\Controllers\Api\V1\BlockTemplateController::class, 'store']);
+        Route::delete('sites/{site}/block-templates/{template}', [\App\Http\Controllers\Api\V1\BlockTemplateController::class, 'destroy']);
+
         Route::post('sites/{site}/publish', [PublishController::class, 'publish']);
         Route::post('sites/{site}/publish/clear', [PublishController::class, 'clear']);
         Route::get('sites/{site}/download-zip', [PublishController::class, 'downloadZip']);
