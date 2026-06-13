@@ -925,6 +925,25 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
         )}
       </div>
 
+      {/* Language */}
+      <div>
+        <label className="text-[11px] text-gray-500 mb-1 block">Language</label>
+        <select defaultValue={(page?.seo_meta as any)?.locale || ''} className="select select-bordered select-sm w-full text-[12px]"
+          onChange={e => saveSetting('seo_meta', { ...(page?.seo_meta || {}), locale: e.target.value || undefined })}>
+          <option value="">Default</option>
+          <option value="en">English</option>
+          <option value="bg">Български</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="ru">Русский</option>
+          <option value="ja">日本語</option>
+          <option value="zh">中文</option>
+          <option value="tr">Türkçe</option>
+        </select>
+      </div>
+
       {/* Editor Mode */}
       <div>
         <label className="text-[11px] text-gray-500 mb-1 block">Editor Mode</label>

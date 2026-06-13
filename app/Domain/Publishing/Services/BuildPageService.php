@@ -110,7 +110,7 @@ class BuildPageService
                 'rssUrl' => $rssUrl,
                 'content' => $content,
                 'themeConfig' => $themeConfig,
-                'lang' => $themeConfig['lang'] ?? 'en',
+                'lang' => $content->seo_meta['locale'] ?? $themeConfig['lang'] ?? 'en',
             ])->render();
 
             $html = $this->hooks->applyFilter('page_render', $html, $content, $site);
@@ -147,7 +147,7 @@ class BuildPageService
                 'hookBodyClose' => $hookBodyClose,
                 'site' => $site,
                 'rssUrl' => $rssUrl,
-                'lang' => $themeConfig['lang'] ?? 'en',
+                'lang' => $content->seo_meta['locale'] ?? $themeConfig['lang'] ?? 'en',
             ])->render();
         } else {
             // Check for theme template (posts only)
@@ -223,7 +223,7 @@ class BuildPageService
                 'rssUrl' => $rssUrl,
                 'content' => $content,
                 'themeConfig' => $themeConfig,
-                'lang' => $themeConfig['lang'] ?? 'en',
+                'lang' => $content->seo_meta['locale'] ?? $themeConfig['lang'] ?? 'en',
             ])->render();
         }
 

@@ -21,7 +21,7 @@ interface PageItem {
   status: string;
 }
 
-type Tab = 'general' | 'branding' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'global-styles' | 'ai' | 'magazine' | 'danger';
+type Tab = 'general' | 'branding' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'global-styles' | 'languages' | 'ai' | 'magazine' | 'danger';
 
 declare global {
   interface Window {
@@ -57,6 +57,10 @@ export default function SiteSettings() {
   const [seoTitleTemplate, setSeoTitleTemplate] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
+
+  // Languages
+  const [siteLanguages, setSiteLanguages] = useState<string[]>([]);
+  const [defaultLanguage, setDefaultLanguage] = useState('en');
 
   // Analytics
   const [gaId, setGaId] = useState('');
@@ -138,6 +142,8 @@ export default function SiteSettings() {
       setSeoTitleTemplate((site.seo_defaults?.title_template as string) ?? '');
       setSeoDescription((site.seo_defaults?.description as string) ?? '');
       setOgImageUrl((site.seo_defaults?.og_image as string) ?? '');
+      setSiteLanguages((site.settings?.languages as string[]) ?? []);
+      setDefaultLanguage((site.settings?.default_language as string) ?? 'en');
       setGaId((site.settings?.google_analytics_id as string) ?? '');
       setHeadScripts((site.settings?.head_scripts as string) ?? '');
       setBodyScripts((site.settings?.body_scripts as string) ?? '');
@@ -243,6 +249,14 @@ export default function SiteSettings() {
     },
   });
 
+  const saveLanguages = () => updateMutation.mutate({
+    settings: {
+      ...(site?.settings || {}),
+      languages: siteLanguages,
+      default_language: defaultLanguage,
+    },
+  });
+
   const saveMagazine = () => updateMutation.mutate({
     settings: {
       ...(site?.settings || {}),
@@ -293,6 +307,7 @@ export default function SiteSettings() {
     { key: 'deploy', label: 'Deploy', show: isAdminOrOwner },
     { key: 'custom-code', label: 'Custom Code', show: isAdminOrOwner },
     { key: 'global-styles', label: 'Global Styles', show: true },
+    { key: 'languages', label: 'Languages', show: true },
     { key: 'ai', label: 'AI', show: isAdminOrOwner },
     { key: 'danger', label: 'Danger Zone', show: true },
   ];
@@ -896,6 +911,82 @@ export default function SiteSettings() {
                 Save Global Styles
               </button>
               <p className="text-[10px] text-gray-400 mt-2">These styles are applied as CSS variables to all published pages. Re-publish to see changes.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Languages */}
+      {activeTab === 'languages' && (
+        <div className="max-w-2xl">
+          <div className="space-y-6 bg-white border border-gray-200 rounded-xl p-6">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">Site Languages</h3>
+              <p className="text-xs text-gray-400 mb-3">Configure which languages your site supports. Pages can be translated into any enabled language.</p>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Default Language</label>
+              <select value={defaultLanguage} onChange={e => setDefaultLanguage(e.target.value)}
+                className="select select-bordered select-sm w-full text-xs">
+                {[
+                  { code: 'en', label: 'English' }, { code: 'bg', label: 'Български' },
+                  { code: 'de', label: 'Deutsch' }, { code: 'fr', label: 'Français' },
+                  { code: 'es', label: 'Español' }, { code: 'it', label: 'Italiano' },
+                  { code: 'nl', label: 'Nederlands' }, { code: 'pt', label: 'Português' },
+                  { code: 'ru', label: 'Русский' }, { code: 'ja', label: '日本語' },
+                  { code: 'zh', label: '中文' }, { code: 'ko', label: '한국어' },
+                  { code: 'ar', label: 'العربية' }, { code: 'tr', label: 'Türkçe' },
+                  { code: 'pl', label: 'Polski' }, { code: 'cs', label: 'Čeština' },
+                  { code: 'ro', label: 'Română' }, { code: 'uk', label: 'Українська' },
+                  { code: 'el', label: 'Ελληνικά' }, { code: 'sv', label: 'Svenska' },
+                ].map(l => <option key={l.code} value={l.code}>{l.label} ({l.code})</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 mb-2 block">Additional Languages</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { code: 'en', label: 'EN' }, { code: 'bg', label: 'БГ' },
+                  { code: 'de', label: 'DE' }, { code: 'fr', label: 'FR' },
+                  { code: 'es', label: 'ES' }, { code: 'it', label: 'IT' },
+                  { code: 'nl', label: 'NL' }, { code: 'pt', label: 'PT' },
+                  { code: 'ru', label: 'RU' }, { code: 'ja', label: 'JA' },
+                  { code: 'zh', label: 'ZH' }, { code: 'ko', label: 'KO' },
+                  { code: 'ar', label: 'AR' }, { code: 'tr', label: 'TR' },
+                  { code: 'pl', label: 'PL' }, { code: 'cs', label: 'CS' },
+                  { code: 'ro', label: 'RO' }, { code: 'uk', label: 'UK' },
+                  { code: 'el', label: 'EL' }, { code: 'sv', label: 'SV' },
+                ].filter(l => l.code !== defaultLanguage).map(l => {
+                  const active = siteLanguages.includes(l.code);
+                  return (
+                    <button key={l.code}
+                      onClick={() => setSiteLanguages(active ? siteLanguages.filter(c => c !== l.code) : [...siteLanguages, l.code])}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        active ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}>
+                      {l.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-2">Click to enable/disable languages. Enabled languages appear in the page editor for content translation.</p>
+            </div>
+
+            {siteLanguages.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-700 font-medium mb-1">Enabled: {defaultLanguage.toUpperCase()} (default) + {siteLanguages.map(c => c.toUpperCase()).join(', ')}</p>
+                <p className="text-[10px] text-blue-500">To translate a page: open the page editor → Page tab → set the language and link to the original page.</p>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-gray-100">
+              <button onClick={saveLanguages} disabled={updateMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Languages
+              </button>
             </div>
           </div>
         </div>
