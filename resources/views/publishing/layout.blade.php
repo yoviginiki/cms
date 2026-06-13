@@ -141,5 +141,10 @@
     </footer>
     @endif
     {!! $bodyScripts ?? '' !!}
+    @if(!empty($site))
+    <script>
+    (function(){try{fetch('https://sys.ensodo.eu/api/v1/sites/{{ $site->id }}/t',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:location.pathname,r:document.referrer||''})}).catch(function(){});}catch(e){}})();
+    </script>
+    @endif
 </body>
 </html>
