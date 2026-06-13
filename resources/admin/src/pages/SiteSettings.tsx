@@ -21,7 +21,7 @@ interface PageItem {
   status: string;
 }
 
-type Tab = 'general' | 'branding' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'global-styles' | 'languages' | 'ai' | 'magazine' | 'danger';
+type Tab = 'general' | 'branding' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'global-styles' | 'languages' | 'forms' | 'ai' | 'magazine' | 'danger';
 
 declare global {
   interface Window {
@@ -308,6 +308,7 @@ export default function SiteSettings() {
     { key: 'custom-code', label: 'Custom Code', show: isAdminOrOwner },
     { key: 'global-styles', label: 'Global Styles', show: true },
     { key: 'languages', label: 'Languages', show: true },
+    { key: 'forms', label: 'Forms', show: true },
     { key: 'ai', label: 'AI', show: isAdminOrOwner },
     { key: 'danger', label: 'Danger Zone', show: true },
   ];
@@ -992,6 +993,11 @@ export default function SiteSettings() {
         </div>
       )}
 
+      {/* Forms */}
+      {activeTab === 'forms' && (
+        <FormSubmissionsPanel siteId={siteId} />
+      )}
+
       {/* AI */}
       {activeTab === 'ai' && isAdminOrOwner && (
         <div className="max-w-2xl">
@@ -1283,6 +1289,57 @@ function DangerZone({ siteId, siteName, onDelete }: { siteId: string; siteName: 
           className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
           Delete this site
         </button>
+      </div>
+    </div>
+  );
+}
+
+function FormSubmissionsPanel({ siteId }: { siteId: string }) {
+  const { data: submissions, isLoading, refetch } = useQuery({
+    queryKey: ['form-submissions', siteId],
+    queryFn: () => api.get(`/sites/${siteId}/form-submissions`).then(r => r.data.data as Array<{ id: string; data: Record<string, string>; submitted_at: string; ip: string }>),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (index: number) => api.delete(`/sites/${siteId}/form-submissions/${index}`),
+    onSuccess: () => refetch(),
+  });
+
+  if (isLoading) return <div className="text-sm text-gray-400 p-4">Loading submissions...</div>;
+
+  return (
+    <div className="max-w-3xl">
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700">Form Submissions</h3>
+          <span className="text-xs text-gray-400">{submissions?.length || 0} submissions</span>
+        </div>
+
+        {!submissions || submissions.length === 0 ? (
+          <div className="text-center py-8 text-gray-400 text-sm">No form submissions yet.</div>
+        ) : (
+          <div className="space-y-3">
+            {submissions.map((sub, idx) => (
+              <div key={sub.id} className="border border-gray-100 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] text-gray-400">{new Date(sub.submitted_at).toLocaleString()}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-gray-300">{sub.ip}</span>
+                    <button onClick={() => deleteMut.mutate(idx)} className="text-[10px] text-red-400 hover:text-red-600">Delete</button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {Object.entries(sub.data).map(([key, val]) => (
+                    <div key={key} className="flex gap-2 text-xs">
+                      <span className="text-gray-500 font-medium w-24 shrink-0">{key}:</span>
+                      <span className="text-gray-700">{String(val)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

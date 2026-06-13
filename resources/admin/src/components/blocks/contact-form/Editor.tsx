@@ -91,8 +91,13 @@ export const ContactFormEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
                 { value: 'text', label: 'Text' },
                 { value: 'email', label: 'Email' },
                 { value: 'tel', label: 'Phone' },
+                { value: 'number', label: 'Number' },
+                { value: 'url', label: 'URL' },
+                { value: 'date', label: 'Date' },
                 { value: 'textarea', label: 'Textarea' },
                 { value: 'select', label: 'Select' },
+                { value: 'checkbox', label: 'Checkbox' },
+                { value: 'radio', label: 'Radio Buttons' },
               ]}
             />
             <ToggleField

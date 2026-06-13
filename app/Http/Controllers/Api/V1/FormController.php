@@ -14,6 +14,26 @@ class FormController extends Controller
     public function __construct(private FormSubmissionService $formService) {}
 
     /**
+     * List form submissions (auth required).
+     */
+    public function submissions(Request $request, Site $site): JsonResponse
+    {
+        $this->authorize('view', $site);
+        $limit = $request->integer('limit', 50);
+        return response()->json(['data' => $this->formService->getSubmissions($site->id, $limit)]);
+    }
+
+    /**
+     * Delete a submission (auth required).
+     */
+    public function deleteSubmission(Request $request, Site $site, string $index): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $deleted = $this->formService->deleteSubmission($site->id, (int) $index);
+        return response()->json(['success' => $deleted]);
+    }
+
+    /**
      * Public endpoint — no auth required, rate-limited.
      */
     public function submit(Request $request, Site $site): JsonResponse
