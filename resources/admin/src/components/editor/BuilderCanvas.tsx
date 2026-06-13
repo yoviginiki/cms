@@ -204,6 +204,8 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
+  const undoCount = useEditorStore((s) => s.undoStack.length);
+  const redoCount = useEditorStore((s) => s.redoStack.length);
   const copyBlock = useEditorStore((s) => s.copyBlock);
   const pasteBlock = useEditorStore((s) => s.pasteBlock);
   const clipboard = useEditorStore((s) => s.clipboard);
@@ -376,6 +378,18 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
             >
               <FileText size={14} />
               <span className="hidden sm:inline">Simple</span>
+            </button>
+          </div>
+
+          {/* Undo / Redo */}
+          <div className="flex items-center gap-0.5">
+            <button onClick={undo} disabled={undoCount === 0} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30" title={`Undo (${undoCount})`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+              {undoCount > 0 && <span className="text-[9px] text-gray-400">{undoCount}</span>}
+            </button>
+            <button onClick={redo} disabled={redoCount === 0} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30" title={`Redo (${redoCount})`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+              {redoCount > 0 && <span className="text-[9px] text-gray-400">{redoCount}</span>}
             </button>
           </div>
 
