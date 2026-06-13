@@ -217,6 +217,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
 
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [presetBrowserOpen, setPresetBrowserOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Simple editor mode — stores content as HTML, converts to rich-text block when leaving simple mode
   const [simpleContent, setSimpleContent] = useState(() => {
@@ -302,6 +303,12 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
     if (e.ctrlKey && !e.shiftKey && e.key === 'v' && clipboard) {
       e.preventDefault();
       pasteBlock(selectedBlockId || undefined);
+      return;
+    }
+    // ? — Show shortcuts help
+    if (e.key === '?' && !e.ctrlKey) {
+      e.preventDefault();
+      setShowShortcuts(s => !s);
       return;
     }
     // Delete or Backspace — remove selected block
@@ -627,6 +634,32 @@ function BlockPickerClickable({ onAdd }: { onAdd: (type: string) => void }) {
           </div>
         </div>
       ))}
+      {/* Keyboard shortcuts help */}
+      {showShortcuts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowShortcuts(false)}>
+          <div className="bg-base-100 rounded-xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold mb-3">Keyboard Shortcuts</h3>
+            <div className="space-y-1.5 text-xs">
+              {[
+                ['Ctrl+Z', 'Undo'],
+                ['Ctrl+Shift+Z', 'Redo'],
+                ['Ctrl+C', 'Copy block'],
+                ['Ctrl+V', 'Paste block'],
+                ['Delete', 'Remove block'],
+                ['Ctrl+Shift+W', 'Wireframe mode'],
+                ['Ctrl+Shift+V', 'Visual mode'],
+                ['?', 'Show this help'],
+              ].map(([key, desc]) => (
+                <div key={key} className="flex justify-between">
+                  <kbd className="px-1.5 py-0.5 bg-base-200 rounded text-[10px] font-mono">{key}</kbd>
+                  <span className="text-base-content/60">{desc}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowShortcuts(false)} className="btn btn-sm btn-ghost w-full mt-3 text-xs">Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

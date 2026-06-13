@@ -363,6 +363,13 @@ export default function SiteSettings() {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Domain</label>
+              <input type="text" defaultValue={site?.custom_domain ?? ''} placeholder="example.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onBlur={e => { if (e.target.value !== (site?.custom_domain ?? '')) updateMutation.mutate({ custom_domain: e.target.value || null }); }} />
+              <p className="text-xs text-gray-400 mt-1">Point your domain's DNS to this server, then enter it here.</p>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select value={status} onChange={(e) => setStatus(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">

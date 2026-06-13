@@ -908,6 +908,15 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
         </select>
       </div>
 
+      {/* Scheduled publish */}
+      <div>
+        <label className="text-[11px] text-gray-500 mb-1 block">Schedule Publish</label>
+        <input type="datetime-local" defaultValue={page?.scheduled_at ? new Date(page.scheduled_at).toISOString().slice(0, 16) : ''}
+          className="input input-bordered input-sm w-full text-[12px]"
+          onBlur={e => saveSetting('scheduled_at', e.target.value || null)} />
+        <p className="text-[10px] text-gray-400 mt-0.5">Set a date to auto-publish this page.</p>
+      </div>
+
       {/* Layout */}
       <div>
         <label className="text-[11px] text-gray-500 mb-1 block">Layout</label>

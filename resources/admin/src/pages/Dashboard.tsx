@@ -75,6 +75,16 @@ export default function Dashboard() {
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Posts</button>
                   <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/settings`); }}
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Settings</button>
+                  <button onClick={async (e) => {
+                      e.stopPropagation();
+                      const name = prompt('New site name:', `${site.name} (copy)`);
+                      if (!name) return;
+                      try {
+                        const r = await sites.clone(site.id, name);
+                        navigate(`/sites/${r.data.data.id}/pages`);
+                      } catch { alert('Clone failed'); }
+                    }}
+                    className="text-[12px] text-base-content/40 hover:text-primary font-medium">Clone</button>
                   <a href={`/api/v1/sites/${site.id}/download-zip`}
                     onClick={(e) => e.stopPropagation()}
                     className="flex items-center gap-1 text-[12px] text-base-content/40 hover:text-primary font-medium">
