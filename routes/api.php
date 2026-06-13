@@ -37,6 +37,57 @@ Route::get('/preview/{token}', [PreviewController::class, 'publicPreview']);
 Route::post('/sites/{site}/forms/submit', [\App\Http\Controllers\Api\V1\FormController::class, 'submit'])
     ->middleware('throttle:10,1');
 
+// Public comments (rate-limited)
+Route::get('/sites/{site}/comments/{postSlug}', function (\App\Models\Site $site, string $postSlug) {
+    $path = storage_path("app/comments/{$site->id}/" . preg_replace('/[^a-z0-9\-]/', '', $postSlug) . '.json');
+    if (!file_exists($path)) return response()->json(['data' => []]);
+    $comments = json_decode(file_get_contents($path), true) ?: [];
+    // Only return approved comments
+    return response()->json(['data' => array_values(array_filter($comments, fn($c) => ($c['status'] ?? 'pending') === 'approved'))]);
+})->middleware('throttle:60,1');
+
+Route::post('/sites/{site}/comments/{postSlug}', function (\Illuminate\Http\Request $request, \App\Models\Site $site, string $postSlug) {
+    $request->validate(['name' => 'required|string|max:100', 'email' => 'required|email|max:200', 'body' => 'required|string|max:2000']);
+    if (!empty($request->input('_honeypot'))) return response()->json(['success' => true]);
+    $safeSlug = preg_replace('/[^a-z0-9\-]/', '', $postSlug);
+    $dir = storage_path("app/comments/{$site->id}");
+    \Illuminate\Support\Facades\File::ensureDirectoryExists($dir);
+    $path = "{$dir}/{$safeSlug}.json";
+    $comments = file_exists($path) ? (json_decode(file_get_contents($path), true) ?: []) : [];
+    $comments[] = [
+        'id' => uniqid('cmt_'), 'name' => $request->input('name'), 'email' => $request->input('email'),
+        'body' => strip_tags($request->input('body')), 'status' => 'pending',
+        'created_at' => now()->toIso8601String(), 'ip' => $request->ip(),
+    ];
+    if (count($comments) > 500) $comments = array_slice($comments, -500);
+    file_put_contents($path, json_encode($comments, JSON_PRETTY_PRINT));
+    return response()->json(['success' => true, 'message' => 'Comment submitted for moderation.']);
+})->middleware('throttle:5,1');
+
+// Public site search (no auth, rate-limited)
+Route::get('/sites/{site}/search', function (\Illuminate\Http\Request $request, \App\Models\Site $site) {
+    $q = $request->input('q', '');
+    if (strlen($q) < 2) return response()->json(['data' => []]);
+    $safeQ = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
+
+    $pages = \App\Models\Page::where('site_id', $site->id)
+        ->where('status', 'published')
+        ->where('title', 'ilike', $safeQ)
+        ->select('id', 'title', 'slug')
+        ->limit(10)->get()
+        ->map(fn($p) => ['type' => 'page', 'title' => $p->title, 'url' => '/' . $p->slug]);
+
+    $posts = \App\Models\Post::where('site_id', $site->id)
+        ->where('status', 'published')
+        ->where(fn($q2) => $q2->where('title', 'ilike', $safeQ)->orWhere('excerpt', 'ilike', $safeQ))
+        ->select('id', 'title', 'slug', 'category_id')
+        ->with('category:id,slug')
+        ->limit(10)->get()
+        ->map(fn($p) => ['type' => 'post', 'title' => $p->title, 'url' => '/' . ($p->category?->slug ?? 'uncategorized') . '/' . $p->slug]);
+
+    return response()->json(['data' => $pages->concat($posts)->take(15)]);
+})->middleware('throttle:30,1');
+
 // Analytics tracking pixel (public, rate-limited)
 Route::post('/sites/{site}/t', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'track'])
     ->middleware('throttle:60,1');
