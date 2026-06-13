@@ -4,6 +4,12 @@ import { ctaPreset } from './cta';
 import { featuresPreset } from './features';
 import { testimonialsPreset } from './testimonials';
 import { pricingPreset } from './pricing';
+import { faqPreset } from './faq';
+import { contactPreset } from './contact';
+import { teamPreset } from './team';
+import { statsPreset } from './stats';
+import { portfolioPreset } from './portfolio';
+import { blogGridPreset } from './bloggrid';
 
 export interface PresetDefinition {
   type: string;
@@ -19,6 +25,12 @@ export const presets: PresetDefinition[] = [
   featuresPreset,
   testimonialsPreset,
   pricingPreset,
+  faqPreset,
+  contactPreset,
+  teamPreset,
+  statsPreset,
+  portfolioPreset,
+  blogGridPreset,
 ];
 
 export function getPreset(type: string): PresetDefinition | undefined {

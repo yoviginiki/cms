@@ -21,6 +21,12 @@ const PRESET_THEMES: Record<string, { bg: string; accent: string; text: string }
   preset_features: { bg: '#f8fafc', accent: '#10b981', text: '#1e293b' },
   preset_testimonials: { bg: '#fefce8', accent: '#f59e0b', text: '#78350f' },
   preset_pricing: { bg: '#f0fdf4', accent: '#22c55e', text: '#14532d' },
+  preset_faq: { bg: '#faf5ff', accent: '#a855f7', text: '#581c87' },
+  preset_contact: { bg: '#f8fafc', accent: '#0ea5e9', text: '#0c4a6e' },
+  preset_team: { bg: '#fff7ed', accent: '#f97316', text: '#7c2d12' },
+  preset_stats: { bg: '#f8fafc', accent: '#3b82f6', text: '#1e3a5f' },
+  preset_portfolio: { bg: '#fafafa', accent: '#ec4899', text: '#831843' },
+  preset_blog_grid: { bg: '#f0fdf4', accent: '#059669', text: '#064e3b' },
 };
 
 function PresetThumbnail({ preset }: { preset: PresetDefinition }) {
@@ -79,6 +85,76 @@ function PresetThumbnail({ preset }: { preset: PresetDefinition }) {
               <div style={{ height: 4, background: i === 2 ? '#fff' : theme.text, borderRadius: 1, width: '50%', margin: '0 auto 4px', opacity: i === 2 ? 0.9 : 0.4 }} />
               <div style={{ height: 8, background: i === 2 ? '#fff' : theme.text, borderRadius: 1, width: '40%', margin: '0 auto 4px', opacity: i === 2 ? 0.8 : 0.6 }} />
               <div style={{ height: 10, background: i === 2 ? '#fff' : theme.accent, borderRadius: 3, width: '60%', margin: '0 auto', opacity: 0.7 }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {/* FAQ */}
+      {preset.type === 'preset_faq' && (
+        <div style={{ width: '100%' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, background: theme.text + '08', borderRadius: 3, padding: '4px 6px' }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: theme.accent, opacity: 0.5 }} />
+              <div style={{ height: 3, background: theme.text, borderRadius: 1, flex: 1, opacity: 0.4 }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Contact */}
+      {preset.type === 'preset_contact' && (
+        <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ height: 6, background: theme.text, borderRadius: 1, width: '60%', marginBottom: 6, opacity: 0.7 }} />
+            <div style={{ height: 3, background: theme.text, borderRadius: 1, width: '90%', marginBottom: 3, opacity: 0.3 }} />
+            <div style={{ height: 3, background: theme.text, borderRadius: 1, width: '70%', opacity: 0.3 }} />
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {[1, 2, 3].map(i => <div key={i} style={{ height: 10, background: theme.text + '15', borderRadius: 3 }} />)}
+            <div style={{ height: 14, background: theme.accent, borderRadius: 3, width: '50%' }} />
+          </div>
+        </div>
+      )}
+      {/* Team */}
+      {preset.type === 'preset_team' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, width: '100%' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: theme.accent, margin: '0 auto 4px', opacity: 0.4 }} />
+              <div style={{ height: 4, background: theme.text, borderRadius: 1, width: '60%', margin: '0 auto 2px', opacity: 0.6 }} />
+              <div style={{ height: 3, background: theme.text, borderRadius: 1, width: '80%', margin: '0 auto', opacity: 0.2 }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Stats */}
+      {preset.type === 'preset_stats' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, width: '100%' }}>
+          {['10K+', '99%', '50+', '24/7'].map((n, i) => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: theme.accent }}>{n}</div>
+              <div style={{ height: 3, background: theme.text, borderRadius: 1, width: '80%', margin: '3px auto 0', opacity: 0.3 }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Portfolio */}
+      {preset.type === 'preset_portfolio' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, width: '100%' }}>
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} style={{ height: 28, borderRadius: 3, background: `hsl(${i * 50}, 60%, ${70 + i * 3}%)` }} />
+          ))}
+        </div>
+      )}
+      {/* Blog Grid */}
+      {preset.type === 'preset_blog_grid' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, width: '100%' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{ borderRadius: 4, border: `1px solid ${theme.text}20`, overflow: 'hidden' }}>
+              <div style={{ height: 20, background: theme.accent + '30' }} />
+              <div style={{ padding: 4 }}>
+                <div style={{ height: 3, background: theme.text, borderRadius: 1, width: '80%', marginBottom: 2, opacity: 0.5 }} />
+                <div style={{ height: 2, background: theme.text, borderRadius: 1, width: '60%', opacity: 0.2 }} />
+              </div>
             </div>
           ))}
         </div>
