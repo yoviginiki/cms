@@ -59,7 +59,7 @@
             <p style="font-style:italic;color:{{ $quoteColor }};margin-bottom:1rem;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">&ldquo;{{ $item['quote'] ?? '' }}&rdquo;</p>
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 @if(!empty($item['avatar']))
-                    <img class="img-filtered" src="{{ $item['avatar'] }}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;{{ $__imageFilter }}" />
+                    <img class="img-filtered" src="{{ $item['avatar'] }}" alt="" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover;{{ $__imageFilter }}" />
                 @endif
                 <div>
                     <div style="font-weight:600;{{ $authorColor ? "color:{$authorColor};" : '' }}{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['author'] ?? '' }}</div>

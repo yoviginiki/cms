@@ -44,7 +44,7 @@
     @foreach($posts as $post)
         <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
             @if(!empty($post['image']))
-                <img class="img-filtered" src="{{ $post['image'] }}" alt="" style="width:100%;height:140px;object-fit:cover;{{ $__imageFilter }}" />
+                <img class="img-filtered" src="{{ $post['image'] }}" alt="" loading="lazy" style="width:100%;height:140px;object-fit:cover;{{ $__imageFilter }}" />
             @else
                 <div style="height:140px;background:#f3f4f6;"></div>
             @endif

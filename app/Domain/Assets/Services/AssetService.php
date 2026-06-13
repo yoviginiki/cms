@@ -107,6 +107,32 @@ class AssetService
                 $disk->put($webpPath, $medium->toWebp(80)->toString());
                 $variants['webp_800'] = $webpPath;
             }
+
+            // small_400: 400px wide for mobile
+            if ($image->width() > 400) {
+                $small = clone $image;
+                $small->scale(width: 400);
+                $smallPath = "{$basePath}/{$uuid}_small_400.jpg";
+                $disk->put($smallPath, $small->toJpeg(80)->toString());
+                $variants['small_400'] = $smallPath;
+
+                $webp400Path = "{$basePath}/{$uuid}_webp_400.webp";
+                $disk->put($webp400Path, $small->toWebp(75)->toString());
+                $variants['webp_400'] = $webp400Path;
+            }
+
+            // large_1600: for retina/large screens
+            if ($image->width() > 1600) {
+                $large = clone $image;
+                $large->scale(width: 1600);
+                $largePath = "{$basePath}/{$uuid}_large_1600.jpg";
+                $disk->put($largePath, $large->toJpeg(85)->toString());
+                $variants['large_1600'] = $largePath;
+
+                $webp1600Path = "{$basePath}/{$uuid}_webp_1600.webp";
+                $disk->put($webp1600Path, $large->toWebp(80)->toString());
+                $variants['webp_1600'] = $webp1600Path;
+            }
         } catch (\Throwable) {
             // Image processing failed, continue without variants
         }

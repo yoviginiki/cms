@@ -134,11 +134,11 @@
                 @if($post->featured_image)
                     @if($__revealEnabled && !$__isFadeReveal)
                         {{-- Clip-path mode: two layers — original below, filtered on top --}}
-                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" style="width:100%;height:100%;object-fit:cover;" />
-                        <img src="{{ $post->featured_image }}" alt="" aria-hidden="true" class="img-reveal-filtered" style="width:100%;height:100%;object-fit:cover;" />
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />
+                        <img src="{{ $post->featured_image }}" alt="" aria-hidden="true" class="img-reveal-filtered" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />
                     @else
                         {{-- Fade mode or no reveal: single image with filter --}}
-                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
                     @endif
                 @endif
                 {!! $__overlayHtml !!}

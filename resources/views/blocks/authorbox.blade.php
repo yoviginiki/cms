@@ -46,7 +46,7 @@
 <div style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;padding:1.5rem;{{ $isVertical ? 'text-align:center;' : 'display:flex;align-items:flex-start;gap:1rem;' }}">
     @if($showAvatar)
         @if(!empty($author['avatar']))
-            <img class="img-filtered" src="{{ $author['avatar'] }}" alt="" style="width:{{ $isVertical ? '64px' : '56px' }};height:{{ $isVertical ? '64px' : '56px' }};border-radius:50%;object-fit:cover;{{ $isVertical ? 'margin:0 auto 0.5rem;' : '' }}{{ $__imageFilter }}" />
+            <img class="img-filtered" src="{{ $author['avatar'] }}" alt="" loading="lazy" style="width:{{ $isVertical ? '64px' : '56px' }};height:{{ $isVertical ? '64px' : '56px' }};border-radius:50%;object-fit:cover;{{ $isVertical ? 'margin:0 auto 0.5rem;' : '' }}{{ $__imageFilter }}" />
         @else
             <div style="width:{{ $isVertical ? '64px' : '56px' }};height:{{ $isVertical ? '64px' : '56px' }};border-radius:50%;background:#e5e7eb;{{ $isVertical ? 'margin:0 auto 0.5rem;' : '' }}"></div>
         @endif

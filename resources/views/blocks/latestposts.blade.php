@@ -101,7 +101,7 @@
         @foreach($posts as $post)
             <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 0;border-bottom:1px solid #f3f4f6;">
                 @if($showImage && $post->featured_image)
-                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;{{ $__imageFilter }}" />
+                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;{{ $__imageFilter }}" />
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
@@ -129,7 +129,7 @@
         @php $first = $posts->shift(); @endphp
         <article style="margin-bottom:1.5rem;border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
             @if($showImage && $first->featured_image)
-                <img class="img-filtered" src="{{ $first->featured_image }}" alt="" style="width:100%;height:280px;object-fit:cover;{{ $__imageFilter }}" />
+                <img class="img-filtered" src="{{ $first->featured_image }}" alt="" loading="lazy" style="width:100%;height:280px;object-fit:cover;{{ $__imageFilter }}" />
             @endif
             <div style="padding:1.25rem;">
                 @if($showCategory && $first->category)
@@ -153,7 +153,7 @@
         @foreach($posts as $post)
             <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
                 @if($showImage && $post->featured_image)
-                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
+                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
                 @elseif($showImage)
                     <div style="background:#f3f4f6;height:160px;"></div>
                 @endif

@@ -47,7 +47,7 @@
 <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;{{ $isHorizontal ? 'display:flex;' : '' }}">
     <div style="background:#f3f4f6;{{ $isHorizontal ? 'width:33%;min-height:120px;' : 'height:200px;' }}">
         @if($post && !empty($post['image']))
-            <img class="img-filtered" src="{{ $post['image'] }}" alt="" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
+            <img class="img-filtered" src="{{ $post['image'] }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
         @endif
     </div>
     <div style="padding:1.25rem;{{ $isHorizontal ? 'flex:1;' : '' }}">
