@@ -204,6 +204,9 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
+  const copyBlock = useEditorStore((s) => s.copyBlock);
+  const pasteBlock = useEditorStore((s) => s.pasteBlock);
+  const clipboard = useEditorStore((s) => s.clipboard);
 
   const canvasDevice = useEditorStore((s) => s.canvasDevice);
   const setCanvasDevice = useEditorStore((s) => s.setCanvasDevice);
@@ -287,13 +290,25 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
       redo();
       return;
     }
+    // Ctrl+C — Copy block
+    if (e.ctrlKey && !e.shiftKey && e.key === 'c' && selectedBlockId) {
+      e.preventDefault();
+      copyBlock(selectedBlockId);
+      return;
+    }
+    // Ctrl+V — Paste block (no shift — shift+V is visual mode)
+    if (e.ctrlKey && !e.shiftKey && e.key === 'v' && clipboard) {
+      e.preventDefault();
+      pasteBlock(selectedBlockId || undefined);
+      return;
+    }
     // Delete or Backspace — remove selected block
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId) {
       e.preventDefault();
       removeBlock(selectedBlockId);
       return;
     }
-  }, [setCanvasMode, undo, redo, removeBlock, selectedBlockId, canvasDevice]);
+  }, [setCanvasMode, undo, redo, removeBlock, selectedBlockId, canvasDevice, copyBlock, pasteBlock, clipboard]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);

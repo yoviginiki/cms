@@ -53,6 +53,9 @@ interface EditorState {
   selectBlock: (blockId: string | null) => void;
   undo: () => void;
   redo: () => void;
+  clipboard: BlockData | null;
+  copyBlock: (blockId: string) => void;
+  pasteBlock: (parentId?: string) => void;
   setDirty: (dirty: boolean) => void;
   setSaving: (saving: boolean) => void;
   restoreUndoState: () => void;
@@ -117,6 +120,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedBlockId: null,
   isDirty: false,
   isSaving: false,
+  clipboard: null,
   editorMode: 'block',
   canvasMode: 'visual' as 'visual' | 'wireframe' | 'html' | 'simple',
   canvasDevice: 'desktop' as 'desktop' | 'tablet' | 'mobile',
@@ -472,6 +476,35 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       redoStack: newRedoStack,
       isDirty: true,
     });
+  },
+
+  copyBlock: (blockId) => {
+    const state = get();
+    const found = findInTree(deepClone(state.blocks), blockId);
+    if (found) set({ clipboard: found.block });
+  },
+
+  pasteBlock: (parentId) => {
+    const state = get();
+    if (!state.clipboard) return;
+
+    const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+    const newBlocks = deepClone(state.blocks);
+
+    // Re-generate IDs for the pasted block + all children
+    function reId(b: BlockData): BlockData {
+      return { ...b, id: generateId(), children: (b.children || []).map(reId) };
+    }
+    const pasted = reId(deepClone(state.clipboard));
+
+    if (parentId) {
+      const parent = findInTree(newBlocks, parentId);
+      if (parent) parent.block.children.push(pasted);
+    } else {
+      newBlocks.push(pasted);
+    }
+
+    set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true, selectedBlockId: pasted.id });
   },
 
   setDirty: (dirty) => set({ isDirty: dirty }),
