@@ -58,6 +58,9 @@ export default function SiteSettings() {
   const [seoDescription, setSeoDescription] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
 
+  // Analytics
+  const [gaId, setGaId] = useState('');
+
   // Custom Code
   const [headScripts, setHeadScripts] = useState('');
   const [bodyScripts, setBodyScripts] = useState('');
@@ -135,6 +138,7 @@ export default function SiteSettings() {
       setSeoTitleTemplate((site.seo_defaults?.title_template as string) ?? '');
       setSeoDescription((site.seo_defaults?.description as string) ?? '');
       setOgImageUrl((site.seo_defaults?.og_image as string) ?? '');
+      setGaId((site.settings?.google_analytics_id as string) ?? '');
       setHeadScripts((site.settings?.head_scripts as string) ?? '');
       setBodyScripts((site.settings?.body_scripts as string) ?? '');
       setCustomCss((site.settings?.custom_css as string) ?? '');
@@ -218,6 +222,7 @@ export default function SiteSettings() {
   const saveCustomCode = () => updateMutation.mutate({
     settings: {
       ...(site?.settings || {}),
+      google_analytics_id: gaId,
       head_scripts: headScripts,
       body_scripts: bodyScripts,
       custom_css: customCss,
@@ -766,6 +771,16 @@ export default function SiteSettings() {
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                Google Analytics
+              </label>
+              <input value={gaId} onChange={(e) => setGaId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="G-XXXXXXXXXX or UA-XXXXXXXX-X" />
+              <p className="text-[10px] text-gray-400 mt-1">Enter your Google Analytics Measurement ID. The tracking script is automatically added to all published pages.</p>
+            </div>
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1"><Code className="h-4 w-4" />Head Scripts</label>
               <textarea value={headScripts} onChange={(e) => setHeadScripts(e.target.value)} rows={6}
