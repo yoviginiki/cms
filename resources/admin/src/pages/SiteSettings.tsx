@@ -21,7 +21,7 @@ interface PageItem {
   status: string;
 }
 
-type Tab = 'general' | 'branding' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'ai' | 'magazine' | 'danger';
+type Tab = 'general' | 'branding' | 'front-page' | 'seo' | 'files' | 'deploy' | 'custom-code' | 'global-styles' | 'ai' | 'magazine' | 'danger';
 
 declare global {
   interface Window {
@@ -62,6 +62,16 @@ export default function SiteSettings() {
   const [headScripts, setHeadScripts] = useState('');
   const [bodyScripts, setBodyScripts] = useState('');
   const [customCss, setCustomCss] = useState('');
+
+  // Global Styles
+  const [globalFontFamily, setGlobalFontFamily] = useState('');
+  const [globalFontSize, setGlobalFontSize] = useState('');
+  const [globalLineHeight, setGlobalLineHeight] = useState('');
+  const [globalTextColor, setGlobalTextColor] = useState('');
+  const [globalBgColor, setGlobalBgColor] = useState('');
+  const [globalLinkColor, setGlobalLinkColor] = useState('');
+  const [globalContainerWidth, setGlobalContainerWidth] = useState('');
+  const [globalContainerPadding, setGlobalContainerPadding] = useState('');
 
   // AI
   const [anthropicKey, setAnthropicKey] = useState('');
@@ -128,6 +138,14 @@ export default function SiteSettings() {
       setHeadScripts((site.settings?.head_scripts as string) ?? '');
       setBodyScripts((site.settings?.body_scripts as string) ?? '');
       setCustomCss((site.settings?.custom_css as string) ?? '');
+      setGlobalFontFamily((site.settings?.global_font_family as string) ?? '');
+      setGlobalFontSize((site.settings?.global_font_size as string) ?? '');
+      setGlobalLineHeight((site.settings?.global_line_height as string) ?? '');
+      setGlobalTextColor((site.settings?.global_text_color as string) ?? '');
+      setGlobalBgColor((site.settings?.global_bg_color as string) ?? '');
+      setGlobalLinkColor((site.settings?.global_link_color as string) ?? '');
+      setGlobalContainerWidth((site.settings?.global_container_width as string) ?? '');
+      setGlobalContainerPadding((site.settings?.global_container_padding as string) ?? '');
       setAnthropicKey((site.settings?.anthropic_api_key as string) ?? '');
       setMagTransition((site.settings?.mag_transition as string) ?? 'turn');
       setMagSpread((site.settings?.mag_spread as string) ?? 'spread');
@@ -206,6 +224,20 @@ export default function SiteSettings() {
     },
   });
 
+  const saveGlobalStyles = () => updateMutation.mutate({
+    settings: {
+      ...(site?.settings || {}),
+      global_font_family: globalFontFamily,
+      global_font_size: globalFontSize,
+      global_line_height: globalLineHeight,
+      global_text_color: globalTextColor,
+      global_bg_color: globalBgColor,
+      global_link_color: globalLinkColor,
+      global_container_width: globalContainerWidth,
+      global_container_padding: globalContainerPadding,
+    },
+  });
+
   const saveMagazine = () => updateMutation.mutate({
     settings: {
       ...(site?.settings || {}),
@@ -255,6 +287,7 @@ export default function SiteSettings() {
     { key: 'files', label: 'Files', show: true },
     { key: 'deploy', label: 'Deploy', show: isAdminOrOwner },
     { key: 'custom-code', label: 'Custom Code', show: isAdminOrOwner },
+    { key: 'global-styles', label: 'Global Styles', show: true },
     { key: 'ai', label: 'AI', show: isAdminOrOwner },
     { key: 'danger', label: 'Danger Zone', show: true },
   ];
@@ -754,6 +787,100 @@ export default function SiteSettings() {
                 {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Save Changes
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Styles */}
+      {activeTab === 'global-styles' && (
+        <div className="max-w-2xl">
+          <div className="space-y-6 bg-white border border-gray-200 rounded-xl p-6">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">Typography</h3>
+              <p className="text-xs text-gray-400 mb-3">Default font settings applied to all pages.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Font Family</label>
+                  <select value={globalFontFamily} onChange={e => setGlobalFontFamily(e.target.value)}
+                    className="select select-bordered select-sm w-full text-xs">
+                    <option value="">Default (inherit)</option>
+                    {['Inter', 'Georgia', 'Arial', 'Helvetica', 'Times New Roman', 'Verdana', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Playfair Display', 'Merriweather', 'Poppins', 'Raleway'].map(f =>
+                      <option key={f} value={f}>{f}</option>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Base Font Size</label>
+                  <input value={globalFontSize} onChange={e => setGlobalFontSize(e.target.value)}
+                    className="input input-bordered input-sm w-full text-xs" placeholder="16px" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Line Height</label>
+                  <input value={globalLineHeight} onChange={e => setGlobalLineHeight(e.target.value)}
+                    className="input input-bordered input-sm w-full text-xs" placeholder="1.6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">Colors</h3>
+              <p className="text-xs text-gray-400 mb-3">Default colors for text, background, and links.</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Text Color</label>
+                  <div className="flex gap-1">
+                    <input type="color" value={globalTextColor || '#1e293b'} onChange={e => setGlobalTextColor(e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
+                    <input value={globalTextColor} onChange={e => setGlobalTextColor(e.target.value)}
+                      className="input input-bordered input-xs flex-1 font-mono text-[10px]" placeholder="#1e293b" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Background</label>
+                  <div className="flex gap-1">
+                    <input type="color" value={globalBgColor || '#ffffff'} onChange={e => setGlobalBgColor(e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
+                    <input value={globalBgColor} onChange={e => setGlobalBgColor(e.target.value)}
+                      className="input input-bordered input-xs flex-1 font-mono text-[10px]" placeholder="#ffffff" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Link Color</label>
+                  <div className="flex gap-1">
+                    <input type="color" value={globalLinkColor || '#3b82f6'} onChange={e => setGlobalLinkColor(e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
+                    <input value={globalLinkColor} onChange={e => setGlobalLinkColor(e.target.value)}
+                      className="input input-bordered input-xs flex-1 font-mono text-[10px]" placeholder="#3b82f6" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">Container</h3>
+              <p className="text-xs text-gray-400 mb-3">Default content width and padding.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Max Width</label>
+                  <input value={globalContainerWidth} onChange={e => setGlobalContainerWidth(e.target.value)}
+                    className="input input-bordered input-sm w-full text-xs" placeholder="1200px" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Horizontal Padding</label>
+                  <input value={globalContainerPadding} onChange={e => setGlobalContainerPadding(e.target.value)}
+                    className="input input-bordered input-sm w-full text-xs" placeholder="24px" />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100">
+              <button onClick={saveGlobalStyles} disabled={updateMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Global Styles
+              </button>
+              <p className="text-[10px] text-gray-400 mt-2">These styles are applied as CSS variables to all published pages. Re-publish to see changes.</p>
             </div>
           </div>
         </div>

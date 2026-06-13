@@ -106,7 +106,36 @@ class DesignTokenGenerator
             $safeValue = preg_replace('/[{}<>;\\\\]/', '', (string) $value);
             $css .= "  --{$safeKey}: {$safeValue};\n";
         }
+        // Inject global style settings from site settings
+        $settings = $site->settings ?? [];
+        $globalVars = [];
+        if (!empty($settings['global_font_family'])) $globalVars['font-family-base'] = preg_replace('/[^a-zA-Z0-9\s,\'-]/', '', $settings['global_font_family']);
+        if (!empty($settings['global_font_size'])) $globalVars['font-size-base'] = preg_replace('/[^a-zA-Z0-9.%]/', '', $settings['global_font_size']);
+        if (!empty($settings['global_line_height'])) $globalVars['line-height-base'] = preg_replace('/[^0-9.]/', '', $settings['global_line_height']);
+        if (!empty($settings['global_text_color'])) $globalVars['color-text'] = preg_replace('/[^a-fA-F0-9#]/', '', $settings['global_text_color']);
+        if (!empty($settings['global_bg_color'])) $globalVars['color-bg'] = preg_replace('/[^a-fA-F0-9#]/', '', $settings['global_bg_color']);
+        if (!empty($settings['global_link_color'])) $globalVars['color-primary'] = preg_replace('/[^a-fA-F0-9#]/', '', $settings['global_link_color']);
+        if (!empty($settings['global_container_width'])) $globalVars['container-width'] = preg_replace('/[^a-zA-Z0-9.%]/', '', $settings['global_container_width']);
+        if (!empty($settings['global_container_padding'])) $globalVars['container-padding'] = preg_replace('/[^a-zA-Z0-9.%]/', '', $settings['global_container_padding']);
+        foreach ($globalVars as $k => $v) {
+            $css .= "  --{$k}: {$v};\n";
+        }
+
         $css .= "}\n";
+
+        // Apply global body styles
+        if (!empty($globalVars)) {
+            $css .= "body {\n";
+            if (isset($globalVars['font-family-base'])) $css .= "  font-family: var(--font-family-base);\n";
+            if (isset($globalVars['font-size-base'])) $css .= "  font-size: var(--font-size-base);\n";
+            if (isset($globalVars['line-height-base'])) $css .= "  line-height: var(--line-height-base);\n";
+            if (isset($globalVars['color-text'])) $css .= "  color: var(--color-text);\n";
+            if (isset($globalVars['color-bg'])) $css .= "  background-color: var(--color-bg);\n";
+            $css .= "}\n";
+            if (isset($globalVars['color-primary'])) {
+                $css .= "a { color: var(--color-primary); }\n";
+            }
+        }
 
         // Site Background from theme document
         if ($theme->document && isset($theme->document['siteBackground'])) {
