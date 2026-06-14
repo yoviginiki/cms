@@ -182,7 +182,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('sites/{site}/posts/{post}/blocks', [BlockController::class, 'syncForPost']);
 
         // Assets
-        Route::apiResource('sites.assets', AssetController::class)->except(['update']);
+        Route::apiResource('sites.assets', AssetController::class);
         Route::get('sites/{site}/assets/{asset}/serve/{variant?}', [AssetServeController::class, 'serve']);
 
         // Custom Fonts

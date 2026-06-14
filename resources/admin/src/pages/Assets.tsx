@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { Upload, Trash2, Image, File, Loader2, X, Download, Search, Copy, Check } from 'lucide-react';
-import { assets } from '@/lib/api';
+import { Upload, Trash2, Image, File, Loader2, X, Download, Search, Copy, Check, AlertTriangle } from 'lucide-react';
+import { assets, api } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
@@ -14,6 +14,8 @@ interface Asset {
   size: number;
   url: string;
   created_at: string;
+  alt_text?: string;
+  dimensions?: { width: number; height: number };
 }
 
 type FilterType = 'all' | 'images' | 'documents' | 'video' | 'audio';
@@ -257,7 +259,7 @@ export default function Assets() {
                 <img src={selectedAsset.url} alt={selectedAsset.original_name} className="w-full" />
               ) : (
                 <div className="flex items-center justify-center py-12">
-                  <File className="h-16 w-16 text-gray-300" />
+                  <File className="h-16 w-16 text-base-content/20" />
                 </div>
               )}
             </div>
@@ -279,6 +281,40 @@ export default function Assets() {
                 <dt className="text-base-content/50">Uploaded</dt>
                 <dd className="font-medium text-base-content">{new Date(selectedAsset.created_at).toLocaleDateString()}</dd>
               </div>
+              {selectedAsset.dimensions && (
+                <div>
+                  <dt className="text-base-content/50">Dimensions</dt>
+                  <dd className="font-medium text-base-content">{selectedAsset.dimensions.width} × {selectedAsset.dimensions.height}</dd>
+                </div>
+              )}
+              {isImage(selectedAsset.mime_type) && (
+                <div>
+                  <dt className="text-base-content/50 flex items-center gap-1">
+                    Alt Text
+                    {!selectedAsset.alt_text && <AlertTriangle size={12} className="text-warning" />}
+                  </dt>
+                  <dd>
+                    <input
+                      type="text"
+                      defaultValue={selectedAsset.alt_text || ''}
+                      placeholder="Describe this image..."
+                      onBlur={async (e) => {
+                        const val = e.target.value;
+                        if (val !== (selectedAsset.alt_text || '')) {
+                          try {
+                            await api.put(`/sites/${siteId}/assets/${selectedAsset.id}`, { alt_text: val });
+                            queryClient.invalidateQueries({ queryKey: ['assets', siteId] });
+                          } catch {}
+                        }
+                      }}
+                      className="w-full px-2 py-1 text-xs border border-base-300 rounded bg-base-100 text-base-content"
+                    />
+                    {!selectedAsset.alt_text && (
+                      <p className="text-[10px] text-warning mt-0.5">Missing — important for accessibility and SEO</p>
+                    )}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt className="text-base-content/50">URL</dt>
                 <dd>
@@ -315,7 +351,7 @@ export default function Assets() {
               </a>
               <button
                 onClick={() => setDeleteTarget(selectedAsset)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-error border border-error/20 rounded-lg hover:bg-error/5"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete

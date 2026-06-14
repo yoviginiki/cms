@@ -65,6 +65,19 @@ class AssetController extends Controller
             ->setStatusCode(201);
     }
 
+    public function update(Request $request, Site $site, Asset $asset): JsonResponse
+    {
+        $this->authorize('update', $asset);
+
+        $validated = $request->validate([
+            'alt_text' => ['sometimes', 'nullable', 'string', 'max:500'],
+        ]);
+
+        $asset->update($validated);
+
+        return response()->json(['data' => $asset->fresh()]);
+    }
+
     public function destroy(Site $site, Asset $asset): JsonResponse
     {
         $this->authorize('delete', $asset);

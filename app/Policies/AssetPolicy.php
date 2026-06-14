@@ -26,6 +26,11 @@ class AssetPolicy
         return $user->hasMinimumRole('editor') && $this->sameTenant($user, $site);
     }
 
+    public function update(User $user, Asset $asset): bool
+    {
+        return $user->hasMinimumRole('editor') && $this->sameTenant($user, $asset);
+    }
+
     public function delete(User $user, Asset $asset): bool
     {
         return $user->hasMinimumRole('admin') && $this->sameTenant($user, $asset);
