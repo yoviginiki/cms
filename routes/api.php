@@ -192,6 +192,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/fonts/{filename}/serve', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'serve']);
 
         // Publishing
+        // Starter templates
+        Route::get('starter-templates', function () {
+            return response()->json(['data' => app(\App\Domain\Sites\Services\StarterTemplateService::class)->getTemplates()]);
+        });
+        Route::post('sites/{site}/apply-template', function (\Illuminate\Http\Request $request, \App\Models\Site $site) {
+            $request->validate(['template' => 'required|string|max:50']);
+            $result = app(\App\Domain\Sites\Services\StarterTemplateService::class)->apply($site, $request->input('template'));
+            return response()->json(['data' => $result], $result['success'] ? 200 : 422);
+        });
+
         // Form submissions
         Route::get('sites/{site}/form-submissions', [\App\Http\Controllers\Api\V1\FormController::class, 'submissions']);
         Route::delete('sites/{site}/form-submissions/{index}', [\App\Http\Controllers\Api\V1\FormController::class, 'deleteSubmission']);

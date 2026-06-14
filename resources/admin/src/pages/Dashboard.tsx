@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Globe, FileText, Newspaper, ExternalLink, Download, ArrowRight, X, Palette, Layout } from 'lucide-react';
-import { sites } from '@/lib/api';
+import { sites, api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
 interface Site {
@@ -113,20 +113,23 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {wizardOpen && <SiteWizard onClose={() => setWizardOpen(false)} onCreate={(id) => { setWizardOpen(false); navigate(`/sites/${id}/pages`); }} />}
+          {wizardOpen && <SiteWizard onClose={() => setWizardOpen(false)} />}
         </div>
       )}
     </div>
   );
 }
 
-function SiteWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (id: string) => void }) {
+function SiteWizard({ onClose }: { onClose: () => void; onCreate?: (id: string) => void }) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [template, setTemplate] = useState('blank');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [createdSiteId, setCreatedSiteId] = useState<string | null>(null);
+  const [templateResult, setTemplateResult] = useState('');
+  const navigate = useNavigate();
 
   const autoSlug = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -136,7 +139,27 @@ function SiteWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (id:
     setError('');
     try {
       const r = await sites.create({ name: name.trim(), slug: slug || autoSlug(name) });
-      onCreate(r.data.data.id);
+      const siteId = r.data.data.id;
+      setCreatedSiteId(siteId);
+
+      // Apply starter template
+      if (template !== 'blank') {
+        try {
+          const tr = await api.post(`/sites/${siteId}/apply-template`, { template });
+          setTemplateResult(tr.data.data.message || 'Template applied');
+        } catch {
+          setTemplateResult('Template applied partially — you can add content manually.');
+        }
+      } else {
+        // Blank — still create a home page
+        try {
+          await api.post(`/sites/${siteId}/apply-template`, { template: 'blank' });
+        } catch { /* ignore */ }
+        setTemplateResult('Blank site created with home page.');
+      }
+
+      setStep(4); // Success screen
+      setCreating(false);
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to create site');
       setCreating(false);
@@ -153,15 +176,17 @@ function SiteWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (id:
         </div>
 
         {/* Steps indicator */}
-        <div className="flex items-center gap-2 px-6 py-3 bg-base-200/50">
-          {[1, 2, 3].map(s => (
-            <div key={s} className={`flex items-center gap-1.5 text-xs font-medium ${step >= s ? 'text-primary' : 'text-base-content/30'}`}>
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step >= s ? 'bg-primary text-primary-content' : 'bg-base-300/50'}`}>{s}</div>
-              {s === 1 ? 'Basics' : s === 2 ? 'Template' : 'Confirm'}
-              {s < 3 && <div className={`w-6 h-px ${step > s ? 'bg-primary' : 'bg-base-300/30'}`} />}
-            </div>
-          ))}
-        </div>
+        {step < 4 && (
+          <div className="flex items-center gap-2 px-6 py-3 bg-base-200/50">
+            {[1, 2, 3].map(s => (
+              <div key={s} className={`flex items-center gap-1.5 text-xs font-medium ${step >= s ? 'text-primary' : 'text-base-content/30'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step >= s ? 'bg-primary text-primary-content' : 'bg-base-300/50'}`}>{s}</div>
+                {s === 1 ? 'Basics' : s === 2 ? 'Template' : 'Confirm'}
+                {s < 3 && <div className={`w-6 h-px ${step > s ? 'bg-primary' : 'bg-base-300/30'}`} />}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Content */}
         <div className="px-6 py-5">
@@ -185,9 +210,10 @@ function SiteWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (id:
             <div className="space-y-3">
               <p className="text-xs text-base-content/50 mb-2">Choose a starting point for your site.</p>
               {[
-                { id: 'blank', icon: Layout, label: 'Blank Site', desc: 'Start from scratch with an empty site' },
-                { id: 'blog', icon: Newspaper, label: 'Blog', desc: 'Blog-ready with posts, categories, and archive pages' },
-                { id: 'portfolio', icon: Palette, label: 'Portfolio', desc: 'Showcase your work with gallery and project pages' },
+                { id: 'blank', icon: Layout, label: 'Blank Site', desc: 'Start from scratch with an empty homepage' },
+                { id: 'blog', icon: Newspaper, label: 'Blog', desc: 'Home, About, Contact + blog with latest posts' },
+                { id: 'portfolio', icon: Palette, label: 'Portfolio', desc: 'Home, About, Work gallery + Contact' },
+                { id: 'business', icon: Globe, label: 'Business', desc: 'Home, About, Services, Team + Contact' },
               ].map(t => (
                 <button key={t.id} onClick={() => setTemplate(t.id)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
@@ -214,20 +240,47 @@ function SiteWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (id:
               {error && <div className="text-xs text-error bg-error/10 rounded-lg p-2">{error}</div>}
             </div>
           )}
+
+          {step === 4 && createdSiteId && (
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mx-auto">
+                <Globe className="h-6 w-6 text-success" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-base-content">Site Created!</h3>
+                <p className="text-sm text-base-content/50 mt-1">{templateResult}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => navigate(`/sites/${createdSiteId}/pages`)} className="btn btn-primary btn-sm gap-1">
+                  <FileText size={14} /> Open Pages
+                </button>
+                <button onClick={() => navigate(`/sites/${createdSiteId}/settings`)} className="btn btn-ghost btn-sm gap-1">
+                  <Layout size={14} /> Settings
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-base-300/20 bg-base-200/30">
-          <button onClick={() => step > 1 ? setStep(step - 1) : onClose()}
-            className="btn btn-ghost btn-sm">{step === 1 ? 'Cancel' : 'Back'}</button>
-          {step < 3 ? (
-            <button onClick={() => setStep(step + 1)} disabled={step === 1 && !name.trim()}
-              className="btn btn-primary btn-sm gap-1">Next <ArrowRight size={14} /></button>
-          ) : (
-            <button onClick={handleCreate} disabled={creating || !name.trim()}
-              className="btn btn-primary btn-sm gap-1">{creating ? 'Creating...' : 'Create Site'}</button>
-          )}
-        </div>
+        {step < 4 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-base-300/20 bg-base-200/30">
+            <button onClick={() => step > 1 ? setStep(step - 1) : onClose()}
+              className="btn btn-ghost btn-sm">{step === 1 ? 'Cancel' : 'Back'}</button>
+            {step < 3 ? (
+              <button onClick={() => setStep(step + 1)} disabled={step === 1 && !name.trim()}
+                className="btn btn-primary btn-sm gap-1">Next <ArrowRight size={14} /></button>
+            ) : (
+              <button onClick={handleCreate} disabled={creating || !name.trim()}
+                className="btn btn-primary btn-sm gap-1">{creating ? 'Creating...' : 'Create Site'}</button>
+            )}
+          </div>
+        )}
+        {step === 4 && (
+          <div className="px-6 py-3 border-t border-base-300/20 bg-base-200/30 text-center">
+            <button onClick={onClose} className="btn btn-ghost btn-sm">Close</button>
+          </div>
+        )}
       </div>
     </div>
   );
