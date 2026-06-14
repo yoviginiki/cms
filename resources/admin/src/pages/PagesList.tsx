@@ -66,8 +66,8 @@ export default function PagesList() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pages</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage your site pages</p>
+          <h1 className="text-2xl font-bold text-base-content">Pages</h1>
+          <p className="mt-1 text-sm text-base-content/50">Manage your site pages</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -77,7 +77,7 @@ export default function PagesList() {
               try { await publishing.clear(siteId); } catch {} finally { setClearing(false); }
             }}
             disabled={clearing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-base-300 text-base-content/70 hover:bg-base-200 disabled:opacity-50"
             title="Clear all published static files">
             {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eraser className="h-3.5 w-3.5" />}
             Clear
@@ -101,7 +101,7 @@ export default function PagesList() {
         </div>
       </div>
 
-      {isLoading && <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>}
+      {isLoading && <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-base-content/40" /></div>}
       {error && <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">Failed to load pages.</div>}
       {data && data.length === 0 && (
         <EmptyState icon={FileText} title="No pages yet" description="Create your first page" actionLabel="Create Page" onAction={handleCreate} />
@@ -111,26 +111,26 @@ export default function PagesList() {
       {sortedPages.length > 0 && (
         <div className="lg:hidden space-y-2">
           {sortedPages.map((page) => (
-            <div key={page.id} className={`bg-white rounded-lg border p-3 ${isHomepage(page) ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200'}`}>
+            <div key={page.id} className={`bg-base-100 rounded-lg border p-3 ${isHomepage(page) ? 'border-blue-200 bg-blue-50/30' : 'border-base-300'}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
-                    className="text-sm font-medium text-gray-900 hover:text-blue-600 text-left truncate block w-full">
+                    className="text-sm font-medium text-base-content hover:text-blue-600 text-left truncate block w-full">
                     {page.title}
                     {isHomepage(page) && <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Front Page</span>}
                   </button>
                   <div className="flex items-center gap-2 mt-1">
                     <StatusBadge status={page.status} />
-                    <span className="text-[11px] text-gray-400 font-mono">/{page.slug}</span>
+                    <span className="text-[11px] text-base-content/40 font-mono">/{page.slug}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
-                    className="p-2 text-gray-400 hover:text-blue-600 rounded-lg" title="Edit">
+                    className="p-2 text-base-content/40 hover:text-blue-600 rounded-lg" title="Edit">
                     <Edit className="h-4 w-4" />
                   </button>
                   <button onClick={() => setDeleteTarget(page)}
-                    className="p-2 text-gray-400 hover:text-red-600 rounded-lg" title="Delete">
+                    className="p-2 text-base-content/40 hover:text-red-600 rounded-lg" title="Delete">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -142,24 +142,24 @@ export default function PagesList() {
 
       {/* Desktop table view */}
       {sortedPages.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hidden lg:block">
+        <div className="bg-base-100 rounded-xl border border-base-300 shadow-sm overflow-hidden hidden lg:block">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <tr className="border-b border-base-300 bg-base-200">
+                <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Title</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">URL</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Updated</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {sortedPages.map((page) => (
-                <tr key={page.id} className={`hover:bg-gray-50 transition-colors ${isHomepage(page) ? 'bg-blue-50/50' : ''}`}>
+                <tr key={page.id} className={`hover:bg-base-200 transition-colors ${isHomepage(page) ? 'bg-blue-50/50' : ''}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
-                        className="font-medium text-gray-900 hover:text-blue-600 hover:underline text-left cursor-pointer">{page.title}</button>
+                        className="font-medium text-base-content hover:text-blue-600 hover:underline text-left cursor-pointer">{page.title}</button>
                       {isHomepage(page) && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
                           <Home className="h-3 w-3" /> Front Page
@@ -167,19 +167,19 @@ export default function PagesList() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 font-mono">
+                  <td className="px-6 py-4 text-sm text-base-content/50 font-mono">
                     {isHomepage(page) ? <span className="text-blue-600 font-medium">/</span> : <>/{page.slug}</>}
                   </td>
                   <td className="px-6 py-4"><StatusBadge status={page.status} /></td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{new Date(page.updated_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-sm text-base-content/50">{new Date(page.updated_at).toLocaleDateString()}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
-                        className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50" title="Edit">
+                        className="p-2 text-base-content/40 hover:text-blue-600 rounded-lg hover:bg-blue-50" title="Edit">
                         <Edit className="h-4 w-4" />
                       </button>
                       <button onClick={() => setDeleteTarget(page)}
-                        className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50" title="Delete">
+                        className="p-2 text-base-content/40 hover:text-red-600 rounded-lg hover:bg-red-50" title="Delete">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

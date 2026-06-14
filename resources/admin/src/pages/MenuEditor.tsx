@@ -16,7 +16,7 @@ import { menus, pages as pagesApi, categories as catsApi, posts as postsApi } fr
 // ── Types ──
 
 interface RelatedPage { id: string; title: string; slug: string }
-interface RelatedPost { id: string; title: string; slug: string }
+interface RelatedPost { id: string; title: string; slug: string; category?: { id: string; slug: string; name: string } | null }
 interface RelatedCategory { id: string; name: string; slug: string }
 
 interface MenuItemData {

@@ -102,25 +102,31 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     onError: () => { window.location.href = '/admin/login'; },
   });
 
-  const navItems = siteId
+  const mainNav = siteId
     ? [
         { to: `/sites/${siteId}/pages`, icon: FileText, label: 'Pages' },
         { to: `/sites/${siteId}/posts`, icon: Newspaper, label: 'Posts' },
+        { to: `/sites/${siteId}/assets`, icon: Archive, label: 'Media' },
+        { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
+        { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
+        { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
+        { to: `/sites/${siteId}/settings`, icon: Settings, label: 'Settings' },
+      ]
+    : [];
+
+  const advancedNav = siteId
+    ? [
         { to: `/sites/${siteId}/magazines`, icon: BookOpen, label: 'Magazines' },
         { to: `/sites/${siteId}/magazine/wizard`, icon: Wand2, label: 'Wizard' },
         { to: `/sites/${siteId}/categories`, icon: FolderTree, label: 'Categories' },
         { to: `/sites/${siteId}/tags`, icon: Hash, label: 'Tags' },
-        { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
         { to: `/sites/${siteId}/grids`, icon: LayoutGrid, label: 'Grids' },
         { to: `/sites/${siteId}/templates`, icon: Rocket, label: 'Templates' },
-        { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
-        { to: `/sites/${siteId}/assets`, icon: Archive, label: 'File Manager' },
-        { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
         { to: `/sites/${siteId}/graph`, icon: GitBranch, label: 'Graph' },
         { to: `/sites/${siteId}/import`, icon: Upload, label: 'Import' },
-        { to: `/sites/${siteId}/settings`, icon: Settings, label: 'Settings' },
       ]
     : [];
+
 
   const isActive = (path: string) => location.pathname.startsWith('/admin' + path);
 
@@ -178,10 +184,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             {!collapsed && 'Users'}
           </Link>
 
-          {navItems.length > 0 && (
+          {mainNav.length > 0 && (
             <>
-              {!collapsed && <div className="px-2.5 pt-4 pb-1 text-[10px] font-medium text-base-content/25 uppercase tracking-wider">Content</div>}
-              {navItems.slice(0, 6).map((item) => (
+              {mainNav.map((item) => (
                 <Link key={item.to} to={item.to}
                   className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
                     isActive(item.to)
@@ -193,31 +198,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </Link>
               ))}
 
-              {!collapsed && <div className="px-2.5 pt-4 pb-1 text-[10px] font-medium text-base-content/25 uppercase tracking-wider">Design</div>}
-              {navItems.slice(6, 9).map((item) => (
-                <Link key={item.to} to={item.to}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                    isActive(item.to)
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
-                  }`}>
-                  <item.icon size={15} strokeWidth={1.5} />
-                  {!collapsed && item.label}
-                </Link>
-              ))}
-
-              {!collapsed && <div className="px-2.5 pt-4 pb-1 text-[10px] font-medium text-base-content/25 uppercase tracking-wider">System</div>}
-              {navItems.slice(9).map((item) => (
-                <Link key={item.to} to={item.to}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                    isActive(item.to)
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
-                  }`}>
-                  <item.icon size={15} strokeWidth={1.5} />
-                  {!collapsed && item.label}
-                </Link>
-              ))}
+              {advancedNav.length > 0 && (
+                <>
+                  {!collapsed && <div className="px-2.5 pt-4 pb-1 text-[10px] font-medium text-base-content/25 uppercase tracking-wider">Advanced</div>}
+                  {collapsed && <div className="border-t border-base-300/20 my-1.5" />}
+                  {advancedNav.map((item) => (
+                    <Link key={item.to} to={item.to}
+                      className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+                        isActive(item.to)
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
+                      }`}>
+                      <item.icon size={15} strokeWidth={1.5} />
+                      {!collapsed && item.label}
+                    </Link>
+                  ))}
+                </>
+              )}
             </>
           )}
         </nav>

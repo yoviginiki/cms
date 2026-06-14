@@ -94,8 +94,8 @@ export default function Assets() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">File Manager</h1>
-          <p className="mt-1 text-sm text-gray-500">Upload and manage all site files</p>
+          <h1 className="text-2xl font-bold text-base-content">File Manager</h1>
+          <p className="mt-1 text-sm text-base-content/50">Upload and manage all site files</p>
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -116,13 +116,13 @@ export default function Assets() {
 
       {/* Search */}
       <div className="mb-4 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-base-content/40" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search files by name..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-2 border border-base-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
@@ -134,11 +134,11 @@ export default function Assets() {
         className={`mb-6 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
           isDragging
             ? 'border-blue-400 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
+            : 'border-base-300 hover:border-gray-400'
         }`}
       >
-        <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
-        <p className="text-sm text-gray-600">
+        <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragging ? 'text-blue-500' : 'text-base-content/40'}`} />
+        <p className="text-sm text-base-content/70">
           Drag and drop files here, or{' '}
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -156,15 +156,15 @@ export default function Assets() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
+      <div className="flex items-center gap-1 mb-6 bg-base-200 rounded-lg p-1 w-fit">
         {(['all', 'images', 'documents', 'video', 'audio'] as FilterType[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-1.5 text-sm font-medium rounded-md capitalize transition-colors ${
               filter === f
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-base-100 text-base-content shadow-sm'
+                : 'text-base-content/70 hover:text-base-content'
             }`}
           >
             {f}
@@ -174,7 +174,7 @@ export default function Assets() {
 
       {isLoading && (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-base-content/40" />
         </div>
       )}
 
@@ -201,17 +201,17 @@ export default function Assets() {
         return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {filtered.length === 0 && (
-            <p className="col-span-full text-center text-sm text-gray-400 py-8">No files match "{search}"</p>
+            <p className="col-span-full text-center text-sm text-base-content/40 py-8">No files match "{search}"</p>
           )}
           {filtered.map((asset) => (
             <div
               key={asset.id}
               onClick={() => setSelectedAsset(asset)}
-              className={`group bg-white rounded-xl border shadow-sm overflow-hidden cursor-pointer transition-all hover:shadow-md ${
-                selectedAsset?.id === asset.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+              className={`group bg-base-100 rounded-xl border shadow-sm overflow-hidden cursor-pointer transition-all hover:shadow-md ${
+                selectedAsset?.id === asset.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-base-300'
               }`}
             >
-              <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
+              <div className="aspect-square bg-base-200 flex items-center justify-center overflow-hidden">
                 {isImage(asset.mime_type) ? (
                   <img src={asset.url} alt={asset.original_name} className="w-full h-full object-cover" />
                 ) : (
@@ -219,10 +219,10 @@ export default function Assets() {
                 )}
               </div>
               <div className="p-3">
-                <p className="text-sm font-medium text-gray-900 truncate" title={asset.original_name}>
+                <p className="text-sm font-medium text-base-content truncate" title={asset.original_name}>
                   {asset.original_name}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">{formatFileSize(asset.size)}</p>
+                <p className="text-xs text-base-content/50 mt-0.5">{formatFileSize(asset.size)}</p>
               </div>
               <div className="px-3 pb-3 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
@@ -240,19 +240,19 @@ export default function Assets() {
 
       {/* Asset detail panel */}
       {selectedAsset && (
-        <div className="fixed inset-y-0 right-0 w-80 bg-white border-l border-gray-200 shadow-xl z-40 overflow-y-auto">
+        <div className="fixed inset-y-0 right-0 w-80 bg-base-100 border-l border-base-300 shadow-xl z-40 overflow-y-auto">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Details</h3>
+              <h3 className="text-lg font-semibold text-base-content">Details</h3>
               <button
                 onClick={() => setSelectedAsset(null)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                className="p-1 text-base-content/40 hover:text-base-content/70 rounded-lg hover:bg-base-200"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mb-4 rounded-lg overflow-hidden bg-gray-50">
+            <div className="mb-4 rounded-lg overflow-hidden bg-base-200">
               {isImage(selectedAsset.mime_type) ? (
                 <img src={selectedAsset.url} alt={selectedAsset.original_name} className="w-full" />
               ) : (
@@ -264,30 +264,30 @@ export default function Assets() {
 
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-gray-500">Filename</dt>
-                <dd className="font-medium text-gray-900 break-all">{selectedAsset.original_name}</dd>
+                <dt className="text-base-content/50">Filename</dt>
+                <dd className="font-medium text-base-content break-all">{selectedAsset.original_name}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Type</dt>
-                <dd className="font-medium text-gray-900">{selectedAsset.mime_type}</dd>
+                <dt className="text-base-content/50">Type</dt>
+                <dd className="font-medium text-base-content">{selectedAsset.mime_type}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Size</dt>
-                <dd className="font-medium text-gray-900">{formatFileSize(selectedAsset.size)}</dd>
+                <dt className="text-base-content/50">Size</dt>
+                <dd className="font-medium text-base-content">{formatFileSize(selectedAsset.size)}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Uploaded</dt>
-                <dd className="font-medium text-gray-900">{new Date(selectedAsset.created_at).toLocaleDateString()}</dd>
+                <dt className="text-base-content/50">Uploaded</dt>
+                <dd className="font-medium text-base-content">{new Date(selectedAsset.created_at).toLocaleDateString()}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">URL</dt>
+                <dt className="text-base-content/50">URL</dt>
                 <dd>
                   <input
                     type="text"
                     readOnly
                     value={selectedAsset.url}
                     onClick={(e) => (e.target as HTMLInputElement).select()}
-                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 text-gray-700"
+                    className="w-full px-2 py-1 text-xs border border-base-300 rounded bg-base-200 text-base-content/80"
                   />
                 </dd>
               </div>
@@ -300,7 +300,7 @@ export default function Assets() {
                   setCopied(selectedAsset.id);
                   setTimeout(() => setCopied(null), 2000);
                 }}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-base-content/80 border border-base-300 rounded-lg hover:bg-base-200"
               >
                 {copied === selectedAsset.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                 {copied === selectedAsset.id ? 'Copied!' : 'Copy URL'}
@@ -308,7 +308,7 @@ export default function Assets() {
               <a
                 href={selectedAsset.url}
                 download
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-base-content/80 border border-base-300 rounded-lg hover:bg-base-200"
               >
                 <Download className="h-4 w-4" />
                 Download

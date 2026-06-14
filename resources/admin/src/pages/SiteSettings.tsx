@@ -10,6 +10,7 @@ interface SiteData {
   name: string;
   slug: string;
   status: string;
+  custom_domain?: string | null;
   settings: Record<string, unknown>;
   seo_defaults: Record<string, unknown>;
 }

@@ -6,7 +6,7 @@ Multi-tenant, block-based content management system with static site generation,
 
 - **Laravel 13 backend** with PostgreSQL row-level security for multi-tenancy
 - **React 19 / TypeScript admin SPA** with block-based page editor
-- **68 registered block types** — completeness varies (see [Current State](#current-verified-state))
+- **80 registered block types** — all complete across frontend, PHP, and Blade (see [Block Audit](#block-audit))
 - **Static site generator** — builds HTML, deploys via local copy, SSH rsync, or ZIP download
 - **Theme engine** — W3C Design Tokens format, per-site overrides, dark mode
 - **CSS Grid layout system** — 6 preset grids with responsive breakpoints

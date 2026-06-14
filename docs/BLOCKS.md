@@ -10,14 +10,15 @@ Every block type can exist across three independent layers. Not all blocks are c
 
 | Layer | Location | Count | Purpose |
 |-------|----------|-------|---------|
-| Frontend (React) | `resources/admin/src/components/blocks/{type}/` | **68** | Editor UI + canvas preview |
-| Rendering (Blade) | `resources/views/blocks/{type}.blade.php` | **69** | Server-side HTML for publishing |
-| Backend (PHP) | `app/Domain/Blocks/Definitions/{Type}BlockDefinition.php` | **19** concrete + 1 base | Validation rules + sanitization |
+| Frontend (React) | `resources/admin/src/components/blocks/{type}/` | **80** | Editor UI + canvas preview |
+| Rendering (Blade) | `resources/views/blocks/{type}.blade.php` | **81** | Server-side HTML for publishing |
+| Backend (PHP) | `app/Domain/Blocks/Definitions/{Type}BlockDefinition.php` | **80** | Validation rules + sanitization |
 
 ### Coverage Summary
 
-- **68 blocks** are fully complete across all three layers (frontend + Blade + PHP definition).
-- **1 legacy Blade** (`quote.blade.php`) kept as fallback — `QuoteBlockDefinition.php` deleted, data migrated to pullquote.
+- **80 blocks** are fully complete across all three layers (frontend + Blade + PHP definition).
+- **1 legacy Blade** (`quote.blade.php`) — orphan, data migrated to pullquote.
+- Run `composer audit-blocks` to verify current state.
 - All blocks have Level 4+ shared properties, validation tests, and Theme Engine CSS variable integration.
 
 Run `composer audit-blocks` or `bash scripts/block-audit.sh` to check current layer coverage.
