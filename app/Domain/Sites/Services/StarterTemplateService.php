@@ -4,6 +4,7 @@ namespace App\Domain\Sites\Services;
 
 use App\Domain\Blocks\Services\BlockService;
 use App\Domain\Pages\Services\PageService;
+use App\Domain\Posts\Services\PostService;
 use App\Models\Site;
 use Illuminate\Support\Str;
 
@@ -16,6 +17,7 @@ class StarterTemplateService
     public function __construct(
         private PageService $pageService,
         private BlockService $blockService,
+        private PostService $postService,
     ) {}
 
     /**
@@ -100,11 +102,22 @@ class StarterTemplateService
             }
         }
 
+        // Create sample posts for templates that have a blog/posts page
+        $postsCreated = 0;
+        if (in_array($templateId, ['blog', 'portfolio'])) {
+            $postsCreated = $this->createSamplePosts($site, $templateId);
+        }
+
+        $msg = "Created {$created} pages";
+        if ($postsCreated > 0) $msg .= " and {$postsCreated} sample posts";
+        if ($skipped > 0) $msg .= ", skipped {$skipped} existing";
+
         return [
             'success' => true,
-            'message' => "Created {$created} pages" . ($skipped > 0 ? ", skipped {$skipped} existing" : ''),
+            'message' => $msg,
             'pages_created' => $created,
             'pages_skipped' => $skipped,
+            'posts_created' => $postsCreated,
         ];
     }
 
@@ -275,6 +288,78 @@ class StarterTemplateService
                         ]),
                     ]),
                 ], ['padding_top' => '60px', 'padding_bottom' => '60px', 'max_width' => '1100px']),
+            ],
+        ];
+    }
+
+    // ─── Sample posts ───
+
+    /**
+     * Create sample posts so blog/latestposts blocks have content to display.
+     * Idempotent — skips if posts already exist for the site.
+     */
+    private function createSamplePosts(Site $site, string $templateId): int
+    {
+        // Skip if site already has posts
+        if ($site->posts()->exists()) {
+            return 0;
+        }
+
+        $posts = $this->getSamplePostDefinitions($templateId);
+        $created = 0;
+
+        foreach ($posts as $def) {
+            $this->postService->createPost([
+                'title' => $def['title'],
+                'slug' => $def['slug'],
+                'excerpt' => $def['excerpt'],
+                'status' => 'published',
+                'published_at' => now()->subDays($created),
+            ], $site);
+            $created++;
+        }
+
+        return $created;
+    }
+
+    private function getSamplePostDefinitions(string $templateId): array
+    {
+        if ($templateId === 'blog') {
+            return [
+                [
+                    'title' => 'Welcome to Our Blog',
+                    'slug' => 'welcome-to-our-blog',
+                    'excerpt' => 'This is your first blog post. Edit or replace it with your own content. Share your thoughts, stories, and ideas with the world.',
+                ],
+                [
+                    'title' => '5 Tips for Getting Started',
+                    'slug' => '5-tips-for-getting-started',
+                    'excerpt' => 'Starting something new can be daunting. Here are five practical tips to help you hit the ground running and make the most of your journey.',
+                ],
+                [
+                    'title' => 'The Art of Storytelling',
+                    'slug' => 'the-art-of-storytelling',
+                    'excerpt' => 'Great content starts with a great story. Learn how to craft compelling narratives that engage your audience and keep them coming back for more.',
+                ],
+            ];
+        }
+
+        // Portfolio
+        return [
+            [
+                'title' => 'Brand Identity for Sunrise Co.',
+                'slug' => 'brand-identity-sunrise',
+                'excerpt' => 'A complete brand identity project including logo design, color palette, typography, and brand guidelines for a sustainable energy startup.',
+            ],
+            [
+                'title' => 'E-Commerce Redesign',
+                'slug' => 'ecommerce-redesign',
+                'excerpt' => 'Redesigning the shopping experience for a fashion retailer, focusing on mobile-first design and streamlined checkout flow.',
+            ],
+            [
+                'title' => 'Annual Report Design',
+                'slug' => 'annual-report-design',
+                'excerpt' => 'Editorial design for a non-profit organization\'s annual report, combining data visualization with compelling photography.',
             ],
         ];
     }

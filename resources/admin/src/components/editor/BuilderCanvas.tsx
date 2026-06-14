@@ -13,6 +13,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { Monitor, Tablet, Smartphone, LayoutList, Eye, Plus, Code, FileText } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
@@ -196,6 +197,7 @@ import { CANVAS_WIDTHS, type Breakpoint } from '@/lib/breakpoints';
 type CanvasDevice = Breakpoint;
 
 export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }) {
+  const { siteId } = useParams<{ siteId: string }>();
   const blocks = useEditorStore((s) => s.blocks);
   const addBlock = useEditorStore((s) => s.addBlock);
   const addPresetAction = useEditorStore((s) => s.addPreset);
@@ -528,6 +530,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
                       onClose={() => setPresetBrowserOpen(false)}
                       onSelectPreset={(type) => addPresetAction(type)}
                       onAddBlank={() => addBlock('section')}
+                      siteId={siteId}
                     />
                   </>
                 )}

@@ -46,6 +46,7 @@ interface EditorState {
   setCanvasDevice: (device: 'desktop' | 'tablet' | 'mobile') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;
   addPreset: (presetType: string, index?: number) => void;
+  insertSectionTemplate: (blocksData: BlockData[]) => void;
   updateBlock: (blockId: string, data: Partial<Record<string, unknown>>) => void;
   removeBlock: (blockId: string) => void;
   moveBlock: (activeId: string, overId: string, position: 'before' | 'after' | 'inside') => void;
@@ -291,6 +292,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       redoStack: [],
       isDirty: true,
       selectedBlockId: presetTree.id,
+    });
+  },
+
+  insertSectionTemplate: (blocksData) => {
+    if (!blocksData || blocksData.length === 0) return;
+    const state = get();
+    const undoStack = [
+      ...state.undoStack.slice(-(state.maxUndoSteps - 1)),
+      deepClone(state.blocks),
+    ];
+    const newBlocks = deepClone(state.blocks);
+    const cloned = blocksData.map(deepCloneWithNewIds);
+    newBlocks.push(...cloned);
+    set({
+      blocks: reorder(newBlocks),
+      undoStack,
+      redoStack: [],
+      isDirty: true,
+      selectedBlockId: cloned[0]?.id ?? null,
     });
   },
 

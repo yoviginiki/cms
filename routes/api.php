@@ -193,6 +193,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Publishing
         // Starter templates
+        // Available themes (for wizard — system themes)
+        Route::get('available-themes', function () {
+            $themes = \App\Models\Theme::where('is_system', true)
+                ->select('id', 'name', 'slug', 'description', 'modes')
+                ->get()->map(fn($t) => [
+                    'id' => $t->id, 'name' => $t->name, 'slug' => $t->slug,
+                    'description' => $t->description, 'modes' => $t->modes ?? ['light'],
+                ]);
+            return response()->json(['data' => $themes]);
+        });
+
         Route::get('starter-templates', function () {
             return response()->json(['data' => app(\App\Domain\Sites\Services\StarterTemplateService::class)->getTemplates()]);
         });
