@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { X, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, MousePointerClick } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
+import { BlockIcon } from './BlockIcon';
 import type { BlockData, BlockStyleProps } from '@/types/blocks';
 import { SpacingPanel } from './properties/SpacingPanel';
 import { VisualPanel } from './properties/VisualPanel';
@@ -43,8 +44,10 @@ export function BlockSettings() {
 
   if (!selectedBlockId) {
     return (
-      <div className="flex items-center justify-center h-full text-[12px] text-base-content/30">
-        Select a block to edit
+      <div className="flex flex-col items-center justify-center h-full text-center px-6 gap-2">
+        <MousePointerClick size={28} className="text-base-content/15" />
+        <p className="text-[12px] text-base-content/40 font-medium">Select a section to edit its settings</p>
+        <p className="text-[10px] text-base-content/25">Click any block on the canvas to see its controls here</p>
       </div>
     );
   }
@@ -82,9 +85,15 @@ export function BlockSettings() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-3 border-b border-base-300/20">
-        <h3 className="text-[12px] font-medium text-base-content/80">
-          {registration.definition.label}
-        </h3>
+        <div className="flex items-center gap-2">
+          <BlockIcon icon={registration.definition.icon ?? 'Box'} size={14} className="text-primary/60" />
+          <div>
+            <h3 className="text-[12px] font-medium text-base-content/80">{registration.definition.label}</h3>
+            {registration.definition.description && (
+              <p className="text-[9px] text-base-content/30">{registration.definition.description}</p>
+            )}
+          </div>
+        </div>
         <button onClick={() => selectBlock(null)}
           className="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-base-content/60">
           <X className="h-3.5 w-3.5" />

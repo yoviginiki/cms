@@ -56,6 +56,8 @@ export default function PageEditor() {
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const pageMetaRef = useRef<Record<string, any> | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { data: siteData } = useQuery<any>({
     queryKey: ['site', siteId],
@@ -203,6 +205,11 @@ export default function PageEditor() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
+  // Clear save error when user makes new changes
+  useEffect(() => {
+    if (isDirty && saveError) setSaveError(null);
+  }, [isDirty, saveError]);
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -253,8 +260,11 @@ export default function PageEditor() {
         await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
       }
       setDirty(false);
+      setLastSavedAt(new Date());
+      setSaveError(null);
     } catch (err) {
       console.error('Save failed:', err);
+      setSaveError('Save failed');
     } finally { setSaving(false); }
   }
 
@@ -297,7 +307,12 @@ export default function PageEditor() {
             <h1 className="text-sm font-medium text-base-content/90 truncate">{page?.title ?? 'Page'}</h1>
             <span className="text-[10px] text-base-content/30">/{page?.slug}</span>
           </div>
-          {(isDirty || magStore.isDirty) && <span className="text-[10px] text-warning font-medium">unsaved</span>}
+          {saveError && <span className="text-[10px] text-error font-medium">{saveError}</span>}
+          {!saveError && isSaving && <span className="text-[10px] text-base-content/40 font-medium flex items-center gap-1"><Loader2 size={10} className="animate-spin" />Saving...</span>}
+          {!saveError && !isSaving && (isDirty || magStore.isDirty) && <span className="text-[10px] text-warning font-medium">Unsaved changes</span>}
+          {!saveError && !isSaving && !isDirty && !magStore.isDirty && lastSavedAt && (
+            <span className="text-[10px] text-success/60 font-medium">Saved {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

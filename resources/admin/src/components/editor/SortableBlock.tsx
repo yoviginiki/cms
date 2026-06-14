@@ -24,7 +24,7 @@ function DroppableZone({ id, children }: { id: string; children: React.ReactNode
     <div
       ref={setNodeRef}
       className={`min-h-[20px] rounded transition-colors ${
-        isOver ? 'border-2 border-dashed border-blue-400 bg-blue-50' : ''
+        isOver ? 'border-2 border-dashed border-primary/40 bg-primary/5' : ''
       }`}
     >
       {children}
@@ -189,7 +189,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
                 <div style={childrenStyle} className={isRow ? 'min-h-[40px]' : 'space-y-1'}>
                   {children.length === 0 && (
                     <div className="text-center py-6 col-span-full">
-                      <p className="text-xs text-gray-400 mb-2">
+                      <p className="text-xs text-base-content/30 mb-2">
                         {level === 'section' ? 'Add rows to build your layout' :
                          level === 'row' ? 'Add columns to this row' :
                          level === 'column' ? 'Add modules to this column' :
@@ -230,7 +230,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
       {/* Drag handle (visible on hover when not selected) */}
       {!isSelected && (
         <div
-          className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 cursor-grab p-1 bg-white rounded shadow text-gray-400 hover:text-gray-600 transition-opacity z-10"
+          className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 cursor-grab p-1 bg-base-100 rounded shadow text-base-content/30 hover:text-base-content/60 transition-opacity z-10"
           {...attributes}
           {...listeners}
         >

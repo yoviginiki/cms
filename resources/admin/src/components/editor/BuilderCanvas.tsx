@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Monitor, Tablet, Smartphone, LayoutList, Eye, Plus, Code, FileText } from 'lucide-react';
+import { Monitor, Tablet, Smartphone, LayoutList, Eye, Plus, Code, FileText, Sparkles } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
@@ -329,20 +329,20 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
   return (
     <>
       <div
-        className="flex-1 overflow-y-auto bg-gray-50"
+        className="flex-1 overflow-y-auto bg-base-200/50"
         onClick={() => selectBlock(null)}
       >
         {/* Toolbar: Mode toggle + Responsive device toggle */}
-        <div className="flex items-center justify-between py-2 px-4 bg-gray-50 border-b border-gray-200 sticky top-0 z-20">
+        <div className="flex items-center justify-between py-2 px-4 bg-base-200/50 border-b border-base-300/30 sticky top-0 z-20">
           {/* Left: Editor mode toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center gap-1 bg-base-300/30 rounded-lg p-0.5">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setCanvasMode('visual'); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 canvasMode === 'visual'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-base-100 text-base-content shadow-sm'
+                  : 'text-base-content/40 hover:text-base-content/70'
               }`}
               title="Visual Mode — live rendered preview"
             >
@@ -354,8 +354,8 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
               onClick={(e) => { e.stopPropagation(); setCanvasMode('wireframe'); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 canvasMode === 'wireframe'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-base-100 text-base-content shadow-sm'
+                  : 'text-base-content/40 hover:text-base-content/70'
               }`}
               title="Wireframe Mode — structural outline"
             >
@@ -367,8 +367,8 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
               onClick={(e) => { e.stopPropagation(); setCanvasMode('html'); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 canvasMode === 'html'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-base-100 text-base-content shadow-sm'
+                  : 'text-base-content/40 hover:text-base-content/70'
               }`}
               title="HTML Mode — raw code editor"
             >
@@ -380,8 +380,8 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
               onClick={(e) => { e.stopPropagation(); setCanvasMode('simple'); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 canvasMode === 'simple'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-base-100 text-base-content shadow-sm'
+                  : 'text-base-content/40 hover:text-base-content/70'
               }`}
               title="Simple Editor — just type, like a classic editor"
             >
@@ -392,13 +392,13 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
 
           {/* Undo / Redo */}
           <div className="flex items-center gap-0.5">
-            <button onClick={undo} disabled={undoCount === 0} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30" title={`Undo (${undoCount})`}>
+            <button onClick={undo} disabled={undoCount === 0} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30 disabled:opacity-30" title={`Undo (${undoCount})`}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-              {undoCount > 0 && <span className="text-[9px] text-gray-400">{undoCount}</span>}
+              {undoCount > 0 && <span className="text-[9px] text-base-content/30">{undoCount}</span>}
             </button>
-            <button onClick={redo} disabled={redoCount === 0} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30" title={`Redo (${redoCount})`}>
+            <button onClick={redo} disabled={redoCount === 0} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30 disabled:opacity-30" title={`Redo (${redoCount})`}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
-              {redoCount > 0 && <span className="text-[9px] text-gray-400">{redoCount}</span>}
+              {redoCount > 0 && <span className="text-[9px] text-base-content/30">{redoCount}</span>}
             </button>
           </div>
 
@@ -416,7 +416,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
                 className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   canvasDevice === device
                     ? 'bg-primary text-primary-content shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    : 'text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30'
                 }`}
                 title={label}
               >
@@ -433,8 +433,8 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
         )}
         <div className="p-2 sm:p-4 lg:p-6">
         <div
-          className={`mx-auto bg-white rounded-xl shadow-sm border min-h-[60vh] p-3 sm:p-4 lg:p-6 editor-canvas-light ${
-            canvasDevice !== 'desktop' ? 'border-info/30' : 'border-gray-200'
+          className={`mx-auto bg-base-100 rounded-xl shadow-sm border min-h-[60vh] p-3 sm:p-4 lg:p-6 editor-canvas-light ${
+            canvasDevice !== 'desktop' ? 'border-info/30' : 'border-base-300/30'
           }`}
           style={{
             // Page style applied first, device maxWidth overrides if smaller
@@ -466,7 +466,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
             /* ── Wireframe Mode: structural outline ── */
             <div className="space-y-1">
               {blocks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                <div className="flex flex-col items-center justify-center py-16 text-base-content/30">
                   <LayoutList className="w-12 h-12 mb-3 opacity-30" />
                   <p className="text-sm font-medium">No blocks yet</p>
                   <p className="text-xs mt-1">Add blocks from the sidebar</p>
@@ -485,17 +485,29 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
             >
               <div className="space-y-3">
                 {blocks.length === 0 ? (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setShowAddPopup(true); }}
-                    className="flex flex-col items-center justify-center py-20 text-gray-400 hover:text-gray-600 transition-colors w-full cursor-pointer"
-                  >
-                    <svg className="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    <p className="text-lg font-medium">No blocks yet</p>
-                    <p className="text-sm mt-1">Tap to add a block</p>
-                  </button>
+                  <div className="flex flex-col items-center justify-center py-16 text-base-content/30">
+                    <div className="w-16 h-16 rounded-2xl bg-base-200/80 flex items-center justify-center mb-4">
+                      <Plus size={28} className="text-base-content/20" />
+                    </div>
+                    <p className="text-base font-medium text-base-content/50 mb-1">Add your first section</p>
+                    <p className="text-xs text-base-content/30 mb-5">Start building your page with a pre-built section or blank block</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setPresetBrowserOpen(true); }}
+                        className="btn btn-primary btn-sm gap-1.5"
+                      >
+                        <Sparkles size={14} /> Section Library
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); addBlock('section'); }}
+                        className="btn btn-ghost btn-sm gap-1.5 text-base-content/50"
+                      >
+                        <Plus size={14} /> Blank Section
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     {blocks.map((block, i) => (
@@ -506,7 +518,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
                           <div className="flex justify-center py-2">
                             <button
                               onClick={(e) => { e.stopPropagation(); addBlock('section', undefined, i + 1); }}
-                              className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-300 hover:border-blue-300 rounded-lg transition-colors"
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs text-base-content/30 hover:text-primary border border-dashed border-base-300/40 hover:border-primary/40 rounded-lg transition-colors"
                               title="Insert section"
                             >
                               <Plus size={12} /> Section
@@ -519,7 +531,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
                     <div className="flex justify-center py-4">
                       <button
                         onClick={(e) => { e.stopPropagation(); setPresetBrowserOpen(true); }}
-                        className="flex items-center gap-2 px-6 py-3 text-sm text-purple-500 hover:text-purple-600 border-2 border-dashed border-purple-200 hover:border-purple-400 rounded-xl transition-all hover:bg-purple-50 hover:shadow-md"
+                        className="flex items-center gap-2 px-6 py-3 text-sm text-primary hover:text-primary border-2 border-dashed border-primary/20 hover:border-primary/40 rounded-xl transition-all hover:bg-primary/5 hover:shadow-md"
                       >
                         <Plus size={18} />
                         Add Section
