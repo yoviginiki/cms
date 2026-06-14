@@ -40,6 +40,8 @@ const PRESET_THEMES: Record<string, { bg: string; accent: string; text: string }
   preset_stats: { bg: '#f8fafc', accent: '#3b82f6', text: '#1e3a5f' },
   preset_portfolio: { bg: '#fafafa', accent: '#ec4899', text: '#831843' },
   preset_blog_grid: { bg: '#f0fdf4', accent: '#059669', text: '#064e3b' },
+  preset_text_intro: { bg: '#f8fafc', accent: '#6366f1', text: '#1e293b' },
+  preset_image_text: { bg: '#faf5ff', accent: '#8b5cf6', text: '#1e293b' },
 };
 
 function PresetThumbnail({ preset }: { preset: PresetDefinition }) {

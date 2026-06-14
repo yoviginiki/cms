@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Palette, Copy, Loader2, Check, Upload, Eye, Power, Trash2, Type } from 'lucide-react';
 import { themeEngine, customFonts } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 
 interface ThemeItem {
   id: string;
@@ -21,6 +22,7 @@ export default function ThemeEngine() {
   const queryClient = useQueryClient();
   const [importJson, setImportJson] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const { toast } = useToast();
 
   const { data: themes, isLoading, error } = useQuery<ThemeItem[]>({
     queryKey: ['theme-engine', siteId],
@@ -63,7 +65,7 @@ export default function ThemeEngine() {
       const doc = JSON.parse(importJson);
       importMut.mutate(doc);
     } catch {
-      alert('Invalid JSON');
+      toast({ type: 'error', message: 'Invalid JSON format' });
     }
   };
 

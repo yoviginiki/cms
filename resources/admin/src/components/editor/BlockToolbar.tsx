@@ -5,6 +5,7 @@ import type { BlockData } from '@/types/blocks';
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
 import { BlockIcon } from './BlockIcon';
+import { useToast } from '@/components/ui/Toast';
 
 interface BlockToolbarProps {
   block: BlockData;
@@ -18,6 +19,7 @@ export function BlockToolbar({ block, dragHandleProps }: BlockToolbarProps) {
   const blocks = useEditorStore((s) => s.blocks);
   const { siteId = '' } = useParams();
 
+  const { toast } = useToast();
   const reg = blockRegistry.get(block.type);
   const label = reg?.definition.label ?? block.type;
 
@@ -96,8 +98,8 @@ export function BlockToolbar({ block, dragHandleProps }: BlockToolbarProps) {
           if (!name || !siteId) return;
           try {
             await api.post(`/sites/${siteId}/block-templates`, { name, blocks_data: [block], category: block.level || 'module' });
-            alert('Saved as template!');
-          } catch { alert('Failed to save template.'); }
+            toast({ type: 'success', message: 'Saved as template' });
+          } catch { toast({ type: 'error', message: 'Failed to save template' }); }
         }}
         title="Save as Template"
       >

@@ -1,5 +1,7 @@
 # Publishing Pipeline
 
+**Last updated:** Sprint 7 (2026-06-14)
+
 ## Overview
 
 The CMS publishes content as **static HTML files**. The pipeline: Editor -> Database -> Build -> Deploy -> Static HTML served by web server.
@@ -180,3 +182,44 @@ Metadata tracks:
 | `_redirects` | Netlify/CF Pages format redirects |
 | `.htaccess` | Apache redirect rules |
 | `themes/site-{id}/*.css` | Compiled theme CSS |
+
+## Sprint 7 Additions
+
+### Publish Status Derivation (Frontend)
+`publishHelpers.ts` provides `derivePublishStatus()`:
+- `never` — no deployments exist
+- `in_progress` — queued, building, or deploying
+- `success` — last deployment is live, no dirty pages
+- `failed` — last deployment failed
+- `unpublished_changes` — last deployment live but content changed since
+- `warnings` — published with validation warnings
+
+### Verification Checklist
+`generateVerificationChecklist()` checks:
+- Pages generated count vs expected
+- HTML validation (Lighthouse checks)
+- Sitemap generated
+- Robots.txt generated
+- RSS feed generated
+
+### Domain Validation
+`validateDomainFormat()` checks:
+- Non-empty
+- Valid characters (alphanumeric, hyphens, dots)
+- Has at least one dot
+- No leading/trailing hyphens
+- Max 253 characters
+
+### Current Limitations
+1. Publishing is synchronous — blocks for up to 5 minutes
+2. DependencyGraph service exists but is not integrated
+3. No webhook/email notifications on publish completion
+4. SSH strategy has no rollback support
+5. Preview tokens have no visible expiry
+
+### Sprint 8 Recommendations
+1. Integrate DependencyGraph for incremental publishing
+2. Add async publish via queue
+3. Add webhook notifications
+4. Add broken internal link checker
+5. Add publish scheduling

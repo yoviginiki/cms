@@ -10,6 +10,8 @@ import { teamPreset } from './team';
 import { statsPreset } from './stats';
 import { portfolioPreset } from './portfolio';
 import { blogGridPreset } from './bloggrid';
+import { textIntroPreset } from './textintro';
+import { imageTextPreset } from './imagetext';
 
 export interface PresetDefinition {
   type: string;
@@ -31,6 +33,8 @@ export const presets: PresetDefinition[] = [
   statsPreset,
   portfolioPreset,
   blogGridPreset,
+  textIntroPreset,
+  imageTextPreset,
 ];
 
 export function getPreset(type: string): PresetDefinition | undefined {
