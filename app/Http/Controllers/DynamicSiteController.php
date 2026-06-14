@@ -106,6 +106,10 @@ class DynamicSiteController extends Controller
         $site->load('theme');
         $html = $this->buildService->build($content, $site->theme, $site, isPreview: true);
 
+        // Rewrite internal links for the dynamic preview prefix
+        // /about → /sites/cytechno/about, / → /sites/cytechno/
+        $html = $this->rewriteLinksForPreview($html, $site);
+
         // Resolve grid for toolbar info
         $grid = $this->gridResolver->resolve($content, $site);
 
@@ -117,6 +121,56 @@ class DynamicSiteController extends Controller
             ->header('Content-Type', 'text/html')
             ->header('X-Robots-Tag', 'noindex')
             ->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Rewrite internal links so they work under /sites/{slug}/ prefix.
+     * Only rewrites links that start with / and point to site pages/posts/categories.
+     * Preserves external URLs, anchors, and API paths.
+     */
+    private function rewriteLinksForPreview(string $html, Site $site): string
+    {
+        $prefix = '/sites/' . $site->slug;
+
+        // Collect all valid page slugs and category slugs for this site
+        $pageSlugs = $site->pages()->pluck('slug')->toArray();
+        $categorySlugs = \App\Models\Category::where('site_id', $site->id)->pluck('slug')->toArray();
+        $postSlugs = Post::where('site_id', $site->id)->pluck('slug')->toArray();
+
+        $allSlugs = array_merge($pageSlugs, $categorySlugs, $postSlugs);
+
+        return preg_replace_callback(
+            '/href="(\/[^"]*)"/',
+            function ($match) use ($prefix, $allSlugs) {
+                $path = $match[1];
+
+                // Skip API paths, admin paths, assets, fonts, already-prefixed paths
+                if (str_starts_with($path, '/api/')
+                    || str_starts_with($path, '/admin')
+                    || str_starts_with($path, '/sites/')
+                    || str_starts_with($path, '/fonts/')
+                    || str_starts_with($path, '/assets/')
+                    || str_starts_with($path, '/media/')
+                ) {
+                    return $match[0];
+                }
+
+                // Root path → site home
+                if ($path === '/') {
+                    return 'href="' . $prefix . '/"';
+                }
+
+                // Check if first segment matches a known slug
+                $segments = explode('/', trim($path, '/'));
+                if (!empty($segments[0]) && in_array($segments[0], $allSlugs)) {
+                    return 'href="' . $prefix . $path . '"';
+                }
+
+                // Default: rewrite it (could be a page or post path)
+                return 'href="' . $prefix . $path . '"';
+            },
+            $html
+        );
     }
 
     /**

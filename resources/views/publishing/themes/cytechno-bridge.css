@@ -1,0 +1,172 @@
+/* ============================================================
+   CYTECHNO BRIDGE — maps CMS block output to Cytechno design
+   Targets: .section-block, .row-block, .heading-block, etc.
+   ============================================================ */
+
+/* ── Global reset for CMS output ── */
+body {
+  font-family: 'Barlow', -apple-system, system-ui, sans-serif !important;
+  font-size: 17px !important;
+  line-height: 1.62 !important;
+  color: var(--ink, #141414) !important;
+  background: var(--bg, #fff) !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  margin: 0;
+}
+::selection { background: var(--red, #C81E1E); color: #fff; }
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+
+/* ── Nav override — make CMS nav look like Cytechno header ── */
+.site-nav {
+  background: rgba(255,255,255,.92) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-bottom: 1px solid var(--line, #e4e3e1) !important;
+  height: 74px !important;
+}
+.site-nav .nav-inner {
+  max-width: 1320px !important;
+  height: 74px !important;
+  padding: 0 clamp(20px, 5vw, 72px) !important;
+}
+.site-nav .nav-logo {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 1.05rem !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase !important;
+  color: var(--ink, #141414) !important;
+}
+.site-nav .menu-desktop { gap: clamp(14px, 2vw, 30px) !important; }
+.site-nav .menu-top-link, .site-nav .menu-desktop a {
+  font-family: 'Barlow', sans-serif !important;
+  font-size: .73rem !important;
+  font-weight: 600 !important;
+  letter-spacing: .13em !important;
+  text-transform: uppercase !important;
+  color: var(--ink-2, #5b5b5b) !important;
+  opacity: 1 !important;
+  transition: color .16s !important;
+  padding: 6px 0 !important;
+}
+.site-nav .menu-top-link:hover, .site-nav .menu-desktop a:hover { color: var(--ink, #141414) !important; }
+
+/* ── Sections ── */
+.section-block {
+  max-width: 100%;
+}
+.section-block > div {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding-inline: clamp(20px, 5vw, 72px);
+}
+
+/* ── Headings — Barlow Condensed uppercase ── */
+.heading-block h1, .heading-block h2, .heading-block h3 {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .005em !important;
+  line-height: .94 !important;
+}
+
+/* ── Paragraphs ── */
+.paragraph-block p, .rich-text-block p {
+  color: var(--ink-2, #5b5b5b);
+  line-height: 1.62;
+}
+
+/* ── Buttons — zero radius, uppercase, tracked ── */
+.button-block a, .button-block button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: .7em !important;
+  font-family: 'Barlow', sans-serif !important;
+  font-size: .74rem !important;
+  font-weight: 600 !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase !important;
+  border-radius: 0 !important;
+  transition: background .18s ease, color .18s ease, border-color .18s ease !important;
+}
+
+/* ── Stats block ── */
+.stats-block {
+  border: 1px solid var(--line, #e4e3e1) !important;
+  border-radius: 0 !important;
+}
+.stats-block [style*="font-size"] {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 700 !important;
+}
+
+/* ── Post grid / Latest posts ── */
+.postgrid-block, .latestposts-block {
+  border-radius: 0 !important;
+}
+.postgrid-block article, .latestposts-block article {
+  border-radius: 0 !important;
+  border: 1px solid var(--line, #e4e3e1) !important;
+}
+.postgrid-block article:hover, .latestposts-block article:hover {
+  border-color: var(--ink, #141414) !important;
+}
+.postgrid-block h3, .latestposts-block h3 {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+}
+
+/* ── Feature grid ── */
+.featuregrid-block [style*="border-radius"] {
+  border-radius: 0 !important;
+}
+
+/* ── Contact form ── */
+.contact-form-block input, .contact-form-block textarea {
+  border-radius: 0 !important;
+  font-family: 'Barlow', sans-serif !important;
+  border: 1px solid var(--line-strong, #cdccc9) !important;
+}
+.contact-form-block input:focus, .contact-form-block textarea:focus {
+  border-color: var(--ink, #141414) !important;
+  outline: none !important;
+}
+.contact-form-block label {
+  font-family: 'Barlow', sans-serif !important;
+  font-size: .64rem !important;
+  font-weight: 600 !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase !important;
+  color: var(--ink-3, #8c8c8c) !important;
+}
+
+/* ── Footer override ── */
+footer[role="contentinfo"],
+.site-foot {
+  background: var(--bg-dark, #0e0e0e) !important;
+  color: #c9c9c9 !important;
+}
+footer a { color: #cdcdcd !important; transition: color .15s !important; }
+footer a:hover { color: #fff !important; }
+
+/* ── Zero radius everywhere ── */
+*, *::before, *::after {
+  border-radius: 0 !important;
+}
+
+/* ── No shadows ── */
+.section-block, .card, .postgrid-block article, .latestposts-block article,
+.featuregrid-block > div > div, .stats-block, .contact-form-block {
+  box-shadow: none !important;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
