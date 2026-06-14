@@ -5,6 +5,13 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    include: ['src/**/*.test.{ts,tsx}'],
+    exclude: ['src/**/__tests__/**'],
+  },
   base: '/admin/',
   root: __dirname,
   build: {

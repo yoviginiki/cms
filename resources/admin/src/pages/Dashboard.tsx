@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Globe, FileText, Newspaper, ExternalLink, Download } from 'lucide-react';
+import { Plus, Globe, FileText, Newspaper, ExternalLink, Download, ArrowRight, X, Palette, Layout } from 'lucide-react';
 import { sites } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
@@ -16,6 +17,7 @@ interface Site {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [wizardOpen, setWizardOpen] = useState(false);
   const { data, isLoading, error } = useQuery<Site[]>({
     queryKey: ['sites'],
     queryFn: () => sites.list().then(r => r.data.data),
@@ -103,22 +105,130 @@ export default function Dashboard() {
             </div>
           ))}
 
-          <div onClick={() => {
-              const name = window.prompt('Site name:');
-              if (name) {
-                sites.create({ name, slug: name.toLowerCase().replace(/\s+/g, '-') }).then((r) => {
-                  navigate(`/sites/${r.data.data.id}/pages`);
-                });
-              }
-            }}
-            className="card border-2 border-dashed border-base-300/40 hover:border-base-300/70 cursor-pointer transition-all min-h-[180px] flex items-center justify-center">
+          <div onClick={() => setWizardOpen(true)}
+            className="card border-2 border-dashed border-base-300/40 hover:border-primary/40 cursor-pointer transition-all min-h-[180px] flex items-center justify-center group">
             <div className="card-body items-center justify-center text-center p-5">
-              <Plus className="h-8 w-8 text-base-content/15 mb-2" strokeWidth={1.5} />
-              <span className="text-[13px] font-medium text-base-content/40">Create new site</span>
+              <Plus className="h-8 w-8 text-base-content/15 group-hover:text-primary/40 mb-2 transition-colors" strokeWidth={1.5} />
+              <span className="text-[13px] font-medium text-base-content/40 group-hover:text-primary/60">Create new site</span>
             </div>
           </div>
+
+          {wizardOpen && <SiteWizard onClose={() => setWizardOpen(false)} onCreate={(id) => { setWizardOpen(false); navigate(`/sites/${id}/pages`); }} />}
         </div>
       )}
+    </div>
+  );
+}
+
+function SiteWizard({ onClose, onCreate }: { onClose: () => void; onCreate: (id: string) => void }) {
+  const [step, setStep] = useState(1);
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [template, setTemplate] = useState('blank');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+
+  const autoSlug = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    setCreating(true);
+    setError('');
+    try {
+      const r = await sites.create({ name: name.trim(), slug: slug || autoSlug(name) });
+      onCreate(r.data.data.id);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to create site');
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-base-100 rounded-2xl shadow-2xl w-[520px] max-w-[95vw] overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-base-300/20">
+          <h2 className="text-base font-semibold text-base-content">Create New Site</h2>
+          <button onClick={onClose} className="btn btn-ghost btn-xs btn-square"><X size={16} /></button>
+        </div>
+
+        {/* Steps indicator */}
+        <div className="flex items-center gap-2 px-6 py-3 bg-base-200/50">
+          {[1, 2, 3].map(s => (
+            <div key={s} className={`flex items-center gap-1.5 text-xs font-medium ${step >= s ? 'text-primary' : 'text-base-content/30'}`}>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step >= s ? 'bg-primary text-primary-content' : 'bg-base-300/50'}`}>{s}</div>
+              {s === 1 ? 'Basics' : s === 2 ? 'Template' : 'Confirm'}
+              {s < 3 && <div className={`w-6 h-px ${step > s ? 'bg-primary' : 'bg-base-300/30'}`} />}
+            </div>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-5">
+          {step === 1 && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-base-content/60 mb-1.5 block">Site Name</label>
+                <input type="text" value={name} onChange={e => { setName(e.target.value); if (!slug) setSlug(''); }}
+                  className="input input-bordered w-full" placeholder="My Awesome Website" autoFocus />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-base-content/60 mb-1.5 block">URL Slug</label>
+                <input type="text" value={slug || autoSlug(name)} onChange={e => setSlug(e.target.value)}
+                  className="input input-bordered w-full font-mono text-sm" placeholder="my-awesome-website" />
+                <p className="text-[10px] text-base-content/30 mt-1">Used for the default URL: {slug || autoSlug(name) || 'slug'}.ensodo.eu</p>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-3">
+              <p className="text-xs text-base-content/50 mb-2">Choose a starting point for your site.</p>
+              {[
+                { id: 'blank', icon: Layout, label: 'Blank Site', desc: 'Start from scratch with an empty site' },
+                { id: 'blog', icon: Newspaper, label: 'Blog', desc: 'Blog-ready with posts, categories, and archive pages' },
+                { id: 'portfolio', icon: Palette, label: 'Portfolio', desc: 'Showcase your work with gallery and project pages' },
+              ].map(t => (
+                <button key={t.id} onClick={() => setTemplate(t.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
+                    template === t.id ? 'border-primary bg-primary/5' : 'border-base-300/30 hover:border-base-300/60'
+                  }`}>
+                  <t.icon size={20} className={template === t.id ? 'text-primary' : 'text-base-content/30'} />
+                  <div>
+                    <div className={`text-sm font-medium ${template === t.id ? 'text-primary' : 'text-base-content/70'}`}>{t.label}</div>
+                    <div className="text-[11px] text-base-content/40">{t.desc}</div>
+                  </div>
+                </button>
+              ))}
+              <p className="text-[10px] text-base-content/25 mt-1">Template content can be customized after creation.</p>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-3">
+              <div className="bg-base-200/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm"><span className="text-base-content/50">Name</span><span className="font-medium text-base-content">{name}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-base-content/50">Slug</span><span className="font-mono text-base-content/80">{slug || autoSlug(name)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-base-content/50">Template</span><span className="text-base-content/80">{template === 'blank' ? 'Blank Site' : template === 'blog' ? 'Blog' : 'Portfolio'}</span></div>
+              </div>
+              {error && <div className="text-xs text-error bg-error/10 rounded-lg p-2">{error}</div>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-base-300/20 bg-base-200/30">
+          <button onClick={() => step > 1 ? setStep(step - 1) : onClose()}
+            className="btn btn-ghost btn-sm">{step === 1 ? 'Cancel' : 'Back'}</button>
+          {step < 3 ? (
+            <button onClick={() => setStep(step + 1)} disabled={step === 1 && !name.trim()}
+              className="btn btn-primary btn-sm gap-1">Next <ArrowRight size={14} /></button>
+          ) : (
+            <button onClick={handleCreate} disabled={creating || !name.trim()}
+              className="btn btn-primary btn-sm gap-1">{creating ? 'Creating...' : 'Create Site'}</button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

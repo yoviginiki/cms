@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Validate composer
+        run: composer validate --strict
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: resources/admin/package-lock.json
+
+      - name: Install admin dependencies
+        run: cd resources/admin && npm ci
+
+      - name: TypeScript + Vite build
+        run: cd resources/admin && npm run build
+
+      - name: Run frontend tests
+        run: cd resources/admin && npm run test:run
+
+      - name: Block audit
+        run: bash scripts/block-audit.sh

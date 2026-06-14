@@ -1,38 +1,48 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Suspense, lazy } from 'react';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { ToastProvider } from './components/ui/Toast';
+import { Loader2 } from 'lucide-react';
+
+// Eagerly loaded (critical path)
 import Dashboard from './pages/Dashboard';
-import PagesList from './pages/PagesList';
-import PageEditor from './pages/PageEditor';
-import PostsList from './pages/PostsList';
-import PostEditor from './pages/PostEditor';
-import Categories from './pages/Categories';
-import MagazineList from './pages/MagazineList';
-import MagazineEditorV2 from './pages/MagazineEditorV2';
-import Assets from './pages/Assets';
-import SiteSettings from './pages/SiteSettings';
-import ImportPage from './pages/ImportPage';
-import Tags from './pages/Tags';
-import Menus from './pages/Menus';
-import MenuEditor from './pages/MenuEditor';
-import Users from './pages/Users';
-import Grids from './pages/Grids';
-import GridEditor from './pages/GridEditor';
-import GridAssignments from './pages/GridAssignments';
-import Analytics from './pages/Analytics';
-import ContentGraph from './pages/ContentGraph';
-import DebugConsole from './pages/DebugConsole';
-import ThemeEngine from './pages/ThemeEngine';
-import ThemeEditorPage from './pages/ThemeEditor';
-import ThemeStudio from './pages/ThemeStudio';
-import Templates from './pages/Templates';
-import TemplateEditor from './pages/TemplateEditor';
 import Login from './pages/Login';
-import DtpPrototypeShell from './components/magazine/prototypes/dtp/DtpPrototypeShell';
-import DtpEditorBeta from './pages/DtpEditorBeta';
-import SessionsListPage from './pages/wizard/SessionsListPage';
-import WizardPage from './pages/wizard/WizardPage';
+
+// Lazy loaded (route-level code splitting)
+const PagesList = lazy(() => import('./pages/PagesList'));
+const PageEditor = lazy(() => import('./pages/PageEditor'));
+const PostsList = lazy(() => import('./pages/PostsList'));
+const PostEditor = lazy(() => import('./pages/PostEditor'));
+const Categories = lazy(() => import('./pages/Categories'));
+const MagazineList = lazy(() => import('./pages/MagazineList'));
+const MagazineEditorV2 = lazy(() => import('./pages/MagazineEditorV2'));
+const Assets = lazy(() => import('./pages/Assets'));
+const SiteSettings = lazy(() => import('./pages/SiteSettings'));
+const ImportPage = lazy(() => import('./pages/ImportPage'));
+const Tags = lazy(() => import('./pages/Tags'));
+const Menus = lazy(() => import('./pages/Menus'));
+const MenuEditor = lazy(() => import('./pages/MenuEditor'));
+const Users = lazy(() => import('./pages/Users'));
+const Grids = lazy(() => import('./pages/Grids'));
+const GridEditor = lazy(() => import('./pages/GridEditor'));
+const GridAssignments = lazy(() => import('./pages/GridAssignments'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const ContentGraph = lazy(() => import('./pages/ContentGraph'));
+const DebugConsole = lazy(() => import('./pages/DebugConsole'));
+const ThemeEngine = lazy(() => import('./pages/ThemeEngine'));
+const ThemeEditorPage = lazy(() => import('./pages/ThemeEditor'));
+const ThemeStudio = lazy(() => import('./pages/ThemeStudio'));
+const Templates = lazy(() => import('./pages/Templates'));
+const TemplateEditor = lazy(() => import('./pages/TemplateEditor'));
+const DtpPrototypeShell = lazy(() => import('./components/magazine/prototypes/dtp/DtpPrototypeShell'));
+const DtpEditorBeta = lazy(() => import('./pages/DtpEditorBeta'));
+const SessionsListPage = lazy(() => import('./pages/wizard/SessionsListPage'));
+const WizardPage = lazy(() => import('./pages/wizard/WizardPage'));
+
+function LazyFallback() {
+  return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-base-content/20" /></div>;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +61,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
+        <Suspense fallback={<LazyFallback />}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
@@ -93,6 +104,7 @@ export default function App() {
           {/* Beta DTP Editor — connected to real API, feature-flagged on backend */}
           <Route path="/sites/:siteId/magazine-issues/:issueId/dtp-editor" element={<DtpEditorBeta />} />
         </Routes>
+        </Suspense>
       </ToastProvider>
     </QueryClientProvider>
   );

@@ -98,10 +98,10 @@ export default function Templates() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-base-content flex items-center gap-2">
             <Layout className="h-6 w-6 text-indigo-500" /> Theme Builder
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-base-content/50">
             Design templates for posts, archives, headers, and footers
           </p>
         </div>
@@ -113,15 +113,15 @@ export default function Templates() {
 
       {isLoading && (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-base-content/40" />
         </div>
       )}
 
       {!isLoading && (!templatesList || templatesList.length === 0) && (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+        <div className="text-center py-16 bg-base-100 rounded-xl border border-base-300">
           <Layout className="h-12 w-12 mx-auto mb-4 text-gray-200" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-1">No templates yet</h3>
-          <p className="text-sm text-gray-400 mb-4">Create your first template to control how posts and pages look</p>
+          <h3 className="text-lg font-semibold text-base-content/80 mb-1">No templates yet</h3>
+          <p className="text-sm text-base-content/40 mb-4">Create your first template to control how posts and pages look</p>
           <button onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
             <Plus className="h-4 w-4" /> Create Template
@@ -134,20 +134,20 @@ export default function Templates() {
         const Icon = TYPE_ICONS[type] || Layout;
         return (
           <div key={type} className="mb-8">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-base-content/50 uppercase tracking-wider mb-3 flex items-center gap-2">
               <Icon className="h-4 w-4" /> {TYPE_LABELS[type] || type} Templates ({items.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {items.map(template => (
                 <div key={template.id}
-                  className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow cursor-pointer ${
-                    template.is_default ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-gray-200'
+                  className={`bg-base-100 rounded-xl border p-4 hover:shadow-md transition-shadow cursor-pointer ${
+                    template.is_default ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-base-300'
                   }`}
                   onClick={() => navigate(`/sites/${siteId}/templates/${template.id}/edit`)}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{template.name}</h3>
+                      <h3 className="font-semibold text-base-content">{template.name}</h3>
                       <div className="flex items-center gap-1.5 mt-1">
                         {template.is_default && (
                           <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium">Default</span>
@@ -169,7 +169,7 @@ export default function Templates() {
                         e.stopPropagation();
                         if (confirm(`Delete "${template.name}"?`)) deleteMut.mutate(template.id);
                       }}
-                      className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                      className="p-1 text-base-content/30 hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -184,16 +184,16 @@ export default function Templates() {
       {/* Create dialog */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-base-100 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">New Template</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-gray-500 mb-1 block">Template Name</label>
+                <label className="text-[11px] text-base-content/50 mb-1 block">Template Name</label>
                 <input value={newName} onChange={e => setNewName(e.target.value)}
                   className="input input-bordered input-sm w-full" placeholder="e.g. Video Post, News Archive" />
               </div>
               <div>
-                <label className="text-[11px] text-gray-500 mb-1 block">Template Type</label>
+                <label className="text-[11px] text-base-content/50 mb-1 block">Template Type</label>
                 <select value={newType} onChange={e => setNewType(e.target.value)}
                   className="select select-bordered select-sm w-full">
                   <option value="post">Single Post</option>
@@ -206,7 +206,7 @@ export default function Templates() {
               </div>
               {(newType === 'post' || newType === 'archive') && (
                 <div>
-                  <label className="text-[11px] text-gray-500 mb-1 block">Category (optional)</label>
+                  <label className="text-[11px] text-base-content/50 mb-1 block">Category (optional)</label>
                   <select value={newCategoryId} onChange={e => setNewCategoryId(e.target.value)}
                     className="select select-bordered select-sm w-full">
                     <option value="">All Categories</option>
@@ -214,12 +214,12 @@ export default function Templates() {
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-gray-300 mt-0.5">Leave empty for a global template</p>
+                  <p className="text-[10px] text-base-content/30 mt-0.5">Leave empty for a global template</p>
                 </div>
               )}
               {newType === 'post' && (
                 <div>
-                  <label className="text-[11px] text-gray-500 mb-1 block">Post Format (optional)</label>
+                  <label className="text-[11px] text-base-content/50 mb-1 block">Post Format (optional)</label>
                   <select value={newPostFormat} onChange={e => setNewPostFormat(e.target.value)}
                     className="select select-bordered select-sm w-full">
                     <option value="">All Formats</option>
@@ -233,11 +233,11 @@ export default function Templates() {
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={newIsDefault} onChange={e => setNewIsDefault(e.target.checked)}
                   className="checkbox checkbox-sm" />
-                <span className="text-[11px] text-gray-500">Set as default for this type</span>
+                <span className="text-[11px] text-base-content/50">Set as default for this type</span>
               </label>
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-700 border rounded-lg">Cancel</button>
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-base-content/80 border rounded-lg">Cancel</button>
               <button onClick={handleCreate} disabled={!newName.trim() || createMut.isPending}
                 className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
                 {createMut.isPending ? 'Creating...' : 'Create'}

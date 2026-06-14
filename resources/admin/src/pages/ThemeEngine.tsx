@@ -74,14 +74,14 @@ export default function ThemeEngine() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-base-content flex items-center gap-2">
             <Palette className="h-6 w-6 text-purple-500" /> Theme Engine
           </h1>
-          <p className="mt-1 text-sm text-gray-500">W3C Design Tokens-based theme system</p>
+          <p className="mt-1 text-sm text-base-content/50">W3C Design Tokens-based theme system</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowImport(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-base-300 text-base-content/70 hover:bg-base-200">
             <Upload className="h-3.5 w-3.5" /> Import JSON
           </button>
         </div>
@@ -89,7 +89,7 @@ export default function ThemeEngine() {
 
       {isLoading && (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-base-content/40" />
         </div>
       )}
 
@@ -102,7 +102,7 @@ export default function ThemeEngine() {
       {/* System Themes */}
       {systemThemes.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">System Themes</h2>
+          <h2 className="text-sm font-semibold text-base-content/50 uppercase tracking-wider mb-3">System Themes</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {systemThemes.map(theme => (
               <ThemeCard key={theme.id} theme={theme}
@@ -117,14 +117,14 @@ export default function ThemeEngine() {
 
       {/* Custom Themes */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+        <h2 className="text-sm font-semibold text-base-content/50 uppercase tracking-wider mb-3">
           Custom Themes {customThemes.length > 0 && `(${customThemes.length})`}
         </h2>
         {customThemes.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-            <Palette className="h-10 w-10 mx-auto mb-3 text-gray-200" />
-            <p className="text-sm text-gray-400 mb-1">No custom themes yet</p>
-            <p className="text-xs text-gray-300">Fork a system theme to start customizing</p>
+          <div className="text-center py-12 bg-base-100 rounded-xl border border-base-300">
+            <Palette className="h-10 w-10 mx-auto mb-3 text-base-content/20" />
+            <p className="text-sm text-base-content/40 mb-1">No custom themes yet</p>
+            <p className="text-xs text-base-content/30">Fork a system theme to start customizing</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -145,13 +145,13 @@ export default function ThemeEngine() {
       {/* Import dialog */}
       {showImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowImport(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-base-100 rounded-xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Import W3C Tokens JSON</h3>
             <textarea value={importJson} onChange={e => setImportJson(e.target.value)}
-              className="w-full h-64 border border-gray-200 rounded-lg p-3 font-mono text-xs"
+              className="w-full h-64 border border-base-300 rounded-lg p-3 font-mono text-xs"
               placeholder='Paste your W3C Design Tokens JSON here...' />
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowImport(false)} className="px-4 py-2 text-sm text-gray-700 border rounded-lg">Cancel</button>
+              <button onClick={() => setShowImport(false)} className="px-4 py-2 text-sm text-base-content/80 border rounded-lg">Cancel</button>
               <button onClick={handleImport} disabled={importMut.isPending || !importJson.trim()}
                 className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
                 {importMut.isPending ? 'Importing...' : 'Import'}
@@ -232,23 +232,23 @@ function CustomFontsSection({ siteId }: { siteId: string }) {
 
   return (
     <div className="mb-8">
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <h2 className="text-sm font-semibold text-base-content/50 uppercase tracking-wider mb-3 flex items-center gap-2">
         <Type size={14} /> Custom Fonts
       </h2>
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="bg-base-100 rounded-xl border border-base-300 p-4 mb-4">
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Font Family Name</label>
+            <label className="text-xs text-base-content/50 mb-1 block">Font Family Name</label>
             <input type="text" value={familyName} onChange={e => setFamilyName(e.target.value)}
               placeholder="e.g. Montserrat" className="input input-bordered input-sm w-full text-xs" />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Font File</label>
+            <label className="text-xs text-base-content/50 mb-1 block">Font File</label>
             <input ref={fileRef} type="file" accept=".ttf,.woff,.woff2,.otf"
               className="file-input file-input-bordered file-input-sm w-full text-xs" />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Weight</label>
+            <label className="text-xs text-base-content/50 mb-1 block">Weight</label>
             <select value={weight} onChange={e => setWeight(Number(e.target.value))}
               className="select select-bordered select-sm w-full text-xs">
               {[100,200,300,400,500,600,700,800,900].map(w => (
@@ -257,7 +257,7 @@ function CustomFontsSection({ siteId }: { siteId: string }) {
             </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Style</label>
+            <label className="text-xs text-base-content/50 mb-1 block">Style</label>
             <select value={fontStyle} onChange={e => setFontStyle(e.target.value)}
               className="select select-bordered select-sm w-full text-xs">
               <option value="normal">Normal</option>
@@ -272,23 +272,23 @@ function CustomFontsSection({ siteId }: { siteId: string }) {
         </button>
       </div>
       {grouped.size === 0 ? (
-        <div className="text-center py-6 text-xs text-gray-400">No custom fonts uploaded yet</div>
+        <div className="text-center py-6 text-xs text-base-content/40">No custom fonts uploaded yet</div>
       ) : (
         <div className="space-y-2">
           {Array.from(grouped.entries()).map(([family, variants]) => (
-            <div key={family} className="bg-white rounded-lg border border-gray-200 p-3">
+            <div key={family} className="bg-base-100 rounded-lg border border-base-300 p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold" style={{ fontFamily: `'${family}', sans-serif` }}>{family}</span>
-                <span className="text-[10px] text-gray-400">{variants.length} variant{variants.length > 1 ? 's' : ''}</span>
+                <span className="text-[10px] text-base-content/40">{variants.length} variant{variants.length > 1 ? 's' : ''}</span>
               </div>
               <p className="text-lg mb-2" style={{ fontFamily: `'${family}', sans-serif` }}>
                 The quick brown fox jumps over the lazy dog
               </p>
               <div className="flex flex-wrap gap-1">
                 {variants.map((v: any) => (
-                  <div key={v.id} className="flex items-center gap-1 bg-gray-50 rounded px-2 py-0.5">
-                    <span className="text-[10px] text-gray-500">{v.weight} {v.style}</span>
-                    <button onClick={() => deleteMut.mutate(v.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={10} /></button>
+                  <div key={v.id} className="flex items-center gap-1 bg-base-200 rounded px-2 py-0.5">
+                    <span className="text-[10px] text-base-content/50">{v.weight} {v.style}</span>
+                    <button onClick={() => deleteMut.mutate(v.id)} className="text-base-content/30 hover:text-red-500"><Trash2 size={10} /></button>
                   </div>
                 ))}
               </div>
@@ -308,50 +308,55 @@ function ThemeCard({ theme, onFork, onActivate, isActivating, onEdit }: {
   onEdit: () => void;
 }) {
   return (
-    <div className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${
-      theme.is_assigned ? 'border-purple-300 ring-1 ring-purple-200' : 'border-gray-200'
+    <div className={`bg-base-100 rounded-xl border p-4 hover:shadow-md transition-shadow ${
+      theme.is_assigned ? 'border-primary/40 ring-1 ring-primary/20' : 'border-base-300'
     }`}>
+      {/* Screenshot placeholder */}
+      <div className="h-28 rounded-lg bg-base-200 mb-3 flex items-center justify-center overflow-hidden">
+        <Palette className="h-8 w-8 text-base-content/10" />
+      </div>
+
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h3 className="font-semibold text-gray-900">{theme.name}</h3>
+          <h3 className="font-semibold text-base-content">{theme.name}</h3>
           {theme.description && (
-            <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{theme.description}</p>
+            <p className="text-xs text-base-content/40 mt-0.5 line-clamp-2">{theme.description}</p>
           )}
         </div>
         {theme.is_assigned && (
-          <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span className="badge badge-success badge-sm gap-1">
             <Power className="h-2.5 w-2.5" /> Active
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 mb-3">
+      <div className="flex items-center gap-1.5 mb-3 flex-wrap">
         {theme.modes?.map(m => (
-          <span key={m} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{m}</span>
+          <span key={m} className="badge badge-ghost badge-xs">{m}</span>
         ))}
         {theme.is_system && (
-          <span className="text-[10px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded">System</span>
+          <span className="badge badge-info badge-xs">System</span>
         )}
       </div>
 
       <div className="flex items-center gap-1.5">
         <button onClick={onEdit}
-          className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+          className="flex-1 btn btn-ghost btn-xs gap-1">
           <Eye className="h-3 w-3" /> {theme.is_system ? 'View' : 'Edit'}
         </button>
         {theme.is_system && (
           <button onClick={onFork}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+            className="btn btn-ghost btn-xs gap-1">
             <Copy className="h-3 w-3" /> Fork
           </button>
         )}
         {theme.is_assigned ? (
-          <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 border border-green-200">
+          <span className="btn btn-success btn-xs gap-1 no-animation">
             <Check className="h-3 w-3" /> Active
           </span>
         ) : (
           <button onClick={onActivate} disabled={isActivating}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">
+            className="btn btn-primary btn-xs gap-1">
             <Power className="h-3 w-3" /> Activate
           </button>
         )}
