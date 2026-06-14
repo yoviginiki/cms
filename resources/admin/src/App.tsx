@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy } from 'react';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { ToastProvider } from './components/ui/Toast';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 // Eagerly loaded (critical path)
@@ -61,6 +62,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
+        <ErrorBoundary>
         <Suspense fallback={<LazyFallback />}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -105,6 +107,7 @@ export default function App() {
           <Route path="/sites/:siteId/magazine-issues/:issueId/dtp-editor" element={<DtpEditorBeta />} />
         </Routes>
         </Suspense>
+        </ErrorBoundary>
       </ToastProvider>
     </QueryClientProvider>
   );
