@@ -229,6 +229,30 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/deployments/{deployment}', [PublishController::class, 'status']);
         Route::post('sites/{site}/deployments/{deployment}/rollback', [PublishController::class, 'rollback']);
 
+        // Activity Logs
+        Route::get('sites/{site}/activity', function (\App\Models\Site $site, \Illuminate\Http\Request $request) {
+            $logs = \App\Models\ActivityLog::where('site_id', $site->id)
+                ->orderByDesc('created_at')
+                ->limit($request->integer('limit', 50))
+                ->get();
+            return response()->json(['data' => $logs]);
+        });
+
+        // Backup Export
+        Route::get('sites/{site}/backup', function (\App\Models\Site $site) {
+            $service = app(\App\Services\BackupExportService::class);
+            $manifest = $service->export($site);
+            return response()->json(['data' => $manifest]);
+        });
+
+        // Backup Restore Dry-Run
+        Route::post('sites/{site}/backup/validate', function (\Illuminate\Http\Request $request, \App\Models\Site $site) {
+            $request->validate(['manifest' => ['required', 'array']]);
+            $service = app(\App\Services\BackupExportService::class);
+            $result = $service->validateForRestore($request->input('manifest'));
+            return response()->json(['data' => $result]);
+        });
+
         // Layouts
         Route::get('sites/{site}/layouts', function (\App\Models\Site $site) {
             $layouts = \Illuminate\Support\Facades\DB::table('layouts')

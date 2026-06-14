@@ -7,9 +7,14 @@ use App\Domain\Publishing\Jobs\PublishSiteJob;
 use App\Models\Deployment;
 use App\Models\Site;
 use App\Models\User;
+use App\Services\ActivityLogService;
 
 class PublishOrchestrator
 {
+    public function __construct(
+        private ActivityLogService $activityLog,
+    ) {}
+
     public function publish(Site $site, User $triggeredBy, string $type = 'partial'): Deployment
     {
         // Clear stale deployments stuck for more than 5 minutes
@@ -36,8 +41,14 @@ class PublishOrchestrator
                 'metadata' => ['pages_total' => 0, 'pages_built' => 0, 'current_step' => 'queued'],
             ]);
 
-            // Run synchronously for fast publish — no queue delay
-            PublishSiteJob::dispatchSync($deployment, $type);
+            $this->activityLog->log('publish.started', $site->id, 'deployment', $deployment->id, ['type' => $type]);
+
+            // Use async queue if configured, otherwise synchronous for instant feedback
+            if (config('queue.default') !== 'sync') {
+                PublishSiteJob::dispatch($deployment, $type);
+            } else {
+                PublishSiteJob::dispatchSync($deployment, $type);
+            }
 
             return $deployment;
         });
