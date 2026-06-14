@@ -41,11 +41,25 @@ header[role="banner"] {
   border-bottom: 1px solid var(--gray-light) !important;
 }
 .site-nav .nav-inner,
+.site-nav > div,
+.site-nav > div[style],
 header[role="banner"] .nav-inner {
   max-width: 1200px !important;
   width: 90% !important;
+  margin: 0 auto !important;
   padding: 12px 0 !important;
   height: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+/* Override the CMS inline container-width on nav */
+.site-nav [style*="max-width:var(--container-width"],
+.site-nav [style*="max-width: var(--container-width"] {
+  max-width: 1200px !important;
+  width: 90% !important;
+  height: auto !important;
+  padding: 12px 0 !important;
 }
 .site-nav .nav-logo,
 header .nav-logo {
@@ -57,7 +71,8 @@ header .nav-logo {
   color: var(--black) !important;
 }
 .site-nav .menu-desktop,
-.site-nav .nav-menu { gap: 36px !important; }
+.site-nav .nav-menu,
+.site-nav ul[style] { gap: 36px !important; }
 .site-nav .menu-top-link,
 .site-nav .menu-desktop a,
 .site-nav .nav-menu a {
@@ -88,12 +103,19 @@ header .nav-logo {
   color: #fff !important;
 }
 
+/* ── MAIN WRAPPER — remove CMS container constraint so sections go full-width ── */
+main[role="main"] {
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 /* ── SECTION WRAPPER ── */
-main[role="main"] { padding-top: 0 !important; }
 .section-block {
   max-width: 100% !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+  width: 100% !important;
 }
 .section-block > div {
   max-width: 1200px !important;
@@ -132,9 +154,9 @@ h1, h2, h3 {
   text-transform: uppercase !important;
   line-height: 1.12 !important;
 }
-.heading-block h1 { font-size: clamp(42px, 6.5vw, 76px) !important; line-height: 1.06 !important; }
-.heading-block h2 { font-size: clamp(30px, 4.5vw, 40px) !important; }
-.heading-block h3 { font-size: 21px !important; }
+.heading-block h1 { font-size: clamp(42px, 6.5vw, 76px) !important; line-height: 1.06 !important; margin-bottom: 28px !important; }
+.heading-block h2 { font-size: clamp(30px, 4.5vw, 56px) !important; line-height: 1.12 !important; }
+.heading-block h3 { font-size: 21px !important; letter-spacing: .06em !important; }
 
 /* Red accent for <em> or .red in headings */
 h1 em, h2 em, .red { font-style: normal; color: var(--red) !important; }
@@ -184,21 +206,26 @@ a.btn, button.btn {
 
 /* ── STATS BLOCK ── */
 .stats-block {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.stats-block > div[style] {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
   gap: 2px !important;
-  border: none !important;
-  background: transparent !important;
+  text-align: left !important;
 }
-.stats-block > div, .stat-box {
+.stats-block > div > div, .stat-box {
   background: #fff !important;
   padding: 34px 28px !important;
   border: 1px solid var(--gray-light) !important;
   border-radius: 0 !important;
   transition: border-color .2s !important;
+  text-align: left !important;
 }
-.stats-block > div:hover, .stat-box:hover { border-color: var(--red) !important; }
-.stats-block b, .stat-num {
+.stats-block > div > div:hover, .stat-box:hover { border-color: var(--red) !important; }
+.stats-block > div > div > div:first-child, .stat-num {
   font-family: 'Barlow Condensed', sans-serif !important;
   font-weight: 700 !important;
   font-size: 46px !important;
@@ -208,19 +235,27 @@ a.btn, button.btn {
   display: block !important;
   margin-bottom: 8px !important;
 }
-.stats-block span, .stat-label {
+.stats-block > div > div > div:last-child, .stat-label {
   font-family: 'Barlow Condensed', sans-serif !important;
   font-size: 11px !important;
   letter-spacing: .2em !important;
   text-transform: uppercase !important;
   color: var(--gray-mid) !important;
+  margin-top: 0 !important;
 }
 
 /* ── POST GRID / LATEST POSTS (project cards) ── */
 .postgrid-block, .latestposts-block {
   border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
 }
-.postgrid-block article, .latestposts-block article {
+.postgrid-block > div {
+  gap: 2px !important;
+}
+.postgrid-block article,
+.postgrid-block article[style] {
   background: #fff !important;
   border: 1px solid var(--gray-light) !important;
   border-radius: 0 !important;
@@ -245,18 +280,37 @@ a.btn, button.btn {
 }
 .postgrid-block article:hover::before, .latestposts-block article:hover::before { transform: scaleX(1) !important; }
 
+/* Card image wrapper — 16:9 aspect ratio */
+.postgrid-block article > div:first-child {
+  aspect-ratio: 16/9 !important;
+  overflow: hidden !important;
+  background: #ebebeb !important;
+  border-radius: 0 !important;
+  height: auto !important;
+}
 /* Card images — grayscale to color on hover */
 .postgrid-block article img, .latestposts-block article img {
   filter: grayscale(100%) !important;
   opacity: .22 !important;
   transition: filter .4s ease, opacity .4s ease !important;
   border-radius: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: top center !important;
 }
 .postgrid-block article:hover img, .latestposts-block article:hover img {
   filter: grayscale(0%) !important;
   opacity: .85 !important;
 }
 
+/* Card body */
+.postgrid-block article > div:last-child {
+  padding: 26px 26px 30px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+}
 /* Card text */
 .postgrid-block h3, .latestposts-block h3,
 .postgrid-block article h3 {
@@ -277,15 +331,22 @@ a.btn, button.btn {
   line-height: 1.7 !important;
 }
 
-/* Category tag */
-.postgrid-block .cat, .latestposts-block .cat,
-.postgrid-block article span:first-child {
+/* Category tag — override CMS blue primary to red */
+.postgrid-block .cat, .postgrid-block article span,
+.postgrid-block article span[style*="color:var(--color-primary"] {
   font-family: 'Barlow Condensed', sans-serif !important;
   font-size: 10px !important;
   letter-spacing: .28em !important;
   text-transform: uppercase !important;
   color: var(--red) !important;
+  font-weight: 500 !important;
+  margin-bottom: 10px !important;
+  display: block !important;
 }
+/* Card title link hover */
+.postgrid-block article:hover h3 a { color: var(--red) !important; }
+/* Card link at bottom */
+.postgrid-block article a[style*="text-decoration:none"] { transition: color .2s !important; }
 
 /* ── FEATURE GRID ── */
 .featuregrid-block > div {
@@ -385,6 +446,127 @@ footer a:hover { color: #ccc !important; }
 a:focus-visible, .btn:focus-visible, button:focus-visible {
   outline: 2px solid var(--red) !important;
   outline-offset: 3px !important;
+}
+
+/* ── FIRST SECTION = HERO (tall padding, image overlay) ── */
+main[role="main"] > .section-block:first-child {
+  padding-top: 130px !important;
+  padding-bottom: 140px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+/* Hero background image gets grayscale + low opacity */
+main[role="main"] > .section-block:first-child {
+  background-blend-mode: luminosity !important;
+}
+/* Hero overlay gradient (white fade from left) */
+main[role="main"] > .section-block:first-child .block-bg-overlay {
+  background: linear-gradient(105deg, rgba(255,255,255,.97) 0%, rgba(255,255,255,.82) 30%, rgba(255,255,255,.35) 58%, rgba(255,255,255,.05) 100%) !important;
+  opacity: 1 !important;
+}
+
+/* ── SECTION ALTERNATING BACKGROUNDS ── */
+main[role="main"] > .section-block:nth-child(even) {
+  background-color: var(--section-bg, #f5f5f5) !important;
+}
+main[role="main"] > .section-block {
+  padding-top: 100px !important;
+  padding-bottom: 100px !important;
+}
+
+/* ── PARAGRAPH BLOCK — section labels (eyebrow pattern) ── */
+/* Paragraphs containing "—" at the start are eyebrow labels */
+.paragraph-block p {
+  font-size: 15.5px !important;
+  color: #555 !important;
+  font-weight: 300 !important;
+  line-height: 1.82 !important;
+}
+/* Short paragraphs (eyebrows) */
+.section-block > div > .row-block:first-child .paragraph-block:first-child p {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 11px !important;
+  letter-spacing: .28em !important;
+  text-transform: uppercase !important;
+  color: var(--gray-mid) !important;
+}
+
+/* ── COLUMN LAYOUT — proper 2-col spacing ── */
+.row-block { gap: 80px; }
+
+/* ── LATEST POSTS — service list style ── */
+.latestposts-block {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+}
+.latestposts-block > div,
+.latestposts-block > div[style] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  border-top: 1px solid var(--gray-light) !important;
+}
+.latestposts-block article,
+.latestposts-block article[style] {
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 34px 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gray-light) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  transition: background .18s, padding-left .18s !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+.latestposts-block article:hover {
+  background: #fafafa !important;
+  padding-left: 8px !important;
+}
+.latestposts-block article::before { display: none !important; }
+.latestposts-block article img { display: none !important; }
+/* Category label */
+.latestposts-block article span[style*="color:var(--color-primary"],
+.latestposts-block article span {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--gray-mid) !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase !important;
+}
+.latestposts-block h3 {
+  font-size: 21px !important;
+  letter-spacing: .06em !important;
+  margin: 6px 0 !important;
+}
+.latestposts-block h3 a {
+  color: var(--black) !important;
+  transition: color .2s !important;
+}
+.latestposts-block article:hover h3 a { color: var(--red) !important; }
+.latestposts-block article p,
+.latestposts-block article p[style] {
+  font-size: 15px !important;
+  color: #555 !important;
+  font-weight: 300 !important;
+  line-height: 1.72 !important;
+}
+.latestposts-block article > div[style] {
+  padding: 0 !important;
+}
+
+/* ── IMAGE BLOCK ── */
+.image-block img {
+  filter: grayscale(100%) !important;
+  opacity: .22 !important;
+  transition: filter .4s ease, opacity .4s ease !important;
+}
+.image-block:hover img {
+  filter: grayscale(0%) !important;
+  opacity: .85 !important;
 }
 
 /* ── RESPONSIVE ── */
