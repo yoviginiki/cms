@@ -84,10 +84,10 @@
     .site-nav .nav-menu a{font-family:var(--font-heading, sans-serif);font-size:var(--nav-font-size, 12px);font-weight:var(--nav-font-weight, 500);color:var(--color-text-muted, #666);text-decoration:none;transition:color 0.2s;letter-spacing:var(--nav-tracking, 0.12em);text-transform:var(--nav-transform, uppercase)}
     .site-nav .nav-menu a:hover{color:var(--color-primary, #3b82f6)}
     .site-nav .has-children{position:relative}
-    .site-nav .nav-submenu{display:none;position:absolute;top:calc(100% + 8px);left:-16px;min-width:180px;padding:8px 0;background:#fff;border:1px solid var(--color-border-light, #eee);box-shadow:0 8px 32px rgba(0,0,0,0.08);list-style:none !important;z-index:100;border-radius:8px}
+    .site-nav .nav-submenu{display:none;position:absolute;top:calc(100% + 8px);left:-16px;min-width:180px;padding:8px 0;background:var(--color-bg,#fff);border:1px solid var(--color-border-light, #eee);box-shadow:var(--shadow-md,0 8px 32px rgba(0,0,0,0.08));list-style:none !important;z-index:100;border-radius:var(--border-radius-md,0.5rem)}
     .site-nav .has-children:hover .nav-submenu{display:block}
     .site-nav .nav-submenu li{list-style:none}
-    .site-nav .nav-submenu a{display:block;padding:8px 20px;font-size:13px;white-space:nowrap;opacity:0.7}
+    .site-nav .nav-submenu a{display:block;padding:8px 20px;font-size:var(--nav-font-size,12px);white-space:nowrap;color:var(--color-text-muted,#666);transition:color 0.2s}
     .site-nav .nav-submenu a:hover{background:var(--color-bg-alt, #f5f5f0);opacity:1}
 
     /* Hamburger */

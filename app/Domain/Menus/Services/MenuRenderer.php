@@ -240,7 +240,7 @@ class MenuRenderer
         }
 
         // Copyright
-        $html .= "    <p style=\"font-size:0.75rem;opacity:0.6;margin-top:1.5rem;\">" . e($footerCopyright) . "</p>\n";
+        $html .= "    <p style=\"font-size:0.75rem;color:var(--color-text-muted,#888);margin-top:1.5rem;\">" . e($footerCopyright) . "</p>\n";
 
         $html .= "  </div>\n";
         $html .= "</footer>\n";
