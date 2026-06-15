@@ -53,6 +53,11 @@ class SanitizationService
         $sanitizeConfig = $definition?->sanitizationConfig() ?? [];
         $allowedHtml = $sanitizeConfig['HTML.Allowed'] ?? '';
 
+        // Check if block has allowHtml flag for safe inline HTML in text fields
+        $blockAllowHtml = !empty($data['allowHtml']);
+        // Fields that can contain safe inline HTML when allowHtml is set
+        $inlineHtmlFields = ['text', 'heading', 'title', 'quote'];
+
         $sanitized = [];
         foreach ($data as $key => $value) {
             if (!is_string($value)) {
@@ -63,6 +68,9 @@ class SanitizationService
             // Fields that should allow rich HTML
             if ($key === 'content' && $allowedHtml !== '') {
                 $sanitized[$key] = @$this->purifier->purify($value);
+            } elseif ($blockAllowHtml && in_array($key, $inlineHtmlFields)) {
+                // Allow safe inline HTML: <br>, <em>, <strong>, <span>
+                $sanitized[$key] = strip_tags($value, '<br><em><strong><span>');
             } else {
                 // Strip all HTML for plain text fields
                 $sanitized[$key] = @$this->strictPurifier->purify($value);
