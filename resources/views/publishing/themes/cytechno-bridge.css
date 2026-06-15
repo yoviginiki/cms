@@ -53,14 +53,19 @@ header[role="banner"] .nav-inner {
   align-items: center !important;
   justify-content: space-between !important;
 }
-/* Override the CMS inline container-width on nav */
-.site-nav [style*="max-width:var(--container-width"],
-.site-nav [style*="max-width: var(--container-width"] {
+/* Override ALL CMS inline styles on nav container */
+.site-nav [style*="max-width"],
+.site-nav [style*="height"] {
   max-width: 1200px !important;
   width: 90% !important;
   height: auto !important;
-  padding: 12px 0 !important;
+  padding: 16px 0 !important;
+  margin: 0 auto !important;
 }
+/* Override inline gap on nav list */
+.site-nav ul[style*="gap"] { gap: 36px !important; }
+/* Override inline height on nav */
+.site-nav[style*="height"] { height: auto !important; }
 .site-nav .nav-logo,
 header .nav-logo {
   font-family: 'Barlow Condensed', sans-serif !important;
@@ -145,8 +150,9 @@ main[role="main"] {
   display: inline !important;
 }
 
-/* ── HEADINGS ── */
+/* ── HEADINGS — Barlow Condensed 600, uppercase ── */
 .heading-block h1, .heading-block h2, .heading-block h3,
+.heading-block h1[style], .heading-block h2[style], .heading-block h3[style],
 h1, h2, h3 {
   font-family: 'Barlow Condensed', sans-serif !important;
   font-weight: 600 !important;
@@ -154,25 +160,33 @@ h1, h2, h3 {
   text-transform: uppercase !important;
   line-height: 1.12 !important;
 }
-.heading-block h1 { font-size: clamp(42px, 6.5vw, 76px) !important; line-height: 1.06 !important; margin-bottom: 28px !important; }
-.heading-block h2 { font-size: clamp(30px, 4.5vw, 56px) !important; line-height: 1.12 !important; }
-.heading-block h3 { font-size: 21px !important; letter-spacing: .06em !important; }
+.heading-block h1, .heading-block h1[style] { font-size: clamp(42px, 6.5vw, 76px) !important; line-height: 1.06 !important; letter-spacing: .025em !important; margin-bottom: 28px !important; }
+.heading-block h2, .heading-block h2[style] { font-size: clamp(30px, 4.5vw, 56px) !important; line-height: 1.12 !important; margin-bottom: 22px !important; }
+.heading-block h3, .heading-block h3[style] { font-size: 21px !important; letter-spacing: .06em !important; }
 
 /* Red accent for <em> or .red in headings */
 h1 em, h2 em, .red { font-style: normal; color: var(--red) !important; }
 
 /* ── BODY TEXT ── */
-.paragraph-block p, .rich-text-block p, p {
-  font-size: 15.5px;
-  color: #555;
-  font-weight: 300;
-  line-height: 1.82;
+.paragraph-block p, .rich-text-block p {
+  font-size: 15.5px !important;
+  color: #555 !important;
+  font-weight: 300 !important;
+  line-height: 1.82 !important;
 }
-.paragraph-block p strong, .rich-text-block p strong { font-weight: 600; color: var(--black); }
+.paragraph-block p strong, .rich-text-block p strong { font-weight: 600 !important; color: var(--black) !important; }
+/* Kill CMS prose opacity */
+.prose[style*="opacity"], .prose.max-w-none[style] {
+  opacity: 1 !important;
+}
+.paragraph-block .prose, .paragraph-block .prose[style] {
+  opacity: 1 !important;
+}
 
 /* ── BUTTONS ── */
 .button-block a, .button-block button,
-a.btn, button.btn {
+.button-block a[style], .button-block button[style],
+a.btn, a.btn[style], button.btn {
   display: inline-block !important;
   font-family: 'Barlow Condensed', sans-serif !important;
   font-weight: 600 !important;
@@ -203,6 +217,49 @@ a.btn, button.btn {
 .button-block a:hover::after, a.btn:hover::after { transform: scaleX(1) !important; }
 .button-block a:hover, a.btn:hover { color: #fff !important; }
 .button-block a > *, a.btn > * { position: relative; z-index: 1; }
+
+/* Second button variant — dark/secondary */
+.button-block + .button-block a,
+a.btn-dark, a.btn.btn-secondary,
+a.btn[href="/portfolio"], a.btn[href*="portfolio"] {
+  border-color: var(--gray-light) !important;
+  color: var(--gray-dark) !important;
+  margin-left: 14px !important;
+}
+.button-block + .button-block a::after {
+  background: var(--black) !important;
+}
+.button-block + .button-block a:hover {
+  color: #fff !important;
+}
+/* Hero buttons side by side */
+main[role="main"] > .section-block:first-child .button-block {
+  display: inline-block !important;
+}
+
+/* ── Hero sub text ── */
+main[role="main"] > .section-block:first-child .paragraph-block p {
+  font-size: 17px !important;
+  color: #555 !important;
+  font-weight: 300 !important;
+  line-height: 1.75 !important;
+  max-width: 600px !important;
+}
+/* Hero eyebrow */
+main[role="main"] > .section-block:first-child .paragraph-block:first-child p {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 11px !important;
+  letter-spacing: .28em !important;
+  text-transform: uppercase !important;
+  color: var(--gray-mid) !important;
+  margin-bottom: 20px !important;
+  max-width: none !important;
+}
+/* Hero sub paragraph spacing */
+main[role="main"] > .section-block:first-child .heading-block + .paragraph-block p {
+  margin-bottom: 50px !important;
+}
 
 /* ── STATS BLOCK ── */
 .stats-block {
@@ -245,7 +302,8 @@ a.btn, button.btn {
 }
 
 /* ── POST GRID / LATEST POSTS (project cards) ── */
-.postgrid-block, .latestposts-block {
+.postgrid-block, .latestposts-block,
+.postgrid-block[style], .latestposts-block[style] {
   border-radius: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
@@ -433,6 +491,21 @@ footer {
 footer a { color: #666 !important; transition: color .2s !important; }
 footer a:hover { color: #ccc !important; }
 
+/* ── FOOTER — CMS doesn't render one, inject via CSS ::after on body ── */
+body::after {
+  content: '© 2026 Cybertechnology · Nikolay Petrov, CEO';
+  display: block;
+  background: var(--black, #111) !important;
+  color: #666 !important;
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 11px !important;
+  letter-spacing: .18em !important;
+  text-transform: uppercase !important;
+  padding: 38px 5%;
+  text-align: center;
+  width: 100%;
+}
+
 /* ── NO SHADOWS ANYWHERE ── */
 * { box-shadow: none !important; }
 
@@ -448,21 +521,105 @@ a:focus-visible, .btn:focus-visible, button:focus-visible {
   outline-offset: 3px !important;
 }
 
-/* ── FIRST SECTION = HERO (tall padding, image overlay) ── */
+/* ── FIRST SECTION = HERO ── */
 main[role="main"] > .section-block:first-child {
   padding-top: 130px !important;
   padding-bottom: 140px !important;
   position: relative !important;
   overflow: hidden !important;
+  /* Hide the original full-color bg so we replace it with grayscale */
+  background-color: #fff !important;
 }
-/* Hero background image gets grayscale + low opacity */
-main[role="main"] > .section-block:first-child {
-  background-blend-mode: luminosity !important;
+/* Grayscale image layer (::before inherits background-image from inline style) */
+main[role="main"] > .section-block:first-child::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-image: inherit !important;
+  background-size: cover !important;
+  background-position: center 40% !important;
+  filter: grayscale(100%) !important;
+  opacity: .32 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
 }
-/* Hero overlay gradient (white fade from left) */
-main[role="main"] > .section-block:first-child .block-bg-overlay {
+/* White gradient fade overlay (::after) */
+main[role="main"] > .section-block:first-child::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
   background: linear-gradient(105deg, rgba(255,255,255,.97) 0%, rgba(255,255,255,.82) 30%, rgba(255,255,255,.35) 58%, rgba(255,255,255,.05) 100%) !important;
-  opacity: 1 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+/* Hero content above both layers */
+main[role="main"] > .section-block:first-child > div {
+  position: relative !important;
+  z-index: 2 !important;
+  max-width: 800px !important;
+}
+/* Kill any CMS-generated overlay div */
+main[role="main"] > .section-block:first-child .block-bg-overlay {
+  display: none !important;
+}
+
+/* ── ABOUT SECTION (2nd) — also has bg image with fade ── */
+main[role="main"] > .section-block:nth-child(2) {
+  position: relative !important;
+  overflow: hidden !important;
+}
+main[role="main"] > .section-block:nth-child(2)::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-image: inherit !important;
+  background-size: cover !important;
+  background-position: center right !important;
+  filter: grayscale(100%) !important;
+  opacity: .12 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+main[role="main"] > .section-block:nth-child(2)::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(90deg, rgba(245,245,245,.98) 0%, rgba(245,245,245,.88) 40%, rgba(245,245,245,.45) 70%, rgba(245,245,245,.08) 100%) !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+main[role="main"] > .section-block:nth-child(2) > div {
+  position: relative !important;
+  z-index: 2 !important;
+}
+main[role="main"] > .section-block:nth-child(2) .block-bg-overlay {
+  display: none !important;
+}
+
+/* ── CONTACT CTA SECTION (last) — bg image with fade ── */
+main[role="main"] > .section-block:last-child {
+  position: relative !important;
+  overflow: hidden !important;
+  text-align: center !important;
+}
+main[role="main"] > .section-block:last-child::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-image: inherit !important;
+  background-size: cover !important;
+  background-position: center !important;
+  filter: grayscale(100%) !important;
+  opacity: .08 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+main[role="main"] > .section-block:last-child > div {
+  position: relative !important;
+  z-index: 2 !important;
+}
+main[role="main"] > .section-block:last-child .block-bg-overlay {
+  display: none !important;
 }
 
 /* ── SECTION ALTERNATING BACKGROUNDS ── */
@@ -474,22 +631,39 @@ main[role="main"] > .section-block {
   padding-bottom: 100px !important;
 }
 
-/* ── PARAGRAPH BLOCK — section labels (eyebrow pattern) ── */
-/* Paragraphs containing "—" at the start are eyebrow labels */
+/* ── PARAGRAPH BLOCK — body text ── */
 .paragraph-block p {
   font-size: 15.5px !important;
   color: #555 !important;
   font-weight: 300 !important;
   line-height: 1.82 !important;
 }
-/* Short paragraphs (eyebrows) */
-.section-block > div > .row-block:first-child .paragraph-block:first-child p {
+.paragraph-block p strong { font-weight: 600 !important; color: var(--black) !important; }
+
+/* Eyebrow paragraphs — paragraphs starting with "—" in the first row of a section */
+.section-block > div > .row-block:first-child .paragraph-block:first-child p,
+.section-block > div > .row-block:first-child .column-block:first-child > div > .paragraph-block:first-child p {
   font-family: 'Barlow Condensed', sans-serif !important;
   font-weight: 500 !important;
   font-size: 11px !important;
   letter-spacing: .28em !important;
   text-transform: uppercase !important;
   color: var(--gray-mid) !important;
+  margin-bottom: 20px !important;
+}
+
+/* Founder card — paragraph with <strong> + <br> pattern */
+.paragraph-block p strong + br {
+  display: block !important;
+}
+/* Style the founder card paragraph that follows the about text */
+.paragraph-block .prose strong {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 15px !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+  display: block !important;
+  margin-bottom: 4px !important;
 }
 
 /* ── COLUMN LAYOUT — proper 2-col spacing ── */
