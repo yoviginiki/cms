@@ -240,16 +240,29 @@ a.btn[href="/portfolio"], a.btn[href*="portfolio"] {
 .button-block + .button-block a:hover {
   color: #fff !important;
 }
-/* Hero buttons side by side */
+/* Hero buttons side by side — override the flex-column parent */
+main[role="main"] > .section-block:first-child .column-block > div {
+  flex-wrap: wrap !important;
+  flex-direction: row !important;
+  gap: 14px !important;
+  align-items: flex-start !important;
+}
+/* But non-button children should still be full width */
+main[role="main"] > .section-block:first-child .column-block > div > .paragraph-block,
+main[role="main"] > .section-block:first-child .column-block > div > .heading-block {
+  width: 100% !important;
+  flex: 0 0 100% !important;
+}
+/* Buttons stay inline */
 main[role="main"] > .section-block:first-child .button-block {
-  display: inline-block !important;
+  flex: 0 0 auto !important;
 }
 
-/* ── Hero sub text ── */
+/* ── Hero sub text — matches .hero-sub: 17px #555 weight-300 max-600px ── */
 main[role="main"] > .section-block:first-child .paragraph-block p {
   font-size: 17px !important;
-  color: #2b2b2b !important;
-  font-weight: 400 !important;
+  color: #555 !important;
+  font-weight: 300 !important;
   line-height: 1.75 !important;
   max-width: 600px !important;
 }
@@ -260,11 +273,11 @@ main[role="main"] > .section-block:first-child .paragraph-block:first-child p {
   font-size: 11px !important;
   letter-spacing: .28em !important;
   text-transform: uppercase !important;
-  color: #555 !important;
+  color: #888 !important;
   margin-bottom: 20px !important;
   max-width: none !important;
 }
-/* Hero sub paragraph spacing */
+/* Hero sub paragraph — spacing before buttons */
 main[role="main"] > .section-block:first-child .heading-block + .paragraph-block p {
   margin-bottom: 50px !important;
 }
