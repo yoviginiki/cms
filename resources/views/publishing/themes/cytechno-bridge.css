@@ -590,9 +590,24 @@ main[role="main"] > .section-block:first-child .paragraph-block + .button-block 
 [style*="font-family:var(--font-heading"] { font-family: 'Barlow Condensed', sans-serif !important; }
 [style*="font-family:var(--font-body"] { font-family: 'Barlow', sans-serif !important; }
 
-/* ── OVERRIDE --color-text fallbacks ── */
-[style*="color:var(--color-text,#1e293b)"] { color: var(--black) !important; }
-[style*="color:var(--color-text-muted"] { color: var(--gray-mid) !important; }
+/* ── HIGH CONTRAST TEXT OVERRIDES ── */
+/* All text defaults to dark */
+[style*="color:var(--color-text,#1e293b)"] { color: #111 !important; }
+[style*="color:var(--color-text, #1e293b)"] { color: #111 !important; }
+[style*="color:var(--color-text, #1a1a1a)"] { color: #111 !important; }
+/* Muted text — darker than default for readability */
+[style*="color:var(--color-text-muted"] { color: #555 !important; }
+[style*="color:#6b7280"] { color: #444 !important; }
+[style*="color:#64748b"] { color: #444 !important; }
+[style*="color:#9ca3af"] { color: #666 !important; }
+/* Excerpt/description text in cards and lists */
+.postgrid-block p, .latestposts-block p { color: #333 !important; }
+.postgrid-block p[style], .latestposts-block p[style] { color: #333 !important; }
+/* Stats labels — readable */
+.stats-block [style*="color:var(--color-text-muted"] { color: #555 !important; }
+/* Headings always black */
+.heading-block h1, .heading-block h2, .heading-block h3 { color: #111 !important; }
+.heading-block [style*="color:var(--color-text"] { color: #111 !important; }
 
 /* ── POSTGRID INLINE OVERRIDES ── */
 .postgrid-block[style] { padding: 0 !important; max-width: 100% !important; }
