@@ -52,14 +52,14 @@
     </div>
     <div style="padding:1.25rem;{{ $isHorizontal ? 'flex:1;' : '' }}">
         @if($showCategory)
-            <div style="font-size:0.75rem;color:#3b82f6;font-weight:500;margin-bottom:0.25rem;">{{ $post['category'] ?? 'Category' }}</div>
+            <div style="font-size:0.75rem;color:var(--color-primary,#3b82f6);font-weight:500;margin-bottom:0.25rem;">{{ $post['category'] ?? 'Category' }}</div>
         @endif
         <h3 style="font-weight:600;margin-bottom:0.25rem;">{{ $post['title'] ?? 'Post Title' }}</h3>
         @if($showDate)
             <div style="font-size:0.75rem;color:var(--color-text-muted,#9ca3af);margin-bottom:0.5rem;">{{ $post['date'] ?? '' }}</div>
         @endif
         @if($showExcerpt)
-            <p style="color:#6b7280;font-size:0.875rem;">{{ $post['excerpt'] ?? '' }}</p>
+            <p style="color:var(--color-text-muted,#6b7280);font-size:0.875rem;">{{ $post['excerpt'] ?? '' }}</p>
         @endif
     </div>
 </article>

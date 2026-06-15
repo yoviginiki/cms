@@ -100,7 +100,7 @@ class MenuRenderer
 
         // Submenu styles
         $css .= ".{$scopeClass} .menu-submenu{display:none;position:absolute;top:100%;left:-12px;min-width:180px;padding:8px 0;";
-        $css .= "background:#fff;border:1px solid var(--color-border-light,#eee);box-shadow:0 8px 32px rgba(0,0,0,0.08);border-radius:8px;z-index:100;list-style:none;}\n";
+        $css .= "background:var(--color-bg,#fff);border:1px solid var(--color-border-light,#eee);box-shadow:var(--shadow-md,0 8px 32px rgba(0,0,0,0.08));border-radius:var(--border-radius-md,0.5rem);z-index:100;list-style:none;}\n";
         $css .= ".{$scopeClass} .menu-item:hover > .menu-submenu{display:block;}\n";
         $css .= ".{$scopeClass} .menu-submenu a{display:block;padding:6px 16px;font-size:0.8125rem;white-space:nowrap;}\n";
         $css .= ".{$scopeClass} .menu-submenu a:hover{background:var(--color-bg-alt,#f5f5f0);}\n";

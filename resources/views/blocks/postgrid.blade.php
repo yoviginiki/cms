@@ -168,7 +168,7 @@
                 </{{ $headingTag }}>
                 @endif
                 @if($showExcerpt && $post->excerpt)
-                    <p style="color:#6b7280;font-size:{{ $excerptSizePx }}px;font-family:{{ $excerptFont }};text-align:{{ $excerptAlign }};padding:{{ $excerptPadding }};margin:{{ $excerptMargin }};">{{ $excerptLength > 0 ? \Illuminate\Support\Str::limit($post->excerpt, $excerptLength) : $post->excerpt }}</p>
+                    <p style="color:var(--color-text-muted,#6b7280);font-size:{{ $excerptSizePx }}px;font-family:{{ $excerptFont }};text-align:{{ $excerptAlign }};padding:{{ $excerptPadding }};margin:{{ $excerptMargin }};">{{ $excerptLength > 0 ? \Illuminate\Support\Str::limit($post->excerpt, $excerptLength) : $post->excerpt }}</p>
                 @endif
             </div>
             @endif

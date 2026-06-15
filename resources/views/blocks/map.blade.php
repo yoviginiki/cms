@@ -20,7 +20,7 @@
     $markerLabel = $data['markerLabel'] ?? '';
     $height = $data['height'] ?? '400px';
 @endphp
-<div style="height:{{ $height }};background:#e5e7eb;display:flex;align-items:center;justify-content:center;border-radius:var(--border-radius-md,0.5rem);">
+<div style="height:{{ $height }};background:var(--color-border,#e5e7eb);display:flex;align-items:center;justify-content:center;border-radius:var(--border-radius-md,0.5rem);">
     <a href="https://maps.google.com/?q={{ $lat }},{{ $lng }}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline;">
         @if($markerLabel)
             {{ $markerLabel }} &mdash;

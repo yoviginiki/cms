@@ -54,12 +54,12 @@
     <div>
         <div style="font-weight:600;">{{ $author['name'] ?? 'Author' }}</div>
         @if($showBio)
-            <p style="color:#6b7280;font-size:0.875rem;margin-top:0.25rem;">{{ $author['bio'] ?? '' }}</p>
+            <p style="color:var(--color-text-muted,#6b7280);font-size:0.875rem;margin-top:0.25rem;">{{ $author['bio'] ?? '' }}</p>
         @endif
         @if($showSocialLinks && !empty($author['social']))
             <div style="display:flex;gap:0.75rem;margin-top:0.5rem;{{ $isVertical ? 'justify-content:center;' : '' }}">
                 @foreach($author['social'] as $platform => $url)
-                    <a href="{{ $url }}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;font-size:0.875rem;text-decoration:none;">{{ ucfirst($platform) }}</a>
+                    <a href="{{ $url }}" target="_blank" rel="noopener noreferrer" style="color:var(--color-primary,#3b82f6);font-size:0.875rem;text-decoration:none;">{{ ucfirst($platform) }}</a>
                 @endforeach
             </div>
         @endif

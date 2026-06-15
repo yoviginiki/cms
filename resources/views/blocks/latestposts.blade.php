@@ -113,7 +113,7 @@
                     @if($showContent)
                         <div style="margin:0.5rem 0 0;font-size:0.875rem;line-height:1.6;">{!! $renderContent($post) !!}</div>
                     @elseif($showExcerpt && $getExcerpt($post))
-                        <p style="margin:0.25rem 0 0;color:#6b7280;font-size:0.8125rem;line-height:1.4;">{{ $getExcerpt($post) }}</p>
+                        <p style="margin:0.25rem 0 0;color:var(--color-text-muted,#6b7280);font-size:0.8125rem;line-height:1.4;">{{ $getExcerpt($post) }}</p>
                     @endif
                     @if($showDate)
                         <span style="font-size:0.7rem;color:var(--color-text-muted,#9ca3af);">{{ $post->published_at?->format('M j, Y') }}</span>
@@ -141,7 +141,7 @@
                 @if($showContent)
                     <div style="margin-top:0.75rem;font-size:0.9375rem;line-height:1.7;">{!! $renderContent($first) !!}</div>
                 @elseif($showExcerpt && $getExcerpt($first))
-                    <p style="color:#6b7280;font-size:0.875rem;margin-top:0.5rem;">{{ $getExcerpt($first) }}</p>
+                    <p style="color:var(--color-text-muted,#6b7280);font-size:0.875rem;margin-top:0.5rem;">{{ $getExcerpt($first) }}</p>
                 @endif
                 @if($showDate)
                     <span style="font-size:0.75rem;color:var(--color-text-muted,#9ca3af);">{{ $first->published_at?->format('M j, Y') }}</span>
@@ -167,7 +167,7 @@
                     @if($showContent)
                         <div style="margin-top:0.5rem;font-size:0.8125rem;line-height:1.5;">{!! $renderContent($post) !!}</div>
                     @elseif($showExcerpt && $getExcerpt($post))
-                        <p style="color:#6b7280;font-size:0.8125rem;margin-top:0.25rem;">{{ $getExcerpt($post) }}</p>
+                        <p style="color:var(--color-text-muted,#6b7280);font-size:0.8125rem;margin-top:0.25rem;">{{ $getExcerpt($post) }}</p>
                     @endif
                     @if($showDate)
                         <span style="font-size:0.7rem;color:var(--color-text-muted,#9ca3af);">{{ $post->published_at?->format('M j, Y') }}</span>

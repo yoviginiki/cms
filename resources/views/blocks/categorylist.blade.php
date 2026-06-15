@@ -42,7 +42,7 @@
     <ul style="list-style:none;padding:0;margin:0;">
         @foreach($categories as $cat)
             <li style="display:flex;justify-content:space-between;padding:0.375rem 0;border-bottom:1px solid #f3f4f6;">
-                <a href="{{ $cat['url'] ?? '#' }}" style="color:#3b82f6;text-decoration:none;">{{ $cat['name'] ?? '' }}</a>
+                <a href="{{ $cat['url'] ?? '#' }}" style="color:var(--color-primary,#3b82f6);text-decoration:none;">{{ $cat['name'] ?? '' }}</a>
                 @if($showCount)<span style="color:var(--color-text-muted,#9ca3af);">({{ $cat['count'] ?? 0 }})</span>@endif
             </li>
         @endforeach

@@ -25,7 +25,7 @@
     $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
     $textShadow = $tsShadowPresets[$data['textShadow'] ?? ''] ?? '';
 @endphp
-<div style="border:2px solid {{ $highlighted ? '#3b82f6' : '#e5e7eb' }};border-radius:0.75rem;padding:2rem;text-align:center;position:relative;{{ $highlighted ? 'box-shadow:0 10px 25px -5px rgba(59,130,246,0.2);' : '' }}">
+<div style="border:2px solid {{ $highlighted ? 'var(--color-primary,#3b82f6)' : '#e5e7eb' }};border-radius:0.75rem;padding:2rem;text-align:center;position:relative;{{ $highlighted ? 'box-shadow:0 10px 25px -5px rgba(59,130,246,0.2);' : '' }}">
     @if($badge)
         <span style="position:absolute;top:-0.75rem;left:50%;transform:translateX(-50%);background:#3b82f6;color:var(--color-text-inverse,#fff);font-size:0.75rem;padding:0.125rem 0.75rem;border-radius:9999px;">{{ $badge }}</span>
     @endif

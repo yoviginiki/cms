@@ -39,7 +39,7 @@
     $buttonText = $data['buttonText'] ?? 'Get started';
     $buttonUrl = $data['buttonUrl'] ?? '#';
     $bgStyle = $data['backgroundStyle'] ?? 'solid';
-    $bgColor = $data['backgroundColor'] ?? '#3b82f6';
+    $bgColor = $data['backgroundColor'] ?? 'var(--color-primary,#3b82f6)';
     $bgImage = $data['backgroundImage'] ?? '';
 
     $inlineStyle = match($bgStyle) {
