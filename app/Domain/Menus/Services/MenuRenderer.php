@@ -137,8 +137,10 @@ class MenuRenderer
         }
         $navStyle .= 'border-bottom:1px solid var(--color-border-light,#eee);';
 
-        $innerStyle = 'display:flex;align-items:center;justify-content:space-between;max-width:var(--container-width,1400px);margin:0 auto;padding:0 var(--container-padding,40px);';
-        $innerStyle .= 'height:' . ($height ?: '56px') . ';';
+        $innerStyle = 'display:flex;align-items:center;justify-content:space-between;max-width:var(--container-width,1200px);width:90%;margin:0 auto;padding:var(--nav-padding,14px 0);';
+        if ($height) {
+            $innerStyle .= 'height:' . $height . ';';
+        }
 
         $html = $css;
         $html .= "<nav class=\"site-nav {$scopeClass}\" style=\"{$navStyle}\" aria-label=\"" . e($ariaLabel) . "\">\n";
@@ -148,7 +150,7 @@ class MenuRenderer
         if ($logoUrl) {
             $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"flex-shrink:0;\"><img src=\"" . e($logoUrl) . "\" alt=\"" . $siteName . "\" style=\"height:" . ($height ? 'calc(' . $height . ' - 16px)' : '40px') . ";max-height:48px;width:auto;\" /></a>\n";
         } else {
-            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"font-family:var(--font-heading);font-size:18px;font-weight:400;color:" . ($textColor ?: 'var(--color-text)') . ";text-decoration:none;flex-shrink:0;\">" . $siteName . "</a>\n";
+            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";text-decoration:none;letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);flex-shrink:0;\">" . $siteName . "</a>\n";
         }
 
         // Hamburger
@@ -157,7 +159,7 @@ class MenuRenderer
         $html .= "    </button>\n";
 
         // Desktop menu
-        $html .= "    <ul class=\"menu-desktop\" style=\"display:flex;align-items:center;gap:" . ($gap ?: '24px') . ";list-style:none;margin:0;padding:0;\">\n";
+        $html .= "    <ul class=\"menu-desktop\" style=\"display:flex;align-items:center;gap:" . ($gap ?: 'var(--nav-gap,28px)') . ";list-style:none;margin:0;padding:0;\">\n";
         foreach ($items as $item) {
             $html .= $this->renderHeaderItem($item, $scopeClass);
         }

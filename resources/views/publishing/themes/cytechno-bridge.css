@@ -506,6 +506,103 @@ body::after {
   width: 100%;
 }
 
+/* ── OVERRIDE CMS MENU SCOPED STYLES ── */
+[class*="menu-"] .menu-top-link,
+[class*="menu-"] .menu-custom-link {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: .22em !important;
+  text-transform: uppercase !important;
+  color: var(--gray-dark) !important;
+}
+[class*="menu-"] .menu-top-link:hover,
+[class*="menu-"] .menu-custom-link:hover { color: var(--red) !important; }
+[class*="menu-"] .menu-submenu { border-radius: 0 !important; }
+
+/* Last nav item = CTA */
+.menu-desktop .menu-item:last-child .menu-top-link {
+  border: 1.5px solid var(--red) !important;
+  color: var(--red) !important;
+  padding: 9px 22px !important;
+  transition: background .2s, color .2s !important;
+}
+.menu-desktop .menu-item:last-child .menu-top-link:hover {
+  background: var(--red) !important;
+  color: #fff !important;
+}
+
+/* ── NAV LOGO TEXT → condensed uppercase ── */
+.nav-logo, .nav-logo[style] {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  letter-spacing: .22em !important;
+  text-transform: uppercase !important;
+  color: var(--black) !important;
+}
+
+/* ── HERO BUTTONS SIDE BY SIDE ── */
+main[role="main"] > .section-block:first-child .column-block > div {
+  display: flex !important;
+  flex-direction: column !important;
+}
+main[role="main"] > .section-block:first-child .button-block {
+  display: inline-block !important;
+  margin-right: 14px !important;
+  margin-top: 0 !important;
+}
+/* Fix hero row gap */
+main[role="main"] > .section-block:first-child .row-block > div[style] {
+  gap: 0 !important;
+}
+main[role="main"] > .section-block:first-child .heading-block { margin-bottom: 28px !important; }
+main[role="main"] > .section-block:first-child .paragraph-block + .button-block { margin-top: 50px !important; }
+
+/* ── OVERRIDE ALL var(--font-size-*) FALLBACKS ── */
+[style*="font-size:var(--font-size-2xl"] { font-size: clamp(30px, 4.5vw, 56px) !important; }
+[style*="font-size:var(--font-size-3xl"] { font-size: clamp(42px, 6.5vw, 76px) !important; }
+[style*="font-size:var(--font-size-xl"] { font-size: 21px !important; }
+
+/* ── OVERRIDE ALL var(--border-radius-*) FALLBACKS ── */
+[style*="border-radius:var(--border-radius"] { border-radius: 0 !important; }
+[style*="border-radius:0.75rem"] { border-radius: 0 !important; }
+[style*="border-radius:12px"] { border-radius: 0 !important; }
+[style*="border-radius:0.5rem"] { border-radius: 0 !important; }
+
+/* ── OVERRIDE text-align:center on stats ── */
+.stats-block [style*="text-align:center"] { text-align: left !important; }
+.stats-block [style*="gap:1.5rem"] { gap: 2px !important; }
+.stats-block [style*="border-radius"] { border-radius: 0 !important; }
+
+/* ── OVERRIDE color-primary blue to red ── */
+[style*="color:var(--color-primary"] { color: var(--red) !important; }
+
+/* ── OVERRIDE font-heading Georgia fallback ── */
+[style*="font-family:var(--font-heading"] { font-family: 'Barlow Condensed', sans-serif !important; }
+[style*="font-family:var(--font-body"] { font-family: 'Barlow', sans-serif !important; }
+
+/* ── OVERRIDE --color-text fallbacks ── */
+[style*="color:var(--color-text,#1e293b)"] { color: var(--black) !important; }
+[style*="color:var(--color-text-muted"] { color: var(--gray-mid) !important; }
+
+/* ── POSTGRID INLINE OVERRIDES ── */
+.postgrid-block[style] { padding: 0 !important; max-width: 100% !important; }
+.postgrid-block > div[style] { gap: 2px !important; }
+.postgrid-block article[style] { border-radius: 0 !important; border-color: var(--gray-light) !important; }
+.postgrid-block article > div[style*="padding:1rem"] { padding: 26px 26px 30px !important; }
+.postgrid-block article > div[style*="background"] { height: auto !important; aspect-ratio: 16/9 !important; }
+
+/* ── LATESTPOSTS INLINE OVERRIDES ── */
+.latestposts-block[style] { padding: 0 !important; max-width: 100% !important; }
+.latestposts-block > div[style] { display: flex !important; flex-direction: column !important; gap: 0 !important; }
+.latestposts-block article[style] {
+  border-radius: 0 !important; border: none !important;
+  border-bottom: 1px solid var(--gray-light) !important;
+  background: transparent !important; padding: 34px 0 !important;
+}
+.latestposts-block article > div[style] { padding: 0 !important; }
+
 /* ── NO SHADOWS ANYWHERE ── */
 * { box-shadow: none !important; }
 

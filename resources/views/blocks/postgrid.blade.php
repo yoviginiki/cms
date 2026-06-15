@@ -38,7 +38,8 @@
     $cardBorderWidth = max(0, min(8, intval($data['cardBorderWidth'] ?? 1)));
     $cardBorderColor = preg_match('/^#[0-9a-fA-F]{3,8}$/', $data['cardBorderColor'] ?? '') ? $data['cardBorderColor'] : '#e5e7eb';
     $cardBorderStyle = in_array($data['cardBorderStyle'] ?? 'solid', ['solid','dashed','dotted','double','none']) ? ($data['cardBorderStyle'] ?? 'solid') : 'solid';
-    $cardBorderRadius = max(0, min(32, intval($data['cardBorderRadius'] ?? 12)));
+    $cardBorderRadiusRaw = $data['cardBorderRadius'] ?? null;
+    $cardBorderRadius = $cardBorderRadiusRaw !== null ? max(0, min(32, intval($cardBorderRadiusRaw))) : null;
     $shadowMap = ['none' => 'none', 'sm' => '0 1px 2px rgba(0,0,0,0.05)', 'md' => '0 4px 6px rgba(0,0,0,0.07)', 'lg' => '0 10px 15px rgba(0,0,0,0.1)', 'xl' => '0 20px 25px rgba(0,0,0,0.15)'];
     $cardShadow = $shadowMap[$data['cardShadow'] ?? 'none'] ?? 'none';
     $cardBg = preg_match('/^(#[0-9a-fA-F]{3,8}|transparent|inherit)$/', $data['cardBg'] ?? '') ? $data['cardBg'] : '';
@@ -106,7 +107,7 @@
 @else
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
-        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius }}px;overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
+        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius !== null ? $cardBorderRadius . 'px' : 'var(--border-radius-md,0.5rem)' }};overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
             {{-- Heading ABOVE image --}}
             @if($showHeading && $headingPosition === 'above')
             <div style="padding:0.75rem 1rem 0.25rem;">

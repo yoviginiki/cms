@@ -127,7 +127,7 @@
     @php $isFeatured = $layout === 'featured' && $posts->count() > 1; @endphp
     @if($isFeatured)
         @php $first = $posts->shift(); @endphp
-        <article style="margin-bottom:1.5rem;border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
+        <article style="margin-bottom:1.5rem;border:1px solid var(--color-border,#e2e8f0);border-radius:var(--border-radius-md,0.5rem);overflow:hidden;">
             @if($showImage && $first->featured_image)
                 <img class="img-filtered" src="{{ $first->featured_image }}" alt="" loading="lazy" style="width:100%;height:280px;object-fit:cover;{{ $__imageFilter }}" />
             @endif
@@ -151,7 +151,7 @@
     @endif
     <div style="display:grid;grid-template-columns:repeat({{ $columns }}, 1fr);gap:1.5rem;">
         @foreach($posts as $post)
-            <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:0.75rem;overflow:hidden;">
+            <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:var(--border-radius-md,0.5rem);overflow:hidden;">
                 @if($showImage && $post->featured_image)
                     <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
                 @elseif($showImage)

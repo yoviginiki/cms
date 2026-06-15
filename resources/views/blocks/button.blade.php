@@ -21,6 +21,6 @@
     $styleClass = match($style) { 'secondary' => 'btn-secondary', 'outline' => 'btn-outline', 'ghost' => 'btn-ghost', default => 'btn-primary' };
     $safeUrl = fn($v) => preg_match('/^(javascript|data|vbscript)\s*:/i', preg_replace('/[\x00-\x1f\x7f\s]/', '', (string) $v)) ? '#' : (string) $v;
 @endphp
-<a href="{{ e($safeUrl($data['url'] ?? '#')) }}" class="btn {{ $styleClass }} {{ $sizeClass }}"{!! $target !!} style="font-family:var(--font-body,inherit);">{{ $data['text'] ?? 'Button' }}</a>
+<a href="{{ e($safeUrl($data['url'] ?? '#')) }}" class="btn {{ $styleClass }} {{ $sizeClass }}"{!! $target !!} style="font-family:var(--font-heading,inherit);font-weight:var(--btn-font-weight,600);letter-spacing:var(--btn-tracking,0.12em);text-transform:var(--btn-transform,uppercase);border-radius:var(--border-radius-md,0.5rem);">{{ $data['text'] ?? 'Button' }}</a>
 
 </div>

@@ -77,12 +77,12 @@
 
     /* ─── Responsive Navigation ─── */
     .site-nav{position:sticky !important;top:0;z-index:1000;background:rgba(255,255,255,0.88);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--color-border-light, #f0f0eb)}
-    .site-nav .nav-inner{display:flex !important;align-items:center;justify-content:space-between;max-width:var(--container-width, 1400px);margin:0 auto;padding:0 var(--container-padding, 40px);height:56px}
-    .site-nav .nav-logo{font-family:var(--font-heading, Georgia, serif);font-size:18px;font-weight:400;color:var(--color-text, #1a1a1a);text-decoration:none;letter-spacing:-0.02em;flex-shrink:0}
-    .site-nav .nav-menu{display:flex !important;align-items:center;gap:24px;list-style:none !important;margin:0 !important;padding:0 !important;height:auto !important}
+    .site-nav .nav-inner{display:flex !important;align-items:center;justify-content:space-between;max-width:var(--container-width, 1200px);width:90%;margin:0 auto;padding:var(--nav-padding, 14px 0);height:auto}
+    .site-nav .nav-logo{font-family:var(--font-heading, sans-serif);font-size:var(--nav-logo-size, 14px);font-weight:var(--nav-logo-weight, 600);color:var(--color-text, #1a1a1a);text-decoration:none;letter-spacing:var(--nav-logo-tracking, 0.1em);text-transform:var(--nav-logo-transform, none);flex-shrink:0}
+    .site-nav .nav-menu{display:flex !important;align-items:center;gap:var(--nav-gap, 28px);list-style:none !important;margin:0 !important;padding:0 !important;height:auto !important}
     .site-nav .nav-menu li{list-style:none;margin:0;padding:0}
-    .site-nav .nav-menu a{font-family:var(--font-body, sans-serif);font-size:13px;color:var(--color-text, #1a1a1a);text-decoration:none;opacity:0.6;transition:opacity 0.3s;letter-spacing:0.04em;text-transform:none}
-    .site-nav .nav-menu a:hover{opacity:1}
+    .site-nav .nav-menu a{font-family:var(--font-heading, sans-serif);font-size:var(--nav-font-size, 12px);font-weight:var(--nav-font-weight, 500);color:var(--color-text-muted, #666);text-decoration:none;transition:color 0.2s;letter-spacing:var(--nav-tracking, 0.12em);text-transform:var(--nav-transform, uppercase)}
+    .site-nav .nav-menu a:hover{color:var(--color-primary, #3b82f6)}
     .site-nav .has-children{position:relative}
     .site-nav .nav-submenu{display:none;position:absolute;top:calc(100% + 8px);left:-16px;min-width:180px;padding:8px 0;background:#fff;border:1px solid var(--color-border-light, #eee);box-shadow:0 8px 32px rgba(0,0,0,0.08);list-style:none !important;z-index:100;border-radius:8px}
     .site-nav .has-children:hover .nav-submenu{display:block}

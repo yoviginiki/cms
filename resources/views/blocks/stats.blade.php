@@ -28,16 +28,17 @@
         : ($cssDim($data['cardBorderRadius'] ?? '') ?: 'var(--border-radius-md,0.5rem)');
     $cardShadow = BlockStyle::buildShadowCss($data['cardShadowMode'] ?? 'preset', $data['cardShadow'] ?? '', is_array($data['cardShadowCustom'] ?? null) ? $data['cardShadowCustom'] : null);
 
-    $valueColor = $cssVal($data['valueColor'] ?? '');
+    $textAlign = in_array($data['textAlign'] ?? 'center', ['left','center','right']) ? ($data['textAlign'] ?? 'center') : 'center';
+    $valueColor = $cssVal($data['valueColor'] ?? '') ?: 'var(--color-primary,#3b82f6)';
     $labelColor = $cssVal($data['labelColor'] ?? '') ?: 'var(--color-text-muted,#64748b)';
     $valueFontSize = $cssDim($data['valueFontSize'] ?? '') ?: '2.5rem';
     $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
     $textShadow = $tsShadowPresets[$data['textShadow'] ?? ''] ?? '';
 @endphp
-<div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};text-align:center;">
+<div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};text-align:{{ $textAlign }};">
     @foreach($items as $item)
         <div style="padding:1.5rem;border:1px solid {{ $cardBorderColor }};border-radius:{{ $cardRadius }};{{ $cardBgColor ? "background-color:{$cardBgColor};" : '' }}{{ $cardShadow ? "box-shadow:{$cardShadow};" : '' }}">
-            <div style="font-size:{{ $valueFontSize }};font-weight:700;line-height:1;{{ $valueColor ? "color:{$valueColor};" : '' }}{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['prefix'] ?? '' }}{{ $item['value'] ?? '' }}{{ $item['suffix'] ?? '' }}</div>
+            <div style="font-family:var(--font-heading,inherit);font-size:{{ $valueFontSize }};font-weight:700;line-height:1;color:{{ $valueColor }};{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['prefix'] ?? '' }}{{ $item['value'] ?? '' }}{{ $item['suffix'] ?? '' }}</div>
             <div style="color:{{ $labelColor }};font-size:0.875rem;margin-top:0.5rem;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['label'] ?? '' }}</div>
         </div>
     @endforeach
