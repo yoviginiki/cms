@@ -88,13 +88,14 @@ class MenuRenderer
         $css = "<style>\n";
         $css .= ".{$scopeClass} .menu-item{position:relative;}\n";
         $css .= ".{$scopeClass} .menu-top-link,.{$scopeClass} .menu-custom-link{";
-        $css .= "font-size:" . ($fontSize ?: '0.875rem') . ";";
-        if ($textColor) $css .= " color:{$textColor};";
-        else $css .= " color:var(--color-text-muted,#64748b);";
-        $css .= "text-decoration:none;transition:color 0.2s,background 0.2s;";
-        if ($fontWeight) $css .= "font-weight:{$fontWeight};";
-        if ($letterSpacing) $css .= "letter-spacing:{$letterSpacing};";
-        if ($textTransform) $css .= "text-transform:{$textTransform};";
+        $css .= "font-family:var(--font-heading,sans-serif);";
+        $css .= "font-size:" . ($fontSize ?: 'var(--nav-font-size,12px)') . ";";
+        $css .= "font-weight:" . ($fontWeight ?: 'var(--nav-font-weight,500)') . ";";
+        $css .= "letter-spacing:" . ($letterSpacing ?: 'var(--nav-tracking,0.16em)') . ";";
+        $css .= "text-transform:" . ($textTransform ?: 'var(--nav-transform,uppercase)') . ";";
+        if ($textColor) $css .= "color:{$textColor};";
+        else $css .= "color:var(--color-text-muted,#666);";
+        $css .= "text-decoration:none;transition:color 0.2s;";
         $css .= "}\n";
         $css .= ".{$scopeClass} .menu-top-link:hover,.{$scopeClass} .menu-custom-link:hover{color:{$hoverColor};}\n";
 

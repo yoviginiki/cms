@@ -114,6 +114,43 @@ echo "| Reference | ${REF_RADIUS:-none} |" >> "$OUTPUT"
 echo "| CMS | ${CMS_RADIUS:-none} |" >> "$OUTPUT"
 echo "" >> "$OUTPUT"
 
+# ── 6b. NAVIGATION STYLING ──
+echo "## 6b. Navigation Styling" >> "$OUTPUT"
+echo "| Property | Reference | CMS | Match |" >> "$OUTPUT"
+echo "|----------|-----------|-----|-------|" >> "$OUTPUT"
+
+# Nav link font-size
+REF_NAV_SIZE=$(echo "$REF_HTML" | grep -oP 'nav[^{]*a\{[^}]*font-size:\K[^;]+' | head -1)
+CMS_NAV_SIZE=$(echo "$CMS_HTML" | grep -oP 'menu-top-link[^}]*font-size:\K[^;]+' | head -1)
+echo "| Nav font-size | ${REF_NAV_SIZE:-?} | ${CMS_NAV_SIZE:-?} | $([ "$REF_NAV_SIZE" = "$CMS_NAV_SIZE" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Nav link font-weight
+REF_NAV_WEIGHT=$(echo "$REF_HTML" | grep -oP 'nav[^{]*a\{[^}]*font-weight:\K[^;]+' | head -1)
+CMS_NAV_WEIGHT=$(echo "$CMS_HTML" | grep -oP 'menu-top-link[^}]*font-weight:\K[^;]+' | head -1)
+echo "| Nav font-weight | ${REF_NAV_WEIGHT:-?} | ${CMS_NAV_WEIGHT:-?} | $([ "$REF_NAV_WEIGHT" = "$CMS_NAV_WEIGHT" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Nav link letter-spacing
+REF_NAV_TRACK=$(echo "$REF_HTML" | grep -oP 'nav[^{]*a\{[^}]*letter-spacing:\K[^;]+' | head -1)
+CMS_NAV_TRACK=$(echo "$CMS_HTML" | grep -oP 'menu-top-link[^}]*letter-spacing:\K[^;]+' | head -1)
+echo "| Nav letter-spacing | ${REF_NAV_TRACK:-?} | ${CMS_NAV_TRACK:-?} | $([ "$REF_NAV_TRACK" = "$CMS_NAV_TRACK" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Nav gap
+REF_NAV_GAP=$(echo "$REF_HTML" | grep -oP 'nav-links\{[^}]*gap:\K[^;]+' | head -1)
+CMS_NAV_GAP=$(echo "$CMS_HTML" | grep -oP 'menu-desktop[^}]*gap:\K[^;]+' | head -1)
+echo "| Nav gap | ${REF_NAV_GAP:-?} | ${CMS_NAV_GAP:-?} | $([ "$REF_NAV_GAP" = "$CMS_NAV_GAP" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Nav CTA (border on last link)
+REF_HAS_CTA=$(echo "$REF_HTML" | grep -c 'nav-cta' 2>/dev/null || echo "0")
+CMS_HAS_CTA=$(echo "$CMS_HTML" | grep -c 'border.*solid.*red\|border.*solid.*primary' 2>/dev/null || echo "0")
+echo "| Nav CTA button | ${REF_HAS_CTA} | ${CMS_HAS_CTA} | $([ "$REF_HAS_CTA" = "$CMS_HAS_CTA" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Nav link border (should be none on regular links)
+REF_LINK_BORDER=$(echo "$REF_HTML" | grep -oP 'nav-links a\{[^}]*border[^}]*' | head -1)
+CMS_LINK_BORDER=$(echo "$CMS_HTML" | grep -oP 'menu-top-link[^}]*border[^}]*' | head -1)
+echo "| Regular links border | ${REF_LINK_BORDER:-none} | ${CMS_LINK_BORDER:-none} | $([ -z "$REF_LINK_BORDER" ] && [ -z "$CMS_LINK_BORDER" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+echo "" >> "$OUTPUT"
+
 # ── 7. SHADOWS ──
 echo "## 7. Shadows" >> "$OUTPUT"
 REF_SHADOWS=$(count "$REF_HTML" "box-shadow")
@@ -157,7 +194,7 @@ echo "" >> "$OUTPUT"
 echo "## 11. CMS Hardcoded Values (should be CSS variables)" >> "$OUTPUT"
 echo "| Pattern | Count | Recommendation |" >> "$OUTPUT"
 echo "|---------|-------|---------------|" >> "$OUTPUT"
-for pattern in "opacity:0.8" "border-radius:12px" "border-radius:0.75rem" "height:56px" "#3b82f6" "#e5e7eb" "#6b7280" "Georgia.*serif"; do
+for pattern in "opacity:0.8" "opacity:0.6" "opacity:0.7" "border-radius:12px" "border-radius:0.75rem" "border-radius:8px" "height:56px" "font-size:0.875rem" "font-size:18px" "font-size:13px" "gap:24px" "#3b82f6" "#e5e7eb" "#6b7280" "#64748b" "#1e293b" "Georgia.*serif"; do
   C=$(echo "$CMS_HTML" | grep -c "$pattern" 2>/dev/null || echo "0")
   if [ "$C" -gt 0 ]; then
     echo "| \`$pattern\` | $C | Replace with CSS variable |" >> "$OUTPUT"
