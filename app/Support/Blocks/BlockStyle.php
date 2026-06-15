@@ -33,6 +33,19 @@ class BlockStyle
         return preg_replace('/[^a-zA-Z0-9#(),.:\s%\/\-]/', '', (string) $v);
     }
 
+    /** Sanitize a URL for use in CSS url() — preserves query string characters. */
+    public static function safeUrl(mixed $v): string
+    {
+        if (!$v) return '';
+        $v = (string) $v;
+        // Block dangerous protocols
+        if (preg_match('/^(javascript|data|vbscript)\s*:/i', preg_replace('/[\x00-\x1f\x7f\s]/', '', $v))) {
+            return '';
+        }
+        // Allow URL-safe characters including ? & = + for query strings
+        return preg_replace('/[^a-zA-Z0-9#(),.:\s%\/\-_?&=+@~]/', '', $v);
+    }
+
     /** Sanitize custom class tokens: only safe characters. */
     public static function safeClass(mixed $v): string
     {
@@ -189,7 +202,7 @@ class BlockStyle
                         : "background:linear-gradient({$angle}deg, {$stopsStr})";
                 }
             } elseif ($bgType === 'image' && !empty($blockData['bg_image'])) {
-                $url = self::safeCssVal($blockData['bg_image']);
+                $url = self::safeUrl($blockData['bg_image']);
                 $size = in_array($blockData['bg_image_size'] ?? '', ['cover', 'contain', 'auto']) ? $blockData['bg_image_size'] : 'cover';
                 $pos = self::safeCssVal($blockData['bg_image_position'] ?? 'center center') ?: 'center center';
                 $repeat = in_array($blockData['bg_image_repeat'] ?? '', ['no-repeat', 'repeat', 'repeat-x', 'repeat-y']) ? $blockData['bg_image_repeat'] : 'no-repeat';
@@ -214,7 +227,7 @@ class BlockStyle
                 if ($bc) $parts[] = "background-color:{$bc}";
             }
             if (!empty($vis['backgroundImage'])) {
-                $parts[] = "background-image:url(" . self::safeCssVal($vis['backgroundImage']) . ")";
+                $parts[] = "background-image:url(" . self::safeUrl($vis['backgroundImage']) . ")";
                 $parts[] = "background-size:cover";
                 $parts[] = "background-position:center";
             }
