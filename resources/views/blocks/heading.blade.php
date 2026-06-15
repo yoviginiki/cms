@@ -37,6 +37,16 @@
     $linkTarget = in_array($data['linkTarget'] ?? '', ['_self', '_blank']) ? ($data['linkTarget'] ?? '_self') : '_self';
     $hasLink = !empty($linkUrl) && ($data['linkType'] ?? 'none') !== 'none';
 @endphp
-<{{ $level }} style="margin:0;font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:{{ $fontFamily }};line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif @if($textShadow)text-shadow:{{ $textShadow }};@endif">@if($hasLink)<a href="{{ e($linkUrl) }}" target="{{ $linkTarget }}" style="color:inherit;text-decoration:none;" rel="noopener">@endif{{ $data['text'] ?? '' }}@if($hasLink)</a>@endif</{{ $level }}>
+@php
+    // Allow safe inline HTML in headings: <br>, <em>, <strong>, <span> with class/style only
+    $headingText = $data['text'] ?? '';
+    $allowHtml = !empty($data['allowHtml']);
+    if ($allowHtml) {
+        $headingText = strip_tags($headingText, '<br><em><strong><span>');
+    } else {
+        $headingText = e($headingText);
+    }
+@endphp
+<{{ $level }} style="margin:0;font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:{{ $fontFamily }};line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif @if($textShadow)text-shadow:{{ $textShadow }};@endif">@if($hasLink)<a href="{{ e($linkUrl) }}" target="{{ $linkTarget }}" style="color:inherit;text-decoration:none;" rel="noopener">@endif{!! $headingText !!}@if($hasLink)</a>@endif</{{ $level }}>
 
 </div>

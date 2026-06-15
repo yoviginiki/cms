@@ -219,7 +219,7 @@ class MenuRenderer
 
         // Footer text
         if ($footerText) {
-            $html .= "    <p style=\"font-size:0.875rem;margin-bottom:1.5rem;max-width:500px;margin-left:auto;margin-right:auto;\">" . e($footerText) . "</p>\n";
+            $html .= "    <p style=\"font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#888);margin-bottom:1.5rem;max-width:500px;margin-left:auto;margin-right:auto;\">" . e($footerText) . "</p>\n";
         }
 
         // Footer menu links
@@ -229,7 +229,7 @@ class MenuRenderer
             foreach ($items as $item) {
                 $url = e($item->resolveUrl($this->menuBaseUrl));
                 $label = e($item->label);
-                $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:0.875rem;\">{$label}</a></li>\n";
+                $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#888);transition:color 0.2s;\">{$label}</a></li>\n";
             }
             $html .= "      </ul>\n";
             $html .= "    </nav>\n";

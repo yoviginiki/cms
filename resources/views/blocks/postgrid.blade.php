@@ -36,7 +36,7 @@
     // Card border
     $cardBorder = $data['cardBorder'] ?? true;
     $cardBorderWidth = max(0, min(8, intval($data['cardBorderWidth'] ?? 1)));
-    $cardBorderColor = preg_match('/^#[0-9a-fA-F]{3,8}$/', $data['cardBorderColor'] ?? '') ? $data['cardBorderColor'] : '#e5e7eb';
+    $cardBorderColor = preg_match('/^#[0-9a-fA-F]{3,8}$/', $data['cardBorderColor'] ?? '') ? $data['cardBorderColor'] : 'var(--color-border,#e5e7eb)';
     $cardBorderStyle = in_array($data['cardBorderStyle'] ?? 'solid', ['solid','dashed','dotted','double','none']) ? ($data['cardBorderStyle'] ?? 'solid') : 'solid';
     $cardBorderRadiusRaw = $data['cardBorderRadius'] ?? null;
     $cardBorderRadius = $cardBorderRadiusRaw !== null ? max(0, min(32, intval($cardBorderRadiusRaw))) : null;
@@ -101,7 +101,7 @@
 @endphp
 @if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
 @if($posts->isEmpty())
-    <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:0.5rem;">
+    <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:var(--font-size-sm,0.875rem);border:1px dashed var(--color-border,#e5e7eb);border-radius:var(--border-radius-md,0.5rem);">
         No posts found{{ $categoryId ? ' in this category' : '' }}.
     </div>
 @else

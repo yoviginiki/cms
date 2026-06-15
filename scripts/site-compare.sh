@@ -153,8 +153,26 @@ echo "| Hero gradient overlay | ${REF_HERO_GRAD} | ${CMS_HERO_GRAD} | $([ "$CMS_
 
 # Hero buttons count
 REF_HERO_BTNS=$(echo "$REF_HTML" | sed -n '/<section class="hero"/,/<\/section>/p' | grep -c 'class="btn' 2>/dev/null || echo "0")
-CMS_HERO_BTNS=$(echo "$CMS_HTML" | sed -n '/section-block.*padding-top:130/,/<\/section>/p' | grep -c 'class="btn' 2>/dev/null || echo "0")
+CMS_HERO_BTNS=$(echo "$CMS_HTML" | grep -c 'button-block.*btn' 2>/dev/null || echo "0")
 echo "| Hero buttons | ${REF_HERO_BTNS} | ${CMS_HERO_BTNS} | $([ "$REF_HERO_BTNS" = "$CMS_HERO_BTNS" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Hero buttons layout (inline vs stacked)
+CMS_BTNS_INLINE=$(echo "$CMS_HTML" | grep -c 'button-block.*display: inline-block\|button-block.*inline-block' 2>/dev/null || echo "0")
+echo "| Hero buttons layout | inline (side by side) | $([ "$CMS_BTNS_INLINE" -gt 0 ] && echo 'inline ✅' || echo 'stacked ⚠️') | |" >> "$OUTPUT"
+
+# Hero H1 line breaks
+REF_H1_BR=$(echo "$REF_HTML" | sed -n '/<h1/,/<\/h1>/p' | grep -c '<br' 2>/dev/null || echo "0")
+CMS_H1_BR=$(echo "$CMS_HTML" | sed -n '/<h1/,/<\/h1>/p' | grep -c '<br' 2>/dev/null || echo "0")
+echo "| H1 line breaks | ${REF_H1_BR} | ${CMS_H1_BR} | $([ "$REF_H1_BR" = "$CMS_H1_BR" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Hero H1 red accent (<em>)
+REF_H1_EM=$(echo "$REF_HTML" | sed -n '/<h1/,/<\/h1>/p' | grep -c '<em' 2>/dev/null || echo "0")
+CMS_H1_EM=$(echo "$CMS_HTML" | sed -n '/<h1/,/<\/h1>/p' | grep -c '<em' 2>/dev/null || echo "0")
+echo "| H1 red accent (\`<em>\`) | ${REF_H1_EM} | ${CMS_H1_EM} | $([ "$REF_H1_EM" = "$CMS_H1_EM" ] && echo '✅' || echo '⚠️ Missing red accent') |" >> "$OUTPUT"
+
+# Button hover (text should turn white)
+CMS_BTN_HOVER_WHITE=$(echo "$CMS_HTML" | grep -c 'btn:hover.*color.*#fff\|btn.*hover.*color: #fff' 2>/dev/null || echo "0")
+echo "| Button hover → white text | expected | $([ "$CMS_BTN_HOVER_WHITE" -gt 0 ] && echo 'yes ✅' || echo 'missing ⚠️') | |" >> "$OUTPUT"
 
 echo "" >> "$OUTPUT"
 

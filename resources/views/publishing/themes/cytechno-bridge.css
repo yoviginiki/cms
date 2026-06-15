@@ -165,7 +165,8 @@ h1, h2, h3 {
 .heading-block h3, .heading-block h3[style] { font-size: 21px !important; letter-spacing: .06em !important; }
 
 /* Red accent for <em> or .red in headings */
-h1 em, h2 em, .red { font-style: normal; color: var(--red) !important; }
+h1 em, h2 em, h3 em, .red,
+.heading-block em, .heading-block .red { font-style: normal !important; color: var(--red) !important; }
 
 /* ── BODY TEXT ── */
 .paragraph-block p, .rich-text-block p {
@@ -204,6 +205,8 @@ a.btn, a.btn[style], button.btn {
   border-radius: 0 !important;
   box-shadow: none !important;
 }
+/* Button text needs z-index above the ::after fill — wrap in inline span-like behavior */
+.button-block a, a.btn { z-index: 0 !important; isolation: isolate !important; }
 .button-block a::after, a.btn::after {
   content: '' !important;
   position: absolute !important;
@@ -212,11 +215,10 @@ a.btn, a.btn[style], button.btn {
   transform: scaleX(0) !important;
   transform-origin: left !important;
   transition: transform .28s ease !important;
-  z-index: 0 !important;
+  z-index: -1 !important;
 }
 .button-block a:hover::after, a.btn:hover::after { transform: scaleX(1) !important; }
 .button-block a:hover, a.btn:hover { color: #fff !important; }
-.button-block a > *, a.btn > * { position: relative; z-index: 1; }
 
 /* Second button variant — dark/secondary */
 .button-block + .button-block a,
