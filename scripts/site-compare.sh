@@ -114,6 +114,50 @@ echo "| Reference | ${REF_RADIUS:-none} |" >> "$OUTPUT"
 echo "| CMS | ${CMS_RADIUS:-none} |" >> "$OUTPUT"
 echo "" >> "$OUTPUT"
 
+# ── 6a. HERO SECTION ──
+echo "## 6a. Hero Section" >> "$OUTPUT"
+echo "| Property | Reference | CMS | Match |" >> "$OUTPUT"
+echo "|----------|-----------|-----|-------|" >> "$OUTPUT"
+
+# Hero container width
+REF_HERO_CONTAINER=$(echo "$REF_HTML" | grep -oP '\.container\{[^}]*max-width:\K[^;]+' | head -1)
+CMS_HERO_INNER=$(echo "$CMS_HTML" | grep -oP 'section-block.*?<div style="max-width:\K[^;]+' | head -1)
+echo "| Hero container max-width | ${REF_HERO_CONTAINER:-?} | ${CMS_HERO_INNER:-?} | $([ "$REF_HERO_CONTAINER" = "$CMS_HERO_INNER" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Hero content max-width (the text area)
+REF_HERO_CONTENT=$(echo "$REF_HTML" | grep -oP 'hero-content\{[^}]*max-width:\K[^;]+' | head -1)
+CMS_HERO_CONTENT=$(echo "$CMS_HTML" | grep -oP 'section-block:first-child > div\{[^}]*max-width:\K[^;]+' | head -1)
+echo "| Hero content max-width | ${REF_HERO_CONTENT:-?} | ${CMS_HERO_CONTENT:-?} | $([ "$REF_HERO_CONTENT" = "$CMS_HERO_CONTENT" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Hero content alignment (left vs center)
+REF_HERO_ALIGN="left"
+CMS_HERO_HAS_AUTO=$(echo "$CMS_HTML" | grep -oP 'section-block:first-child > div[^}]*margin:0 auto' | wc -l)
+CMS_HERO_ALIGN="center"
+[ "$CMS_HERO_HAS_AUTO" -eq 0 ] && CMS_HERO_ALIGN="left"
+echo "| Hero content alignment | ${REF_HERO_ALIGN} | ${CMS_HERO_ALIGN} | $([ "$REF_HERO_ALIGN" = "$CMS_HERO_ALIGN" ] && echo '✅' || echo '⚠️ Content centered instead of left-aligned') |" >> "$OUTPUT"
+
+# Hero padding
+REF_HERO_PAD=$(echo "$REF_HTML" | grep -oP '\.hero\{[^}]*padding:\K[^;]+' | head -1)
+CMS_HERO_PAD=$(echo "$CMS_HTML" | grep -oP 'section-block.*?padding-top:\K[^;]+' | head -1)
+echo "| Hero padding-top | ${REF_HERO_PAD:-?} | ${CMS_HERO_PAD:-?} | |" >> "$OUTPUT"
+
+# Hero background treatment
+REF_HERO_IMG=$(echo "$REF_HTML" | grep -c 'hero-photo' 2>/dev/null || echo "0")
+CMS_HERO_GRAY=$(echo "$CMS_HTML" | grep -c 'grayscale(100%)' 2>/dev/null || echo "0")
+echo "| Hero bg grayscale | ${REF_HERO_IMG} (img element) | ${CMS_HERO_GRAY} (CSS) | $([ "$CMS_HERO_GRAY" -gt 0 ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Hero gradient overlay
+REF_HERO_GRAD=$(echo "$REF_HTML" | grep -c 'hero-fade' 2>/dev/null || echo "0")
+CMS_HERO_GRAD=$(echo "$CMS_HTML" | grep -c 'linear-gradient(105deg' 2>/dev/null || echo "0")
+echo "| Hero gradient overlay | ${REF_HERO_GRAD} | ${CMS_HERO_GRAD} | $([ "$CMS_HERO_GRAD" -gt 0 ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+# Hero buttons count
+REF_HERO_BTNS=$(echo "$REF_HTML" | sed -n '/<section class="hero"/,/<\/section>/p' | grep -c 'class="btn' 2>/dev/null || echo "0")
+CMS_HERO_BTNS=$(echo "$CMS_HTML" | sed -n '/section-block.*padding-top:130/,/<\/section>/p' | grep -c 'class="btn' 2>/dev/null || echo "0")
+echo "| Hero buttons | ${REF_HERO_BTNS} | ${CMS_HERO_BTNS} | $([ "$REF_HERO_BTNS" = "$CMS_HERO_BTNS" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+
+echo "" >> "$OUTPUT"
+
 # ── 6b. NAVIGATION STYLING ──
 echo "## 6b. Navigation Styling" >> "$OUTPUT"
 echo "| Property | Reference | CMS | Match |" >> "$OUTPUT"

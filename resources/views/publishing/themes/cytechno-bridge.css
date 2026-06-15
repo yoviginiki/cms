@@ -107,10 +107,12 @@ header .nav-logo {
 }
 
 /* ── MAIN WRAPPER — remove CMS container constraint so sections go full-width ── */
-main[role="main"] {
+main[role="main"],
+main[role="main"][style] {
   max-width: 100% !important;
   padding: 0 !important;
   margin: 0 !important;
+  width: 100% !important;
 }
 
 /* ── SECTION WRAPPER ── */
@@ -647,11 +649,18 @@ main[role="main"] > .section-block:first-child::after {
   z-index: 1 !important;
   pointer-events: none !important;
 }
-/* Hero content above both layers */
+/* Hero container — width:90% max-width:1200px (matches live site .container) */
 main[role="main"] > .section-block:first-child > div {
   position: relative !important;
   z-index: 2 !important;
+  max-width: 1200px !important;
+  width: 90% !important;
+  margin: 0 auto !important;
+}
+/* Hero CONTENT — max-width:800px LEFT-aligned (not centered) within container */
+main[role="main"] > .section-block:first-child .column-block > div {
   max-width: 800px !important;
+  /* NO margin:auto — left-aligned, matching logo position */
 }
 /* Kill any CMS-generated overlay div */
 main[role="main"] > .section-block:first-child .block-bg-overlay {
