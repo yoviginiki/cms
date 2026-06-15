@@ -139,15 +139,25 @@ REF_NAV_GAP=$(echo "$REF_HTML" | grep -oP 'nav-links\{[^}]*gap:\K[^;]+' | head -
 CMS_NAV_GAP=$(echo "$CMS_HTML" | grep -oP 'menu-desktop[^}]*gap:\K[^;]+' | head -1)
 echo "| Nav gap | ${REF_NAV_GAP:-?} | ${CMS_NAV_GAP:-?} | $([ "$REF_NAV_GAP" = "$CMS_NAV_GAP" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
 
-# Nav CTA (border on last link)
-REF_HAS_CTA=$(echo "$REF_HTML" | grep -c 'nav-cta' 2>/dev/null || echo "0")
-CMS_HAS_CTA=$(echo "$CMS_HTML" | grep -c 'border.*solid.*red\|border.*solid.*primary' 2>/dev/null || echo "0")
-echo "| Nav CTA button | ${REF_HAS_CTA} | ${CMS_HAS_CTA} | $([ "$REF_HAS_CTA" = "$CMS_HAS_CTA" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+# Nav CTA (only LAST link should have border, not all links)
+REF_CTA_COUNT=$(echo "$REF_HTML" | grep -oP 'class="nav-cta"' | wc -l)
+CMS_BORDER_LINKS=$(echo "$CMS_HTML" | grep -oP 'menu-top-link:last-child[^}]*border|menu-item:last-child .menu-top-link[^}]*border' | wc -l)
+CMS_ALL_BORDER=$(echo "$CMS_HTML" | grep -oP '\.menu-top-link[^}]*border(?!-radius)' | wc -l)
+echo "| Nav CTA (border links) | REF: ${REF_CTA_COUNT} CTA | CMS: ${CMS_BORDER_LINKS} targeted | $([ "$CMS_BORDER_LINKS" -gt 0 ] && echo '✅' || echo '⚠️ No CTA') |" >> "$OUTPUT"
 
-# Nav link border (should be none on regular links)
-REF_LINK_BORDER=$(echo "$REF_HTML" | grep -oP 'nav-links a\{[^}]*border[^}]*' | head -1)
-CMS_LINK_BORDER=$(echo "$CMS_HTML" | grep -oP 'menu-top-link[^}]*border[^}]*' | head -1)
-echo "| Regular links border | ${REF_LINK_BORDER:-none} | ${CMS_LINK_BORDER:-none} | $([ -z "$REF_LINK_BORDER" ] && [ -z "$CMS_LINK_BORDER" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
+# Check if border applies to ALL links (wrong) or only last item (correct)
+CMS_WRONG_SELECTOR=$(echo "$CMS_HTML" | grep -c 'menu-top-link:last-child.*border' 2>/dev/null || echo "0")
+CMS_RIGHT_SELECTOR=$(echo "$CMS_HTML" | grep -c 'menu-item:last-child .menu-top-link.*border' 2>/dev/null || echo "0")
+if [ "$CMS_WRONG_SELECTOR" -gt 0 ] && [ "$CMS_RIGHT_SELECTOR" -eq 0 ]; then
+  echo "| ⚠️ CTA selector bug | .menu-top-link:last-child applies to ALL links | Fix: .menu-item:last-child .menu-top-link | ❌ BUG |" >> "$OUTPUT"
+elif [ "$CMS_RIGHT_SELECTOR" -gt 0 ]; then
+  echo "| CTA selector | .menu-item:last-child .menu-top-link | Only Contact has border | ✅ |" >> "$OUTPUT"
+fi
+
+# Nav link border (regular links should have NO border)
+REF_REGULAR_BORDER=$(echo "$REF_HTML" | grep -oP '\.nav-links a\{[^}]*\bborder\b[^}]*' | head -1)
+CMS_REGULAR_BORDER=$(echo "$CMS_HTML" | grep -oP '\.menu-top-link\{[^}]*\bborder\b[^}]*' | head -1)
+echo "| Regular links border | ${REF_REGULAR_BORDER:-none} | ${CMS_REGULAR_BORDER:-none} | $([ -z "$REF_REGULAR_BORDER" ] && [ -z "$CMS_REGULAR_BORDER" ] && echo '✅' || echo '⚠️') |" >> "$OUTPUT"
 
 echo "" >> "$OUTPUT"
 

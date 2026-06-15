@@ -94,16 +94,14 @@ header .nav-logo {
 .site-nav .menu-desktop a:hover,
 .site-nav .nav-menu a:hover { color: var(--red) !important; }
 
-/* CTA nav link */
-.site-nav .menu-top-link:last-child,
-.site-nav .nav-menu a:last-child {
+/* CTA nav link — only the LAST menu item (Contact), not every link */
+.site-nav .menu-desktop .menu-item:last-child .menu-top-link {
   border: 1.5px solid var(--red) !important;
   color: var(--red) !important;
   padding: 9px 22px !important;
   transition: background .2s, color .2s !important;
 }
-.site-nav .menu-top-link:last-child:hover,
-.site-nav .nav-menu a:last-child:hover {
+.site-nav .menu-desktop .menu-item:last-child .menu-top-link:hover {
   background: var(--red) !important;
   color: #fff !important;
 }
