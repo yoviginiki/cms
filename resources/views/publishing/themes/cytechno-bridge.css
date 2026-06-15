@@ -860,10 +860,55 @@ main[role="main"] > .section-block {
   .postgrid-block [style*="grid-template-columns:repeat(3"] { grid-template-columns: 1fr 1fr !important; }
   .featuregrid-block [style*="grid-template-columns"] { grid-template-columns: 1fr 1fr !important; }
 }
-@media (max-width: 640px) {
+
+/* Mobile menu — must match MenuRenderer breakpoint (768px) */
+@media (max-width: 768px) {
+  /* Hide desktop nav, show hamburger */
+  .site-nav .menu-desktop { display: none !important; }
+  .site-nav .menu-hamburger { display: flex !important; }
+
+  /* Hamburger panel when open */
+  .site-nav.menu-open .menu-hamburger-panel {
+    display: flex !important;
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+    flex-direction: column !important;
+    background: rgba(255,255,255,.98) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border-bottom: 1px solid var(--gray-light, #e2e2e2) !important;
+    padding: 8px 0 !important;
+    z-index: 100 !important;
+  }
+
+  /* Mobile nav links */
+  .site-nav .menu-hamburger-panel a {
+    display: block !important;
+    padding: 14px 5% !important;
+    font-family: 'Barlow Condensed', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    letter-spacing: .16em !important;
+    text-transform: uppercase !important;
+    color: var(--gray-dark, #2b2b2b) !important;
+    border-bottom: 1px solid var(--gray-light, #e2e2e2) !important;
+    text-decoration: none !important;
+  }
+  .site-nav .menu-hamburger-panel a:last-child { border-bottom: none !important; }
+  .site-nav .menu-hamburger-panel a:hover { color: var(--red) !important; }
+
+  /* Hero responsive */
+  main[role="main"] > .section-block:first-child { padding-top: 90px !important; padding-bottom: 100px !important; }
+
+  /* Grids to single column */
   .postgrid-block [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
   .featuregrid-block [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
-  .site-nav .menu-desktop { display: none !important; }
+  .stats-block [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+
+  /* Hero buttons stack on mobile */
+  main[role="main"] > .section-block:first-child .button-block { display: block !important; margin-bottom: 10px !important; }
 }
 
 /* ── REDUCED MOTION ── */
