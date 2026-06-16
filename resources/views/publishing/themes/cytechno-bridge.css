@@ -563,13 +563,9 @@ body::after {
   color: var(--black) !important;
 }
 
-/* ── HERO BUTTONS SIDE BY SIDE ── */
-main[role="main"] > .section-block:first-child .column-block > div {
-  display: flex !important;
-  flex-direction: column !important;
-}
+/* OLD HERO BUTTONS RULE — REMOVED, see line 244 for correct flex-direction:row */
 main[role="main"] > .section-block:first-child .button-block {
-  display: inline-block !important;
+  flex: 0 0 auto !important;
   margin-right: 14px !important;
   margin-top: 0 !important;
 }
