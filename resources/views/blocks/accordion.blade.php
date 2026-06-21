@@ -17,18 +17,30 @@
     $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
     $titleTextShadow = $tsShadowPresets[$data['titleTextShadow'] ?? ''] ?? '';
 @endphp
-<div class="accordion-block" style="margin-bottom: 1.5rem;">
-    @foreach(($data['items'] ?? []) as $item)
-        <details style="border: 1px solid var(--color-border,#e2e8f0); border-radius:var(--border-radius-md,0.5rem); margin-bottom: 0.5rem; overflow: hidden;">
-            <summary style="padding: 1rem 1.25rem; cursor: pointer; font-weight: 500; background:var(--color-bg-alt,#f8fafc); list-style: none; display: flex; align-items: center; justify-content: space-between;">
+@php
+    $variant = $data['variant'] ?? 'default';
+    $openFirst = !empty($data['openFirst']);
+@endphp
+<div class="accordion-block accordion-block--{{ $variant }}" style="margin-bottom: 1.5rem;">
+    @foreach(($data['items'] ?? []) as $index => $item)
+        <details style="border-bottom:1px solid var(--color-border,#e2e8f0);overflow:hidden;"@if($openFirst && $index === 0) open @endif>
+            <summary style="padding:1.25rem 0;cursor:pointer;font-family:var(--font-heading,inherit);font-weight:var(--heading-weight,600);font-size:var(--font-size-lg,1.125rem);letter-spacing:var(--letter-spacing-heading,0);list-style:none;display:flex;align-items:center;justify-content:space-between;color:var(--color-heading,var(--color-text,#1e293b));transition:opacity 0.3s;">
                 <span @if($titleTextShadow) style="text-shadow:{{ $titleTextShadow }}" @endif>{{ $item['title'] ?? '' }}</span>
-                <span style="transition: transform 0.2s;">&#9660;</span>
+                <span style="font-size:0.75rem;color:var(--color-text-muted,#64748b);letter-spacing:0.1em;text-transform:uppercase;font-family:var(--font-body,inherit);font-weight:400;">open</span>
             </summary>
-            <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--color-border,#e2e8f0);">
+            <div style="padding:0 0 2rem;line-height:var(--line-height-body,1.6);color:var(--color-text,#1e293b);">
                 {!! $item['content'] ?? '' !!}
             </div>
         </details>
     @endforeach
 </div>
+<style>
+.accordion-block details[open] > summary span:last-child{content:'close';}
+.accordion-block details[open] > summary span:last-child::after{content:'close';}
+.accordion-block details[open] > summary span:last-child{font-size:0;}
+.accordion-block details[open] > summary span:last-child::after{font-size:0.75rem;}
+.accordion-block details summary:hover{opacity:0.7;}
+.accordion-block details summary::-webkit-details-marker{display:none;}
+</style>
 
 </div>
