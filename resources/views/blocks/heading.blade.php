@@ -24,9 +24,9 @@
     $typo = $__bs['typography'] ?? [];
 
     $fontSize = BlockStyle::safeCssVal($typo['fontSize'] ?? '') ?: $cssDim($data['fontSize'] ?? '') ?: ($defaultSizeMap[$level] ?? $defaultSizeMap['h2']);
-    $fontWeight = BlockStyle::safeCssVal($typo['fontWeight'] ?? '') ?: (in_array((string)($data['fontWeight'] ?? ''), ['400','500','600','700','800','900']) ? $data['fontWeight'] : 'var(--font-weight-bold,700)');
-    $color = BlockStyle::safeColor($typo['textColor'] ?? '') ?: $cssVal($data['color'] ?? '') ?: 'var(--color-text,#1e293b)';
-    $lineHeight = BlockStyle::safeCssVal($typo['lineHeight'] ?? '') ?: $cssVal($data['lineHeight'] ?? '') ?: 'var(--line-height-tight,1.25)';
+    $fontWeight = BlockStyle::safeCssVal($typo['fontWeight'] ?? '') ?: (in_array((string)($data['fontWeight'] ?? ''), ['400','500','600','700','800','900']) ? $data['fontWeight'] : 'var(--heading-weight,var(--font-weight-bold,700))');
+    $color = BlockStyle::safeColor($typo['textColor'] ?? '') ?: $cssVal($data['color'] ?? '') ?: 'var(--color-heading,var(--color-text,#0f172a))';
+    $lineHeight = BlockStyle::safeCssVal($typo['lineHeight'] ?? '') ?: $cssVal($data['lineHeight'] ?? '') ?: 'var(--line-height-heading,var(--line-height-tight,1.25))';
     $letterSpacing = BlockStyle::safeCssVal($typo['letterSpacing'] ?? '') ?: $cssVal($data['letterSpacing'] ?? '');
     $textTransform = in_array($typo['textTransform'] ?? $data['textTransform'] ?? '', ['uppercase','lowercase','capitalize']) ? ($typo['textTransform'] ?? $data['textTransform']) : '';
     $textAlign = in_array($typo['textAlign'] ?? $data['textAlign'] ?? '', ['left','center','right','justify']) ? ($typo['textAlign'] ?? $data['textAlign']) : '';

@@ -72,6 +72,62 @@ class DesignTokenGenerator
         'semantic.shadow.md' => 'shadow-md',
         'semantic.shadow.lg' => 'shadow-lg',
         'semantic.shadow.xl' => 'shadow-xl',
+
+        // Typography extras
+        'semantic.font.lineHeight.body' => 'line-height-body',
+        'semantic.font.lineHeight.heading' => 'line-height-heading',
+        'semantic.font.letterSpacing.body' => 'letter-spacing-body',
+        'semantic.font.letterSpacing.heading' => 'letter-spacing-heading',
+        'semantic.font.weight.heading' => 'heading-weight',
+
+        // Link behavior
+        'semantic.color.text.link.hoverOpacity' => 'link-hover-opacity',
+
+        // Navigation
+        'semantic.nav.height' => 'nav-height',
+        'semantic.nav.bgBlur' => 'nav-bg-blur',
+        'semantic.nav.fontSize' => 'nav-font-size',
+        'semantic.nav.fontWeight' => 'nav-font-weight',
+        'semantic.nav.letterSpacing' => 'nav-tracking',
+        'semantic.nav.textTransform' => 'nav-transform',
+        'semantic.nav.gap' => 'nav-gap',
+        'semantic.nav.logoSize' => 'nav-logo-size',
+        'semantic.nav.logoWeight' => 'nav-logo-weight',
+        'semantic.nav.logoTracking' => 'nav-logo-tracking',
+        'semantic.nav.logoTransform' => 'nav-logo-transform',
+        'semantic.nav.padding' => 'nav-padding',
+
+        // Nav overlay mode
+        'semantic.nav.overlayBg' => 'nav-overlay-bg',
+        'semantic.nav.overlayColor' => 'nav-overlay-color',
+        'semantic.nav.overlayHoverColor' => 'nav-overlay-hover-color',
+        'semantic.nav.overlayFontSize' => 'nav-overlay-font-size',
+        'semantic.nav.overlayFontWeight' => 'nav-overlay-font-weight',
+        'semantic.nav.overlayTracking' => 'nav-overlay-tracking',
+        'semantic.nav.overlayTransform' => 'nav-overlay-transform',
+        'semantic.nav.overlayGap' => 'nav-overlay-gap',
+        'semantic.nav.overlaySubFontSize' => 'nav-overlay-sub-font-size',
+
+        // Footer
+        'semantic.footer.bg' => 'footer-bg',
+        'semantic.footer.color' => 'footer-color',
+        'semantic.footer.borderColor' => 'footer-border-color',
+
+        // Buttons
+        'semantic.btn.bg' => 'btn-bg',
+        'semantic.btn.color' => 'btn-color',
+        'semantic.btn.border' => 'btn-border',
+        'semantic.btn.hoverBg' => 'btn-hover-bg',
+        'semantic.btn.hoverColor' => 'btn-hover-color',
+        'semantic.btn.padding' => 'btn-padding',
+        'semantic.btn.fontWeight' => 'btn-font-weight',
+        'semantic.btn.tracking' => 'btn-tracking',
+        'semantic.btn.transform' => 'btn-transform',
+        'semantic.btn.radius' => 'btn-radius',
+
+        // Content
+        'semantic.content.maxWidth' => 'content-max-width',
+        'semantic.content.proseMaxWidth' => 'prose-max-width',
     ];
 
     public function generate(Site $site): string
@@ -381,6 +437,51 @@ class DesignTokenGenerator
             'transition-fast' => '150ms ease',
             'transition-base' => '250ms ease',
             'transition-slow' => '400ms ease',
+
+            // Typography extras
+            'line-height-body' => '1.6',
+            'line-height-heading' => '1.25',
+            'letter-spacing-body' => '0',
+            'letter-spacing-heading' => '0',
+            'heading-weight' => '700',
+
+            // Link behavior
+            'link-hover-opacity' => '1',
+
+            // Navigation
+            'nav-height' => 'auto',
+            'nav-bg-blur' => '20px',
+            'nav-font-size' => '12px',
+            'nav-font-weight' => '500',
+            'nav-tracking' => '0.12em',
+            'nav-transform' => 'uppercase',
+            'nav-gap' => '28px',
+            'nav-logo-size' => '14px',
+            'nav-logo-weight' => '600',
+            'nav-logo-tracking' => '0.1em',
+            'nav-logo-transform' => 'none',
+            'nav-padding' => '14px 0',
+
+            // Footer
+            'footer-bg' => 'var(--color-bg-alt, #f8fafc)',
+            'footer-color' => 'var(--color-text-muted, #64748b)',
+            'footer-border-color' => 'var(--color-border-light, #f1f5f9)',
+
+            // Buttons
+            'btn-bg' => 'var(--color-primary, #3b82f6)',
+            'btn-color' => '#ffffff',
+            'btn-border' => 'transparent',
+            'btn-hover-bg' => 'var(--color-primary-dark, #2563eb)',
+            'btn-hover-color' => '#ffffff',
+            'btn-padding' => '12px 24px',
+            'btn-font-weight' => '600',
+            'btn-tracking' => '0.12em',
+            'btn-transform' => 'uppercase',
+            'btn-radius' => 'var(--border-radius-md, 8px)',
+
+            // Content
+            'content-max-width' => '800px',
+            'prose-max-width' => '65ch',
         ];
     }
 }

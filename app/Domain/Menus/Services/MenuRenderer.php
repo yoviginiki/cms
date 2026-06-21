@@ -144,7 +144,10 @@ class MenuRenderer
         }
 
         $html = $css;
-        $html .= "<nav class=\"site-nav {$scopeClass}\" style=\"{$navStyle}\" aria-label=\"" . e($ariaLabel) . "\">\n";
+        // Check if theme uses overlay nav mode
+        $navMode = $site->theme?->config['tokens']['nav-mode'] ?? '';
+        $overlayClass = $navMode === 'overlay' ? ' site-nav--overlay' : '';
+        $html .= "<nav class=\"site-nav{$overlayClass} {$scopeClass}\" style=\"{$navStyle}\" aria-label=\"" . e($ariaLabel) . "\">\n";
         $html .= "  <div style=\"{$innerStyle}\">\n";
 
         // Logo

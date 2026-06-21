@@ -76,12 +76,12 @@
     nav .nav-menu{all:unset !important}
 
     /* ─── Responsive Navigation ─── */
-    .site-nav{position:sticky !important;top:0;z-index:1000;background:rgba(255,255,255,0.88);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--color-border-light, #f0f0eb)}
+    .site-nav{position:sticky !important;top:0;z-index:1000;background:color-mix(in srgb, var(--color-bg,#fff) 92%, transparent);backdrop-filter:saturate(180%) blur(var(--nav-bg-blur,20px));-webkit-backdrop-filter:saturate(180%) blur(var(--nav-bg-blur,20px));border-bottom:1px solid var(--color-border-light, #f0f0eb)}
     .site-nav .nav-inner{display:flex !important;align-items:center;justify-content:space-between;max-width:var(--container-width, 1200px);width:90%;margin:0 auto;padding:var(--nav-padding, 14px 0);height:auto}
     .site-nav .nav-logo{font-family:var(--font-heading, sans-serif);font-size:var(--nav-logo-size, 14px);font-weight:var(--nav-logo-weight, 600);color:var(--color-text, #1a1a1a);text-decoration:none;letter-spacing:var(--nav-logo-tracking, 0.1em);text-transform:var(--nav-logo-transform, none);flex-shrink:0}
     .site-nav .nav-menu{display:flex !important;align-items:center;gap:var(--nav-gap, 28px);list-style:none !important;margin:0 !important;padding:0 !important;height:auto !important}
     .site-nav .nav-menu li{list-style:none;margin:0;padding:0}
-    .site-nav .nav-menu a{font-family:var(--font-heading, sans-serif);font-size:var(--nav-font-size, 12px);font-weight:var(--nav-font-weight, 500);color:var(--color-text-muted, #666);text-decoration:none;transition:color 0.2s;letter-spacing:var(--nav-tracking, 0.12em);text-transform:var(--nav-transform, uppercase)}
+    .site-nav .nav-menu a{font-family:var(--font-nav, var(--font-heading, sans-serif));font-size:var(--nav-font-size, 12px);font-weight:var(--nav-font-weight, 500);color:var(--color-text-muted, #666);text-decoration:none;transition:color 0.2s;letter-spacing:var(--nav-tracking, 0.12em);text-transform:var(--nav-transform, uppercase)}
     .site-nav .nav-menu a:hover{color:var(--color-primary, #3b82f6)}
     .site-nav .has-children{position:relative}
     .site-nav .nav-submenu{display:none;position:absolute;top:calc(100% + 8px);left:-16px;min-width:180px;padding:8px 0;background:var(--color-bg,#fff);border:1px solid var(--color-border-light, #eee);box-shadow:var(--shadow-md,0 8px 32px rgba(0,0,0,0.08));list-style:none !important;z-index:100;border-radius:var(--border-radius-md,0.5rem)}
@@ -97,19 +97,39 @@
     .site-nav.nav-open .nav-toggle-line:nth-child(2){opacity:0}
     .site-nav.nav-open .nav-toggle-line:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
 
-    /* Mobile */
+    /* ─── Overlay Nav Mode ─── */
+    /* Targets both layout nav (.nav-toggle/.nav-menu) and MenuRenderer nav (.menu-hamburger/.menu-desktop) */
+    .site-nav--overlay .nav-toggle,.site-nav--overlay .menu-hamburger{display:flex !important}
+    .site-nav--overlay .nav-menu,.site-nav--overlay .menu-desktop{display:none !important;position:fixed;top:0;left:0;right:0;bottom:0;flex-direction:column;align-items:center;justify-content:center;gap:var(--nav-overlay-gap, 1.5rem) !important;background:var(--nav-overlay-bg, rgba(69,64,48,0.8));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:2999;padding:0 !important;list-style:none}
+    .site-nav--overlay.nav-open .nav-menu,.site-nav--overlay.menu-open .menu-desktop{display:flex !important}
+    .site-nav--overlay .nav-menu li,.site-nav--overlay .menu-desktop li{width:auto;list-style:none}
+    .site-nav--overlay .nav-menu a,.site-nav--overlay .menu-desktop a{display:block;padding:0.5rem 1rem;font-size:var(--nav-overlay-font-size, 2rem) !important;font-weight:var(--nav-overlay-font-weight, 300) !important;color:var(--nav-overlay-color, #F3F0EA) !important;letter-spacing:var(--nav-overlay-tracking, 0.05em) !important;text-transform:var(--nav-overlay-transform, none) !important;border-bottom:none !important;opacity:0.85;transition:opacity 0.3s}
+    .site-nav--overlay .nav-menu a:hover,.site-nav--overlay .menu-desktop a:hover{opacity:1;background:transparent !important;color:var(--nav-overlay-hover-color, #ffffff) !important}
+    .site-nav--overlay.nav-open .nav-toggle,.site-nav--overlay.menu-open .menu-hamburger{position:fixed;top:20px;right:20px;z-index:3001}
+    .site-nav--overlay.nav-open .nav-toggle-line,.site-nav--overlay.menu-open .menu-hamburger span{background:var(--nav-overlay-color, #F3F0EA)}
+    .site-nav--overlay .nav-submenu,.site-nav--overlay .submenu{position:static !important;box-shadow:none !important;border:none !important;padding:0 !important;background:transparent !important;border-radius:0 !important;display:block !important}
+    .site-nav--overlay .nav-submenu a,.site-nav--overlay .submenu a{font-size:var(--nav-overlay-sub-font-size, 1.2rem) !important;color:var(--nav-overlay-color, #F3F0EA) !important;opacity:0.6}
+    /* Hide mobile hamburger panel in overlay mode — use full-screen overlay instead */
+    .site-nav--overlay .menu-hamburger-panel{display:none !important}
+
+    /* Mobile — dropdown mode (default, non-overlay) */
     @media(max-width:768px){
-        .site-nav .nav-toggle{display:flex !important}
-        .site-nav .nav-menu{display:none !important;position:absolute;top:56px;left:0;right:0;flex-direction:column;background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--color-border-light, #eee);padding:16px 0;gap:0 !important;box-shadow:0 8px 32px rgba(0,0,0,0.06)}
-        .site-nav.nav-open .nav-menu{display:flex !important}
-        .site-nav .nav-menu li{width:100%}
-        .site-nav .nav-menu a{display:block;padding:14px var(--container-padding, 24px);font-size:15px;opacity:0.7;border-bottom:1px solid var(--color-border-light, #f0f0eb)}
-        .site-nav .nav-menu a:hover{opacity:1;background:var(--color-bg-alt, #f5f5f0)}
-        .site-nav .nav-submenu{position:static !important;box-shadow:none !important;border:none !important;padding:0 !important;background:transparent !important;border-radius:0 !important}
-        .site-nav .nav-submenu a{padding-left:calc(var(--container-padding, 24px) + 16px);font-size:14px}
-        .site-nav .has-children:hover .nav-submenu,.site-nav .nav-submenu{display:block !important}
-        .site-nav .nav-inner{position:relative;padding:0 20px}
+        .site-nav:not(.site-nav--overlay) .nav-toggle{display:flex !important}
+        .site-nav:not(.site-nav--overlay) .nav-menu{display:none !important;position:absolute;top:56px;left:0;right:0;flex-direction:column;background:color-mix(in srgb, var(--color-bg,#fff) 97%, transparent);backdrop-filter:blur(var(--nav-bg-blur,20px));-webkit-backdrop-filter:blur(var(--nav-bg-blur,20px));border-bottom:1px solid var(--color-border-light, #eee);padding:16px 0;gap:0 !important;box-shadow:0 8px 32px rgba(0,0,0,0.06)}
+        .site-nav:not(.site-nav--overlay).nav-open .nav-menu{display:flex !important}
+        .site-nav:not(.site-nav--overlay) .nav-menu li{width:100%}
+        .site-nav:not(.site-nav--overlay) .nav-menu a{display:block;padding:14px var(--container-padding, 24px);font-size:15px;opacity:0.7;border-bottom:1px solid var(--color-border-light, #f0f0eb)}
+        .site-nav:not(.site-nav--overlay) .nav-menu a:hover{opacity:1;background:var(--color-bg-alt, #f5f5f0)}
+        .site-nav:not(.site-nav--overlay) .nav-submenu{position:static !important;box-shadow:none !important;border:none !important;padding:0 !important;background:transparent !important;border-radius:0 !important}
+        .site-nav:not(.site-nav--overlay) .nav-submenu a{padding-left:calc(var(--container-padding, 24px) + 16px);font-size:14px}
+        .site-nav:not(.site-nav--overlay) .has-children:hover .nav-submenu,.site-nav:not(.site-nav--overlay) .nav-submenu{display:block !important}
+        .site-nav:not(.site-nav--overlay) .nav-inner{position:relative;padding:0 20px}
     }
+
+    /* ─── Footer ─── */
+    footer[role="contentinfo"]{background:var(--footer-bg, var(--color-bg-alt, #f8fafc));color:var(--footer-color, var(--color-text-muted, #64748b));border-top:1px solid var(--footer-border-color, var(--color-border-light, #f0f0eb));padding:2rem 0}
+    footer[role="contentinfo"] a{color:var(--footer-color, var(--color-text-muted, #64748b));transition:color 0.2s}
+    footer[role="contentinfo"] a:hover{color:var(--color-primary, #3b82f6);opacity:1}
 
     /* Dark mode */
     @media(prefers-color-scheme:dark){
