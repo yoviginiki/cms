@@ -32,7 +32,7 @@
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 @if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
-<div class="latestposts-block {{ $__effectScope }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;max-width:1200px;margin-left:auto;margin-right:auto;padding:2rem 1rem;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
+<div class="latestposts-block {{ $__effectScope }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;max-width:var(--container-width,1200px);margin-left:auto;margin-right:auto;padding:2rem 1rem;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $limit = $data['limit'] ?? 5;
@@ -151,7 +151,7 @@
     @endif
     <div style="display:grid;grid-template-columns:repeat({{ $columns }}, 1fr);gap:1.5rem;">
         @foreach($posts as $post)
-            <article style="border:1px solid var(--color-border,#e2e8f0);border-radius:var(--border-radius-md,0.5rem);overflow:hidden;">
+            <article style="border:var(--card-border,1px solid var(--color-border,#e2e8f0));border-radius:var(--border-radius-md,0.5rem);overflow:hidden;">
                 @if($showImage && $post->featured_image)
                     <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
                 @elseif($showImage)

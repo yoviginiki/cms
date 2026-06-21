@@ -125,6 +125,9 @@ class DesignTokenGenerator
         'semantic.btn.transform' => 'btn-transform',
         'semantic.btn.radius' => 'btn-radius',
 
+        // Cards
+        'semantic.card.border' => 'card-border',
+
         // Content
         'semantic.content.maxWidth' => 'content-max-width',
         'semantic.content.proseMaxWidth' => 'prose-max-width',
