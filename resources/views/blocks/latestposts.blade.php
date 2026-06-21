@@ -81,6 +81,7 @@
         return $text;
     };
 @endphp
+@if($showContent)<style>.latestposts-block .section-block>div{max-width:100%!important}.latestposts-block .section-block{padding:0!important}</style>@endif
 @if($posts->isEmpty())
     <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:var(--border-radius-md,0.5rem);">
         No posts found{{ $categoryId ? ' in this category' : '' }}.
