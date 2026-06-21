@@ -146,7 +146,10 @@
     }
     </style>
 </head>
-<body>
+@php
+    $__isHome = !empty($content) && !empty($site) && ($site->settings['homepage_id'] ?? null) === ($content->id ?? null);
+@endphp
+<body{!! $__isHome ? ' data-page="home"' : '' !!}>
     @if(!empty($navigation))
     <header role="banner">
         {!! $navigation !!}
