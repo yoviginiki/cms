@@ -18,7 +18,11 @@ class Post extends Model
     protected $fillable = [
         'site_id', 'category_id', 'author_id', 'title', 'slug', 'excerpt', 'layout_id',
         'featured_image', 'video_url', 'thumbnail', 'post_format',
-        'status', 'editor_mode', 'seo_meta', 'grid_id', 'published_at', 'scheduled_at',
+        'status', 'editor_mode', 'experience_mode', 'seo_meta', 'grid_id', 'published_at', 'scheduled_at',
+    ];
+
+    protected $attributes = [
+        'experience_mode' => 'standard',
     ];
 
     protected function casts(): array
