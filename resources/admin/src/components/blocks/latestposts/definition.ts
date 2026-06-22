@@ -12,6 +12,7 @@ export const latestpostsDefinition: BlockDefinition = {
     columns: 1,
     layout: 'cards',
     orderBy: 'latest',
+    titleAlign: 'left',
     showImage: true,
     showExcerpt: true,
     showDate: true,
