@@ -11,7 +11,7 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
     categoryId: string; limit: number; columns: number;
     layout: string; orderBy: string; showImage: boolean;
     showContent: boolean; showExcerpt: boolean; excerptLength: number;
-    showDate: boolean; showCategory: boolean;
+    showDate: boolean; showCategory: boolean; titleAlign: string;
   };
   const { siteId = '' } = useParams();
 
@@ -83,6 +83,14 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
           <option value="oldest">Oldest first</option>
           <option value="title">Title A-Z</option>
           <option value="random">Random</option>
+        </select>
+      </div>
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Title alignment</label>
+        <select className="select select-bordered select-sm w-full" value={data.titleAlign || 'left'} onChange={(e) => update('titleAlign', e.target.value)}>
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
         </select>
       </div>
       <div className="space-y-2 pt-2 border-t border-base-300/20">
