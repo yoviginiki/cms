@@ -158,7 +158,7 @@
                 @elseif($showImage && !$showContent)
                     <div style="background:#f3f4f6;height:160px;"></div>
                 @endif
-                <div style="{{ $showContent ? '' : 'padding:1rem;' }}">
+                <div style="{{ $showContent ? 'max-width:var(--prose-max-width,65ch);margin-left:auto;margin-right:auto;' : 'padding:1rem;' }}">
                     @if($showCategory && $post->category)
                         <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $post->category->name }}</span>
                     @endif
