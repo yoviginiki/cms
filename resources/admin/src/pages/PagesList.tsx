@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, FileText, Loader2, Home, RefreshCw, Eraser } from 'lucide-react';
-import { pages, sites, publishing } from '@/lib/api';
+import { Plus, Edit, Trash2, FileText, Loader2, Home, RefreshCw, Eraser, Copy } from 'lucide-react';
+import { pages, sites, publishing, api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -43,6 +43,12 @@ export default function PagesList() {
   const deleteMutation = useMutation({
     mutationFn: (pageId: string) => pages.delete(siteId, pageId),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['pages', siteId] }); setDeleteTarget(null); },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (pageId: string) => api.post(`/sites/${siteId}/pages/${pageId}/duplicate`),
+    onSuccess: (r) => { queryClient.invalidateQueries({ queryKey: ['pages', siteId] }); navigate(`/sites/${siteId}/pages/${r.data.data.id}/edit`); },
+    onError: (e: any) => alert(e?.response?.data?.message || 'Failed to duplicate page'),
   });
 
   const createMutation = useMutation({
@@ -129,6 +135,11 @@ export default function PagesList() {
                     className="p-2 text-base-content/40 hover:text-blue-600 rounded-lg" title="Edit">
                     <Edit className="h-4 w-4" />
                   </button>
+                  <button onClick={() => duplicateMutation.mutate(page.id)}
+                    className="p-2 text-base-content/40 hover:text-green-600 rounded-lg" title="Duplicate"
+                    disabled={duplicateMutation.isPending}>
+                    <Copy className="h-4 w-4" />
+                  </button>
                   <button onClick={() => setDeleteTarget(page)}
                     className="p-2 text-base-content/40 hover:text-red-600 rounded-lg" title="Delete">
                     <Trash2 className="h-4 w-4" />
@@ -177,6 +188,11 @@ export default function PagesList() {
                       <button onClick={() => navigate(`/sites/${siteId}/pages/${page.id}/edit`)}
                         className="p-2 text-base-content/40 hover:text-blue-600 rounded-lg hover:bg-blue-50" title="Edit">
                         <Edit className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => duplicateMutation.mutate(page.id)}
+                        className="p-2 text-base-content/40 hover:text-green-600 rounded-lg hover:bg-green-50" title="Duplicate"
+                        disabled={duplicateMutation.isPending}>
+                        <Copy className="h-4 w-4" />
                       </button>
                       <button onClick={() => setDeleteTarget(page)}
                         className="p-2 text-base-content/40 hover:text-red-600 rounded-lg hover:bg-red-50" title="Delete">

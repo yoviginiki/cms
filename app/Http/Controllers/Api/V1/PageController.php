@@ -105,4 +105,47 @@ class PageController extends Controller
 
         return response()->json(['message' => 'Pages reordered.']);
     }
+
+    public function duplicate(Site $site, Page $page): JsonResponse
+    {
+        $this->authorize('create', [Page::class, $site]);
+
+        $newPage = $page->replicate(['id', 'slug', 'created_at', 'updated_at']);
+        $newPage->title = $page->title . ' (Copy)';
+        $newPage->slug = $page->slug . '-copy-' . substr(md5(now()->timestamp), 0, 4);
+        $newPage->status = 'draft';
+        $newPage->save();
+
+        // Copy all blocks with remapped IDs
+        $this->duplicateBlocks($page, $newPage);
+
+        return (new PageResource($newPage))->response()->setStatusCode(201);
+    }
+
+    private function duplicateBlocks($source, $target): void
+    {
+        $blocks = \App\Models\Block::where('blockable_type', $source->getMorphClass())
+            ->where('blockable_id', $source->getKey())
+            ->orderBy('order')
+            ->get();
+
+        $idMap = [];
+        foreach ($blocks as $block) {
+            $newId = \Illuminate\Support\Str::uuid()->toString();
+            $idMap[$block->id] = $newId;
+        }
+
+        foreach ($blocks as $block) {
+            \App\Models\Block::create([
+                'id' => $idMap[$block->id],
+                'blockable_type' => $target->getMorphClass(),
+                'blockable_id' => $target->getKey(),
+                'parent_block_id' => $block->parent_block_id ? ($idMap[$block->parent_block_id] ?? null) : null,
+                'type' => $block->type,
+                'data' => $block->data,
+                'order' => $block->order,
+                'style' => $block->style,
+            ]);
+        }
+    }
 }

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Newspaper, Loader2, Search, ArrowUpDown, ArrowUp, ArrowDown, Copy, Check, ExternalLink } from 'lucide-react';
-import { posts, categories as categoriesApi, sites } from '@/lib/api';
+import { posts, categories as categoriesApi, sites, api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -84,6 +84,12 @@ export default function PostsList() {
       queryClient.invalidateQueries({ queryKey: ['posts', siteId] });
       setDeleteTarget(null);
     },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (postId: string) => api.post(`/sites/${siteId}/posts/${postId}/duplicate`),
+    onSuccess: (r) => { queryClient.invalidateQueries({ queryKey: ['posts', siteId] }); navigate(`/sites/${siteId}/posts/${r.data.data.id}/edit`); },
+    onError: (e: any) => alert(e?.response?.data?.message || 'Failed to duplicate post'),
   });
 
   const createMutation = useMutation({
@@ -216,6 +222,11 @@ export default function PostsList() {
                     className="btn btn-ghost btn-sm btn-square text-base-content/40" title="Edit">
                     <Edit className="h-4 w-4" />
                   </button>
+                  <button onClick={() => duplicateMutation.mutate(post.id)}
+                    className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-success" title="Duplicate"
+                    disabled={duplicateMutation.isPending}>
+                    <Copy className="h-4 w-4" />
+                  </button>
                   <button onClick={() => setDeleteTarget(post)}
                     className="btn btn-ghost btn-sm btn-square text-base-content/40 hover:text-error" title="Delete">
                     <Trash2 className="h-4 w-4" />
@@ -297,6 +308,11 @@ export default function PostsList() {
                       <button onClick={() => navigate(`/sites/${siteId}/posts/${post.id}/edit`)}
                         className="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-primary" title="Edit">
                         <Edit className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => duplicateMutation.mutate(post.id)}
+                        className="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-success" title="Duplicate"
+                        disabled={duplicateMutation.isPending}>
+                        <Copy className="h-3.5 w-3.5" />
                       </button>
                       <button onClick={() => setDeleteTarget(post)}
                         className="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-error" title="Delete">

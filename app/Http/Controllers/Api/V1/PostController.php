@@ -98,4 +98,41 @@ class PostController extends Controller
 
         return response()->json(null, 204);
     }
+
+    public function duplicate(Site $site, Post $post): JsonResponse
+    {
+        $this->authorize('create', [Post::class, $site]);
+
+        $newPost = $post->replicate(['id', 'slug', 'created_at', 'updated_at', 'published_at']);
+        $newPost->title = $post->title . ' (Copy)';
+        $newPost->slug = $post->slug . '-copy-' . substr(md5(now()->timestamp), 0, 4);
+        $newPost->status = 'draft';
+        $newPost->save();
+
+        // Copy all blocks with remapped IDs
+        $blocks = \App\Models\Block::where('blockable_type', $post->getMorphClass())
+            ->where('blockable_id', $post->getKey())
+            ->orderBy('order')
+            ->get();
+
+        $idMap = [];
+        foreach ($blocks as $block) {
+            $idMap[$block->id] = \Illuminate\Support\Str::uuid()->toString();
+        }
+
+        foreach ($blocks as $block) {
+            \App\Models\Block::create([
+                'id' => $idMap[$block->id],
+                'blockable_type' => $newPost->getMorphClass(),
+                'blockable_id' => $newPost->getKey(),
+                'parent_block_id' => $block->parent_block_id ? ($idMap[$block->parent_block_id] ?? null) : null,
+                'type' => $block->type,
+                'data' => $block->data,
+                'order' => $block->order,
+                'style' => $block->style,
+            ]);
+        }
+
+        return (new PostResource($newPost->load('category')))->response()->setStatusCode(201);
+    }
 }

@@ -115,9 +115,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Pages
         Route::post('sites/{site}/pages/reorder', [PageController::class, 'reorder']);
+        Route::post('sites/{site}/pages/{page}/duplicate', [PageController::class, 'duplicate']);
         Route::apiResource('sites.pages', PageController::class);
 
         // Posts
+        Route::post('sites/{site}/posts/{post}/duplicate', [PostController::class, 'duplicate']);
         Route::apiResource('sites.posts', PostController::class);
 
         // Magazines
