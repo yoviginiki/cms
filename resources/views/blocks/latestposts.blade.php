@@ -152,21 +152,21 @@
     @endif
     <div style="display:grid;grid-template-columns:repeat({{ $columns }}, 1fr);gap:1.5rem;">
         @foreach($posts as $post)
-            <article style="border:var(--card-border,1px solid var(--color-border,#e2e8f0));border-radius:var(--border-radius-md,0.5rem);overflow:hidden;">
+            <article style="{{ $showContent ? '' : 'border:var(--card-border,1px solid var(--color-border,#e2e8f0));border-radius:var(--border-radius-md,0.5rem);' }}overflow:hidden;">
                 @if($showImage && $post->featured_image)
                     <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
-                @elseif($showImage)
+                @elseif($showImage && !$showContent)
                     <div style="background:#f3f4f6;height:160px;"></div>
                 @endif
-                <div style="padding:1rem;">
+                <div style="{{ $showContent ? '' : 'padding:1rem;' }}">
                     @if($showCategory && $post->category)
                         <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $post->category->name }}</span>
                     @endif
-                    <h3 style="margin:0.25rem 0;font-weight:600;">
-                        <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
+                    <h3 style="margin:0.25rem 0;font-weight:var(--heading-weight,600);font-family:var(--font-heading,inherit);letter-spacing:var(--letter-spacing-heading,0);">
+                        <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-heading, var(--color-text, #1e293b));text-decoration:none;">{{ $post->title }}</a>
                     </h3>
                     @if($showContent)
-                        <div style="margin-top:0.5rem;font-size:0.8125rem;line-height:1.5;">{!! $renderContent($post) !!}</div>
+                        <div style="margin-top:1rem;">{!! $renderContent($post) !!}</div>
                     @elseif($showExcerpt && $getExcerpt($post))
                         <p style="color:var(--color-text-muted,#6b7280);font-size:0.8125rem;margin-top:0.25rem;">{{ $getExcerpt($post) }}</p>
                     @endif
