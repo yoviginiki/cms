@@ -13,7 +13,18 @@ class VideoBlockDefinition implements BlockDefinition
             'url' => ['sometimes', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'autoplay' => ['sometimes', 'boolean'],
             'muted' => ['sometimes', 'boolean'],
+            'loop' => ['sometimes', 'boolean'],
             'poster' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'heroMode' => ['sometimes', 'boolean'],
+            'shape' => ['sometimes', 'in:none,capsule,circle,rounded,custom'],
+            'shapeRadius' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'minHeight' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'overlay' => ['sometimes', 'boolean'],
+            'overlayColor' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'overlayOpacity' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:1'],
+            'title' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'subtitle' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'textColor' => ['sometimes', 'nullable', 'string', 'max:50'],
         ];
     }
 
