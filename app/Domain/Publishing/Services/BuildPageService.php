@@ -56,10 +56,13 @@ class BuildPageService
         $pageAppearanceCss = $this->buildPageAppearanceCss($pageMeta);
         if ($pageAppearanceCss) $customCss .= "\n" . $pageAppearanceCss;
 
-        // Experience Mode: inject cross-document View Transition CSS for cinematic pages
+        // Experience Mode: inject assets for cinematic pages ONLY
         $experienceMode = $content->experience_mode ?? 'standard';
         if ($experienceMode === 'cinematic') {
             $customCss .= "\n" . '@supports (view-transition-name: none) { @view-transition { navigation: auto; } }';
+            // Inject experience runtime CSS + deferred JS
+            $headScripts .= "\n" . '<link rel="stylesheet" href="/assets/experience/experience-runtime.css">';
+            $bodyScripts .= "\n" . '<script defer src="/assets/experience/experience-runtime.js"></script>';
         }
 
         $criticalCss = $this->buildCriticalCss($themeConfig);
