@@ -16,7 +16,8 @@ class HtmlEmbedBlockDefinition implements BlockDefinition
 
     public function sanitizationConfig(): array
     {
-        return ['HTML.Allowed' => ''];
+        // html-embed is intentionally raw — allow all HTML including video, style, iframe
+        return ['HTML.Allowed' => '*'];
     }
 
     public function allowsChildren(): bool { return false; }

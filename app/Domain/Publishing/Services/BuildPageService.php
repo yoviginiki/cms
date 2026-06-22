@@ -256,7 +256,10 @@ class BuildPageService
 
     public function renderBlock(Block $block, Site $site): string
     {
-        $sanitizedData = $this->sanitizer->sanitizeBlock($block);
+        // html-embed blocks are intentionally raw — skip sanitization
+        $sanitizedData = $block->type === 'html-embed'
+            ? ($block->data ?? [])
+            : $this->sanitizer->sanitizeBlock($block);
         $childrenHtml = '';
         $childrenArray = [];
 
