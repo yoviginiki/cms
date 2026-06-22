@@ -113,6 +113,15 @@ class DynamicSiteController extends Controller
         // Resolve grid for toolbar info
         $grid = $this->gridResolver->resolve($content, $site);
 
+        // Experience Mode runtime — inject when cinematic or ?experience=1
+        $isExperience = ($content->experience_mode ?? 'standard') === 'cinematic'
+            || request()->query('experience') === '1';
+        if ($isExperience) {
+            $experienceAssets = '<link rel="stylesheet" href="/assets/experience/experience-runtime.css">'
+                . "\n" . '<script defer src="/assets/experience/experience-runtime.js"></script>';
+            $html = str_replace('</head>', $experienceAssets . "\n</head>", $html);
+        }
+
         // Inject admin toolbar
         $toolbar = $this->buildToolbar($content, $site, $grid);
         $html = str_replace('</body>', $toolbar . '</body>', $html);

@@ -174,6 +174,16 @@ JS;
         // Insert preview script before </body>
         $html = str_replace('</body>', $previewScript . '</body>', $html);
 
+        // Experience Mode runtime — inject when cinematic or ?experience=1
+        $isExperience = ($content->experience_mode ?? 'standard') === 'cinematic'
+            || request()->query('experience') === '1';
+
+        if ($isExperience) {
+            $experienceAssets = '<link rel="stylesheet" href="/assets/experience/experience-runtime.css">'
+                . "\n" . '<script defer src="/assets/experience/experience-runtime.js"></script>';
+            $html = str_replace('</head>', $experienceAssets . "\n</head>", $html);
+        }
+
         return $html;
     }
 
