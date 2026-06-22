@@ -45,10 +45,13 @@
       [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
 
       /* Reduce section padding on mobile */
-      .section-block { padding-left: 1rem !important; padding-right: 1rem !important; }
+      .section-block { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
 
-      /* Cap section inner max-width */
-      .section-block > div { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+      /* Cap section inner max-width — no extra padding if already inside a section */
+      .section-block > div { padding-left: 0 !important; padding-right: 0 !important; }
+
+      /* Nested sections (e.g. post content inside latestposts) — no double padding */
+      .section-block .section-block { padding-left: 0 !important; padding-right: 0 !important; }
 
       /* Ensure images don't overflow */
       img { max-width: 100% !important; height: auto !important; }
