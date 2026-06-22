@@ -140,7 +140,7 @@
       @endif
 
       {{-- Desktop links --}}
-      <div class="menu-desktop-links" style="display:flex;align-items:center;{{ $isVertical ? 'flex-direction:column;gap:0.5rem;' : "gap:{$itemGap};" }}">
+      <div class="menu-desktop-links" style="display:flex;align-items:center;flex-wrap:wrap;justify-content:center;{{ $isVertical ? 'flex-direction:column;gap:0.5rem;' : "gap:{$itemGap};" }}">
         @if($source === 'custom')
           @foreach($customItems as $ci)
             @php $ciUrl = $safeUrl($ci['url'] ?? '#'); @endphp

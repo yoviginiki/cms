@@ -557,7 +557,7 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-heading,inherit);font-weight:var(--head
 .site-nav--overlay .nav-submenu,.site-nav--overlay .submenu{position:static!important;box-shadow:none!important;border:none!important;padding:0!important;background:transparent!important;border-radius:0!important;display:block!important}
 .site-nav--overlay .nav-submenu a,.site-nav--overlay .submenu a{font-size:var(--nav-overlay-sub-font-size,1.2rem)!important;color:var(--nav-overlay-color,#F3F0EA)!important;opacity:0.6}
 .site-nav--overlay .menu-hamburger-panel{display:none!important}
-@media(max-width:768px){.site-nav--overlay .nav-menu a,.site-nav--overlay .menu-desktop a{font-size:1.4rem!important;padding:0.4rem 1rem}.site-nav--overlay .nav-submenu a,.site-nav--overlay .submenu a{font-size:1rem!important}}
+@media(max-width:768px){.site-nav--overlay .nav-menu a,.site-nav--overlay .menu-desktop a{font-size:1.4rem!important;padding:0.4rem 1rem}.site-nav--overlay .nav-submenu a,.site-nav--overlay .submenu a{font-size:1rem!important}.menu-desktop-links{gap:1rem!important}}
 ';
 
         // Footer styling
