@@ -13,7 +13,7 @@
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="rich-text-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
-<div class="rich-text-block prose max-w-none" style="margin-bottom: 1.5rem;">
+<div class="rich-text-block prose" style="margin-bottom: 1.5rem;">
     {!! $data['content'] ?? '' !!}
 </div>
 
