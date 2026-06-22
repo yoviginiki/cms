@@ -103,6 +103,9 @@ class ThemeEngineController extends Controller
             'created_by' => $request->user()?->id,
         ]);
 
+        // Automatically activate the forked theme on the site
+        $site->update(['active_theme_id' => $fork->id]);
+
         return response()->json(['data' => $fork], 201);
     }
 
