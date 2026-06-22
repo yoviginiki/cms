@@ -513,7 +513,7 @@ class BuildPageService
             // Default minimal critical CSS for common blocks — uses theme CSS variables
             $css = '
 *,*::before,*::after{box-sizing:border-box}
-body{margin:0;font-family:var(--font-body,system-ui,-apple-system,sans-serif);line-height:var(--line-height-body,1.6);letter-spacing:var(--letter-spacing-body,0);color:var(--color-text,#1e293b);background:var(--color-bg,#ffffff)}
+body{margin:0;font-family:var(--font-body,system-ui,-apple-system,sans-serif);font-size:var(--font-size-base,1rem);line-height:var(--line-height-body,1.6);letter-spacing:var(--letter-spacing-body,0);color:var(--color-text,#1e293b);background:var(--color-bg,#ffffff)}
 a{color:var(--color-link,var(--color-primary,#3b82f6));text-decoration:var(--text-decoration-link,none);transition:color var(--transition-base,250ms ease),opacity var(--transition-base,250ms ease)}
 a:hover{color:var(--color-link-hover,var(--color-primary-dark,#2563eb));text-decoration:var(--text-decoration-link-hover,underline);opacity:var(--link-hover-opacity,1)}
 img{max-width:100%;height:auto;display:block}
