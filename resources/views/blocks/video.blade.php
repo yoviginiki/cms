@@ -45,7 +45,7 @@
 @endphp
 @if($heroMode && $url && !$isYouTube && !$isVimeo)
 {{-- Hero video mode: background video with optional shape, overlay, and text --}}
-<div class="video-hero" style="position:relative;min-height:{{ $minHeight }};display:flex;align-items:center;justify-content:center;overflow:hidden;{{ $shapeStyle }}{{ $poster ? "background:#1a1a18 url('" . e($poster) . "') center/cover no-repeat;" : 'background:#1a1a18;' }}">
+<div class="video-hero" style="position:relative;min-height:{{ $minHeight }};display:flex;align-items:center;justify-content:center;overflow:hidden;{{ $shapeStyle }}{{ $poster ? "background:transparent url('" . e($poster) . "') center/cover no-repeat;" : '' }}">
     <video autoplay muted{{ $loop ? ' loop' : '' }} playsinline{{ $poster ? ' poster="' . e($poster) . '"' : '' }}
            style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;">
         <source src="{{ e($url) }}" type="video/mp4">
