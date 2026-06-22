@@ -119,7 +119,7 @@
 
         "card-border": "none",
         "content-max-width": "800px",
-        "prose-max-width": "65ch",
+        "prose-max-width": "1080px",
 
         "space-1": "4px",
         "space-2": "8px",
