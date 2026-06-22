@@ -522,6 +522,7 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-heading,inherit);font-weight:var(--head
 .hero-content{position:relative;z-index:1}
 .text-block{margin-bottom:1.5rem}
 .prose{max-width:var(--prose-max-width,65ch)}
+.prose.max-w-none{max-width:none}
 .prose p{margin:0 0 1em}
 .prose h2,.prose h3,.prose h4{margin:1.5em 0 0.5em}
 .prose ul,.prose ol{padding-left:1.5em}
