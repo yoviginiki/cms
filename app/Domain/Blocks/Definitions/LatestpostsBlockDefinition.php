@@ -21,6 +21,7 @@ class LatestpostsBlockDefinition implements BlockDefinition
             'showCategory' => ['sometimes', 'boolean'],
             'showContent'  => ['sometimes', 'boolean'],
             'excerptLength'=> ['sometimes', 'integer', 'min:0', 'max:500'],
+            'titleAlign'   => ['sometimes', 'in:left,center,right'],
         ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 
