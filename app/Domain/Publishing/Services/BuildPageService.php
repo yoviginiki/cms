@@ -56,6 +56,12 @@ class BuildPageService
         $pageAppearanceCss = $this->buildPageAppearanceCss($pageMeta);
         if ($pageAppearanceCss) $customCss .= "\n" . $pageAppearanceCss;
 
+        // Experience Mode: inject cross-document View Transition CSS for cinematic pages
+        $experienceMode = $content->experience_mode ?? 'standard';
+        if ($experienceMode === 'cinematic') {
+            $customCss .= "\n" . '@supports (view-transition-name: none) { @view-transition { navigation: auto; } }';
+        }
+
         $criticalCss = $this->buildCriticalCss($themeConfig);
         $fontPreloads = $this->buildFontPreloads($themeConfig);
         $rssUrl = ($site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu") . '/feed.xml';
