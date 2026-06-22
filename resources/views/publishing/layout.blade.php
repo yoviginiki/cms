@@ -33,6 +33,9 @@
     .block-bg-overlay ~ * { position: relative; z-index: 1; }
 
     /* ─── Mobile responsive — published pages ─── */
+    /* Prevent horizontal overflow on all screen sizes */
+    html,body{overflow-x:hidden;max-width:100vw}
+
     @media (max-width: 767px) {
       /* Force multi-column grids to single column */
       [style*="grid-template-columns:repeat(2"] { grid-template-columns: 1fr !important; }
@@ -100,7 +103,7 @@
     /* ─── Overlay Nav Mode ─── */
     /* Targets both layout nav (.nav-toggle/.nav-menu) and MenuRenderer nav (.menu-hamburger/.menu-desktop) */
     .site-nav--overlay .nav-toggle,.site-nav--overlay .menu-hamburger{display:flex !important}
-    .site-nav--overlay .nav-menu,.site-nav--overlay .menu-desktop{display:none !important;position:fixed;top:0;left:0;right:0;bottom:0;flex-direction:column;align-items:center;justify-content:center;gap:var(--nav-overlay-gap, 1.5rem) !important;background:var(--nav-overlay-bg, rgba(69,64,48,0.8));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:2999;padding:0 !important;list-style:none}
+    .site-nav--overlay .nav-menu,.site-nav--overlay .menu-desktop{display:none !important;position:fixed;top:0;left:0;right:0;bottom:0;flex-direction:column;align-items:center;justify-content:center;gap:var(--nav-overlay-gap, 1.5rem) !important;background:var(--nav-overlay-bg, rgba(69,64,48,0.8));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:2999;padding:2rem !important;list-style:none;overflow-y:auto}
     .site-nav--overlay.nav-open .nav-menu,.site-nav--overlay.menu-open .menu-desktop{display:flex !important}
     .site-nav--overlay .nav-menu li,.site-nav--overlay .menu-desktop li{width:auto;list-style:none}
     .site-nav--overlay .nav-menu a,.site-nav--overlay .menu-desktop a{display:block;padding:0.5rem 1rem;font-size:var(--nav-overlay-font-size, 2rem) !important;font-weight:var(--nav-overlay-font-weight, 300) !important;color:var(--nav-overlay-color, #F3F0EA) !important;letter-spacing:var(--nav-overlay-tracking, 0.05em) !important;text-transform:var(--nav-overlay-transform, none) !important;border-bottom:none !important;opacity:0.85;transition:opacity 0.3s}
@@ -111,6 +114,10 @@
     .site-nav--overlay .nav-submenu a,.site-nav--overlay .submenu a{font-size:var(--nav-overlay-sub-font-size, 1.2rem) !important;color:var(--nav-overlay-color, #F3F0EA) !important;opacity:0.6}
     /* Hide mobile hamburger panel in overlay mode — use full-screen overlay instead */
     .site-nav--overlay .menu-hamburger-panel{display:none !important}
+    @media(max-width:768px){
+        .site-nav--overlay .nav-menu a,.site-nav--overlay .menu-desktop a{font-size:1.4rem !important;padding:0.4rem 1rem}
+        .site-nav--overlay .nav-submenu a,.site-nav--overlay .submenu a{font-size:1rem !important}
+    }
 
     /* Mobile — dropdown mode (default, non-overlay) */
     @media(max-width:768px){
