@@ -45,7 +45,7 @@
       [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
 
       /* Reduce section padding on mobile */
-      .section-block { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+      .section-block { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
 
       /* Cap section inner max-width — no extra padding if already inside a section */
       .section-block > div { padding-left: 0 !important; padding-right: 0 !important; }
