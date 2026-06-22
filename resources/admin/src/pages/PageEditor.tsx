@@ -363,6 +363,12 @@ export default function PageEditor() {
             className="btn btn-sm btn-ghost text-[12px] gap-1" title="Preview page (dynamic)">
             <Eye size={13} /> Preview
           </a>
+          {page?.experience_mode === 'cinematic' && (
+            <a href={`/sites/${siteData?.slug || ''}/${page?.slug || ''}?experience=1`} target="_blank" rel="noopener"
+              className="btn btn-sm btn-ghost text-[12px] gap-1 text-primary" title="Preview as Experience (cinematic panels)">
+              <Eye size={13} /> Experience
+            </a>
+          )}
 
           <button onClick={handleSave} disabled={isSaving || (!isDirty && !magStore.isDirty)}
             className={`btn btn-sm text-[12px] gap-1 ${(isDirty || magStore.isDirty) ? 'btn-warning' : 'btn-ghost'}`}>
@@ -976,6 +982,19 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
           <option value="block">Block Editor</option>
           <option value="magazine">Magazine (Canvas)</option>
         </select>
+      </div>
+
+      {/* Experience Mode */}
+      <div>
+        <label className="text-[11px] text-gray-500 mb-1 block">Experience Mode</label>
+        <select defaultValue={page?.experience_mode || 'standard'} className="select select-bordered select-sm w-full text-[12px]"
+          onChange={e => saveSetting('experience_mode', e.target.value)}>
+          <option value="standard">Standard (normal scroll)</option>
+          <option value="cinematic">Cinematic (book-style panels)</option>
+        </select>
+        {page?.experience_mode === 'cinematic' && (
+          <p className="text-[10px] text-primary/60 mt-1">Sections become full-viewport panels with transitions between them.</p>
+        )}
       </div>
 
       {/* Page Appearance — same controls as blocks */}

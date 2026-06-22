@@ -36,6 +36,10 @@ class SectionBlockDefinition implements BlockDefinition
             'bg_overlay_color' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[#a-zA-Z0-9(),.\s]*$/'],
             'bg_overlay_opacity' => ['sometimes', 'nullable', 'numeric', 'between:0,1'],
             'bg_asset_id' => ['sometimes', 'nullable', 'string', 'max:100'],
+            // Experience Mode per-section settings
+            'experienceTransition' => ['sometimes', 'in:fade,slide-up,slide-left,cover,mask-wipe,zoom'],
+            'experienceEnter' => ['sometimes', 'in:none,fade-up,stagger,clip'],
+            'experiencePin' => ['sometimes', 'boolean'],
         ] + \App\Support\Blocks\BlockEffects::validationRules();
     }
 

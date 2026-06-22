@@ -50,6 +50,44 @@ export const SectionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) =
           onChange={(v: CardEffects) => update('effects', v)}
         />
       </div>
+
+      {/* ─── Experience Mode (per-section panel transitions) ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Experience Panel</div>
+        <p className="text-[10px] text-base-content/40 mb-2">These settings apply when the page is in Cinematic experience mode. Each section becomes a full-viewport panel.</p>
+        <div className="space-y-2">
+          <div>
+            <label className="text-[11px] text-base-content/50 mb-1 block">Panel Transition</label>
+            <select className="select select-bordered select-sm w-full text-[12px]"
+              value={(data.experienceTransition as string) || 'fade'}
+              onChange={e => update('experienceTransition', e.target.value)}>
+              <option value="fade">Fade</option>
+              <option value="slide-up">Slide Up</option>
+              <option value="slide-left">Slide Left</option>
+              <option value="cover">Cover</option>
+              <option value="mask-wipe">Mask Wipe</option>
+              <option value="zoom">Zoom</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] text-base-content/50 mb-1 block">Enter Animation</label>
+            <select className="select select-bordered select-sm w-full text-[12px]"
+              value={(data.experienceEnter as string) || 'fade-up'}
+              onChange={e => update('experienceEnter', e.target.value)}>
+              <option value="none">None</option>
+              <option value="fade-up">Fade Up</option>
+              <option value="stagger">Stagger Children</option>
+              <option value="clip">Clip Reveal</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" className="checkbox checkbox-xs checkbox-primary"
+              checked={!!data.experiencePin}
+              onChange={e => update('experiencePin', e.target.checked)} />
+            <span className="text-[11px] text-base-content/50">Pin panel (hold while inner content advances)</span>
+          </label>
+        </div>
+      </div>
     </div>
   );
 };
