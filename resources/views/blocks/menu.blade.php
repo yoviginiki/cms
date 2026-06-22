@@ -107,7 +107,7 @@
 .{{ $scopeClass }} .menu-item{position:relative;}
 .{{ $scopeClass }} .menu-top-link,.{{ $scopeClass }} .menu-custom-link{font-size:{{ $fontSize }};@if($fontWeight)font-weight:{{ $fontWeight }};@endif color:{{ $linkColor }};text-decoration:none;transition:color 0.2s,background 0.2s;}
 .{{ $scopeClass }} .menu-top-link:hover,.{{ $scopeClass }} .menu-custom-link:hover{color:{{ $linkHover }};}
-.{{ $scopeClass }} .menu-item .submenu{display:none;position:absolute;top:100%;left:0;min-width:180px;background:{{ $navBg }};border:1px solid {{ $navBorder }};border-radius:0.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.08);padding:0.25rem 0;z-index:50;}
+.{{ $scopeClass }} .menu-item .submenu{display:none;position:absolute;top:100%;left:0;min-width:180px;background:var(--color-bg,#fff);border:1px solid {{ $navBorder }};border-radius:var(--border-radius-md,0.5rem);box-shadow:0 4px 16px rgba(0,0,0,0.08);padding:0.25rem 0;z-index:50;}
 .{{ $scopeClass }}.menu-block--vertical .menu-item .submenu{position:static;border:none;box-shadow:none;padding-left:1rem;}
 .{{ $scopeClass }} .menu-item:hover>.submenu{display:block;}
 .{{ $scopeClass }} .submenu .submenu{top:0;left:100%;}
