@@ -199,4 +199,73 @@ class ExperienceModePublishTest extends TestCase
         // But runtime is NOT injected (page is standard)
         $this->assertStringNotContainsString('experience-runtime.js', $html);
     }
+
+    // ─── Pipeline integrity (Phase 5) ───
+
+    public function test_standard_page_has_no_atmosphere_config(): void
+    {
+        $page = $this->createPageWithSections('standard');
+        $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
+
+        $this->assertStringNotContainsString('experience-config', $html);
+    }
+
+    public function test_cinematic_page_has_atmosphere_config(): void
+    {
+        $page = Page::factory()->create([
+            'site_id' => $this->site->id,
+            'experience_mode' => 'cinematic',
+            'seo_meta' => ['experience_preloader' => true, 'experience_cursor' => true],
+        ]);
+
+        Block::factory()->create([
+            'blockable_id' => $page->id,
+            'blockable_type' => 'page',
+            'type' => 'section',
+            'order' => 0,
+            'data' => ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '1200px'],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
+
+        $this->assertStringContainsString('experience-config', $html);
+        $this->assertStringContainsString('"preloader":true', $html);
+        $this->assertStringContainsString('"cursor":true', $html);
+    }
+
+    public function test_standard_page_zero_cinematic_artifacts(): void
+    {
+        $page = $this->createPageWithSections('standard');
+        $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
+
+        $this->assertStringNotContainsString('@view-transition', $html);
+        $this->assertStringNotContainsString('experience-runtime.js', $html);
+        $this->assertStringNotContainsString('experience-runtime.css', $html);
+        $this->assertStringNotContainsString('experience-config', $html);
+    }
+
+    public function test_cinematic_page_has_all_artifacts(): void
+    {
+        $page = Page::factory()->create([
+            'site_id' => $this->site->id,
+            'experience_mode' => 'cinematic',
+            'seo_meta' => ['experience_preloader' => false],
+        ]);
+
+        Block::factory()->create([
+            'blockable_id' => $page->id,
+            'blockable_type' => 'page',
+            'type' => 'section',
+            'order' => 0,
+            'data' => ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '1200px', 'scene' => 'reveal'],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
+
+        $this->assertStringContainsString('@view-transition', $html);
+        $this->assertStringContainsString('experience-runtime.js', $html);
+        $this->assertStringContainsString('experience-runtime.css', $html);
+        $this->assertStringContainsString('experience-config', $html);
+        $this->assertStringContainsString('data-scene="reveal"', $html);
+    }
 }
