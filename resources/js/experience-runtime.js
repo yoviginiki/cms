@@ -9,6 +9,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
+window.gsap = gsap;
 window.ScrollTrigger = ScrollTrigger;
 
 // Global defaults — slower, smoother
@@ -371,32 +372,55 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
     (scenes[preset] || scenes['fade-through'])(section);
   });
 
-  // ─── BUG FIX A: Media-load refresh inside runtime ───
+  // ─── Refresh discipline: multiple waves to catch all media ───
   var refreshTimer;
+  var refreshCount = 0;
   function debouncedRefresh() {
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(function () { ScrollTrigger.refresh(); }, 250);
+    refreshTimer = setTimeout(function () {
+      ScrollTrigger.refresh();
+      refreshCount++;
+    }, 150);
   }
-  // Video
+
+  // Video loadeddata + canplay
   document.querySelectorAll('video').forEach(function (v) {
     v.addEventListener('loadeddata', debouncedRefresh);
+    v.addEventListener('canplay', debouncedRefresh);
   });
-  // Images
+
+  // Images — both lazy and eager
   document.querySelectorAll('img').forEach(function (img) {
-    if (!img.complete) img.addEventListener('load', debouncedRefresh);
+    if (!img.complete) {
+      img.addEventListener('load', debouncedRefresh);
+      img.addEventListener('error', debouncedRefresh); // don't stall on broken images
+    }
   });
+
   // Fonts
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(debouncedRefresh);
   }
-  // Window load fallback
+
+  // Window load — primary refresh point
   window.addEventListener('load', function () {
-    setTimeout(debouncedRefresh, 400);
+    // Immediate refresh
+    ScrollTrigger.refresh();
+    // And again after a beat (images may still be decoding)
+    setTimeout(function () { ScrollTrigger.refresh(); }, 500);
+    setTimeout(function () { ScrollTrigger.refresh(); }, 1500);
   });
+
+  // requestIdleCallback — refresh when browser is idle
+  if (window.requestIdleCallback) {
+    requestIdleCallback(function () { ScrollTrigger.refresh(); }, { timeout: 3000 });
+  }
+
   // Resize
+  var resizeTimer;
   window.addEventListener('resize', function () {
-    clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(function () { ScrollTrigger.refresh(); }, 300);
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { ScrollTrigger.refresh(); }, 200);
   });
 
   // ─── Atmosphere ───
