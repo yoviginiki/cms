@@ -32,29 +32,38 @@ gsap.registerPlugin(Observer, ScrollTrigger);
   }
 
   // ─── Find panels ───
-  // Look for section-block first (proper Section blocks), then fall back to
-  // top-level block wrappers inside <main> (html-embed, video, etc.)
+  // Priority: .section-block elements → top-level blocks in .pos-main (grid layout)
+  // → top-level blocks in <main> (standard layout)
   let panels = Array.from(document.querySelectorAll('.section-block'));
+
   if (panels.length < 2) {
-    // Fallback: find direct children of <main> that are block wrappers
-    const main = document.querySelector('main[role="main"]') || document.querySelector('main');
-    if (main) {
-      // Get substantial children (skip spacers, tiny elements)
-      panels = Array.from(main.children).filter(el => {
+    // Find the content container (grid layout uses .pos-main, standard uses <main>)
+    const container = document.querySelector('.pos-main')
+      || document.querySelector('main[role="main"] > main')
+      || document.querySelector('main[role="main"]')
+      || document.querySelector('main');
+
+    if (container) {
+      panels = Array.from(container.children).filter(function (el) {
         if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return false;
         if (el.classList.contains('spacer-block')) return false;
-        if (el.offsetHeight < 50) return false;
+        // Skip tiny/empty elements
+        if (el.offsetHeight < 50 && !el.querySelector('video')) return false;
         return true;
       });
     }
   }
-  if (panels.length < 2) return; // Need at least 2 sections
+  if (panels.length < 2) return; // Need at least 2 panels
 
   let currentIndex = 0;
   let isAnimating = false;
 
   // ─── Setup: make panels full-viewport, stacked ───
-  const wrapper = document.querySelector('main') || document.body;
+  const wrapper = document.querySelector('.pos-main')
+    || document.querySelector('main[role="main"] > main')
+    || document.querySelector('main[role="main"]')
+    || document.querySelector('main')
+    || document.body;
 
   // Add experience class for CSS
   document.documentElement.classList.add('experience-active');
