@@ -24,7 +24,27 @@ body.cinematic-page { margin: 0; }
     padding: 0 !important;
     margin: 0 !important;
     position: relative;
-    overflow: visible;
+    overflow: visible !important;
+    /* BUG B: ensure no ancestor breaks ScrollTrigger pin */
+    transform: none !important;
+    will-change: auto !important;
+}
+
+/* BUG C: Reserve space for media to prevent reflow */
+.cinematic-wrapper img {
+    aspect-ratio: 16/10;
+    object-fit: cover;
+    width: 100%;
+    height: auto;
+}
+.cinematic-wrapper video {
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    width: 100%;
+}
+.cinematic-wrapper .video-hero img,
+.cinematic-wrapper .video-hero video {
+    aspect-ratio: auto;
 }
 
 /* Inner content div — readable padding, centered */

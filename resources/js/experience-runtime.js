@@ -335,6 +335,34 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
     (scenes[preset] || scenes['fade-through'])(section);
   });
 
+  // ─── BUG FIX A: Media-load refresh inside runtime ───
+  var refreshTimer;
+  function debouncedRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(function () { ScrollTrigger.refresh(); }, 250);
+  }
+  // Video
+  document.querySelectorAll('video').forEach(function (v) {
+    v.addEventListener('loadeddata', debouncedRefresh);
+  });
+  // Images
+  document.querySelectorAll('img').forEach(function (img) {
+    if (!img.complete) img.addEventListener('load', debouncedRefresh);
+  });
+  // Fonts
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(debouncedRefresh);
+  }
+  // Window load fallback
+  window.addEventListener('load', function () {
+    setTimeout(debouncedRefresh, 400);
+  });
+  // Resize
+  window.addEventListener('resize', function () {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(function () { ScrollTrigger.refresh(); }, 300);
+  });
+
   // ─── Atmosphere ───
   var configEl = document.getElementById('experience-config');
   var atmos = configEl ? JSON.parse(configEl.textContent) : {};
