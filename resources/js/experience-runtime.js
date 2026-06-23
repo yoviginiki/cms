@@ -170,96 +170,77 @@ gsap.defaults({ ease: 'expo.out', duration: 1.6 });
     },
 
     'scroll-gallery': function (section) {
-      var images = findImages(section);
-      var headings = findHeadings(section);
-      var paragraphs = findParagraphs(section);
-      var dividers = findDividers(section);
+      // Find top-level rows inside the section — each row is a complete "slide"
+      var innerDiv = section.querySelector(':scope > div') || section;
+      var slides = Array.from(innerDiv.querySelectorAll('.row-block'));
 
-      // First: reveal headings/text with fade-in (they stay visible)
-      var textItems = [].concat(headings, paragraphs, dividers);
-      if (textItems.length) {
-        gsap.set(textItems, { opacity: 0, y: 40 });
-        ScrollTrigger.create({
-          trigger: section,
-          start: 'top 80%',
-          onEnter: function () {
-            gsap.to(textItems, {
-              opacity: 1, y: 0,
-              duration: 1.2, stagger: 0.15, ease: 'power3.out'
-            });
-          },
-          once: true
+      // Fallback: if no row-blocks, try direct children of inner div
+      if (slides.length < 2) {
+        slides = Array.from(innerDiv.children).filter(function (el) {
+          return el.offsetHeight > 50 && !el.classList.contains('spacer-block');
         });
       }
 
-      // Gallery: only crossfade actual images (not headings/text)
-      if (images.length < 2) {
-        // Single image — just mask-reveal it
-        if (images.length === 1) {
-          gsap.set(images[0], { clipPath: 'inset(0 0 100% 0)', scale: 1.08 });
-          ScrollTrigger.create({
-            trigger: images[0],
-            start: 'top 80%',
-            onEnter: function () {
-              gsap.to(images[0], {
-                clipPath: 'inset(0 0 0% 0)', scale: 1,
-                duration: 1.4, ease: 'power4.out'
-              });
-            },
-            once: true
-          });
-        }
+      if (slides.length < 2) {
+        // Not enough slides — fall back to fade-through
+        scenes['fade-through'](section);
         return;
       }
 
-      // Stack images in a gallery container
-      var galleryWrap = document.createElement('div');
-      galleryWrap.style.cssText = 'position:relative;min-height:50vh;margin:2rem 0;';
-      images[0].parentElement.insertBefore(galleryWrap, images[0]);
+      // Stack slides: first visible, rest hidden underneath
+      innerDiv.style.position = 'relative';
+      innerDiv.style.minHeight = '80vh';
 
-      images.forEach(function (img, i) {
-        galleryWrap.appendChild(img);
-        img.style.position = i === 0 ? 'relative' : 'absolute';
-        img.style.top = '0';
-        img.style.left = '0';
-        img.style.width = '100%';
-        if (i > 0) gsap.set(img, { opacity: 0, scale: 1.04 });
+      slides.forEach(function (slide, i) {
+        slide.style.width = '100%';
+        if (i === 0) {
+          slide.style.position = 'relative';
+        } else {
+          slide.style.position = 'absolute';
+          slide.style.top = '0';
+          slide.style.left = '0';
+          gsap.set(slide, { opacity: 0, y: 30 });
+        }
       });
 
       // Progress dots
       var progress = document.createElement('div');
-      progress.style.cssText = 'position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:5;';
-      images.forEach(function (_, i) {
+      progress.style.cssText = 'position:fixed;right:60px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;z-index:9998;';
+      slides.forEach(function (_, i) {
         var dot = document.createElement('span');
         dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--color-text-muted,#B7AF96);opacity:' + (i === 0 ? '1' : '0.25') + ';transition:all 0.4s ease;';
         progress.appendChild(dot);
       });
-      galleryWrap.appendChild(progress);
+      section.appendChild(progress);
       var dots = progress.querySelectorAll('span');
 
-      // Pin the SECTION and crossfade images
+      // Pin the section and crossfade through slides
       var tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: '+=' + (images.length * 120) + '%',
+          end: '+=' + (slides.length * 150) + '%',
           pin: true,
-          scrub: 2,
+          scrub: 2.5,
           onUpdate: function (self) {
-            var idx = Math.round(self.progress * (images.length - 1));
+            var idx = Math.round(self.progress * (slides.length - 1));
             dots.forEach(function (d, i) {
               d.style.opacity = i === idx ? '1' : '0.25';
               d.style.transform = i === idx ? 'scale(1.5)' : 'scale(1)';
             });
-          }
+          },
+          onLeave: function () { progress.style.display = 'none'; },
+          onEnterBack: function () { progress.style.display = 'flex'; }
         }
       });
 
-      for (var i = 0; i < images.length - 1; i++) {
-        tl.to(images[i], { opacity: 0, scale: 1.04, duration: 0.8, ease: 'power2.inOut' }, i)
-          .to(images[i + 1], { opacity: 1, scale: 1, duration: 1.2, ease: 'expo.out' }, i + 0.1);
+      // Crossfade entire slides (image + heading + text all together)
+      for (var i = 0; i < slides.length - 1; i++) {
+        tl.to(slides[i], { opacity: 0, y: -20, duration: 0.8, ease: 'power2.inOut' }, i)
+          .to(slides[i + 1], { opacity: 1, y: 0, duration: 1.2, ease: 'expo.out' }, i + 0.15);
       }
-      tl.to({}, { duration: 0.6 });
+      // Hold last slide
+      tl.to({}, { duration: 0.8 });
     },
 
     'reveal': function (section) {
