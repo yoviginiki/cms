@@ -60,8 +60,8 @@ class BuildPageService
         $experienceMode = $content->experience_mode ?? 'standard';
         if ($experienceMode === 'cinematic') {
             $customCss .= "\n" . '@supports (view-transition-name: none) { @view-transition { navigation: auto; } }';
-            // Inject experience runtime CSS + deferred JS
-            $headScripts .= "\n" . '<link rel="stylesheet" href="/assets/experience/experience-runtime.css">';
+            // Inject experience runtime CSS + deferred JS (hashed filename busts CDN cache)
+            $headScripts .= "\n" . '<link rel="stylesheet" href="/assets/experience/experience-runtime.8898c878.css">';
             // Atmosphere config — pass page-level toggles to the runtime via JSON
             $atmosphere = [
                 'preloader' => !empty($pageMeta['experience_preloader']),
@@ -70,7 +70,7 @@ class BuildPageService
                 'soundAsset' => $pageMeta['experience_sound_asset'] ?? null,
             ];
             $bodyScripts .= "\n" . '<script id="experience-config" type="application/json">' . json_encode($atmosphere) . '</script>';
-            $bodyScripts .= "\n" . '<script defer src="/assets/experience/experience-runtime.js"></script>';
+            $bodyScripts .= "\n" . '<script defer src="/assets/experience/experience-runtime.8898c878.js"></script>';
         }
 
         $criticalCss = $this->buildCriticalCss($themeConfig);
