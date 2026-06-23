@@ -12,7 +12,7 @@ html, body { overflow: hidden !important; height: 100vh !important; margin: 0 !i
     overflow: hidden;
 }
 
-/* Each section = full-screen panel */
+/* Each section = full-screen panel — override ALL external padding */
 .cinematic-wrapper > .section-block {
     position: absolute;
     inset: 0;
@@ -25,6 +25,36 @@ html, body { overflow: hidden !important; height: 100vh !important; margin: 0 !i
     will-change: transform, opacity;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+}
+/* Inner content div — no max-width constraint, no padding */
+.cinematic-wrapper > .section-block > div {
+    padding: 0 !important;
+    margin: 0 auto;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+/* Video hero — capsule shape needs slight padding so edges are visible */
+.cinematic-wrapper .video-hero {
+    min-height: 85vh !important;
+    margin: auto 2vw !important;
+    width: calc(100% - 4vw) !important;
+}
+/* On mobile: remove capsule shape, go full bleed */
+@media (max-width: 768px) {
+    .cinematic-wrapper .video-hero {
+        border-radius: 0 !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
 }
 
 /* Initial state: first visible, rest below */
