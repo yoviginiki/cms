@@ -22,6 +22,9 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Expose ScrollTrigger globally so cinematic wrapper can call .refresh()
+window.ScrollTrigger = ScrollTrigger;
+
 (function () {
   'use strict';
 
