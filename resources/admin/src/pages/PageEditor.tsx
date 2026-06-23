@@ -990,12 +990,47 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
         <select defaultValue={page?.experience_mode || 'standard'} className="select select-bordered select-sm w-full text-[12px]"
           onChange={e => saveSetting('experience_mode', e.target.value)}>
           <option value="standard">Standard (normal scroll)</option>
-          <option value="cinematic">Cinematic (book-style panels)</option>
+          <option value="cinematic">Cinematic (scene-based panels)</option>
         </select>
         {page?.experience_mode === 'cinematic' && (
-          <p className="text-[10px] text-primary/60 mt-1">Sections become full-viewport panels with transitions between them.</p>
+          <p className="text-[10px] text-primary/60 mt-1">Each Section becomes a scene with its own choreography. Set scene presets on individual Sections.</p>
         )}
       </div>
+
+      {/* Atmosphere (only when Cinematic) */}
+      {page?.experience_mode === 'cinematic' && (
+        <div className="border border-primary/20 rounded-lg p-3 space-y-3 bg-primary/5">
+          <div className="text-[10px] text-primary/50 uppercase tracking-wider font-medium">Atmosphere</div>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-[11px] text-base-content/60">Preloader (counter + brand draw)</span>
+            <input type="checkbox" className="toggle toggle-xs toggle-primary"
+              checked={!!(localMeta.experience_preloader)}
+              onChange={e => saveSetting('seo_meta', { ...localMeta, experience_preloader: e.target.checked })} />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-[11px] text-base-content/60">Custom cursor</span>
+            <input type="checkbox" className="toggle toggle-xs toggle-primary"
+              checked={!!(localMeta.experience_cursor)}
+              onChange={e => saveSetting('seo_meta', { ...localMeta, experience_cursor: e.target.checked })} />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-[11px] text-base-content/60">Ambient sound</span>
+            <input type="checkbox" className="toggle toggle-xs toggle-primary"
+              checked={!!(localMeta.experience_sound)}
+              onChange={e => saveSetting('seo_meta', { ...localMeta, experience_sound: e.target.checked })} />
+          </label>
+          {localMeta.experience_sound && (
+            <div className="pl-4">
+              <label className="text-[10px] text-base-content/40 mb-1 block">Sound asset URL</label>
+              <input type="text" className="input input-bordered input-xs w-full text-[11px]"
+                value={localMeta.experience_sound_asset || ''}
+                onChange={e => saveSetting('seo_meta', { ...localMeta, experience_sound_asset: e.target.value })}
+                placeholder="/assets/ambient.mp3" />
+            </div>
+          )}
+          <p className="text-[9px] text-base-content/30">All atmosphere features are disabled under reduced-motion preferences.</p>
+        </div>
+      )}
 
       {/* Page Appearance — same controls as blocks */}
       {(() => {
