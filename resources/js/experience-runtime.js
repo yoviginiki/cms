@@ -150,23 +150,59 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
 
     'scroll-gallery': function (section) {
       var images = findImages(section);
+      var headings = findHeadings(section);
+      var paragraphs = findParagraphs(section);
+      var dividers = findDividers(section);
+
+      // First: reveal headings/text with fade-in (they stay visible)
+      var textItems = [].concat(headings, paragraphs, dividers);
+      if (textItems.length) {
+        gsap.set(textItems, { opacity: 0, y: 40 });
+        ScrollTrigger.create({
+          trigger: section,
+          start: 'top 80%',
+          onEnter: function () {
+            gsap.to(textItems, {
+              opacity: 1, y: 0,
+              duration: 1.2, stagger: 0.15, ease: 'power3.out'
+            });
+          },
+          once: true
+        });
+      }
+
+      // Gallery: only crossfade actual images (not headings/text)
       if (images.length < 2) {
-        scenes['fade-through'](section);
+        // Single image — just mask-reveal it
+        if (images.length === 1) {
+          gsap.set(images[0], { clipPath: 'inset(0 0 100% 0)', scale: 1.08 });
+          ScrollTrigger.create({
+            trigger: images[0],
+            start: 'top 80%',
+            onEnter: function () {
+              gsap.to(images[0], {
+                clipPath: 'inset(0 0 0% 0)', scale: 1,
+                duration: 1.4, ease: 'power4.out'
+              });
+            },
+            once: true
+          });
+        }
         return;
       }
 
-      var container = images[0].parentElement;
-      container.style.position = 'relative';
-      container.style.minHeight = '60vh';
+      // Stack images in a gallery container
+      var galleryWrap = document.createElement('div');
+      galleryWrap.style.cssText = 'position:relative;min-height:50vh;margin:2rem 0;';
+      images[0].parentElement.insertBefore(galleryWrap, images[0]);
 
       images.forEach(function (img, i) {
-        if (i > 0) {
-          img.style.position = 'absolute';
-          img.style.top = '0';
-          img.style.left = '0';
-          img.style.width = '100%';
-          gsap.set(img, { opacity: 0, scale: 1.04 });
-        }
+        galleryWrap.appendChild(img);
+        img.style.position = i === 0 ? 'relative' : 'absolute';
+        img.style.top = '0';
+        img.style.left = '0';
+        img.style.width = '100%';
+        if (i > 0) gsap.set(img, { opacity: 0, scale: 1.04 });
       });
 
       // Progress dots
@@ -174,12 +210,13 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
       progress.style.cssText = 'position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:5;';
       images.forEach(function (_, i) {
         var dot = document.createElement('span');
-        dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--color-text-muted,#999);opacity:' + (i === 0 ? '1' : '0.25') + ';transition:all 0.4s ease;';
+        dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--color-text-muted,#B7AF96);opacity:' + (i === 0 ? '1' : '0.25') + ';transition:all 0.4s ease;';
         progress.appendChild(dot);
       });
-      section.appendChild(progress);
+      galleryWrap.appendChild(progress);
       var dots = progress.querySelectorAll('span');
 
+      // Pin the SECTION and crossfade images
       var tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
@@ -201,7 +238,6 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
         tl.to(images[i], { opacity: 0, scale: 1.06, duration: 0.6, ease: 'power2.inOut' }, i)
           .to(images[i + 1], { opacity: 1, scale: 1, duration: 0.8, ease: 'power2.out' }, i + 0.15);
       }
-      // Hold last image
       tl.to({}, { duration: 0.3 });
     },
 
