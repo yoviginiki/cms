@@ -117,8 +117,8 @@ class DynamicSiteController extends Controller
         $isExperience = ($content->experience_mode ?? 'standard') === 'cinematic'
             || request()->query('experience') === '1';
         if ($isExperience) {
-            $experienceAssets = '<link rel="stylesheet" href="/assets/experience/experience-runtime.f499d4fb.css">'
-                . "\n" . '<script defer src="/assets/experience/experience-runtime.f499d4fb.js"></script>';
+            $experienceAssets = '<link rel="stylesheet" href="/assets/experience/experience-runtime.ab032c27.css">'
+                . "\n" . '<script defer src="/assets/experience/experience-runtime.ab032c27.js"></script>';
             $html = str_replace('</head>', $experienceAssets . "\n</head>", $html);
         }
 

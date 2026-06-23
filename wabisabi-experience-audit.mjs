@@ -42,7 +42,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   await page.goto(URL_FORCE, { waitUntil: 'load', timeout: 45000 });
   await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
-  await sleep(2500);
+  // Wait for preloader to finish (3s count + 0.8s fade + 0.5s delay + 1s buffer)
+  await sleep(6000);
 
   const env = await page.evaluate(() => ({
     gsap: typeof window.gsap !== 'undefined',

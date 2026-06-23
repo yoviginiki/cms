@@ -79,20 +79,39 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
 
     'fade-through': function (section) {
       var items = findContent(section);
+      var images = findImages(section);
       if (!items.length) return;
 
-      gsap.set(items, { opacity: 0, y: 60 });
+      // Non-image content: fade up
+      var nonImages = items.filter(function (el) { return images.indexOf(el) === -1; });
+      gsap.set(nonImages, { opacity: 0, y: 60 });
 
       ScrollTrigger.create({
         trigger: section,
         start: 'top 80%',
         onEnter: function () {
-          gsap.to(items, {
+          gsap.to(nonImages, {
             opacity: 1, y: 0,
             duration: 1.4, stagger: 0.15, ease: 'power3.out'
           });
         },
         once: true
+      });
+
+      // Images: mask-reveal wipe (bottom to top)
+      images.forEach(function (img) {
+        gsap.set(img, { clipPath: 'inset(0 0 100% 0)', scale: 1.06, opacity: 0.9 });
+        ScrollTrigger.create({
+          trigger: img,
+          start: 'top 82%',
+          onEnter: function () {
+            gsap.to(img, {
+              clipPath: 'inset(0 0 0% 0)', scale: 1, opacity: 1,
+              duration: 1.4, ease: 'power4.out'
+            });
+          },
+          once: true
+        });
       });
     },
 
@@ -372,55 +391,73 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
     (scenes[preset] || scenes['fade-through'])(section);
   });
 
-  // ─── Refresh discipline: multiple waves to catch all media ───
+  // ─── Refresh discipline ───
+  // The preloader sets body.overflow='hidden' which makes ScrollTrigger
+  // unable to measure. ALL refreshes must wait until overflow is restored.
+  // We track this with a flag that the preloader sets when it's done.
+  var preloaderDone = false;
+  var pendingRefresh = false;
   var refreshTimer;
-  var refreshCount = 0;
-  function debouncedRefresh() {
+
+  function safeRefresh() {
+    // If preloader is still hiding overflow, defer
+    if (!preloaderDone && document.body.style.overflow === 'hidden') {
+      pendingRefresh = true;
+      return;
+    }
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(function () {
       ScrollTrigger.refresh();
-      refreshCount++;
-    }, 150);
+    }, 100);
+  }
+
+  // Called by preloader when it's done (overflow restored)
+  window.__cinematicPreloaderDone = function () {
+    preloaderDone = true;
+    // Fire the refresh now that overflow is gone
+    ScrollTrigger.refresh();
+    // And again after media may have decoded
+    setTimeout(function () { ScrollTrigger.refresh(); }, 300);
+    setTimeout(function () { ScrollTrigger.refresh(); }, 1000);
+  };
+
+  // If no preloader, mark as done immediately
+  var configEl2 = document.getElementById('experience-config');
+  var atmos2 = configEl2 ? JSON.parse(configEl2.textContent) : {};
+  if (!atmos2.preloader) {
+    preloaderDone = true;
   }
 
   // Video loadeddata + canplay
   document.querySelectorAll('video').forEach(function (v) {
-    v.addEventListener('loadeddata', debouncedRefresh);
-    v.addEventListener('canplay', debouncedRefresh);
+    v.addEventListener('loadeddata', safeRefresh);
+    v.addEventListener('canplay', safeRefresh);
   });
 
-  // Images — both lazy and eager
+  // Images
   document.querySelectorAll('img').forEach(function (img) {
     if (!img.complete) {
-      img.addEventListener('load', debouncedRefresh);
-      img.addEventListener('error', debouncedRefresh); // don't stall on broken images
+      img.addEventListener('load', safeRefresh);
+      img.addEventListener('error', safeRefresh);
     }
   });
 
   // Fonts
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(debouncedRefresh);
+    document.fonts.ready.then(safeRefresh);
   }
 
-  // Window load — primary refresh point
+  // Window load
   window.addEventListener('load', function () {
-    // Immediate refresh
-    ScrollTrigger.refresh();
-    // And again after a beat (images may still be decoding)
-    setTimeout(function () { ScrollTrigger.refresh(); }, 500);
-    setTimeout(function () { ScrollTrigger.refresh(); }, 1500);
+    safeRefresh();
+    setTimeout(safeRefresh, 500);
   });
 
-  // requestIdleCallback — refresh when browser is idle
-  if (window.requestIdleCallback) {
-    requestIdleCallback(function () { ScrollTrigger.refresh(); }, { timeout: 3000 });
-  }
-
   // Resize
-  var resizeTimer;
+  var resizeTimer2;
   window.addEventListener('resize', function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () { ScrollTrigger.refresh(); }, 200);
+    clearTimeout(resizeTimer2);
+    resizeTimer2 = setTimeout(function () { ScrollTrigger.refresh(); }, 200);
   });
 
   // ─── Atmosphere ───
@@ -449,7 +486,8 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
           onComplete: function () {
             loader.remove();
             document.body.style.overflow = '';
-            ScrollTrigger.refresh();
+            // Signal that overflow is restored — safe to refresh now
+            if (window.__cinematicPreloaderDone) window.__cinematicPreloaderDone();
           }
         });
       }
