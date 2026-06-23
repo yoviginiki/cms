@@ -31,29 +31,43 @@ html, body { overflow: hidden !important; height: 100vh !important; margin: 0 !i
     padding-bottom: 0 !important;
     margin: 0 !important;
 }
-/* Inner content div — no max-width constraint, no padding */
+/* Inner content div — centered with readable padding */
 .cinematic-wrapper > .section-block > div {
-    padding: 0 !important;
     margin: 0 auto;
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    padding: 3rem 4rem !important;
+    box-sizing: border-box;
 }
-/* Video hero — capsule shape needs slight padding so edges are visible */
+/* Hero section (first) — no padding, video fills the panel */
+.cinematic-wrapper > .section-block:first-child > div {
+    padding: 0 !important;
+}
+
+/* Video hero — capsule/ellipse shape with breathing room */
 .cinematic-wrapper .video-hero {
-    min-height: 85vh !important;
-    margin: auto 2vw !important;
-    width: calc(100% - 4vw) !important;
+    min-height: 80vh !important;
+    margin: auto 3vw !important;
+    width: calc(100% - 6vw) !important;
+    border-radius: 999px !important;
 }
-/* On mobile: remove capsule shape, go full bleed */
+
+/* On mobile */
 @media (max-width: 768px) {
+    .cinematic-wrapper > .section-block > div {
+        padding: 2rem 1.5rem !important;
+    }
+    .cinematic-wrapper > .section-block:first-child > div {
+        padding: 0 !important;
+    }
     .cinematic-wrapper .video-hero {
-        border-radius: 0 !important;
-        min-height: 100vh !important;
-        margin: 0 !important;
-        width: 100% !important;
+        border-radius: 300px !important;
+        min-height: 75vh !important;
+        margin: auto 2vw !important;
+        width: calc(100% - 4vw) !important;
     }
 }
 
