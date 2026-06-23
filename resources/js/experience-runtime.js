@@ -314,6 +314,105 @@ gsap.registerPlugin(ScrollTrigger);
     }
   });
 
+  // ─── Atmosphere ───
+  var configEl = document.getElementById('experience-config');
+  var atmos = configEl ? JSON.parse(configEl.textContent) : {};
+
+  // Preloader
+  if (atmos.preloader) {
+    var loader = document.createElement('div');
+    loader.className = 'experience-preloader';
+    loader.innerHTML = '<div class="preloader-inner"><div class="preloader-count">0</div><div class="preloader-bar"><div class="preloader-fill"></div></div></div>';
+    document.body.appendChild(loader);
+    document.body.style.overflow = 'hidden';
+
+    var count = loader.querySelector('.preloader-count');
+    var fill = loader.querySelector('.preloader-fill');
+    var obj = { val: 0 };
+
+    gsap.to(obj, {
+      val: 100, duration: 2, ease: 'power2.inOut',
+      onUpdate: function () {
+        count.textContent = Math.round(obj.val);
+        fill.style.width = obj.val + '%';
+      },
+      onComplete: function () {
+        gsap.to(loader, {
+          opacity: 0, duration: 0.5, delay: 0.3,
+          onComplete: function () {
+            loader.remove();
+            document.body.style.overflow = '';
+            ScrollTrigger.refresh();
+          }
+        });
+      }
+    });
+  }
+
+  // Custom cursor
+  if (atmos.cursor && window.matchMedia('(pointer: fine)').matches) {
+    var cursor = document.createElement('div');
+    cursor.className = 'experience-cursor';
+    cursor.innerHTML = '<span class="cursor-dot"></span><span class="cursor-ring"></span>';
+    document.body.appendChild(cursor);
+    document.documentElement.classList.add('experience-cursor-active');
+
+    var dot = cursor.querySelector('.cursor-dot');
+    var ring = cursor.querySelector('.cursor-ring');
+    var mx = 0, my = 0, cx = 0, cy = 0;
+
+    document.addEventListener('mousemove', function (e) {
+      mx = e.clientX; my = e.clientY;
+      gsap.set(dot, { x: mx, y: my });
+    });
+
+    gsap.ticker.add(function () {
+      cx += (mx - cx) * 0.15;
+      cy += (my - cy) * 0.15;
+      gsap.set(ring, { x: cx, y: cy });
+    });
+
+    // Scale up on interactive elements
+    document.addEventListener('mouseenter', function (e) {
+      if (e.target.matches && e.target.matches('a, button, [role="button"], summary, input, select')) {
+        ring.classList.add('is-hover');
+      }
+    }, true);
+    document.addEventListener('mouseleave', function (e) {
+      if (e.target.matches && e.target.matches('a, button, [role="button"], summary, input, select')) {
+        ring.classList.remove('is-hover');
+      }
+    }, true);
+  }
+
+  // Ambient sound
+  if (atmos.sound && atmos.soundAsset) {
+    var audio = new Audio();
+    audio.src = atmos.soundAsset;
+    audio.loop = true;
+    audio.volume = 0.3;
+    var soundOn = false;
+
+    var soundBtn = document.createElement('button');
+    soundBtn.className = 'experience-sound';
+    soundBtn.innerHTML = '<span class="sound-icon">&#9835;</span> <span class="sound-label">sound off</span>';
+    soundBtn.setAttribute('aria-label', 'Toggle ambient sound');
+    document.body.appendChild(soundBtn);
+
+    soundBtn.addEventListener('click', function () {
+      if (soundOn) {
+        audio.pause();
+        soundBtn.querySelector('.sound-label').textContent = 'sound off';
+        soundBtn.classList.remove('is-on');
+      } else {
+        audio.play().catch(function () {});
+        soundBtn.querySelector('.sound-label').textContent = 'sound on';
+        soundBtn.classList.add('is-on');
+      }
+      soundOn = !soundOn;
+    });
+  }
+
   // ─── Skip button ───
   var skipBtn = document.createElement('button');
   skipBtn.className = 'experience-skip';

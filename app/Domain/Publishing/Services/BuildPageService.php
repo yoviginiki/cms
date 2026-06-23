@@ -62,6 +62,14 @@ class BuildPageService
             $customCss .= "\n" . '@supports (view-transition-name: none) { @view-transition { navigation: auto; } }';
             // Inject experience runtime CSS + deferred JS
             $headScripts .= "\n" . '<link rel="stylesheet" href="/assets/experience/experience-runtime.css">';
+            // Atmosphere config — pass page-level toggles to the runtime via JSON
+            $atmosphere = [
+                'preloader' => !empty($pageMeta['experience_preloader']),
+                'cursor' => !empty($pageMeta['experience_cursor']),
+                'sound' => !empty($pageMeta['experience_sound']),
+                'soundAsset' => $pageMeta['experience_sound_asset'] ?? null,
+            ];
+            $bodyScripts .= "\n" . '<script id="experience-config" type="application/json">' . json_encode($atmosphere) . '</script>';
             $bodyScripts .= "\n" . '<script defer src="/assets/experience/experience-runtime.js"></script>';
         }
 
