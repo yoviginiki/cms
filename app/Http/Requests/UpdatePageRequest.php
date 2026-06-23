@@ -37,6 +37,11 @@ class UpdatePageRequest extends FormRequest
             'seo_meta.pageAnimation' => ['sometimes', 'nullable', 'array'],
             'seo_meta.pageResponsive' => ['sometimes', 'nullable', 'array'],
             'seo_meta.pageAdvanced' => ['sometimes', 'nullable', 'array'],
+            // Cinematic atmosphere toggles
+            'seo_meta.experience_preloader' => ['sometimes', 'boolean'],
+            'seo_meta.experience_cursor' => ['sometimes', 'boolean'],
+            'seo_meta.experience_sound' => ['sometimes', 'boolean'],
+            'seo_meta.experience_sound_asset' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
 

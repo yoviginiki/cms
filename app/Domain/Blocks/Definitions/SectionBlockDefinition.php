@@ -37,6 +37,9 @@ class SectionBlockDefinition implements BlockDefinition
             'bg_overlay_opacity' => ['sometimes', 'nullable', 'numeric', 'between:0,1'],
             'bg_asset_id' => ['sometimes', 'nullable', 'string', 'max:100'],
             // Experience Mode per-section settings
+            // Experience Mode — scene presets (v1)
+            'scene' => ['sometimes', 'in:fade-through,pinned-statement,scroll-gallery,reveal,parallax-split'],
+            // Legacy fields (kept for backward compat, ignored by v2 runtime)
             'experienceTransition' => ['sometimes', 'in:fade,slide-up,slide-left,cover,mask-wipe,zoom'],
             'experienceEnter' => ['sometimes', 'in:none,fade-up,stagger,clip'],
             'experiencePin' => ['sometimes', 'boolean'],

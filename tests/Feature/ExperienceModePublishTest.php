@@ -130,4 +130,73 @@ class ExperienceModePublishTest extends TestCase
         $this->assertStringContainsString('data-experience-transition="slide-up"', $html);
         $this->assertStringContainsString('data-experience-enter="stagger"', $html);
     }
+
+    // ─── Scene presets (v2 model) ───
+
+    public function test_section_with_scene_preset_has_data_scene(): void
+    {
+        $page = Page::factory()->create([
+            'site_id' => $this->site->id,
+            'experience_mode' => 'cinematic',
+        ]);
+
+        Block::factory()->create([
+            'blockable_id' => $page->id,
+            'blockable_type' => 'page',
+            'type' => 'section',
+            'order' => 0,
+            'data' => [
+                'padding_top' => '40px',
+                'padding_bottom' => '40px',
+                'max_width' => '1200px',
+                'scene' => 'pinned-statement',
+            ],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
+
+        $this->assertStringContainsString('data-scene="pinned-statement"', $html);
+    }
+
+    public function test_section_without_scene_has_no_data_scene(): void
+    {
+        $page = Page::factory()->create([
+            'site_id' => $this->site->id,
+            'experience_mode' => 'cinematic',
+        ]);
+
+        Block::factory()->create([
+            'blockable_id' => $page->id,
+            'blockable_type' => 'page',
+            'type' => 'section',
+            'order' => 0,
+            'data' => ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '1200px'],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
+
+        $this->assertStringNotContainsString('data-scene=', $html);
+    }
+
+    public function test_standard_page_section_with_scene_still_no_runtime(): void
+    {
+        $page = Page::factory()->create([
+            'site_id' => $this->site->id,
+            'experience_mode' => 'standard',
+        ]);
+
+        Block::factory()->create([
+            'blockable_id' => $page->id,
+            'blockable_type' => 'page',
+            'type' => 'section',
+            'order' => 0,
+            'data' => ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '1200px', 'scene' => 'reveal'],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
+
+        // Scene attribute is emitted (it's block data, always rendered)
+        // But runtime is NOT injected (page is standard)
+        $this->assertStringNotContainsString('experience-runtime.js', $html);
+    }
 }
