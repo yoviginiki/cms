@@ -13,7 +13,7 @@ window.gsap = gsap;
 window.ScrollTrigger = ScrollTrigger;
 
 // Global defaults — slower, smoother
-gsap.defaults({ ease: 'power3.out', duration: 1.2 });
+gsap.defaults({ ease: 'expo.out', duration: 1.6 });
 
 (function () {
   'use strict';
@@ -92,22 +92,22 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
         onEnter: function () {
           gsap.to(nonImages, {
             opacity: 1, y: 0,
-            duration: 1.4, stagger: 0.15, ease: 'power3.out'
+            duration: 1.8, stagger: 0.18, ease: 'expo.out'
           });
         },
         once: true
       });
 
-      // Images: mask-reveal wipe (bottom to top)
+      // Images: mask-reveal wipe + grayscale→color
       images.forEach(function (img) {
-        gsap.set(img, { clipPath: 'inset(0 0 100% 0)', scale: 1.06, opacity: 0.9 });
+        gsap.set(img, { clipPath: 'inset(0 0 100% 0)', scale: 1.08, opacity: 0.85, filter: 'grayscale(100%)' });
         ScrollTrigger.create({
           trigger: img,
           start: 'top 82%',
           onEnter: function () {
             gsap.to(img, {
-              clipPath: 'inset(0 0 0% 0)', scale: 1, opacity: 1,
-              duration: 1.4, ease: 'power4.out'
+              clipPath: 'inset(0 0 0% 0)', scale: 1, opacity: 1, filter: 'grayscale(0%)',
+              duration: 1.8, ease: 'expo.out'
             });
           },
           once: true
@@ -134,9 +134,9 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: function () { return '+=' + Math.max(section.offsetHeight * 2, 1200); },
+          end: function () { return '+=' + Math.max(section.offsetHeight * 2.5, 1800); },
           pin: true,
-          scrub: 1.5, // slower scrub = smoother
+          scrub: 2.5, // MiSO-weight scrub
           anticipatePin: 1
         }
       });
@@ -147,25 +147,26 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
       splitGroups.forEach(function (chars) {
         tl.to(chars, {
           opacity: 1, y: 0, rotateX: 0,
-          duration: 0.8, stagger: 0.025, ease: 'power3.out'
+          duration: 1.2, stagger: 0.035, ease: 'expo.out'
         }, pos);
         pos += 0.5;
       });
 
       // Dividers: elegant draw
       dividers.forEach(function (d) {
-        tl.to(d, { scaleX: 1, duration: 0.8, ease: 'expo.inOut' }, pos);
+        tl.to(d, { scaleX: 1.02, duration: 1.2, ease: 'expo.out' }, pos);
+        tl.to(d, { scaleX: 1, duration: 0.4, ease: 'power2.inOut' }, pos + 0.8);
         pos += 0.3;
       });
 
       // Paragraphs: gentle fade up
       paragraphs.forEach(function (p) {
-        tl.to(p, { opacity: 1, y: 0, duration: 0.7, ease: 'power2.out' }, pos);
+        tl.to(p, { opacity: 1, y: 0, duration: 1, ease: 'expo.out' }, pos);
         pos += 0.3;
       });
 
       // Hold at end for a beat
-      tl.to({}, { duration: 0.5 }, pos);
+      tl.to({}, { duration: 1 }, pos);
     },
 
     'scroll-gallery': function (section) {
@@ -243,7 +244,7 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
           start: 'top top',
           end: '+=' + (images.length * 120) + '%',
           pin: true,
-          scrub: 1,
+          scrub: 2,
           onUpdate: function (self) {
             var idx = Math.round(self.progress * (images.length - 1));
             dots.forEach(function (d, i) {
@@ -255,10 +256,10 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
       });
 
       for (var i = 0; i < images.length - 1; i++) {
-        tl.to(images[i], { opacity: 0, scale: 1.06, duration: 0.6, ease: 'power2.inOut' }, i)
-          .to(images[i + 1], { opacity: 1, scale: 1, duration: 0.8, ease: 'power2.out' }, i + 0.15);
+        tl.to(images[i], { opacity: 0, scale: 1.04, duration: 0.8, ease: 'power2.inOut' }, i)
+          .to(images[i + 1], { opacity: 1, scale: 1, duration: 1.2, ease: 'expo.out' }, i + 0.1);
       }
-      tl.to({}, { duration: 0.3 });
+      tl.to({}, { duration: 0.6 });
     },
 
     'reveal': function (section) {
@@ -278,7 +279,7 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
           onEnter: function () {
             gsap.to(chars, {
               opacity: 1, y: 0, rotateX: 0,
-              duration: 1, stagger: 0.035, ease: 'power4.out'
+              duration: 1.4, stagger: 0.04, ease: 'expo.out'
             });
           },
           once: true
@@ -294,7 +295,7 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
           onEnter: function () {
             gsap.to(paragraphs, {
               opacity: 1, y: 0,
-              duration: 1.2, stagger: 0.2, ease: 'power3.out', delay: 0.4
+              duration: 1.6, stagger: 0.22, ease: 'expo.out', delay: 0.5
             });
           },
           once: true
@@ -308,7 +309,7 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
           trigger: d,
           start: 'top 85%',
           onEnter: function () {
-            gsap.to(d, { scaleX: 1, duration: 1.5, ease: 'expo.inOut' });
+            gsap.to(d, { scaleX: 1.02, duration: 1.8, ease: 'expo.out', onComplete: function() { gsap.to(d, { scaleX: 1, duration: 0.4 }); } });
           },
           once: true
         });
@@ -316,14 +317,14 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
 
       // Images — clip-path mask wipe + subtle scale
       images.forEach(function (img) {
-        gsap.set(img, { clipPath: 'inset(0 0 100% 0)', scale: 1.1, opacity: 0.8 });
+        gsap.set(img, { clipPath: 'inset(0 0 100% 0)', scale: 1.12, opacity: 0.8, filter: 'grayscale(100%)' });
         ScrollTrigger.create({
           trigger: img,
           start: 'top 80%',
           onEnter: function () {
             gsap.to(img, {
-              clipPath: 'inset(0 0 0% 0)', scale: 1, opacity: 1,
-              duration: 1.6, ease: 'power4.out'
+              clipPath: 'inset(0 0 0% 0)', scale: 1, opacity: 1, filter: 'grayscale(0%)',
+              duration: 2, ease: 'expo.out'
             });
           },
           once: true
@@ -340,12 +341,12 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
         if (cols.length >= 2) {
           // Deeper parallax movement
           gsap.to(cols[0], {
-            y: -100,
+            y: -120,
             ease: 'none',
             scrollTrigger: { trigger: section, start: 'top bottom', end: 'bottom top', scrub: 1.5 }
           });
           gsap.to(cols[1], {
-            y: 100,
+            y: 120,
             ease: 'none',
             scrollTrigger: { trigger: section, start: 'top bottom', end: 'bottom top', scrub: 1.5 }
           });
@@ -369,14 +370,14 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
 
       // Image mask reveal for images in parallax
       findImages(section).forEach(function (img) {
-        gsap.set(img, { clipPath: 'inset(0 100% 0 0)', scale: 1.08 });
+        gsap.set(img, { clipPath: 'inset(0 100% 0 0)', scale: 1.1, filter: 'grayscale(100%)' });
         ScrollTrigger.create({
           trigger: img,
           start: 'top 75%',
           onEnter: function () {
             gsap.to(img, {
-              clipPath: 'inset(0 0% 0 0)', scale: 1,
-              duration: 1.4, ease: 'power4.out'
+              clipPath: 'inset(0 0% 0 0)', scale: 1, filter: 'grayscale(0%)',
+              duration: 1.8, ease: 'expo.out'
             });
           },
           once: true
@@ -509,8 +510,8 @@ gsap.defaults({ ease: 'power3.out', duration: 1.2 });
       gsap.to(dot, { x: mx, y: my, duration: 0.1, ease: 'power2.out' });
     });
     gsap.ticker.add(function () {
-      cx += (mx - cx) * 0.08; // slower follow = more weight
-      cy += (my - cy) * 0.08;
+      cx += (mx - cx) * 0.06; // slower follow = more weight
+      cy += (my - cy) * 0.06;
       gsap.set(ring, { x: cx, y: cy });
     });
     document.addEventListener('mouseenter', function (e) {

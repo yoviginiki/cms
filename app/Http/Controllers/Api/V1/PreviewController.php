@@ -179,8 +179,8 @@ JS;
             || request()->query('experience') === '1';
 
         if ($isExperience) {
-            $experienceAssets = '<link rel="stylesheet" href="/assets/experience/experience-runtime.ab032c27.css">'
-                . "\n" . '<script defer src="/assets/experience/experience-runtime.ab032c27.js"></script>';
+            $experienceAssets = '<link rel="stylesheet" href="/assets/experience/experience-runtime.cb000049.css">'
+                . "\n" . '<script defer src="/assets/experience/experience-runtime.cb000049.js"></script>';
             $html = str_replace('</head>', $experienceAssets . "\n</head>", $html);
         }
 
