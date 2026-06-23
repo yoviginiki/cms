@@ -112,9 +112,24 @@ body.cinematic-page { margin: 0; }
 <script>
 // Cinematic layout init: mark body, build nav dots, scroll-to-section on dot click
 (function(){
-  // Reduced motion / user off → just show everything
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
-      localStorage.getItem('ensodo:experience:off') === '1') {
+  // ?experience=force clears the off-toggle
+  if (window.location.search.indexOf('experience=force') !== -1) {
+    localStorage.removeItem('ensodo:experience:off');
+  }
+
+  // Reduced motion → just show everything
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+
+  // User disabled → show re-enable button, then bail
+  if (localStorage.getItem('ensodo:experience:off') === '1') {
+    var btn = document.createElement('button');
+    btn.className = 'cinematic-dot'; // reuse dot styling
+    btn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:auto;height:auto;border-radius:4px;padding:6px 16px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;opacity:1;background:var(--color-bg-alt,#eee);color:var(--color-text,#333);z-index:9999;cursor:pointer;';
+    btn.textContent = 'Enable cinematic';
+    btn.onclick = function(){ localStorage.removeItem('ensodo:experience:off'); location.reload(); };
+    document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(btn); });
     return;
   }
 
