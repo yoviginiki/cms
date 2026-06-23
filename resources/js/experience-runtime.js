@@ -1,311 +1,328 @@
 /**
- * Ensodo CMS — Experience Runtime
+ * Ensodo CMS — Cinematic Experience Runtime (v2 — Scene Presets)
  *
- * Transforms a page with [data-experience="cinematic"] into a full-viewport
- * panel-by-panel navigation (like turning pages of a book).
+ * Reads data-scene attributes on .section-block elements and creates
+ * GSAP ScrollTrigger timelines for each scene preset.
  *
- * Uses GSAP Observer for wheel/touch/key input detection.
+ * Scene presets:
+ *   fade-through    — quiet opacity/translate crossfade (default)
+ *   pinned-statement — pins; content builds to scroll progress (scrub)
+ *   scroll-gallery   — pins; crossfades child blocks on scroll
+ *   reveal           — split-text headings + staggered entrance
+ *   parallax-split   — two-column counter-motion on scroll
  *
- * Respects:
- * - prefers-reduced-motion: reduce → falls back to normal scroll
- * - localStorage 'ensodo:experience:off' → falls back to normal scroll
- *
- * Only loaded on pages with experience_mode === 'cinematic'.
+ * Guards:
+ *   - prefers-reduced-motion: reduce → all content visible, no animation
+ *   - localStorage 'ensodo:experience:off' → same fallback
+ *   - < 1 section with data-scene → does nothing
  */
 
 import { gsap } from 'gsap';
-import { Observer } from 'gsap/Observer';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-gsap.registerPlugin(Observer, ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger);
 
 (function () {
   'use strict';
 
   // ─── Guards ───
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const userDisabled = localStorage.getItem('ensodo:experience:off') === '1';
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const userOff = localStorage.getItem('ensodo:experience:off') === '1';
 
-  if (prefersReducedMotion || userDisabled) {
+  if (reducedMotion || userOff) {
     document.documentElement.classList.add('experience-reduced');
-    return; // Normal scroll, no snap, no animations
+    return;
   }
 
-  // ─── Find panels ───
-  // Priority: .section-block elements → top-level blocks in .pos-main (grid layout)
-  // → top-level blocks in <main> (standard layout)
-  let panels = Array.from(document.querySelectorAll('.section-block'));
+  // ─── Find scene sections ───
+  const sections = Array.from(document.querySelectorAll('.section-block[data-scene]'));
+  if (sections.length < 1) return;
 
-  if (panels.length < 2) {
-    // Find the content container (grid layout uses .pos-main, standard uses <main>)
-    const container = document.querySelector('.pos-main')
-      || document.querySelector('main[role="main"] > main')
-      || document.querySelector('main[role="main"]')
-      || document.querySelector('main');
-
-    if (container) {
-      panels = Array.from(container.children).filter(function (el) {
-        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return false;
-        if (el.classList.contains('spacer-block')) return false;
-        // Skip tiny/empty elements
-        if (el.offsetHeight < 50 && !el.querySelector('video')) return false;
-        return true;
-      });
-    }
-  }
-  if (panels.length < 2) return; // Need at least 2 panels
-
-  let currentIndex = 0;
-  let isAnimating = false;
-
-  // ─── Setup: make panels full-viewport, stacked ───
-  const wrapper = document.querySelector('.pos-main')
-    || document.querySelector('main[role="main"] > main')
-    || document.querySelector('main[role="main"]')
-    || document.querySelector('main')
-    || document.body;
-
-  // Add experience class for CSS
   document.documentElement.classList.add('experience-active');
 
-  // Style wrapper
-  Object.assign(wrapper.style, {
-    position: 'relative',
-    overflow: 'hidden',
-    height: '100vh',
-    width: '100%',
-  });
-
-  // Style each panel
-  panels.forEach((panel, i) => {
-    Object.assign(panel.style, {
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      width: '100%',
-      height: '100vh',
-      overflow: 'auto',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      zIndex: i === 0 ? '2' : '1',
-      visibility: i === 0 ? 'visible' : 'hidden',
-      opacity: i === 0 ? '1' : '0',
-    });
-
-    // Add data attributes for CSS targeting
-    panel.setAttribute('data-panel-index', String(i));
-    panel.setAttribute('data-panel-transition', panel.dataset?.experienceTransition ||
-      panel.querySelector('[data-experience-transition]')?.dataset?.experienceTransition || 'fade');
-    panel.setAttribute('data-panel-enter', panel.dataset?.experienceEnter ||
-      panel.querySelector('[data-experience-enter]')?.dataset?.experienceEnter || 'fade-up');
-  });
-
-  // Run enter animation on the first panel
-  runEnterAnimation(panels[0]);
-
-  // ─── Transition presets ───
-  function getTransitionTimeline(fromPanel, toPanel, direction, transitionType) {
-    const tl = gsap.timeline({
-      onStart: () => {
-        isAnimating = true;
-        toPanel.style.visibility = 'visible';
-        toPanel.style.zIndex = '3';
-      },
-      onComplete: () => {
-        fromPanel.style.visibility = 'hidden';
-        fromPanel.style.opacity = '0';
-        fromPanel.style.zIndex = '1';
-        toPanel.style.zIndex = '2';
-        isAnimating = false;
-        runEnterAnimation(toPanel);
-      },
-    });
-
-    const dur = 0.8;
-    const ease = 'power2.inOut';
-
-    switch (transitionType) {
-      case 'slide-up':
-        gsap.set(toPanel, { opacity: 1, y: direction > 0 ? '100%' : '-100%' });
-        tl.to(fromPanel, { y: direction > 0 ? '-100%' : '100%', duration: dur, ease })
-          .to(toPanel, { y: '0%', duration: dur, ease }, '<');
-        break;
-
-      case 'slide-left':
-        gsap.set(toPanel, { opacity: 1, x: direction > 0 ? '100%' : '-100%' });
-        tl.to(fromPanel, { x: direction > 0 ? '-100%' : '100%', duration: dur, ease })
-          .to(toPanel, { x: '0%', duration: dur, ease }, '<');
-        break;
-
-      case 'cover':
-        gsap.set(toPanel, { opacity: 1, y: direction > 0 ? '100%' : '-100%' });
-        tl.to(toPanel, { y: '0%', duration: dur, ease });
-        break;
-
-      case 'mask-wipe':
-        gsap.set(toPanel, { opacity: 1, clipPath: 'inset(0 0 100% 0)' });
-        tl.to(toPanel, {
-          clipPath: 'inset(0 0 0% 0)',
-          duration: dur * 1.2,
-          ease: 'power3.inOut',
-        }).to(fromPanel, { opacity: 0, duration: 0.3 }, '<0.4');
-        break;
-
-      case 'zoom':
-        gsap.set(toPanel, { opacity: 0, scale: 0.8 });
-        tl.to(fromPanel, { opacity: 0, scale: 1.1, duration: dur * 0.6, ease: 'power2.in' })
-          .to(toPanel, { opacity: 1, scale: 1, duration: dur, ease: 'power2.out' }, '<0.2');
-        break;
-
-      case 'fade':
-      default:
-        gsap.set(toPanel, { opacity: 0 });
-        tl.to(fromPanel, { opacity: 0, duration: dur * 0.5, ease: 'power2.in' })
-          .to(toPanel, { opacity: 1, duration: dur * 0.6, ease: 'power2.out' }, '<0.15');
-        break;
+  // ─── Text split helper (no SplitText plugin) ───
+  function splitText(el) {
+    const text = el.textContent;
+    el.textContent = '';
+    el.setAttribute('aria-label', text);
+    const chars = [];
+    for (let i = 0; i < text.length; i++) {
+      const span = document.createElement('span');
+      span.textContent = text[i];
+      span.style.display = 'inline-block';
+      span.style.willChange = 'transform, opacity';
+      if (text[i] === ' ') span.style.width = '0.3em';
+      el.appendChild(span);
+      chars.push(span);
     }
-
-    return tl;
+    return chars;
   }
 
-  // ─── Enter animations ───
-  function runEnterAnimation(panel) {
-    const enterType = panel.getAttribute('data-panel-enter') || 'fade-up';
-    if (enterType === 'none') return;
+  // ─── Scene Registry ───
+  const scenes = {
 
-    const children = panel.querySelectorAll(':scope > div > *');
-    if (!children.length) return;
+    // ── fade-through: quiet opacity + translateY on enter/leave ──
+    'fade-through': function (section) {
+      const inner = section.querySelector(':scope > div') || section;
+      gsap.set(inner.children, { opacity: 0, y: 40 });
 
-    switch (enterType) {
-      case 'fade-up':
-        gsap.fromTo(children,
-          { opacity: 0, y: 40 },
-          { opacity: 1, y: 0, duration: 0.7, stagger: 0.1, ease: 'power2.out', delay: 0.2 }
-        );
-        break;
+      ScrollTrigger.create({
+        trigger: section,
+        start: 'top 80%',
+        onEnter: function () {
+          gsap.to(inner.children, {
+            opacity: 1, y: 0,
+            duration: 0.8, stagger: 0.1, ease: 'power2.out'
+          });
+        },
+        once: true
+      });
+    },
 
-      case 'stagger':
-        gsap.fromTo(children,
-          { opacity: 0, y: 30, scale: 0.97 },
-          { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.15, ease: 'power2.out', delay: 0.15 }
-        );
-        break;
+    // ── pinned-statement: section pins; content scrubs in ──
+    'pinned-statement': function (section) {
+      const inner = section.querySelector(':scope > div') || section;
+      const children = Array.from(inner.querySelectorAll(':scope > *'));
+      if (children.length < 1) return;
 
-      case 'clip':
-        gsap.fromTo(children,
-          { clipPath: 'inset(100% 0 0 0)' },
-          { clipPath: 'inset(0% 0 0 0)', duration: 0.8, stagger: 0.1, ease: 'power3.out', delay: 0.2 }
-        );
-        break;
+      // Set initial state
+      children.forEach(function (child, i) {
+        if (i > 0) gsap.set(child, { opacity: 0, y: 30 });
+      });
+
+      // Split headings
+      var headings = section.querySelectorAll('h1, h2, h3');
+      var splitChars = [];
+      headings.forEach(function (h) {
+        var chars = splitText(h);
+        gsap.set(chars, { opacity: 0, y: 20 });
+        splitChars.push({ el: h, chars: chars });
+      });
+
+      var tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: '+=' + (children.length * 40) + '%',
+          pin: true,
+          scrub: 0.8,
+          anticipatePin: 1
+        }
+      });
+
+      // Animate split headings first
+      splitChars.forEach(function (item) {
+        tl.to(item.chars, {
+          opacity: 1, y: 0,
+          duration: 0.5, stagger: 0.02, ease: 'power2.out'
+        }, 0);
+      });
+
+      // Then stagger in each child block
+      children.forEach(function (child, i) {
+        if (i > 0) {
+          tl.to(child, {
+            opacity: 1, y: 0,
+            duration: 0.4, ease: 'power2.out'
+          }, 0.15 * i);
+        }
+      });
+
+      // Add a decorative rule animation if there's an hr/divider
+      var rule = section.querySelector('hr, .divider-block');
+      if (rule) {
+        gsap.set(rule, { scaleX: 0, transformOrigin: 'left center' });
+        tl.to(rule, { scaleX: 1, duration: 0.6, ease: 'power2.inOut' }, 0.3);
+      }
+    },
+
+    // ── scroll-gallery: pins; crossfades through child blocks ──
+    'scroll-gallery': function (section) {
+      var inner = section.querySelector(':scope > div') || section;
+      var items = Array.from(inner.querySelectorAll(':scope > div > div > *')); // row > column > blocks
+      if (items.length < 2) {
+        // Fallback: try direct children
+        items = Array.from(inner.querySelectorAll(':scope > *'));
+      }
+      if (items.length < 2) return;
+
+      // Stack all items absolutely
+      var wrapper = inner;
+      wrapper.style.position = 'relative';
+      wrapper.style.minHeight = '60vh';
+
+      items.forEach(function (item, i) {
+        item.style.position = i === 0 ? 'relative' : 'absolute';
+        item.style.top = '0';
+        item.style.left = '0';
+        item.style.width = '100%';
+        if (i > 0) gsap.set(item, { opacity: 0 });
+      });
+
+      // Progress indicator
+      var progress = document.createElement('div');
+      progress.className = 'scene-gallery-progress';
+      progress.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:5;';
+      items.forEach(function (_, i) {
+        var dot = document.createElement('span');
+        dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--color-text-muted,#999);opacity:' + (i === 0 ? '1' : '0.3') + ';transition:opacity 0.3s;';
+        progress.appendChild(dot);
+      });
+      section.appendChild(progress);
+      var dots = progress.querySelectorAll('span');
+
+      var tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: '+=' + (items.length * 80) + '%',
+          pin: true,
+          scrub: 0.5,
+          snap: { snapTo: 1 / (items.length - 1), duration: 0.3 },
+          onUpdate: function (self) {
+            var idx = Math.round(self.progress * (items.length - 1));
+            dots.forEach(function (d, i) { d.style.opacity = i === idx ? '1' : '0.3'; });
+          }
+        }
+      });
+
+      // Crossfade between items
+      for (var i = 0; i < items.length - 1; i++) {
+        tl.to(items[i], { opacity: 0, duration: 0.5 }, i)
+          .to(items[i + 1], { opacity: 1, duration: 0.5 }, i);
+      }
+    },
+
+    // ── reveal: split-text headings + staggered block entrance ──
+    'reveal': function (section) {
+      var inner = section.querySelector(':scope > div') || section;
+      var children = Array.from(inner.querySelectorAll(':scope > *'));
+
+      // Split headings
+      var headings = section.querySelectorAll('h1, h2, h3');
+      headings.forEach(function (h) {
+        var chars = splitText(h);
+        gsap.set(chars, { opacity: 0, y: 30, rotateX: -40 });
+
+        ScrollTrigger.create({
+          trigger: h,
+          start: 'top 85%',
+          onEnter: function () {
+            gsap.to(chars, {
+              opacity: 1, y: 0, rotateX: 0,
+              duration: 0.6, stagger: 0.025, ease: 'power3.out'
+            });
+          },
+          once: true
+        });
+      });
+
+      // Stagger non-heading children
+      var blocks = children.filter(function (c) {
+        return !c.matches('h1, h2, h3') && c.offsetHeight > 10;
+      });
+      gsap.set(blocks, { opacity: 0, y: 50 });
+
+      ScrollTrigger.create({
+        trigger: section,
+        start: 'top 70%',
+        onEnter: function () {
+          gsap.to(blocks, {
+            opacity: 1, y: 0,
+            duration: 0.7, stagger: 0.12, ease: 'power2.out', delay: 0.2
+          });
+        },
+        once: true
+      });
+
+      // Line draw on dividers
+      var dividers = section.querySelectorAll('hr, .divider-block');
+      dividers.forEach(function (d) {
+        gsap.set(d, { scaleX: 0, transformOrigin: 'left center' });
+        ScrollTrigger.create({
+          trigger: d,
+          start: 'top 85%',
+          onEnter: function () {
+            gsap.to(d, { scaleX: 1, duration: 1, ease: 'power2.inOut' });
+          },
+          once: true
+        });
+      });
+    },
+
+    // ── parallax-split: two columns counter-move on scroll ──
+    'parallax-split': function (section) {
+      var inner = section.querySelector(':scope > div') || section;
+      // Find two-column layout (grid or flex with 2 children)
+      var grid = inner.querySelector('[style*="grid-template-columns"]') || inner;
+      var cols = Array.from(grid.children);
+
+      if (cols.length >= 2) {
+        var left = cols[0];
+        var right = cols[1];
+
+        // Counter-motion parallax
+        gsap.to(left, {
+          y: -60,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true
+          }
+        });
+
+        gsap.to(right, {
+          y: 60,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true
+          }
+        });
+      }
+
+      // Also run a reveal on the content
+      var blocks = inner.querySelectorAll('p, h2, h3, h4, img, a');
+      gsap.set(blocks, { opacity: 0, y: 30 });
+      ScrollTrigger.create({
+        trigger: section,
+        start: 'top 75%',
+        onEnter: function () {
+          gsap.to(blocks, {
+            opacity: 1, y: 0,
+            duration: 0.6, stagger: 0.08, ease: 'power2.out'
+          });
+        },
+        once: true
+      });
     }
-  }
+  };
 
-  // ─── Navigation ───
-  function goToPanel(newIndex) {
-    if (isAnimating) return;
-    if (newIndex < 0 || newIndex >= panels.length) return;
-    if (newIndex === currentIndex) return;
-
-    const direction = newIndex > currentIndex ? 1 : -1;
-    const fromPanel = panels[currentIndex];
-    const toPanel = panels[newIndex];
-    const transitionType = toPanel.getAttribute('data-panel-transition') || 'fade';
-
-    // Reset transforms on target panel
-    gsap.set(toPanel, { x: 0, y: 0, scale: 1, clearProps: 'clipPath' });
-
-    getTransitionTimeline(fromPanel, toPanel, direction, transitionType);
-    currentIndex = newIndex;
-
-    // Update URL hash for navigation
-    const anchorId = toPanel.querySelector('[id]')?.id;
-    if (anchorId) {
-      history.replaceState(null, '', '#' + anchorId);
-    }
-  }
-
-  // ─── GSAP Observer: wheel, touch, keys ───
-  Observer.create({
-    type: 'wheel,touch,pointer',
-    wheelSpeed: -1,
-    onDown: () => goToPanel(currentIndex - 1),
-    onUp: () => goToPanel(currentIndex + 1),
-    tolerance: 50,
-    preventDefault: true,
-  });
-
-  // Keyboard navigation
-  document.addEventListener('keydown', (e) => {
-    if (isAnimating) return;
-    switch (e.key) {
-      case 'ArrowDown':
-      case 'PageDown':
-      case ' ':
-        e.preventDefault();
-        goToPanel(currentIndex + 1);
-        break;
-      case 'ArrowUp':
-      case 'PageUp':
-        e.preventDefault();
-        goToPanel(currentIndex - 1);
-        break;
-      case 'Home':
-        e.preventDefault();
-        goToPanel(0);
-        break;
-      case 'End':
-        e.preventDefault();
-        goToPanel(panels.length - 1);
-        break;
+  // ─── Initialize scenes ───
+  sections.forEach(function (section) {
+    var preset = section.getAttribute('data-scene');
+    var factory = scenes[preset];
+    if (factory) {
+      factory(section);
+    } else {
+      // Unknown preset — apply fade-through as fallback
+      scenes['fade-through'](section);
     }
   });
 
-  // ─── Panel indicator dots ───
-  const nav = document.createElement('nav');
-  nav.className = 'experience-nav';
-  nav.setAttribute('aria-label', 'Panel navigation');
-  nav.innerHTML = panels.map((_, i) =>
-    `<button class="experience-nav-dot${i === 0 ? ' is-active' : ''}"
-      data-index="${i}" aria-label="Go to panel ${i + 1}"
-      ${i === 0 ? 'aria-current="true"' : ''}></button>`
-  ).join('');
-  document.body.appendChild(nav);
-
-  nav.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-index]');
-    if (btn) goToPanel(Number(btn.dataset.index));
-  });
-
-  // Update active dot
-  const originalGoToPanel = goToPanel;
-  const dots = nav.querySelectorAll('.experience-nav-dot');
-
-  // Patch goToPanel to also update dots
-  const origComplete = () => {};
-  const observer = new MutationObserver(() => {
-    dots.forEach((dot, i) => {
-      const isActive = i === currentIndex;
-      dot.classList.toggle('is-active', isActive);
-      dot.setAttribute('aria-current', isActive ? 'true' : 'false');
-    });
-  });
-
-  // Simple interval to sync dots with currentIndex
-  setInterval(() => {
-    dots.forEach((dot, i) => {
-      dot.classList.toggle('is-active', i === currentIndex);
-    });
-  }, 200);
-
-  // ─── Skip link for accessibility ───
-  const skipBtn = document.createElement('button');
+  // ─── Skip button ───
+  var skipBtn = document.createElement('button');
   skipBtn.className = 'experience-skip';
-  skipBtn.textContent = 'Skip to normal scroll';
-  skipBtn.setAttribute('aria-label', 'Disable cinematic mode and use normal scrolling');
-  skipBtn.addEventListener('click', () => {
+  skipBtn.textContent = 'Disable animations';
+  skipBtn.setAttribute('aria-label', 'Disable cinematic animations and use normal scrolling');
+  skipBtn.addEventListener('click', function () {
     localStorage.setItem('ensodo:experience:off', '1');
     location.reload();
   });
   document.body.appendChild(skipBtn);
+
 })();
