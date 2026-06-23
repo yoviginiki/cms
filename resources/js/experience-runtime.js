@@ -18,8 +18,28 @@ window.ScrollTrigger = ScrollTrigger;
   var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var userOff = localStorage.getItem('ensodo:experience:off') === '1';
 
+  // ?experience=force in URL overrides the localStorage off-toggle
+  if (window.location.search.indexOf('experience=force') !== -1) {
+    localStorage.removeItem('ensodo:experience:off');
+    userOff = false;
+  }
+
   if (reducedMotion || userOff) {
     document.documentElement.classList.add('experience-reduced');
+    // Show a re-enable button when user disabled it
+    if (userOff && !reducedMotion) {
+      var enableBtn = document.createElement('button');
+      enableBtn.className = 'experience-skip';
+      enableBtn.style.opacity = '1';
+      enableBtn.textContent = 'Enable animations';
+      enableBtn.addEventListener('click', function () {
+        localStorage.removeItem('ensodo:experience:off');
+        location.reload();
+      });
+      document.addEventListener('DOMContentLoaded', function() {
+        document.body.appendChild(enableBtn);
+      });
+    }
     return;
   }
 
