@@ -1,56 +1,42 @@
 /**
- * Ensodo CMS — Cinematic Experience Runtime (v2 — Scene Presets)
+ * Ensodo CMS — Cinematic Experience Runtime (v2.1 — Deep Content Targeting)
  *
  * Reads data-scene attributes on .section-block elements and creates
- * GSAP ScrollTrigger timelines for each scene preset.
- *
- * Scene presets:
- *   fade-through    — quiet opacity/translate crossfade (default)
- *   pinned-statement — pins; content builds to scroll progress (scrub)
- *   scroll-gallery   — pins; crossfades child blocks on scroll
- *   reveal           — split-text headings + staggered entrance
- *   parallax-split   — two-column counter-motion on scroll
- *
- * Guards:
- *   - prefers-reduced-motion: reduce → all content visible, no animation
- *   - localStorage 'ensodo:experience:off' → same fallback
- *   - < 1 section with data-scene → does nothing
+ * GSAP ScrollTrigger timelines. Content is found at ANY depth via
+ * querySelectorAll (not just direct children).
  */
 
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
-
-// Expose ScrollTrigger globally so cinematic wrapper can call .refresh()
 window.ScrollTrigger = ScrollTrigger;
 
 (function () {
   'use strict';
 
-  // ─── Guards ───
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const userOff = localStorage.getItem('ensodo:experience:off') === '1';
+  var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var userOff = localStorage.getItem('ensodo:experience:off') === '1';
 
   if (reducedMotion || userOff) {
     document.documentElement.classList.add('experience-reduced');
     return;
   }
 
-  // ─── Find scene sections ───
-  const sections = Array.from(document.querySelectorAll('.section-block[data-scene]'));
+  var sections = Array.from(document.querySelectorAll('.section-block[data-scene]'));
   if (sections.length < 1) return;
 
   document.documentElement.classList.add('experience-active');
 
-  // ─── Text split helper (no SplitText plugin) ───
+  // ─── Helpers ───
+
   function splitText(el) {
-    const text = el.textContent;
+    var text = el.textContent;
     el.textContent = '';
     el.setAttribute('aria-label', text);
-    const chars = [];
-    for (let i = 0; i < text.length; i++) {
-      const span = document.createElement('span');
+    var chars = [];
+    for (var i = 0; i < text.length; i++) {
+      var span = document.createElement('span');
       span.textContent = text[i];
       span.style.display = 'inline-block';
       span.style.willChange = 'transform, opacity';
@@ -61,151 +47,176 @@ window.ScrollTrigger = ScrollTrigger;
     return chars;
   }
 
-  // ─── Scene Registry ───
-  const scenes = {
+  // Find visible content blocks deep inside a section
+  function findContent(section) {
+    return Array.from(section.querySelectorAll('h1, h2, h3, h4, p, img, figure, video, .video-hero, .divider-block, .image-block, .heading-block, .paragraph-block, .rich-text-block'));
+  }
 
-    // ── fade-through: quiet opacity + translateY on enter/leave ──
+  function findHeadings(section) {
+    return Array.from(section.querySelectorAll('h1, h2, h3'));
+  }
+
+  function findImages(section) {
+    return Array.from(section.querySelectorAll('img, figure, .image-block, .video-hero'));
+  }
+
+  function findDividers(section) {
+    return Array.from(section.querySelectorAll('hr, .divider-block'));
+  }
+
+  function findParagraphs(section) {
+    return Array.from(section.querySelectorAll('p, .paragraph-block .prose, .rich-text-block .prose'));
+  }
+
+  // ─── Scene Registry ───
+  var scenes = {
+
     'fade-through': function (section) {
-      const inner = section.querySelector(':scope > div') || section;
-      gsap.set(inner.children, { opacity: 0, y: 40 });
+      var items = findContent(section);
+      if (!items.length) return;
+
+      gsap.set(items, { opacity: 0, y: 50 });
 
       ScrollTrigger.create({
         trigger: section,
-        start: 'top 80%',
+        start: 'top 75%',
         onEnter: function () {
-          gsap.to(inner.children, {
+          gsap.to(items, {
             opacity: 1, y: 0,
-            duration: 0.8, stagger: 0.1, ease: 'power2.out'
+            duration: 1, stagger: 0.12, ease: 'power3.out'
           });
         },
         once: true
       });
     },
 
-    // ── pinned-statement: section pins; content scrubs in ──
     'pinned-statement': function (section) {
-      const inner = section.querySelector(':scope > div') || section;
-      const children = Array.from(inner.querySelectorAll(':scope > *'));
-      if (children.length < 1) return;
+      var headings = findHeadings(section);
+      var paragraphs = findParagraphs(section);
+      var dividers = findDividers(section);
+      var allContent = findContent(section);
 
-      // Set initial state
-      children.forEach(function (child, i) {
-        if (i > 0) gsap.set(child, { opacity: 0, y: 30 });
-      });
+      if (allContent.length < 1) return;
 
-      // Split headings
-      var headings = section.querySelectorAll('h1, h2, h3');
-      var splitChars = [];
+      // Set initial states
+      var splitGroups = [];
       headings.forEach(function (h) {
         var chars = splitText(h);
-        gsap.set(chars, { opacity: 0, y: 20 });
-        splitChars.push({ el: h, chars: chars });
+        gsap.set(chars, { opacity: 0, y: 25, rotateX: -30 });
+        splitGroups.push(chars);
       });
 
+      paragraphs.forEach(function (p) {
+        gsap.set(p, { opacity: 0, y: 30 });
+      });
+
+      dividers.forEach(function (d) {
+        gsap.set(d, { scaleX: 0, transformOrigin: 'left center' });
+      });
+
+      // Pin + scrub timeline
       var tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: '+=' + (children.length * 40) + '%',
+          end: function () { return '+=' + (section.offsetHeight * 1.5); },
           pin: true,
-          scrub: 0.8,
+          scrub: 1,
           anticipatePin: 1
         }
       });
 
-      // Animate split headings first
-      splitChars.forEach(function (item) {
-        tl.to(item.chars, {
-          opacity: 1, y: 0,
-          duration: 0.5, stagger: 0.02, ease: 'power2.out'
-        }, 0);
+      // Animate headings (split chars)
+      var pos = 0;
+      splitGroups.forEach(function (chars) {
+        tl.to(chars, {
+          opacity: 1, y: 0, rotateX: 0,
+          duration: 0.6, stagger: 0.02, ease: 'power3.out'
+        }, pos);
+        pos += 0.4;
       });
 
-      // Then stagger in each child block
-      children.forEach(function (child, i) {
+      // Animate dividers
+      dividers.forEach(function (d) {
+        tl.to(d, { scaleX: 1, duration: 0.5, ease: 'power2.inOut' }, pos);
+        pos += 0.2;
+      });
+
+      // Animate paragraphs
+      paragraphs.forEach(function (p) {
+        tl.to(p, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, pos);
+        pos += 0.25;
+      });
+    },
+
+    'scroll-gallery': function (section) {
+      var images = findImages(section);
+      if (images.length < 2) {
+        // Fallback to fade-through
+        scenes['fade-through'](section);
+        return;
+      }
+
+      // Stack images
+      var container = images[0].parentElement;
+      container.style.position = 'relative';
+      container.style.minHeight = '60vh';
+
+      images.forEach(function (img, i) {
         if (i > 0) {
-          tl.to(child, {
-            opacity: 1, y: 0,
-            duration: 0.4, ease: 'power2.out'
-          }, 0.15 * i);
+          img.style.position = 'absolute';
+          img.style.top = '0';
+          img.style.left = '0';
+          img.style.width = '100%';
+          gsap.set(img, { opacity: 0 });
         }
       });
 
-      // Add a decorative rule animation if there's an hr/divider
-      var rule = section.querySelector('hr, .divider-block');
-      if (rule) {
-        gsap.set(rule, { scaleX: 0, transformOrigin: 'left center' });
-        tl.to(rule, { scaleX: 1, duration: 0.6, ease: 'power2.inOut' }, 0.3);
-      }
-    },
-
-    // ── scroll-gallery: pins; crossfades through child blocks ──
-    'scroll-gallery': function (section) {
-      var inner = section.querySelector(':scope > div') || section;
-      var items = Array.from(inner.querySelectorAll(':scope > div > div > *')); // row > column > blocks
-      if (items.length < 2) {
-        // Fallback: try direct children
-        items = Array.from(inner.querySelectorAll(':scope > *'));
-      }
-      if (items.length < 2) return;
-
-      // Stack all items absolutely
-      var wrapper = inner;
-      wrapper.style.position = 'relative';
-      wrapper.style.minHeight = '60vh';
-
-      items.forEach(function (item, i) {
-        item.style.position = i === 0 ? 'relative' : 'absolute';
-        item.style.top = '0';
-        item.style.left = '0';
-        item.style.width = '100%';
-        if (i > 0) gsap.set(item, { opacity: 0 });
-      });
-
-      // Progress indicator
+      // Progress dots
       var progress = document.createElement('div');
-      progress.className = 'scene-gallery-progress';
-      progress.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:5;';
-      items.forEach(function (_, i) {
+      progress.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:5;';
+      images.forEach(function (_, i) {
         var dot = document.createElement('span');
-        dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--color-text-muted,#999);opacity:' + (i === 0 ? '1' : '0.3') + ';transition:opacity 0.3s;';
+        dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--color-text-muted,#999);opacity:' + (i === 0 ? '1' : '0.3') + ';transition:all 0.3s;';
         progress.appendChild(dot);
       });
       section.appendChild(progress);
       var dots = progress.querySelectorAll('span');
 
+      // Pin + crossfade
       var tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: '+=' + (items.length * 80) + '%',
+          end: '+=' + (images.length * 100) + '%',
           pin: true,
           scrub: 0.5,
-          snap: { snapTo: 1 / (items.length - 1), duration: 0.3 },
           onUpdate: function (self) {
-            var idx = Math.round(self.progress * (items.length - 1));
-            dots.forEach(function (d, i) { d.style.opacity = i === idx ? '1' : '0.3'; });
+            var idx = Math.round(self.progress * (images.length - 1));
+            dots.forEach(function (d, i) {
+              d.style.opacity = i === idx ? '1' : '0.3';
+              d.style.transform = i === idx ? 'scale(1.4)' : 'scale(1)';
+            });
           }
         }
       });
 
-      // Crossfade between items
-      for (var i = 0; i < items.length - 1; i++) {
-        tl.to(items[i], { opacity: 0, duration: 0.5 }, i)
-          .to(items[i + 1], { opacity: 1, duration: 0.5 }, i);
+      for (var i = 0; i < images.length - 1; i++) {
+        tl.to(images[i], { opacity: 0, scale: 1.05, duration: 0.5 }, i)
+          .to(images[i + 1], { opacity: 1, duration: 0.5 }, i);
       }
     },
 
-    // ── reveal: split-text headings + staggered block entrance ──
     'reveal': function (section) {
-      var inner = section.querySelector(':scope > div') || section;
-      var children = Array.from(inner.querySelectorAll(':scope > *'));
+      var headings = findHeadings(section);
+      var paragraphs = findParagraphs(section);
+      var dividers = findDividers(section);
+      var images = findImages(section);
 
-      // Split headings
-      var headings = section.querySelectorAll('h1, h2, h3');
+      // Split and animate headings
       headings.forEach(function (h) {
         var chars = splitText(h);
-        gsap.set(chars, { opacity: 0, y: 30, rotateX: -40 });
+        gsap.set(chars, { opacity: 0, y: 40, rotateX: -50 });
 
         ScrollTrigger.create({
           trigger: h,
@@ -213,91 +224,100 @@ window.ScrollTrigger = ScrollTrigger;
           onEnter: function () {
             gsap.to(chars, {
               opacity: 1, y: 0, rotateX: 0,
-              duration: 0.6, stagger: 0.025, ease: 'power3.out'
+              duration: 0.8, stagger: 0.03, ease: 'power3.out'
             });
           },
           once: true
         });
       });
 
-      // Stagger non-heading children
-      var blocks = children.filter(function (c) {
-        return !c.matches('h1, h2, h3') && c.offsetHeight > 10;
-      });
-      gsap.set(blocks, { opacity: 0, y: 50 });
+      // Stagger paragraphs
+      if (paragraphs.length) {
+        gsap.set(paragraphs, { opacity: 0, y: 40 });
+        ScrollTrigger.create({
+          trigger: section,
+          start: 'top 65%',
+          onEnter: function () {
+            gsap.to(paragraphs, {
+              opacity: 1, y: 0,
+              duration: 0.9, stagger: 0.15, ease: 'power2.out', delay: 0.3
+            });
+          },
+          once: true
+        });
+      }
 
-      ScrollTrigger.create({
-        trigger: section,
-        start: 'top 70%',
-        onEnter: function () {
-          gsap.to(blocks, {
-            opacity: 1, y: 0,
-            duration: 0.7, stagger: 0.12, ease: 'power2.out', delay: 0.2
-          });
-        },
-        once: true
-      });
-
-      // Line draw on dividers
-      var dividers = section.querySelectorAll('hr, .divider-block');
+      // Draw dividers
       dividers.forEach(function (d) {
         gsap.set(d, { scaleX: 0, transformOrigin: 'left center' });
         ScrollTrigger.create({
           trigger: d,
           start: 'top 85%',
           onEnter: function () {
-            gsap.to(d, { scaleX: 1, duration: 1, ease: 'power2.inOut' });
+            gsap.to(d, { scaleX: 1, duration: 1.2, ease: 'power2.inOut' });
+          },
+          once: true
+        });
+      });
+
+      // Mask-reveal images (clip-path wipe)
+      images.forEach(function (img) {
+        gsap.set(img, { clipPath: 'inset(0 0 100% 0)', scale: 1.08 });
+        ScrollTrigger.create({
+          trigger: img,
+          start: 'top 80%',
+          onEnter: function () {
+            gsap.to(img, {
+              clipPath: 'inset(0 0 0% 0)', scale: 1,
+              duration: 1.2, ease: 'power3.out'
+            });
           },
           once: true
         });
       });
     },
 
-    // ── parallax-split: two columns counter-move on scroll ──
     'parallax-split': function (section) {
-      var inner = section.querySelector(':scope > div') || section;
-      // Find two-column layout (grid or flex with 2 children)
-      var grid = inner.querySelector('[style*="grid-template-columns"]') || inner;
-      var cols = Array.from(grid.children);
+      // Find the grid/row that contains 2 columns
+      var grid = section.querySelector('[style*="grid-template-columns"]') ||
+                 section.querySelector('.row-block > div');
 
-      if (cols.length >= 2) {
-        var left = cols[0];
-        var right = cols[1];
-
-        // Counter-motion parallax
-        gsap.to(left, {
-          y: -60,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: true
-          }
-        });
-
-        gsap.to(right, {
-          y: 60,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: true
-          }
-        });
+      if (grid) {
+        var cols = Array.from(grid.children);
+        if (cols.length >= 2) {
+          gsap.to(cols[0], {
+            y: -80,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: section,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: true
+            }
+          });
+          gsap.to(cols[1], {
+            y: 80,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: section,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: true
+            }
+          });
+        }
       }
 
-      // Also run a reveal on the content
-      var blocks = inner.querySelectorAll('p, h2, h3, h4, img, a');
-      gsap.set(blocks, { opacity: 0, y: 30 });
+      // Also reveal content
+      var content = findContent(section);
+      gsap.set(content, { opacity: 0, y: 40 });
       ScrollTrigger.create({
         trigger: section,
-        start: 'top 75%',
+        start: 'top 70%',
         onEnter: function () {
-          gsap.to(blocks, {
+          gsap.to(content, {
             opacity: 1, y: 0,
-            duration: 0.6, stagger: 0.08, ease: 'power2.out'
+            duration: 0.8, stagger: 0.1, ease: 'power2.out'
           });
         },
         once: true
@@ -312,7 +332,6 @@ window.ScrollTrigger = ScrollTrigger;
     if (factory) {
       factory(section);
     } else {
-      // Unknown preset — apply fade-through as fallback
       scenes['fade-through'](section);
     }
   });
@@ -321,27 +340,24 @@ window.ScrollTrigger = ScrollTrigger;
   var configEl = document.getElementById('experience-config');
   var atmos = configEl ? JSON.parse(configEl.textContent) : {};
 
-  // Preloader
   if (atmos.preloader) {
     var loader = document.createElement('div');
     loader.className = 'experience-preloader';
     loader.innerHTML = '<div class="preloader-inner"><div class="preloader-count">0</div><div class="preloader-bar"><div class="preloader-fill"></div></div></div>';
     document.body.appendChild(loader);
     document.body.style.overflow = 'hidden';
-
     var count = loader.querySelector('.preloader-count');
     var fill = loader.querySelector('.preloader-fill');
     var obj = { val: 0 };
-
     gsap.to(obj, {
-      val: 100, duration: 2, ease: 'power2.inOut',
+      val: 100, duration: 2.5, ease: 'power2.inOut',
       onUpdate: function () {
         count.textContent = Math.round(obj.val);
         fill.style.width = obj.val + '%';
       },
       onComplete: function () {
         gsap.to(loader, {
-          opacity: 0, duration: 0.5, delay: 0.3,
+          opacity: 0, duration: 0.6, delay: 0.3,
           onComplete: function () {
             loader.remove();
             document.body.style.overflow = '';
@@ -352,75 +368,40 @@ window.ScrollTrigger = ScrollTrigger;
     });
   }
 
-  // Custom cursor
   if (atmos.cursor && window.matchMedia('(pointer: fine)').matches) {
     var cursor = document.createElement('div');
     cursor.className = 'experience-cursor';
     cursor.innerHTML = '<span class="cursor-dot"></span><span class="cursor-ring"></span>';
     document.body.appendChild(cursor);
     document.documentElement.classList.add('experience-cursor-active');
-
     var dot = cursor.querySelector('.cursor-dot');
     var ring = cursor.querySelector('.cursor-ring');
     var mx = 0, my = 0, cx = 0, cy = 0;
-
     document.addEventListener('mousemove', function (e) {
       mx = e.clientX; my = e.clientY;
       gsap.set(dot, { x: mx, y: my });
     });
-
     gsap.ticker.add(function () {
-      cx += (mx - cx) * 0.15;
-      cy += (my - cy) * 0.15;
+      cx += (mx - cx) * 0.12;
+      cy += (my - cy) * 0.12;
       gsap.set(ring, { x: cx, y: cy });
     });
-
-    // Scale up on interactive elements
     document.addEventListener('mouseenter', function (e) {
-      if (e.target.matches && e.target.matches('a, button, [role="button"], summary, input, select')) {
+      if (e.target.matches && e.target.matches('a, button, [role="button"], summary')) {
         ring.classList.add('is-hover');
       }
     }, true);
     document.addEventListener('mouseleave', function (e) {
-      if (e.target.matches && e.target.matches('a, button, [role="button"], summary, input, select')) {
+      if (e.target.matches && e.target.matches('a, button, [role="button"], summary')) {
         ring.classList.remove('is-hover');
       }
     }, true);
   }
 
-  // Ambient sound
-  if (atmos.sound && atmos.soundAsset) {
-    var audio = new Audio();
-    audio.src = atmos.soundAsset;
-    audio.loop = true;
-    audio.volume = 0.3;
-    var soundOn = false;
-
-    var soundBtn = document.createElement('button');
-    soundBtn.className = 'experience-sound';
-    soundBtn.innerHTML = '<span class="sound-icon">&#9835;</span> <span class="sound-label">sound off</span>';
-    soundBtn.setAttribute('aria-label', 'Toggle ambient sound');
-    document.body.appendChild(soundBtn);
-
-    soundBtn.addEventListener('click', function () {
-      if (soundOn) {
-        audio.pause();
-        soundBtn.querySelector('.sound-label').textContent = 'sound off';
-        soundBtn.classList.remove('is-on');
-      } else {
-        audio.play().catch(function () {});
-        soundBtn.querySelector('.sound-label').textContent = 'sound on';
-        soundBtn.classList.add('is-on');
-      }
-      soundOn = !soundOn;
-    });
-  }
-
-  // ─── Skip button ───
+  // Skip button
   var skipBtn = document.createElement('button');
   skipBtn.className = 'experience-skip';
   skipBtn.textContent = 'Disable animations';
-  skipBtn.setAttribute('aria-label', 'Disable cinematic animations and use normal scrolling');
   skipBtn.addEventListener('click', function () {
     localStorage.setItem('ensodo:experience:off', '1');
     location.reload();
