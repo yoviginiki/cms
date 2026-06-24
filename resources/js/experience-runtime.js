@@ -187,6 +187,26 @@ gsap.defaults({ ease: 'expo.out', duration: 1.6 });
         return;
       }
 
+      // Small portrait images with ellipse/capsule shape
+      slides.forEach(function (slide) {
+        var imgs = slide.querySelectorAll('img');
+        imgs.forEach(function (img) {
+          img.style.width = '220px';
+          img.style.height = '300px';
+          img.style.objectFit = 'cover';
+          img.style.borderRadius = '110px / 150px'; // ellipse capsule
+          img.style.margin = '0 auto 1.5rem';
+          img.style.display = 'block';
+          img.style.flexShrink = '0';
+        });
+        // Center slide content
+        slide.style.textAlign = 'center';
+        slide.style.display = 'flex';
+        slide.style.flexDirection = 'column';
+        slide.style.alignItems = 'center';
+        slide.style.justifyContent = 'center';
+      });
+
       // Stack slides: first visible, rest hidden underneath
       innerDiv.style.position = 'relative';
       innerDiv.style.minHeight = '80vh';
@@ -205,7 +225,7 @@ gsap.defaults({ ease: 'expo.out', duration: 1.6 });
 
       // Progress dots
       var progress = document.createElement('div');
-      progress.style.cssText = 'position:fixed;right:60px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;z-index:9998;';
+      progress.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);display:flex;flex-direction:row;gap:12px;z-index:9998;';
       slides.forEach(function (_, i) {
         var dot = document.createElement('span');
         dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--color-text-muted,#B7AF96);opacity:' + (i === 0 ? '1' : '0.25') + ';transition:all 0.4s ease;';

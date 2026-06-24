@@ -46,6 +46,16 @@ body.cinematic-page { margin: 0; }
 .cinematic-wrapper .video-hero video {
     aspect-ratio: auto;
 }
+/* scroll-gallery: small ellipse images, not full-width */
+.cinematic-wrapper .section-block[data-scene="scroll-gallery"] img {
+    width: 220px !important;
+    height: 300px !important;
+    aspect-ratio: auto !important;
+    object-fit: cover;
+    border-radius: 110px / 150px;
+    margin: 0 auto 1.5rem;
+    display: block;
+}
 
 /* Inner content div — readable padding, centered */
 .cinematic-wrapper > .section-block > div {
@@ -127,6 +137,11 @@ body.cinematic-page { margin: 0; }
     }
     .cinematic-nav { right: 12px; gap: 8px; }
     .cinematic-dot { width: 8px; height: 8px; }
+    .cinematic-wrapper .section-block[data-scene="scroll-gallery"] img {
+        width: 160px !important;
+        height: 220px !important;
+        border-radius: 80px / 110px;
+    }
 }
 </style>
 <script>
