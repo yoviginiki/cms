@@ -73,6 +73,21 @@ class BuildPageService
             $bodyScripts .= "\n" . '<script defer src="/assets/experience/experience-runtime.a44ae8ee.js"></script>';
         }
 
+        // Global custom cursor (site-level setting, all pages)
+        if (!empty($settings['cursor_enabled'])) {
+            $cursorConfig = json_encode([
+                'enabled' => true,
+                'preset' => in_array($settings['cursor_preset'] ?? '', ['dot-ring', 'minimal', 'circle', 'crosshair']) ? $settings['cursor_preset'] : 'dot-ring',
+                'color' => \App\Support\Blocks\BlockStyle::safeColor($settings['cursor_color'] ?? '') ?: 'var(--color-text, #201F1D)',
+                'ringColor' => \App\Support\Blocks\BlockStyle::safeColor($settings['cursor_ring_color'] ?? '') ?: 'var(--color-text-muted, #7D7B7A)',
+                'blend' => in_array($settings['cursor_blend'] ?? '', ['normal', 'difference', 'exclusion']) ? $settings['cursor_blend'] : 'normal',
+                'size' => in_array($settings['cursor_size'] ?? '', ['sm', 'md', 'lg']) ? $settings['cursor_size'] : 'md',
+            ]);
+            $cursorHash = substr(md5_file(resource_path('js/site-cursor.js')), 0, 8);
+            $bodyScripts .= "\n" . '<script id="cursor-config" type="application/json">' . $cursorConfig . '</script>';
+            $bodyScripts .= "\n" . '<script defer src="/assets/site-cursor.' . $cursorHash . '.js"></script>';
+        }
+
         $criticalCss = $this->buildCriticalCss($themeConfig);
         $fontPreloads = $this->buildFontPreloads($themeConfig);
         $rssUrl = ($site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu") . '/feed.xml';

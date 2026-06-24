@@ -81,6 +81,14 @@ export default function SiteSettings() {
   const [globalContainerWidth, setGlobalContainerWidth] = useState('');
   const [globalContainerPadding, setGlobalContainerPadding] = useState('');
 
+  // Custom Cursor
+  const [cursorEnabled, setCursorEnabled] = useState(false);
+  const [cursorPreset, setCursorPreset] = useState('dot-ring');
+  const [cursorColor, setCursorColor] = useState('');
+  const [cursorRingColor, setCursorRingColor] = useState('');
+  const [cursorBlend, setCursorBlend] = useState('normal');
+  const [cursorSize, setCursorSize] = useState('md');
+
   // AI
   const [anthropicKey, setAnthropicKey] = useState('');
 
@@ -157,6 +165,12 @@ export default function SiteSettings() {
       setGlobalLinkColor((site.settings?.global_link_color as string) ?? '');
       setGlobalContainerWidth((site.settings?.global_container_width as string) ?? '');
       setGlobalContainerPadding((site.settings?.global_container_padding as string) ?? '');
+      setCursorEnabled(!!(site.settings?.cursor_enabled));
+      setCursorPreset((site.settings?.cursor_preset as string) ?? 'dot-ring');
+      setCursorColor((site.settings?.cursor_color as string) ?? '');
+      setCursorRingColor((site.settings?.cursor_ring_color as string) ?? '');
+      setCursorBlend((site.settings?.cursor_blend as string) ?? 'normal');
+      setCursorSize((site.settings?.cursor_size as string) ?? 'md');
       setAnthropicKey((site.settings?.anthropic_api_key as string) ?? '');
       setMagTransition((site.settings?.mag_transition as string) ?? 'turn');
       setMagSpread((site.settings?.mag_spread as string) ?? 'spread');
@@ -247,6 +261,12 @@ export default function SiteSettings() {
       global_link_color: globalLinkColor,
       global_container_width: globalContainerWidth,
       global_container_padding: globalContainerPadding,
+      cursor_enabled: cursorEnabled,
+      cursor_preset: cursorPreset,
+      cursor_color: cursorColor,
+      cursor_ring_color: cursorRingColor,
+      cursor_blend: cursorBlend,
+      cursor_size: cursorSize,
     },
   });
 
@@ -911,6 +931,62 @@ export default function SiteSettings() {
                     className="input input-bordered input-sm w-full text-xs" placeholder="24px" />
                 </div>
               </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">Custom Cursor</h3>
+              <p className="text-xs text-gray-400 mb-3">Replace the default browser cursor with a custom animated cursor on all pages. Only shows on desktop devices with a mouse.</p>
+              <label className="flex items-center gap-2 text-sm mb-3">
+                <input type="checkbox" checked={cursorEnabled} onChange={e => setCursorEnabled(e.target.checked)} className="checkbox checkbox-sm" />
+                Enable custom cursor
+              </label>
+              {cursorEnabled && (
+                <div className="space-y-3 pl-3 border-l-2 border-blue-100">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Style</label>
+                      <select value={cursorPreset} onChange={e => setCursorPreset(e.target.value)} className="select select-bordered select-sm w-full text-xs">
+                        <option value="dot-ring">Dot + Ring</option>
+                        <option value="minimal">Minimal Dot</option>
+                        <option value="circle">Filled Circle</option>
+                        <option value="crosshair">Crosshair</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Size</label>
+                      <select value={cursorSize} onChange={e => setCursorSize(e.target.value)} className="select select-bordered select-sm w-full text-xs">
+                        <option value="sm">Small</option>
+                        <option value="md">Medium</option>
+                        <option value="lg">Large</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Dot Color</label>
+                      <div className="flex gap-1">
+                        <input type="color" className="w-7 h-7 rounded cursor-pointer border border-gray-200" value={cursorColor || '#201F1D'} onChange={e => setCursorColor(e.target.value)} />
+                        <input type="text" className="input input-bordered input-xs flex-1 font-mono text-[10px]" value={cursorColor} onChange={e => setCursorColor(e.target.value)} placeholder="Theme default" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Ring Color</label>
+                      <div className="flex gap-1">
+                        <input type="color" className="w-7 h-7 rounded cursor-pointer border border-gray-200" value={cursorRingColor || '#7D7B7A'} onChange={e => setCursorRingColor(e.target.value)} />
+                        <input type="text" className="input input-bordered input-xs flex-1 font-mono text-[10px]" value={cursorRingColor} onChange={e => setCursorRingColor(e.target.value)} placeholder="Theme default" />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Blend Mode</label>
+                    <select value={cursorBlend} onChange={e => setCursorBlend(e.target.value)} className="select select-bordered select-sm w-full text-xs">
+                      <option value="normal">Normal</option>
+                      <option value="difference">Difference (inverts on light/dark)</option>
+                      <option value="exclusion">Exclusion</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-gray-100">
