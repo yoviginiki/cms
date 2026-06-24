@@ -22,6 +22,7 @@ class VideoBlockDefinition implements BlockDefinition
             'overlay' => ['sometimes', 'boolean'],
             'overlayColor' => ['sometimes', 'nullable', 'string', 'max:50'],
             'overlayOpacity' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:1'],
+            'preTitle' => ['sometimes', 'nullable', 'string', 'max:100'],
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'subtitle' => ['sometimes', 'nullable', 'string', 'max:500'],
             'textColor' => ['sometimes', 'nullable', 'string', 'max:50'],

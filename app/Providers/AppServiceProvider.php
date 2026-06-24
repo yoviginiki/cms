@@ -33,6 +33,7 @@ use App\Domain\Blocks\Definitions\VideoBlockDefinition;
 use App\Domain\Blocks\Definitions\HtmlEmbedBlockDefinition;
 use App\Domain\Blocks\Definitions\TabsBlockDefinition;
 use App\Domain\Blocks\Definitions\AccordionBlockDefinition;
+use App\Domain\Blocks\Definitions\CatalogBlockDefinition;
 use App\Domain\Blocks\Definitions\CodeBlockDefinition;
 use App\Domain\Blocks\Definitions\ContactFormBlockDefinition;
 use App\Domain\Blocks\Definitions\RichTextBlockDefinition;
@@ -131,6 +132,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new HtmlEmbedBlockDefinition());
             $registry->register(new TabsBlockDefinition());
             $registry->register(new AccordionBlockDefinition());
+            $registry->register(new CatalogBlockDefinition());
             $registry->register(new CodeBlockDefinition());
             $registry->register(new ContactFormBlockDefinition());
             $registry->register(new RichTextBlockDefinition());

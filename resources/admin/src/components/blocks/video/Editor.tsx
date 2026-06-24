@@ -9,7 +9,7 @@ export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
     url: string; autoplay: boolean; muted: boolean; loop: boolean; poster: string;
     heroMode: boolean; shape: string; shapeRadius: string; minHeight: string;
     overlay: boolean; overlayColor: string; overlayOpacity: number;
-    title: string; subtitle: string; textColor: string;
+    preTitle: string; title: string; subtitle: string; textColor: string;
   };
 
   const update = (field: string, value: unknown) => {
@@ -97,7 +97,10 @@ export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
           )}
 
           <div className="border-t border-base-300/10 pt-2">
-            <TextField label="Title" value={data.title || ''} onChange={(v) => update('title', v)} placeholder="Hero heading" />
+            <TextField label="Pre-title / Kicker" value={data.preTitle || ''} onChange={(v) => update('preTitle', v)} placeholder="e.g. ensodo presents" />
+            <div className="mt-2">
+              <TextField label="Title" value={data.title || ''} onChange={(v) => update('title', v)} placeholder="Hero heading" />
+            </div>
             <div className="mt-2">
               <TextField label="Subtitle" value={data.subtitle || ''} onChange={(v) => update('subtitle', v)} placeholder="Subtitle text" />
             </div>

@@ -24,6 +24,7 @@ import './video';
 import './html-embed';
 import './tabs';
 import './accordion';
+import './catalog';
 import './code';
 import './contact-form';
 import './rich-text';

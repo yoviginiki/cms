@@ -30,6 +30,7 @@
     $overlayEnabled = !empty($data['overlay']);
     $overlayColor = \App\Support\Blocks\BlockStyle::safeColor($data['overlayColor'] ?? '') ?: 'rgba(0,0,0,0.4)';
     $overlayOpacity = max(0, min(1, (float)($data['overlayOpacity'] ?? 0.4)));
+    $preTitle = e($data['preTitle'] ?? '');
     $title = e($data['title'] ?? '');
     $subtitle = e($data['subtitle'] ?? '');
     $textColor = \App\Support\Blocks\BlockStyle::safeColor($data['textColor'] ?? '') ?: '#ffffff';
@@ -54,8 +55,9 @@
     @if($overlayEnabled)
     <div style="position:absolute;inset:0;background:{{ $overlayColor }};opacity:{{ $overlayOpacity }};z-index:1;"></div>
     @endif
-    @if($title || $subtitle)
+    @if($preTitle || $title || $subtitle)
     <div style="position:relative;z-index:2;text-align:center;color:{{ $textColor }};padding:2rem;max-width:800px;">
+        @if($preTitle)<p style="font-family:var(--font-heading,inherit);font-size:clamp(0.6rem,1.5vw,0.8rem);text-transform:uppercase;letter-spacing:0.3em;margin:0 0 1.5rem;opacity:0.7;">{{ $preTitle }}</p>@endif
         @if($title)<h2 style="font-family:var(--font-heading,inherit);font-size:clamp(2rem,6vw,4rem);font-weight:var(--heading-weight,400);letter-spacing:var(--letter-spacing-heading,0.1em);margin:0 0 1rem;text-transform:uppercase;">{{ $title }}</h2>@endif
         @if($subtitle)<p style="font-family:var(--font-body,inherit);font-size:clamp(0.85rem,2vw,1.1rem);font-weight:300;letter-spacing:0.08em;opacity:0.85;line-height:1.8;margin:0;">{{ $subtitle }}</p>@endif
     </div>

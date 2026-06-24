@@ -18,6 +18,7 @@ export const videoDefinition: BlockDefinition = {
     overlay: false,
     overlayColor: 'rgba(0,0,0,0.4)',
     overlayOpacity: 0.4,
+    preTitle: '',
     title: '',
     subtitle: '',
     textColor: '#ffffff',
