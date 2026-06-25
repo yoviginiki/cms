@@ -77,7 +77,7 @@ class BuildPageService
         if (!empty($settings['cursor_enabled'])) {
             $cursorConfig = json_encode([
                 'enabled' => true,
-                'preset' => in_array($settings['cursor_preset'] ?? '', ['dot-ring', 'minimal', 'circle', 'crosshair']) ? $settings['cursor_preset'] : 'dot-ring',
+                'preset' => in_array($settings['cursor_preset'] ?? '', ['dot-ring', 'circle-dot', 'minimal', 'crosshair', 'ring-only', 'glow', 'spotlight', 'dash-ring', 'square', 'arrow-dot']) ? $settings['cursor_preset'] : 'dot-ring',
                 'color' => \App\Support\Blocks\BlockStyle::safeColor($settings['cursor_color'] ?? '') ?: 'var(--color-text, #201F1D)',
                 'ringColor' => \App\Support\Blocks\BlockStyle::safeColor($settings['cursor_ring_color'] ?? '') ?: 'var(--color-text-muted, #7D7B7A)',
                 'blend' => in_array($settings['cursor_blend'] ?? '', ['normal', 'difference', 'exclusion']) ? $settings['cursor_blend'] : 'normal',

@@ -947,9 +947,15 @@ export default function SiteSettings() {
                       <label className="text-xs text-gray-500 mb-1 block">Style</label>
                       <select value={cursorPreset} onChange={e => setCursorPreset(e.target.value)} className="select select-bordered select-sm w-full text-xs">
                         <option value="dot-ring">Dot + Ring</option>
+                        <option value="circle-dot">Circle + Dot (filled circle with dot)</option>
                         <option value="minimal">Minimal Dot</option>
-                        <option value="circle">Filled Circle</option>
                         <option value="crosshair">Crosshair</option>
+                        <option value="ring-only">Ring Only (no dot)</option>
+                        <option value="glow">Glow (soft radial)</option>
+                        <option value="spotlight">Spotlight (large circle, keeps arrow)</option>
+                        <option value="dash-ring">Dashed Ring (spinning)</option>
+                        <option value="square">Square + Dot</option>
+                        <option value="arrow-dot">Arrow + Trailing Dot (keeps arrow)</option>
                       </select>
                     </div>
                     <div>
