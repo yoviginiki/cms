@@ -25,11 +25,19 @@ class MarketingSiteSeeder extends Seeder
         DB::statement("SET app.current_tenant_id = '019dfba5-a96b-719d-954d-60a4a549f949'");
         $site = Site::findOrFail('019f1d72-4f89-73e9-984e-707c32b12fb1');
 
+        // Delete old demos page if it exists
+        $oldDemos = $site->pages()->where('slug', 'demos')->first();
+        if ($oldDemos) {
+            $oldDemos->blocks()->delete();
+            $oldDemos->forceDelete();
+            $this->command->info("  Removed old: Demos (replaced by Examples)");
+        }
+
         $pages = [
             $this->homePage(),
             $this->featuresPage(),
             $this->aboutPage(),
-            $this->demosPage(),
+            $this->examplesPage(),
             $this->pricingPage(),
             $this->docsPage(),
             $this->contactPage(),
@@ -66,111 +74,212 @@ class MarketingSiteSeeder extends Seeder
     private function homePage(): array
     {
         return [
-            'title' => 'Home',
+            'title' => 'Stillopress',
             'slug' => 'home',
             'blocks' => [
                 // Section 1: Hero
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('html-embed', ['content' => '<div style="position:relative;padding:clamp(3rem,7vh,7rem) 0 clamp(3.5rem,8vh,8rem);overflow:hidden">
-<svg style="position:absolute;right:clamp(-6rem,-2vw,-1rem);top:clamp(1rem,4vh,4rem);width:clamp(20rem,44vw,50rem);opacity:.92;pointer-events:none" viewBox="0 0 400 400" aria-hidden="true">
-<defs><filter id="ink" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="9"/></filter></defs>
-<path class="enso-draw" filter="url(#ink)" d="M146,344 A156,156 0 1 1 254,344" fill="none" stroke="var(--color-primary,#de2e17)" stroke-width="26" stroke-linecap="round" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:0"/>
-</svg>
+                            $this->block('html-embed', ['html' => '<div style="padding:clamp(5rem,12vh,9rem) 0 clamp(3rem,6vh,5rem);max-width:1320px;margin:0 auto;padding-inline:clamp(1.25rem,4vw,4.5rem)">
+  <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted);margin:0 0 1.5rem">Stillopress</p>
+  <h1 style="font-family:var(--font-heading);font-weight:600;font-size:clamp(2.8rem,8vw,6rem);line-height:.92;letter-spacing:-.02em;margin:0 0 1.8rem;max-width:18ch">Your website should belong to you.</h1>
+  <p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:48ch;margin:0 0 2.4rem">Build in a calm visual studio. Publish a fast, durable website made of ordinary files you can host, move, archive, and keep.</p>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:3rem">
+    <a href="/pricing" style="display:inline-flex;align-items:center;gap:.5em;font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.9rem;padding:.9em 1.4em;background:var(--color-text);color:var(--color-bg);border:1px solid var(--color-text);text-decoration:none;transition:background .25s,color .25s">Start building free →</a>
+    <a href="/examples" style="display:inline-flex;align-items:center;gap:.5em;font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.9rem;padding:.9em 1.4em;background:transparent;color:var(--color-text);border:1px solid var(--color-border);text-decoration:none;transition:background .25s,color .25s">See examples</a>
+  </div>
 </div>']),
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— The static-publish CMS</p>']),
-                            $this->block('heading', ['text' => 'Build. Publish. Own.', 'level' => 'h1', 'fontSize' => 'clamp(3.4rem,12.5vw,11rem)', 'fontWeight' => '600', 'letterSpacing' => '-.025em']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5;color:var(--color-heading);max-width:42ch">Edit in a calm, block-based studio. Publish flat, hand-clean HTML to your own host. No runtime, no database on the front end, no lock-in — just files you keep forever.</p>']),
-                            $this->block('button', ['text' => 'Start free →', 'url' => '/pricing', 'style' => 'primary', 'size' => 'lg']),
-                            $this->block('button', ['text' => 'See it live', 'url' => '/demos', 'style' => 'outline', 'size' => 'lg']),
                             $this->block('stats', ['items' => [
-                                ['value' => '100/100', 'label' => 'PageSpeed, by construction'],
-                                ['value' => '93', 'label' => 'Composable blocks'],
-                                ['value' => '0ms', 'label' => 'Server render at request'],
-                                ['value' => '100%', 'label' => 'Your HTML, your host'],
+                                ['value' => 'No plugins', 'label' => 'Pure HTML output'],
+                                ['value' => 'Export anytime', 'label' => 'Your files, forever'],
+                                ['value' => 'Static by default', 'label' => 'No server required'],
+                                ['value' => 'Built for speed', 'label' => 'Fast without tricks'],
                             ], 'columns' => 4]),
                         ]),
                     ]),
                 ], ['padding_top' => '0', 'padding_bottom' => '0', 'max_width' => '100%']),
 
-                // Section 2: Value Props
+                // Section 2: Product Editor
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Why Stillopress</p>']),
-                            $this->block('heading', ['text' => 'A CMS should get out of the reader\'s way.', 'level' => 'h2', 'fontSize' => 'clamp(1.9rem,4.2vw,3.4rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— The editor</p>']),
+                            $this->block('heading', ['text' => 'A studio for making pages, not managing software.', 'level' => 'h2', 'fontSize' => 'clamp(1.9rem,4.2vw,3.4rem)']),
+                            $this->block('paragraph', ['content' => '<p style="max-width:52ch;color:var(--color-text-muted)">Write, arrange, refine, and publish in one focused space. Stillopress keeps the complexity behind the scenes so your attention stays on the page.</p>']),
+                            $this->block('spacer', ['height' => '40px']),
+                            $this->block('html-embed', ['html' => '<div style="aspect-ratio:16/10;background:var(--color-bg-alt);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;overflow:hidden">
+  <div style="display:grid;grid-template-columns:200px 1fr 240px;width:100%;height:100%">
+    <div style="background:color-mix(in srgb,var(--color-bg-alt) 60%,var(--color-bg));border-right:1px solid var(--color-border);padding:1.5rem 1rem">
+      <div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.65rem;color:var(--color-text-muted);margin-bottom:1rem">Blocks</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        <div style="padding:.4rem .6rem;font-size:.78rem;color:var(--color-text-muted);border:1px solid var(--color-border)">Heading</div>
+        <div style="padding:.4rem .6rem;font-size:.78rem;color:var(--color-text-muted);border:1px solid var(--color-border)">Paragraph</div>
+        <div style="padding:.4rem .6rem;font-size:.78rem;color:var(--color-text-muted);border:1px solid var(--color-border)">Image</div>
+        <div style="padding:.4rem .6rem;font-size:.78rem;color:var(--color-text-muted);border:1px solid var(--color-border)">Gallery</div>
+        <div style="padding:.4rem .6rem;font-size:.78rem;color:var(--color-text-muted);border:1px solid var(--color-border)">Section</div>
+        <div style="padding:.4rem .6rem;font-size:.78rem;color:var(--color-text-muted);border:1px solid var(--color-border)">Button</div>
+      </div>
+    </div>
+    <div style="padding:2rem 3rem;display:flex;flex-direction:column;gap:1.5rem">
+      <div style="font-family:var(--font-heading);font-size:1.8rem;font-weight:600;color:var(--color-heading)">Page title here</div>
+      <div style="height:1px;background:var(--color-border);width:60px"></div>
+      <div style="color:var(--color-text-muted);font-size:.9rem;line-height:1.6;max-width:40ch">Body content with structured blocks. Each element is typed, portable, and themeable.</div>
+      <div style="width:100%;aspect-ratio:16/9;background:var(--color-border);opacity:.3"></div>
+    </div>
+    <div style="background:color-mix(in srgb,var(--color-bg-alt) 60%,var(--color-bg));border-left:1px solid var(--color-border);padding:1.5rem 1rem">
+      <div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.65rem;color:var(--color-text-muted);margin-bottom:1rem">Settings</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem">
+        <div style="font-size:.72rem;color:var(--color-text-muted)">Font size</div>
+        <div style="height:6px;background:var(--color-border);width:80%"></div>
+        <div style="font-size:.72rem;color:var(--color-text-muted);margin-top:.5rem">Alignment</div>
+        <div style="display:flex;gap:.3rem"><div style="width:20px;height:20px;border:1px solid var(--color-border)"></div><div style="width:20px;height:20px;border:1px solid var(--color-border)"></div><div style="width:20px;height:20px;border:1px solid var(--color-border)"></div></div>
+        <div style="font-size:.72rem;color:var(--color-text-muted);margin-top:.5rem">Spacing</div>
+        <div style="height:6px;background:var(--color-border);width:60%"></div>
+      </div>
+    </div>
+  </div>
+</div>']),
                         ]),
                     ]),
+                ], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '900px']),
+
+                // Section 3: Core Values
+                $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('heading', ['text' => '01 · Own your output', 'level' => 'h3', 'fontSize' => 'clamp(1.3rem,2.2vw,1.9rem)']),
-                            $this->block('paragraph', ['content' => '<p>What you publish is plain HTML, CSS and images — content-hashed and sitting on your server. Move it, mirror it, archive it. You are never renting your own website back from us.</p>']),
-                            $this->block('divider', []),
-                            $this->block('heading', ['text' => '02 · Perfect by construction', 'level' => 'h3']),
-                            $this->block('paragraph', ['content' => '<p>There is no request-time rendering to slow down, so there is nothing to optimise away. Pages arrive as static files behind a CDN. A 100 PageSpeed score is the floor, not the goal.</p>']),
-                            $this->block('divider', []),
-                            $this->block('heading', ['text' => '03 · Calm to edit', 'level' => 'h3']),
-                            $this->block('paragraph', ['content' => '<p>Compose with blocks in a quiet, focused canvas — or drop into the freeform magazine editor when a page wants to breathe. Preview is the real, published render. No surprises after you ship.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— What you get</p>']),
+                            $this->block('heading', ['text' => 'A modern editor. A timeless output.', 'level' => 'h2']),
+                        ]),
+                    ]),
+                    $this->row('1/3+1/3+1/3', [
+                        $this->column([
+                            $this->block('heading', ['text' => 'Edit visually', 'level' => 'h3', 'fontSize' => '1.4rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Build pages with structured blocks, reusable sections, and live previews. Your content is data, not a wall of markup.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Publish instantly', 'level' => 'h3', 'fontSize' => '1.4rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Generate fast static pages ready for your host, CDN, or deployment workflow. No server application required.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Keep everything', 'level' => 'h3', 'fontSize' => '1.4rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Your content, media, design tokens, and output remain portable. Export anytime. Host anywhere. Move whenever you want.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '1320px']),
 
-                // Section 3: How It Works
+                // Section 4: Use Cases
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— How it works</p>']),
-                            $this->block('heading', ['text' => 'Four steps from blank page to live site.', 'level' => 'h2']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Use cases</p>']),
+                            $this->block('heading', ['text' => 'Built for work that deserves its own shape.', 'level' => 'h2']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted);max-width:52ch">From editorial publications to creative portfolios, Stillopress adapts to the kind of site you actually want to make.</p>']),
                         ]),
                     ]),
-                    $this->row('1', [
+                    $this->row('1/3+1/3+1/3', [
                         $this->column([
-                            $this->block('featuregrid', ['columns' => 3, 'items' => [
-                                ['icon' => '01', 'title' => 'Stack blocks', 'description' => 'Build pages from 93 typed blocks across nine categories. Nest, reorder, template. Everything is structured content, not a wall of markup.'],
-                                ['icon' => '02', 'title' => 'See the real render', 'description' => 'The live preview is the exact static output, framed in an iframe. What you approve is what visitors receive — byte for byte.'],
-                                ['icon' => '03', 'title' => 'Atomic swap', 'description' => 'A build renders every page to static HTML, then flips the whole site into place with a single atomic operation. Roll back to any prior snapshot in one move.'],
-                                ['icon' => '04', 'title' => 'Keep the files', 'description' => 'The result lives on your host as ordinary files. Take a full export any time. Nothing about your site depends on us staying online.'],
-                                ['icon' => '+', 'title' => 'Bring WordPress', 'description' => 'Point the importer at a WXR export. It maps Gutenberg blocks to native blocks, rebuilds your category tree, and re-hosts every attachment.'],
-                                ['icon' => '+', 'title' => 'Compose with AI', 'description' => 'Drop in raw text and the AI Page Composer turns it into a real page built from the block system — reviewable, not a black box.'],
-                            ]]),
-                            $this->block('button', ['text' => 'All features →', 'url' => '/features', 'style' => 'outline']),
+                            $this->block('heading', ['text' => 'Editorial publications', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Long-form articles, issue navigation, pull quotes, rich media. Built for readers.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Creative portfolios', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Gallery-forward layouts, case studies, large images. Built for visual work.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Design studios', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Client projects, team pages, refined typography. Built for craft.</p>']),
+                        ]),
+                    ]),
+                    $this->row('1/3+1/3+1/3', [
+                        $this->column([
+                            $this->block('heading', ['text' => 'Product pages', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Landing pages, feature sections, pricing tables. Built for conversion.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Documentation', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Sidebar navigation, code blocks, search-ready structure. Built for reference.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Personal websites', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Clean, fast, independent. Built for people who want to own their corner of the web.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '1320px']),
 
-                // Section 4: Security (dark)
+                // Section 5: WordPress Migration
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Security</p>']),
-                            $this->block('heading', ['text' => 'Six layers between the internet and your content.', 'level' => 'h2', 'color' => '#f4f2ec']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Migration</p>']),
+                            $this->block('heading', ['text' => 'Leave WordPress without leaving your work behind.', 'level' => 'h2', 'fontSize' => 'clamp(1.9rem,4.2vw,3.4rem)']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted);max-width:52ch">Import your posts, categories, featured images, and Gutenberg content. Then rebuild your site in a cleaner, faster system.</p>']),
+                            $this->block('spacer', ['height' => '24px']),
+                            $this->block('html-embed', ['html' => '<div style="display:flex;align-items:center;gap:clamp(.8rem,2vw,1.5rem);flex-wrap:wrap;font-family:var(--font-heading);font-size:clamp(.8rem,1.2vw,1rem)">
+  <div style="padding:.8em 1.2em;border:1px solid var(--color-border);color:var(--color-text-muted)">WordPress content</div>
+  <span style="color:var(--color-primary)">→</span>
+  <div style="padding:.8em 1.2em;border:1px solid var(--color-border);color:var(--color-text-muted)">Import</div>
+  <span style="color:var(--color-primary)">→</span>
+  <div style="padding:.8em 1.2em;border:1px solid var(--color-border);color:var(--color-text-muted)">Structured blocks</div>
+  <span style="color:var(--color-primary)">→</span>
+  <div style="padding:.8em 1.2em;border:1px solid var(--color-primary);color:var(--color-primary);font-weight:600">Static site</div>
+</div>']),
+                            $this->block('spacer', ['height' => '32px']),
+                            $this->block('button', ['text' => 'Explore migration', 'url' => '/docs', 'style' => 'outline']),
                         ]),
                     ]),
-                    $this->row('1', [
-                        $this->column([
-                            $this->block('featuregrid', ['columns' => 3, 'gap' => '0', 'items' => [
-                                ['icon' => '01', 'title' => 'Network isolation', 'description' => 'Admin and published origins are separated. The editor never shares a host with a visitor.'],
-                                ['icon' => '02', 'title' => 'Hashed sessions', 'description' => 'Credentials hashed, sessions carried in HttpOnly cookies. Nothing sensitive touches the browser.'],
-                                ['icon' => '03', 'title' => 'RBAC + RLS', 'description' => 'Role-based access enforced again at the database with row-level security per tenant.'],
-                                ['icon' => '04', 'title' => 'Sanitised HTML', 'description' => 'Every block of authored markup is purified on render. No script sneaks into a static page.'],
-                                ['icon' => '05', 'title' => 'Verified uploads', 'description' => 'Media is checked by true MIME type, not by extension, before it is ever stored.'],
-                                ['icon' => '06', 'title' => 'CSP + HSTS', 'description' => 'Strict content policy and enforced transport ship with every published site out of the box.'],
-                            ]]),
-                        ]),
-                    ]),
-                ], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '1320px', 'background_color' => '#121210']),
+                ], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '900px']),
 
-                // Section 5: CTA (dark)
+                // Section 6: Technical Proof
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('heading', ['text' => 'Publish something that stays yours.', 'level' => 'h2', 'textAlign' => 'center', 'color' => '#f4f2ec']),
-                            $this->block('paragraph', ['content' => '<p style="text-align:center;color:var(--color-text-muted)">The free plan is a full CMS — every block, static publishing, one site. Nothing expires and nothing is held hostage.</p>']),
-                            $this->block('button', ['text' => 'Start free →', 'url' => '/pricing', 'style' => 'primary', 'size' => 'lg']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Architecture</p>']),
+                            $this->block('heading', ['text' => 'Fast by architecture, not by optimization tricks.', 'level' => 'h2']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted);max-width:52ch">Visitors receive finished pages, not an application that has to assemble itself on every request. Static output removes most of the performance overhead that makes modern websites slow.</p>']),
                         ]),
                     ]),
-                ], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '800px', 'background_color' => '#121210']),
+                    $this->row('1/3+1/3+1/3', [
+                        $this->column([
+                            $this->block('heading', ['text' => 'Static HTML output', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Every page publishes as clean HTML and CSS. No runtime framework. No database on the public side.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Deploy anywhere', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Your host, your CDN, your infrastructure. The output is ordinary files that work everywhere.</p>']),
+                        ]),
+                        $this->column([
+                            $this->block('heading', ['text' => 'Roll back safely', 'level' => 'h3', 'fontSize' => '1.2rem']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Every publish is a snapshot. Restore any previous version with a single action.</p>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '1320px']),
+
+                // Section 7: Trust
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('heading', ['text' => 'Safer by design.', 'level' => 'h2', 'textAlign' => 'center']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted);max-width:48ch;margin:0 auto;text-align:center">Your public site is static. No public database, no runtime application, and no plugin ecosystem exposed to visitors.</p>']),
+                            $this->block('spacer', ['height' => '16px']),
+                            $this->block('paragraph', ['content' => '<p style="text-align:center"><a href="/docs" style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:.86rem;color:var(--color-text);border-bottom:1px solid var(--color-text);padding-bottom:.2em;text-decoration:none">Explore security architecture →</a></p>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '60px', 'padding_bottom' => '60px', 'max_width' => '900px']),
+
+                // Section 8: Final CTA
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('heading', ['text' => 'Build something that stays yours.', 'level' => 'h2', 'textAlign' => 'center', 'color' => '#f4f2ec', 'fontSize' => 'clamp(2rem,5vw,3.4rem)']),
+                            $this->block('paragraph', ['content' => '<p style="text-align:center;color:#9d9a90;max-width:44ch;margin:0 auto 2rem">Create your site in Stillopress. Publish it anywhere. Keep it forever.</p>']),
+                            $this->block('html-embed', ['html' => '<div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap">
+  <a href="/pricing" style="display:inline-flex;align-items:center;gap:.5em;font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.9rem;padding:.9em 1.4em;background:var(--color-primary);color:#fff;border:1px solid var(--color-primary);text-decoration:none">Start building free →</a>
+  <a href="/examples" style="display:inline-flex;align-items:center;gap:.5em;font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.9rem;padding:.9em 1.4em;background:transparent;color:#f4f2ec;border:1px solid #2c2b28;text-decoration:none">View examples</a>
+</div>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '80px', 'padding_bottom' => '100px', 'max_width' => '800px', 'background_color' => '#121210']),
             ],
         ];
     }
@@ -178,16 +287,16 @@ class MarketingSiteSeeder extends Seeder
     private function featuresPage(): array
     {
         return [
-            'title' => 'Features',
+            'title' => 'Product',
             'slug' => 'features',
             'blocks' => [
                 // Section 1: Page head
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Features</p>']),
-                            $this->block('heading', ['text' => 'Everything to build it. Nothing shipped to the reader.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,6.2rem)']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5;color:var(--color-heading);max-width:52ch">A complete authoring platform on one side of the wall, and flat static files on the other. Here is what fills the gap.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Product</p>']),
+                            $this->block('heading', ['text' => 'Everything to build it. Nothing shipped to the reader.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:52ch">A complete visual authoring platform on one side, and flat static files on the other. Here is what fills the gap.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '100px', 'padding_bottom' => '40px', 'max_width' => '900px']),
@@ -197,28 +306,21 @@ class MarketingSiteSeeder extends Seeder
                     $this->row('1', [
                         $this->column([
                             $this->block('catalog', ['openFirst' => false, 'imageFilter' => 'none', 'headerLabels' => ['', 'Feature', 'Category', ''], 'items' => [
-                                ['title' => '93 blocks, 9 categories', 'subtitle' => 'Composition', 'content' => '<p>Typed, schema-backed blocks that nest and reorder freely. Each block renders identically in the editor and in the final page.</p><ul><li>Structure, media, text, layout</li><li>Nesting via parent references</li><li>Reusable block templates</li><li>Drag, drop, keyboard reorder</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'Design-token theme engine', 'subtitle' => 'Theming', 'content' => '<p>Themes are W3C design tokens, resolved and compiled to CSS. Change a token, preview the whole site, publish.</p><ul><li>Theme Studio with live preview</li><li>Token references &amp; inheritance</li><li>Per-site overrides</li><li>Coverage analysis built in</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'Atomic static publish', 'subtitle' => 'Publishing', 'content' => '<p>A full build renders to static HTML, then swaps into place in one operation. Every publish is a snapshot you can restore.</p><ul><li>Symlink swap or atomic rename</li><li>Delta rollback to any version</li><li>Content-hashed assets</li><li>Zero request-time rendering</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'SEO that ships itself', 'subtitle' => 'Discovery', 'content' => '<p>The essentials are generated on every publish, not bolted on. Clean, readable URLs by default.</p><ul><li>Sitemaps &amp; robots</li><li>Open Graph metadata</li><li>Clean URL structure</li><li>Semantic static markup</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'AI Page Composer', 'subtitle' => 'Authoring with AI', 'content' => '<p>Paste raw text; get a real page assembled from the block system. Review and edit every block — it is content, not a screenshot.</p><ul><li>Text in, structured page out</li><li>Native blocks, fully editable</li><li>Per-tenant token budgets</li><li>Editorial judgement, not filler</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'Dual editors', 'subtitle' => 'Layout', 'content' => '<p>A quiet vertical block editor for most pages, and a freeform magazine canvas when a spread needs to be composed by hand.</p><ul><li>Block editor — focused, linear</li><li>Magazine editor — freeform canvas</li><li>Shared block data model</li><li>Same publish pipeline for both</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'Swiss grid system', 'subtitle' => 'Structure', 'content' => '<p>A real four-level hierarchy — section, row, column, module — so pages stay structured instead of becoming a soup of divs.</p><ul><li>Enforced page hierarchy</li><li>Wireframe &amp; visual modes</li><li>Responsive by default</li><li>Consistent, predictable output</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'Six-layer security', 'subtitle' => 'Defence', 'content' => '<p>The published site is inert static files. The studio is protected from network to database.</p><ul><li>Isolated admin origin</li><li>RBAC + row-level security</li><li>HTML sanitisation on render</li><li>CSP, HSTS, verified uploads</li></ul>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'Import &amp; export', 'subtitle' => 'Portability', 'content' => '<p>Arrive from WordPress without losing your archive; leave with everything whenever you like.</p><ul><li>WordPress WXR import</li><li>Gutenberg block mapping</li><li>Category tree &amp; media re-host</li><li>Full site export, any time</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Visual block editor', 'subtitle' => 'Composition', 'content' => '<p>Build pages with structured blocks that nest and reorder freely. Each block renders identically in the editor and on the published site.</p><ul><li>93 block types across nine categories</li><li>Section, row, column, module hierarchy</li><li>Reusable block templates</li><li>Drag, drop, keyboard reorder</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Design-token theme engine', 'subtitle' => 'Theming', 'content' => '<p>Themes are W3C design tokens, resolved and compiled to CSS. Change a token, preview the whole site, publish.</p><ul><li>Theme Studio with live preview</li><li>Token references and inheritance</li><li>Per-site overrides</li><li>Coverage analysis built in</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Atomic static publish', 'subtitle' => 'Publishing', 'content' => '<p>A full build renders to static HTML, then swaps into place atomically. Every publish is a snapshot you can restore.</p><ul><li>Symlink swap or atomic rename</li><li>Rollback to any version</li><li>Content-hashed assets</li><li>No request-time rendering</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Built-in SEO', 'subtitle' => 'Discovery', 'content' => '<p>Meta tags, sitemaps, and structured data are generated on every publish — not bolted on as plugins.</p><ul><li>Sitemaps and robots.txt</li><li>Open Graph metadata</li><li>Clean URL structure</li><li>Semantic static markup</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'AI composition tools', 'subtitle' => 'Authoring', 'content' => '<p>Paste raw text and the AI composer turns it into a real page built from the block system — reviewable, not a black box.</p><ul><li>Text in, structured page out</li><li>Native blocks, fully editable</li><li>Per-tenant token budgets</li><li>Editorial judgement, not filler</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Block editor and magazine canvas', 'subtitle' => 'Layout', 'content' => '<p>A quiet vertical block editor for most pages, and a freeform magazine canvas when a spread needs to be composed by hand.</p><ul><li>Block editor — focused, linear</li><li>Magazine editor — freeform canvas</li><li>Shared block data model</li><li>Same publish pipeline for both</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Structured page hierarchy', 'subtitle' => 'Structure', 'content' => '<p>A real four-level hierarchy — section, row, column, module — so pages stay structured instead of becoming a soup of divs.</p><ul><li>Enforced page hierarchy</li><li>Wireframe and visual modes</li><li>Responsive by default</li><li>Consistent, predictable output</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Security architecture', 'subtitle' => 'Defence', 'content' => '<p>The published site is inert static files. The studio is protected from network to database.</p><ul><li>Isolated admin origin</li><li>RBAC and row-level security</li><li>HTML sanitisation on render</li><li>CSP, HSTS, verified uploads</li></ul>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Import and export', 'subtitle' => 'Portability', 'content' => '<p>Arrive from WordPress without losing your archive. Leave with everything whenever you like.</p><ul><li>WordPress WXR import</li><li>Gutenberg block mapping</li><li>Category tree and media re-host</li><li>Full site export, any time</li></ul>', 'contentSecondary' => '', 'images' => []],
                             ]]),
+                            $this->block('spacer', ['height' => '40px']),
+                            $this->block('button', ['text' => 'Start building free →', 'url' => '/pricing', 'style' => 'primary', 'size' => 'lg']),
                         ]),
                     ]),
                 ], ['padding_top' => '40px', 'padding_bottom' => '80px', 'max_width' => '1320px']),
-
-                // Section 3: CTA
-                $this->section([
-                    $this->row('1', [
-                        $this->column([
-                            $this->block('button', ['text' => 'Start free →', 'url' => '/pricing', 'style' => 'primary', 'size' => 'lg']),
-                        ]),
-                    ]),
-                ], ['padding_top' => '60px', 'padding_bottom' => '60px', 'max_width' => '800px']),
             ],
         ];
     }
@@ -233,8 +335,8 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— About</p>']),
-                            $this->block('heading', ['text' => 'Stillness in the studio. Precision on the wire.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,6.2rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— About</p>']),
+                            $this->block('heading', ['text' => 'Stillness in the studio. Precision on the wire.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
                         ]),
                     ]),
                 ], ['padding_top' => '100px', 'padding_bottom' => '40px', 'max_width' => '900px']),
@@ -243,16 +345,16 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('heading', ['text' => 'A website should be calm to make and quiet to serve.', 'level' => 'h2', 'fontSize' => 'clamp(1.6rem,3.6vw,2.9rem)', 'fontWeight' => '400']),
+                            $this->block('heading', ['text' => 'A website should be calm to make and quiet to serve.', 'level' => 'h2', 'fontSize' => 'clamp(1.6rem,3.6vw,2.4rem)', 'fontWeight' => '400']),
                         ]),
                     ]),
-                ], ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '1320px']),
+                ], ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '900px']),
 
                 // Section 3: Story
                 $this->section([
                     $this->row('1/2+1/2', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5">Stillopress began with a frustration: modern content platforms are loud. They ship a runtime, a database and a framework to every reader, then spend the rest of their lives trying to make that fast again.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55">Stillopress began with a frustration: modern content platforms are loud. They ship a runtime, a database and a framework to every reader, then spend the rest of their lives trying to make that fast again.</p>']),
                         ]),
                         $this->column([
                             $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">We took the opposite path. Edit against a rich, dynamic studio. Publish a flat, static site. The two never meet at request time — which is exactly why the reader\'s experience is instant, and why what you own is simply <em>files</em>.</p>']),
@@ -265,11 +367,11 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— What we believe</p>']),
-                            $this->block('heading', ['text' => 'A few convictions we build against.', 'level' => 'h2']),
-                            $this->block('catalog', ['openFirst' => false, 'imageFilter' => 'none', 'headerLabels' => ['Principle', 'Why it matters', '', ''], 'items' => [
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— What we believe</p>']),
+                            $this->block('heading', ['text' => 'What we build against.', 'level' => 'h2']),
+                            $this->block('catalog', ['openFirst' => false, 'imageFilter' => 'none', 'headerLabels' => ['Principle', '', '', ''], 'items' => [
                                 ['title' => 'Own your work', 'subtitle' => '', 'content' => '<p>Your website should never depend on a vendor\'s servers staying up, or a plan staying paid. Static output means the thing you publish is genuinely, portably yours.</p>', 'contentSecondary' => '', 'images' => []],
-                                ['title' => 'Speed is a floor', 'subtitle' => '', 'content' => '<p>Performance shouldn\'t be a feature you buy or a plugin you install. If there is nothing to render at request time, there is nothing to make slow. We start at a perfect score.</p>', 'contentSecondary' => '', 'images' => []],
+                                ['title' => 'Speed is a floor', 'subtitle' => '', 'content' => '<p>Performance shouldn\'t be a feature you buy or a plugin you install. If there is nothing to render at request time, there is nothing to make slow.</p>', 'contentSecondary' => '', 'images' => []],
                                 ['title' => 'Structure over markup', 'subtitle' => '', 'content' => '<p>Content is data, not a blob of HTML. Typed blocks and an enforced hierarchy keep pages meaningful, portable, and safe to re-theme years later.</p>', 'contentSecondary' => '', 'images' => []],
                                 ['title' => 'Defence in depth', 'subtitle' => '', 'content' => '<p>The safest surface is the one that doesn\'t exist. A static site can\'t run an exploit; the studio behind it is guarded from the network down to the row.</p>', 'contentSecondary' => '', 'images' => []],
                             ]]),
@@ -281,7 +383,7 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— The build</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— The build</p>']),
                             $this->block('heading', ['text' => 'Where the project stands.', 'level' => 'h2']),
                             $this->block('timeline', ['layout' => 'left', 'items' => [
                                 ['date' => 'Core', 'title' => 'Block engine, static publish pipeline, atomic swap & rollback', 'description' => 'Shipped'],
@@ -298,44 +400,45 @@ class MarketingSiteSeeder extends Seeder
         ];
     }
 
-    private function demosPage(): array
+    private function examplesPage(): array
     {
         return [
-            'title' => 'Demos',
-            'slug' => 'demos',
+            'title' => 'Examples',
+            'slug' => 'examples',
             'blocks' => [
                 // Section 1: Page head
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Demos</p>']),
-                            $this->block('heading', ['text' => 'See what a static site can still do.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,6.2rem)']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5;max-width:52ch">Live sites, all published straight from Stillopress. This very site is one of them.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Examples</p>']),
+                            $this->block('heading', ['text' => 'See what a static site can still do.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:52ch">Real sites, all published from Stillopress. Built with the same blocks and themes available to every user.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '100px', 'padding_bottom' => '40px', 'max_width' => '900px']),
 
-                // Section 2: Demo cards
+                // Section 2: Showcase
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('featuregrid', ['columns' => 2, 'items' => [
-                                ['icon' => '●', 'title' => 'This website', 'description' => 'The marketing site you\'re reading — composed in the block editor, published as static HTML. Editorial · monochrome.'],
-                                ['icon' => '●', 'title' => 'The Quarterly', 'description' => 'A freeform magazine issue built on the canvas editor — layered spreads, still flat HTML. Magazine · DTP.'],
-                                ['icon' => '●', 'title' => 'Documentation starter', 'description' => 'A clean docs template with sidebar navigation, search-ready structure and code blocks. Docs · reference.'],
-                                ['icon' => '●', 'title' => 'Studio portfolio', 'description' => 'A gallery-forward portfolio with a cinematic scroll layout — no framework at runtime. Portfolio · cinematic.'],
+                            $this->block('featuregrid', ['columns' => 3, 'items' => [
+                                ['icon' => 'Editorial', 'title' => 'Creative Studio', 'description' => 'A portfolio site with editorial typography, large images, case studies, and refined composition. Showcases visual work with quiet confidence.'],
+                                ['icon' => 'Magazine', 'title' => 'Digital Publication', 'description' => 'A long-form editorial site with issue navigation, pull quotes, story cards, and rich media. Built for readers who stay.'],
+                                ['icon' => 'Documentation', 'title' => 'Product Documentation', 'description' => 'A clean docs site with sidebar navigation, code blocks, and search-ready structure. Built for teams who ship.'],
                             ]]),
+                            $this->block('spacer', ['height' => '40px']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.78rem;color:var(--color-text-muted)">More examples coming soon. This site is one of them.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '40px', 'padding_bottom' => '60px', 'max_width' => '1320px']),
 
-                // Section 3: Block library
+                // Section 3: Block categories
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Block library</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Block library</p>']),
                             $this->block('heading', ['text' => '93 blocks, grouped nine ways.', 'level' => 'h2']),
-                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Every demo above is built from the same set. Nothing bespoke, nothing off-menu.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Every example above is built from the same set. Nothing bespoke, nothing off-menu.</p>']),
                             $this->block('stats', ['columns' => 3, 'items' => [
                                 ['value' => '12', 'label' => 'Structure'],
                                 ['value' => '14', 'label' => 'Text & editorial'],
@@ -364,9 +467,9 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Pricing</p>']),
-                            $this->block('heading', ['text' => 'Free is a full CMS. Not a trial.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,6.2rem)']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5;max-width:52ch">Every plan publishes real static sites you own. Paid tiers add editors, AI and scale — never the right to keep your own files.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Pricing</p>']),
+                            $this->block('heading', ['text' => 'Free is a full CMS. Not a trial.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:52ch">Every plan publishes real static sites you own. Paid tiers add power tools and scale — never the right to keep your files.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '100px', 'padding_bottom' => '40px', 'max_width' => '900px']),
@@ -376,11 +479,10 @@ class MarketingSiteSeeder extends Seeder
                     $this->row('1', [
                         $this->column([
                             $this->block('pricingtable', ['columns' => 3, 'plans' => [
-                                ['name' => 'Solo', 'price' => '€0', 'period' => 'forever', 'features' => ['All 93 blocks', 'Block editor', 'Static publish & rollback', 'Design-token themes', 'One site', 'Community docs'], 'ctaText' => 'Start free', 'ctaUrl' => '/contact', 'highlighted' => false],
-                                ['name' => 'Maker', 'price' => '€12', 'period' => '/mo', 'features' => ['Everything in Solo', 'Magazine editor', 'AI Page Composer', 'WordPress import', 'Custom domains', 'Up to 5 sites'], 'ctaText' => 'Choose Maker', 'ctaUrl' => '/contact', 'highlighted' => true],
-                                ['name' => 'Studio', 'price' => '€49', 'period' => '/mo', 'features' => ['Everything in Maker', 'Roles & RBAC', 'Tenant isolation (RLS)', 'Unlimited sites', 'Priority support & SLA', 'Onboarding session'], 'ctaText' => 'Choose Studio', 'ctaUrl' => '/contact', 'highlighted' => false],
+                                ['name' => 'Free', 'price' => '€0', 'period' => 'forever', 'features' => ['One site', 'Core visual editor', 'Static export', 'Core block library', 'Self-hosted publishing', 'No credit card required'], 'ctaText' => 'Start free', 'ctaUrl' => '/contact', 'highlighted' => false],
+                                ['name' => 'Maker', 'price' => '€15', 'period' => '/mo', 'features' => ['Multiple sites', 'Custom domains', 'WordPress import', 'AI composition tools', 'Premium themes', 'Advanced publishing', 'Priority support'], 'ctaText' => 'Choose Maker', 'ctaUrl' => '/contact', 'highlighted' => true],
+                                ['name' => 'Studio', 'price' => '€59', 'period' => '/mo', 'features' => ['Client workspaces', 'Team roles and permissions', 'White-label export', 'Advanced collaboration', 'Priority onboarding', 'Dedicated support'], 'ctaText' => 'Choose Studio', 'ctaUrl' => '/contact', 'highlighted' => false],
                             ]]),
-                            $this->block('paragraph', ['content' => '<p style="font-size:.85rem;color:var(--color-text-muted);margin-top:1rem">Prices shown are placeholders for the reference build — set your real numbers before launch.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '40px', 'padding_bottom' => '60px', 'max_width' => '1320px']),
@@ -389,14 +491,15 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Questions</p>']),
-                            $this->block('heading', ['text' => 'The honest answers.', 'level' => 'h2']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Questions</p>']),
+                            $this->block('heading', ['text' => 'Common questions.', 'level' => 'h2']),
                             $this->block('accordion', ['openFirst' => false, 'items' => [
                                 ['title' => 'Do I really own the published site?', 'content' => '<p>Yes — completely. Publishing renders your pages to static HTML, CSS and images on your own host. If you cancelled tomorrow, every file would keep working exactly as it is. You can also export the whole site at any time.</p>'],
-                                ['title' => 'How do you guarantee a perfect PageSpeed score?', 'content' => '<p>There\'s nothing to render when a visitor arrives — the page is already a static file served from a CDN. Without request-time database queries or framework hydration, the usual sources of slowness simply aren\'t there.</p>'],
-                                ['title' => 'Can I move an existing WordPress site over?', 'content' => '<p>On the Maker plan, point the importer at a WordPress WXR export. It maps Gutenberg blocks to native blocks, rebuilds your category hierarchy, re-hosts your media, and preserves featured images.</p>'],
-                                ['title' => 'Do I need a server to use the free plan?', 'content' => '<p>The free plan is self-hosted, so you\'ll bring your own hosting — a small VPS or even shared hosting is enough, since the output is just static files. Paid plans add managed hosting and custom domains.</p>'],
-                                ['title' => 'What happens to my site if Stillopress disappears?', 'content' => '<p>It keeps running. Your live site is static files with no dependency on our infrastructure. That independence is the entire point of the product, not a footnote.</p>'],
+                                ['title' => 'Where are sites hosted?', 'content' => '<p>You choose. Stillopress publishes static files — deploy them to your own server, a CDN, shared hosting, or any infrastructure you control. Paid plans can also manage hosting for you.</p>'],
+                                ['title' => 'What happens if I cancel?', 'content' => '<p>Your exported site remains yours. You can host it anywhere, keep it locally, or deploy it through your own infrastructure. The published files have no dependency on Stillopress.</p>'],
+                                ['title' => 'Can I move an existing WordPress site?', 'content' => '<p>On the Maker plan, point the importer at a WordPress WXR export. It maps Gutenberg blocks to native blocks, rebuilds your category hierarchy, re-hosts your media, and preserves featured images.</p>'],
+                                ['title' => 'Does the free plan require a credit card?', 'content' => '<p>No. The free plan is self-hosted. You bring your own hosting — a small VPS or even shared hosting is enough, since the output is just static files.</p>'],
+                                ['title' => 'Can I self-host the entire CMS?', 'content' => '<p>Yes. Stillopress is designed to run on your own server. Laravel, PostgreSQL, and Node.js. Full installation guide in the docs.</p>'],
                             ]]),
                         ]),
                     ]),
@@ -415,9 +518,9 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Documentation</p>']),
-                            $this->block('heading', ['text' => 'Start here.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,6.2rem)']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5;max-width:52ch">From first publish to the block API. Everything you need to run Stillopress well.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Documentation</p>']),
+                            $this->block('heading', ['text' => 'Start here.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:52ch">From first publish to the block API. Everything you need to run Stillopress well.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '100px', 'padding_bottom' => '40px', 'max_width' => '900px']),
@@ -445,7 +548,7 @@ class MarketingSiteSeeder extends Seeder
                         // Column 2: Body
                         $this->column([
                             $this->block('heading', ['text' => 'Getting started', 'level' => 'h2', 'fontSize' => 'clamp(1.9rem,4.2vw,3.4rem)']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5;margin-bottom:2rem">Publish your first static page in under ten minutes. This guide walks the whole loop — compose, preview, publish.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;margin-bottom:2rem">Publish your first static page in under ten minutes. This guide walks the whole loop — compose, preview, publish.</p>']),
                             $this->block('heading', ['text' => 'Install & setup →', 'level' => 'h3']),
                             $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted)">Requirements, environment, and getting the studio running on your host.</p>']),
                             $this->block('divider', []),
@@ -475,9 +578,9 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Contact</p>']),
-                            $this->block('heading', ['text' => 'Say hello.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,6.2rem)']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.15rem,1.4vw,1.5rem);line-height:1.5;max-width:52ch">Questions about the product, a plan, or moving your site over. We read everything.</p>']),
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Contact</p>']),
+                            $this->block('heading', ['text' => 'Say hello.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:52ch">Questions about the product, a plan, or moving your site over. We read everything.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '100px', 'padding_bottom' => '40px', 'max_width' => '900px']),
