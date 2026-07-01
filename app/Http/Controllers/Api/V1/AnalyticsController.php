@@ -14,10 +14,24 @@ class AnalyticsController extends Controller
      * Public tracking pixel — called from published pages via JS.
      * No auth required. Rate-limited.
      */
-    public function track(Request $request, Site $site): JsonResponse
+    public function track(Request $request, string $site): JsonResponse
     {
-        $path = $request->input('p', '/');
-        $referrer = $request->input('r');
+        // Resolve site bypassing RLS — public tracking endpoint called from custom domains
+        $safeId = preg_replace('/[^a-f0-9\-]/', '', $site);
+        $siteModel = null;
+        // Try each tenant until we find the site (tenants table has no RLS)
+        foreach (DB::select("SELECT id FROM tenants") as $tenant) {
+            DB::statement("SET app.current_tenant_id = '{$tenant->id}'");
+            $siteModel = Site::find($safeId);
+            if ($siteModel) break;
+        }
+        if (!$siteModel) return response()->json(['ok' => false], 404);
+        $site = $siteModel;
+
+        // Support both application/json and text/plain (sendBeacon CORS-safe)
+        $data = $request->isJson() ? $request->all() : (json_decode($request->getContent(), true) ?? []);
+        $path = $data['p'] ?? $request->input('p', '/');
+        $referrer = $data['r'] ?? $request->input('r');
 
         // Parse user agent
         $ua = $request->userAgent() ?? '';
