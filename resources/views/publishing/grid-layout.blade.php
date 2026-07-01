@@ -34,6 +34,6 @@
     {!! $gridHtml !!}
     {!! $hookBodyClose ?? '' !!}
     {!! $bodyScripts ?? '' !!}
-    <script>fetch('{{ config('app.url') }}/api/v1/sites/{{ $site->id }}/t',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:location.pathname,r:document.referrer||null})}).catch(function(){});</script>
+    <script>(function(){try{navigator.sendBeacon('{{ config('app.url') }}/api/v1/sites/{{ $site->id }}/t',new Blob([JSON.stringify({p:location.pathname,r:document.referrer||null})],{type:'text/plain'}));}catch(e){}})();</script>
 </body>
 </html>

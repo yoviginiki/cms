@@ -176,7 +176,7 @@
     {!! $bodyScripts ?? '' !!}
     @if(!empty($site))
     <script>
-    (function(){try{fetch('https://sys.ensodo.eu/api/v1/sites/{{ $site->id }}/t',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:location.pathname,r:document.referrer||''})}).catch(function(){});}catch(e){}})();
+    (function(){try{navigator.sendBeacon('{{ config('app.url') }}/api/v1/sites/{{ $site->id }}/t',new Blob([JSON.stringify({p:location.pathname,r:document.referrer||''})],{type:'text/plain'}));}catch(e){}})();
     </script>
     @endif
 </body>
