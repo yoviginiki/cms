@@ -141,19 +141,7 @@
     footer[role="contentinfo"] a{color:var(--footer-color, var(--color-text-muted, #64748b));transition:color 0.2s}
     footer[role="contentinfo"] a:hover{color:var(--color-primary, #3b82f6);opacity:1}
 
-    /* Dark mode */
-    @media(prefers-color-scheme:dark){
-        .site-nav{background:rgba(10,10,10,0.88) !important;border-bottom-color:rgba(255,255,255,0.06) !important}
-        .site-nav .nav-logo{color:#f5f5f7}
-        .site-nav .nav-menu a{color:#f5f5f7}
-        .site-nav .nav-toggle-line{background:#f5f5f7}
-        .site-nav .nav-submenu{background:#1d1d1f !important;border-color:rgba(255,255,255,0.08) !important}
-        .site-nav .nav-submenu a:hover{background:rgba(255,255,255,0.06) !important}
-        @media(max-width:768px){
-            .site-nav .nav-menu{background:rgba(10,10,10,0.97) !important}
-            .site-nav .nav-menu a{border-bottom-color:rgba(255,255,255,0.06) !important}
-        }
-    }
+    /* Dark mode — nav inherits from theme tokens, no hardcoded overrides */
     </style>
 </head>
 @php
