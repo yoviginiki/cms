@@ -469,38 +469,118 @@ class MarketingSiteSeeder extends Seeder
                     $this->row('1', [
                         $this->column([
                             $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Pricing</p>']),
-                            $this->block('heading', ['text' => 'Free is a full CMS. Not a trial.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
-                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:52ch">Every plan publishes real static sites you own. Paid tiers add power tools and scale — never the right to keep your files.</p>']),
+                            $this->block('heading', ['text' => 'The CMS is free. Pay only for the services you need.', 'level' => 'h1', 'fontSize' => 'clamp(2.7rem,7.5vw,5rem)']),
+                            $this->block('paragraph', ['content' => '<p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:52ch">Stillopress is a free, open-source CMS. The visual editor, all 93 blocks, static publishing, themes, and export are included at no cost. We charge for optional services — managed hosting, AI tools, API access, and dedicated infrastructure.</p>']),
                         ]),
                     ]),
                 ], ['padding_top' => '100px', 'padding_bottom' => '40px', 'max_width' => '900px']),
 
-                // Section 2: Pricing table
+                // Section 2: Free core
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('html-embed', ['html' => '<div style="border:1px solid var(--color-border);padding:clamp(2rem,4vw,3rem)">
+<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+  <div>
+    <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.16em;font-size:.72rem;color:var(--color-primary);font-weight:600;margin:0 0 .3rem">Open source</p>
+    <h2 style="font-family:var(--font-heading);font-size:clamp(1.8rem,4vw,2.6rem);font-weight:600;margin:0;line-height:1">Stillopress Core</h2>
+  </div>
+  <div style="font-family:var(--font-heading);font-size:clamp(2rem,4vw,3rem);font-weight:600;letter-spacing:-.02em">Free</div>
+</div>
+<p style="color:var(--color-text-muted);max-width:52ch;margin:0 0 2rem;line-height:1.55">The complete CMS — no feature gates, no trial limits, no surprises. Self-host on your own server and build as many sites as you want.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-top:1px solid var(--color-border)">
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">All 93 block types</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Visual block editor</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Design-token themes</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Static HTML publishing</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Full site export</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Unlimited sites</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Magazine / DTP editor</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">WordPress import</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">SEO &amp; sitemaps</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Rollback &amp; versioning</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">Community support</div>
+  <div style="padding:1rem 1rem 1rem 0;border-bottom:1px solid var(--color-border);font-size:.92rem">No credit card required</div>
+</div>
+<div style="margin-top:2rem"><a href="/contact" style="display:inline-flex;align-items:center;gap:.5em;font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.9rem;padding:.9em 1.4em;background:var(--color-text);color:var(--color-bg);border:1px solid var(--color-text);text-decoration:none">Download Stillopress →</a></div>
+</div>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '40px', 'padding_bottom' => '60px', 'max_width' => '1100px']),
+
+                // Section 3: Paid services
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Optional services</p>']),
+                            $this->block('heading', ['text' => 'Add what you need. Skip what you don\'t.', 'level' => 'h2']),
+                            $this->block('paragraph', ['content' => '<p style="color:var(--color-text-muted);max-width:52ch">Every service below is optional. The core CMS works completely without them.</p>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '60px', 'padding_bottom' => '20px', 'max_width' => '1100px']),
+
                 $this->section([
                     $this->row('1', [
                         $this->column([
                             $this->block('pricingtable', ['columns' => 3, 'plans' => [
-                                ['name' => 'Free', 'price' => '€0', 'period' => 'forever', 'features' => ['For personal sites and experimentation', '—', 'One site', 'Core visual editor', 'Static export', 'Core block library', 'Self-hosted publishing', 'No credit card required'], 'ctaText' => 'Start free', 'ctaUrl' => '/contact', 'highlighted' => false],
-                                ['name' => 'Maker', 'price' => '€15', 'period' => '/mo', 'features' => ['For independent creators and serious personal brands', '—', 'Multiple sites', 'Custom domains', 'WordPress import', 'AI composition tools', 'Premium themes', 'Advanced publishing', 'Priority support'], 'ctaText' => 'Choose Maker', 'ctaUrl' => '/contact', 'highlighted' => true],
-                                ['name' => 'Studio', 'price' => '€59', 'period' => '/mo', 'features' => ['For agencies, teams, and client work', '—', 'Client workspaces', 'Team roles and permissions', 'White-label export', 'Advanced collaboration', 'Priority onboarding', 'Dedicated support'], 'ctaText' => 'Choose Studio', 'ctaUrl' => '/contact', 'highlighted' => false],
+                                ['name' => 'Managed Hosting', 'price' => '€9', 'period' => '/site/mo', 'features' => ['For creators who want zero server management', '—', 'Automatic static deployment', 'Custom domain + SSL', 'Global CDN', 'Daily backups', '99.9% uptime SLA', 'One-click publish from CMS'], 'ctaText' => 'Add hosting', 'ctaUrl' => '/contact', 'highlighted' => false],
+                                ['name' => 'AI Tools', 'price' => '€12', 'period' => '/mo', 'features' => ['For teams that want intelligent content assistance', '—', 'AI Page Composer', 'Content rewriting & translation', 'SEO meta generation', 'Image alt text (vision)', 'Per-tenant usage budgets', 'Bring your own API key option'], 'ctaText' => 'Add AI tools', 'ctaUrl' => '/contact', 'highlighted' => true],
+                                ['name' => 'Pro Infrastructure', 'price' => '€29', 'period' => '/mo', 'features' => ['For agencies and teams that need scale', '—', 'REST API access', 'Dedicated PostgreSQL database', 'Team roles & RBAC', 'Multi-tenant isolation (RLS)', 'Webhook integrations', 'Priority support & SLA'], 'ctaText' => 'Add infrastructure', 'ctaUrl' => '/contact', 'highlighted' => false],
                             ]]),
                         ]),
                     ]),
-                ], ['padding_top' => '40px', 'padding_bottom' => '60px', 'max_width' => '1320px']),
+                ], ['padding_top' => '0', 'padding_bottom' => '40px', 'max_width' => '1320px']),
 
-                // Section 3: FAQ
+                // Section 4: Comparison
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('html-embed', ['html' => '<div style="border:1px solid var(--color-border);overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;font-size:.9rem;min-width:600px">
+<thead>
+<tr style="border-bottom:2px solid var(--color-text)">
+  <th style="text-align:left;padding:1rem;font-family:var(--font-heading);font-weight:600">Feature</th>
+  <th style="text-align:center;padding:1rem;font-family:var(--font-heading);font-weight:600">Free (self-hosted)</th>
+  <th style="text-align:center;padding:1rem;font-family:var(--font-heading);font-weight:600;color:var(--color-primary)">+ Hosting</th>
+  <th style="text-align:center;padding:1rem;font-family:var(--font-heading);font-weight:600">+ AI</th>
+  <th style="text-align:center;padding:1rem;font-family:var(--font-heading);font-weight:600">+ Pro Infra</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Visual block editor</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">All 93 blocks</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Static export &amp; publish</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Themes &amp; design tokens</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">WordPress import</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Unlimited sites</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Managed hosting &amp; CDN</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Custom domain + SSL</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">AI Page Composer</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Content translation</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">REST API access</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr style="border-bottom:1px solid var(--color-border)"><td style="padding:.8rem 1rem">Dedicated database</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+<tr><td style="padding:.8rem 1rem">Team roles &amp; RBAC</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-text-muted)">—</td><td style="text-align:center;padding:.8rem;color:var(--color-primary)">✓</td></tr>
+</tbody>
+</table>
+</div>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '20px', 'padding_bottom' => '60px', 'max_width' => '1100px']),
+
+                // Section 5: FAQ
                 $this->section([
                     $this->row('1', [
                         $this->column([
                             $this->block('paragraph', ['content' => '<p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.2em;font-weight:500;font-size:.78rem;color:var(--color-text-muted)">— Questions</p>']),
                             $this->block('heading', ['text' => 'Common questions.', 'level' => 'h2']),
                             $this->block('accordion', ['openFirst' => false, 'items' => [
-                                ['title' => 'Do I really own the published site?', 'content' => '<p>Yes — completely. Publishing renders your pages to static HTML, CSS and images on your own host. If you cancelled tomorrow, every file would keep working exactly as it is. You can also export the whole site at any time.</p>'],
-                                ['title' => 'Where are sites hosted?', 'content' => '<p>You choose. Stillopress publishes static files — deploy them to your own server, a CDN, shared hosting, or any infrastructure you control. Paid plans can also manage hosting for you.</p>'],
-                                ['title' => 'What happens if I cancel?', 'content' => '<p>Your exported site remains yours. You can host it anywhere, keep it locally, or deploy it through your own infrastructure. The published files have no dependency on Stillopress.</p>'],
-                                ['title' => 'Can I move an existing WordPress site?', 'content' => '<p>On the Maker plan, point the importer at a WordPress WXR export. It maps Gutenberg blocks to native blocks, rebuilds your category hierarchy, re-hosts your media, and preserves featured images.</p>'],
-                                ['title' => 'Does the free plan require a credit card?', 'content' => '<p>No. The free plan is self-hosted. You bring your own hosting — a small VPS or even shared hosting is enough, since the output is just static files.</p>'],
-                                ['title' => 'Can I self-host the entire CMS?', 'content' => '<p>Yes. Stillopress is designed to run on your own server. Laravel, PostgreSQL, and Node.js. Full installation guide in the docs.</p>'],
+                                ['title' => 'Is the CMS really free?', 'content' => '<p>Yes. Stillopress Core is free and open source. The visual editor, all 93 blocks, themes, static publishing, WordPress import, and full site export are included. You self-host it on your own server — there are no feature gates or trial limits.</p>'],
+                                ['title' => 'What do the paid services add?', 'content' => '<p>Managed hosting removes server management — we deploy your static site to a global CDN with custom domains and SSL. AI tools add intelligent content composition, translation, and SEO generation. Pro infrastructure adds API access, a dedicated database, team roles, and webhook integrations. Each service is independent — add only what you need.</p>'],
+                                ['title' => 'Do I keep my website if I cancel a service?', 'content' => '<p>Yes. Your exported site remains yours. The published static files have no dependency on any paid service. Cancel hosting and your files still work on any server. Cancel AI and your existing content stays. The CMS itself remains free.</p>'],
+                                ['title' => 'Can I use my own AI API key?', 'content' => '<p>Yes. If you prefer to use your own Anthropic or OpenAI key, you can configure it in the CMS settings and skip the AI service tier entirely.</p>'],
+                                ['title' => 'Where is the CMS hosted?', 'content' => '<p>You host it. Stillopress is a self-hosted application built on Laravel, PostgreSQL, and Node.js. Install it on your own VPS, dedicated server, or cloud instance. Full installation guide in the docs.</p>'],
+                                ['title' => 'Is there a managed CMS option?', 'content' => '<p>A fully managed Stillopress Cloud — where we host both the CMS and your published sites — is planned. For now, the CMS is self-hosted and managed hosting covers only the static site output.</p>'],
+                                ['title' => 'Does the free plan require a credit card?', 'content' => '<p>No. Download and install. No account, no credit card, no sign-up required for the core CMS.</p>'],
                             ]]),
                         ]),
                     ]),
