@@ -38,6 +38,9 @@ class MarketingSiteSeeder extends Seeder
             $this->featuresPage(),
             $this->aboutPage(),
             $this->examplesPage(),
+            $this->theQuarterlyPage(),
+            $this->studioFormaPage(),
+            $this->atlasDocsPage(),
             $this->pricingPage(),
             $this->docsPage(),
             $this->contactPage(),
@@ -425,7 +428,7 @@ class MarketingSiteSeeder extends Seeder
                 $this->section([
                     $this->row('1', [
                         $this->column([
-                            $this->block('html-embed', ['html' => '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--color-border);border-bottom:0"><style>@media(max-width:760px){.ex-grid{grid-template-columns:1fr !important}}</style><div class="ex-card" style="border-right:1px solid var(--color-border);border-bottom:1px solid var(--color-border);padding:clamp(1.4rem,2.4vw,2.2rem);display:flex;flex-direction:column;gap:.8rem"><div style="aspect-ratio:16/10;background:linear-gradient(135deg,var(--color-bg-alt),color-mix(in srgb,var(--color-border) 30%,var(--color-bg)));border:1px solid var(--color-border);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem"><div style="font-family:var(--font-heading);font-size:clamp(1.1rem,1.6vw,1.5rem);font-weight:600;color:var(--color-heading);margin-bottom:.4rem">The Quarterly</div><div style="width:40px;height:1px;background:var(--color-primary);margin-bottom:.4rem"></div><div style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.1em">Issue 01 · Spring</div></div><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.68rem;color:var(--color-primary);font-weight:600">Editorial</div><h3 style="font-family:var(--font-heading);font-size:1.35rem;font-weight:600;margin:0;line-height:1.1">The Quarterly</h3><p style="color:var(--color-text-muted);font-size:.92rem;margin:0;line-height:1.5">A journal-style site for essays, stories, and issues. Long-form editorial with rhythm and hierarchy.</p><a href="/examples" style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:.8rem;color:var(--color-text);border-bottom:1px solid var(--color-text);padding-bottom:.15em;text-decoration:none;align-self:flex-start">View example →</a></div><div class="ex-card" style="border-right:1px solid var(--color-border);border-bottom:1px solid var(--color-border);padding:clamp(1.4rem,2.4vw,2.2rem);display:flex;flex-direction:column;gap:.8rem"><div style="aspect-ratio:16/10;background:linear-gradient(135deg,color-mix(in srgb,var(--color-bg-alt) 80%,var(--color-text)),var(--color-bg-alt));border:1px solid var(--color-border);display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:1.5rem"><div style="font-family:var(--font-heading);font-size:clamp(.9rem,1.3vw,1.2rem);font-weight:600;color:var(--color-heading)">Studio Forma</div><div style="font-size:.68rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.1em">Selected work · 2024</div></div><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.68rem;color:var(--color-primary);font-weight:600">Portfolio</div><h3 style="font-family:var(--font-heading);font-size:1.35rem;font-weight:600;margin:0;line-height:1.1">Studio Forma</h3><p style="color:var(--color-text-muted);font-size:.92rem;margin:0;line-height:1.5">A visual studio site with work, perspective, and case studies. Built for creative confidence.</p><a href="/examples" style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:.8rem;color:var(--color-text);border-bottom:1px solid var(--color-text);padding-bottom:.15em;text-decoration:none;align-self:flex-start">View example →</a></div><div class="ex-card" style="border-bottom:1px solid var(--color-border);padding:clamp(1.4rem,2.4vw,2.2rem);display:flex;flex-direction:column;gap:.8rem"><div style="aspect-ratio:16/10;background:var(--color-bg);border:1px solid var(--color-border);display:flex;align-items:flex-start;padding:1rem;gap:.8rem"><div style="width:30%;border-right:1px solid var(--color-border);padding-right:.6rem"><div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.1em;color:var(--color-text-muted);margin-bottom:.4rem">Docs</div><div style="height:4px;background:var(--color-border);width:80%;margin-bottom:.25rem"></div><div style="height:4px;background:var(--color-border);width:60%;margin-bottom:.25rem"></div><div style="height:4px;background:var(--color-primary);width:70%;margin-bottom:.25rem"></div><div style="height:4px;background:var(--color-border);width:55%"></div></div><div style="flex:1"><div style="font-family:var(--font-heading);font-size:.8rem;font-weight:600;margin-bottom:.3rem">Getting started</div><div style="height:3px;background:var(--color-border);width:90%;margin-bottom:.15rem"></div><div style="height:3px;background:var(--color-border);width:75%;margin-bottom:.15rem"></div><div style="height:3px;background:var(--color-border);width:60%"></div></div></div><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.68rem;color:var(--color-primary);font-weight:600">Documentation</div><h3 style="font-family:var(--font-heading);font-size:1.35rem;font-weight:600;margin:0;line-height:1.1">Atlas Docs</h3><p style="color:var(--color-text-muted);font-size:.92rem;margin:0;line-height:1.5">A structured product documentation and changelog experience. Fast, searchable, static.</p><a href="/examples" style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:.8rem;color:var(--color-text);border-bottom:1px solid var(--color-text);padding-bottom:.15em;text-decoration:none;align-self:flex-start">View example →</a></div></div>']),
+                            $this->block('html-embed', ['html' => '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--color-border);border-bottom:0"><style>@media(max-width:760px){.ex-grid{grid-template-columns:1fr !important}}</style><div class="ex-card" style="border-right:1px solid var(--color-border);border-bottom:1px solid var(--color-border);padding:clamp(1.4rem,2.4vw,2.2rem);display:flex;flex-direction:column;gap:.8rem"><div style="aspect-ratio:16/10;background:linear-gradient(135deg,var(--color-bg-alt),color-mix(in srgb,var(--color-border) 30%,var(--color-bg)));border:1px solid var(--color-border);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem"><div style="font-family:var(--font-heading);font-size:clamp(1.1rem,1.6vw,1.5rem);font-weight:600;color:var(--color-heading);margin-bottom:.4rem">The Quarterly</div><div style="width:40px;height:1px;background:var(--color-primary);margin-bottom:.4rem"></div><div style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.1em">Issue 01 · Spring</div></div><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.68rem;color:var(--color-primary);font-weight:600">Editorial</div><h3 style="font-family:var(--font-heading);font-size:1.35rem;font-weight:600;margin:0;line-height:1.1">The Quarterly</h3><p style="color:var(--color-text-muted);font-size:.92rem;margin:0;line-height:1.5">A journal-style site for essays, stories, and issues. Long-form editorial with rhythm and hierarchy.</p><a href="/the-quarterly" style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:.8rem;color:var(--color-text);border-bottom:1px solid var(--color-text);padding-bottom:.15em;text-decoration:none;align-self:flex-start">View example →</a></div><div class="ex-card" style="border-right:1px solid var(--color-border);border-bottom:1px solid var(--color-border);padding:clamp(1.4rem,2.4vw,2.2rem);display:flex;flex-direction:column;gap:.8rem"><div style="aspect-ratio:16/10;background:linear-gradient(135deg,color-mix(in srgb,var(--color-bg-alt) 80%,var(--color-text)),var(--color-bg-alt));border:1px solid var(--color-border);display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:1.5rem"><div style="font-family:var(--font-heading);font-size:clamp(.9rem,1.3vw,1.2rem);font-weight:600;color:var(--color-heading)">Studio Forma</div><div style="font-size:.68rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.1em">Selected work · 2024</div></div><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.68rem;color:var(--color-primary);font-weight:600">Portfolio</div><h3 style="font-family:var(--font-heading);font-size:1.35rem;font-weight:600;margin:0;line-height:1.1">Studio Forma</h3><p style="color:var(--color-text-muted);font-size:.92rem;margin:0;line-height:1.5">A visual studio site with work, perspective, and case studies. Built for creative confidence.</p><a href="/studio-forma" style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:.8rem;color:var(--color-text);border-bottom:1px solid var(--color-text);padding-bottom:.15em;text-decoration:none;align-self:flex-start">View example →</a></div><div class="ex-card" style="border-bottom:1px solid var(--color-border);padding:clamp(1.4rem,2.4vw,2.2rem);display:flex;flex-direction:column;gap:.8rem"><div style="aspect-ratio:16/10;background:var(--color-bg);border:1px solid var(--color-border);display:flex;align-items:flex-start;padding:1rem;gap:.8rem"><div style="width:30%;border-right:1px solid var(--color-border);padding-right:.6rem"><div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.1em;color:var(--color-text-muted);margin-bottom:.4rem">Docs</div><div style="height:4px;background:var(--color-border);width:80%;margin-bottom:.25rem"></div><div style="height:4px;background:var(--color-border);width:60%;margin-bottom:.25rem"></div><div style="height:4px;background:var(--color-primary);width:70%;margin-bottom:.25rem"></div><div style="height:4px;background:var(--color-border);width:55%"></div></div><div style="flex:1"><div style="font-family:var(--font-heading);font-size:.8rem;font-weight:600;margin-bottom:.3rem">Getting started</div><div style="height:3px;background:var(--color-border);width:90%;margin-bottom:.15rem"></div><div style="height:3px;background:var(--color-border);width:75%;margin-bottom:.15rem"></div><div style="height:3px;background:var(--color-border);width:60%"></div></div></div><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.68rem;color:var(--color-primary);font-weight:600">Documentation</div><h3 style="font-family:var(--font-heading);font-size:1.35rem;font-weight:600;margin:0;line-height:1.1">Atlas Docs</h3><p style="color:var(--color-text-muted);font-size:.92rem;margin:0;line-height:1.5">A structured product documentation and changelog experience. Fast, searchable, static.</p><a href="/atlas-docs" style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.09em;font-size:.8rem;color:var(--color-text);border-bottom:1px solid var(--color-text);padding-bottom:.15em;text-decoration:none;align-self:flex-start">View example →</a></div></div>']),
                         ]),
                     ]),
                 ], ['padding_top' => '40px', 'padding_bottom' => '60px', 'max_width' => '1320px']),
@@ -477,9 +480,9 @@ class MarketingSiteSeeder extends Seeder
                     $this->row('1', [
                         $this->column([
                             $this->block('pricingtable', ['columns' => 3, 'plans' => [
-                                ['name' => 'Free', 'price' => '€0', 'period' => 'forever', 'features' => ['One site', 'Core visual editor', 'Static export', 'Core block library', 'Self-hosted publishing', 'No credit card required'], 'ctaText' => 'Start free', 'ctaUrl' => '/contact', 'highlighted' => false],
-                                ['name' => 'Maker', 'price' => '€15', 'period' => '/mo', 'features' => ['Multiple sites', 'Custom domains', 'WordPress import', 'AI composition tools', 'Premium themes', 'Advanced publishing', 'Priority support'], 'ctaText' => 'Choose Maker', 'ctaUrl' => '/contact', 'highlighted' => true],
-                                ['name' => 'Studio', 'price' => '€59', 'period' => '/mo', 'features' => ['Client workspaces', 'Team roles and permissions', 'White-label export', 'Advanced collaboration', 'Priority onboarding', 'Dedicated support'], 'ctaText' => 'Choose Studio', 'ctaUrl' => '/contact', 'highlighted' => false],
+                                ['name' => 'Free', 'price' => '€0', 'period' => 'forever', 'features' => ['For personal sites and experimentation', '—', 'One site', 'Core visual editor', 'Static export', 'Core block library', 'Self-hosted publishing', 'No credit card required'], 'ctaText' => 'Start free', 'ctaUrl' => '/contact', 'highlighted' => false],
+                                ['name' => 'Maker', 'price' => '€15', 'period' => '/mo', 'features' => ['For independent creators and serious personal brands', '—', 'Multiple sites', 'Custom domains', 'WordPress import', 'AI composition tools', 'Premium themes', 'Advanced publishing', 'Priority support'], 'ctaText' => 'Choose Maker', 'ctaUrl' => '/contact', 'highlighted' => true],
+                                ['name' => 'Studio', 'price' => '€59', 'period' => '/mo', 'features' => ['For agencies, teams, and client work', '—', 'Client workspaces', 'Team roles and permissions', 'White-label export', 'Advanced collaboration', 'Priority onboarding', 'Dedicated support'], 'ctaText' => 'Choose Studio', 'ctaUrl' => '/contact', 'highlighted' => false],
                             ]]),
                         ]),
                     ]),
@@ -616,6 +619,132 @@ class MarketingSiteSeeder extends Seeder
                         ]),
                     ]),
                 ], ['padding_top' => '40px', 'padding_bottom' => '80px', 'max_width' => '1100px']),
+            ],
+        ];
+    }
+
+    // ─── Example detail pages ────────────────────────────────────────────
+
+    private function theQuarterlyPage(): array
+    {
+        return [
+            'title' => 'The Quarterly',
+            'slug' => 'the-quarterly',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('html-embed', ['html' => '<div style="min-height:100vh;display:flex;flex-direction:column">
+<nav style="display:flex;justify-content:space-between;align-items:center;padding:1.4rem 0;border-bottom:1px solid var(--color-border)">
+  <span style="font-family:var(--font-heading);font-weight:600;font-size:1.3rem;letter-spacing:.02em">The Quarterly</span>
+  <div style="display:flex;gap:clamp(1rem,2vw,2rem);font-family:var(--font-heading);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--color-text-muted)"><span>Essays</span><span>Interviews</span><span>Archive</span><span style="color:var(--color-primary)">Issue 01</span></div>
+</nav>
+<div style="padding:clamp(3rem,8vh,6rem) 0;text-align:center">
+  <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.22em;font-size:.72rem;color:var(--color-primary);font-weight:600;margin:0 0 1.2rem">Issue 01 · Spring</p>
+  <h1 style="font-family:var(--font-heading);font-size:clamp(3rem,10vw,7rem);font-weight:600;line-height:.88;letter-spacing:-.02em;margin:0 0 1.6rem">The Quarterly</h1>
+  <p style="font-size:clamp(1rem,1.3vw,1.2rem);color:var(--color-text-muted);max-width:38ch;margin:0 auto 2rem;line-height:1.5">A journal of ideas, work, and perspective. Published from the studio.</p>
+  <div style="width:60px;height:1px;background:var(--color-primary);margin:0 auto"></div>
+</div>
+<div style="max-width:680px;margin:0 auto;padding-bottom:clamp(3rem,6vh,5rem)">
+  <div style="aspect-ratio:16/9;background:linear-gradient(145deg,color-mix(in srgb,var(--color-bg-alt) 70%,var(--color-border)),var(--color-bg-alt));border:1px solid var(--color-border);margin-bottom:2.5rem;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-heading);font-size:.7rem;text-transform:uppercase;letter-spacing:.15em;color:var(--color-text-muted)">Cover photograph</span></div>
+  <h2 style="font-family:var(--font-heading);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:600;line-height:1;margin:0 0 1rem">On the patience of making things that last</h2>
+  <p style="color:var(--color-text-muted);line-height:1.65;margin:0 0 2rem">There is a particular stillness that comes after a thing is finished. Not the silence of emptiness, but the quiet confidence of something that holds together on its own — that doesn\'t need to explain itself.</p>
+  <blockquote style="border-left:2px solid var(--color-primary);padding-left:1.5rem;margin:2.5rem 0;font-family:var(--font-heading);font-size:clamp(1.2rem,2.4vw,1.7rem);font-weight:400;line-height:1.25;color:var(--color-heading)">"The best work disappears into its own usefulness."</blockquote>
+  <p style="color:var(--color-text-muted);line-height:1.65;margin:0 0 3rem">We started this journal because some ideas need more room than a changelog entry. Each issue collects essays, interviews, and observations from people who build carefully.</p>
+  <div style="border-top:1px solid var(--color-border);padding-top:2rem">
+    <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.7rem;color:var(--color-text-muted);margin:0 0 1.2rem">More in this issue</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.2rem">
+      <div style="border:1px solid var(--color-border);padding:1.2rem"><h3 style="font-family:var(--font-heading);font-size:1.1rem;font-weight:600;margin:0 0 .4rem;line-height:1.1">Tools and their shadows</h3><p style="font-size:.82rem;color:var(--color-text-muted);margin:0">On what software asks of the people who use it.</p></div>
+      <div style="border:1px solid var(--color-border);padding:1.2rem"><h3 style="font-family:var(--font-heading);font-size:1.1rem;font-weight:600;margin:0 0 .4rem;line-height:1.1">A conversation with the studio</h3><p style="font-size:.82rem;color:var(--color-text-muted);margin:0">How a small team thinks about durability.</p></div>
+      <div style="border:1px solid var(--color-border);padding:1.2rem"><h3 style="font-family:var(--font-heading);font-size:1.1rem;font-weight:600;margin:0 0 .4rem;line-height:1.1">The file that outlives the app</h3><p style="font-size:.82rem;color:var(--color-text-muted);margin:0">Why static output matters more than you think.</p></div>
+    </div>
+  </div>
+</div>
+<footer style="border-top:1px solid var(--color-border);padding:2rem 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem"><span style="font-family:var(--font-heading);font-size:.78rem;color:var(--color-text-muted)">The Quarterly · Published with Stillopress</span><a href="/examples" style="font-family:var(--font-heading);font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--color-primary);text-decoration:none">← Back to examples</a></footer>
+</div>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '0', 'padding_bottom' => '0', 'max_width' => '900px']),
+            ],
+        ];
+    }
+
+    private function studioFormaPage(): array
+    {
+        return [
+            'title' => 'Studio Forma',
+            'slug' => 'studio-forma',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('html-embed', ['html' => '<div style="min-height:100vh;display:flex;flex-direction:column">
+<nav style="display:flex;justify-content:space-between;align-items:center;padding:1.4rem 0;border-bottom:1px solid var(--color-border)">
+  <span style="font-family:var(--font-heading);font-weight:600;font-size:1.3rem;letter-spacing:.02em">Studio Forma</span>
+  <div style="display:flex;gap:clamp(1rem,2vw,2rem);font-family:var(--font-heading);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--color-text-muted)"><span style="color:var(--color-primary)">Work</span><span>Studio</span><span>Contact</span></div>
+</nav>
+<div style="padding:clamp(4rem,10vh,8rem) 0 clamp(2rem,4vh,3rem)">
+  <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.22em;font-size:.72rem;color:var(--color-text-muted);font-weight:500;margin:0 0 1rem">Selected work · 2024</p>
+  <h1 style="font-family:var(--font-heading);font-size:clamp(3rem,10vw,7rem);font-weight:600;line-height:.88;letter-spacing:-.02em;margin:0 0 1.6rem">Studio Forma</h1>
+  <p style="font-size:clamp(1rem,1.3vw,1.2rem);color:var(--color-text-muted);max-width:40ch;line-height:1.5;margin:0">Identity, editorial, and digital work for brands that value restraint and lasting quality.</p>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1px;background:var(--color-border);margin-bottom:clamp(3rem,6vh,5rem)">
+  <div style="background:var(--color-bg);padding:0"><div style="aspect-ratio:4/3;background:linear-gradient(135deg,color-mix(in srgb,var(--color-bg-alt) 60%,var(--color-border)),var(--color-bg-alt));display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:1.5rem"><span style="font-family:var(--font-heading);font-weight:600;font-size:1.2rem">Meridian</span><span style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.1em">Brand identity</span></div></div>
+  <div style="background:var(--color-bg);padding:0"><div style="aspect-ratio:4/3;background:linear-gradient(180deg,var(--color-bg-alt),color-mix(in srgb,var(--color-text) 8%,var(--color-bg-alt)));display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:1.5rem"><span style="font-family:var(--font-heading);font-weight:600;font-size:1.2rem">Archivist</span><span style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.1em">Editorial design</span></div></div>
+  <div style="background:var(--color-bg);padding:0"><div style="aspect-ratio:4/3;background:linear-gradient(225deg,var(--color-bg-alt),color-mix(in srgb,var(--color-primary) 5%,var(--color-bg-alt)));display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:1.5rem"><span style="font-family:var(--font-heading);font-weight:600;font-size:1.2rem">Tonal</span><span style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.1em">Digital product</span></div></div>
+</div>
+<div style="max-width:600px;padding-bottom:clamp(3rem,6vh,5rem)">
+  <h2 style="font-family:var(--font-heading);font-size:clamp(1.6rem,3vw,2.2rem);font-weight:600;line-height:1;margin:0 0 1rem">About the studio</h2>
+  <p style="color:var(--color-text-muted);line-height:1.65;margin:0 0 1rem">Forma is a small design studio that works with a handful of clients each year. We believe in restraint, precision, and the kind of craft that gets quieter as it gets better.</p>
+  <p style="color:var(--color-text-muted);line-height:1.65;margin:0">Every project here is a case study in how much you can communicate by removing what doesn\'t belong.</p>
+</div>
+<footer style="border-top:1px solid var(--color-border);padding:2rem 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem"><span style="font-family:var(--font-heading);font-size:.78rem;color:var(--color-text-muted)">Studio Forma · Published with Stillopress</span><a href="/examples" style="font-family:var(--font-heading);font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--color-primary);text-decoration:none">← Back to examples</a></footer>
+</div>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '0', 'padding_bottom' => '0', 'max_width' => '1320px']),
+            ],
+        ];
+    }
+
+    private function atlasDocsPage(): array
+    {
+        return [
+            'title' => 'Atlas Docs',
+            'slug' => 'atlas-docs',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->block('html-embed', ['html' => '<div style="min-height:100vh;display:flex;flex-direction:column">
+<nav style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid var(--color-border)">
+  <div style="display:flex;align-items:center;gap:.8rem"><div style="width:8px;height:8px;background:var(--color-primary);border-radius:50%"></div><span style="font-family:var(--font-heading);font-weight:600;font-size:1.1rem">Atlas</span><span style="font-family:var(--font-heading);font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--color-text-muted);border-left:1px solid var(--color-border);padding-left:.8rem">Docs</span></div>
+  <div style="border:1px solid var(--color-border);padding:.4rem 1rem;font-size:.8rem;color:var(--color-text-muted);min-width:180px">Search docs…</div>
+</nav>
+<div style="display:grid;grid-template-columns:220px 1fr;gap:0;flex:1;min-height:70vh" class="docs-ex-grid">
+  <aside style="border-right:1px solid var(--color-border);padding:2rem 1.5rem 2rem 0">
+    <div style="margin-bottom:1.8rem"><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.62rem;color:var(--color-text-muted);margin-bottom:.6rem">Getting started</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-primary);font-weight:500;border-left:2px solid var(--color-primary);padding-left:.8rem;margin-left:-.8rem">Introduction</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-text-muted);padding-left:.8rem">Installation</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-text-muted);padding-left:.8rem">Quick start</div></div>
+    <div style="margin-bottom:1.8rem"><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.62rem;color:var(--color-text-muted);margin-bottom:.6rem">Guides</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-text-muted);padding-left:.8rem">Authentication</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-text-muted);padding-left:.8rem">Data models</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-text-muted);padding-left:.8rem">Deployment</div></div>
+    <div><div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.62rem;color:var(--color-text-muted);margin-bottom:.6rem">API reference</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-text-muted);padding-left:.8rem">REST endpoints</div><div style="padding:.3rem 0;font-size:.85rem;color:var(--color-text-muted);padding-left:.8rem">Webhooks</div></div>
+  </aside>
+  <main style="padding:2rem 0 2rem 2.5rem">
+    <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.14em;font-size:.65rem;color:var(--color-text-muted);margin:0 0 .6rem">Getting started</p>
+    <h1 style="font-family:var(--font-heading);font-size:clamp(1.8rem,4vw,2.6rem);font-weight:600;line-height:1;margin:0 0 1rem">Introduction</h1>
+    <p style="color:var(--color-text-muted);line-height:1.65;max-width:56ch;margin:0 0 2rem">Atlas is a modern API platform for structured content. This guide walks you through setup, your first schema, and your first deploy.</p>
+    <div style="background:var(--color-bg-inverse);color:var(--color-bg);padding:1.2rem 1.5rem;font-family:var(--font-heading);font-size:.88rem;letter-spacing:.02em;margin:0 0 2rem;overflow-x:auto;max-width:100%"><span style="color:var(--color-primary)">atlas</span> init my-project<br><span style="color:var(--color-primary)">atlas</span> deploy --env production</div>
+    <h2 style="font-family:var(--font-heading);font-size:1.4rem;font-weight:600;margin:0 0 .8rem">Prerequisites</h2>
+    <p style="color:var(--color-text-muted);line-height:1.65;max-width:56ch;margin:0 0 1.5rem">You will need Node.js 20 or later and an Atlas account. The CLI handles everything else.</p>
+    <h2 style="font-family:var(--font-heading);font-size:1.4rem;font-weight:600;margin:0 0 .8rem">Next steps</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;max-width:480px"><div style="border:1px solid var(--color-border);padding:1rem"><h3 style="font-family:var(--font-heading);font-size:1rem;font-weight:600;margin:0 0 .3rem;display:flex;justify-content:space-between">Installation <span style="color:var(--color-primary)">→</span></h3><p style="font-size:.8rem;color:var(--color-text-muted);margin:0">Set up Atlas locally.</p></div><div style="border:1px solid var(--color-border);padding:1rem"><h3 style="font-family:var(--font-heading);font-size:1rem;font-weight:600;margin:0 0 .3rem;display:flex;justify-content:space-between">Quick start <span style="color:var(--color-primary)">→</span></h3><p style="font-size:.8rem;color:var(--color-text-muted);margin:0">Build your first schema.</p></div></div>
+    <div style="margin-top:3rem;border-top:1px solid var(--color-border);padding-top:1.5rem"><p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.65rem;color:var(--color-text-muted);margin:0 0 .8rem">Changelog</p><div style="margin-bottom:.8rem"><span style="font-family:var(--font-heading);font-weight:600;font-size:.88rem">v2.4.0</span> <span style="font-size:.78rem;color:var(--color-text-muted)">· June 2026</span><p style="font-size:.82rem;color:var(--color-text-muted);margin:.2rem 0 0">New webhook system, improved query performance, dark mode for docs.</p></div><div><span style="font-family:var(--font-heading);font-weight:600;font-size:.88rem">v2.3.1</span> <span style="font-size:.78rem;color:var(--color-text-muted)">· May 2026</span><p style="font-size:.82rem;color:var(--color-text-muted);margin:.2rem 0 0">Bug fixes, schema validation improvements.</p></div></div>
+  </main>
+</div>
+<style>@media(max-width:760px){.docs-ex-grid{grid-template-columns:1fr !important}.docs-ex-grid aside{border-right:0;border-bottom:1px solid var(--color-border);padding:1rem 0}.docs-ex-grid main{padding:1.5rem 0 !important}}</style>
+<footer style="border-top:1px solid var(--color-border);padding:2rem 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem"><span style="font-family:var(--font-heading);font-size:.78rem;color:var(--color-text-muted)">Atlas Docs · Published with Stillopress</span><a href="/examples" style="font-family:var(--font-heading);font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--color-primary);text-decoration:none">← Back to examples</a></footer>
+</div>']),
+                        ]),
+                    ]),
+                ], ['padding_top' => '0', 'padding_bottom' => '0', 'max_width' => '1320px']),
             ],
         ];
     }
