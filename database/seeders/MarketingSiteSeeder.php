@@ -83,7 +83,7 @@ class MarketingSiteSeeder extends Seeder
                     $this->row('1', [
                         $this->column([
                             $this->block('html-embed', ['html' => '<div style="padding:clamp(5rem,12vh,9rem) 0 clamp(2rem,4vh,3rem);max-width:1320px;margin:0 auto;padding-inline:clamp(1.25rem,4vw,4.5rem)">
-  <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.22em;font-weight:500;font-size:.72rem;color:var(--color-text-muted);margin:0 0 1.8rem;display:flex;align-items:center;gap:.7em"><span style="width:26px;height:1px;background:var(--color-primary);display:inline-block"></span> Static CMS for people who care about the web</p>
+  <p style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.26em;font-weight:600;font-size:.78rem;color:var(--color-text-muted);margin:0 0 1.8rem;display:flex;align-items:center;gap:.7em"><span style="width:26px;height:1px;background:var(--color-primary);display:inline-block"></span> Build. Publish. Own.</p>
   <h1 style="font-family:var(--font-heading);font-weight:600;font-size:clamp(2.8rem,8vw,6rem);line-height:.92;letter-spacing:-.02em;margin:0 0 1.8rem;max-width:18ch">Your website should belong to you.</h1>
   <p style="font-size:clamp(1.05rem,1.3vw,1.35rem);line-height:1.55;color:var(--color-text-muted);max-width:48ch;margin:0 0 2.4rem">Build in a calm visual studio. Publish a fast, durable website made of ordinary files you can host, move, archive, and keep.</p>
   <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2.4rem">
