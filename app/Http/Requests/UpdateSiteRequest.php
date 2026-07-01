@@ -49,6 +49,22 @@ class UpdateSiteRequest extends FormRequest
             'settings.deploy_ssh_path' => ['sometimes', 'nullable', 'string', 'max:500'],
             'settings.deploy_ssh_port' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:65535'],
             'settings.deploy_ssh_key' => ['sometimes', 'nullable', 'string', 'max:500'],
+            // Global styles
+            'settings.global_font_family' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'settings.global_font_size' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'settings.global_line_height' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'settings.global_text_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'settings.global_bg_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'settings.global_link_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'settings.global_container_width' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'settings.global_container_padding' => ['sometimes', 'nullable', 'string', 'max:20'],
+            // Custom cursor
+            'settings.cursor_enabled' => ['sometimes', 'boolean'],
+            'settings.cursor_preset' => ['sometimes', 'string', 'in:dot-ring,circle-dot,minimal,crosshair,ring-only,glow,spotlight,dash-ring,square,arrow-dot'],
+            'settings.cursor_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'settings.cursor_ring_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'settings.cursor_blend' => ['sometimes', 'string', 'in:normal,difference,exclusion'],
+            'settings.cursor_size' => ['sometimes', 'string', 'in:sm,md,lg'],
         ];
     }
 
