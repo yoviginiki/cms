@@ -362,23 +362,37 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
         )}
       </div>
 
-      {/* ─── Meta (Date / Author / Category) ─── */}
+      {/* ─── Date ─── */}
       <div className="border-t border-base-300/20 pt-3">
-        <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Post Meta</div>
-        <div className="space-y-1.5">
-          <label className="flex items-center justify-between cursor-pointer">
-            <span className="text-[11px] text-base-content/60">Show date</span>
+        <label className="flex items-center justify-between mb-2 cursor-pointer">
+          <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Date</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-base-content/30">{data.showDate ? 'Visible' : 'Hidden'}</span>
             <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!data.showDate} onChange={(e) => update('showDate', e.target.checked)} />
-          </label>
-          <label className="flex items-center justify-between cursor-pointer">
-            <span className="text-[11px] text-base-content/60">Show author</span>
+          </div>
+        </label>
+      </div>
+
+      {/* ─── Author ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <label className="flex items-center justify-between mb-2 cursor-pointer">
+          <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Author</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-base-content/30">{data.showAuthor ? 'Visible' : 'Hidden'}</span>
             <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!data.showAuthor} onChange={(e) => update('showAuthor', e.target.checked)} />
-          </label>
-          <label className="flex items-center justify-between cursor-pointer">
-            <span className="text-[11px] text-base-content/60">Show category</span>
+          </div>
+        </label>
+      </div>
+
+      {/* ─── Category ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <label className="flex items-center justify-between mb-2 cursor-pointer">
+          <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Category</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-base-content/30">{data.showCategory ? 'Visible' : 'Hidden'}</span>
             <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!data.showCategory} onChange={(e) => update('showCategory', e.target.checked)} />
-          </label>
-        </div>
+          </div>
+        </label>
       </div>
 
       {/* ─── Card Effects ─── */}
