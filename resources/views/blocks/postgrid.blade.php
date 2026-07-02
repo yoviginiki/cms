@@ -21,6 +21,11 @@
     $cardStyle = $data['cardStyle'] ?? 'vertical';
     $isHorizontal = $cardStyle === 'horizontal';
 
+    // Content meta toggles
+    $showDate = !empty($data['showDate']);
+    $showAuthor = !empty($data['showAuthor']);
+    $showCategory = !empty($data['showCategory']);
+
     // Image
     $showImage = $data['showImage'] ?? true;
     $imageHeightPx = max(40, min(600, intval($data['imageHeight'] ?? 160)));
@@ -28,6 +33,7 @@
     // Sanitize imageWidth — only allow safe CSS values
     if (!preg_match('/^(auto|\d{1,3}%)$/', $imageWidth)) $imageWidth = '100%';
     $imageHeight = 'clamp(' . round($imageHeightPx * 0.4) . 'px, ' . round($imageHeightPx / 10, 1) . 'vw, ' . $imageHeightPx . 'px)';
+    $imageObjectFit = in_array($data['imageObjectFit'] ?? 'cover', ['cover','contain','fill','scale-down','none']) ? ($data['imageObjectFit'] ?? 'cover') : 'cover';
 
     // Gap
     $gapPx = max(0, min(64, intval($data['gap'] ?? 24)));
@@ -135,11 +141,11 @@
                 @if($post->featured_image)
                     @if($__revealEnabled && !$__isFadeReveal)
                         {{-- Clip-path mode: two layers — original below, filtered on top --}}
-                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />
-                        <img src="{{ $post->featured_image }}" alt="" aria-hidden="true" class="img-reveal-filtered" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" loading="lazy" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};" />
+                        <img src="{{ $post->featured_image }}" alt="" aria-hidden="true" class="img-reveal-filtered" loading="lazy" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};" />
                     @else
                         {{-- Fade mode or no reveal: single image with filter --}}
-                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;{{ $__imageFilter }}" />
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" loading="lazy" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};{{ $__imageFilter }}" />
                     @endif
                 @endif
                 {!! $__overlayHtml !!}
@@ -159,9 +165,12 @@
                 </{{ $headingTag }}>
             </div>
             @endif
-            {{-- Content below (heading below + excerpt) --}}
-            @if(($showHeading && $headingPosition === 'below') || ($showExcerpt && $post->excerpt))
+            {{-- Content below (heading below + excerpt + meta) --}}
+            @if(($showHeading && $headingPosition === 'below') || ($showExcerpt && $post->excerpt) || $showDate || $showAuthor || $showCategory)
             <div style="padding:1rem;{{ $isHorizontal ? 'flex:1;' : '' }}">
+                @if($showCategory && $post->category)
+                    <span style="display:inline-block;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--color-primary,#3b82f6);margin-bottom:0.4rem;">{{ $post->category->name }}</span>
+                @endif
                 @if($showHeading && $headingPosition === 'below')
                 <{{ $headingTag }} style="font-weight:600;font-size:{{ $headingSizePx }}px;font-family:{{ $headingFont }};text-align:{{ $headingAlign }};padding:{{ $headingPadding }};margin:{{ $headingMargin }};">
                     <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text,#1e293b);text-decoration:none;">{{ $post->title }}</a>
@@ -169,6 +178,19 @@
                 @endif
                 @if($showExcerpt && $post->excerpt)
                     <p style="color:var(--color-text-muted,#6b7280);font-size:{{ $excerptSizePx }}px;font-family:{{ $excerptFont }};text-align:{{ $excerptAlign }};padding:{{ $excerptPadding }};margin:{{ $excerptMargin }};">{{ $excerptLength > 0 ? \Illuminate\Support\Str::limit($post->excerpt, $excerptLength) : $post->excerpt }}</p>
+                @endif
+                @if($showDate || $showAuthor)
+                    <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem;font-size:0.78rem;color:var(--color-text-muted,#9ca3af);">
+                        @if($showDate && $post->published_at)
+                            <time datetime="{{ $post->published_at->toISOString() }}">{{ $post->published_at->format('M d, Y') }}</time>
+                        @endif
+                        @if($showDate && $showAuthor && $post->published_at)
+                            <span>·</span>
+                        @endif
+                        @if($showAuthor && $post->author)
+                            <span>{{ $post->author->name }}</span>
+                        @endif
+                    </div>
                 @endif
             </div>
             @endif

@@ -20,8 +20,10 @@ interface PostgridData {
   cardBorder: boolean; cardBorderWidth: number; cardBorderColor: string;
   cardBorderRadius: number; cardBorderStyle: string; cardShadow: string;
   cardBg: string; cardPadding: string;
+  // Content toggles
+  showDate: boolean; showAuthor: boolean; showCategory: boolean;
   // Image
-  showImage: boolean; imageHeight: number; imageWidth: string;
+  showImage: boolean; imageHeight: number; imageWidth: string; imageObjectFit: string;
   // Heading
   showHeading: boolean; headingPosition: string; headingVerticalDir: string;
   headingTag: string; headingSize: number; headingFont: string;
@@ -249,6 +251,16 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
                 <option value="auto">Auto (natural)</option>
               </select>
             </div>
+            <div>
+              <label className="text-[11px] text-base-content/50 mb-1 block">Fit</label>
+              <select className="select select-bordered select-xs w-full" value={data.imageObjectFit || 'cover'} onChange={(e) => update('imageObjectFit', e.target.value)}>
+                <option value="cover">Cover (fill, may crop)</option>
+                <option value="contain">Contain (fit, may letterbox)</option>
+                <option value="fill">Stretch (distort to fill)</option>
+                <option value="scale-down">Scale down (never enlarge)</option>
+                <option value="none">None (natural size)</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
@@ -348,6 +360,25 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
             <SpacingField label="Margin" value={data.excerptMargin || '0.25rem 0 0 0'} onChange={(v) => update('excerptMargin', v)} />
           </div>
         )}
+      </div>
+
+      {/* ─── Meta (Date / Author / Category) ─── */}
+      <div className="border-t border-base-300/20 pt-3">
+        <div className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Post Meta</div>
+        <div className="space-y-1.5">
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-[11px] text-base-content/60">Show date</span>
+            <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!data.showDate} onChange={(e) => update('showDate', e.target.checked)} />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-[11px] text-base-content/60">Show author</span>
+            <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!data.showAuthor} onChange={(e) => update('showAuthor', e.target.checked)} />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-[11px] text-base-content/60">Show category</span>
+            <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!data.showCategory} onChange={(e) => update('showCategory', e.target.checked)} />
+          </label>
+        </div>
       </div>
 
       {/* ─── Card Effects ─── */}

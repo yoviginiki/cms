@@ -24,10 +24,15 @@ class PostgridBlockDefinition implements BlockDefinition
             'cardShadow'       => ['sometimes', 'in:none,sm,md,lg,xl'],
             'cardBg'           => ['sometimes', 'nullable', 'string', 'max:20'],
             'cardPadding'      => ['sometimes', 'string', 'max:50'],
+            // Content meta toggles
+            'showDate'       => ['sometimes', 'boolean'],
+            'showAuthor'     => ['sometimes', 'boolean'],
+            'showCategory'   => ['sometimes', 'boolean'],
             // Image
             'showImage'      => ['sometimes', 'boolean'],
             'imageHeight'    => ['sometimes', 'integer', 'min:40', 'max:600'],
             'imageWidth'     => ['sometimes', 'string', 'regex:/^(auto|\d{1,3}%)$/'],
+            'imageObjectFit' => ['sometimes', 'in:cover,contain,fill,scale-down,none'],
             // Heading
             'showHeading'    => ['sometimes', 'boolean'],
             'headingPosition'    => ['sometimes', 'in:above,below,vertical-left,vertical-right'],
