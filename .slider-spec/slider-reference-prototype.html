@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slider Reference Prototype — Stillopress spec artifact</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+
+<script>document.documentElement.classList.replace('no-js','js');</script>
+
+<style>
+/* ── Visual language: washi monochrome, vermilion accent, zero radius, no chrome shadows ── */
+:root{
+  --paper:#F5F2EC; --paper-2:#EDE9E0; --ink:#1A1817; --ink-60:rgba(26,24,23,.6);
+  --ink-25:rgba(26,24,23,.25); --vermilion:#E63B2E; --white:#FBFAF7;
+}
+*{box-sizing:border-box; border-radius:0 !important;}
+body{margin:0; background:var(--paper); color:var(--ink);
+  font-family:'Barlow',sans-serif; -webkit-font-smoothing:antialiased;}
+h1,h2,h3,.display{font-family:'Barlow Condensed',sans-serif; margin:0;}
+
+.page-head{max-width:1200px; margin:0 auto; padding:28px 24px 16px;}
+.page-head h1{font-size:20px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;}
+.page-head p{font-size:13px; color:var(--ink-60); margin:4px 0 0;}
+
+/* ── Slider frame ── */
+.sp-slider{position:relative; width:100%; height:70vh; background:var(--ink); overflow:hidden;}
+@media (max-width:1024px){ .sp-slider{height:60vh;} }
+@media (max-width:640px){ .sp-slider{height:80vh;} }
+.sp-slider .swiper{width:100%; height:100%;}
+.sp-slide{position:relative; overflow:hidden; background:var(--ink);}
+
+/* backgrounds */
+.sp-bg{position:absolute; inset:0; z-index:0; overflow:hidden;}
+.sp-bg img,.sp-bg video{width:100%; height:100%; object-fit:cover; display:block;}
+.sp-bg-overlay{position:absolute; inset:0; z-index:1;}
+.js .kenburns img{animation:kenburns 16s ease-in-out infinite alternate;}
+@keyframes kenburns{from{transform:scale(1) translate(0,0);} to{transform:scale(1.14) translate(-2.5%,1.5%);} }
+
+/* ── Layers: final state authored HERE (CSS). JS only applies from-states at play time. ── */
+.sp-layer{position:absolute; margin:0; opacity:1; will-change:transform,opacity;}
+.sp-layer a{color:inherit;}
+.sp-layer.-headline{font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:clamp(44px,7.5vw,104px); line-height:.95; letter-spacing:.01em; text-transform:uppercase;}
+.sp-layer.-subline{font-size:clamp(15px,1.6vw,22px); font-weight:400; color:var(--white); max-width:34em;}
+.sp-layer.-display{font-family:'Barlow Condensed',sans-serif; font-weight:600;
+  font-size:clamp(60px,10vw,150px); line-height:.9; text-transform:uppercase; color:var(--ink);}
+.sp-layer.-kicker{font-size:13px; font-weight:500; letter-spacing:.35em; text-transform:uppercase;}
+.sp-btn{display:inline-block; padding:14px 34px; background:var(--vermilion); color:var(--white);
+  font-family:'Barlow Condensed',sans-serif; font-size:17px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; text-decoration:none; border:0; cursor:pointer;}
+.sp-btn:hover{background:var(--ink);}
+.sp-shape{background:var(--vermilion);}
+.sp-imglayer img{width:100%; height:100%; object-fit:cover; display:block;}
+
+/* split() output */
+.sp-char,.sp-word{display:inline-block; white-space:pre;}
+.sp-line{display:block; overflow:hidden;}
+
+/* JS on: hide animated layers until the runtime sets from-states (prevents final-state flash).
+   Runtime flips data-armed on the slider root as soon as from-states are applied. */
+.js .sp-slider:not([data-armed]) .sp-layer[data-animated]{visibility:hidden;}
+
+/* No-JS: only slide 1 shows, fully readable at final CSS state */
+.no-js .swiper-slide:not(:first-child){display:none;}
+.no-js .sp-ui{display:none;}
+.no-js .swiper-wrapper{display:block; height:100%;}
+.no-js .swiper-slide{width:100%; height:100%;}
+
+/* ── UI chrome ── */
+.sp-arrow{position:absolute; top:50%; transform:translateY(-50%); z-index:20; width:52px; height:52px;
+  background:var(--paper); border:1px solid var(--ink); color:var(--ink); font-size:20px; line-height:1;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;}
+.sp-arrow:hover{background:var(--vermilion); border-color:var(--vermilion); color:var(--white);}
+.sp-arrow.-prev{left:20px;} .sp-arrow.-next{right:20px;}
+.sp-bullets{position:absolute; left:50%; bottom:22px; transform:translateX(-50%); z-index:20; display:flex; gap:10px;}
+.sp-bullet{width:26px; height:4px; background:var(--ink-25); border:0; padding:0; cursor:pointer;}
+.sp-bullet[aria-current="true"]{background:var(--vermilion);}
+.sp-counter{position:absolute; right:24px; bottom:18px; z-index:20; color:var(--white);
+  font-family:'Barlow Condensed',sans-serif; font-size:15px; letter-spacing:.15em;}
+.sp-progress{position:absolute; left:0; top:0; z-index:20; height:3px; width:100%; background:rgba(255,255,255,.18);}
+.sp-progress b{display:block; height:100%; width:100%; background:var(--vermilion);
+  transform-origin:left; transform:scaleX(0);}
+.sp-pause{position:absolute; left:24px; bottom:12px; z-index:20; background:transparent; border:1px solid var(--white);
+  color:var(--white); font-family:'Barlow Condensed',sans-serif; font-size:12px; letter-spacing:.2em;
+  text-transform:uppercase; padding:6px 12px; cursor:pointer;}
+.sp-pause:hover{background:var(--vermilion); border-color:var(--vermilion);}
+.sp-slider:focus-visible,.sp-arrow:focus-visible,.sp-bullet:focus-visible,.sp-pause:focus-visible,.sp-btn:focus-visible{
+  outline:2px solid var(--vermilion); outline-offset:2px;}
+
+@media (prefers-reduced-motion:reduce){
+  .js .kenburns img{animation:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>Slider — reference prototype</h1>
+  <p>Spec artifact. Swiper 11 + GSAP 3, custom split(), scene timelines (IN / LOOP / OUT), fast-swipe kill/reset.</p>
+</header>
+
+<!-- ════════════════════════ CONFIG — the CMS block-schema preview ════════════════════════
+     Markup below is pre-rendered (as Blade will render it); this JSON is the single source
+     the runtime consumes. Layers map to DOM via data-layer-id. -->
+<script type="application/json" id="slider-config">
+{
+  "id": "demo-slider",
+  "height": {"desktop": "70vh", "tablet": "60vh", "mobile": "80vh"},
+  "swiper": {
+    "effect": "slide", "speed": 700, "loop": true,
+    "autoplay": true, "autoplayDelay": 6000, "pauseOnHover": true,
+    "navigation": true, "pagination": true, "keyboard": true
+  },
+  "slides": [
+    {
+      "id": "s1",
+      "background": {"type": "image", "kenBurns": true,
+        "src": "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1800&q=70",
+        "overlay": "linear-gradient(90deg, rgba(26,24,23,.72) 0%, rgba(26,24,23,.15) 70%)"},
+      "duration": 6000,
+      "layers": [
+        {"id": "s1-kicker", "type": "text", "x": "8%", "y": "26%", "rotation": 0, "zIndex": 3,
+          "split": "none",
+          "animation": {"in": {"preset": "fadeIn", "delay": 0.15, "duration": 0.6},
+                        "out": {"preset": "fadeOut", "duration": 0.35}}},
+        {"id": "s1-headline", "type": "text", "x": "8%", "y": "32%", "rotation": 0, "zIndex": 3,
+          "split": "chars",
+          "animation": {"in": {"preset": "fadeUp", "delay": 0.3, "duration": 0.8, "stagger": 0.028},
+                        "loop": {"tracks": [{"attr": "y", "from": 0, "to": -10, "duration": 2.6,
+                                             "ease": "sine.inOut", "yoyo": true, "repeat": -1}]},
+                        "out": {"preset": "fadeUp-out", "duration": 0.4, "stagger": 0.01}}},
+        {"id": "s1-subline", "type": "text", "x": "8%", "y": "62%", "rotation": 0, "zIndex": 3,
+          "split": "words",
+          "animation": {"in": {"preset": "fadeUp", "delay": 0.85, "duration": 0.6, "stagger": 0.04},
+                        "out": {"preset": "fadeOut", "duration": 0.35}}},
+        {"id": "s1-btn", "type": "button", "x": "8%", "y": "76%", "rotation": 0, "zIndex": 3,
+          "split": "none",
+          "animation": {"in": {"preset": "zoomIn", "delay": 1.35, "duration": 0.55},
+                        "out": {"preset": "fadeOut", "duration": 0.3}}}
+      ]
+    },
+    {
+      "id": "s2",
+      "background": {"type": "color", "color": "#EDE9E0"},
+      "duration": 6000,
+      "layers": [
+        {"id": "s2-display", "type": "text", "x": "6%", "y": "14%", "rotation": -6, "zIndex": 2,
+          "split": "none",
+          "animation": {"in": {"preset": "slideLeft", "delay": 0.2, "duration": 0.8},
+                        "out": {"preset": "slideLeft-out", "duration": 0.4}}},
+        {"id": "s2-image", "type": "image", "x": "56%", "y": "18%", "widthPct": 34, "rotation": 0, "zIndex": 3,
+          "split": "none",
+          "animation": {"in": {"preset": "maskWipe", "delay": 0.55, "duration": 0.9},
+                        "out": {"preset": "fadeOut", "duration": 0.35}}},
+        {"id": "s2-shape", "type": "shape", "x": "0%", "y": "70%", "widthPct": 42, "rotation": 0, "zIndex": 1,
+          "split": "none",
+          "animation": {"in": {"tracks": [{"attr": "x", "from": "-100%", "to": "0%",
+                                           "delay": 0.35, "duration": 0.7, "ease": "power3.out"},
+                                          {"attr": "autoAlpha", "from": 0, "to": 1,
+                                           "delay": 0.35, "duration": 0.3, "ease": "none"}]},
+                        "out": {"tracks": [{"attr": "x", "from": "0%", "to": "-100%",
+                                            "duration": 0.45, "ease": "power2.in"}]}}},
+        {"id": "s2-caption", "type": "text", "x": "6%", "y": "78%", "rotation": 0, "zIndex": 3,
+          "split": "none",
+          "animation": {"in": {"preset": "fadeUp", "delay": 0.9, "duration": 0.6},
+                        "out": {"preset": "fadeOut", "duration": 0.3}}}
+      ]
+    },
+    {
+      "id": "s3",
+      "background": {"type": "video",
+        "src": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        "overlay": "rgba(26,24,23,.55)"},
+      "duration": 7000,
+      "layers": [
+        {"id": "s3-left", "type": "text", "x": "8%", "y": "36%", "rotation": 0, "zIndex": 3,
+          "split": "none",
+          "animation": {"in": {"preset": "slideRight", "delay": 0.25, "duration": 0.7},
+                        "out": {"preset": "slideRight-out", "duration": 0.4}}},
+        {"id": "s3-right", "type": "text", "x": "8%", "y": "52%", "rotation": 0, "zIndex": 3,
+          "split": "none",
+          "animation": {"in": {"preset": "slideLeft", "delay": 0.5, "duration": 0.7},
+                        "out": {"preset": "slideLeft-out", "duration": 0.4}}},
+        {"id": "s3-btn", "type": "button", "x": "8%", "y": "70%", "rotation": 0, "zIndex": 3,
+          "split": "none",
+          "animation": {"in": {"preset": "fadeUp", "delay": 0.95, "duration": 0.55},
+                        "out": {"preset": "fadeOut", "duration": 0.3}}}
+      ]
+    }
+  ]
+}
+</script>
+
+<!-- ════════════════════════ MARKUP — what Blade will emit ════════════════════════ -->
+<section class="sp-slider" id="demo-slider" aria-roledescription="carousel" aria-label="Featured stories" tabindex="0">
+  <div class="swiper">
+    <div class="swiper-wrapper">
+
+      <!-- Slide 1 : image bg + Ken Burns -->
+      <div class="swiper-slide sp-slide" data-slide-id="s1" role="group" aria-roledescription="slide" aria-label="slide 1 of 3">
+        <div class="sp-bg kenburns">
+          <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1800&q=70" alt="" fetchpriority="high">
+        </div>
+        <div class="sp-bg-overlay" style="background:linear-gradient(90deg, rgba(26,24,23,.72) 0%, rgba(26,24,23,.15) 70%)"></div>
+        <p class="sp-layer -kicker" data-layer-id="s1-kicker" data-animated
+           style="left:8%; top:26%; z-index:3; color:var(--vermilion)">Field notes — 01</p>
+        <h2 class="sp-layer -headline" data-layer-id="s1-headline" data-animated
+            style="left:8%; top:32%; z-index:3; color:var(--white)">Paper<br>&amp; Mountain</h2>
+        <p class="sp-layer -subline" data-layer-id="s1-subline" data-animated
+           style="left:8%; top:62%; z-index:3">Quiet valleys set in cold morning light — a study in
+           restraint, told at the pace of falling snow.</p>
+        <div class="sp-layer" data-layer-id="s1-btn" data-animated style="left:8%; top:76%; z-index:3">
+          <a class="sp-btn" href="#read">Read the story</a>
+        </div>
+      </div>
+
+      <!-- Slide 2 : solid color bg, rotated display text, maskWipe image, shape -->
+      <div class="swiper-slide sp-slide" data-slide-id="s2" role="group" aria-roledescription="slide" aria-label="slide 2 of 3">
+        <div class="sp-bg" style="background:#EDE9E0"></div>
+        <h2 class="sp-layer -display" data-layer-id="s2-display" data-animated
+            style="left:6%; top:14%; z-index:2; transform:rotate(-6deg)">Uncoated<br>Stock</h2>
+        <figure class="sp-layer sp-imglayer" data-layer-id="s2-image" data-animated
+                style="left:56%; top:18%; width:34%; height:56%; z-index:3">
+          <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=70" alt="Night ridge under stars" loading="lazy">
+        </figure>
+        <div class="sp-layer sp-shape" data-layer-id="s2-shape" data-animated
+             style="left:0; top:70%; width:42%; height:10%; z-index:1"></div>
+        <p class="sp-layer -subline" data-layer-id="s2-caption" data-animated
+           style="left:6%; top:78%; z-index:3; color:var(--ink)">Texture over gloss. Ink over pixels.</p>
+      </div>
+
+      <!-- Slide 3 : video bg -->
+      <div class="swiper-slide sp-slide" data-slide-id="s3" role="group" aria-roledescription="slide" aria-label="slide 3 of 3">
+        <div class="sp-bg">
+          <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                 muted autoplay loop playsinline preload="none" aria-hidden="true"></video>
+        </div>
+        <div class="sp-bg-overlay" style="background:rgba(26,24,23,.55)"></div>
+        <h2 class="sp-layer -headline" data-layer-id="s3-left" data-animated
+            style="left:8%; top:36%; z-index:3; color:var(--white)">Motion,</h2>
+        <h2 class="sp-layer -headline" data-layer-id="s3-right" data-animated
+            style="left:8%; top:52%; z-index:3; color:var(--vermilion)">measured.</h2>
+        <div class="sp-layer" data-layer-id="s3-btn" data-animated style="left:8%; top:70%; z-index:3">
+          <a class="sp-btn" href="#work">See the work</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- UI chrome -->
+  <div class="sp-ui">
+    <div class="sp-progress" aria-hidden="true"><b id="sp-progress-bar"></b></div>
+    <button class="sp-arrow -prev" type="button" aria-label="Previous slide">←</button>
+    <button class="sp-arrow -next" type="button" aria-label="Next slide">→</button>
+    <div class="sp-bullets" role="tablist" aria-label="Choose slide"></div>
+    <div class="sp-counter" aria-live="polite"><span id="sp-counter-current">1</span> / <span id="sp-counter-total">3</span></div>
+    <button class="sp-pause" type="button" aria-pressed="false" aria-label="Pause autoplay">Pause</button>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script>
+/* ═════════════════════════ MOTION RUNTIME (spec-critical) ═════════════════════════ */
+(function () {
+  'use strict';
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const config  = JSON.parse(document.getElementById('slider-config').textContent);
+  const root    = document.getElementById(config.id);
+
+  /* ── Presets: single source of truth (mirrored in SPEC NOTES) ── */
+  const PRESETS = {
+    'fadeUp'        : { from: { y: 60,  autoAlpha: 0 }, to: { y: 0, autoAlpha: 1 }, ease: 'power3.out' },
+    'fadeUp-out'    : { from: { y: 0,   autoAlpha: 1 }, to: { y: -40, autoAlpha: 0 }, ease: 'power2.in' },
+    'fadeIn'        : { from: { autoAlpha: 0 },         to: { autoAlpha: 1 },         ease: 'power2.out' },
+    'fadeOut'       : { from: { autoAlpha: 1 },         to: { autoAlpha: 0 },         ease: 'power2.in' },
+    'slideLeft'     : { from: { x: -80, autoAlpha: 0 }, to: { x: 0, autoAlpha: 1 },   ease: 'power3.out' },
+    'slideLeft-out' : { from: { x: 0,   autoAlpha: 1 }, to: { x: -80, autoAlpha: 0 }, ease: 'power2.in' },
+    'slideRight'    : { from: { x: 80,  autoAlpha: 0 }, to: { x: 0, autoAlpha: 1 },   ease: 'power3.out' },
+    'slideRight-out': { from: { x: 0,   autoAlpha: 1 }, to: { x: 80, autoAlpha: 0 },  ease: 'power2.in' },
+    'zoomIn'        : { from: { scale: 0.6, autoAlpha: 0 }, to: { scale: 1, autoAlpha: 1 }, ease: 'back.out(1.6)' },
+    'maskWipe'      : { from: { clipPath: 'inset(0 100% 0 0)', autoAlpha: 1 },
+                        to:   { clipPath: 'inset(0 0% 0 0)',   autoAlpha: 1 }, ease: 'power3.inOut' }
+  };
+  const OUT_FALLBACK = 'fadeOut';
+
+  /* ── split(el, mode): custom SplitText replacement (~40 lines) ── */
+  function split(el, mode) {
+    if (!mode || mode === 'none') return [el];
+    if (el._splitDone) return el._splitTargets;
+    const wrap = (txt, cls) => `<span class="${cls}">${txt}</span>`;
+    const process = node => {
+      // snapshot first: replacing children mutates the live NodeList mid-iteration
+      Array.from(node.childNodes).forEach(child => {
+        if (child.nodeType === 3) {
+          const frag = document.createElement('span');
+          const tokens = mode === 'chars'
+            ? Array.from(child.textContent)
+            : child.textContent.split(/(\s+)/);
+          frag.innerHTML = tokens
+            .map(t => /^\s+$/.test(t) ? t : wrap(t, mode === 'chars' ? 'sp-char' : 'sp-word'))
+            .join('');
+          child.replaceWith(...frag.childNodes);
+        } else if (child.nodeType === 1 && child.tagName !== 'BR') {
+          process(child);
+        }
+      });
+    };
+    process(el);
+    let targets = Array.from(el.querySelectorAll(mode === 'chars' ? '.sp-char' : '.sp-word'));
+    if (mode === 'lines') {
+      // group words by rendered line, then wrap each line
+      targets = Array.from(el.querySelectorAll('.sp-word'));
+      const lines = new Map();
+      targets.forEach(w => {
+        const top = w.offsetTop;
+        if (!lines.has(top)) lines.set(top, []);
+        lines.get(top).push(w);
+      });
+      targets = Array.from(lines.values()).map(words => {
+        const line = document.createElement('span');
+        line.className = 'sp-line';
+        words[0].before(line);
+        words.forEach(w => line.appendChild(w));
+        return line;
+      });
+    }
+    el._splitDone = true;
+    el._splitTargets = targets;
+    return targets;
+  }
+
+  /* ── Layer helpers ── */
+  const slideEls   = Array.from(root.querySelectorAll('.sp-slide'));
+  const slideConf  = id => config.slides.find(s => s.id === id);
+  const layerEl    = (slideEl, id) => slideEl.querySelector(`[data-layer-id="${id}"]`);
+  const baseRotation = el => {
+    const m = (el.getAttribute('style') || '').match(/rotate\((-?[\d.]+)deg\)/);
+    return m ? parseFloat(m[1]) : 0;
+  };
+
+  function targetsFor(slideEl, layer) {
+    const el = layerEl(slideEl, layer.id);
+    if (!el) return { el: null, targets: [] };
+    return { el, targets: split(el, layer.split) };
+  }
+
+  /* Reset every layer of a slide to its authored FINAL state (kills tweens first). */
+  function applyFinalState(slideEl) {
+    const conf = slideConf(slideEl.dataset.slideId);
+    if (!conf) return;
+    killLoops(slideEl);
+    conf.layers.forEach(layer => {
+      const { el, targets } = targetsFor(slideEl, layer);
+      if (!el) return;
+      gsap.killTweensOf([el, ...targets]);
+      gsap.set([el, ...targets], { clearProps: 'x,y,scale,opacity,visibility,clipPath' });
+      gsap.set(el, { rotation: baseRotation(el), autoAlpha: 1 });
+    });
+  }
+
+  function killLoops(slideEl) {
+    (slideEl._loopTweens || []).forEach(t => t.kill());
+    slideEl._loopTweens = [];
+  }
+
+  function startLoops(slideEl) {
+    const conf = slideConf(slideEl.dataset.slideId);
+    killLoops(slideEl);
+    conf.layers.forEach(layer => {
+      const loop = layer.animation && layer.animation.loop;
+      if (!loop || !loop.tracks) return;
+      const { el } = targetsFor(slideEl, layer);
+      if (!el) return;
+      loop.tracks.forEach(tr => {
+        slideEl._loopTweens.push(gsap.to(el, {
+          [tr.attr]: tr.to, duration: tr.duration, ease: tr.ease || 'sine.inOut',
+          yoyo: tr.yoyo !== false, repeat: tr.repeat != null ? tr.repeat : -1
+        }));
+      });
+    });
+  }
+
+  /* ── buildSlideTimeline(slideEl, slideConfig, phase) -> PAUSED gsap.timeline ── */
+  function buildSlideTimeline(slideEl, conf, phase) {
+    const tl = gsap.timeline({ paused: true });
+    conf.layers.forEach(layer => {
+      const scene = layer.animation && layer.animation[phase];
+      const { el, targets } = targetsFor(slideEl, layer);
+      if (!el) return;
+      const animTargets = targets.length > 1 ? targets : [el];
+
+      if (!scene) {
+        // Layers without a scene: IN = appear instantly; OUT = fast fade so nothing lingers
+        if (phase === 'in') tl.set(el, { autoAlpha: 1 }, 0);
+        else tl.to(el, { autoAlpha: 0, duration: 0.25, ease: 'power1.in' }, 0);
+        return;
+      }
+      const stagger = scene.stagger || 0;
+      if (scene.preset) {
+        const p = PRESETS[scene.preset] || PRESETS[phase === 'out' ? OUT_FALLBACK : 'fadeIn'];
+        // container stays visible; from-states land on the animated targets
+        if (targets.length > 1 && phase === 'in') tl.set(el, { autoAlpha: 1 }, 0);
+        tl.fromTo(animTargets, { ...p.from }, {
+          ...p.to, duration: scene.duration || 0.6, ease: p.ease,
+          stagger, immediateRender: phase === 'in'
+        }, scene.delay || 0);
+      }
+      (scene.tracks || []).forEach(tr => {
+        tl.fromTo(el, { [tr.attr]: tr.from }, {
+          [tr.attr]: tr.to, duration: tr.duration || 0.6,
+          ease: tr.ease || 'power2.out', immediateRender: phase === 'in'
+        }, tr.delay || 0);
+      });
+    });
+    return tl;
+  }
+
+  /* ── SliderController: Swiper <-> GSAP contract, incl. the fast-swipe kill/reset rule ── */
+  function playPhase(slideEl, phase) {
+    // KILL/RESET RULE: any mid-flight timeline dies here; layers jump to a clean state.
+    if (slideEl._activeTl) { slideEl._activeTl.kill(); slideEl._activeTl = null; }
+    applyFinalState(slideEl);
+
+    if (REDUCED) return; // reduced motion: final state only, no timelines
+
+    const conf = slideConf(slideEl.dataset.slideId);
+    const tl = buildSlideTimeline(slideEl, conf, phase);
+    slideEl._activeTl = tl;
+    if (phase === 'out') tl.timeScale(2.5);           // OUT plays fast (~0.4x duration)
+    tl.eventCallback('onComplete', () => {
+      slideEl._activeTl = null;
+      if (phase === 'in') startLoops(slideEl);
+    });
+    tl.play();
+  }
+
+  function pauseMedia(slideEl) {
+    slideEl.querySelectorAll('audio').forEach(a => a.pause());
+  }
+
+  /* arm: apply from-state visibility handling, then reveal */
+  root.setAttribute('data-armed', '1');
+
+  const bulletsWrap = root.querySelector('.sp-bullets');
+  const counterCur  = document.getElementById('sp-counter-current');
+  document.getElementById('sp-counter-total').textContent = String(config.slides.length);
+  const progressBar = document.getElementById('sp-progress-bar');
+
+  config.slides.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'sp-bullet'; b.type = 'button'; b.role = 'tab';
+    b.setAttribute('aria-label', `Go to slide ${i + 1}`);
+    if (i === 0) b.setAttribute('aria-current', 'true');
+    bulletsWrap.appendChild(b);
+  });
+  const bullets = Array.from(bulletsWrap.children);
+
+  const swiper = new Swiper(root.querySelector('.swiper'), {
+    effect: config.swiper.effect, speed: REDUCED ? 250 : config.swiper.speed,
+    loop: config.swiper.loop,
+    autoplay: config.swiper.autoplay ? { delay: config.swiper.autoplayDelay, disableOnInteraction: false } : false,
+    keyboard: { enabled: config.swiper.keyboard },
+    on: {
+      init(sw) {
+        const active = slideEls.length ? sw.slides[sw.activeIndex] : null;
+        if (active) playPhase(active, 'in');
+      },
+      slideChangeTransitionStart(sw) {
+        const prev = sw.slides[sw.previousIndex];
+        const next = sw.slides[sw.activeIndex];
+        if (prev && prev !== next) { pauseMedia(prev); playPhase(prev, 'out'); }
+        if (next) playPhase(next, 'in');
+        const realIndex = sw.realIndex != null ? sw.realIndex : sw.activeIndex;
+        counterCur.textContent = String(realIndex + 1);
+        bullets.forEach((b, i) => b.toggleAttribute('aria-current', i === realIndex) ||
+          b.setAttribute('aria-current', i === realIndex ? 'true' : 'false'));
+        bullets.forEach((b, i) => i === realIndex ? b.setAttribute('aria-current','true') : b.removeAttribute('aria-current'));
+      },
+      autoplayTimeLeft(sw, time, progress) {
+        progressBar.style.transform = `scaleX(${1 - progress})`;
+      }
+    }
+  });
+
+  root.querySelector('.sp-arrow.-next').addEventListener('click', () => swiper.slideNext());
+  root.querySelector('.sp-arrow.-prev').addEventListener('click', () => swiper.slidePrev());
+  bullets.forEach((b, i) => b.addEventListener('click', () => swiper.slideToLoop(i)));
+
+  /* pause on hover */
+  if (config.swiper.pauseOnHover && config.swiper.autoplay) {
+    root.addEventListener('mouseenter', () => swiper.autoplay.stop());
+    root.addEventListener('mouseleave', () => { if (!pauseBtnPressed) swiper.autoplay.start(); });
+  }
+
+  /* pause button */
+  let pauseBtnPressed = false;
+  const pauseBtn = root.querySelector('.sp-pause');
+  pauseBtn.addEventListener('click', () => {
+    pauseBtnPressed = !pauseBtnPressed;
+    pauseBtn.setAttribute('aria-pressed', String(pauseBtnPressed));
+    pauseBtn.textContent = pauseBtnPressed ? 'Play' : 'Pause';
+    pauseBtn.setAttribute('aria-label', pauseBtnPressed ? 'Resume autoplay' : 'Pause autoplay');
+    pauseBtnPressed ? swiper.autoplay.stop() : swiper.autoplay.start();
+  });
+
+  /* expose for the Playwright acceptance run */
+  window.__slider = { swiper, buildSlideTimeline, split, applyFinalState, config };
+})();
+</script>
+
+<!-- ═════════════════════════════════ SPEC NOTES ═════════════════════════════════
+
+1. CONFIG JSON SHAPE (CMS block-schema preview)
+
+   slider:  { id, height:{desktop,tablet,mobile},
+              swiper:{effect,speed,loop,autoplay,autoplayDelay,navigation,pagination,
+                      keyboard,pauseOnHover},
+              slides:[slide] }
+   slide:   { id, background:{type:image|video|color, src|color, overlay?, kenBurns?},
+              duration, layers:[layer] }
+   layer:   { id, type:text|image|button|shape|video|group,
+              x, y, rotation, zIndex, widthPct?,
+              split:"none|chars|words|lines",
+              animation:{ in:  {preset,delay,duration,stagger} | {tracks:[track]},
+                          loop?:{tracks:[track]},       // starts after IN, killed on OUT
+                          out: {preset,duration,stagger} | {tracks:[track]} } }
+   track:   { attr, from, to, delay?, duration, ease, yoyo?, repeat? }
+
+   Markup contract: layers are PRE-RENDERED (Blade) with data-layer-id hooks and their
+   FINAL state authored in CSS/inline styles. The runtime maps config->DOM by id and
+   applies from-states only when a timeline plays. This is what makes no-JS and
+   reduced-motion trivially correct.
+
+2. SWIPER <-> GSAP EVENT CONTRACT
+
+   - on init:                       playPhase(activeSlide, "in")
+   - on slideChangeTransitionStart: playPhase(outgoingSlide, "out")  [timeScale 2.5 ≈ 0.4x]
+                                    playPhase(incomingSlide, "in")
+                                    pause any <audio> in the outgoing slide
+   - loop tweens: started ONLY by IN's onComplete; stored per-slide; killed by the next
+     playPhase on that slide (whatever the phase).
+
+   KILL/RESET RULE (fast swiping): playPhase ALWAYS begins with
+       activeTl.kill()  ->  applyFinalState(slide)
+   where applyFinalState kills every layer/target tween, clears animated props
+   (x,y,scale,opacity,visibility,clipPath), and re-asserts base rotation. Therefore a
+   timeline can be interrupted at ANY point and the slide lands in a clean, complete
+   state before the next timeline starts. No orphaned tweens, no half-visible layers.
+
+3. PRESETS (from -> to, ease)
+
+   fadeUp         {y:60, autoAlpha:0}            -> {y:0, autoAlpha:1}          power3.out
+   fadeUp-out     {y:0, autoAlpha:1}             -> {y:-40, autoAlpha:0}        power2.in
+   fadeIn         {autoAlpha:0}                  -> {autoAlpha:1}               power2.out
+   fadeOut        {autoAlpha:1}                  -> {autoAlpha:0}               power2.in
+   slideLeft      {x:-80, autoAlpha:0}           -> {x:0, autoAlpha:1}          power3.out
+   slideLeft-out  {x:0, autoAlpha:1}             -> {x:-80, autoAlpha:0}        power2.in
+   slideRight     {x:80, autoAlpha:0}            -> {x:0, autoAlpha:1}          power3.out
+   slideRight-out {x:0, autoAlpha:1}             -> {x:80, autoAlpha:0}         power2.in
+   zoomIn         {scale:.6, autoAlpha:0}        -> {scale:1, autoAlpha:1}      back.out(1.6)
+   maskWipe       {clipPath:inset(0 100% 0 0)}   -> {clipPath:inset(0 0% 0 0)}  power3.inOut
+
+   Scenes lacking an OUT preset fall back to fadeOut (0.25s) so nothing lingers.
+   Split staggers: chars 0.028s, words 0.04s (defaults used in this file).
+
+4. ACCESSIBILITY / RESILIENCE
+   - aria-roledescription="carousel"; slides carry role=group + "slide X of N".
+   - Pause button (aria-pressed) whenever autoplay is on; keyboard arrows via Swiper.
+   - prefers-reduced-motion: no timelines; slides land at final CSS state; crossfade speed 250ms.
+   - .no-js: slide 1 visible/readable, UI chrome hidden. JS swaps html.no-js -> html.js.
+   - .js hides [data-animated] layers ONLY until the runtime arms (data-armed on root),
+     so a JS failure after CSS load cannot blank the slider.
+-->
+</body>
+</html>
