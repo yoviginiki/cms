@@ -31,6 +31,11 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="REDIS_ENABLED" value="false"/>
+        <!-- Deploy-path isolation: without these, tests inherit .env's LIVE
+             docroot paths and publish-touching tests write into production
+             web roots (observed: factory-slug dirs under public_html). -->
+        <env name="PUBLISH_PATH" value="storage/framework/testing/publish"/>
+        <env name="TENANT_BASE_PATH" value="storage/framework/testing/tenants"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

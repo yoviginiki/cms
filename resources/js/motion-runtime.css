@@ -56,6 +56,10 @@
 .sp-pause:hover{background:var(--sp-accent);border-color:var(--sp-accent);}
 .sp-slider:focus-visible,.sp-arrow:focus-visible,.sp-bullet:focus-visible,.sp-pause:focus-visible{
   outline:2px solid var(--sp-accent);outline-offset:2px;}
+/* S10: interactive LAYERS mirror the chrome's focus treatment; pointer cursor */
+.sp-layer a:focus-visible,.sp-layer button:focus-visible{
+  outline:2px solid var(--color-primary,#E63B2E);outline-offset:2px;}
+.sp-layer a,.sp-layer button{cursor:pointer;}
 
 @media (prefers-reduced-motion:reduce){
   .sp-slider[data-armed] .sp-kenburns img{animation:none;}

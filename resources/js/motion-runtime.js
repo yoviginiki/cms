@@ -188,9 +188,11 @@
     this.playPhase = playPhase;
     this.applyFinalState = applyFinalState;
 
-    /* Audio layers: never autoplay; always pause when their slide leaves */
-    function pauseMedia(slideEl) {
-      slideEl.querySelectorAll('audio').forEach(function (a) { a.pause(); });
+    /* Audio layers: never autoplay; ANY slide change pauses ALL audio in the
+       slider (Swiper's loop mode reorders slides, so pausing only the
+       outgoing slide's element can miss the one actually playing) */
+    function pauseMedia() {
+      rootEl.querySelectorAll('audio').forEach(function (a) { a.pause(); });
     }
 
     rootEl.setAttribute('data-armed', '1');
@@ -214,7 +216,8 @@
         slideChangeTransitionStart: function (s) {
           var prev = s.slides[s.previousIndex];
           var next = s.slides[s.activeIndex];
-          if (prev && prev !== next) { pauseMedia(prev); playPhase(prev, 'out'); }
+          pauseMedia();
+          if (prev && prev !== next) { playPhase(prev, 'out'); }
           if (next) playPhase(next, 'in');
           var realIndex = s.realIndex != null ? s.realIndex : s.activeIndex;
           if (counterCur) counterCur.textContent = String(realIndex + 1);
