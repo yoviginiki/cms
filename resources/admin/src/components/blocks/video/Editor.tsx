@@ -7,6 +7,7 @@ import { AssetField } from '@/components/ui/AssetPicker';
 export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as {
     url: string; autoplay: boolean; muted: boolean; loop: boolean; poster: string;
+    controls?: boolean; playsinline?: boolean; preload?: string;
     heroMode: boolean; shape: string; shapeRadius: string; minHeight: string;
     overlay: boolean; overlayColor: string; overlayOpacity: number;
     preTitle: string; title: string; subtitle: string; textColor: string;
