@@ -40,6 +40,7 @@ export default function SiteSettings() {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('');
   const [autoPublish, setAutoPublish] = useState(true);
+  const [autoRepublishStale, setAutoRepublishStale] = useState(false);
 
   // Branding
   const [logoUrl, setLogoUrl] = useState('');
@@ -139,6 +140,7 @@ export default function SiteSettings() {
       setName(site.name);
       setStatus(site.status);
       setAutoPublish((site.settings?.auto_publish as boolean) ?? true);
+      setAutoRepublishStale((site.settings?.auto_republish_stale as boolean) ?? false);
       setLogoUrl((site.settings?.logo_url as string) ?? '');
       setTagline((site.settings?.tagline as string) ?? '');
       setFooterText((site.settings?.footer_text as string) ?? '');
@@ -207,7 +209,7 @@ export default function SiteSettings() {
   const saveGeneral = () => updateMutation.mutate({
     name,
     status,
-    settings: { ...(site?.settings || {}), auto_publish: autoPublish },
+    settings: { ...(site?.settings || {}), auto_publish: autoPublish, auto_republish_stale: autoRepublishStale },
   });
 
   const saveBranding = () => updateMutation.mutate({
@@ -409,6 +411,18 @@ export default function SiteSettings() {
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoPublish ? 'bg-blue-600' : 'bg-gray-300'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${autoPublish ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Auto-republish stale pages</p>
+                <p className="text-xs text-gray-500 mt-0.5">When a shared entity changes (slider, menu, asset), automatically rebuild and promote the affected pages — no manual review. Only relevant when Auto-publish is off. Each republished page is logged.</p>
+              </div>
+              <button
+                onClick={() => setAutoRepublishStale(!autoRepublishStale)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoRepublishStale ? 'bg-blue-600' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${autoRepublishStale ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
             <div className="pt-4 border-t border-gray-100">

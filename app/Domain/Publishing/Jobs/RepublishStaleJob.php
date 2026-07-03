@@ -113,6 +113,12 @@ class RepublishStaleJob implements ShouldQueue
                     'pages_total' => count($built) + count($failed),
                 ]),
             ]);
+
+            // Auto-republish (Phase 4.1b): the entity publish click was the
+            // confirmation — promote immediately, log every page
+            if (($deployment->metadata['auto_promote'] ?? false) === true && $built !== []) {
+                $this->autoPromote($deployment, $site, $stagingPath, $built);
+            }
         } catch (\Throwable $e) {
             $deployment->update([
                 'status' => 'failed',
@@ -121,6 +127,50 @@ class RepublishStaleJob implements ShouldQueue
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Promote a staged auto batch to live: per-file merge, clear flags only
+     * for built sources, one visible activity-log entry per page.
+     * A promote failure leaves the batch at 'staged' for the manual flow.
+     */
+    private function autoPromote(Deployment $deployment, $site, string $stagingPath, array $built): void
+    {
+        try {
+            app(\App\Domain\Publishing\Services\DeployService::class)
+                ->deployPartial($deployment, $stagingPath);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning(
+                "Auto-republish promote failed for site {$site->id}: {$e->getMessage()} — batch left staged for manual promotion."
+            );
+
+            return;
+        }
+
+        $builtPageIds = array_column(array_filter($built, fn ($b) => $b['type'] === 'page'), 'id');
+        $builtPostIds = array_column(array_filter($built, fn ($b) => $b['type'] === 'post'), 'id');
+        if ($builtPageIds !== []) {
+            Page::whereIn('id', $builtPageIds)->update(['needs_republish' => false, 'needs_republish_reason' => null]);
+        }
+        if ($builtPostIds !== []) {
+            Post::whereIn('id', $builtPostIds)->update(['needs_republish' => false, 'needs_republish_reason' => null]);
+        }
+
+        $log = app(\App\Services\ActivityLogService::class);
+        $reason = $deployment->metadata['reason'] ?? 'stale content';
+        foreach ($built as $item) {
+            $log->log('page.auto_republished', $site->id, $item['type'], $item['id'], [
+                'title' => $item['title'],
+                'reason' => $reason,
+                'deployment_id' => $deployment->id,
+            ]);
+        }
+
+        $deployment->update([
+            'status' => 'live',
+            'completed_at' => now(),
+            'metadata' => array_merge($deployment->fresh()->metadata ?? [], ['current_step' => 'live']),
+        ]);
     }
 
     private function resolveDeployTarget($site): string

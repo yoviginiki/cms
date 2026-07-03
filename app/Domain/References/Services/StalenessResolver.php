@@ -88,6 +88,9 @@ class StalenessResolver
         if ($siteWide) {
             $this->markSiteStale($site, $reason);
         }
+        if ($pageIds !== [] || $postIds !== []) {
+            $this->maybeAutoRepublish($site, $reason);
+        }
 
         return ['pages' => count($pageIds), 'posts' => count($postIds), 'site_wide' => $siteWide];
     }
@@ -116,8 +119,24 @@ class StalenessResolver
 
         $this->flagPages($pageIds, $reason);
         $this->flagPosts($postIds, $reason);
+        if ($pageIds !== [] || $postIds !== []) {
+            $this->maybeAutoRepublish($site, $reason);
+        }
 
         return ['pages' => count($pageIds), 'posts' => count($postIds)];
+    }
+
+    /**
+     * Auto-republish toggle (default OFF): every staleness source — current
+     * and future (slider publish) — funnels through here for free.
+     */
+    private function maybeAutoRepublish(Site $site, string $reason): void
+    {
+        try {
+            app(StaleAutoRepublisher::class)->maybeQueue($site, $reason);
+        } catch (\Throwable $e) {
+            Log::warning("Auto-republish queue failed for site {$site->id}: {$e->getMessage()}");
+        }
     }
 
     /**
