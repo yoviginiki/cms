@@ -35,7 +35,7 @@ class FieldMapExtractor implements ReferenceExtractor
         $edges = [];
 
         foreach ($this->idFields as $field => [$targetType, $kind]) {
-            $value = $data[$field] ?? null;
+            $value = data_get($data, $field); // dot paths allowed (e.g. background.assetId)
             if (is_string($value) && Str::isUuid($value)) {
                 $edges[] = ['target_type' => $targetType, 'target_id' => strtolower($value), 'kind' => $kind];
             }

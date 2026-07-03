@@ -4,8 +4,11 @@
 - Version: 3.15.0
 - License: Standard "No Charge" License (https://gsap.com/standard-license)
 - NOT MIT — free for commercial use but not open source
-- Used for: Experience Mode panel-to-panel snap navigation (Observer + ScrollTrigger)
-- Bundled in: public/assets/experience/experience-runtime.js (only on cinematic pages)
+- Used for: Experience Mode panel-to-panel snap navigation (Observer + ScrollTrigger);
+  Slider block scene timelines (GSAP CORE ONLY — no SplitText or other paid plugins;
+  text splitting uses a custom split() helper in resources/js/motion-runtime.js)
+- Bundled in: public/assets/experience/experience-runtime.js (only on cinematic pages);
+  loaded via CDN alongside the hashed motion-runtime file on pages embedding a slider
 
 ## Other Libraries (MIT)
 - Swiper — MIT License — image carousels

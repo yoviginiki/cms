@@ -98,6 +98,10 @@ use App\Domain\Blocks\Definitions\PostNavigationBlockDefinition;
 use App\Domain\Blocks\Definitions\PostLoopBlockDefinition;
 use App\Domain\Blocks\Definitions\CategoryHeaderBlockDefinition;
 use App\Domain\Blocks\Definitions\ArchivePaginationBlockDefinition;
+use App\Domain\Blocks\Definitions\SliderBlockDefinition;
+use App\Domain\Blocks\Definitions\SlideBlockDefinition;
+use App\Domain\Blocks\Definitions\SliderRefBlockDefinition;
+use App\Domain\Blocks\Definitions\ShapeBlockDefinition;
 use App\Domain\Blocks\Services\BlockRegistry;
 use App\Domain\Hooks\HookDispatcher;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -200,6 +204,12 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new CategoryHeaderBlockDefinition());
             $registry->register(new ArchivePaginationBlockDefinition());
 
+            // Slider system (library entity root + slide + page-side ref + shape primitive)
+            $registry->register(new SliderBlockDefinition());
+            $registry->register(new SlideBlockDefinition());
+            $registry->register(new SliderRefBlockDefinition());
+            $registry->register(new ShapeBlockDefinition());
+
             return $registry;
         });
     }
@@ -235,6 +245,7 @@ class AppServiceProvider extends ServiceProvider
             'page' => Page::class,
             'post' => Post::class,
             'template' => ThemeTemplate::class,
+            'slider' => \App\Models\Slider::class,
         ]);
 
         // Explicit route model bindings for non-standard model locations

@@ -45,6 +45,11 @@
     $height = $data['height'] ?? null;
     $variants = $data['variants'] ?? [];
     $isFirst = $data['_is_first_image'] ?? false;
+    // object-fit/position (allowlist re-check on output)
+    $objectFit = in_array($data['objectFit'] ?? '', ['cover','contain','fill','scale-down','none']) ? $data['objectFit'] : '';
+    $objectPosition = in_array($data['objectPosition'] ?? '', ['top','bottom','left','right','left top','right top','left bottom','right bottom','center']) ? $data['objectPosition'] : '';
+    $fitStyle = ($objectFit ? "object-fit:{$objectFit};" : '') . ($objectPosition ? "object-position:{$objectPosition};" : '');
+    $imgStyle = trim($fitStyle . ($__imageFilter ?: ''));
 @endphp
 <figure class="image-block"@if($size !== 'full') style="max-width: {{ $maxWidth }};"@endif>
     @if(!empty($url))
@@ -60,7 +65,7 @@
                     @if($height)height="{{ $height }}"@endif
                     loading="{{ $isFirst ? 'eager' : 'lazy' }}"
                     decoding="async"
-                    @if($__imageFilter)style="{{ $__imageFilter }}"@endif
+                    @if($imgStyle)style="{{ $imgStyle }}"@endif
                 >
             </picture>
         @else
@@ -72,7 +77,7 @@
                 @if($height)height="{{ $height }}"@endif
                 loading="{{ $isFirst ? 'eager' : 'lazy' }}"
                 decoding="async"
-                @if($__imageFilter)style="{{ $__imageFilter }}"@endif
+                @if($imgStyle)style="{{ $imgStyle }}"@endif
             >
         @endif
     @endif

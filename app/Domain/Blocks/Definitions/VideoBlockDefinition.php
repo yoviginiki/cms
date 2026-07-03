@@ -14,6 +14,9 @@ class VideoBlockDefinition implements BlockDefinition
             'autoplay' => ['sometimes', 'boolean'],
             'muted' => ['sometimes', 'boolean'],
             'loop' => ['sometimes', 'boolean'],
+            'controls' => ['sometimes', 'boolean'],
+            'playsinline' => ['sometimes', 'boolean'],
+            'preload' => ['sometimes', 'in:none,metadata,auto'],
             'poster' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'heroMode' => ['sometimes', 'boolean'],
             'shape' => ['sometimes', 'in:none,capsule,circle,rounded,custom'],
@@ -26,7 +29,7 @@ class VideoBlockDefinition implements BlockDefinition
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'subtitle' => ['sometimes', 'nullable', 'string', 'max:500'],
             'textColor' => ['sometimes', 'nullable', 'string', 'max:50'],
-        ];
+        ] + \App\Support\Blocks\SliderAnimation::validationRules();
     }
 
     public function sanitizationConfig(): array

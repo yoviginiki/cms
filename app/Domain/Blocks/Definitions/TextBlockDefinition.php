@@ -18,7 +18,7 @@ class TextBlockDefinition implements BlockDefinition
             'fontStyle'     => ['sometimes', 'nullable', 'in:,italic'],
             'lineHeight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em|%)?$/'],
             'letterSpacing' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em)$/'],
-        ];
+        ] + \App\Support\Blocks\SliderAnimation::validationRules();
     }
 
     public function sanitizationConfig(): array

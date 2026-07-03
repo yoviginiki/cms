@@ -41,6 +41,8 @@ import './imagecaption';
 import './fullbleed';
 import './gallery';
 import './beforeafter';
+import './slider_ref';
+import './shape';
 import './audio';
 import './icon';
 import './logostrip';

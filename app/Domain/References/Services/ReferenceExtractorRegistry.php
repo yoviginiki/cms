@@ -23,6 +23,20 @@ class ReferenceExtractorRegistry
         $null = new NullExtractor();
 
         $this->map = [
+            // ── Slider system ──────────────────────────────────────────────
+            // page → slider embed (the edge that drives stale-page republish)
+            'slider_ref' => new FieldMapExtractor(
+                idFields: ['sliderId' => ['slider', 'embeds']],
+            ),
+            // slide backgrounds carry assets; the slider ENTITY is the source
+            // of these edges (recomputed when its block tree is saved)
+            'slide' => new FieldMapExtractor(
+                idFields: ['background.assetId' => ['asset', 'uses_asset']],
+                urlFields: ['background.src'],
+            ),
+            'slider' => $null, // root config only (height/swiper) — no references
+            'shape' => $null,
+
             // ── Entity-ID + URL bearing blocks ─────────────────────────────
             'image' => new FieldMapExtractor(
                 idFields: ['asset_id' => ['asset', 'uses_asset']],

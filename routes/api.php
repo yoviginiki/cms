@@ -190,6 +190,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // Entity references ("used on N pages")
         Route::get('sites/{site}/references/usage', [\App\Http\Controllers\Api\V1\ReferenceController::class, 'usage']);
 
+        // Slider library entities
+        Route::apiResource('sites.sliders', \App\Http\Controllers\Api\V1\SliderController::class);
+        Route::put('sites/{site}/sliders/{slider}/blocks', [\App\Http\Controllers\Api\V1\SliderController::class, 'syncBlocks']);
+        Route::post('sites/{site}/sliders/{slider}/publish', [\App\Http\Controllers\Api\V1\SliderController::class, 'publish']);
+        Route::post('sites/{site}/sliders/{slider}/duplicate', [\App\Http\Controllers\Api\V1\SliderController::class, 'duplicate']);
+
         // Stale content: list, staged batch republish, human-confirmed promote
         Route::get('sites/{site}/stale', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'index']);
         Route::post('sites/{site}/stale/republish', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'republish']);

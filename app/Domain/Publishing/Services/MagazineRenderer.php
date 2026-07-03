@@ -121,7 +121,9 @@ class MagazineRenderer
                 $inset = $data['textInset'] ?? ['top' => 8, 'right' => 8, 'bottom' => 8, 'left' => 8];
                 $colStyle = $cols > 1 ? "column-count:{$cols};column-gap:{$colGap}pt;" : '';
                 $padStyle = "padding:{$inset['top']}pt {$inset['right']}pt {$inset['bottom']}pt {$inset['left']}pt;";
-                $rawHtml = strip_tags($data['content'] ?? '', '<p><br><b><i><u><em><strong><span><a><h1><h2><h3><h4><h5><h6><ul><ol><li><blockquote><sub><sup><hr><div><img>');
+                // S8: HTMLPurifier (shared block profile) instead of bare
+                // strip_tags — attributes like onclick / javascript: died here
+                $rawHtml = app(SanitizationService::class)->purifyRich($data['content'] ?? '');
                 $content = '<div style="' . $textStyle . $colStyle . $padStyle . 'width:100%;height:100%;overflow:hidden;">' . $rawHtml . '</div>';
                 break;
 

@@ -1,11 +1,26 @@
 import { useState } from 'react';
-import type { TypographyProps } from '@/types/blocks';
+import { Monitor, Tablet, Smartphone, RotateCcw } from 'lucide-react';
+import type { TypographyProps, BlockStyleProps, ResponsiveOverrides } from '@/types/blocks';
+import { useEditorStore } from '@/stores/editorStore';
 import { FontPicker } from '@/components/editor/fields/FontPicker';
+import { TokenColorInput } from '@/components/editor/fields/TokenColorInput';
 
 interface Props {
   value: TypographyProps;
   onChange: (v: TypographyProps) => void;
+  /** S6: per-breakpoint overrides for fontSize/lineHeight/letterSpacing
+      (the responsive emitter supported these all along — the UI didn't) */
+  style?: BlockStyleProps;
+  responsive?: ResponsiveOverrides;
+  onResponsiveChange?: (resp: ResponsiveOverrides) => void;
 }
+
+/** typography keys that support per-breakpoint overrides (matches
+    BlockStyle::buildStyleOverrideRules) */
+const RESPONSIVE_TYPO_KEYS = ['fontSize', 'lineHeight', 'letterSpacing'] as const;
+type ResponsiveTypoKey = typeof RESPONSIVE_TYPO_KEYS[number];
+
+const DEVICE_ICONS = { desktop: Monitor, tablet: Tablet, mobile: Smartphone } as const;
 
 const WEIGHTS = [
   { value: '', label: 'Default' },
@@ -20,14 +35,57 @@ const WEIGHTS = [
   { value: '900', label: '900 Black' },
 ];
 
-export function TypographyPanel({ value, onChange }: Props) {
-  const update = (key: keyof TypographyProps, v: unknown) => onChange({ ...value, [key]: v || undefined });
+export function TypographyPanel({ value, onChange, responsive, onResponsiveChange }: Props) {
+  const canvasDevice = useEditorStore(s => s.canvasDevice);
+  const bp = onResponsiveChange ? canvasDevice : 'desktop';
+  const bpTypo = (bp !== 'desktop'
+    ? ((responsive?.[bp] as Record<string, unknown> | undefined)?.typography ?? {})
+    : {}) as Partial<TypographyProps>;
+  const hasBpOverride = Object.keys(bpTypo).length > 0;
+  const DeviceIcon = DEVICE_ICONS[bp];
+
+  /** effective value for a responsive-capable key on the active device */
+  const eff = (key: ResponsiveTypoKey): string | undefined =>
+    bp === 'desktop' ? value[key] : ((bpTypo[key] as string | undefined) ?? value[key]);
+
+  const update = (key: keyof TypographyProps, v: unknown) => {
+    // per-breakpoint routing for the emitter-supported keys only
+    if (bp !== 'desktop' && (RESPONSIVE_TYPO_KEYS as readonly string[]).includes(key as string)) {
+      const resp = responsive ?? {};
+      const bpOverrides = (resp[bp] ?? {}) as Record<string, unknown>;
+      onResponsiveChange!({
+        ...resp,
+        [bp]: { ...bpOverrides, typography: { ...(bpOverrides.typography as object ?? {}), [key]: v || undefined } },
+      });
+      return;
+    }
+    onChange({ ...value, [key]: v || undefined });
+  };
+  const clearBpOverrides = () => {
+    if (bp === 'desktop' || !onResponsiveChange) return;
+    const resp = { ...(responsive ?? {}) };
+    const bpOverrides = { ...(resp[bp] ?? {}) } as Record<string, unknown>;
+    delete bpOverrides.typography;
+    onResponsiveChange({ ...resp, [bp]: bpOverrides });
+  };
+
   const [sizeMode, setSizeMode] = useState<'fixed' | 'scalable'>(
     value.fontSize?.includes('clamp') ? 'scalable' : 'fixed'
   );
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${hasBpOverride ? 'border-l-2 border-warning pl-2' : ''}`}>
+      {bp !== 'desktop' && (
+        <div className="flex items-center justify-between text-[10px] text-base-content/40">
+          <span className="flex items-center gap-1">
+            <DeviceIcon size={11} /> {bp}: size / line-height / letter-spacing override this device
+          </span>
+          {hasBpOverride && (
+            <button type="button" onClick={clearBpOverrides} title="Clear typography overrides for this device"
+              className="hover:text-warning"><RotateCcw size={10} /></button>
+          )}
+        </div>
+      )}
       {/* Font Family — uses FontPicker with custom fonts */}
       <FontPicker
         label="Font Family"
@@ -50,7 +108,12 @@ export function TypographyPanel({ value, onChange }: Props) {
             </button>
           </div>
         </div>
-        {sizeMode === 'fixed' ? (
+        {bp !== 'desktop' ? (
+          <input value={eff('fontSize') ?? ''}
+            onChange={e => update('fontSize', e.target.value)}
+            className="input input-bordered input-xs w-full text-[11px]"
+            placeholder="override for this device" />
+        ) : sizeMode === 'fixed' ? (
           <input value={value.fontSize?.includes('clamp') ? '' : (value.fontSize || '')}
             onChange={e => update('fontSize', e.target.value)}
             className="input input-bordered input-xs w-full text-[11px]"
@@ -115,12 +178,12 @@ export function TypographyPanel({ value, onChange }: Props) {
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-[10px] text-base-content/40">Line Height</label>
-          <input value={value.lineHeight || ''} onChange={e => update('lineHeight', e.target.value)}
+          <input value={eff('lineHeight') ?? ''} onChange={e => update('lineHeight', e.target.value)}
             className="input input-bordered input-xs w-full text-[11px]" placeholder="1.6" />
         </div>
         <div>
           <label className="text-[10px] text-base-content/40">Letter Spacing</label>
-          <input value={value.letterSpacing || ''} onChange={e => update('letterSpacing', e.target.value)}
+          <input value={eff('letterSpacing') ?? ''} onChange={e => update('letterSpacing', e.target.value)}
             className="input input-bordered input-xs w-full text-[11px]" placeholder="-0.02em" />
         </div>
       </div>
@@ -150,16 +213,9 @@ export function TypographyPanel({ value, onChange }: Props) {
         </select>
       </div>
 
-      {/* Color */}
-      <div>
-        <label className="text-[10px] text-base-content/40">Text Color</label>
-        <div className="flex gap-2">
-          <input type="color" value={value.textColor || '#000000'} onChange={e => update('textColor', e.target.value)}
-            className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
-          <input value={value.textColor || ''} onChange={e => update('textColor', e.target.value)}
-            className="input input-bordered input-xs flex-1 text-[11px]" placeholder="inherit" />
-        </div>
-      </div>
+      {/* Color — theme-token aware */}
+      <TokenColorInput label="Text Color" value={value.textColor || ''}
+        onChange={v => update('textColor', v || undefined)} />
 
       {/* Font style */}
       <div>

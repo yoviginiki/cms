@@ -7,21 +7,26 @@ class BlockStyle
     // ── Sanitizers ──
 
     /** Validate a CSS dimension: only safe numeric values with known units. */
+    /** Theme-token reference: var(--token-name) with optional simple fallback. */
+    private const CSS_VAR_PATTERN = '/^var\(--[a-zA-Z][a-zA-Z0-9-]{0,60}(,\s*[a-zA-Z0-9#%.\s\-]{1,40})?\)$/';
+
     public static function safeDim(mixed $v): string
     {
         if ($v === null || $v === '') return '';
         $s = trim((string) $v);
         if ($s === '0' || $s === 'auto') return $s;
+        if (preg_match(self::CSS_VAR_PATTERN, $s)) return $s; // theme tokens
         return preg_match('/^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/i', $s) ? $s : '';
     }
 
-    /** Validate a CSS color: hex, rgb/rgba, oklch, hsl/hsla, or named. */
+    /** Validate a CSS color: hex, rgb/rgba, oklch, hsl/hsla, named, or var(--token). */
     public static function safeColor(mixed $v): string
     {
         if (!$v) return '';
         $s = trim((string) $v);
         if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $s)) return $s;
         if (preg_match('/^(rgb|rgba|oklch|hsl|hsla)\([\d\s,.\/%]+\)$/i', $s)) return $s;
+        if (preg_match(self::CSS_VAR_PATTERN, $s)) return $s; // theme tokens
         if (preg_match('/^[a-zA-Z]{3,20}$/', $s)) return $s; // named colors
         return '';
     }
@@ -233,13 +238,14 @@ class BlockStyle
             }
         }
 
-        // Border
-        if (!empty($vis['borderWidth']) && !empty($vis['borderColor'])) {
+        // Border — width alone is enough; color falls back to currentColor
+        // (previously width-without-color was silently dropped)
+        if (!empty($vis['borderWidth'])) {
             $bw = self::safeDim($vis['borderWidth']);
-            $bc = self::safeColor($vis['borderColor']);
+            $bc = self::safeColor($vis['borderColor'] ?? '') ?: 'currentColor';
             $bs = in_array($vis['borderStyle'] ?? 'solid', self::BORDER_STYLES)
                 ? ($vis['borderStyle'] ?? 'solid') : 'solid';
-            if ($bw && $bc) $parts[] = "border:{$bw} {$bs} {$bc}";
+            if ($bw) $parts[] = "border:{$bw} {$bs} {$bc}";
         }
 
         // Border radius — string (legacy) or per-corner object
@@ -275,6 +281,11 @@ class BlockStyle
         // Overflow (without border-radius)
         if (!empty($vis['overflow']) && in_array($vis['overflow'], ['hidden', 'scroll'])) {
             $parts[] = "overflow:{$vis['overflow']}";
+        }
+
+        // Base opacity — the inspector slider was previously a silent no-op
+        if (isset($vis['opacity']) && is_numeric($vis['opacity']) && (float) $vis['opacity'] < 1) {
+            $parts[] = 'opacity:' . max(0, min(1, (float) $vis['opacity']));
         }
 
         // Text shadow
@@ -347,6 +358,9 @@ class BlockStyle
                 if ($fd) $parts[] = "flex-direction:{$fd}";
                 $jc = in_array($lay['justifyContent'] ?? '', ['flex-start', 'center', 'flex-end', 'space-between']) ? $lay['justifyContent'] : '';
                 if ($jc) $parts[] = "justify-content:{$jc}";
+                // alignItems was typed but never emitted
+                $ai = in_array($lay['alignItems'] ?? '', ['flex-start', 'center', 'flex-end', 'stretch', 'baseline']) ? $lay['alignItems'] : '';
+                if ($ai) $parts[] = "align-items:{$ai}";
             }
         }
 

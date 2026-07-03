@@ -11,6 +11,8 @@ import { AnimationPanel } from './properties/AnimationPanel';
 import { AdvancedPanel } from './properties/AdvancedPanel';
 import { ResponsivePanel } from './properties/ResponsivePanel';
 import { TypographyPanel } from './properties/TypographyPanel';
+import { LayerTransformPanel } from './properties/LayerTransformPanel';
+import { AnimationScenePanel } from './properties/AnimationScenePanel';
 import BackgroundEditor from './BackgroundEditor';
 
 function findBlock(blocks: BlockData[], id: string): BlockData | null {
@@ -18,6 +20,15 @@ function findBlock(blocks: BlockData[], id: string): BlockData | null {
     if (block.id === id) return block;
     const found = findBlock(block.children, id);
     if (found) return found;
+  }
+  return null;
+}
+
+function findParent(blocks: BlockData[], id: string, parent: BlockData | null = null): BlockData | null {
+  for (const block of blocks) {
+    if (block.id === id) return parent;
+    const found = findParent(block.children, id, block);
+    if (found !== null) return found;
   }
   return null;
 }
@@ -53,6 +64,7 @@ export function BlockSettings() {
   }
 
   const block = findBlock(blocks, selectedBlockId);
+  const parentBlock = findParent(blocks, selectedBlockId);
   if (!block) {
     return (
       <div className="flex items-center justify-center h-full text-[12px] text-base-content/30">
@@ -106,6 +118,29 @@ export function BlockSettings() {
           <Editor block={block} isSelected={true} onUpdate={handleUpdate} onSelect={() => {}} />
         </Section>
 
+        {/* Layer transform: only for absolutely-positioned layers (blocks
+            inside a slide, or anything already carrying data.layout) */}
+        {(parentBlock?.type === 'slide' || (block.data as Record<string, unknown>)?.layout != null) && (
+          <Section title="Transform" defaultOpen={true}>
+            <LayerTransformPanel
+              value={((block.data as Record<string, unknown>)?.layout as Record<string, unknown>) || {}}
+              onChange={layout => handleUpdate({ layout })}
+              responsive={((block.data as Record<string, unknown>)?.responsiveLayout as Record<string, unknown>) || {}}
+              onResponsiveChange={responsiveLayout => handleUpdate({ responsiveLayout })}
+            />
+          </Section>
+        )}
+
+        {/* Scene animation (IN/LOOP/OUT): layers inside a slide only */}
+        {parentBlock?.type === 'slide' && (
+          <Section title="Animation" defaultOpen={false}>
+            <AnimationScenePanel
+              value={((block.data as Record<string, unknown>)?.animation as Record<string, unknown>) || {}}
+              onChange={animation => handleUpdate({ animation })}
+            />
+          </Section>
+        )}
+
         {/* Typography is handled per-block (Heading, Hero have their own controls).
             The shared TypographyPanel was removed because it stored data but never
             applied it — blocks that need typography implement it directly. */}
@@ -115,6 +150,9 @@ export function BlockSettings() {
           <TypographyPanel
             value={style.typography || {}}
             onChange={v => updateStyle('typography', v)}
+            style={style}
+            responsive={block.responsive}
+            onResponsiveChange={v => handleUpdate({ __responsive: v })}
           />
         </Section>
 

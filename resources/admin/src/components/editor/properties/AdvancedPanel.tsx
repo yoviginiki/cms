@@ -15,11 +15,9 @@ export function AdvancedPanel({ value, onChange }: Props) {
         <input value={value.customClass || ''} onChange={e => update('customClass', e.target.value)}
           className="input input-bordered input-xs w-full text-[11px] font-mono" placeholder="my-class another-class" />
       </div>
-      <div>
-        <label className="text-[10px] text-base-content/40">Custom CSS</label>
-        <textarea value={value.customCss || ''} onChange={e => update('customCss', e.target.value)} rows={3}
-          className="textarea textarea-bordered textarea-xs w-full text-[11px] font-mono" placeholder=".this { color: red; }" />
-      </div>
+      {/* Custom CSS field removed: collected but never emitted to published
+          output (silent no-op — see layer-inspector-gap-analysis.md).
+          Reintroduce only together with a sanitized, scoped emitter. */}
       <div>
         <label className="text-[10px] text-base-content/40">HTML ID</label>
         <input value={value.htmlId || ''} onChange={e => update('htmlId', e.target.value)}

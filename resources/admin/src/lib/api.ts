@@ -154,6 +154,19 @@ export const references = {
     api.get(`/sites/${siteId}/references/usage`, { params: { target_type: targetType, target_id: targetId } }),
 };
 
+export const sliders = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/sliders`),
+  get: (siteId: string, sliderId: string) => api.get(`/sites/${siteId}/sliders/${sliderId}`),
+  create: (siteId: string, name: string) => api.post(`/sites/${siteId}/sliders`, { name }),
+  update: (siteId: string, sliderId: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/sliders/${sliderId}`, data),
+  delete: (siteId: string, sliderId: string, force = false) =>
+    api.delete(`/sites/${siteId}/sliders/${sliderId}`, { params: force ? { force: 1 } : {} }),
+  duplicate: (siteId: string, sliderId: string) => api.post(`/sites/${siteId}/sliders/${sliderId}/duplicate`),
+  publish: (siteId: string, sliderId: string) => api.post(`/sites/${siteId}/sliders/${sliderId}/publish`),
+  syncBlocks: (siteId: string, sliderId: string, blocks: unknown[]) =>
+    api.put(`/sites/${siteId}/sliders/${sliderId}/blocks`, { blocks }),
+};
+
 export const staleContent = {
   list: (siteId: string) => api.get(`/sites/${siteId}/stale`),
   republish: (siteId: string, payload: { page_ids?: string[]; post_ids?: string[]; all?: boolean }) =>

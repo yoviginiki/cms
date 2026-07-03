@@ -141,6 +141,18 @@ export function LayoutPanel({ value, onChange, style, responsive, onResponsiveCh
               <option value="space-between">Space between</option>
             </select>
           </div>
+          <div>
+            <label className="text-[10px] text-base-content/40">Align items</label>
+            <select value={effective.alignItems || ''} onChange={e => update('alignItems', e.target.value)}
+              className="select select-bordered select-xs w-full text-[11px]">
+              <option value="">Default</option>
+              <option value="flex-start">Start</option>
+              <option value="center">Center</option>
+              <option value="flex-end">End</option>
+              <option value="stretch">Stretch</option>
+              <option value="baseline">Baseline</option>
+            </select>
+          </div>
         </div>
       )}
 
