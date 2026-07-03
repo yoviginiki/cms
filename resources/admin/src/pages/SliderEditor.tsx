@@ -19,6 +19,9 @@ interface PreviewTimeline {
   eventCallback(name: string, cb: (() => void) | null): void;
 }
 import { useEditorStore } from '@/stores/editorStore';
+// side-effect import: populates blockRegistry (each block folder registers on
+// import) — without it, a direct visit to this route has an EMPTY registry
+import '@/components/blocks';
 import { blockRegistry } from '@/components/blocks/registry';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { useToast } from '@/components/ui/Toast';
@@ -66,6 +69,15 @@ export default function SliderEditor() {
 
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null);
   const [name, setName] = useState('');
+  const [zoom, setZoom] = useState(0.7);
+  const scrollWrapRef = useRef<HTMLDivElement>(null);
+
+  const zoomBy = (delta: number) => setZoom(z => Math.min(1.5, Math.max(0.25, Math.round((z + delta) * 20) / 20)));
+  const zoomFit = () => {
+    const wrap = scrollWrapRef.current;
+    if (!wrap) return;
+    setZoom(Math.min(1.5, Math.max(0.25, (wrap.clientWidth - 48) / DEVICE_WIDTHS[canvasDevice])));
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['slider', siteId, sliderId],
@@ -84,6 +96,12 @@ export default function SliderEditor() {
     return () => { setBlocks([]); selectBlock(null); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
+
+  // auto-fit whenever the canvas dimensions change (first mount + device
+  // switch) — keyed on the root block: the scroll wrap only exists once the
+  // tree has loaded past the spinner early-return
+  const rootId = blocks[0]?.id;
+  useEffect(() => { zoomFit(); }, [canvasDevice, rootId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const root = blocks[0];
   const slides = useMemo(() => (root?.children ?? []).filter((c: BlockData) => c.type === 'slide'), [root]);
@@ -297,6 +315,13 @@ export default function SliderEditor() {
               className={`btn btn-xs ${canvasDevice === d ? 'btn-primary' : 'btn-ghost'}`}>{d}</button>
           ))}
           <div className="w-px h-5 bg-base-300 mx-1" />
+          <button onClick={() => zoomBy(-0.1)} className="btn btn-xs btn-ghost" title="Zoom out">−</button>
+          <button onClick={() => setZoom(1)} className="btn btn-xs btn-ghost w-12 tabular-nums" title="Reset to 100%">
+            {Math.round(zoom * 100)}%
+          </button>
+          <button onClick={() => zoomBy(0.1)} className="btn btn-xs btn-ghost" title="Zoom in">+</button>
+          <button onClick={zoomFit} className="btn btn-xs btn-ghost" title="Fit canvas to view">Fit</button>
+          <div className="w-px h-5 bg-base-300 mx-1" />
           <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !isDirty}
             className="btn btn-sm btn-outline gap-1.5">
             {saveMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save
@@ -408,12 +433,25 @@ export default function SliderEditor() {
 
         {/* ── center: canvas + slide rail ── */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 overflow-auto flex items-center justify-center p-6">
+          {/* NOTE: no flex-centering here — centering an overflowing flex child
+              makes its left side unreachable by scrolling. A block wrapper with
+              margin:auto centers when it fits and scrolls fully when it doesn't. */}
+          <div ref={scrollWrapRef} className="flex-1 overflow-auto p-6">
+            <div style={{
+              width: Math.round(DEVICE_WIDTHS[canvasDevice] * zoom),
+              height: Math.round(DEVICE_VIEWPORT_H[canvasDevice] * canvasHeightRatio * zoom),
+              margin: '0 auto',
+            }}>
             <div ref={canvasRef}
               onPointerMove={onPointerMove} onPointerUp={onPointerUp}
               onPointerDown={() => selectBlock(null)}
               className="relative bg-neutral-900 overflow-hidden shadow-lg shrink-0"
-              style={{ width: DEVICE_WIDTHS[canvasDevice], height: Math.round(DEVICE_VIEWPORT_H[canvasDevice] * canvasHeightRatio) }}>
+              style={{
+                width: DEVICE_WIDTHS[canvasDevice],
+                height: Math.round(DEVICE_VIEWPORT_H[canvasDevice] * canvasHeightRatio),
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
+              }}>
               {/* slide background (assetId resolves via serve endpoint) */}
               {bg.type === 'image' && bgUrl && <img src={bgUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
               {bg.type === 'video' && bgUrl && <video src={bgUrl} muted loop autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />}
@@ -443,6 +481,7 @@ export default function SliderEditor() {
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
 
