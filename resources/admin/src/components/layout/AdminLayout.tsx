@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, FileWarning, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download, X, PanelLeft } from 'lucide-react';
+import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download, X, PanelLeft } from 'lucide-react';
 import { publishing, staleContent, api } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -127,6 +127,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const advancedNav = siteId
     ? [
+        { to: `/sites/${siteId}/sliders`, icon: GalleryHorizontalEnd, label: 'Sliders' },
         { to: `/sites/${siteId}/magazines`, icon: BookOpen, label: 'Magazines' },
         { to: `/sites/${siteId}/magazine/wizard`, icon: Wand2, label: 'Wizard' },
         { to: `/sites/${siteId}/categories`, icon: FolderTree, label: 'Categories' },
