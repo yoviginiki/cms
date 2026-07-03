@@ -1,0 +1,62 @@
+/* Stillopress motion-runtime — structural slider styles (theme-agnostic).
+   Typography/colors come from layers and theme tokens, never from here. */
+
+.sp-slider{position:relative;width:100%;overflow:hidden;
+  height:var(--sp-h-desktop,70vh);}
+@media (max-width:1024px){.sp-slider{height:var(--sp-h-tablet,60vh);}}
+@media (max-width:640px){.sp-slider{height:var(--sp-h-mobile,80vh);}}
+.sp-slider .swiper{width:100%;height:100%;}
+.sp-slide{position:relative;overflow:hidden;}
+
+/* backgrounds */
+.sp-bg{position:absolute;inset:0;z-index:0;overflow:hidden;}
+.sp-bg img,.sp-bg video{width:100%;height:100%;object-fit:cover;display:block;}
+.sp-bg-overlay{position:absolute;inset:0;z-index:1;}
+.sp-slider[data-armed] .sp-kenburns img{animation:sp-kenburns 16s ease-in-out infinite alternate;}
+@keyframes sp-kenburns{from{transform:scale(1) translate(0,0);}to{transform:scale(1.14) translate(-2.5%,1.5%);}}
+
+/* layers: FINAL state authored in markup/CSS; runtime applies from-states only */
+.sp-layer{position:absolute;margin:0;opacity:1;will-change:transform,opacity;}
+.sp-layer .sp-shape-fill{width:100%;height:100%;}
+.sp-char,.sp-word{display:inline-block;white-space:pre;}
+.sp-line{display:block;overflow:hidden;}
+
+/* Pre-arm (JS enabled, runtime not yet initialized): keep animated layers
+   hidden only AFTER the root has flipped no-js -> js, so a JS failure can
+   never blank the slider. */
+.sp-slider.js:not([data-armed]) .sp-layer[data-animated]{visibility:hidden;}
+
+/* No-JS: only the first slide shows, fully readable at final CSS state */
+.sp-slider.no-js .swiper-slide:not(:first-child){display:none;}
+.sp-slider.no-js .sp-ui{display:none;}
+.sp-slider.no-js .swiper-wrapper{display:block;height:100%;}
+.sp-slider.no-js .swiper-slide{width:100%;height:100%;}
+
+/* UI chrome — neutral, themable via CSS custom properties */
+.sp-ui{--sp-chrome:var(--color-text,#1A1817);--sp-chrome-bg:var(--color-background,#F5F2EC);
+  --sp-accent:var(--color-primary,#E63B2E);--sp-on-accent:#fff;}
+.sp-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:20;width:48px;height:48px;
+  background:var(--sp-chrome-bg);border:1px solid var(--sp-chrome);color:var(--sp-chrome);
+  font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.sp-arrow:hover{background:var(--sp-accent);border-color:var(--sp-accent);color:var(--sp-on-accent);}
+.sp-arrow.-prev{left:16px;}.sp-arrow.-next{right:16px;}
+.sp-bullets{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:20;display:flex;gap:10px;}
+.sp-bullet{width:26px;height:4px;background:color-mix(in srgb,var(--sp-chrome) 25%,transparent);
+  border:0;padding:0;cursor:pointer;}
+.sp-bullet[aria-current="true"]{background:var(--sp-accent);}
+.sp-counter{position:absolute;right:20px;bottom:16px;z-index:20;color:var(--sp-chrome-bg);
+  font-size:14px;letter-spacing:.15em;}
+.sp-progress{position:absolute;left:0;top:0;z-index:20;height:3px;width:100%;
+  background:color-mix(in srgb,#fff 18%,transparent);}
+.sp-progress b{display:block;height:100%;width:100%;background:var(--sp-accent);
+  transform-origin:left;transform:scaleX(0);}
+.sp-pause{position:absolute;left:20px;bottom:12px;z-index:20;background:transparent;
+  border:1px solid var(--sp-chrome-bg);color:var(--sp-chrome-bg);font-size:11px;
+  letter-spacing:.2em;text-transform:uppercase;padding:6px 12px;cursor:pointer;}
+.sp-pause:hover{background:var(--sp-accent);border-color:var(--sp-accent);}
+.sp-slider:focus-visible,.sp-arrow:focus-visible,.sp-bullet:focus-visible,.sp-pause:focus-visible{
+  outline:2px solid var(--sp-accent);outline-offset:2px;}
+
+@media (prefers-reduced-motion:reduce){
+  .sp-slider[data-armed] .sp-kenburns img{animation:none;}
+}

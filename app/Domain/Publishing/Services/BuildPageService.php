@@ -23,6 +23,12 @@ class BuildPageService
     private bool $isPreview = false;
     private array $templateContext = [];
 
+    /** slider_ref height override, consumed by the next slider root render */
+    private array $sliderHeightOverride = [];
+
+    /** cycle guard: slider ids currently being inlined */
+    private array $renderingSliders = [];
+
     public function __construct(
         private SanitizationService $sanitizer,
         private SeoService $seoService,
@@ -55,6 +61,18 @@ class BuildPageService
         $pageMeta = $content->seo_meta ?? [];
         $pageAppearanceCss = $this->buildPageAppearanceCss($pageMeta);
         if ($pageAppearanceCss) $customCss .= "\n" . $pageAppearanceCss;
+
+        // Slider embeds: publish the hashed motion-runtime next to the static
+        // output and inject Swiper 11 + GSAP 3 core (CDN) + the runtime,
+        // deferred (order preserved). Pages without sliders load nothing.
+        if ($content->blocks()->where('type', 'slider_ref')->exists()) {
+            $runtime = \App\Support\Blocks\SliderRender::publishRuntime($site);
+            $headScripts .= "\n" . '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">'
+                . "\n" . '<link rel="stylesheet" href="' . $runtime['css'] . '">';
+            $bodyScripts .= "\n" . '<script defer src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>'
+                . "\n" . '<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>'
+                . "\n" . '<script defer src="' . $runtime['js'] . '"></script>';
+        }
 
         // Experience Mode: inject assets for cinematic pages ONLY
         $experienceMode = $content->experience_mode ?? 'standard';
@@ -295,8 +313,23 @@ class BuildPageService
         $childrenHtml = '';
         $childrenArray = [];
 
-        foreach ($block->children()->orderBy('order')->get() as $child) {
+        $childBlocks = $block->children()->orderBy('order')->get();
+        $slideIndex = 0;
+        $slideTotal = $block->type === 'slider' ? $childBlocks->where('type', 'slide')->count() : 0;
+        foreach ($childBlocks as $child) {
+            // slides need their position for eager/lazy media + aria labels
+            if ($block->type === 'slider' && $child->type === 'slide') {
+                $childData = $child->data ?? [];
+                $childData['_slide_index'] = $slideIndex++;
+                $childData['_slide_total'] = $slideTotal;
+                $childData['_block_id'] = $child->id;
+                $child->data = $childData;
+            }
             $rendered = $this->renderBlock($child, $site);
+            // layers inside a slide get their absolutely-positioned final-state wrapper
+            if ($block->type === 'slide') {
+                $rendered = \App\Support\Blocks\SliderRender::wrapLayer($child, $rendered);
+            }
             $childrenHtml .= $rendered;
             $childrenArray[] = $rendered;
         }
@@ -309,6 +342,21 @@ class BuildPageService
         // Enrich flipbook blocks — resolve PDF asset to a public URL
         if ($block->type === 'flipbook' && !empty($sanitizedData['pdf_asset_id'])) {
             $sanitizedData = $this->enrichFlipbookData($sanitizedData, $site);
+        }
+
+        // Slider system enrichment
+        if ($block->type === 'slide') {
+            $sanitizedData = $this->enrichSlideData($sanitizedData);
+        }
+        if ($block->type === 'slider') {
+            $sanitizedData['_config'] = \App\Support\Blocks\SliderRender::buildConfig(
+                $block,
+                $this->sliderHeightOverride,
+            );
+            $this->sliderHeightOverride = [];
+        }
+        if ($block->type === 'slider_ref') {
+            $sanitizedData = $this->enrichSliderRef($sanitizedData, $site);
         }
 
         $viewName = "blocks.{$block->type}";
@@ -509,6 +557,62 @@ class BuildPageService
      * Resolve flipbook PDF asset to a publicly accessible URL.
      * Copies the PDF to public_html so it's served statically.
      */
+    /**
+     * Resolve a slide's background asset to a static URL and re-validate the
+     * overlay pattern on the way out (defense in depth for old rows).
+     */
+    private function enrichSlideData(array $data): array
+    {
+        $bg = $data['background'] ?? [];
+        $data['_bg_url'] = \App\Support\Blocks\SliderRender::resolveBackgroundUrl($bg);
+
+        $overlay = $bg['overlay'] ?? null;
+        $data['_overlay_css'] = (is_string($overlay) && preg_match(
+            '/^(rgba?\([\d\s.,%]+\)|#[0-9a-fA-F]{3,8}|(linear|radial)-gradient\([^;{}<>]{1,250}\))$/',
+            $overlay,
+        )) ? $overlay : null;
+
+        return $data;
+    }
+
+    /**
+     * Inline the referenced slider's PUBLISHED block tree into the page output
+     * (static pages stay self-contained — no runtime lookups). Unpublished or
+     * missing sliders render as an HTML comment.
+     */
+    private function enrichSliderRef(array $data, Site $site): array
+    {
+        $sliderId = $data['sliderId'] ?? null;
+        if (!$sliderId || isset($this->renderingSliders[$sliderId])) {
+            return $data;
+        }
+
+        $slider = \App\Models\Slider::where('site_id', $site->id)
+            ->where('status', 'published')
+            ->find($sliderId);
+        if (!$slider) {
+            return $data;
+        }
+
+        $rootBlock = $slider->root_block_id
+            ? Block::find($slider->root_block_id)
+            : $slider->blocks()->where('type', 'slider')->whereNull('parent_block_id')->first();
+        if (!$rootBlock || $rootBlock->type !== 'slider') {
+            return $data;
+        }
+
+        $this->renderingSliders[$sliderId] = true;
+        $this->sliderHeightOverride = is_array($data['heightOverride'] ?? null) ? $data['heightOverride'] : [];
+        try {
+            $data['_slider_html'] = $this->renderBlock($rootBlock, $site);
+        } finally {
+            unset($this->renderingSliders[$sliderId]);
+            $this->sliderHeightOverride = [];
+        }
+
+        return $data;
+    }
+
     private function enrichFlipbookData(array $data, Site $site): array
     {
         $asset = Asset::find($data['pdf_asset_id']);
