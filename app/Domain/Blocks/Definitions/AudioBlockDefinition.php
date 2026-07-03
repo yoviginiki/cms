@@ -13,7 +13,7 @@ class AudioBlockDefinition implements BlockDefinition
             'url'    => ['sometimes', 'nullable', 'string', 'max:2048', 'not_regex:/^(javascript|data|vbscript):/i'],
             'title'  => ['sometimes', 'nullable', 'string', 'max:255'],
             'artist' => ['sometimes', 'nullable', 'string', 'max:255'],
-        ];
+        ] + \App\Support\Blocks\SliderAnimation::validationRules();
     }
 
     public function sanitizationConfig(): array

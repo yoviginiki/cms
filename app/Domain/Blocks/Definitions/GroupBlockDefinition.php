@@ -11,7 +11,7 @@ class GroupBlockDefinition implements BlockDefinition
     {
         return [
             'tag' => ['sometimes', 'in:div,section,article'],
-        ];
+        ] + \App\Support\Blocks\SliderAnimation::validationRules();
     }
 
     public function sanitizationConfig(): array

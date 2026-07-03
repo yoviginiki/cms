@@ -183,6 +183,23 @@ class ExtractorTest extends TestCase
         }
     }
 
+    public function test_slider_ref_embeds_slider_and_slide_extracts_background_asset(): void
+    {
+        $sliderId = (string) \Illuminate\Support\Str::uuid();
+        $asset = Asset::factory()->create(['site_id' => $this->site->id]);
+
+        $this->assertSame(
+            [['target_type' => 'slider', 'target_id' => $sliderId, 'kind' => 'embeds']],
+            $this->extract('slider_ref', ['sliderId' => $sliderId]),
+        );
+        $this->assertSame(
+            [['target_type' => 'asset', 'target_id' => $asset->id, 'kind' => 'uses_asset']],
+            $this->extract('slide', ['background' => ['type' => 'image', 'assetId' => $asset->id]]),
+        );
+        $this->assertSame([], $this->extract('slider', ['height' => ['desktop' => '70vh']]));
+        $this->assertSame([], $this->extract('shape', ['color' => '#E63B2E']));
+    }
+
     public function test_invalid_uuid_in_id_field_is_ignored(): void
     {
         $this->assertSame([], $this->extract('postcard', ['postId' => 'not-a-uuid']));

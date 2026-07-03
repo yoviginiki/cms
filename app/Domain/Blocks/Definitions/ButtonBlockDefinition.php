@@ -16,7 +16,7 @@ class ButtonBlockDefinition implements BlockDefinition
             'size' => ['sometimes', 'in:sm,md,lg'],
             'target' => ['sometimes', 'in:_self,_blank'],
             'icon' => ['sometimes', 'nullable', 'string'],
-        ];
+        ] + \App\Support\Blocks\SliderAnimation::validationRules();
     }
 
     public function sanitizationConfig(): array

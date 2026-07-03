@@ -26,7 +26,7 @@ class VideoBlockDefinition implements BlockDefinition
             'title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'subtitle' => ['sometimes', 'nullable', 'string', 'max:500'],
             'textColor' => ['sometimes', 'nullable', 'string', 'max:50'],
-        ];
+        ] + \App\Support\Blocks\SliderAnimation::validationRules();
     }
 
     public function sanitizationConfig(): array

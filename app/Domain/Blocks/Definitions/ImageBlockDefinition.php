@@ -15,7 +15,8 @@ class ImageBlockDefinition implements BlockDefinition
             'alt' => ['sometimes', 'nullable', 'string', 'max:255'],
             'caption' => ['sometimes', 'nullable', 'string', 'max:500'],
             'size' => ['sometimes', 'in:small,medium,large,full'],
-        ] + \App\Support\Blocks\BlockEffects::validationRules();
+        ] + \App\Support\Blocks\BlockEffects::validationRules()
+          + \App\Support\Blocks\SliderAnimation::validationRules();
     }
 
     public function sanitizationConfig(): array
