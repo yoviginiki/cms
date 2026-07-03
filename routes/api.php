@@ -187,6 +187,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sites.assets', AssetController::class);
         Route::get('sites/{site}/assets/{asset}/serve/{variant?}', [AssetServeController::class, 'serve']);
 
+        // Entity references ("used on N pages")
+        Route::get('sites/{site}/references/usage', [\App\Http\Controllers\Api\V1\ReferenceController::class, 'usage']);
+
         // Custom Fonts
         Route::get('sites/{site}/fonts', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'index']);
         Route::post('sites/{site}/fonts', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'store']);

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Assets\Services\AssetService;
+use App\Domain\References\Services\ReferenceUsageService;
+use App\Domain\References\Services\StalenessResolver;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UploadAssetRequest;
 use App\Http\Resources\V1\AssetResource;
@@ -13,8 +15,11 @@ use Illuminate\Http\Request;
 
 class AssetController extends Controller
 {
-    public function __construct(private AssetService $assetService)
-    {
+    public function __construct(
+        private AssetService $assetService,
+        private ReferenceUsageService $usage,
+        private StalenessResolver $staleness,
+    ) {
     }
 
     public function index(Request $request, Site $site): JsonResponse
@@ -78,11 +83,28 @@ class AssetController extends Controller
         return response()->json(['data' => $asset->fresh()]);
     }
 
-    public function destroy(Site $site, Asset $asset): JsonResponse
+    public function destroy(Request $request, Site $site, Asset $asset): JsonResponse
     {
         $this->authorize('delete', $asset);
 
+        // Delete protection: block deletion while content still uses the
+        // asset, unless the caller explicitly forces it
+        $usage = $this->usage->usage($site, 'asset', $asset->id);
+        if ($usage['count'] > 0 && !$request->boolean('force')) {
+            return response()->json([
+                'message' => "Asset '{$asset->original_name}' is still in use. Pass force=1 to delete anyway.",
+                'usedOnCount' => $usage['count'],
+                'sources' => $usage['sources'],
+            ], 409);
+        }
+
+        $assetName = $asset->original_name;
+        $assetId = $asset->id;
         $this->assetService->delete($asset);
+
+        if ($usage['count'] > 0) {
+            $this->staleness->markStale($site, 'asset', $assetId, "Asset '{$assetName}' deleted (was in use)");
+        }
 
         return response()->json(null, 204);
     }
