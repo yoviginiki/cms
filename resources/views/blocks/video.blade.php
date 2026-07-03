@@ -79,8 +79,13 @@
                     loading="lazy" allowfullscreen title="Video"></iframe>
         </div>
     @elseif($url)
-        <video{{ !$heroMode ? ' controls' : '' }}{{ $autoplay ? ' autoplay' : '' }}{{ $muted ? ' muted' : '' }}{{ $loop ? ' loop' : '' }}{{ $poster ? ' poster="' . e($poster) . '"' : '' }}
-               style="width:100%;max-width:100%;" preload="metadata">
+        @php
+            $showControls = !$heroMode && ($data['controls'] ?? true) !== false;
+            $playsinline = !empty($data['playsinline']) || $heroMode;
+            $vPreload = in_array($data['preload'] ?? '', ['none', 'metadata', 'auto']) ? $data['preload'] : 'metadata';
+        @endphp
+        <video{{ $showControls ? ' controls' : '' }}{{ $autoplay ? ' autoplay' : '' }}{{ $muted ? ' muted' : '' }}{{ $loop ? ' loop' : '' }}{{ $playsinline ? ' playsinline' : '' }}{{ $poster ? ' poster="' . e($poster) . '"' : '' }}
+               style="width:100%;max-width:100%;" preload="{{ $vPreload }}">
             <source src="{{ e($url) }}">
         </video>
     @endif

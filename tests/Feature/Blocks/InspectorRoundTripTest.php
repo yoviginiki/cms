@@ -88,6 +88,53 @@ class InspectorRoundTripTest extends TestCase
         $this->assertStringContainsString('align-items:center', $html);
     }
 
+    public function test_image_object_fit_and_position_reach_published_css(): void
+    {
+        $html = $this->renderPageWith([[
+            'type' => 'image', 'order' => 0,
+            'data' => [
+                'url' => 'https://example.com/pic.jpg', 'alt' => 'x',
+                'objectFit' => 'contain', 'objectPosition' => 'left top',
+                'width' => '640', 'height' => '480',
+            ],
+        ]]);
+
+        $this->assertStringContainsString('object-fit:contain', $html);
+        $this->assertStringContainsString('object-position:left top', $html);
+        $this->assertStringContainsString('width="640"', $html);
+        $this->assertStringContainsString('height="480"', $html);
+    }
+
+    public function test_video_controls_preload_playsinline_are_editor_driven(): void
+    {
+        $html = $this->renderPageWith([[
+            'type' => 'video', 'order' => 0,
+            'data' => [
+                'url' => 'https://example.com/clip.mp4',
+                'controls' => false, 'playsinline' => true, 'preload' => 'none',
+                'muted' => true, 'loop' => true,
+            ],
+        ]]);
+
+        $this->assertStringNotContainsString('<video controls', $html);
+        $this->assertStringContainsString('playsinline', $html);
+        $this->assertStringContainsString('preload="none"', $html);
+    }
+
+    public function test_audio_loop_volume_preload_and_no_autoplay_invariant(): void
+    {
+        $html = $this->renderPageWith([[
+            'type' => 'audio', 'order' => 0,
+            'data' => ['url' => 'https://example.com/track.mp3', 'loop' => true, 'volume' => 0.4, 'preload' => 'none'],
+        ]]);
+
+        $this->assertMatchesRegularExpression('/<audio[^>]*controls/', $html);
+        $this->assertMatchesRegularExpression('/<audio[^>]*loop/', $html);
+        $this->assertStringContainsString('data-volume="0.4"', $html);
+        $this->assertStringContainsString('preload="none"', $html);
+        $this->assertDoesNotMatchRegularExpression('/<audio[^>]*autoplay/', $html);
+    }
+
     public function test_token_dimension_survives_safe_dim(): void
     {
         $html = $this->renderPageWith([[

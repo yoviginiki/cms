@@ -20,6 +20,17 @@ export const ImageEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
       <SelectField label="Size" value={(data.size as string) || 'full'} onChange={(v) => update('size', v)}
         options={[{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }, { value: 'full', label: 'Full' }]} />
 
+      <div className="grid grid-cols-2 gap-2">
+        <SelectField label="Object fit" value={(data.objectFit as string) || ''} onChange={(v) => update('objectFit', v || undefined)}
+          options={[{ value: '', label: 'Default' }, { value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'fill', label: 'Fill' }, { value: 'scale-down', label: 'Scale down' }, { value: 'none', label: 'None' }]} />
+        <SelectField label="Object position" value={(data.objectPosition as string) || ''} onChange={(v) => update('objectPosition', v || undefined)}
+          options={[{ value: '', label: 'Center' }, { value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }, { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }, { value: 'left top', label: 'Left top' }, { value: 'right top', label: 'Right top' }, { value: 'left bottom', label: 'Left bottom' }, { value: 'right bottom', label: 'Right bottom' }]} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Width" value={(data.width as string) || ''} onChange={(v) => update('width', v || undefined)} placeholder="auto / 640" helperText="Explicit; empty = intrinsic" />
+        <TextField label="Height" value={(data.height as string) || ''} onChange={(v) => update('height', v || undefined)} placeholder="auto / 480" />
+      </div>
+
       <div className="divider text-[10px] text-base-content/40 my-1">Image Styling</div>
       <CornerRadiusField label="Border Radius" value={asObj(data.borderRadius)} onChange={(v) => update('borderRadius', v)} helperText="Round image corners" />
       <ShadowField label="Shadow" mode={(data.shadowMode as string) || 'preset'} preset={(data.shadow as string) || ''} custom={(data.shadowCustom as ShadowCustom) || {}}

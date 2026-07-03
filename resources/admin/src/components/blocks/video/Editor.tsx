@@ -29,6 +29,19 @@ export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
         <ToggleField label="Muted" value={!!data.muted} onChange={(v) => update('muted', v)} />
         <ToggleField label="Loop" value={!!data.loop} onChange={(v) => update('loop', v)} />
       </div>
+      <div className="grid grid-cols-3 gap-2">
+        <ToggleField label="Controls" value={data.controls !== false} onChange={(v) => update('controls', v)} />
+        <ToggleField label="Plays inline" value={!!data.playsinline} onChange={(v) => update('playsinline', v)} />
+        <div>
+          <label className="text-[11px] text-base-content/50 mb-1 block">Preload</label>
+          <select value={(data.preload as string) || 'metadata'} onChange={(e) => update('preload', e.target.value)}
+            className="select select-bordered select-xs w-full text-[11px]">
+            <option value="none">None</option>
+            <option value="metadata">Metadata</option>
+            <option value="auto">Auto</option>
+          </select>
+        </div>
+      </div>
       <AssetField label="Poster image" value={data.poster || ''} onChange={(v) => update('poster', v)} accept="image" />
 
       {/* Hero Mode */}

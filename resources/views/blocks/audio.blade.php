@@ -26,10 +26,20 @@
         </div>
     @endif
     @if(!empty($url))
-        <audio controls preload="metadata" style="width:100%;">
+        @php
+            $aPreload = in_array($data['preload'] ?? '', ['none', 'metadata', 'auto']) ? $data['preload'] : 'metadata';
+            $aLoop = !empty($data['loop']);
+            // clamp volume; applied via data attr + tiny inline init (no autoplay, ever)
+            $aVolume = isset($data['volume']) && is_numeric($data['volume']) ? max(0, min(1, (float) $data['volume'])) : null;
+        @endphp
+        <audio controls preload="{{ $aPreload }}"{{ $aLoop ? ' loop' : '' }} style="width:100%;"
+               @if($aVolume !== null) data-volume="{{ $aVolume }}" @endif>
             <source src="{{ e($url) }}">
             Your browser does not support the audio element.
         </audio>
+        @if($aVolume !== null)
+            <script>(function(){var s=document.currentScript,a=s&&s.previousElementSibling;if(a&&a.tagName==='AUDIO'){a.volume=parseFloat(a.dataset.volume||'1');}})();</script>
+        @endif
     @endif
 </div>
 
