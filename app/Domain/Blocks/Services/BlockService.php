@@ -20,6 +20,18 @@ class BlockService
             // Insert new block tree
             $this->insertBlocks($blockable, $blocksData);
 
+            // Recompute this source's entity-reference edges in the same
+            // transaction. Synchronous by design: extraction is in-memory JSON
+            // walking plus a couple of indexed slug lookups — negligible next
+            // to the full tree rewrite above, and it keeps edges exactly in
+            // step with the blocks they were extracted from.
+            try {
+                app(\App\Domain\References\Services\ReferenceRecorder::class)->recompute($blockable);
+            } catch (\Throwable $e) {
+                // Never fail a content save over reference bookkeeping
+                logger()->warning("entity_references recompute failed for {$blockable->getMorphClass()}:{$blockable->getKey()}: {$e->getMessage()}");
+            }
+
             return $this->getBlockTree($blockable);
         });
     }
