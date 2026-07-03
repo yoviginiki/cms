@@ -79,12 +79,14 @@ class SliderAnimation
             'responsiveLayout.tablet.widthPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'responsiveLayout.tablet.heightPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'responsiveLayout.tablet.hidden' => ['sometimes', 'boolean'],
+            'responsiveLayout.tablet.fontSize' => ['sometimes', 'nullable', 'regex:/^\d{1,3}(\.\d)?(px|rem|em|vw)$/'],
             'responsiveLayout.mobile' => ['sometimes', 'nullable', 'array'],
             'responsiveLayout.mobile.x' => ['sometimes', 'nullable', 'regex:' . self::COORD_PATTERN],
             'responsiveLayout.mobile.y' => ['sometimes', 'nullable', 'regex:' . self::COORD_PATTERN],
             'responsiveLayout.mobile.widthPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'responsiveLayout.mobile.heightPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'responsiveLayout.mobile.hidden' => ['sometimes', 'boolean'],
+            'responsiveLayout.mobile.fontSize' => ['sometimes', 'nullable', 'regex:/^\d{1,3}(\.\d)?(px|rem|em|vw)$/'],
         ]
             + $sceneRules('in')
             + $sceneRules('loop')

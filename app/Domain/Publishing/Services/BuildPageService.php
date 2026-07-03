@@ -347,7 +347,7 @@ class BuildPageService
 
         // Slider system enrichment
         if ($block->type === 'slide') {
-            $sanitizedData = $this->enrichSlideData($sanitizedData);
+            $sanitizedData = $this->enrichSlideData($sanitizedData, $site);
         }
         if ($block->type === 'slider') {
             $sanitizedData['_config'] = \App\Support\Blocks\SliderRender::buildConfig(
@@ -562,10 +562,10 @@ class BuildPageService
      * Resolve a slide's background asset to a static URL and re-validate the
      * overlay pattern on the way out (defense in depth for old rows).
      */
-    private function enrichSlideData(array $data): array
+    private function enrichSlideData(array $data, Site $site): array
     {
         $bg = $data['background'] ?? [];
-        $data['_bg_url'] = \App\Support\Blocks\SliderRender::resolveBackgroundUrl($bg);
+        $data['_bg_url'] = \App\Support\Blocks\SliderRender::resolveBackgroundUrl($bg, $site->id);
 
         $overlay = $bg['overlay'] ?? null;
         $data['_overlay_css'] = (is_string($overlay) && preg_match(

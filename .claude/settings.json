@@ -1,0 +1,32 @@
+{
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Edit", "Write", "MultiEdit",
+      "Bash(npm run *)", "Bash(npm install *)", "Bash(npx *)",
+      "Bash(composer *)", "Bash(vendor/bin/pest *)", "Bash(vendor/bin/phpunit *)",
+      "Bash(php artisan make:*)", "Bash(php artisan route:*)",
+      "Bash(php artisan config:clear)", "Bash(php artisan cache:clear)",
+      "Bash(git status *)", "Bash(git diff *)", "Bash(git log *)",
+      "Bash(git add *)", "Bash(git commit *)", "Bash(git checkout *)", "Bash(git branch *)"
+    ],
+    "ask": [
+      "Bash(php artisan migrate*)",
+      "Bash(php artisan db:seed*)",
+      "Bash(git push *)",
+      "Bash(chown *)"
+    ],
+    "deny": [
+      "Bash(php artisan migrate:fresh*)",
+      "Bash(php artisan migrate:refresh*)",
+      "Bash(php artisan db:wipe*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf *)",
+      "Edit(.env)", "Edit(.env.*)", "Edit(phpunit.xml)"
+    ]
+  }
+}

@@ -202,8 +202,15 @@ class SliderRender
                 if (isset($o['widthPct']) && is_numeric($o['widthPct'])) $rules[] = 'width:' . max(0, min(100, (float) $o['widthPct'])) . '% !important';
                 if (isset($o['heightPct']) && is_numeric($o['heightPct'])) $rules[] = 'height:' . max(0, min(100, (float) $o['heightPct'])) . '% !important';
                 if (!empty($o['hidden'])) $rules[] = 'display:none !important';
-                if ($rules !== []) {
-                    $respCss .= "@media (max-width:{$maxWidth}px){.{$scopeClass}{" . implode(';', $rules) . ";}}";
+                // fontSize targets the layer's descendants too: text blades put
+                // font-size INLINE on .prose, which beats inherited overrides
+                $fontRule = '';
+                if (isset($o['fontSize']) && is_string($o['fontSize']) && preg_match('/^\d{1,3}(\.\d)?(px|rem|em|vw)$/', $o['fontSize'])) {
+                    $fontRule = ".{$scopeClass}, .{$scopeClass} *{font-size:{$o['fontSize']} !important;line-height:1.1 !important;}";
+                }
+                if ($rules !== [] || $fontRule !== '') {
+                    $inner = $rules !== [] ? ".{$scopeClass}{" . implode(';', $rules) . ";}" : '';
+                    $respCss .= "@media (max-width:{$maxWidth}px){{$inner}{$fontRule}}";
                 }
             }
             if ($respCss !== '') {
@@ -237,26 +244,31 @@ class SliderRender
             $target = config('publishing.public_path') . '/' . $site->slug;
         }
 
-        try {
-            File::ensureDirectoryExists("{$target}/assets/vendor");
-            $files = [
-                ["motion-runtime.{$jsHash}.js", $jsSource],
-                ["motion-runtime.{$cssHash}.css", $cssSource],
-                // Swiper/GSAP are SELF-HOSTED (versioned filenames): tenant
-                // sites ship their own CSPs (script-src 'self') that block
-                // third-party CDNs — vendoring makes the slider CSP-proof
-                ['vendor/swiper-bundle-11.min.js', resource_path('js/vendor/swiper-bundle-11.min.js')],
-                ['vendor/swiper-bundle-11.min.css', resource_path('js/vendor/swiper-bundle-11.min.css')],
-                ['vendor/gsap-3.15.0.min.js', resource_path('js/vendor/gsap-3.15.0.min.js')],
-            ];
-            foreach ($files as [$name, $source]) {
-                if (!file_exists("{$target}/assets/{$name}")) {
-                    File::copy($source, "{$target}/assets/{$name}");
-                    @chmod("{$target}/assets/{$name}", 0664);
+        $files = [
+            ["motion-runtime.{$jsHash}.js", $jsSource],
+            ["motion-runtime.{$cssHash}.css", $cssSource],
+            // Swiper/GSAP are SELF-HOSTED (versioned filenames): tenant
+            // sites ship their own CSPs (script-src 'self') that block
+            // third-party CDNs — vendoring makes the slider CSP-proof
+            ['vendor/swiper-bundle-11.min.js', resource_path('js/vendor/swiper-bundle-11.min.js')],
+            ['vendor/swiper-bundle-11.min.css', resource_path('js/vendor/swiper-bundle-11.min.css')],
+            ['vendor/gsap-3.15.0.min.js', resource_path('js/vendor/gsap-3.15.0.min.js')],
+        ];
+        // Copy to the tenant docroot AND to the CMS's own public dir — the
+        // dynamic-site render + preview iframe run on the Laravel origin
+        // (sys.ensodo.eu) and load the same '/assets/…' paths from there.
+        foreach ([$target, public_path()] as $base) {
+            try {
+                File::ensureDirectoryExists("{$base}/assets/vendor");
+                foreach ($files as [$name, $source]) {
+                    if (!file_exists("{$base}/assets/{$name}")) {
+                        File::copy($source, "{$base}/assets/{$name}");
+                        @chmod("{$base}/assets/{$name}", 0664);
+                    }
                 }
+            } catch (\Throwable $e) {
+                logger()->warning("motion-runtime publish failed ({$base}) for site {$site->id}: {$e->getMessage()}");
             }
-        } catch (\Throwable $e) {
-            logger()->warning("motion-runtime publish failed for site {$site->id}: {$e->getMessage()}");
         }
 
         return [
@@ -269,16 +281,15 @@ class SliderRender
     }
 
     /**
-     * Resolve a slide background asset to its static URL (copies the file to
-     * the deploy target via the existing AssetPublisher).
+     * Resolve a slide background asset to a URL. Emits the SERVE endpoint
+     * (same convention as image blocks): previews/dynamic renders load it via
+     * the API origin, and AssetPublisher::rewriteHtml staticizes it to
+     * /assets/files/{checksum} at publish time.
      */
-    public static function resolveBackgroundUrl(array $background): ?string
+    public static function resolveBackgroundUrl(array $background, ?string $siteId = null): ?string
     {
-        if (!empty($background['assetId'])) {
-            $url = AssetPublisher::resolveUrl($background['assetId']);
-            if ($url) {
-                return $url;
-            }
+        if (!empty($background['assetId']) && $siteId) {
+            return "/api/v1/sites/{$siteId}/assets/{$background['assetId']}/serve";
         }
         $src = $background['src'] ?? null;
 

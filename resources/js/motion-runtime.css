@@ -21,6 +21,12 @@
 /* layers: FINAL state authored in markup/CSS; runtime applies from-states only */
 .sp-layer{position:absolute;margin:0;opacity:1;will-change:transform,opacity;}
 .sp-layer .sp-shape-fill{width:100%;height:100%;}
+/* neutralize theme content constraints inside layers: .prose centers itself
+   with max-width + auto margins, which visually shifts absolutely-positioned
+   text away from its layout.x — inside a layer, the wrapper IS the box */
+.sp-layer .prose{max-width:none;margin:0;}
+.sp-layer .text-block,.sp-layer .button-block{margin:0;}
+.sp-layer .button-block{display:inline-block;}
 .sp-char,.sp-word{display:inline-block;white-space:pre;}
 .sp-line{display:block;overflow:hidden;}
 

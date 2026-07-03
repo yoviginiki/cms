@@ -149,7 +149,9 @@ class SliderTest extends TestCase
         $this->assertStringContainsString('data-slider-id=', $html);
         $this->assertStringContainsString('data-slider-config', $html);
         $this->assertStringContainsString('aria-roledescription="carousel"', $html);
-        $this->assertStringContainsString('swiper-bundle.min.js', $html);
+        // self-hosted vendors (tenant CSPs block third-party CDNs)
+        $this->assertStringContainsString('/assets/vendor/swiper-bundle-11.min.js', $html);
+        $this->assertStringContainsString('/assets/vendor/gsap-3.15.0.min.js', $html);
     }
 
     public function test_responsive_layer_overrides_reach_published_output(): void

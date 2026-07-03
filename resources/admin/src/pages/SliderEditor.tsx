@@ -7,6 +7,7 @@ import {
   Play,
 } from 'lucide-react';
 import { sliders } from '@/lib/api';
+import { AssetField } from '@/components/ui/AssetPicker';
 import { loadMotionRuntime } from '@/lib/motionRuntime';
 
 /** minimal surface of a gsap timeline the preview controls need */
@@ -278,6 +279,8 @@ export default function SliderEditor() {
 
   const slideData = (activeSlide?.data ?? {}) as Record<string, any>;
   const bg = slideData.background ?? {};
+  /** asset-backed backgrounds resolve through the serve endpoint (same-origin, authed) */
+  const bgUrl = bg.assetId ? `/api/v1/sites/${siteId}/assets/${bg.assetId}/serve` : (bg.src || '');
 
   return (
     <div className="flex flex-col h-screen bg-base-200" data-theme="cms-admin">
@@ -370,9 +373,19 @@ export default function SliderEditor() {
                   onChange={e => updateBlock(activeSlide.id, { background: { ...bg, color: e.target.value } })}
                   className="input input-bordered input-xs w-full text-[11px]" />
               ) : (
-                <input value={bg.src ?? ''} placeholder={bg.type === 'video' ? 'https://…/clip.mp4' : 'https://…/image.jpg'}
-                  onChange={e => updateBlock(activeSlide.id, { background: { ...bg, src: e.target.value } })}
-                  className="input input-bordered input-xs w-full text-[11px]" />
+                <>
+                  <AssetField label="" value={bgUrl}
+                    accept={bg.type === 'video' ? 'video' : 'image'}
+                    onChange={v => {
+                      // AssetField returns a serve URL — persist the asset id (tracked
+                      // as a uses_asset edge; publish staticizes it)
+                      const m = String(v || '').match(/assets\/([0-9a-f-]{36})\/serve/);
+                      updateBlock(activeSlide.id, { background: { ...bg, assetId: m ? m[1] : undefined, src: m ? undefined : (v || undefined) } });
+                    }} />
+                  <input value={bg.assetId ? '' : (bg.src ?? '')} placeholder="…or external URL"
+                    onChange={e => updateBlock(activeSlide.id, { background: { ...bg, src: e.target.value || undefined, assetId: undefined } })}
+                    className="input input-bordered input-xs w-full text-[11px] mt-1" />
+                </>
               )}
               <input value={bg.overlay ?? ''} placeholder="overlay: rgba(0,0,0,.4) / gradient"
                 onChange={e => updateBlock(activeSlide.id, { background: { ...bg, overlay: e.target.value || undefined } })}
@@ -401,9 +414,9 @@ export default function SliderEditor() {
               onPointerDown={() => selectBlock(null)}
               className="relative bg-neutral-900 overflow-hidden shadow-lg shrink-0"
               style={{ width: DEVICE_WIDTHS[canvasDevice], height: Math.round(DEVICE_VIEWPORT_H[canvasDevice] * canvasHeightRatio) }}>
-              {/* slide background */}
-              {bg.type === 'image' && bg.src && <img src={bg.src} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-              {bg.type === 'video' && bg.src && <video src={bg.src} muted loop autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />}
+              {/* slide background (assetId resolves via serve endpoint) */}
+              {bg.type === 'image' && bgUrl && <img src={bgUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+              {bg.type === 'video' && bgUrl && <video src={bgUrl} muted loop autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />}
               {(!bg.type || bg.type === 'color') && <div className="absolute inset-0" style={{ background: bg.color || '#1A1817' }} />}
               {bg.overlay && <div className="absolute inset-0" style={{ background: bg.overlay }} />}
 

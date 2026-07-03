@@ -15,6 +15,9 @@ export interface LayerLayout {
   rotation?: number;
   zIndex?: number;
   hidden?: boolean;
+  /** per-device override only (tablet/mobile): emitted as scoped @media
+      font-size targeting the layer's descendants */
+  fontSize?: string;
 }
 export interface ResponsiveLayerLayout {
   tablet?: LayerLayout;
@@ -145,11 +148,19 @@ export function LayerTransformPanel({ value, onChange, responsive, onResponsiveC
           </div>
         </div>
       ) : (
-        <label className="flex items-center justify-between text-[11px] text-base-content/60 cursor-pointer">
-          Hidden on {bp}
-          <input type="checkbox" className="toggle toggle-xs" checked={!!override.hidden}
-            onChange={e => update({ hidden: e.target.checked || undefined })} />
-        </label>
+        <div className="grid grid-cols-2 gap-1.5 items-end">
+          <div>
+            <label className="text-[10px] text-base-content/40">Font size ({bp})</label>
+            <input value={override.fontSize ?? ''} placeholder="e.g. 40px"
+              onChange={e => update({ fontSize: e.target.value || undefined })}
+              className="input input-bordered input-xs w-full text-[11px]" />
+          </div>
+          <label className="flex items-center justify-between text-[11px] text-base-content/60 cursor-pointer pb-1">
+            Hidden on {bp}
+            <input type="checkbox" className="toggle toggle-xs" checked={!!override.hidden}
+              onChange={e => update({ hidden: e.target.checked || undefined })} />
+          </label>
+        </div>
       )}
     </div>
   );
