@@ -8,7 +8,8 @@
   Slider block scene timelines (GSAP CORE ONLY — no SplitText or other paid plugins;
   text splitting uses a custom split() helper in resources/js/motion-runtime.js)
 - Bundled in: public/assets/experience/experience-runtime.js (only on cinematic pages);
-  loaded via CDN alongside the hashed motion-runtime file on pages embedding a slider
+  SELF-HOSTED at /assets/vendor/gsap-3.15.0.min.js alongside the hashed
+  motion-runtime file on pages embedding a slider (tenant CSPs block CDNs)
 
 ## Other Libraries (MIT)
 - Swiper — MIT License — image carousels

@@ -1,11 +1,14 @@
 /* Stillopress motion-runtime — structural slider styles (theme-agnostic).
    Typography/colors come from layers and theme tokens, never from here. */
 
-.sp-slider{position:relative;width:100%;overflow:hidden;
+.sp-slider{position:relative;width:100%;max-width:100%;min-width:0;overflow:hidden;
   height:var(--sp-h-desktop,70vh);}
 @media (max-width:1023px){.sp-slider{height:var(--sp-h-tablet,60vh);}}
 @media (max-width:767px){.sp-slider{height:var(--sp-h-mobile,80vh);}}
-.sp-slider .swiper{width:100%;height:100%;}
+/* absolutely positioned: the swiper contributes NO intrinsic width, so the
+   slider can sit inside flex/grid ancestors (section->row->column) without
+   max-content blowout (slides are 100%-wide flex items pre-init) */
+.sp-slider .swiper{position:absolute;inset:0;}
 .sp-slide{position:relative;overflow:hidden;}
 
 /* backgrounds */

@@ -238,8 +238,18 @@ class SliderRender
         }
 
         try {
-            File::ensureDirectoryExists("{$target}/assets");
-            foreach ([["motion-runtime.{$jsHash}.js", $jsSource], ["motion-runtime.{$cssHash}.css", $cssSource]] as [$name, $source]) {
+            File::ensureDirectoryExists("{$target}/assets/vendor");
+            $files = [
+                ["motion-runtime.{$jsHash}.js", $jsSource],
+                ["motion-runtime.{$cssHash}.css", $cssSource],
+                // Swiper/GSAP are SELF-HOSTED (versioned filenames): tenant
+                // sites ship their own CSPs (script-src 'self') that block
+                // third-party CDNs — vendoring makes the slider CSP-proof
+                ['vendor/swiper-bundle-11.min.js', resource_path('js/vendor/swiper-bundle-11.min.js')],
+                ['vendor/swiper-bundle-11.min.css', resource_path('js/vendor/swiper-bundle-11.min.css')],
+                ['vendor/gsap-3.15.0.min.js', resource_path('js/vendor/gsap-3.15.0.min.js')],
+            ];
+            foreach ($files as [$name, $source]) {
                 if (!file_exists("{$target}/assets/{$name}")) {
                     File::copy($source, "{$target}/assets/{$name}");
                     @chmod("{$target}/assets/{$name}", 0664);
@@ -252,6 +262,9 @@ class SliderRender
         return [
             'js' => "/assets/motion-runtime.{$jsHash}.js",
             'css' => "/assets/motion-runtime.{$cssHash}.css",
+            'swiperJs' => '/assets/vendor/swiper-bundle-11.min.js',
+            'swiperCss' => '/assets/vendor/swiper-bundle-11.min.css',
+            'gsapJs' => '/assets/vendor/gsap-3.15.0.min.js',
         ];
     }
 

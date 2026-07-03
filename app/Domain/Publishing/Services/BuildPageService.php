@@ -62,15 +62,16 @@ class BuildPageService
         $pageAppearanceCss = $this->buildPageAppearanceCss($pageMeta);
         if ($pageAppearanceCss) $customCss .= "\n" . $pageAppearanceCss;
 
-        // Slider embeds: publish the hashed motion-runtime next to the static
-        // output and inject Swiper 11 + GSAP 3 core (CDN) + the runtime,
-        // deferred (order preserved). Pages without sliders load nothing.
+        // Slider embeds: publish the hashed motion-runtime + SELF-HOSTED
+        // Swiper/GSAP next to the static output (tenant CSPs commonly restrict
+        // script-src to 'self' — no third-party CDN). Deferred, order
+        // preserved. Pages without sliders load nothing.
         if ($content->blocks()->where('type', 'slider_ref')->exists()) {
             $runtime = \App\Support\Blocks\SliderRender::publishRuntime($site);
-            $headScripts .= "\n" . '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">'
+            $headScripts .= "\n" . '<link rel="stylesheet" href="' . $runtime['swiperCss'] . '">'
                 . "\n" . '<link rel="stylesheet" href="' . $runtime['css'] . '">';
-            $bodyScripts .= "\n" . '<script defer src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>'
-                . "\n" . '<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>'
+            $bodyScripts .= "\n" . '<script defer src="' . $runtime['swiperJs'] . '"></script>'
+                . "\n" . '<script defer src="' . $runtime['gsapJs'] . '"></script>'
                 . "\n" . '<script defer src="' . $runtime['js'] . '"></script>';
         }
 
