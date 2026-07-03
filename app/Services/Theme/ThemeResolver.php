@@ -54,6 +54,21 @@ class ThemeResolver
     {
         Cache::forget($this->cacheKey(new ResolveRequest($tenantId, $siteId, mode: 'light')));
         Cache::forget($this->cacheKey(new ResolveRequest($tenantId, $siteId, mode: 'dark')));
+
+        // Every caller of this method just changed the theme output (token
+        // edit, override save, theme switch, version restore) — the published
+        // static pages no longer match. Site-wide flag, expanded lazily.
+        try {
+            $site = \App\Models\Site::find($siteId);
+            if ($site) {
+                app(\App\Domain\References\Services\StalenessResolver::class)
+                    ->markSiteStale($site, 'Theme changed — published pages use the previous design');
+                app(\App\Domain\References\Services\ReferenceRecorder::class)
+                    ->recomputeSiteScope($site);
+            }
+        } catch (\Throwable $e) {
+            logger()->warning("Theme staleness marking failed for site {$siteId}: {$e->getMessage()}");
+        }
     }
 
     private function cacheKey(ResolveRequest $r): string

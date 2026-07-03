@@ -188,6 +188,13 @@ class PublishSiteJob implements ShouldQueue
 
             $this->broadcast('Published successfully!');
 
+            // A successful FULL rebuild covers every page — clear staleness flags
+            try {
+                app(\App\Domain\References\Services\StalenessResolver::class)->clearForSite($site);
+            } catch (\Throwable $e) {
+                logger()->warning("Staleness clear failed for site {$site->id}: {$e->getMessage()}");
+            }
+
             // Clean old builds (keep last 3)
             $this->cleanOldBuilds();
         } catch (\Throwable $e) {

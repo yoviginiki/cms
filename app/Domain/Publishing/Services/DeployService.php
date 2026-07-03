@@ -23,6 +23,45 @@ class DeployService
         };
     }
 
+    /**
+     * Deploy a PARTIAL build (stale-batch): per-file merge into the live
+     * docroot. Never uses the symlink strategy — swapping the whole docroot
+     * for a build that contains only a few pages would delete the rest of
+     * the site. SSH deploys use rsync --delete (same hazard) and zip_only has
+     * no live target, so both are rejected — those sites use full publish.
+     */
+    public function deployPartial(Deployment $deployment, string $stagingPath): void
+    {
+        $site = $deployment->site;
+        $method = ($site->settings ?? [])['deploy_method'] ?? 'local';
+
+        if ($method !== 'local') {
+            throw new \RuntimeException("Partial deploys are not supported for the '{$method}' deploy method — run a full publish instead.");
+        }
+
+        if ($site->custom_domain) {
+            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
+            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
+            if (!$safeDomain || str_contains($safeDomain, '..')) {
+                throw new \RuntimeException("Invalid custom domain: {$site->custom_domain}");
+            }
+            $targetPath = $tenantBase . '/' . $safeDomain . '/public_html';
+            if (!is_dir($targetPath)) {
+                throw new \RuntimeException("Deploy target does not exist: {$targetPath}.");
+            }
+        } else {
+            $targetPath = config('publishing.public_path') . '/' . $site->slug;
+            // If the docroot is currently a symlink to a full build, per-file
+            // writes would mutate that build's directory — still correct
+            // content-wise, but resolve it so paths land where they're served
+            if (is_link($targetPath)) {
+                $targetPath = readlink($targetPath);
+            }
+        }
+
+        $this->copyDeploy($stagingPath, $targetPath, $deployment);
+    }
+
     public function rollback(Deployment $deployment): void
     {
         $strategy = $this->resolveLocalStrategy();

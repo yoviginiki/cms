@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Pages\Services\PageService;
 use App\Domain\Publishing\Services\AutoPublishService;
+use App\Domain\References\Services\StalenessResolver;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreatePageRequest;
 use App\Http\Requests\ReorderRequest;
@@ -19,6 +20,7 @@ class PageController extends Controller
     public function __construct(
         private PageService $pageService,
         private AutoPublishService $autoPublish,
+        private StalenessResolver $staleness,
     ) {
     }
 
@@ -74,7 +76,16 @@ class PageController extends Controller
         $this->authorize('update', $page);
 
         $oldStatus = $page->status;
+        $oldSlug = $page->slug;
         $page = $this->pageService->updatePage($page, $request->validated());
+
+        // Slug change: pages/posts linking here still contain the old URL
+        if ($page->slug !== $oldSlug && $oldStatus === 'published') {
+            $this->staleness->markStaleForLinkTargets(
+                $site, 'page', $page->id,
+                "Internal link target renamed: /{$oldSlug} → /{$page->slug}",
+            );
+        }
 
         if ($page->status === 'published' || $oldStatus === 'published') {
             $this->autoPublish->triggerIfEnabled($site, $request->user(), 'page_updated', $page->id);
@@ -91,6 +102,11 @@ class PageController extends Controller
         $page->delete();
 
         if ($wasPublished) {
+            // Referring pages now contain a dead link
+            $this->staleness->markStaleForLinkTargets(
+                $site, 'page', $page->id,
+                "Linked page '{$page->title}' deleted",
+            );
             $this->autoPublish->triggerIfEnabled($site, null, 'page_updated', $page->id);
         }
 

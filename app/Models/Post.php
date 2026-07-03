@@ -19,6 +19,7 @@ class Post extends Model
         'site_id', 'category_id', 'author_id', 'title', 'slug', 'excerpt', 'layout_id',
         'featured_image', 'video_url', 'thumbnail', 'post_format',
         'status', 'editor_mode', 'experience_mode', 'seo_meta', 'grid_id', 'published_at', 'scheduled_at',
+        'needs_republish', 'needs_republish_reason',
     ];
 
     protected $attributes = [

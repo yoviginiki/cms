@@ -187,6 +187,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sites.assets', AssetController::class);
         Route::get('sites/{site}/assets/{asset}/serve/{variant?}', [AssetServeController::class, 'serve']);
 
+        // Entity references ("used on N pages")
+        Route::get('sites/{site}/references/usage', [\App\Http\Controllers\Api\V1\ReferenceController::class, 'usage']);
+
+        // Stale content: list, staged batch republish, human-confirmed promote
+        Route::get('sites/{site}/stale', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'index']);
+        Route::post('sites/{site}/stale/republish', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'republish']);
+        Route::post('sites/{site}/stale/{deployment}/promote', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'promote']);
+
         // Custom Fonts
         Route::get('sites/{site}/fonts', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'index']);
         Route::post('sites/{site}/fonts', [\App\Http\Controllers\Api\V1\CustomFontController::class, 'store']);

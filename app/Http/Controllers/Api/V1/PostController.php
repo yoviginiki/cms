@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Posts\Services\PostService;
 use App\Domain\Publishing\Services\AutoPublishService;
+use App\Domain\References\Services\StalenessResolver;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreatePostRequest;
 use App\Http\Requests\UpdatePostRequest;
@@ -18,6 +19,7 @@ class PostController extends Controller
     public function __construct(
         private PostService $postService,
         private AutoPublishService $autoPublish,
+        private StalenessResolver $staleness,
     ) {
     }
 
@@ -71,6 +73,11 @@ class PostController extends Controller
 
         $post = $this->postService->createPost($request->validated(), $site);
 
+        if ($post->status === 'published') {
+            // Listing pages (category + unfiltered "latest posts") now show stale lists
+            $this->staleness->resolveForPostChange($site, $post, "New post '{$post->title}' published");
+        }
+
         return (new PostResource($post->load('category')))
             ->response()
             ->setStatusCode(201);
@@ -81,9 +88,21 @@ class PostController extends Controller
         $this->authorize('update', $post);
 
         $oldStatus = $post->status;
+        $oldSlug = $post->slug;
         $post = $this->postService->updatePost($post, $request->validated());
 
         if ($post->status === 'published' || $oldStatus === 'published') {
+            // Listing pages + postcards embedding this post are now stale
+            $this->staleness->resolveForPostChange($site, $post, "Post '{$post->title}' updated");
+
+            // Slug change: referrers still contain the old URL
+            if ($post->slug !== $oldSlug && $oldStatus === 'published') {
+                $this->staleness->markStaleForLinkTargets(
+                    $site, 'post', $post->id,
+                    "Internal link target renamed: /blog/{$oldSlug} → /blog/{$post->slug}",
+                );
+            }
+
             $this->autoPublish->triggerIfEnabled($site, $request->user(), 'post_updated', $post->id);
         }
 
@@ -94,7 +113,17 @@ class PostController extends Controller
     {
         $this->authorize('delete', $post);
 
+        $wasPublished = $post->status === 'published';
         $post->delete();
+
+        if ($wasPublished) {
+            // Listings still show it; referrers now contain a dead link
+            $this->staleness->resolveForPostChange($site, $post, "Post '{$post->title}' deleted");
+            $this->staleness->markStaleForLinkTargets(
+                $site, 'post', $post->id,
+                "Linked post '{$post->title}' deleted",
+            );
+        }
 
         return response()->json(null, 204);
     }

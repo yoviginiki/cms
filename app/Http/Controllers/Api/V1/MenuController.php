@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Menus\Services\MenuService;
 use App\Domain\Publishing\Services\AutoPublishService;
+use App\Domain\References\Services\ReferenceRecorder;
+use App\Domain\References\Services\ReferenceUsageService;
+use App\Domain\References\Services\StalenessResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Menu;
 use App\Models\Site;
@@ -15,6 +18,9 @@ class MenuController extends Controller
     public function __construct(
         private MenuService $menuService,
         private AutoPublishService $autoPublish,
+        private StalenessResolver $staleness,
+        private ReferenceRecorder $references,
+        private ReferenceUsageService $usage,
     ) {}
 
     public function index(Site $site): JsonResponse
@@ -36,6 +42,9 @@ class MenuController extends Controller
         ]);
 
         $menu = $this->menuService->createMenu($request->only(['name', 'location']), $site);
+
+        // A located menu renders on every page — keep site-scope edges current
+        $this->references->recomputeSiteScope($site);
 
         return response()->json(['data' => $menu], 201);
     }
@@ -74,14 +83,37 @@ class MenuController extends Controller
 
         $menu = $this->menuService->updateMenu($menu, $request->only(['name', 'location', 'style']));
 
-        return response()->json(['data' => $menu]);
+        // Location/style changes alter rendered output; location moves also
+        // change which pages carry the menu — refresh site-scope edges
+        $this->references->recomputeSiteScope($site);
+        $affected = $this->staleness->markStale($site, 'menu', $menu->id, "Menu '{$menu->name}' updated");
+
+        return response()->json(['data' => $menu, 'meta' => ['stale' => $affected]]);
     }
 
-    public function destroy(Site $site, Menu $menu): JsonResponse
+    public function destroy(Request $request, Site $site, Menu $menu): JsonResponse
     {
         $this->authorize('update', $site);
 
+        // Delete protection: block deletion while pages still reference the
+        // menu, unless the caller explicitly forces it
+        $usage = $this->usage->usage($site, 'menu', $menu->id);
+        if ($usage['count'] > 0 && !$request->boolean('force')) {
+            return response()->json([
+                'message' => "Menu '{$menu->name}' is still in use. Pass force=1 to delete anyway.",
+                'usedOnCount' => $usage['count'],
+                'sources' => $usage['sources'],
+            ], 409);
+        }
+
+        $menuName = $menu->name;
+        $menuId = $menu->id;
         $this->menuService->deleteMenu($menu);
+
+        if ($usage['count'] > 0) {
+            $this->staleness->markStale($site, 'menu', $menuId, "Menu '{$menuName}' deleted (was in use)");
+        }
+        $this->references->recomputeSiteScope($site);
 
         return response()->json(null, 204);
     }
@@ -108,9 +140,12 @@ class MenuController extends Controller
         $menu = $this->menuService->syncItems($menu, $request->input('items'));
         $tree = $this->menuService->getTree($menu);
 
-        // Menu changes affect ALL pages — full rebuild
+        // Flag affected pages (embedding blocks + site-wide when located)…
+        $affected = $this->staleness->markStale($site, 'menu', $menu->id, "Menu '{$menu->name}' updated");
+
+        // …then the full rebuild (when auto-publish is on) clears flags on success
         $this->autoPublish->triggerIfEnabled($site, $request->user(), 'menu');
 
-        return response()->json(['data' => ['menu' => $menu, 'items' => $tree]]);
+        return response()->json(['data' => ['menu' => $menu, 'items' => $tree], 'meta' => ['stale' => $affected]]);
     }
 }

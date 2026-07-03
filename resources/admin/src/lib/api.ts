@@ -103,7 +103,8 @@ export const menus = {
   get: (siteId: string, menuId: string) => api.get(`/sites/${siteId}/menus/${menuId}`),
   create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/menus`, data),
   update: (siteId: string, menuId: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/menus/${menuId}`, data),
-  delete: (siteId: string, menuId: string) => api.delete(`/sites/${siteId}/menus/${menuId}`),
+  delete: (siteId: string, menuId: string, force = false) =>
+    api.delete(`/sites/${siteId}/menus/${menuId}`, { params: force ? { force: 1 } : {} }),
   syncItems: (siteId: string, menuId: string, items: unknown[]) => api.put(`/sites/${siteId}/menus/${menuId}/items`, { items }),
 };
 
@@ -144,7 +145,21 @@ export const assets = {
     fd.append('file', file);
     return api.post(`/sites/${siteId}/assets`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
-  delete: (siteId: string, assetId: string) => api.delete(`/sites/${siteId}/assets/${assetId}`),
+  delete: (siteId: string, assetId: string, force = false) =>
+    api.delete(`/sites/${siteId}/assets/${assetId}`, { params: force ? { force: 1 } : {} }),
+};
+
+export const references = {
+  usage: (siteId: string, targetType: string, targetId: string) =>
+    api.get(`/sites/${siteId}/references/usage`, { params: { target_type: targetType, target_id: targetId } }),
+};
+
+export const staleContent = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/stale`),
+  republish: (siteId: string, payload: { page_ids?: string[]; post_ids?: string[]; all?: boolean }) =>
+    api.post(`/sites/${siteId}/stale/republish`, payload),
+  promote: (siteId: string, deploymentId: string) =>
+    api.post(`/sites/${siteId}/stale/${deploymentId}/promote`),
 };
 
 export const publishing = {

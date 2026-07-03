@@ -40,6 +40,7 @@ const DtpPrototypeShell = lazy(() => import('./components/magazine/prototypes/dt
 const DtpEditorBeta = lazy(() => import('./pages/DtpEditorBeta'));
 const SessionsListPage = lazy(() => import('./pages/wizard/SessionsListPage'));
 const WizardPage = lazy(() => import('./pages/wizard/WizardPage'));
+const StalePages = lazy(() => import('./pages/StalePages'));
 
 function LazyFallback() {
   return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-base-content/20" /></div>;
@@ -71,6 +72,7 @@ export default function App() {
           {/* Pages with sidebar layout */}
           <Route path="/dashboard" element={<LayoutRoute><Dashboard /></LayoutRoute>} />
           <Route path="/sites/:siteId/pages" element={<LayoutRoute><PagesList /></LayoutRoute>} />
+          <Route path="/sites/:siteId/stale-pages" element={<LayoutRoute><StalePages /></LayoutRoute>} />
           <Route path="/sites/:siteId/posts" element={<LayoutRoute><PostsList /></LayoutRoute>} />
           <Route path="/sites/:siteId/magazines" element={<LayoutRoute><MagazineList /></LayoutRoute>} />
           <Route path="/sites/:siteId/magazine/wizard" element={<LayoutRoute><SessionsListPage /></LayoutRoute>} />
