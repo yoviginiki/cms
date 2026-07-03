@@ -12,6 +12,7 @@ import {
   Loader2, ExternalLink, FileText, FolderOpen, Link2, Globe, Settings2, Palette,
 } from 'lucide-react';
 import { menus, pages as pagesApi, categories as catsApi, posts as postsApi } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 
 // ── Types ──
 
@@ -399,6 +400,7 @@ export default function MenuEditor() {
   const { siteId = '', menuId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [items, setItems] = useState<MenuItemData[]>([]);
   const [menuName, setMenuName] = useState('');
   const [menuStyle, setMenuStyle] = useState<Record<string, unknown>>({});
@@ -443,11 +445,20 @@ export default function MenuEditor() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       await menus.update(siteId, menuId, { name: menuName, style: menuStyle });
-      await menus.syncItems(siteId, menuId, cleanItems(items));
+      return menus.syncItems(siteId, menuId, cleanItems(items));
     },
-    onSuccess: () => {
+    onSuccess: (r) => {
       setIsDirty(false);
       queryClient.invalidateQueries({ queryKey: ['menu', siteId, menuId] });
+      queryClient.invalidateQueries({ queryKey: ['stale-count', siteId] });
+      // Staleness summary from the backend: which published pages now differ
+      const stale = r?.data?.meta?.stale;
+      if (stale && (stale.pages > 0 || stale.posts > 0 || stale.site_wide)) {
+        const scope = stale.site_wide
+          ? 'all published pages'
+          : `${stale.pages + stale.posts} page(s)`;
+        toast({ type: 'info', message: `Menu saved — ${scope} affected. Review & republish from “Stale pages”.` });
+      }
     },
   });
 

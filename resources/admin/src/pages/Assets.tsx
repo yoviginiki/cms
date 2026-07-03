@@ -1,10 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { Upload, Trash2, Image, File, Loader2, X, Download, Search, Copy, Check, AlertTriangle } from 'lucide-react';
-import { assets, api } from '@/lib/api';
+import { Upload, Trash2, Image, File, Loader2, X, Download, Search, Copy, Check, AlertTriangle, Link2 } from 'lucide-react';
+import { assets, references, api } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+
+interface UsageSource {
+  type: string;
+  id: string;
+  title: string;
+  kind: string;
+}
 
 interface Asset {
   id: string;
@@ -60,15 +67,44 @@ export default function Assets() {
     },
   });
 
+  // Server returns 409 + referring sources when the asset is still in use;
+  // a second, explicit confirmation is required to force-delete
+  const [forceTarget, setForceTarget] = useState<{ asset: Asset; count: number; sources: UsageSource[] } | null>(null);
+
   const deleteMutation = useMutation({
-    mutationFn: (assetId: string) => assets.delete(siteId, assetId),
+    mutationFn: ({ assetId, force }: { assetId: string; force?: boolean }) =>
+      assets.delete(siteId, assetId, force),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets', siteId] });
+      const deleted = deleteTarget ?? forceTarget?.asset;
       setDeleteTarget(null);
-      if (selectedAsset && deleteTarget && selectedAsset.id === deleteTarget.id) {
+      setForceTarget(null);
+      if (selectedAsset && deleted && selectedAsset.id === deleted.id) {
         setSelectedAsset(null);
       }
     },
+    onError: (e: any, vars) => {
+      if (e?.response?.status === 409) {
+        const asset = data?.find(a => a.id === vars.assetId) ?? deleteTarget;
+        if (asset) {
+          setForceTarget({
+            asset,
+            count: e.response.data?.usedOnCount ?? 0,
+            sources: e.response.data?.sources ?? [],
+          });
+        }
+        setDeleteTarget(null);
+      } else {
+        alert(e?.response?.data?.message || 'Failed to delete asset');
+      }
+    },
+  });
+
+  // "Used on N pages" for the detail panel
+  const { data: usage } = useQuery<{ count: number; sources: UsageSource[] }>({
+    queryKey: ['asset-usage', siteId, selectedAsset?.id],
+    queryFn: () => references.usage(siteId, 'asset', selectedAsset!.id).then(r => r.data.data),
+    enabled: !!selectedAsset,
   });
 
   const handleFiles = useCallback((files: FileList | null) => {
@@ -327,6 +363,34 @@ export default function Assets() {
                   />
                 </dd>
               </div>
+              <div>
+                <dt className="text-base-content/50 flex items-center gap-1">
+                  <Link2 size={12} /> Used on
+                </dt>
+                <dd className="font-medium text-base-content">
+                  {usage ? (
+                    usage.count === 0 ? (
+                      <span className="text-base-content/50">Not used anywhere</span>
+                    ) : (
+                      <details>
+                        <summary className="cursor-pointer">
+                          {usage.count} place{usage.count === 1 ? '' : 's'}
+                        </summary>
+                        <ul className="mt-1 space-y-0.5 text-xs text-base-content/70">
+                          {usage.sources.map((s, i) => (
+                            <li key={i} className="flex items-center gap-1">
+                              <span className="badge badge-ghost badge-xs">{s.type}</span>
+                              {s.title}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )
+                  ) : (
+                    <span className="text-base-content/40">…</span>
+                  )}
+                </dd>
+              </div>
             </dl>
 
             <div className="mt-6 flex flex-col gap-2">
@@ -367,8 +431,19 @@ export default function Assets() {
         message={`Are you sure you want to delete "${deleteTarget?.original_name}"? This action cannot be undone.`}
         confirmText="Delete"
         variant="danger"
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate({ assetId: deleteTarget.id })}
         onClose={() => setDeleteTarget(null)}
+      />
+
+      {/* Delete protection: asset is still referenced — explicit force required */}
+      <ConfirmDialog
+        open={!!forceTarget}
+        title="Asset is still in use"
+        message={`"${forceTarget?.asset.original_name}" is used in ${forceTarget?.count} place${forceTarget?.count === 1 ? '' : 's'}: ${forceTarget?.sources.slice(0, 8).map(s => s.title).join(', ')}${(forceTarget?.sources.length ?? 0) > 8 ? '…' : ''}. Deleting it will leave broken media on those pages (they will be flagged for republish). Delete anyway?`}
+        confirmText="Force delete"
+        variant="danger"
+        onConfirm={() => forceTarget && deleteMutation.mutate({ assetId: forceTarget.asset.id, force: true })}
+        onClose={() => setForceTarget(null)}
       />
     </div>
   );

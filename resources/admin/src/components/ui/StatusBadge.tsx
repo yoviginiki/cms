@@ -10,8 +10,10 @@ const statusStyles: Record<string, string> = {
   paused: 'badge-warning badge-outline',
   queued: 'badge-info badge-outline',
   building: 'badge-info badge-outline',
+  staged: 'badge-warning badge-outline',
   live: 'badge-success badge-outline',
   failed: 'badge-error badge-outline',
+  stale: 'badge-warning badge-outline',
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {

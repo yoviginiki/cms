@@ -63,18 +63,26 @@ class ExtractionContext
             return null;
         }
 
-        // Blog post: blog/{slug}
+        // Blog post via blog index path: blog/{slug}
         if (preg_match('#^blog/([^/]+)#', $path, $m)) {
             $postId = $this->postSlugMap()[$m[1]] ?? null;
 
             return $postId ? ['target_type' => 'post', 'target_id' => $postId, 'kind' => 'links'] : null;
         }
 
-        // Page: published paths are flat ({slug}/index.html), first segment = slug
-        $slug = explode('/', $path)[0];
-        $pageId = $this->pageSlugMap()[$slug] ?? null;
+        $segments = explode('/', $path);
 
-        return $pageId ? ['target_type' => 'page', 'target_id' => $pageId, 'kind' => 'links'] : null;
+        // Page: published page paths are flat ({slug}/index.html), first segment = slug
+        if (count($segments) === 1) {
+            $pageId = $this->pageSlugMap()[$segments[0]] ?? null;
+
+            return $pageId ? ['target_type' => 'page', 'target_id' => $pageId, 'kind' => 'links'] : null;
+        }
+
+        // Post: published post paths are {categorySlug}/{postSlug}/index.html
+        $postId = $this->postSlugMap()[$segments[1]] ?? null;
+
+        return $postId ? ['target_type' => 'post', 'target_id' => $postId, 'kind' => 'links'] : null;
     }
 
     private function isOwnHost(string $host): bool

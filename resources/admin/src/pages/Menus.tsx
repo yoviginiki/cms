@@ -33,11 +33,31 @@ export default function Menus() {
     },
   });
 
+  // Server returns 409 + referring sources when the menu is still in use;
+  // a second, explicit confirmation is required to force-delete
+  const [forceTarget, setForceTarget] = useState<{ menu: MenuData; count: number; sources: { title: string }[] } | null>(null);
+
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => menus.delete(siteId, id),
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) => menus.delete(siteId, id, force),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus', siteId] });
       setDeleteTarget(null);
+      setForceTarget(null);
+    },
+    onError: (e: any, vars) => {
+      if (e?.response?.status === 409) {
+        const menu = data?.find(m => m.id === vars.id) ?? deleteTarget;
+        if (menu) {
+          setForceTarget({
+            menu,
+            count: e.response.data?.usedOnCount ?? 0,
+            sources: e.response.data?.sources ?? [],
+          });
+        }
+        setDeleteTarget(null);
+      } else {
+        alert(e?.response?.data?.message || 'Failed to delete menu');
+      }
     },
   });
 
@@ -104,8 +124,19 @@ export default function Menus() {
         message={`Delete "${deleteTarget?.name}"? This will remove all menu items.`}
         confirmText="Delete"
         variant="danger"
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id })}
         onClose={() => setDeleteTarget(null)}
+      />
+
+      {/* Delete protection: menu is still referenced — explicit force required */}
+      <ConfirmDialog
+        open={!!forceTarget}
+        title="Menu is still in use"
+        message={`"${forceTarget?.menu.name}" is used in ${forceTarget?.count} place${forceTarget?.count === 1 ? '' : 's'}: ${forceTarget?.sources.slice(0, 8).map(s => s.title).join(', ')}${(forceTarget?.sources.length ?? 0) > 8 ? '…' : ''}. Deleting it will leave gaps on those pages (they will be flagged for republish). Delete anyway?`}
+        confirmText="Force delete"
+        variant="danger"
+        onConfirm={() => forceTarget && deleteMutation.mutate({ id: forceTarget.menu.id, force: true })}
+        onClose={() => setForceTarget(null)}
       />
     </div>
   );

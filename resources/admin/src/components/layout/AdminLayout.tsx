@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download, X, PanelLeft } from 'lucide-react';
-import { publishing, api } from '@/lib/api';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { LayoutDashboard, FileText, FileWarning, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Wand2, Users, Archive, Download, X, PanelLeft } from 'lucide-react';
+import { publishing, staleContent, api } from '@/lib/api';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -102,10 +102,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     onError: () => { window.location.href = '/admin/login'; },
   });
 
+  // Stale-content count for the sidebar badge (light poll, site pages only)
+  const { data: staleCount = 0 } = useQuery<number>({
+    queryKey: ['stale-count', siteId],
+    queryFn: () => staleContent.list(siteId!).then(r => r.data.data.count ?? 0),
+    enabled: !!siteId,
+    refetchInterval: 60_000,
+  });
+
   const mainNav = siteId
     ? [
         { to: `/sites/${siteId}/pages`, icon: FileText, label: 'Pages' },
         { to: `/sites/${siteId}/posts`, icon: Newspaper, label: 'Posts' },
+        ...(staleCount > 0
+          ? [{ to: `/sites/${siteId}/stale-pages`, icon: FileWarning, label: 'Stale pages', badge: staleCount }]
+          : []),
         { to: `/sites/${siteId}/assets`, icon: Archive, label: 'Media' },
         { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
         { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
@@ -195,6 +206,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   }`}>
                   <item.icon size={15} strokeWidth={1.5} />
                   {!collapsed && item.label}
+                  {'badge' in item && item.badge != null && (
+                    <span className={`badge badge-warning badge-xs font-semibold ${collapsed ? '-ml-1' : 'ml-auto'}`}>
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               ))}
 
