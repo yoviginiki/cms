@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { TypographyProps } from '@/types/blocks';
 import { FontPicker } from '@/components/editor/fields/FontPicker';
+import { TokenColorInput } from '@/components/editor/fields/TokenColorInput';
 
 interface Props {
   value: TypographyProps;
@@ -150,16 +151,9 @@ export function TypographyPanel({ value, onChange }: Props) {
         </select>
       </div>
 
-      {/* Color */}
-      <div>
-        <label className="text-[10px] text-base-content/40">Text Color</label>
-        <div className="flex gap-2">
-          <input type="color" value={value.textColor || '#000000'} onChange={e => update('textColor', e.target.value)}
-            className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
-          <input value={value.textColor || ''} onChange={e => update('textColor', e.target.value)}
-            className="input input-bordered input-xs flex-1 text-[11px]" placeholder="inherit" />
-        </div>
-      </div>
+      {/* Color — theme-token aware */}
+      <TokenColorInput label="Text Color" value={value.textColor || ''}
+        onChange={v => update('textColor', v || undefined)} />
 
       {/* Font style */}
       <div>

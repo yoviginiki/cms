@@ -49,7 +49,8 @@ export function VisualPanel({ value, onChange, hideBg }: Props) {
         <div>
           <label className="text-[10px] text-base-content/40">Color</label>
           <input value={value.borderColor || ''} onChange={e => update('borderColor', e.target.value)}
-            className="input input-bordered input-xs w-full text-[11px]" placeholder="#e5e7eb" />
+            className="input input-bordered input-xs w-full text-[11px]"
+            placeholder="#e5e7eb or var(--color-border-light)" />
         </div>
         <div>
           <label className="text-[10px] text-base-content/40">Style</label>
