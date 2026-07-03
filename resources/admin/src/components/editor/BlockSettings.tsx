@@ -12,6 +12,7 @@ import { AdvancedPanel } from './properties/AdvancedPanel';
 import { ResponsivePanel } from './properties/ResponsivePanel';
 import { TypographyPanel } from './properties/TypographyPanel';
 import { LayerTransformPanel } from './properties/LayerTransformPanel';
+import { AnimationScenePanel } from './properties/AnimationScenePanel';
 import BackgroundEditor from './BackgroundEditor';
 
 function findBlock(blocks: BlockData[], id: string): BlockData | null {
@@ -124,6 +125,16 @@ export function BlockSettings() {
             <LayerTransformPanel
               value={((block.data as Record<string, unknown>)?.layout as Record<string, unknown>) || {}}
               onChange={layout => handleUpdate({ layout })}
+            />
+          </Section>
+        )}
+
+        {/* Scene animation (IN/LOOP/OUT): layers inside a slide only */}
+        {parentBlock?.type === 'slide' && (
+          <Section title="Animation" defaultOpen={false}>
+            <AnimationScenePanel
+              value={((block.data as Record<string, unknown>)?.animation as Record<string, unknown>) || {}}
+              onChange={animation => handleUpdate({ animation })}
             />
           </Section>
         )}

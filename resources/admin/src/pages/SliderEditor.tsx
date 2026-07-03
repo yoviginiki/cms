@@ -4,8 +4,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Save, Loader2, Plus, Copy, Trash2, ChevronLeft, ChevronRight,
   Rocket, Type, Image as ImageIcon, Square, MousePointerClick, Video, Music, Group,
+  Play,
 } from 'lucide-react';
 import { sliders } from '@/lib/api';
+import { loadMotionRuntime } from '@/lib/motionRuntime';
+
+/** minimal surface of a gsap timeline the preview controls need */
+interface PreviewTimeline {
+  kill(): void;
+  play(): void;
+  pause(): void;
+  progress(value?: number): number;
+  eventCallback(name: string, cb: (() => void) | null): void;
+}
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
 import { BlockSettings } from '@/components/editor/BlockSettings';
@@ -168,6 +179,51 @@ export default function SliderEditor() {
     } as unknown as BlockData;
     updateBlockChildren(activeSlide.id, [...(activeSlide.children ?? []), layer]);
     selectBlock(layer.id);
+  };
+
+  /* ── "Play this slide": the SAME buildSlideTimeline the published runtime
+        uses (loaded from resources/js/motion-runtime.js — one builder). ── */
+  const tlRef = useRef<PreviewTimeline | null>(null);
+  const [playProgress, setPlayProgress] = useState(0);
+  const [playingPhase, setPlayingPhase] = useState<'in' | 'out' | null>(null);
+  const [previewNonce, setPreviewNonce] = useState(0);
+
+  const stopPreview = () => {
+    tlRef.current?.kill();
+    tlRef.current = null;
+    setPlayingPhase(null);
+    setPlayProgress(0);
+    // split() mutates preview DOM; remounting the layer wrappers restores
+    // React-owned markup at authored final state (the runtime's reset rule)
+    setPreviewNonce(n => n + 1);
+  };
+
+  const playPhase = async (phase: 'in' | 'out') => {
+    if (!activeSlide || !canvasRef.current) return;
+    stopPreview();
+    const rt = await loadMotionRuntime();
+    // config shape = prototype/runtime contract: layers by id + animation
+    const conf = {
+      id: activeSlide.id,
+      layers: (activeSlide.children ?? []).map((l: BlockData) => ({
+        id: l.id, type: l.type,
+        animation: (l.data as any)?.animation ?? null,
+      })),
+    };
+    const tl = rt.buildSlideTimeline(canvasRef.current, conf, phase);
+    tlRef.current = tl;
+    setPlayingPhase(phase);
+    tl.eventCallback('onUpdate', () => setPlayProgress(tl.progress()));
+    tl.eventCallback('onComplete', () => setPlayingPhase(null));
+    tl.play();
+  };
+
+  const scrubTo = (p: number) => {
+    const tl = tlRef.current;
+    if (!tl) return;
+    tl.pause();
+    tl.progress(p);
+    setPlayProgress(p);
   };
 
   /* ── canvas drag: pointer-move updates data.layout x/y in % ── */
@@ -343,8 +399,9 @@ export default function SliderEditor() {
                 const reg = blockRegistry.get(layer.type);
                 const selected = selectedBlockId === layer.id;
                 return (
-                  <div key={layer.id}
-                    onPointerDown={e => onLayerPointerDown(e, layer)}
+                  <div key={`${layer.id}-${previewNonce}`}
+                    data-layer-id={layer.id}
+                    onPointerDown={e => { stopPreview(); onLayerPointerDown(e, layer); }}
                     className={`absolute cursor-move ${selected ? 'ring-2 ring-primary ring-offset-1' : 'hover:ring-1 hover:ring-primary/40'}`}
                     style={{
                       left: layout.x ?? '40%', top: layout.y ?? '40%',
@@ -355,6 +412,52 @@ export default function SliderEditor() {
                     }}>
                     {reg ? <reg.Preview block={layer} isSelected={selected} onSelect={() => selectBlock(layer.id)} onUpdate={d => updateBlock(layer.id, d)} />
                       : <div className="text-xs text-white/60 p-2">{layer.type}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* playback controls + timeline strip */}
+          <div className="bg-base-100 border-t border-base-300 px-3 py-1.5">
+            <div className="flex items-center gap-2">
+              <button onClick={() => playPhase('in')} className="btn btn-xs btn-primary gap-1" title="Play this slide's IN scene">
+                <Play size={11} /> IN
+              </button>
+              <button onClick={() => playPhase('out')} className="btn btn-xs btn-outline gap-1" title="Play the OUT scene">
+                <Play size={11} /> OUT
+              </button>
+              <button onClick={stopPreview} className="btn btn-xs btn-ghost gap-1" title="Stop & reset to final state">
+                <Square size={10} /> Reset
+              </button>
+              <input type="range" min={0} max={1} step={0.001} value={playProgress}
+                onChange={e => scrubTo(Number(e.target.value))}
+                disabled={!tlRef.current}
+                className="range range-xs flex-1" title="Scrub the current timeline" />
+              <span className="text-[10px] text-base-content/40 w-16 text-right">
+                {playingPhase ? `${playingPhase} ▸` : ''} {(playProgress * 100).toFixed(0)}%
+              </span>
+            </div>
+            {/* horizontal timeline strip: delay→duration bars per layer (IN blue / OUT amber) */}
+            <div className="mt-1 space-y-0.5">
+              {(activeSlide?.children ?? []).map((layer: BlockData) => {
+                const anim = ((layer.data as any)?.animation ?? {}) as Record<string, any>;
+                const bar = (scene: any, color: string) => {
+                  if (!scene) return null;
+                  const delay = Number(scene.delay ?? scene.tracks?.[0]?.delay ?? 0);
+                  const dur = Number(scene.duration ?? scene.tracks?.[0]?.duration ?? 0.6);
+                  return <div className={`absolute h-1.5 ${color}`}
+                    style={{ left: `${Math.min(95, delay * 18)}%`, width: `${Math.max(1.5, dur * 18)}%` }} />;
+                };
+                return (
+                  <div key={layer.id}
+                    className={`flex items-center gap-2 cursor-pointer ${selectedBlockId === layer.id ? 'opacity-100' : 'opacity-60 hover:opacity-90'}`}
+                    onClick={() => selectBlock(layer.id)}>
+                    <span className="text-[9px] text-base-content/40 w-16 truncate shrink-0">{layer.type}</span>
+                    <div className="relative flex-1 h-1.5 bg-base-200">
+                      {bar(anim.in, 'bg-primary')}
+                      {bar(anim.out, 'bg-warning')}
+                    </div>
                   </div>
                 );
               })}
