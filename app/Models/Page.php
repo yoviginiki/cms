@@ -17,7 +17,7 @@ class Page extends Model
     protected $fillable = [
         'site_id', 'parent_id', 'title', 'slug', 'layout_id',
         'status', 'editor_mode', 'experience_mode', 'seo_meta', 'sort_order', 'grid_id', 'published_at', 'scheduled_at',
-        'raw_html',
+        'raw_html', 'needs_republish', 'needs_republish_reason',
     ];
 
     protected $attributes = [
