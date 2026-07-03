@@ -44,6 +44,16 @@ class SanitizationService
         restore_error_handler();
     }
 
+    /**
+     * Purify a rich-HTML string with the same profile blocks use. Public so
+     * the magazine/DTP renderers share ONE sanitize path (S8 — they used bare
+     * strip_tags, which let event handlers and javascript: URLs through).
+     */
+    public function purifyRich(string $html): string
+    {
+        return @$this->purifier->purify($html);
+    }
+
     public function sanitizeBlock(Block $block): array
     {
         $data = $block->data ?? [];

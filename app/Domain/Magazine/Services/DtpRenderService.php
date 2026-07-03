@@ -20,7 +20,10 @@ class DtpRenderService
      */
     private function sanitizeHtml(string $html): string
     {
-        $html = strip_tags($html, '<p><br><b><i><u><em><strong><span><a><h1><h2><h3><h4><h5><h6><ul><ol><li><blockquote><sub><sup><hr><div><img>');
+        // S8: run the shared HTMLPurifier profile FIRST (kills event handlers,
+        // javascript: URLs, unknown tags); the regex below then re-filters
+        // attributes for the DTP-specific style allowance
+        $html = app(\App\Domain\Publishing\Services\SanitizationService::class)->purifyRich($html);
         // Keep safe attributes: href (http/https only) and style (CSS properties only)
         return preg_replace_callback(
             '/<(\w+)(\s[^>]*)?>/',

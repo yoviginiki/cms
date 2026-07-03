@@ -37,9 +37,19 @@ class AssetService
         $basePath = "sites/{$site->id}/assets";
         $storagePath = "{$basePath}/{$uuid}.{$extension}";
 
-        Storage::disk('assets')->put($storagePath, file_get_contents($file->getRealPath()));
-
         $mimeType = $file->getMimeType();
+
+        // SVG is markup, not pixels: scrub scripts/handlers/external refs at
+        // the door (S7 — previously stored raw). Unparseable SVG is rejected.
+        $contents = file_get_contents($file->getRealPath());
+        if ($mimeType === 'image/svg+xml') {
+            $contents = app(SvgSanitizer::class)->sanitize($contents);
+            if ($contents === null) {
+                throw new \InvalidArgumentException('SVG file could not be sanitized — upload rejected.');
+            }
+        }
+        Storage::disk('assets')->put($storagePath, $contents);
+
         $dimensions = null;
         $variants = [];
 
