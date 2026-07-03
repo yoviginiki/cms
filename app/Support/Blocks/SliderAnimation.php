@@ -69,6 +69,22 @@ class SliderAnimation
             'layout.heightPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'layout.rotation' => ['sometimes', 'nullable', 'numeric', 'min:-360', 'max:360'],
             'layout.zIndex' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:99'],
+
+            // per-breakpoint layout overrides (tablet ≤1023px, mobile ≤767px —
+            // same breakpoints as BlockStyle's responsive emitters)
+            'responsiveLayout' => ['sometimes', 'nullable', 'array'],
+            'responsiveLayout.tablet' => ['sometimes', 'nullable', 'array'],
+            'responsiveLayout.tablet.x' => ['sometimes', 'nullable', 'regex:' . self::COORD_PATTERN],
+            'responsiveLayout.tablet.y' => ['sometimes', 'nullable', 'regex:' . self::COORD_PATTERN],
+            'responsiveLayout.tablet.widthPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'responsiveLayout.tablet.heightPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'responsiveLayout.tablet.hidden' => ['sometimes', 'boolean'],
+            'responsiveLayout.mobile' => ['sometimes', 'nullable', 'array'],
+            'responsiveLayout.mobile.x' => ['sometimes', 'nullable', 'regex:' . self::COORD_PATTERN],
+            'responsiveLayout.mobile.y' => ['sometimes', 'nullable', 'regex:' . self::COORD_PATTERN],
+            'responsiveLayout.mobile.widthPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'responsiveLayout.mobile.heightPct' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'responsiveLayout.mobile.hidden' => ['sometimes', 'boolean'],
         ]
             + $sceneRules('in')
             + $sceneRules('loop')

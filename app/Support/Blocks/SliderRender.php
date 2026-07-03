@@ -184,7 +184,35 @@ class SliderRender
 
         $animated = !empty(($layer->data ?? [])['animation']) ? ' data-animated' : '';
 
-        return '<div class="sp-layer" data-layer-id="' . e($layer->id) . '"' . $animated
+        // Per-breakpoint overrides: scoped <style> with the SAME breakpoints
+        // as BlockStyle's responsive emitters (tablet ≤1023, mobile ≤767)
+        $respCss = '';
+        $scope = '';
+        $respLayout = ($layer->data ?? [])['responsiveLayout'] ?? null;
+        if (is_array($respLayout)) {
+            $scopeClass = 'spl-' . substr(md5($layer->id), 0, 8);
+            foreach (['tablet' => 1023, 'mobile' => 767] as $bp => $maxWidth) {
+                $o = $respLayout[$bp] ?? null;
+                if (!is_array($o)) {
+                    continue;
+                }
+                $rules = [];
+                if (isset($o['x'])) $rules[] = 'left:' . self::safeCoord($o['x'], '0%') . ' !important';
+                if (isset($o['y'])) $rules[] = 'top:' . self::safeCoord($o['y'], '0%') . ' !important';
+                if (isset($o['widthPct']) && is_numeric($o['widthPct'])) $rules[] = 'width:' . max(0, min(100, (float) $o['widthPct'])) . '% !important';
+                if (isset($o['heightPct']) && is_numeric($o['heightPct'])) $rules[] = 'height:' . max(0, min(100, (float) $o['heightPct'])) . '% !important';
+                if (!empty($o['hidden'])) $rules[] = 'display:none !important';
+                if ($rules !== []) {
+                    $respCss .= "@media (max-width:{$maxWidth}px){.{$scopeClass}{" . implode(';', $rules) . ";}}";
+                }
+            }
+            if ($respCss !== '') {
+                $scope = ' ' . $scopeClass;
+            }
+        }
+
+        return ($respCss !== '' ? '<style>' . $respCss . '</style>' : '')
+            . '<div class="sp-layer' . $scope . '" data-layer-id="' . e($layer->id) . '"' . $animated
             . ' style="' . e($style) . '">' . $innerHtml . '</div>';
     }
 

@@ -3,8 +3,8 @@
 
 .sp-slider{position:relative;width:100%;overflow:hidden;
   height:var(--sp-h-desktop,70vh);}
-@media (max-width:1024px){.sp-slider{height:var(--sp-h-tablet,60vh);}}
-@media (max-width:640px){.sp-slider{height:var(--sp-h-mobile,80vh);}}
+@media (max-width:1023px){.sp-slider{height:var(--sp-h-tablet,60vh);}}
+@media (max-width:767px){.sp-slider{height:var(--sp-h-mobile,80vh);}}
 .sp-slider .swiper{width:100%;height:100%;}
 .sp-slide{position:relative;overflow:hidden;}
 

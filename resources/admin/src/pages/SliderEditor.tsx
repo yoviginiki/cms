@@ -235,10 +235,18 @@ export default function SliderEditor() {
     return Number.isFinite(n) ? n : fallback;
   };
 
+  /** effective layout for the active canvas device (base + bp override) */
+  const effectiveLayout = (layer: BlockData): Record<string, any> => {
+    const base = ((layer.data as any)?.layout ?? {}) as Record<string, any>;
+    if (canvasDevice === 'desktop') return base;
+    const override = ((layer.data as any)?.responsiveLayout?.[canvasDevice] ?? {}) as Record<string, any>;
+    return { ...base, ...override };
+  };
+
   const onLayerPointerDown = (e: React.PointerEvent, layer: BlockData) => {
     e.stopPropagation();
     selectBlock(layer.id);
-    const layout = ((layer.data as any)?.layout ?? {}) as Record<string, unknown>;
+    const layout = effectiveLayout(layer);
     dragState.current = {
       id: layer.id, startX: e.clientX, startY: e.clientY,
       origX: pctOf(layout.x as string, 40), origY: pctOf(layout.y as string, 40),
@@ -253,8 +261,14 @@ export default function SliderEditor() {
     if (!layer) return;
     const nx = Math.max(0, Math.min(96, d.origX + ((e.clientX - d.startX) / rect.width) * 100));
     const ny = Math.max(0, Math.min(96, d.origY + ((e.clientY - d.startY) / rect.height) * 100));
-    const layout = { ...(((layer.data as any)?.layout ?? {}) as object), x: `${nx.toFixed(1)}%`, y: `${ny.toFixed(1)}%` };
-    updateBlock(d.id, { layout });
+    const pos = { x: `${nx.toFixed(1)}%`, y: `${ny.toFixed(1)}%` };
+    if (canvasDevice === 'desktop') {
+      updateBlock(d.id, { layout: { ...(((layer.data as any)?.layout ?? {}) as object), ...pos } });
+    } else {
+      // dragging on tablet/mobile writes that device's override
+      const resp = ((layer.data as any)?.responsiveLayout ?? {}) as Record<string, object>;
+      updateBlock(d.id, { responsiveLayout: { ...resp, [canvasDevice]: { ...(resp[canvasDevice] ?? {}), ...pos } } });
+    }
   };
   const onPointerUp = () => { dragState.current = null; };
 
@@ -395,7 +409,8 @@ export default function SliderEditor() {
 
               {/* layers at FINAL state (canvas edits layout; motion previews come from the shared runtime later) */}
               {(activeSlide?.children ?? []).map((layer: BlockData) => {
-                const layout = ((layer.data as any)?.layout ?? {}) as Record<string, any>;
+                const layout = effectiveLayout(layer);
+                if (layout.hidden) return null; // hidden on this device
                 const reg = blockRegistry.get(layer.type);
                 const selected = selectedBlockId === layer.id;
                 return (

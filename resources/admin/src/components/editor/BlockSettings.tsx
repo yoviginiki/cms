@@ -125,6 +125,8 @@ export function BlockSettings() {
             <LayerTransformPanel
               value={((block.data as Record<string, unknown>)?.layout as Record<string, unknown>) || {}}
               onChange={layout => handleUpdate({ layout })}
+              responsive={((block.data as Record<string, unknown>)?.responsiveLayout as Record<string, unknown>) || {}}
+              onResponsiveChange={responsiveLayout => handleUpdate({ responsiveLayout })}
             />
           </Section>
         )}
@@ -148,6 +150,9 @@ export function BlockSettings() {
           <TypographyPanel
             value={style.typography || {}}
             onChange={v => updateStyle('typography', v)}
+            style={style}
+            responsive={block.responsive}
+            onResponsiveChange={v => handleUpdate({ __responsive: v })}
           />
         </Section>
 

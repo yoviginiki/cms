@@ -127,6 +127,63 @@ class SliderTest extends TestCase
             ->where('blockable_id', $slider->id)->count());
     }
 
+    public function test_page_preview_endpoint_inlines_the_published_slider(): void
+    {
+        // Phase 5.3 parity: the EXISTING preview endpoint renders the slider
+        // through the same Blade path as staged output — no second renderer
+        $slider = $this->createSlider();
+        $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/sliders/{$slider->id}/publish")
+            ->assertStatus(200);
+
+        $page = Page::factory()->published()->create(['site_id' => $this->site->id]);
+        app(BlockService::class)->syncBlocks($page, [
+            ['type' => 'slider_ref', 'order' => 0, 'data' => ['sliderId' => $slider->id]],
+        ]);
+
+        $html = $this->actingAsOwner()
+            ->get("/api/v1/sites/{$this->site->id}/pages/{$page->id}/preview")
+            ->assertStatus(200)
+            ->getContent();
+
+        $this->assertStringContainsString('data-slider-id=', $html);
+        $this->assertStringContainsString('data-slider-config', $html);
+        $this->assertStringContainsString('aria-roledescription="carousel"', $html);
+        $this->assertStringContainsString('swiper-bundle.min.js', $html);
+    }
+
+    public function test_responsive_layer_overrides_reach_published_output(): void
+    {
+        $slider = $this->createSlider();
+        $tree = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/sliders/{$slider->id}")->json('data.blocks');
+        $tree[0]['children'][0]['children'][] = [
+            'type' => 'text', 'level' => 'module', 'order' => 0,
+            'data' => [
+                'content' => 'Responsive layer',
+                'layout' => ['x' => '8%', 'y' => '30%'],
+                'responsiveLayout' => ['mobile' => ['x' => '4%', 'hidden' => false, 'widthPct' => 90]],
+            ],
+        ];
+        $this->actingAsOwner()
+            ->putJson("/api/v1/sites/{$this->site->id}/sliders/{$slider->id}/blocks", ['blocks' => $tree])
+            ->assertStatus(200);
+        $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/sliders/{$slider->id}/publish")->assertStatus(200);
+
+        $page = Page::factory()->published()->create(['site_id' => $this->site->id]);
+        app(BlockService::class)->syncBlocks($page, [
+            ['type' => 'slider_ref', 'order' => 0, 'data' => ['sliderId' => $slider->id]],
+        ]);
+
+        $html = $this->actingAsOwner()
+            ->get("/api/v1/sites/{$this->site->id}/pages/{$page->id}/preview")->getContent();
+
+        $this->assertStringContainsString('@media (max-width:767px)', $html);
+        $this->assertStringContainsString('left:4% !important', $html);
+        $this->assertStringContainsString('width:90% !important', $html);
+    }
+
     public function test_cross_site_slider_is_not_accessible(): void
     {
         $slider = $this->createSlider();
