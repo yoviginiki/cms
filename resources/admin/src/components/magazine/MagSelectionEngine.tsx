@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { MagElement } from '@/types/magazine';
 import { calculateSmartGuides, snapToGrid } from '@/lib/smartGuides';
+import { useMagazineStore } from '@/stores/magazineStore';
 
 interface SelectionState {
   selectedIds: string[];
@@ -60,8 +61,14 @@ export function useMagSelection(
   }, []);
 
   const clearSelection = useCallback(() => { setState(s => ({ ...s, selectedIds: [], hoveredId: null })); }, []);
-  const setTool = useCallback((tool: SelectionState['activeTool']) => { setState(s => ({ ...s, activeTool: tool })); }, []);
-  const toggleSnap = useCallback(() => { setState(s => ({ ...s, snapEnabled: !s.snapEnabled })); }, []);
+  const setTool = useCallback((tool: SelectionState['activeTool']) => {
+    setState(s => ({ ...s, activeTool: tool }));
+    // keep the store in sync so the top toolbar reflects the active tool (W0-3)
+    useMagazineStore.getState().setTool(tool);
+  }, []);
+  // snap flag lives in the STORE (audit W0-3: the canvas previously kept a
+  // private copy, making the top-toolbar magnet a no-op)
+  const toggleSnap = useCallback(() => { useMagazineStore.getState().toggleSnap(); }, []);
   const setGridSize = useCallback((size: number) => { setState(s => ({ ...s, gridSize: size })); }, []);
 
   // Pointer down on element
@@ -131,7 +138,7 @@ export function useMagSelection(
       let newX = firstOrig.x + dx;
       let newY = firstOrig.y + dy;
 
-      if (state.snapEnabled) {
+      if (useMagazineStore.getState().snapEnabled) {
         newX = snapToGrid(newX, state.gridSize);
         newY = snapToGrid(newY, state.gridSize);
       }
@@ -251,6 +258,19 @@ export function useMagSelection(
       if (e.key === 'd' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onDuplicateElements(state.selectedIds); }
       if (e.key === 'a' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setState(s => ({ ...s, selectedIds: elements.filter(el => !el.locked).map(el => el.id) })); }
 
+      // Undo / redo / clipboard — the toolbar tooltips always advertised
+      // these; they are now actually bound (audit W0-5)
+      const store = useMagazineStore.getState();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) store.redo(); else store.undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); store.copy(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') { e.preventDefault(); store.cut(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); store.paste(); return; }
+
       // Tool shortcuts
       if (e.key === 'v') setTool('select');
       if (e.key === 't') setTool('text');
@@ -280,8 +300,10 @@ export function useMagSelection(
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state.selectedIds, elements, onUpdateElement, onDeleteElements, onDuplicateElements, clearSelection, setTool, toggleSnap]);
 
+  const storeSnapEnabled = useMagazineStore((st) => st.snapEnabled);
   return {
     ...state,
+    snapEnabled: storeSnapEnabled,
     select,
     clearSelection,
     setTool,

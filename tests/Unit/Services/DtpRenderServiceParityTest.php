@@ -114,6 +114,23 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringContainsString('overflow:visible', $m->invoke($svc, $page, true), 'spread-spanning images must not clip at the page edge');
     }
 
+    public function test_focal_point_accepts_both_scales(): void
+    {
+        // canonical 0-1 (editor scale)
+        $out = $this->renderFrame([
+            'frame_type' => 'image',
+            'content' => ['src' => 'https://x.test/i.jpg', 'focalPoint' => ['x' => 0.3, 'y' => 0.7]],
+        ]);
+        $this->assertStringContainsString('object-position:30% 70%', $out['html']);
+
+        // legacy 0-100 saves keep rendering correctly
+        $out2 = $this->renderFrame([
+            'frame_type' => 'image',
+            'content' => ['src' => 'https://x.test/i.jpg', 'focalPoint' => ['x' => 25, 'y' => 80]],
+        ]);
+        $this->assertStringContainsString('object-position:25% 80%', $out2['html']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

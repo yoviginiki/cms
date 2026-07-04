@@ -1,0 +1,102 @@
+// GOLDEN TESTS — DTP save/load round-trip integrity (audit W0-6)
+// A field that survives pagesToDtpApi -> dtpApiToPages is truly persisted.
+
+import { describe, it, expect } from 'vitest';
+import { dtpApiToPages, pagesToDtpApi } from './dtpAdapters';
+import type { MagElement, MagPageData } from '@/types/magazine';
+import { DEFAULT_ELEMENT_STYLE, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
+
+function el(partial: Partial<MagElement>): MagElement {
+  return {
+    id: crypto.randomUUID(), type: 'text_frame', name: 'Body',
+    data: { content: '<p>hello world</p>', columnsInFrame: 2, columnGap: 14, textInset: { top: 8, right: 8, bottom: 8, left: 8 } },
+    x: 10, y: 20, width: 300, height: 200, rotation: 0, scaleX: 1, scaleY: 1,
+    zIndex: 3, locked: false, visible: true, layerName: null,
+    style: structuredClone(DEFAULT_ELEMENT_STYLE),
+    typography: { ...DEFAULT_TYPOGRAPHY, fontSize: 16.5, hyphenation: true },
+    textWrap: { type: 'bounding-box', offset: { top: 6, right: 6, bottom: 6, left: 6 }, side: 'both', customPath: null, invert: false },
+    threadId: 'thread-1', threadOrder: 2, pageNumber: 1, onMaster: false,
+    positionMode: 'free', spanMode: 'page', parentId: null, children: [], responsiveOverrides: {},
+    ...partial,
+  };
+}
+
+function page(elements: MagElement[]): MagPageData {
+  return {
+    id: crypto.randomUUID(), pageNumber: 1,
+    pageSize: { width: 595, height: 842 },
+    margins: { top: 36, right: 36, bottom: 36, left: 36 },
+    bleed: { top: 9, right: 9, bottom: 9, left: 9 },
+    columns: { count: 1, gutter: 12 }, baselineGrid: { increment: 14, start: 36 },
+    isMaster: false, masterPageId: 'master-a', spreadWith: null,
+    backgroundColor: '#ffffff', backgroundAssetId: null, elements,
+  };
+}
+
+function roundTrip(pages: MagPageData[], extras?: any) {
+  const payload = pagesToDtpApi(pages, [], [], { layoutMode: 'book' }, {}, extras);
+  return { payload, pages: dtpApiToPages(payload) };
+}
+
+describe('DTP adapter round-trip (W0-6)', () => {
+  it('text frame: threading, flow bookkeeping, wrap, typography survive', () => {
+    const src = el({
+      data: { content: '<p>slice</p>', columnsInFrame: 3, columnGap: 10, _autoFlow: true, _flowHash: 'abc123', textInset: { top: 4, right: 4, bottom: 4, left: 4 }, verticalAlign: 'center' },
+      scaleX: 1.2, scaleY: 0.9,
+    });
+    const { pages } = roundTrip([page([src])]);
+    const out = pages[0].elements[0];
+    expect(out.threadId).toBe('thread-1');
+    expect(out.threadOrder).toBe(2);
+    expect((out.data as any)._autoFlow).toBe(true);
+    expect((out.data as any)._flowHash).toBe('abc123');
+    expect(out.textWrap.type).toBe('bounding-box');
+    expect(out.textWrap.offset.top).toBe(6);
+    expect(out.typography?.fontSize).toBe(16.5);
+    expect(out.typography?.hyphenation).toBe(true);
+    expect((out.data as any).columnsInFrame).toBe(3);
+    expect((out.data as any).verticalAlign).toBe('center');
+    expect(out.scaleX).toBeCloseTo(1.2);
+    expect(out.scaleY).toBeCloseTo(0.9);
+  });
+
+  it('image frame: content-mode fields and filters survive (previously lost)', () => {
+    const img = el({
+      type: 'image_frame',
+      typography: null, threadId: null, threadOrder: null,
+      data: {
+        src: '/media/x.webp', alt: 'Alt', fit: 'fit', focalPoint: { x: 0.3, y: 0.7 },
+        imageOffsetX: 12, imageOffsetY: -8, imageScale: 1.4, imageRotation: 15,
+        filters: { brightness: 90, contrast: 110, saturation: 100, grayscale: true, duotone: null },
+        clipShape: 'ellipse',
+      },
+    });
+    const { pages } = roundTrip([page([img])]);
+    const out = pages[0].elements[0];
+    expect((out.data as any).imageOffsetX).toBe(12);
+    expect((out.data as any).imageOffsetY).toBe(-8);
+    expect((out.data as any).imageScale).toBeCloseTo(1.4);
+    expect((out.data as any).imageRotation).toBe(15);
+    expect((out.data as any).filters.grayscale).toBe(true);
+    expect((out.data as any).clipShape).toBe('ellipse');
+    expect((out.data as any).focalPoint).toEqual({ x: 0.3, y: 0.7 });
+    expect((out.data as any).fit).toBe('fit');
+  });
+
+  it('styles and master pages ride in meta', () => {
+    const styles = [{ id: 's1', name: 'Body', type: 'paragraph', properties: { fontSize: 15 }, basedOnId: null, nextStyleId: null, isDefault: true }];
+    const master = { ...page([el({ onMaster: true })]), isMaster: true, pageNumber: -1 };
+    const { payload } = roundTrip([page([])], { styles, masterPages: [master] });
+    const meta = payload.meta as any;
+    expect(meta.styles).toHaveLength(1);
+    expect(meta.styles[0].properties.fontSize).toBe(15);
+    expect(meta.masterPages).toHaveLength(1);
+    expect(meta.masterPages[0].isMaster).toBe(true);
+    expect(meta.masterPages[0].elements).toHaveLength(1);
+  });
+
+  it('page master assignment survives', () => {
+    const { pages } = roundTrip([page([])]);
+    expect(pages[0].masterPageId).toBe('master-a');
+  });
+});

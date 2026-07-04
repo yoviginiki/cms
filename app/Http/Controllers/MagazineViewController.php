@@ -132,8 +132,11 @@ class MagazineViewController extends Controller
                     $type = 'text';
                     // Build inline styles for the text
                     $style = '';
+                    // px, not pt — the editor's canvas unit is px-equivalent
+                    // points; emitting pt here published text ~33% larger
+                    // than the editor showed (audit W0-7 unit conflict)
                     if (!empty($typo['fontFamily'])) $style .= "font-family:{$typo['fontFamily']};";
-                    if (!empty($typo['fontSize'])) $style .= "font-size:{$typo['fontSize']}pt;";
+                    if (!empty($typo['fontSize'])) $style .= "font-size:{$typo['fontSize']}px;";
                     if (!empty($typo['fontWeight'])) $style .= "font-weight:{$typo['fontWeight']};";
                     if (!empty($typo['lineHeight'])) $style .= "line-height:{$typo['lineHeight']};";
                     if (!empty($typo['textAlign'])) $style .= "text-align:{$typo['textAlign']};";
@@ -142,10 +145,10 @@ class MagazineViewController extends Controller
                     if (!empty($typo['textTransform'])) $style .= "text-transform:{$typo['textTransform']};";
 
                     $cols = $data['columnsInFrame'] ?? 1;
-                    if ($cols > 1) $style .= "column-count:{$cols};column-gap:" . ($data['columnGap'] ?? 12) . "pt;";
+                    if ($cols > 1) $style .= "column-count:{$cols};column-gap:" . ($data['columnGap'] ?? 12) . "px;";
 
                     $inset = $data['textInset'] ?? ['top' => 0, 'right' => 0, 'bottom' => 0, 'left' => 0];
-                    $style .= "padding:{$inset['top']}pt {$inset['right']}pt {$inset['bottom']}pt {$inset['left']}pt;";
+                    $style .= "padding:{$inset['top']}px {$inset['right']}px {$inset['bottom']}px {$inset['left']}px;";
                     $style .= "overflow:hidden;width:100%;height:100%;";
 
                     $content['html'] = '<div style="' . $style . '">' . ($data['content'] ?? '') . '</div>';

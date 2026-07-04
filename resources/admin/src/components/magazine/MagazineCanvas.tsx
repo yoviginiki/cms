@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import type { MagPageData, MagElement } from '@/types/magazine';
 import { MagElementRenderer } from './MagElementRenderer';
 import { useMagSelection } from './MagSelectionEngine';
+import { useMagazineStore } from '@/stores/magazineStore';
 // Threading engine disabled — Pour splits content at save time
 import {
   MousePointer2, Type, ImageIcon, Square, Circle, Minus,
@@ -86,10 +87,15 @@ export function MagazineCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
-  // Guide toggles
-  const [showMargins, setShowMargins] = useState(true);
-  const [showColumns, setShowColumns] = useState(false);
-  const [showBaseline, setShowBaseline] = useState(false);
+  // Guide toggles — ONE source of truth: the store (audit W0-3). The top
+  // toolbar (MagazineToolbar) writes these same flags, so both toolbars agree.
+  const showMargins = useMagazineStore((st) => st.showGuides);
+  const showColumns = useMagazineStore((st) => st.showGrid);
+  const showBaseline = useMagazineStore((st) => st.showBaseline);
+  const toggleMargins = useMagazineStore((st) => st.toggleGuides);
+  const toggleColumns = useMagazineStore((st) => st.toggleGrid);
+  const toggleBaseline = useMagazineStore((st) => st.toggleBaseline);
+  const storeActiveTool = useMagazineStore((st) => st.activeTool);
 
   const { width: pageW, height: pageH } = page.pageSize || { width: 595, height: 842 };
   const margins = page.margins || { top: 36, right: 36, bottom: 36, left: 36 };
@@ -99,6 +105,13 @@ export function MagazineCanvas({
     onUpdateElement, onAddElement, onDeleteElements, onDuplicateElements,
     onMoveToPage,
   );
+
+  // Top toolbar (MagazineToolbar) writes store.activeTool; mirror it into the
+  // selection engine so BOTH toolbars drive one tool state (audit W0-3)
+  useEffect(() => {
+    if (selection.activeTool !== storeActiveTool) selection.setTool(storeActiveTool as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeActiveTool]);
 
   // Sync selection to parent — use ref to avoid infinite loops
   const prevSelectionRef = useRef<string>('');
@@ -393,21 +406,21 @@ export function MagazineCanvas({
         {/* Guide toggles */}
         <button
           className={`btn btn-xs ${showMargins ? 'btn-secondary' : 'btn-ghost'}`}
-          onClick={() => setShowMargins(!showMargins)}
+          onClick={toggleMargins}
           title="Toggle margins"
         >
           <AlignVerticalSpaceAround size={14} />
         </button>
         <button
           className={`btn btn-xs ${showColumns ? 'btn-secondary' : 'btn-ghost'}`}
-          onClick={() => setShowColumns(!showColumns)}
+          onClick={toggleColumns}
           title="Toggle column guides"
         >
           <Columns3 size={14} />
         </button>
         <button
           className={`btn btn-xs ${showBaseline ? 'btn-secondary' : 'btn-ghost'}`}
-          onClick={() => setShowBaseline(!showBaseline)}
+          onClick={toggleBaseline}
           title="Toggle baseline grid"
         >
           <Grid3X3 size={14} />
@@ -607,6 +620,24 @@ export function MagazineCanvas({
                 {/* Hide left margin on right page in book spread, hide right margin on left page */}
                 {!(isBookSpread && pgIdx === 1) && <div style={{ position: 'absolute', left: pgMargins.left, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />}
                 {!(isBookSpread && pgIdx === 0) && <div style={{ position: 'absolute', right: pgMargins.right, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(255,0,128,0.35)' }} />}
+              </div>
+            )}
+
+            {/* Column guides overlay (audit W0-3: was computed, never rendered) */}
+            {showColumns && columnGuides.length > 0 && (
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
+                {columnGuides.map((x, i) => (
+                  <div key={`cg-${i}`} style={{ position: 'absolute', left: x, top: pgMargins.top, bottom: pgMargins.bottom, width: 0, borderLeft: '1px solid rgba(59,130,246,0.30)' }} />
+                ))}
+              </div>
+            )}
+
+            {/* Baseline grid overlay (audit W0-3: was computed, never rendered) */}
+            {showBaseline && baselineLines.length > 0 && (
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
+                {baselineLines.map((y, i) => (
+                  <div key={`bl-${i}`} style={{ position: 'absolute', top: y, left: pgMargins.left, right: pgMargins.right, height: 0, borderTop: '1px solid rgba(56,189,248,0.22)' }} />
+                ))}
               </div>
             )}
 

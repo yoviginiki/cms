@@ -163,6 +163,13 @@ const MAX_UNDO = 50;
 /** debounce handle for geometry-triggered reflow (one reflow per gesture) */
 let flowDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** gesture-scoped undo for updateElement: one snapshot per drag/resize/edit
+ *  gesture, not per pointermove (audit W0-5 — the highest-frequency mutation
+ *  path previously bypassed history entirely) */
+let lastUpdateSnapAt = 0;
+let lastUpdateSnapKey = '';
+const UPDATE_GESTURE_MS = 600;
+
 /** element keys whose change requires a reflow of the affected thread(s) */
 const FLOW_GEOMETRY_KEYS = ['x', 'y', 'width', 'height'] as const;
 const FLOW_DATA_KEYS = ['columnsInFrame', 'columnGap', 'textInset', 'verticalAlign'] as const;
@@ -429,7 +436,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       pageNumber: newPageNumber,
       pageSize: referencePage
         ? { ...referencePage.pageSize }
-        : { width: 210, height: 297 },
+        : { width: 595, height: 842 },
       margins: referencePage
         ? { ...referencePage.margins }
         : { top: 20, right: 20, bottom: 20, left: 20 },
@@ -626,6 +633,17 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
           if (oldVal !== newVal) changedPaths[k] = { old: oldVal, new: newVal };
         }
       }
+    }
+
+    // ── undo: one snapshot per gesture (new element / new key set / pause)
+    if (oldEl) {
+      const gestureKey = id + '|' + Object.keys(updates).sort().join(',');
+      const now = Date.now();
+      if (gestureKey !== lastUpdateSnapKey || now - lastUpdateSnapAt > UPDATE_GESTURE_MS) {
+        get().pushSnapshot();
+      }
+      lastUpdateSnapKey = gestureKey;
+      lastUpdateSnapAt = now;
     }
 
     // ── flow triggers: content edits invalidate the thread story; geometry,
@@ -968,7 +986,9 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
 
   pushSnapshot() {
     set((state) => {
-      const snapshot = JSON.stringify(state.pages);
+      // snapshot covers pages AND styles (audit W0-5: styles were outside
+      // history, so style mutations were unrecoverable)
+      const snapshot = JSON.stringify({ p: state.pages, s: state.styles });
       const undoStack = [...state.undoStack, snapshot];
       if (undoStack.length > MAX_UNDO) {
         undoStack.shift();
@@ -981,12 +1001,14 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     const state = get();
     if (state.undoStack.length === 0) return;
 
-    const currentSnapshot = JSON.stringify(state.pages);
-    const previousSnapshot = state.undoStack[state.undoStack.length - 1];
-    const pages = JSON.parse(previousSnapshot) as MagPageData[];
+    const currentSnapshot = JSON.stringify({ p: state.pages, s: state.styles });
+    const parsed = JSON.parse(state.undoStack[state.undoStack.length - 1]);
+    const pages = (Array.isArray(parsed) ? parsed : parsed.p) as MagPageData[];
+    const styles = (Array.isArray(parsed) ? state.styles : parsed.s) as MagStyleDefinition[];
 
     set({
       pages,
+      styles,
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...state.redoStack, currentSnapshot],
       selectedIds: [],
@@ -1002,12 +1024,14 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     const state = get();
     if (state.redoStack.length === 0) return;
 
-    const currentSnapshot = JSON.stringify(state.pages);
-    const nextSnapshot = state.redoStack[state.redoStack.length - 1];
-    const pages = JSON.parse(nextSnapshot) as MagPageData[];
+    const currentSnapshot = JSON.stringify({ p: state.pages, s: state.styles });
+    const parsed = JSON.parse(state.redoStack[state.redoStack.length - 1]);
+    const pages = (Array.isArray(parsed) ? parsed : parsed.p) as MagPageData[];
+    const styles = (Array.isArray(parsed) ? state.styles : parsed.s) as MagStyleDefinition[];
 
     set({
       pages,
+      styles,
       undoStack: [...state.undoStack, currentSnapshot],
       redoStack: state.redoStack.slice(0, -1),
       selectedIds: [],
@@ -1137,7 +1161,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   },
 
   setEditingMaster(masterPageId) {
-    get().pushSnapshot();
+    // navigation only — no snapshot (audit W0-5: history pollution)
     if (masterPageId) {
       const master = get().pages.find(p => p.id === masterPageId && p.isMaster);
       if (master) {
@@ -1150,10 +1174,12 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   },
 
   addStyle(style) {
+    get().pushSnapshot();
     set((state) => ({ styles: [...state.styles, style], isDirty: true }));
   },
 
   updateStyle(id, updates) {
+    get().pushSnapshot();
     set((state) => ({
       styles: state.styles.map((s) => (s.id === id ? { ...s, ...updates } : s)),
       isDirty: true,
@@ -1161,6 +1187,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   },
 
   deleteStyle(id) {
+    get().pushSnapshot();
     set((state) => ({
       styles: state.styles.filter((s) => s.id !== id),
       isDirty: true,

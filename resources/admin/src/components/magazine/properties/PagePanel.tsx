@@ -6,11 +6,13 @@ interface PagePanelProps {
   onChange: (v: Partial<MagPageData>) => void;
 }
 
+// Presets in POINTS — the canvas unit (audit W0-7: the old values were
+// MILLIMETRES injected into a pt canvas, so "A4" produced a ~74×105mm page)
 const PAGE_PRESETS: Record<string, { width: number; height: number }> = {
-  A4: { width: 210, height: 297 },
-  A3: { width: 297, height: 420 },
-  Letter: { width: 216, height: 279 },
-  Tabloid: { width: 279, height: 432 },
+  A4: { width: 595, height: 842 },
+  A3: { width: 842, height: 1191 },
+  Letter: { width: 612, height: 792 },
+  Tabloid: { width: 792, height: 1224 },
 };
 
 export default function PagePanel({ page, onChange }: PagePanelProps) {

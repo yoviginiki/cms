@@ -302,8 +302,12 @@ class DtpRenderService
         $alt = e($content['alt'] ?? '');
         $fitMap = ['fill' => 'cover', 'fit' => 'contain', 'stretch' => 'fill', 'original' => 'none'];
         $objectFit = $fitMap[$content['fitMode'] ?? 'fill'] ?? 'cover';
-        $fx = max(0, min(100, (int) ($content['focalPoint']['x'] ?? 50)));
-        $fy = max(0, min(100, (int) ($content['focalPoint']['y'] ?? 50)));
+        // Focal point is canonically 0-1 (editor scale, audit W0-7); values
+        // >1 are legacy 0-100 saves — accept both so old documents render
+        $fxRaw = (float) ($content['focalPoint']['x'] ?? 0.5);
+        $fyRaw = (float) ($content['focalPoint']['y'] ?? 0.5);
+        $fx = max(0, min(100, (int) round($fxRaw <= 1 ? $fxRaw * 100 : $fxRaw)));
+        $fy = max(0, min(100, (int) round($fyRaw <= 1 ? $fyRaw * 100 : $fyRaw)));
         $opacity = max(0, min(100, (int) ($content['opacity'] ?? 100))) / 100;
 
         $style = "width:100%;height:100%;object-fit:{$objectFit};object-position:{$fx}% {$fy}%;display:block;";

@@ -138,7 +138,7 @@ const DEFAULT_MARGINS = { top: 36, right: 36, bottom: 36, left: 36 };
 /** Safe UUID generator — falls back to Math.random if crypto.randomUUID unavailable. */
 function safeUUID(): string {
   try {
-    return safeUUID();
+    return crypto.randomUUID();
   } catch {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
       const r = (Math.random() * 16) | 0;
