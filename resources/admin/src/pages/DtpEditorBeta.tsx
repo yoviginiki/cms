@@ -869,16 +869,25 @@ export default function DtpEditorBeta() {
                   if (selectedEl) {
                     const style = store.styles.find(s => s.id === styleId);
                     if (style && selectedEl.typography) {
-                      store.updateElement(selectedEl.id, { typography: { ...selectedEl.typography, ...style.properties } as MagTypography });
+                      store.updateElement(selectedEl.id, { typography: { ...selectedEl.typography, ...style.properties, paragraphStyleId: styleId } as MagTypography });
                     }
                   }
                 }}
-                onCreateStyle={(_type: 'paragraph' | 'character') => {
-                  // Style creation deferred to MAG-P13
+                onCreateStyle={(type: 'paragraph' | 'character') => {
+                  // W1-7: create captures the SELECTED frame's typography
+                  // ("redefine from selection" light) — styles persist via
+                  // layout_final meta since W0-6
+                  store.addStyle({
+                    id: crypto.randomUUID(),
+                    name: `${type === 'paragraph' ? 'Paragraph' : 'Character'} style ${store.styles.length + 1}`,
+                    type,
+                    properties: selectedEl?.typography ? { ...selectedEl.typography } : {},
+                    basedOnId: null,
+                    nextStyleId: null,
+                    isDefault: false,
+                  });
                 }}
-                onDeleteStyle={(_id: string) => {
-                  // Style deletion deferred to MAG-P13
-                }}
+                onDeleteStyle={(id: string) => store.deleteStyle(id)}
               />
             )}
 
@@ -1080,11 +1089,21 @@ export default function DtpEditorBeta() {
               } catch (_) {}
             }
             // Insert image — use DOM API for safe attribute escaping
+            // W1-11: anchored image = figure + editable figcaption; the flow
+            // engine treats <figure> as an atomic block that travels with the
+            // story, and figcaption survives publish (purifyMagazine profile)
+            const fig = document.createElement('figure');
+            fig.style.cssText = 'float:left;width:40%;max-width:100%;margin:0 12px 8px 0;';
             const img = document.createElement('img');
             img.src = asset.url;
             img.alt = asset.filename || '';
-            img.style.cssText = 'float:left;width:40%;max-width:100%;height:auto;margin:0 12px 8px 0;border-radius:4px;';
-            document.execCommand('insertHTML', false, img.outerHTML);
+            img.style.cssText = 'width:100%;height:auto;display:block;';
+            const cap = document.createElement('figcaption');
+            cap.textContent = (asset as any).alt_text || asset.filename || 'Caption';
+            cap.style.cssText = 'font-size:10px;opacity:0.7;margin-top:4px;';
+            fig.appendChild(img);
+            fig.appendChild(cap);
+            document.execCommand('insertHTML', false, fig.outerHTML);
             // Persist immediately to store — don't wait for blur
             const editId = editable.getAttribute('data-editing-id');
             if (editId) {

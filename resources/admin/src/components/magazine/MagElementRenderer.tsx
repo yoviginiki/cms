@@ -5,7 +5,7 @@ import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
 import { normalizeClipboardHtml, plainTextToHtml } from '@/lib/clipboardNormalizer';
 
-const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
+const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img', 'figure', 'figcaption'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
 
 const TEXT_FRAME_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
 const IMAGE_FRAME_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];
@@ -227,7 +227,31 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         );
       }
 
-      return <div ref={textRef} style={textStyle} dangerouslySetInnerHTML={{ __html: safeContent }} />;
+      // W1-6 vertical alignment + W1-8 drop caps (render tier)
+      const va = (data.verticalAlign as string) || 'top';
+      const dc = typo?.dropCap;
+      const dcClass = dc?.enabled ? `magdc-${el.id.slice(0, 8)}` : '';
+      const dcStyle = dc?.enabled
+        ? `.${dcClass} > p:first-of-type::first-letter{float:left;font-size:${Math.round((typo?.fontSize || 14) * (typo?.lineHeight || 1.5) * (dc.lines || 3) * 0.92)}px;line-height:${Math.round((typo?.fontSize || 14) * (typo?.lineHeight || 1.5) * (dc.lines || 3) * 0.85)}px;padding:0 6px 0 0;font-weight:700;${dc.font ? `font-family:${dc.font};` : ''}${dc.color ? `color:${dc.color};` : ''}}`
+        : '';
+      const inner = (
+        <div
+          ref={textRef}
+          className={dcClass || undefined}
+          style={va === 'top' ? textStyle : { ...textStyle, height: 'auto' }}
+          dangerouslySetInnerHTML={{ __html: safeContent }}
+        />
+      );
+      return (
+        <>
+          {dcStyle && <style>{dcStyle}</style>}
+          {va === 'top' ? inner : (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: va === 'bottom' ? 'flex-end' : 'center' }}>
+              {inner}
+            </div>
+          )}
+        </>
+      );
     }
 
     if (IMAGE_FRAME_TYPES.includes(el.type)) {

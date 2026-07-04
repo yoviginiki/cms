@@ -149,6 +149,27 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringNotContainsString('saturate(', $html); // 100 = no-op
     }
 
+    public function test_vertical_align_and_drop_caps_publish(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['html' => '<p>Alpha bravo</p>', 'verticalAlign' => 'bottom'],
+            'metadata' => ['_typography' => [
+                'fontSize' => 14, 'lineHeight' => 1.5,
+                'dropCap' => ['enabled' => true, 'lines' => 3, 'font' => 'Playfair Display', 'color' => '#E63B2E'],
+            ]],
+        ]);
+        $html = $out['html'];
+        $this->assertStringContainsString('justify-content:flex-end', $html);
+        $this->assertStringContainsString('::first-letter', $html);
+        $this->assertStringContainsString('font-family:Playfair Display', $html);
+        $this->assertStringContainsString('float:left', $html);
+        // no wrapper when defaults
+        $plain = $this->renderFrame(['frame_type' => 'text', 'content' => ['html' => '<p>x</p>']]);
+        $this->assertStringNotContainsString('::first-letter', $plain['html']);
+        $this->assertStringNotContainsString('justify-content', $plain['html']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

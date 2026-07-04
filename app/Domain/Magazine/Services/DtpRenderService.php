@@ -217,9 +217,9 @@ class DtpRenderService
 
         // Build frame style — add typography/columns/padding for text frames
         $style = $this->buildFrameStyle($frame);
+        $metadata = is_array($frame->metadata) ? $frame->metadata : [];
+        $typo = $metadata['_typography'] ?? [];
         if (in_array($type, ['text', 'quote'])) {
-            $metadata = is_array($frame->metadata) ? $frame->metadata : [];
-            $typo = $metadata['_typography'] ?? [];
             // Typography — MUST match the editor's shared style builder
             // (resources/admin/src/engine/flow/textStyle.ts). The flow engine's
             // placements are baked into slices; within-frame wrapping only
@@ -264,6 +264,35 @@ class DtpRenderService
             'decorative' => '<div style="width:100%;height:100%;"></div>',
             default => '<div></div>',
         };
+
+        // W1-6 vertical alignment + W1-8 drop caps — must match the editor
+        if (in_array($type, ['text', 'quote'])) {
+            $va = $content['verticalAlign'] ?? 'top';
+            $dc = is_array($typo['dropCap'] ?? null) ? $typo['dropCap'] : [];
+            $wrapClass = '';
+            $dcStyleTag = '';
+            if (!empty($dc['enabled'])) {
+                $wrapClass = 'magdc-' . substr(str_replace('-', '', (string) $frame->id), 0, 8);
+                $fs = (float) ($typo['fontSize'] ?? 14);
+                $lhm = (float) ($typo['lineHeight'] ?? 1.5);
+                $lines = max(2, min(8, (int) ($dc['lines'] ?? 3)));
+                $size = (int) round($fs * $lhm * $lines * 0.92);
+                $lh = (int) round($fs * $lhm * $lines * 0.85);
+                $dcFont = preg_replace('/[^a-zA-Z0-9\s,\-]/', '', (string) ($dc['font'] ?? ''));
+                $dcColor = BlockStyle::safeColor($dc['color'] ?? '') ?: '';
+                $dcStyleTag = "<style>.{$wrapClass} > p:first-of-type::first-letter{float:left;font-size:{$size}px;line-height:{$lh}px;padding:0 6px 0 0;font-weight:700;"
+                    . ($dcFont !== '' ? "font-family:{$dcFont};" : '')
+                    . ($dcColor !== '' ? "color:{$dcColor};" : '')
+                    . '}</style>';
+            }
+            if ($va === 'center' || $va === 'bottom' || $wrapClass !== '') {
+                $justify = $va === 'bottom' ? 'flex-end' : 'center';
+                $flex = ($va === 'center' || $va === 'bottom')
+                    ? "height:100%;display:flex;flex-direction:column;justify-content:{$justify};"
+                    : '';
+                $html = $dcStyleTag . '<div' . ($wrapClass !== '' ? ' class="' . $wrapClass . '"' : '') . ($flex !== '' ? ' style="' . $flex . '"' : '') . '>' . $html . '</div>';
+            }
+        }
 
         return [
             'id' => $frame->id,
