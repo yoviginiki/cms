@@ -403,6 +403,43 @@ export function runDocumentFlow(
     changed = changed || result.changed;
   }
 
+  // 2b. autoSize 'grow-height' (W1-6): unthreaded text frames grow to fit
+  //     their content — measured with the SAME DomMeasurer as the engine
+  for (const page of pages) {
+    if (page.isMaster) continue;
+    for (const el of page.elements) {
+      if (!FLOW_TEXT_TYPES.has(el.type) || el.threadId || !el.visible) continue;
+      if ((el.data as any)?.autoSize !== 'grow-height') continue;
+      const html = String((el.data as any)?.content || '');
+      if (!html) continue;
+      const storyBlocks = parseStory(html);
+      if (storyBlocks.length === 0) continue;
+      const flowBlocks = toFlowBlocks(storyBlocks);
+      const total = buildWordPrefix(flowBlocks)[flowBlocks.length];
+      const inset = getInset(el);
+      const cols = Math.max(1, (el.data as any)?.columnsInFrame || 1);
+      const gap = (el.data as any)?.columnGap || 12;
+      const colW = (el.width - inset.left - inset.right - gap * (cols - 1)) / cols;
+      if (colW < 40) continue;
+      const measurer = new DomMeasurer(storyBlocks, el.typography);
+      let contentH = 0;
+      try {
+        measurer.openWindow(flowBlocks, 0, total, colW);
+        contentH = measurer.bottomAt(total);
+      } finally {
+        measurer.dispose();
+      }
+      if (contentH <= 0) continue; // jsdom/tests: no layout, leave untouched
+      const needed = Math.ceil((cols > 1 ? contentH / cols : contentH) + inset.top + inset.bottom) + 2;
+      const maxH = (page.pageSize?.height || 842) - el.y - 8;
+      const target = Math.max(24, Math.min(needed, maxH));
+      if (Math.abs(target - el.height) > 2) {
+        pages = setElData(pages, el.id, { height: target });
+        changed = true;
+      }
+    }
+  }
+
   // 3. shrink: remove auto-created pages that ended up empty
   if (opts.paginate) {
     const removable = pages.filter((p) => (p as any)._autoCreated && !p.isMaster && p.elements.length === 0);
