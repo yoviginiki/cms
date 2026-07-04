@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\IssueComposer\Models\MagazineIssue;
-use App\Domain\Magazine\Services\DtpPdfService;
+use App\Domain\Magazine\Jobs\GenerateDtpPdfJob;
 use App\Domain\Magazine\Services\DtpRenderService;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
@@ -58,15 +58,35 @@ class DtpPreviewController extends Controller
         ]);
     }
 
-    /** Export the issue as PDF (headless Chromium print of the print view). */
-    public function pdf(Site $site, MagazineIssue $issue, DtpPdfService $pdfService)
+    /**
+     * Export the issue as PDF. Chrome runs on the queue worker (the web PHP
+     * pool disables proc_open); we dispatch and short-poll for the result.
+     */
+    public function pdf(Site $site, MagazineIssue $issue)
     {
         if ($issue->site_id !== $site->id) {
             abort(404);
         }
-        $path = $pdfService->export($issue);
-        $name = preg_replace('/[^a-zA-Z0-9\-_ ]/', '', $issue->title ?: 'magazine') . '.pdf';
+        $result = GenerateDtpPdfJob::resultPath($issue->id);
+        $error = GenerateDtpPdfJob::errorPath($issue->id);
+        @unlink($result);
+        @unlink($error);
+        GenerateDtpPdfJob::dispatch($issue->id, $issue->tenant_id);
 
-        return response()->download($path, $name, ['Content-Type' => 'application/pdf'])->deleteFileAfterSend(true);
+        // short-poll: redis worker normally picks this up within a second
+        $deadline = microtime(true) + 60;
+        while (microtime(true) < $deadline) {
+            if (is_file($result) && filesize($result) > 1000) {
+                $name = preg_replace('/[^a-zA-Z0-9\-_ ]/', '', $issue->title ?: 'magazine') . '.pdf';
+
+                return response()->download($result, $name, ['Content-Type' => 'application/pdf']);
+            }
+            if (is_file($error)) {
+                return response()->json(['message' => 'PDF export failed: ' . file_get_contents($error)], 500);
+            }
+            usleep(500_000);
+        }
+
+        return response()->json(['message' => 'PDF export timed out — try again shortly.'], 504);
     }
 }
