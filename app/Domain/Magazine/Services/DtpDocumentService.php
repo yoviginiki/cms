@@ -98,6 +98,8 @@ class DtpDocumentService
                 'frame_count' => $frames->count(),
                 'issueSettings' => $issue->layout_final['issueSettings'] ?? null,
                 'viewerSettings' => $issue->layout_final['viewerSettings'] ?? null,
+                'styles' => $issue->layout_final['styles'] ?? [],
+                'masterPages' => $issue->layout_final['masterPages'] ?? [],
             ],
         ];
     }
@@ -122,6 +124,16 @@ class DtpDocumentService
             if (!empty($meta['viewerSettings'])) {
                 $allowed = ['display_mode', 'bg_color', 'ui_theme', 'page_transition', 'transition_speed', 'show_thumbnails', 'show_page_numbers', 'auto_hide_ui'];
                 $layoutFinal['viewerSettings'] = array_intersect_key((array) $meta['viewerSettings'], array_flip($allowed));
+                $changed = true;
+            }
+            // Paragraph/character styles + master pages (audit W0-6: these were
+            // silently dropped here — the editor round-tripped them for nothing)
+            if (array_key_exists('styles', $meta)) {
+                $layoutFinal['styles'] = array_slice((array) $meta['styles'], 0, 200);
+                $changed = true;
+            }
+            if (array_key_exists('masterPages', $meta)) {
+                $layoutFinal['masterPages'] = array_slice((array) $meta['masterPages'], 0, 20);
                 $changed = true;
             }
             if ($changed) {

@@ -75,6 +75,9 @@ class SaveDtpDocumentRequest extends FormRequest
             'meta.issueSettings.layoutMode' => ['nullable', 'string', 'in:single,book,presentation'],
             'meta.issueSettings.coverMode' => ['nullable', 'string', 'in:standalone,spread'],
             'meta.issueSettings.readingDirection' => ['nullable', 'string', 'in:ltr,rtl'],
+            // paragraph/character styles + master pages (persisted in layout_final)
+            'meta.styles' => ['nullable', 'array', 'max:200'],
+            'meta.masterPages' => ['nullable', 'array', 'max:20'],
             'meta.viewerSettings' => ['nullable', 'array'],
             'meta.viewerSettings.display_mode' => ['nullable', 'string', 'in:spread,single,scroll,flipbook'],
             'meta.viewerSettings.bg_color' => ['nullable', 'string', 'max:20', 'regex:/^#[0-9a-fA-F]{3,8}$/'],
