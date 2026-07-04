@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stillopress — Magazine Flow Prototype (Session B spec artifact)</title>
+<!--
+================================================================================
+SPEC NOTES — magazine-flow-prototype.html (Session B)
+================================================================================
+This file is the CANONICAL SPEC ARTIFACT for the Stillopress magazine text-flow
+engine rebuild (Session C ports this contract into the app as a pure TS module).
+
+THE CONTRACT
+------------
+  flowText(content, frameChain, styles) -> {
+    frames: [ { frameId,
+                slice: { from, to },          // word-index range consumed by frame
+                columnBreaks: [wordIdx...],   // where box/column transitions fall
+                boxes: [ { rect, from, to } ] // render-ready sub-boxes (view aid)
+              } ... ],
+    overflow: remainingContent | null         // content NOT placed (re-invoke on it)
+  }
+
+  content    = [ { type: 'paragraph'|'heading'|'quote'|'image', text, styleRef,
+                   keepWithNext?, h?, caption? } ]
+  frameChain = [ { id, pageIndex, x, y, w, h, columns, columnGap,
+                   exclusions: [ {x,y,w,h,margin} ] } ]   // page-local px
+  styles     = { p:{fs,lh}, h:{fs,lh}, q:{fs,lh}, gapAfter... }  // px metrics
+
+INVARIANTS (Session C golden tests pin all of these)
+----------------------------------------------------
+  1. PURE + DETERMINISTIC: same (content, frameChain, styles) -> byte-identical
+     output. No reads of app state, no Date/random, no live-canvas DOM reads.
+  2. OFF-DOM MEASUREMENT: one hidden measurer element (position:fixed, offscreen,
+     contain:layout) that is NOT part of the visible canvas. Measurement is
+     synchronous — no effects, rAF, ResizeObserver, or async hops.
+  3. WORD-BOUNDARY BREAKING via expand-then-binary-search on word count.
+     (Perf strategy here: an arithmetic canvas-measureText estimate seeds the
+     search; the DOM measurer verifies/corrects. The estimate is an optimization
+     only — correctness always comes from the measurer.)
+  4. LOSSLESS: concat(all placed slices) + overflow === source, asserted after
+     EVERY flow and displayed in the UI. Bare text is never dropped.
+  5. FILL ORDER: columns left-to-right inside a frame, boxes top-to-bottom inside
+     a column, frames in chain order.
+  6. WIDOW/ORPHAN: a split paragraph keeps >= 2 lines on each side, else the
+     break retreats (widow) or the whole block moves to the next box (orphan).
+  7. KEEP-WITH-NEXT: a heading is never the last content in a box.
+  8. NO-BREAK BLOCKS: quote and anchored-image blocks are atomic (never split
+     across boxes; a block taller than every box is force-placed to guarantee
+     progress — flagged, never silently dropped).
+  9. EXCLUSIONS: each rect (inflated by its margin) is subtracted from affected
+     columns' boxes. If >=45% of the column width remains free beside the rect,
+     the column narrows (side wrap); otherwise the text jumps the rect
+     (jump-object mode). Segments shorter than 2 body lines are discarded.
+ 10. PROGRESS GUARANTEE: every box consumes >= 0 words and every flow call
+     terminates; typographic rules are advisory and yield to progress.
+
+AUTO-PAGINATION CONTRACT (driver, outside the pure function)
+------------------------------------------------------------
+  res = flowText(content, framesOfSpread, styles)
+  while (res.overflow) {
+      spread = makeContinuationSpread()      // inherits column settings
+      res    = flowText(res.overflow, framesOf(spread), styles)
+  }
+  A 10k-word paste therefore fills N spreads in ONE action, linear cost.
+  SHRINK falls out for free: layout is recomputed from the story source, so
+  auto-created spreads disappear when content shrinks. The editor must apply
+  the same rule: only AUTO-created frames/pages are removed, never manual ones.
+
+KNOWN SIMPLIFICATIONS (prototype-only; Session C must NOT inherit blindly)
+--------------------------------------------------------------------------
+  - Line counts derive from fragmentHeight/lineHeight (rounded), not Range
+    per-line boxes; remaining-lines for widow control are estimated at the
+    CURRENT box width (next box may differ when column counts change).
+  - Hyphenation is CSS-only (hyphens:auto + lang="en"); no dictionary lib.
+  - Rivers control = text-align:justify + text-wrap:pretty + hyphens; no
+    letter/word-spacing iteration.
+  - Web fonts load async; the driver re-flows once on document.fonts.ready.
+    In-app, the engine must await fonts before first flow.
+  - The "master" here is a render-time folio template applied to every page;
+    the real product needs persisted masters (see audit W2-10).
+================================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --washi:#efeae1; --paper:#fbfaf5; --ink:#191713; --ink-soft:#4c463c;
+    --verm:#E63B2E; --hairline:#c9c2b4;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; border-radius:0 !important; }
+  html,body{ height:100%; }
+  body{
+    background:var(--washi); color:var(--ink);
+    font-family:'Barlow','Helvetica Neue',Arial,sans-serif;
+    display:flex; overflow:hidden;
+  }
+  /* ---------- control rail ---------- */
+  #rail{
+    width:264px; flex:0 0 264px; height:100vh; overflow-y:auto;
+    background:var(--ink); color:#dcd6c9; padding:22px 20px 40px;
+  }
+  #rail h1{
+    font-family:'Barlow Condensed'; font-weight:700; font-size:21px;
+    letter-spacing:.06em; text-transform:uppercase; color:#fff; line-height:1.1;
+  }
+  #rail h1 em{ color:var(--verm); font-style:normal; }
+  #rail .sub{ font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:#8d8878; margin:6px 0 22px; }
+  #rail label{ display:block; font-size:10.5px; letter-spacing:.12em;
+    text-transform:uppercase; color:#9a9484; margin:16px 0 5px; }
+  #rail select,#rail input[type=number],#rail textarea,#rail button{
+    width:100%; background:#26231d; border:1px solid #3d382e; color:#efeae1;
+    font-family:'Barlow'; font-size:13px; padding:7px 9px; outline:none;
+  }
+  #rail input[type=number]:focus,#rail select:focus,#rail textarea:focus{ border-color:var(--verm); }
+  #rail textarea{ height:110px; resize:vertical; font-size:12px; line-height:1.4; }
+  #rail button{
+    cursor:pointer; margin-top:8px; font-weight:600; letter-spacing:.08em;
+    text-transform:uppercase; font-size:11.5px; transition:background .12s;
+  }
+  #rail button:hover{ background:#332f26; }
+  #rail button.accent{ background:var(--verm); border-color:var(--verm); color:#fff; }
+  #rail button.accent:hover{ background:#c92f24; }
+  .statgrid{ display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#3d382e;
+    border:1px solid #3d382e; margin-top:20px; }
+  .statgrid div{ background:#26231d; padding:8px 9px; }
+  .statgrid b{ display:block; font-size:17px; font-family:'Barlow Condensed';
+    font-weight:600; color:#fff; }
+  .statgrid span{ font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:#8d8878; }
+  #lossless{ margin-top:14px; padding:9px 10px; font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; font-weight:600; text-align:center;
+    border:1px solid #3d382e; color:#8d8878; }
+  #lossless.pass{ background:#1d2b1d; border-color:#2f4a2f; color:#9fd49f; }
+  #lossless.fail{ background:var(--verm); border-color:var(--verm); color:#fff; }
+  #err{ display:none; margin-top:12px; background:var(--verm); color:#fff;
+    font-size:11px; padding:8px; white-space:pre-wrap; }
+
+  /* ---------- canvas ---------- */
+  #canvas{ flex:1; height:100vh; overflow:auto; padding:44px 0 120px; }
+  .spread{ position:relative; margin:0 auto 58px; background:transparent; }
+  .spread .pages{ position:relative; display:flex; box-shadow:0 1px 0 rgba(25,23,19,.12),0 14px 34px -18px rgba(25,23,19,.35); }
+  .page{ position:relative; background:var(--paper); overflow:hidden; }
+  .page.recto{ border-left:1px solid #e4dfd2; }
+  .gutter-shade{ position:absolute; top:0; bottom:0; width:44px; pointer-events:none;
+    background:linear-gradient(90deg, rgba(25,23,19,0) 0%, rgba(25,23,19,.055) 50%, rgba(25,23,19,0) 100%); }
+  /* crop marks */
+  .crop{ position:absolute; width:14px; height:14px; pointer-events:none; }
+  .crop::before,.crop::after{ content:''; position:absolute; background:var(--ink-soft); opacity:.6; }
+  .crop::before{ width:14px; height:1px; } .crop::after{ width:1px; height:14px; }
+  .crop.tl{ top:-20px; left:-20px; } .crop.tl::before{ bottom:0; } .crop.tl::after{ right:0; }
+  .crop.tr{ top:-20px; right:-20px; } .crop.tr::before{ bottom:0; } .crop.tr::after{ left:0; }
+  .crop.bl{ bottom:-20px; left:-20px; } .crop.bl::before{ top:0; } .crop.bl::after{ right:0; }
+  .crop.br{ bottom:-20px; right:-20px; } .crop.br::before{ top:0; } .crop.br::after{ left:0; }
+  .spreadno{ position:absolute; top:-26px; left:0; font-size:10px; letter-spacing:.18em;
+    text-transform:uppercase; color:#8d8878; }
+
+  /* hero */
+  .hero{ position:absolute; left:0; top:0; width:100%; z-index:1; overflow:hidden;
+    background:
+      radial-gradient(120% 90% at 78% 12%, rgba(230,59,46,.5) 0%, rgba(230,59,46,0) 52%),
+      linear-gradient(160deg,#2a2620 0%, #4c463c 44%, #191713 100%); }
+  .hero::after{ content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(115deg, rgba(251,250,245,.05) 0 2px, transparent 2px 9px); }
+  .hero .credit{ position:absolute; right:14px; bottom:10px; color:rgba(251,250,245,.55);
+    font-size:9px; letter-spacing:.2em; text-transform:uppercase; z-index:2; }
+  .plate{ position:absolute; z-index:2; background:var(--paper); padding:20px 26px 14px; }
+  .plate .kicker{ font-size:11px; font-weight:600; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--verm); margin-bottom:8px; }
+  .plate h1.title{ font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase;
+    line-height:.95; letter-spacing:.005em; color:var(--ink); }
+  .plate .standfirst{ margin-top:10px; font-size:14.5px; line-height:1.5; color:var(--ink-soft);
+    font-weight:400; max-width:56ch; }
+  .plate .byline{ margin-top:10px; font-size:10.5px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--ink-soft); }
+  .plate .byline b{ color:var(--ink); font-weight:600; }
+
+  /* folio (master template applied to every page) */
+  .folio{ position:absolute; bottom:16px; z-index:3; display:flex; align-items:baseline;
+    gap:10px; font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-soft); }
+  .folio .no{ font-family:'Barlow Condensed'; font-weight:600; font-size:13px;
+    letter-spacing:.06em; color:var(--verm); }
+  .folio .rule{ width:26px; height:1px; background:var(--hairline); align-self:center; }
+  .folio.verso{ left:0; } .folio.recto{ right:0; flex-direction:row-reverse; }
+
+  /* flowed text boxes — .fbox styling MUST match the measurer exactly */
+  .fbox{ position:absolute; overflow:hidden; z-index:2; }
+  .fbox, #measurer{
+    font-family:'Barlow','Helvetica Neue',Arial,sans-serif; color:var(--ink);
+    text-align:justify; hyphens:auto; -webkit-hyphens:auto; text-wrap:pretty;
+    overflow-wrap:break-word; font-kerning:normal;
+  }
+  #measurer{ position:fixed; left:-12000px; top:0; visibility:hidden;
+    contain:layout style; overflow:hidden; }
+  /* block styles are generated by JS (one source of truth) into #dynstyles */
+
+  /* pull quote (engine exclusion) */
+  .pullq{ position:absolute; z-index:4; background:var(--paper);
+    border-top:3px solid var(--verm); border-bottom:1px solid var(--hairline);
+    padding:14px 4px 12px; display:flex; flex-direction:column; justify-content:center; }
+  .pullq .q{ font-family:'Barlow Condensed'; font-weight:600; font-size:21px;
+    line-height:1.12; text-transform:uppercase; letter-spacing:.01em; color:var(--ink); }
+  .pullq .q::before{ content:'\201C'; color:var(--verm); }
+  .pullq .q::after{ content:'\201D'; color:var(--verm); }
+  .pullq .who{ margin-top:8px; font-size:9.5px; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--ink-soft); }
+
+  /* anchored inline figure (atomic content block) */
+  figure.anch{ display:flex; flex-direction:column; break-inside:avoid; }
+  figure.anch .ph{ flex:1; min-height:0; position:relative; overflow:hidden;
+    background:
+      radial-gradient(90% 120% at 22% 18%, rgba(230,59,46,.42) 0%, rgba(230,59,46,0) 55%),
+      linear-gradient(200deg,#4c463c 0%, #191713 90%); }
+  figure.anch .ph::after{ content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(65deg, rgba(251,250,245,.06) 0 1px, transparent 1px 7px); }
+  figure.anch figcaption{ padding-top:6px; font-size:10px; line-height:1.45;
+    letter-spacing:.04em; color:var(--ink-soft); text-align:left; hyphens:none;
+    border-bottom:1px solid var(--hairline); padding-bottom:6px; }
+  figure.anch figcaption::before{ content:'▪ '; color:var(--verm); }
+
+  .overset-badge{ position:absolute; z-index:6; background:var(--verm); color:#fff;
+    font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    padding:4px 8px; }
+</style>
+</head>
+<body>
+
+<aside id="rail">
+  <h1>Stillo<em>press</em><br>Flow Prototype</h1>
+  <div class="sub">Session B · spec artifact</div>
+
+  <label>Body columns (continuation frames)</label>
+  <select id="cCols">
+    <option>1</option><option selected>2</option><option>3</option><option>4</option>
+  </select>
+
+  <label>Column gap (px)</label>
+  <input id="cGap" type="number" min="8" max="48" step="2" value="18">
+
+  <label>Base font size (px)</label>
+  <input id="cFs" type="number" min="11" max="22" step="0.5" value="14.5">
+
+  <label>Leading (line-height ×)</label>
+  <input id="cLh" type="number" min="1.15" max="2" step="0.05" value="1.5">
+
+  <button id="bHero">Shuffle hero height (55%)</button>
+
+  <label>Paste an article (blank line = ¶, "#"=heading, "&gt;"=quote)</label>
+  <textarea id="cText" placeholder="Paste plain text here…"></textarea>
+  <button id="bPaste" class="accent">Paste article → flow</button>
+  <button id="bStress">10,000-word stress test</button>
+  <button id="bDemo">Reload demo article</button>
+
+  <div class="statgrid">
+    <div><b id="sWords">–</b><span>words</span></div>
+    <div><b id="sSpreads">–</b><span>spreads</span></div>
+    <div><b id="sMs">–</b><span>flow ms</span></div>
+    <div><b id="sBoxes">–</b><span>boxes</span></div>
+  </div>
+  <div id="lossless">lossless: –</div>
+  <div id="err"></div>
+</aside>
+
+<main id="canvas"></main>
+<div id="measurer" lang="en"></div>
+<div id="dynstyles"></div>
+
+<script>
+'use strict';
+/* =============================================================================
+   0. GEOMETRY + STATE
+============================================================================= */
+const PAGE_W = 470, PAGE_H = 660;
+const MARG = { top: 46, bottom: 58, outer: 40, inner: 30 };
+const MAX_SPREADS = 60;
+const MAG_NAME = 'STILLOPRESS';
+const ISSUE = 'No. 07 — Substrate';
+
+const state = {
+  cols: 2, gap: 18, fs: 14.5, lh: 1.5,
+  heroFrac: 0.55,
+  blocks: [],           // flowable content (title/standfirst excluded)
+  title: '', standfirst: '', pullQuote: '',
+};
+
+const $ = id => document.getElementById(id);
+const measurerEl = $('measurer');
+
+/* =============================================================================
+   1. STYLES — one source of truth. JS metrics and CSS are generated together
+      so the measurer, the renderer, and the canvas-estimate can never drift.
+============================================================================= */
+let ST = null; // {p:{fs,lh,mt,mb,font}, h:{...}, q:{...}}
+function buildStyles() {
+  const fs = state.fs, lh = state.lh;
+  ST = {
+    p: { fs: fs,            lh: round2(fs * lh),          mt: 0,                 mb: round2(fs * 0.55),
+         weight: 400, family: "'Barlow','Helvetica Neue',Arial,sans-serif", tag: 'p' },
+    h: { fs: round2(fs * 1.5), lh: round2(fs * 1.5 * 1.15), mt: round2(fs * 1.05), mb: round2(fs * 0.4),
+         weight: 600, family: "'Barlow Condensed','Arial Narrow',sans-serif", tag: 'h2' },
+    q: { fs: round2(fs * 1.02), lh: round2(fs * 1.02 * 1.5), mt: round2(fs * 0.8), mb: round2(fs * 0.8),
+         weight: 500, family: "'Barlow','Helvetica Neue',Arial,sans-serif", tag: 'blockquote' },
+  };
+  $('dynstyles').innerHTML = '<style>' +
+    `.fbox p.st-p, #measurer p.st-p{font:${ST.p.weight} ${ST.p.fs}px/${ST.p.lh}px ${ST.p.family};margin:${ST.p.mt}px 0 ${ST.p.mb}px;}` +
+    `.fbox h2.st-h, #measurer h2.st-h{font:${ST.h.weight} ${ST.h.fs}px/${ST.h.lh}px ${ST.h.family};margin:${ST.h.mt}px 0 ${ST.h.mb}px;` +
+      `text-transform:uppercase;letter-spacing:.03em;text-align:left;hyphens:none;-webkit-hyphens:none;color:var(--ink);}` +
+    `.fbox h2.st-h::before, #measurer h2.st-h::before{content:'';display:inline-block;width:18px;height:3px;background:var(--verm);margin-right:8px;vertical-align:${Math.round(ST.h.fs*0.18)}px;}` +
+    `.fbox blockquote.st-q, #measurer blockquote.st-q{font:${ST.q.weight} ${ST.q.fs}px/${ST.q.lh}px ${ST.q.family};margin:${ST.q.mt}px 0 ${ST.q.mb}px;` +
+      `border-left:3px solid var(--verm);padding-left:12px;text-align:left;hyphens:none;-webkit-hyphens:none;color:var(--ink-soft);}` +
+    `.fbox .cont-in, #measurer .cont-in{margin-top:0 !important;text-indent:0 !important;}` +
+    `.fbox .cont-out, #measurer .cont-out{margin-bottom:0 !important;text-align-last:justify;}` +
+    '</style>';
+}
+function round2(n){ return Math.round(n * 100) / 100; }
+function styleOf(b){ return b.type === 'heading' ? ST.h : b.type === 'quote' ? ST.q : ST.p; }
+
+/* =============================================================================
+   2. THE PURE FLOW ENGINE
+      flowText(content, frameChain, styles) -> {frames, overflow}
+      - tokenizes content into a global word stream
+      - builds boxes per frame (columns minus exclusions)
+      - fills boxes with expand+binary-search word fitting (canvas-estimate
+        seeded, DOM-measurer verified), then applies typographic rules
+============================================================================= */
+
+/* ---- 2a. tokenize ---- */
+function tokenize(content) {
+  const blocks = [];
+  for (const c of content) {
+    const words = (c.type === 'image')
+      ? String(c.caption || '').split(/\s+/).filter(Boolean)
+      : String(c.text || '').split(/\s+/).filter(Boolean);
+    if (!words.length && c.type !== 'image') continue;
+    // charPrefix: cumulative raw char length of words (for Range offsets)
+    const charPrefix = [0];
+    for (const w of words) charPrefix.push(charPrefix[charPrefix.length - 1] + w.length);
+    blocks.push({ ...c, words, charPrefix });
+  }
+  const prefix = [0];
+  for (const b of blocks) prefix.push(prefix[prefix.length - 1] + Math.max(1, b.words.length));
+  // image blocks with an empty caption still occupy 1 token so slices address them
+  return { blocks, prefix, total: prefix[prefix.length - 1] };
+}
+function posOf(T, g) { // global word index -> {b, w}
+  let lo = 0, hi = T.blocks.length - 1, b = 0;
+  while (lo <= hi) { const m = (lo + hi) >> 1;
+    if (T.prefix[m] <= g) { b = m; lo = m + 1; } else hi = m - 1; }
+  return { b, w: g - T.prefix[b] };
+}
+
+/* ---- 2b. shared fragment renderer (used by measurer AND final paint) ---- */
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function blockFragHTML(T, b, w0, w1) {
+  const blk = T.blocks[b];
+  if (blk.type === 'image') {
+    const cap = esc(blk.words.join(' '));
+    return `<figure class="anch" style="height:${blk.h}px"><div class="ph"></div>` +
+           (cap ? `<figcaption>${cap}</figcaption>` : '') + `</figure>`;
+  }
+  const st = styleOf(blk);
+  const cls = ['st-' + (blk.type === 'heading' ? 'h' : blk.type === 'quote' ? 'q' : 'p')];
+  if (w0 > 0) cls.push('cont-in');
+  if (w1 < blk.words.length) cls.push('cont-out');
+  return `<${st.tag} class="${cls.join(' ')}">${esc(blk.words.slice(w0, w1).join(' '))}</${st.tag}>`;
+}
+function rangeHTML(T, from, to) {
+  if (to <= from) return '';
+  const a = posOf(T, from), z = posOf(T, to - 1);
+  let html = '';
+  for (let b = a.b; b <= z.b; b++) {
+    const w0 = b === a.b ? a.w : 0;
+    const wEnd = T.blocks[b].type === 'image' ? Math.max(1, T.blocks[b].words.length) : T.blocks[b].words.length;
+    const w1 = b === z.b ? Math.min(wEnd, z.w + 1) : wEnd;
+    html += blockFragHTML(T, b, w0, b === z.b ? (T.blocks[b].type === 'image' ? T.blocks[b].words.length : w1) : w1);
+  }
+  return html;
+}
+
+/* ---- 2c. measurement ----
+   PERF MODEL: one innerHTML render per fill window (forces one layout), then
+   all break-point probes are Range.getBoundingClientRect() reads against that
+   clean layout — no relayout per binary probe. This is the "Range measurement"
+   strategy the spec mandates; Session C ports it as the browser measurer. */
+let measureCount = 0;   // window renders (relayouts)
+let probeCount = 0;     // cheap Range reads
+const WIN = { T: null, s: -1, hi: -1, w: -1, top: 0, els: [] }; // els[i] ↔ block a.b+i, with w0
+function renderWindow(T, s, hi, width) {
+  measureCount++;
+  measurerEl.style.width = width + 'px';
+  measurerEl.innerHTML = rangeHTML(T, s, hi);
+  const a = posOf(T, s);
+  WIN.T = T; WIN.s = s; WIN.hi = hi; WIN.w = width;
+  WIN.top = measurerEl.getBoundingClientRect().top;
+  WIN.els = [];
+  let b = a.b;
+  for (const el of measurerEl.children) {
+    WIN.els.push({ el, b, w0: b === a.b ? a.w : 0 });
+    b++;
+  }
+}
+function winEntry(b) { return WIN.els[b - posOf(WIN.T, WIN.s).b]; }
+/* bottom (px, window-local) of the layout up to and including word k-1 */
+function bottomAt(k) {
+  probeCount++;
+  const T = WIN.T;
+  const p = posOf(T, k - 1);
+  const ent = winEntry(p.b);
+  if (!ent) return Infinity;
+  const blk = T.blocks[p.b];
+  if (blk.type === 'image' || !ent.el.firstChild || blk.words.length === 0) {
+    return ent.el.getBoundingClientRect().bottom - WIN.top;
+  }
+  const node = ent.el.firstChild; // single text node (content is escaped text)
+  const j = p.w; // word index within block; chars = words[w0..j] + spaces between
+  const chEnd = blk.charPrefix[j + 1] - blk.charPrefix[ent.w0] + (j - ent.w0);
+  const r = document.createRange();
+  r.setStart(node, 0);
+  r.setEnd(node, Math.min(chEnd, node.length));
+  const rect = r.getBoundingClientRect();
+  return rect.bottom - WIN.top;
+}
+/* line count of the rendered fragment of block b from its window start to word j (exclusive) */
+function linesTo(b, j) {
+  probeCount++;
+  const T = WIN.T, ent = winEntry(b), blk = T.blocks[b];
+  if (!ent || !ent.el.firstChild) return 0;
+  const st = styleOf(blk);
+  const chEnd = blk.charPrefix[j] - blk.charPrefix[ent.w0] + Math.max(0, j - 1 - ent.w0);
+  const node = ent.el.firstChild;
+  const r = document.createRange();
+  r.setStart(node, 0);
+  r.setEnd(node, Math.max(0, Math.min(chEnd, node.length)));
+  return Math.max(1, Math.round(r.getBoundingClientRect().height / st.lh));
+}
+/* canvas word-width estimate (seed only — never authoritative) */
+const _ctx = document.createElement('canvas').getContext('2d');
+const _wcache = new Map();
+function wordW(word, st) {
+  const key = st.fs + '|' + st.weight + '|' + word;
+  let w = _wcache.get(key);
+  if (w === undefined) {
+    _ctx.font = `${st.weight} ${st.fs}px ${st.family.split(',')[0].replace(/'/g,'')}, sans-serif`;
+    w = _ctx.measureText(word + ' ').width;
+    _wcache.set(key, w);
+  }
+  return w;
+}
+function estimateFit(T, s, box) { // greedy arithmetic line-fill -> approx end index
+  let g = s, y = 0;
+  while (g < T.total && y < box.h) {
+    const p = posOf(T, g);
+    const blk = T.blocks[p.b], st = styleOf(blk);
+    if (blk.type === 'image') {
+      const capLines = blk.words.length ? Math.ceil(blk.words.length / Math.max(3, box.w / (10 * 0.55 * 6))) : 0;
+      y += blk.h + capLines * 15 + ST.p.mb;
+      if (y > box.h && g > s) return g;
+      g = T.prefix[p.b + 1]; continue;
+    }
+    if (p.w === 0 && g !== s) y += st.mt;
+    let x = blk.type === 'quote' ? 15 : 0, lineH = st.lh, wi = p.w;
+    y += lineH;
+    while (wi < blk.words.length) {
+      const ww = wordW(blk.words[wi], st);
+      if (x + ww > box.w && x > 0) {
+        y += lineH;
+        if (y > box.h) return T.prefix[p.b] + wi;
+        x = blk.type === 'quote' ? 15 : 0;
+      }
+      x += ww; wi++;
+    }
+    y += st.mb;
+    g = T.prefix[p.b] + blk.words.length;
+    if (p.w === 0 && blk.words.length === 0) g = T.prefix[p.b + 1]; // empty image token
+  }
+  return Math.min(g, T.total);
+}
+
+/* ---- 2d. box construction: columns minus exclusions ---- */
+function buildBoxes(frame) {
+  const cols = Math.max(1, frame.columns || 1);
+  const gap = frame.columnGap || 0;
+  const colW = (frame.w - gap * (cols - 1)) / cols;
+  const minSegH = ST.p.lh * 2;
+  const boxes = [];
+  for (let c = 0; c < cols; c++) {
+    const cx = frame.x + c * (colW + gap);
+    let segs = [{ x: cx, y: frame.y, w: colW, h: frame.h }];
+    for (const ex of (frame.exclusions || [])) {
+      const m = ex.margin || 0;
+      const R = { x: ex.x - m, y: ex.y - m, w: ex.w + 2 * m, h: ex.h + 2 * m };
+      const next = [];
+      for (const s of segs) {
+        const ovX = R.x < s.x + s.w && R.x + R.w > s.x;
+        const ovY = R.y < s.y + s.h && R.y + R.h > s.y;
+        if (!ovX || !ovY) { next.push(s); continue; }
+        const topH = R.y - s.y, botY = R.y + R.h;
+        if (topH > 0) next.push({ x: s.x, y: s.y, w: s.w, h: topH });
+        // side wrap if >=45% of column width stays free
+        const freeL = R.x - s.x, freeR = (s.x + s.w) - (R.x + R.w);
+        const free = Math.max(freeL, freeR);
+        if (free >= s.w * 0.45) {
+          const sx = freeL >= freeR ? s.x : R.x + R.w;
+          const oy = Math.max(s.y, R.y), oh = Math.min(s.y + s.h, R.y + R.h) - oy;
+          if (oh > 0) next.push({ x: sx, y: oy, w: free, h: oh });
+        }
+        const botH = s.y + s.h - botY;
+        if (botH > 0) next.push({ x: s.x, y: botY, w: s.w, h: botH });
+      }
+      segs = next;
+    }
+    for (const s of segs) if (s.h >= minSegH && s.w >= 60) boxes.push(s);
+  }
+  return boxes;
+}
+
+/* ---- 2e. fit one box: estimate -> ONE window render -> Range binary ->
+        typographic rules (all rule probes are Range reads on the same layout) */
+function estRemainderLines(T, b, fromW, width) { // arithmetic (advisory only)
+  const blk = T.blocks[b], st = styleOf(blk);
+  let x = blk.type === 'quote' ? 15 : 0, lines = 1;
+  for (let i = fromW; i < blk.words.length; i++) {
+    const ww = wordW(blk.words[i], st);
+    if (x + ww > width && x > 0) { lines++; x = blk.type === 'quote' ? 15 : 0; }
+    x += ww;
+  }
+  return lines;
+}
+function binaryFit(T, s, box) {
+  if (s >= T.total) return s;
+  const est = estimateFit(T, s, box);
+  let hi = Math.min(T.total, Math.max(s + 8, Math.ceil(s + (est - s) * 1.35) + 16));
+  for (let tries = 0; tries < 8; tries++) {
+    renderWindow(T, s, hi, box.w);
+    if (bottomAt(hi) <= box.h) {
+      if (hi >= T.total) return T.total;                 // everything fits
+      hi = Math.min(T.total, s + Math.ceil((hi - s) * 1.7) + 16); // expand window
+      continue;
+    }
+    let lo = s, h2 = hi;                                  // binary on Range reads
+    while (lo < h2 - 1) {
+      const mid = (lo + h2) >> 1;
+      if (bottomAt(mid) <= box.h) lo = mid; else h2 = mid;
+    }
+    return lo;
+  }
+  return s;
+}
+function fitBox(T, s, box) {
+  let e = binaryFit(T, s, box);
+  const raw = e;
+  if (e <= s) return s;
+  if (e < T.total) {
+    const pe = posOf(T, e);
+    if (pe.w > 0) { // split inside block pe.b (window is still rendered for this box)
+      const b = pe.b, bStart = T.prefix[b], blk = T.blocks[b];
+      if (blk.type === 'quote' || blk.type === 'image') {
+        if (bStart > s) e = bStart;               // atomic: push whole block
+        // else: block alone is taller than the box -> force-place (progress)
+      } else {
+        const fl = linesTo(b, pe.w);              // fragment lines in this box
+        const rem = estRemainderLines(T, b, pe.w, box.w); // lines left (advisory)
+        if (fl < 2 && bStart > s) e = bStart;      // orphan: push block
+        else if (rem === 1) {                       // widow: retreat one+ lines
+          const target = fl - 1;                    // give >=2 lines to next box
+          if (target >= 2) {
+            let lo2 = winEntry(b).w0 + 1, hi2 = pe.w, best = null;
+            while (lo2 <= hi2) {
+              const mid = (lo2 + hi2) >> 1;
+              if (linesTo(b, mid) <= target) { best = mid; lo2 = mid + 1; }
+              else hi2 = mid - 1;
+            }
+            if (best !== null && linesTo(b, best) >= 2) e = bStart + best;
+            else if (bStart > s) e = bStart;
+          } else if (bStart > s) e = bStart;
+        }
+      }
+    }
+    // keep-with-next: heading may not end a box
+    const pe2 = posOf(T, e);
+    if (e > s && e < T.total && pe2.w === 0 && pe2.b > 0) {
+      const prev = T.blocks[pe2.b - 1];
+      if (prev.keepWithNext && T.prefix[pe2.b - 1] > s) e = T.prefix[pe2.b - 1];
+    }
+  }
+  if (e <= s) e = raw; // progress guarantee: rules yield to progress
+  return e;
+}
+
+/* ---- 2f. the engine entry point ---- */
+function flowText(content, frameChain, styles) {
+  const T = tokenize(content);
+  let s = 0;
+  const frames = [];
+  for (const frame of frameChain) {
+    const from = s, colBreaks = [], boxesOut = [];
+    for (const box of buildBoxes(frame)) {
+      if (s >= T.total) break;
+      const e = fitBox(T, s, box);
+      if (e > s) { boxesOut.push({ rect: box, from: s, to: e }); colBreaks.push(e); }
+      s = e;
+    }
+    colBreaks.pop();
+    frames.push({ frameId: frame.id, slice: { from, to: s }, columnBreaks: colBreaks, boxes: boxesOut });
+  }
+  return {
+    frames,
+    overflow: s < T.total ? sliceContent(T, s) : null,
+    _T: T, _consumed: s,
+  };
+}
+function sliceContent(T, from) { // rebuild a content array from a word offset
+  const p = posOf(T, from);
+  const out = [];
+  for (let b = p.b; b < T.blocks.length; b++) {
+    const blk = T.blocks[b];
+    if (b === p.b && p.w > 0) {
+      if (blk.type === 'image') { out.push({ ...blk }); continue; }
+      out.push({ ...blk, text: blk.words.slice(p.w).join(' '), _cont: true });
+    } else out.push({ ...blk, text: blk.words ? blk.words.join(' ') : blk.text });
+  }
+  return out;
+}
+
+/* =============================================================================
+   3. SPREAD TEMPLATES + AUTO-PAGINATION DRIVER
+============================================================================= */
+function textArea(pageIdx /*0=verso,1=recto*/) {
+  const left = pageIdx === 0 ? MARG.outer : MARG.inner;
+  const right = pageIdx === 0 ? MARG.inner : MARG.outer;
+  return { x: left, y: MARG.top, w: PAGE_W - left - right, h: PAGE_H - MARG.top - MARG.bottom };
+}
+function heroPx(){ return Math.round(PAGE_H * state.heroFrac); }
+
+function makeOpenerSpread() {
+  const hp = heroPx();
+  // fixed-height headline plate overlapping the hero bottom, spanning the gutter;
+  // it is an ENGINE EXCLUSION on both opener body frames (dogfooding invariant 9)
+  const plate = { x: Math.round(PAGE_W * 0.42), y: hp - 74,
+                  wSpread: Math.round(PAGE_W * 1.16), h: 240 };
+  const bodyTop = hp + 22; // body starts just below the hero; plate carves it
+  const frames = [0, 1].map(pi => {
+    const ta = textArea(pi);
+    const exclusions = [];
+    if (pi === 0 && plate.x < PAGE_W) {
+      exclusions.push({ x: plate.x, y: plate.y, w: PAGE_W - plate.x, h: plate.h, margin: 20 });
+    }
+    if (pi === 1 && plate.x + plate.wSpread > PAGE_W) {
+      exclusions.push({ x: 0, y: plate.y, w: plate.x + plate.wSpread - PAGE_W, h: plate.h, margin: 20 });
+    }
+    return { id: 'S0-P' + pi, pageIndex: pi, x: ta.x, y: bodyTop, w: ta.w,
+             h: PAGE_H - MARG.bottom - bodyTop, columns: state.cols, columnGap: state.gap, exclusions };
+  });
+  return { kind: 'opener', hero: hp, plate, frames, auto: false };
+}
+function makePullQuoteSpread() {
+  const frames = [0, 1].map(pi => {
+    const ta = textArea(pi);
+    return { id: 'S1-P' + pi, pageIndex: pi, x: ta.x, y: ta.y, w: ta.w, h: ta.h,
+             columns: state.cols, columnGap: state.gap, exclusions: [] };
+  });
+  // pull quote centered in the RIGHT page text area, spanning ~62% of its width
+  const ta = textArea(1);
+  const pq = { x: Math.round(ta.x + ta.w * 0.19), y: Math.round(ta.y + ta.h * 0.34),
+               w: Math.round(ta.w * 0.62), h: 128, margin: 16 };
+  frames[1].exclusions.push(pq);
+  return { kind: 'pullquote', frames, pullq: pq, auto: false };
+}
+function makeContinuationSpread(idx) {
+  const frames = [0, 1].map(pi => {
+    const ta = textArea(pi);
+    return { id: 'S' + idx + '-P' + pi, pageIndex: pi, x: ta.x, y: ta.y, w: ta.w, h: ta.h,
+             columns: state.cols, columnGap: state.gap, exclusions: [] };
+  });
+  return { kind: 'cont', frames, auto: true };
+}
+
+function layout() {
+  const t0 = performance.now();
+  measureCount = 0; probeCount = 0;
+  buildStyles();
+  const spreads = [];
+  const results = []; // parallel to spreads: {res}
+  let content = state.blocks;
+
+  let sp = makeOpenerSpread();
+  spreads.push(sp);
+  let res = flowText(content, sp.frames, ST);
+  results.push(res);
+
+  let guard = 0;
+  while (res.overflow && spreads.length < MAX_SPREADS && guard++ < MAX_SPREADS) {
+    const idx = spreads.length;
+    sp = idx === 1 ? makePullQuoteSpread() : makeContinuationSpread(idx);
+    spreads.push(sp);
+    res = flowText(res.overflow, sp.frames, ST);
+    results.push(res);
+  }
+  const ms = performance.now() - t0;
+
+  // ---------- LOSSLESSNESS ASSERTION (invariant 4) ----------
+  const srcWords = [];
+  for (const b of tokenize(state.blocks).blocks) srcWords.push(...b.words);
+  const placedWords = [];
+  for (let i = 0; i < results.length; i++) {
+    const T = results[i]._T;
+    for (const f of results[i].frames)
+      for (const bx of f.boxes) {
+        // reconstruct exactly the words of this box slice
+        let g = bx.from;
+        while (g < bx.to) {
+          const p = posOf(T, g);
+          const blk = T.blocks[p.b];
+          if (blk.type === 'image' && blk.words.length === 0) { g++; continue; }
+          placedWords.push(blk.words[p.w]); g++;
+        }
+      }
+  }
+  if (results[results.length - 1].overflow) {
+    for (const b of tokenize(results[results.length - 1].overflow).blocks) placedWords.push(...b.words);
+  }
+  const lossless = srcWords.join('') === placedWords.join('');
+  const badge = $('lossless');
+  badge.textContent = 'lossless: ' + (lossless ? 'PASS' : 'FAIL');
+  badge.className = lossless ? 'pass' : 'fail';
+  console[lossless ? 'log' : 'error'](
+    `[flow] lossless=${lossless ? 'PASS' : 'FAIL'} words=${srcWords.length} placed=${placedWords.length} ` +
+    `spreads=${spreads.length} time=${ms.toFixed(1)}ms renders=${measureCount} rangeProbes=${probeCount}`);
+
+  render(spreads, results);
+
+  $('sWords').textContent = srcWords.length.toLocaleString();
+  $('sSpreads').textContent = spreads.length;
+  $('sMs').textContent = ms.toFixed(0);
+  $('sBoxes').textContent = results.reduce((n, r) => n + r.frames.reduce((m, f) => m + f.boxes.length, 0), 0);
+  return { spreads, results, ms, lossless };
+}
+
+/* =============================================================================
+   4. RENDER (React's only job in the real app: paint engine output)
+============================================================================= */
+function folioHTML(pageNo, side) {
+  return `<div class="folio ${side}"><span class="no">${String(pageNo).padStart(2,'0')}</span>` +
+         `<span class="rule"></span><span>${MAG_NAME} · ${ISSUE}</span></div>`;
+}
+function render(spreads, results) {
+  const cv = $('canvas');
+  cv.innerHTML = '';
+  const scale = 1;
+  spreads.forEach((sp, si) => {
+    const spread = document.createElement('div');
+    spread.className = 'spread';
+    spread.style.width = (PAGE_W * 2) + 'px';
+    spread.innerHTML = `<div class="spreadno">Spread ${si + 1}${sp.auto ? ' · auto' : ''}</div>`;
+    const pagesEl = document.createElement('div');
+    pagesEl.className = 'pages';
+    spread.appendChild(pagesEl);
+
+    const pageEls = [0, 1].map(pi => {
+      const pg = document.createElement('div');
+      pg.className = 'page ' + (pi === 0 ? 'verso' : 'recto');
+      pg.style.width = PAGE_W + 'px'; pg.style.height = PAGE_H + 'px';
+      pg.setAttribute('lang', 'en');
+      // master template: folio on every page
+      const pageNo = si * 2 + pi + 1;
+      pg.innerHTML = folioHTML(pageNo, pi === 0 ? 'verso' : 'recto');
+      pagesEl.appendChild(pg);
+      return pg;
+    });
+
+    // crop marks on the spread corners
+    for (const pos of ['tl', 'tr', 'bl', 'br']) {
+      const c = document.createElement('div'); c.className = 'crop ' + pos; pagesEl.appendChild(c);
+    }
+    // gutter shade
+    const gs = document.createElement('div'); gs.className = 'gutter-shade';
+    gs.style.left = (PAGE_W - 22) + 'px'; pagesEl.appendChild(gs);
+
+    if (sp.kind === 'opener') {
+      // hero spanning BOTH pages across the gutter
+      const hero = document.createElement('div');
+      hero.className = 'hero';
+      hero.style.height = sp.hero + 'px';
+      hero.innerHTML = `<div class="credit">Photograph — Ensō Studio</div>`;
+      pagesEl.appendChild(hero);
+      // headline plate overlapping the hero bottom, spanning the gutter
+      const plate = document.createElement('div');
+      plate.className = 'plate';
+      plate.style.left = sp.plate.x + 'px';
+      plate.style.top = sp.plate.y + 'px';
+      plate.style.width = sp.plate.wSpread + 'px';
+      plate.style.height = sp.plate.h + 'px';
+      plate.style.overflow = 'hidden';
+      plate.style.zIndex = 3;
+      const titleFs = Math.round(PAGE_W * 0.098);
+      plate.innerHTML =
+        `<div class="kicker">Feature · ${ISSUE}</div>` +
+        `<h1 class="title" style="font-size:${titleFs}px">${esc(state.title)}</h1>` +
+        `<div class="standfirst">${esc(state.standfirst)}</div>` +
+        `<div class="byline">Words — <b>A. Karim</b> · Images — <b>Ensō Studio</b></div>`;
+      pagesEl.appendChild(plate);
+    }
+    if (sp.kind === 'pullquote') {
+      const pq = sp.pullq;
+      const el = document.createElement('div');
+      el.className = 'pullq';
+      el.style.left = pq.x + 'px'; el.style.top = pq.y + 'px';
+      el.style.width = pq.w + 'px'; el.style.height = pq.h + 'px';
+      el.innerHTML = `<div class="q">${esc(state.pullQuote)}</div><div class="who">— from this story</div>`;
+      pageEls[1].appendChild(el);
+    }
+
+    // flowed boxes
+    const res = results[si];
+    if (res) {
+      const T = res._T;
+      for (const f of res.frames) {
+        const frameDef = sp.frames.find(fr => fr.id === f.frameId);
+        for (const bx of f.boxes) {
+          const el = document.createElement('div');
+          el.className = 'fbox';
+          el.setAttribute('lang', 'en');
+          el.style.left = bx.rect.x + 'px'; el.style.top = bx.rect.y + 'px';
+          el.style.width = bx.rect.w + 'px'; el.style.height = Math.ceil(bx.rect.h + 1) + 'px';
+          el.innerHTML = rangeHTML(T, bx.from, bx.to);
+          pageEls[frameDef.pageIndex].appendChild(el);
+        }
+      }
+      // overset badge if the LAST spread still overflows (spread cap hit)
+      if (si === spreads.length - 1 && res.overflow) {
+        const bd = document.createElement('div');
+        bd.className = 'overset-badge';
+        bd.style.right = '12px'; bd.style.bottom = '12px';
+        bd.textContent = '+ OVERSET';
+        pageEls[1].appendChild(bd);
+      }
+    }
+    cv.appendChild(spread);
+  });
+}
+
+/* =============================================================================
+   5. DEMO CONTENT — deterministic seeded generator (no Math.random)
+============================================================================= */
+function lcg(seed){ let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+const BANK = {
+  openers: ['The press hall smells of', 'Every sheet begins with', 'Nobody warns you about', 'At dawn the workshop holds', 'The archive keeps', 'A magazine is, before anything,', 'Between impression and ink sits', 'The apprentice learns first'],
+  nouns: ['the substrate', 'a kilo of vermilion pigment', 'the folded signature', 'a brass composing stick', 'the humidity of paper', 'an unbound quire', 'the registration cross', 'a tray of wood type', 'the gutter shadow', 'a proofing press', 'the baseline grid', 'an em of white space', 'the deckle edge', 'a washi sheet', 'the colophon'],
+  verbs: ['resists', 'remembers', 'betrays', 'organises', 'absorbs', 'carries', 'refuses', 'rewards', 'measures', 'outlives'],
+  objects: ['every shortcut the layout artist takes', 'the pressure of the platen', 'a century of small decisions', 'whatever the editor believed that morning', 'the reader’s patience', 'its own history of corrections', 'the tempo of the deadline', 'the weight of the headline', 'the discipline of the grid', 'the hand that set it'],
+  clauses: ['and the room goes quiet when it happens', 'which is why the old compositors never hurried', 'though no one writes this down', 'and the difference is visible from across the room', 'long after the issue ships', 'in a way no screen has learned to imitate', 'as if the page had an opinion of its own', 'until the margins finally agree', 'and the spread settles into balance', 'the way a well-set line always does'],
+  headwords: ['The Substrate Answers', 'Ink Before Idea', 'A Grammar of Margins', 'What the Gutter Knows', 'Registration Marks', 'The Weight of White', 'Signatures and Seams', 'Proof, Then Press', 'The Vermilion Hour', 'Set Solid', 'Against the Deadline', 'The Folded Field'],
+  quotes: ['Print is patient; screens forgive everything and remember nothing.', 'The grid is not a cage — it is the drum the page keeps time on.', 'A margin is a promise you make to the reader’s thumb.', 'We do not fill pages. We tune them.', 'Every orphan you allow becomes the reader’s problem.', 'Paper has a memory; treat it kindly.'],
+};
+function genSentence(r) {
+  const s = BANK.openers[(r() * BANK.openers.length) | 0] + ' ' +
+    BANK.nouns[(r() * BANK.nouns.length) | 0] + ', and ' +
+    BANK.nouns[(r() * BANK.nouns.length) | 0] + ' ' +
+    BANK.verbs[(r() * BANK.verbs.length) | 0] + ' ' +
+    BANK.objects[(r() * BANK.objects.length) | 0] + ', ' +
+    BANK.clauses[(r() * BANK.clauses.length) | 0] + '.';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function genArticle(targetWords, seed) {
+  const r = lcg(seed);
+  const blocks = [];
+  let words = 0, para = 0, sinceHead = 0, sinceQuote = 4, headIdx = 0;
+  while (words < targetWords) {
+    if (para > 2 && sinceHead >= 6 + ((r() * 4) | 0)) {
+      blocks.push({ type: 'heading', text: BANK.headwords[headIdx++ % BANK.headwords.length], keepWithNext: true });
+      sinceHead = 0;
+    } else if (para > 4 && sinceQuote >= 9 + ((r() * 5) | 0)) {
+      blocks.push({ type: 'quote', text: BANK.quotes[(r() * BANK.quotes.length) | 0] });
+      sinceQuote = 0;
+    } else {
+      const n = 3 + ((r() * 4) | 0);
+      let t = [];
+      for (let i = 0; i < n; i++) t.push(genSentence(r));
+      const p = t.join(' ');
+      blocks.push({ type: 'paragraph', text: p });
+      words += p.split(/\s+/).length;
+      para++; sinceHead++; sinceQuote++;
+    }
+  }
+  return blocks;
+}
+function setContent(blocks, title, standfirst) {
+  // anchored inline image with caption after ~10 blocks (spec M-E)
+  const withImage = blocks.slice();
+  if (withImage.length > 14) {
+    withImage.splice(10, 0, { type: 'image', h: 148,
+      caption: 'Wood type drying in the north window of the Stillopress workshop. The vermilion run is third from the left.' });
+  }
+  state.blocks = withImage;
+  state.title = title;
+  state.standfirst = standfirst;
+  const q = blocks.find(b => b.type === 'quote');
+  state.pullQuote = q ? q.text.replace(/\.$/, '') : 'We do not fill pages. We tune them';
+}
+function loadDemo(words) {
+  setContent(genArticle(words, 20260704),
+    'The Substrate Remembers',
+    'Inside the Stillopress workshop, where the grid is a drum, vermilion is a schedule, and a ten-thousand-word essay must land on the page in one motion.');
+}
+function parsePasted(text) {
+  const parts = String(text).split(/\r?\n\s*\r?\n/).map(s => s.trim()).filter(Boolean);
+  const blocks = [];
+  let title = null, standfirst = null;
+  for (const p of parts) {
+    const line = p.replace(/\s+/g, ' ');
+    if (/^#\s*/.test(line)) {
+      const t = line.replace(/^#+\s*/, '');
+      if (title === null) { title = t; continue; }
+      blocks.push({ type: 'heading', text: t, keepWithNext: true });
+    } else if (/^>\s*/.test(line)) {
+      blocks.push({ type: 'quote', text: line.replace(/^>\s*/, '') });
+    } else {
+      if (title !== null && standfirst === null && blocks.length === 0 && line.split(' ').length <= 45) {
+        standfirst = line; continue;
+      }
+      blocks.push({ type: 'paragraph', text: line });
+    }
+  }
+  setContent(blocks, title || 'Pasted Article', standfirst || '');
+}
+
+/* =============================================================================
+   6. CONTROLS
+============================================================================= */
+function readControls() {
+  state.cols = parseInt($('cCols').value, 10);
+  state.gap = parseFloat($('cGap').value) || 18;
+  state.fs = parseFloat($('cFs').value) || 14.5;
+  state.lh = parseFloat($('cLh').value) || 1.5;
+}
+function reflow() {
+  try {
+    readControls();
+    layout();
+    $('err').style.display = 'none';
+  } catch (e) {
+    console.error(e);
+    $('err').style.display = 'block';
+    $('err').textContent = 'ENGINE ERROR\n' + (e && e.stack || e);
+  }
+}
+let deb = null;
+function reflowDebounced(){ clearTimeout(deb); deb = setTimeout(reflow, 160); }
+
+$('cCols').addEventListener('change', reflow);
+$('cGap').addEventListener('input', reflowDebounced);
+$('cFs').addEventListener('input', reflowDebounced);
+$('cLh').addEventListener('input', reflowDebounced);
+$('bHero').addEventListener('click', () => {
+  const seq = [0.45, 0.55, 0.65];
+  state.heroFrac = seq[(seq.indexOf(state.heroFrac) + 1) % seq.length];
+  $('bHero').textContent = `Shuffle hero height (${Math.round(state.heroFrac * 100)}%)`;
+  reflow();
+});
+$('bPaste').addEventListener('click', () => {
+  const t = $('cText').value.trim();
+  if (!t) { $('cText').placeholder = 'Paste text first…'; return; }
+  parsePasted(t); reflow();
+});
+$('bStress').addEventListener('click', () => { loadDemo(10000); reflow(); });
+$('bDemo').addEventListener('click', () => { loadDemo(2600); reflow(); });
+
+/* boot */
+loadDemo(2600);
+reflow();
+/* async webfonts change metrics -> single deterministic re-flow when ready */
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => reflow());
+}
+</script>
+</body>
+</html>
