@@ -354,6 +354,7 @@ function MagazineEditorV2Inner() {
             onSelectElement={(id) => id ? store.selectElement(id) : store.clearSelection()}
             onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
             oversetThreads={store.oversetThreads}
+            onNavigateThread={(pageNumber, frameId) => { store.setCurrentPage(pageNumber); store.selectElement(frameId); }}
             onPageClick={(n) => {
               if (n === -1) store.setViewMode('single');
               else if (n === -2) store.setViewMode('spread');

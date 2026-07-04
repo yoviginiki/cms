@@ -36,6 +36,8 @@ interface MagazineCanvasProps {
   coverMode?: 'standalone' | 'spread';
   /** engine flow state — threads whose chain currently oversets */
   oversetThreads?: Record<string, boolean>;
+  /** jump to a linked frame from a thread port badge (W1-5) */
+  onNavigateThread?: (pageNumber: number, frameId: string) => void;
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -81,6 +83,7 @@ export function MagazineCanvas({
   onToggleFixed,
   onToggleSpan,
   oversetThreads,
+  onNavigateThread,
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -693,6 +696,7 @@ export function MagazineCanvas({
                 }}
                 allPages={allPages}
                 oversetThreads={oversetThreads}
+                onNavigateThread={onNavigateThread}
               />
             ))}
 

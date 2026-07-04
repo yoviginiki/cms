@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
+import { normalizeClipboardHtml, plainTextToHtml } from '@/lib/clipboardNormalizer';
 
 const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
 
@@ -27,9 +28,11 @@ interface Props {
   allPages?: Array<{ pageNumber: number; elements: MagElement[] }>;
   /** engine flow state: threads whose chain currently oversets (chain-aware badge) */
   oversetThreads?: Record<string, boolean>;
+  /** click a thread port badge to jump to the linked frame (W1-5) */
+  onNavigateThread?: (pageNumber: number, frameId: string) => void;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages, oversetThreads }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages, oversetThreads, onNavigateThread }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -184,6 +187,18 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
             contentEditable
             suppressContentEditableWarning
             onBlur={handleBlur}
+            onPaste={(e) => {
+              // W1-3 paste pipeline: normalize Word/GDocs/web clipboard HTML
+              // to the content model, insert at the caret; the flow engine
+              // reflows + auto-paginates on blur (the ONE reflow path)
+              const rawHtml = e.clipboardData.getData('text/html');
+              const rawText = e.clipboardData.getData('text/plain');
+              if (!rawHtml && !rawText) return;
+              e.preventDefault();
+              e.stopPropagation();
+              const clean = rawHtml ? normalizeClipboardHtml(rawHtml) : plainTextToHtml(rawText);
+              if (clean) document.execCommand('insertHTML', false, clean);
+            }}
             onKeyDown={(e) => {
               // Let Escape propagate to exit editing, stop everything else
               if (e.key !== 'Escape') e.stopPropagation();
@@ -279,12 +294,28 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
           </div>
         );
       }
+      // ONE fit map, shared semantics with DtpRenderService (audit W1-12:
+      // the editor used raw values as CSS, so 'fill' stretched in the editor
+      // but published as cover, and 'fit' was invalid CSS)
+      const FIT_MAP: Record<string, React.CSSProperties['objectFit']> = {
+        fill: 'cover', fit: 'contain', stretch: 'fill', none: 'none',
+        original: 'none', cover: 'cover', contain: 'contain',
+      };
       const imgStyle: React.CSSProperties = {
         width: '100%', height: data.showCaption && data.caption ? 'calc(100% - 20px)' : '100%',
-        objectFit: (data.fit || 'cover') as any,
+        objectFit: FIT_MAP[data.fit as string] ?? 'cover',
         objectPosition: data.focalPoint ? `${(data.focalPoint.x ?? 0.5) * 100}% ${(data.focalPoint.y ?? 0.5) * 100}%` : 'center',
         opacity: imgOpacity,
       };
+      // content mode: pan/scale/rotate INSIDE the frame (frame = crop)
+      const offX = Number(data.imageOffsetX) || 0;
+      const offY = Number(data.imageOffsetY) || 0;
+      const scale = Number(data.imageScale) || 1;
+      const imgRot = Number(data.imageRotation) || 0;
+      if (offX || offY || scale !== 1 || imgRot) {
+        imgStyle.transform = `translate(${offX}px, ${offY}px) scale(${scale}) rotate(${imgRot}deg)`;
+        imgStyle.transformOrigin = 'center center';
+      }
       // Apply image filters
       const filters: string[] = [];
       if (data.filters?.brightness != null && data.filters.brightness !== 100) filters.push(`brightness(${data.filters.brightness}%)`);
@@ -704,14 +735,24 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         return (
           <>
             {prevFrame && (
-              <div className="absolute -top-5 left-0 bg-blue-500/80 text-white text-[7px] px-1.5 py-0.5 rounded-b font-medium pointer-events-none whitespace-nowrap">
+              <button
+                className="absolute -top-5 left-0 bg-blue-500/80 hover:bg-blue-500 text-white text-[7px] px-1.5 py-0.5 rounded-b font-medium whitespace-nowrap cursor-pointer z-[9998]"
+                title="Jump to the previous frame in this thread"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onNavigateThread?.(prevFrame.pageNumber, prevFrame.id); }}
+              >
                 ← Continued from p.{prevFrame.pageNumber}
-              </div>
+              </button>
             )}
             {nextFrame && (
-              <div className="absolute -bottom-5 right-0 bg-blue-500/80 text-white text-[7px] px-1.5 py-0.5 rounded-t font-medium pointer-events-none whitespace-nowrap">
+              <button
+                className="absolute -bottom-5 right-0 bg-blue-500/80 hover:bg-blue-500 text-white text-[7px] px-1.5 py-0.5 rounded-t font-medium whitespace-nowrap cursor-pointer z-[9998]"
+                title="Jump to the next frame in this thread"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onNavigateThread?.(nextFrame.pageNumber, nextFrame.id); }}
+              >
                 Continues → p.{nextFrame.pageNumber}
-              </div>
+              </button>
             )}
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white pointer-events-none" title={`Thread ${(el.threadOrder ?? 0) + 1} of ${threadFrames.length}`} />
           </>

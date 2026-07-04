@@ -551,6 +551,7 @@ export default function DtpEditorBeta() {
           onToggleSpan={(id, mode) => store.updateElement(id, { spanMode: mode } as any)}
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
           oversetThreads={store.oversetThreads}
+          onNavigateThread={(pageNumber, frameId) => { store.setCurrentPage(pageNumber); store.selectElement(frameId); }}
           onMoveToPage={(elementId, direction, newX, newY) => {
             const currentPageNum = store.currentPageNumber;
             const contentPages = store.pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);

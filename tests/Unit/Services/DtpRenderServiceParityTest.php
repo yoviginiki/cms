@@ -131,6 +131,24 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringContainsString('object-position:25% 80%', $out2['html']);
     }
 
+    public function test_image_content_mode_and_filters_publish(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'image',
+            'content' => [
+                'src' => 'https://x.test/i.jpg',
+                'imageOffsetX' => 12, 'imageOffsetY' => -8, 'imageScale' => 1.4, 'imageRotation' => 15,
+                'filters' => ['brightness' => 90, 'contrast' => 110, 'saturation' => 100, 'grayscale' => true],
+            ],
+        ]);
+        $html = $out['html'];
+        $this->assertStringContainsString('transform:translate(12px, -8px) scale(1.4) rotate(15deg)', $html);
+        $this->assertStringContainsString('brightness(90%)', $html);
+        $this->assertStringContainsString('contrast(110%)', $html);
+        $this->assertStringContainsString('grayscale(1)', $html);
+        $this->assertStringNotContainsString('saturate(', $html); // 100 = no-op
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

@@ -315,6 +315,34 @@ class DtpRenderService
             $style .= "opacity:{$opacity};";
         }
 
+        // content mode: pan/scale/rotate inside the frame — must match the
+        // editor's transform exactly (audit W1-12; fields persist since W0-6)
+        $offX = (float) ($content['imageOffsetX'] ?? 0);
+        $offY = (float) ($content['imageOffsetY'] ?? 0);
+        $scale = (float) ($content['imageScale'] ?? 1);
+        $imgRot = (float) ($content['imageRotation'] ?? 0);
+        if ($offX || $offY || $scale !== 1.0 || $imgRot) {
+            $offX = max(-2000, min(2000, $offX));
+            $offY = max(-2000, min(2000, $offY));
+            $scale = max(0.05, min(20, $scale ?: 1));
+            $imgRot = max(-360, min(360, $imgRot));
+            $style .= "transform:translate({$offX}px, {$offY}px) scale({$scale}) rotate({$imgRot}deg);transform-origin:center center;";
+        }
+
+        // image filters — rendered by the editor since MAG-P12, never published
+        $f = is_array($content['filters'] ?? null) ? $content['filters'] : [];
+        $filters = [];
+        $b = (int) ($f['brightness'] ?? 100);
+        $c = (int) ($f['contrast'] ?? 100);
+        $sat = (int) ($f['saturation'] ?? 100);
+        if ($b !== 100) $filters[] = 'brightness(' . max(0, min(300, $b)) . '%)';
+        if ($c !== 100) $filters[] = 'contrast(' . max(0, min(300, $c)) . '%)';
+        if ($sat !== 100) $filters[] = 'saturate(' . max(0, min(300, $sat)) . '%)';
+        if (!empty($f['grayscale'])) $filters[] = 'grayscale(1)';
+        if ($filters) {
+            $style .= 'filter:' . implode(' ', $filters) . ';';
+        }
+
         $imgTag = '<img src="' . e($src) . '" alt="' . $alt . '" style="' . $style . '" loading="lazy">';
 
         $caption = $content['caption'] ?? '';
