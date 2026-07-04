@@ -10,6 +10,7 @@ class SanitizationService
 {
     private HTMLPurifier $purifier;
     private HTMLPurifier $strictPurifier;
+    private HTMLPurifier $magazinePurifier;
 
     public function __construct(private BlockRegistry $registry)
     {
@@ -40,6 +41,31 @@ class SanitizationService
         $strictConfig->set('Cache.DefinitionImpl', null);
         $this->strictPurifier = new HTMLPurifier($strictConfig);
 
+        // Magazine/DTP purifier — mirrors the editor's DOMPurify allowlist
+        // (MagElementRenderer SAFE_HTML_CONFIG) so published slices render the
+        // markup the editor produced: b/i from execCommand formatting, inline
+        // images with float/width styles, and the flow engine's continued-
+        // fragment margin resets (style="margin-top:0;text-indent:0").
+        // CSS is constrained here AND re-filtered by DtpRenderService's own
+        // property allowlist (defense in depth).
+        $magConfig = HTMLPurifier_Config::createDefault();
+        $magConfig->set('HTML.Allowed',
+            'p[style],br,b,i,u,em,strong,s,span[class|style],a[href|target|rel],' .
+            'ul[style],ol[style],li,h1[style],h2[style],h3[style],h4[style],h5[style],h6[style],' .
+            'blockquote[style],sub,sup,hr,div[style],figure[style],figcaption,' .
+            'img[src|alt|width|height|style]');
+        $magConfig->set('CSS.AllowedProperties', [
+            'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
+            'padding', 'text-indent', 'text-align', 'float', 'width', 'height',
+            'max-width', 'border-radius', 'border', 'display',
+        ]);
+        $magConfig->set('HTML.TargetBlank', true);
+        $magConfig->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true, 'tel' => true]);
+        $magConfig->set('Attr.AllowedFrameTargets', ['_blank']);
+        $magConfig->set('AutoFormat.RemoveEmpty', false);
+        $magConfig->set('Cache.DefinitionImpl', null);
+        $this->magazinePurifier = new HTMLPurifier($magConfig);
+
         // Restore original error handler
         restore_error_handler();
     }
@@ -52,6 +78,12 @@ class SanitizationService
     public function purifyRich(string $html): string
     {
         return @$this->purifier->purify($html);
+    }
+
+    /** Magazine/DTP profile — editor-parity tags + constrained inline styles */
+    public function purifyMagazine(string $html): string
+    {
+        return @$this->magazinePurifier->purify($html);
     }
 
     public function sanitizeBlock(Block $block): array

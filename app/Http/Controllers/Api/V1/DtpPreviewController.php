@@ -53,6 +53,7 @@ class DtpPreviewController extends Controller
             'frameCount' => $data['frameCount'],
             'layoutMode' => $data['layoutMode'] ?? 'single',
             'coverMode' => $data['coverMode'] ?? 'standalone',
+            'fontsUrl' => $data['fontsUrl'] ?? null,
         ]);
     }
 }

@@ -20,10 +20,11 @@ class DtpRenderService
      */
     private function sanitizeHtml(string $html): string
     {
-        // S8: run the shared HTMLPurifier profile FIRST (kills event handlers,
-        // javascript: URLs, unknown tags); the regex below then re-filters
-        // attributes for the DTP-specific style allowance
-        $html = app(\App\Domain\Publishing\Services\SanitizationService::class)->purifyRich($html);
+        // S8: run the shared HTMLPurifier magazine profile FIRST (kills event
+        // handlers, javascript: URLs, unknown tags; keeps the editor's b/i and
+        // the flow engine's inline margin resets); the regex below then
+        // re-filters attributes for the DTP-specific style allowance
+        $html = app(\App\Domain\Publishing\Services\SanitizationService::class)->purifyMagazine($html);
         // Keep safe attributes: href (http/https only) and style (CSS properties only)
         return preg_replace_callback(
             '/<(\w+)(\s[^>]*)?>/',
@@ -178,7 +179,35 @@ class DtpRenderService
             'frameCount' => $frames->count(),
             'layoutMode' => $layoutMode,
             'coverMode' => $coverMode,
+            'fontsUrl' => $this->buildFontsUrl($frames),
         ];
+    }
+
+    /**
+     * Google Fonts URL for every family used by the document's typography.
+     * Without webfonts the published viewer falls back to system fonts and
+     * within-frame line wrapping diverges from the editor (audit M-D parity).
+     */
+    private function buildFontsUrl($frames): ?string
+    {
+        $families = [];
+        foreach ($frames as $frame) {
+            $metadata = is_array($frame->metadata) ? $frame->metadata : [];
+            $family = trim((string) ($metadata['_typography']['fontFamily'] ?? ''));
+            $family = preg_replace('/[^a-zA-Z0-9\s\-]/', '', $family);
+            if ($family !== '' && !in_array(strtolower($family), ['system-ui', 'sans-serif', 'serif', 'monospace'], true)) {
+                $families[$family] = true;
+            }
+        }
+        $families['Inter'] = true; // editor default
+        if (empty($families)) {
+            return null;
+        }
+        $parts = array_map(
+            fn (string $f) => 'family=' . str_replace(' ', '+', $f) . ':ital,wght@0,400;0,500;0,600;0,700;1,400',
+            array_keys($families),
+        );
+        return 'https://fonts.googleapis.com/css2?' . implode('&', $parts) . '&display=swap';
     }
 
     private function renderFrame(MagazineFrame $frame, MagazineDtpPage $page): array
@@ -191,14 +220,25 @@ class DtpRenderService
         if (in_array($type, ['text', 'quote'])) {
             $metadata = is_array($frame->metadata) ? $frame->metadata : [];
             $typo = $metadata['_typography'] ?? [];
-            // Typography
+            // Typography — MUST match the editor's shared style builder
+            // (resources/admin/src/engine/flow/textStyle.ts). The flow engine's
+            // placements are baked into slices; within-frame wrapping only
+            // agrees if every width-affecting property renders identically.
             if (!empty($typo['fontFamily'])) $style .= "font-family:" . preg_replace('/[^a-zA-Z0-9\s,\-]/', '', $typo['fontFamily']) . ";";
-            if (!empty($typo['fontSize'])) $style .= "font-size:" . ((int)$typo['fontSize']) . "px;";
+            if (!empty($typo['fontSize'])) $style .= "font-size:" . ((float)$typo['fontSize']) . "px;";
             if (!empty($typo['fontWeight'])) $style .= "font-weight:" . ((int)$typo['fontWeight']) . ";";
+            if (!empty($typo['fontStyle']) && $typo['fontStyle'] === 'italic') $style .= "font-style:italic;";
             if (!empty($typo['lineHeight'])) $style .= "line-height:" . ((float)$typo['lineHeight']) . ";";
             if (!empty($typo['textAlign'])) $style .= "text-align:" . preg_replace('/[^a-z]/', '', $typo['textAlign']) . ";";
             if (!empty($typo['textColor'])) $style .= "color:" . preg_replace('/[^a-zA-Z0-9#(),.\s]/', '', $typo['textColor']) . ";";
             if (!empty($typo['letterSpacing'])) $style .= "letter-spacing:" . ((float)$typo['letterSpacing']) . "em;";
+            if (!empty($typo['textTransform']) && $typo['textTransform'] !== 'none') {
+                $tt = preg_replace('/[^a-z\-]/', '', $typo['textTransform']);
+                if ($tt === 'small-caps') $style .= "font-variant:small-caps;";
+                elseif (in_array($tt, ['uppercase', 'lowercase', 'capitalize'], true)) $style .= "text-transform:{$tt};";
+            }
+            if (!empty($typo['hyphenation'])) $style .= "hyphens:auto;-webkit-hyphens:auto;";
+            $style .= "overflow-wrap:break-word;word-break:break-word;";
             // Columns
             $cols = (int) ($content['columnsInFrame'] ?? 1);
             if ($cols > 1 && $cols <= 6) {
@@ -330,7 +370,10 @@ class DtpRenderService
         $w = max(1, (int) $page->width);
         $h = max(1, (int) $page->height);
         $bg = BlockStyle::safeColor($page->background['color'] ?? '#ffffff') ?: '#ffffff';
-        // Always clip page content — spread images use their own overflow:visible on the frame
-        return "position:relative;width:{$w}px;height:{$h}px;background:{$bg};overflow:hidden;";
+        // Pages clip their content, EXCEPT when a spread-spanning frame needs
+        // to extend across the gutter (audit defect: published spread images
+        // were clipped because this parameter was ignored)
+        $overflow = $hasSpreadImage ? 'visible' : 'hidden';
+        return "position:relative;width:{$w}px;height:{$h}px;background:{$bg};overflow:{$overflow};";
     }
 }
