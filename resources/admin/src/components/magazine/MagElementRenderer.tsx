@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useEffect, useState } from 'react';
 import DOMPurify from 'dompurify';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
+import { buildTextFrameStyle } from '@/engine/flow/textStyle';
 
 const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
 
@@ -24,9 +25,11 @@ interface Props {
   onToggleFixed?: (id: string, mode: 'free' | 'fixed') => void;
   onToggleSpan?: (id: string, mode: 'page' | 'spread') => void;
   allPages?: Array<{ pageNumber: number; elements: MagElement[] }>;
+  /** engine flow state: threads whose chain currently oversets (chain-aware badge) */
+  oversetThreads?: Record<string, boolean>;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages, oversetThreads }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -150,29 +153,18 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     if (TEXT_FRAME_TYPES.includes(el.type)) {
       const typo = el.typography;
       const cols = data.columnsInFrame || 1;
+      // SHARED style builder — the flow measurer consumes the same one, so
+      // measurement can never drift from what is painted here (Session C)
       const textStyle: React.CSSProperties = {
-        fontFamily: typo?.fontFamily || 'Inter',
-        fontSize: typo?.fontSize || 14,
-        fontWeight: typo?.fontWeight || 400,
-        fontStyle: typo?.fontStyle || 'normal',
-        lineHeight: typo?.lineHeight || 1.5,
-        letterSpacing: typo?.letterSpacing ? `${typo.letterSpacing}em` : undefined,
-        textAlign: (typo?.textAlign || 'left') as any,
-        color: typo?.textColor || '#1a1a1a',
-        textTransform: (typo as any)?.textTransform || undefined,
-        padding: data.textInset && typeof data.textInset === 'object' ? `${data.textInset.top ?? 8}px ${data.textInset.right ?? 8}px ${data.textInset.bottom ?? 8}px ${data.textInset.left ?? 8}px` : '8px',
-        wordBreak: 'break-word' as any,
-        width: '100%',
+        ...buildTextFrameStyle(typo, {
+          inset: data.textInset && typeof data.textInset === 'object' ? data.textInset : null,
+          columns: cols,
+          columnGap: data.columnGap || 12,
+          columnFill: data.columnFill === 'balance' ? 'balance' : 'auto',
+        }),
         outline: isEditing ? '2px solid #3b82f6' : undefined,
         cursor: isEditing ? 'text' : undefined,
       };
-
-      // Columns
-      if (cols > 1) {
-        textStyle.columnCount = cols;
-        textStyle.columnGap = data.columnGap || 12;
-        textStyle.columnFill = data.columnFill === 'balance' ? 'balance' : 'auto';
-      }
 
       // Height and scroll — text div fills frame and scrolls vertically
       textStyle.height = '100%';
@@ -680,10 +672,25 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
           onPointerDown={(e) => e.stopPropagation()}
         >Pour to Next Page →</button>
       )}
-      {/* Overflow indicator when not selected */}
-      {TEXT_FRAME_TYPES.includes(el.type) && isOverflowing && !isEditing && !isSelected && (
-        <div className="absolute bottom-0 right-0 w-4 h-4 bg-error text-error-content flex items-center justify-center text-[8px] font-bold rounded-tl z-[9998]">+</div>
-      )}
+      {/* Overset indicator — CHAIN-AWARE (checklist M-D): threaded frames badge
+          only on the LAST frame of an overset chain (engine flow state);
+          unthreaded frames keep the local scrollHeight detection */}
+      {TEXT_FRAME_TYPES.includes(el.type) && !isEditing && !isSelected && (() => {
+        if (el.threadId) {
+          if (!oversetThreads?.[el.threadId]) return null;
+          const allEls = allPages?.flatMap(p => p.elements) || [];
+          const isLast = !allEls.some(e => e.threadId === el.threadId && (e.threadOrder ?? 0) > (el.threadOrder ?? 0));
+          if (!isLast) return null;
+        } else if (!isOverflowing) {
+          return null;
+        }
+        return (
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 bg-error text-error-content flex items-center justify-center text-[8px] font-bold rounded-tl z-[9998]"
+            title="Overset text — select the frame and use Pour / Auto-flow to paginate"
+          >+</div>
+        );
+      })()}
 
       {/* Thread / linked frame indicators */}
       {el.threadId && (() => {

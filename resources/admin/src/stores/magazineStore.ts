@@ -10,6 +10,12 @@ import {
   DEFAULT_TEXT_WRAP,
   DEFAULT_TYPOGRAPHY,
 } from '@/types/magazine';
+import {
+  runDocumentFlow,
+  collectThreads,
+  deriveStory,
+  FLOW_TEXT_TYPES,
+} from '@/engine/flow/storeFlow';
 
 // ─── Types ───
 
@@ -61,6 +67,10 @@ interface MagazineState {
   editingMasterId: string | null;
   issueSettings: IssueSettings;
   debugLog: DebugLogEntry[];
+  /** canonical story text per threadId (lazily derived from frame slices) */
+  stories: Record<string, string>;
+  /** threads whose last frame currently oversets (chain-aware badge) */
+  oversetThreads: Record<string, boolean>;
 }
 
 interface MagazineActions {
@@ -114,7 +124,10 @@ interface MagazineActions {
   setViewMode: (mode: ViewMode) => void;
   setGridColumns: (cols: number) => void;
 
-  // Text auto-flow
+  // Text flow — the ONE reflow path (engine-backed, Session C)
+  runFlow: (opts?: { paginate?: boolean; markDirty?: boolean }) => void;
+  requestFlow: () => void;
+  /** legacy name kept for save-path compatibility; delegates to runFlow */
   autoFlowText: () => void;
 
   // Issue settings
@@ -146,6 +159,13 @@ interface MagazineActions {
 // ─── Helpers ───
 
 const MAX_UNDO = 50;
+
+/** debounce handle for geometry-triggered reflow (one reflow per gesture) */
+let flowDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** element keys whose change requires a reflow of the affected thread(s) */
+const FLOW_GEOMETRY_KEYS = ['x', 'y', 'width', 'height'] as const;
+const FLOW_DATA_KEYS = ['columnsInFrame', 'columnGap', 'textInset', 'verticalAlign'] as const;
 
 const TOOL_TO_ELEMENT_TYPE: Record<string, MagElementType> = {
   text: 'text_frame',
@@ -331,6 +351,8 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   editingMasterId: null,
   issueSettings: { layoutMode: 'single', coverMode: 'standalone', readingDirection: 'ltr' },
   debugLog: [],
+  stories: {},
+  oversetThreads: {},
 
   // ─── Debug ───
 
@@ -371,6 +393,8 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       undoStack: [],
       redoStack: [],
       isDirty: false,
+      stories: {},
+      oversetThreads: {},
     });
     get().pushDebugLog('load:success', 'store', { pageCount: pages.length, styleCount: styles.length });
   },
@@ -539,6 +563,10 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       ),
       isDirty: true,
     }));
+    // margins / page size / columns affect continuation placement
+    if ('pageSize' in updates || 'margins' in updates || 'columns' in updates) {
+      get().requestFlow();
+    }
   },
 
   // ─── Elements ───
@@ -578,13 +606,18 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
 
   updateElement(id, updates) {
     const isDebug = typeof localStorage !== 'undefined' && localStorage.getItem('dtp-debug') === '1';
+    // Find the element WHEREVER it lives (audit defect #9: the old
+    // current-page-only update silently dropped cross-page thread edits)
+    let oldEl: MagElement | undefined;
+    for (const p of get().pages) {
+      oldEl = findElementById(p.elements, id);
+      if (oldEl) break;
+    }
     // Only compute expensive diff when debug is on
     let changedPaths: Record<string, { old: any; new: any }> | undefined;
     if (isDebug) {
-      const page = getCurrentPage(get());
-      const oldEl = page ? findElementById(page.elements, id) : undefined;
       if (!oldEl) {
-        get().pushDebugLog('frame:update', 'store', { id, error: 'element not found on current page' }, 'error');
+        get().pushDebugLog('frame:update', 'store', { id, error: 'element not found' }, 'error');
       } else {
         changedPaths = {};
         for (const k of Object.keys(updates)) {
@@ -594,21 +627,63 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
         }
       }
     }
+
+    // ── flow triggers: content edits invalidate the thread story; geometry,
+    //    column, typography and wrap changes schedule a reflow (debounced)
+    let invalidateStoryId: string | null = null;
+    let triggerFlow = false;
+    if (oldEl) {
+      const isText = FLOW_TEXT_TYPES.has(oldEl.type);
+      const dataUpd = updates.data as Record<string, any> | undefined;
+      if (isText && dataUpd && 'content' in dataUpd && dataUpd.content !== (oldEl.data as any)?.content) {
+        if (oldEl.threadId) invalidateStoryId = oldEl.threadId;
+        triggerFlow = true;
+      }
+      if (isText && dataUpd && FLOW_DATA_KEYS.some((k) => k in dataUpd)) triggerFlow = true;
+      if (isText && 'typography' in updates) triggerFlow = true;
+      const geometryChanged = FLOW_GEOMETRY_KEYS.some(
+        (k) => k in updates && (updates as any)[k] !== (oldEl as any)[k],
+      );
+      if (geometryChanged && (isText || oldEl.textWrap?.type !== 'none')) triggerFlow = true;
+      if ('textWrap' in updates) triggerFlow = true;
+    }
+
     set((s) => ({
-      pages: updateCurrentPageElements(s.pages, s.currentPageNumber, (els) =>
-        updateElementInList(els, id, updates),
+      pages: s.pages.map((p) =>
+        findElementById(p.elements, id)
+          ? { ...p, elements: updateElementInList(p.elements, id, updates) }
+          : p,
       ),
+      ...(invalidateStoryId
+        ? { stories: Object.fromEntries(Object.entries(s.stories).filter(([k]) => k !== invalidateStoryId)) }
+        : {}),
       isDirty: true,
     }));
     get().pushDebugLog('frame:update', 'store', {
       id, keys: Object.keys(updates), ...(changedPaths ? { changedPaths } : {}),
     });
+    if (triggerFlow) get().requestFlow();
   },
 
   deleteElements(ids) {
     if (ids.length === 0) return;
     get().pushSnapshot();
     const idSet = new Set(ids);
+    // Preserve thread stories BEFORE deleting frames: the full story must
+    // redistribute into the remaining frames (no text lost with the frame)
+    {
+      const state = get();
+      const threads = collectThreads(state.pages);
+      const stories = { ...state.stories };
+      let touched = false;
+      for (const [tid, refs] of threads) {
+        if (refs.some((r) => idSet.has(r.elementId)) && !stories[tid]) {
+          stories[tid] = deriveStory(state.pages, refs);
+          touched = true;
+        }
+      }
+      if (touched) set({ stories });
+    }
     set((state) => ({
       pages: updateCurrentPageElements(state.pages, state.currentPageNumber, (els) =>
         removeElementsFromList(els, idSet),
@@ -621,6 +696,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       isDirty: true,
     }));
     get().pushDebugLog('frame:delete', 'store', { ids });
+    get().requestFlow(); // remaining thread frames absorb the deleted frame's text
   },
 
   duplicateElements(ids) {
@@ -695,337 +771,86 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       selectedIds: [elementId],
       isDirty: true,
     });
+    if (element.threadId || FLOW_TEXT_TYPES.has(element.type) || element.textWrap?.type !== 'none') {
+      get().requestFlow();
+    }
   },
 
   continueTextToNextPage(elementId) {
+    // "Pour": make this frame a story and let the engine paginate it.
+    // (Replaces the legacy 160-line DOM-measuring splitter — audit Part 1.)
     const state = get();
-    get().pushSnapshot();
-
-    // Find the element across all pages
-    let sourcePage: MagPageData | undefined;
-    let sourceElement: MagElement | undefined;
+    let sourceEl: MagElement | undefined;
     for (const p of state.pages) {
-      const el = p.elements.find(e => e.id === elementId);
-      if (el) { sourcePage = p; sourceElement = el; break; }
+      sourceEl = p.elements.find((e) => e.id === elementId);
+      if (sourceEl) break;
     }
-    if (!sourcePage || !sourceElement) return;
+    if (!sourceEl || !FLOW_TEXT_TYPES.has(sourceEl.type)) return;
 
-    const sourceHtml = (sourceElement.data as any)?.content || '';
-    if (!sourceHtml || sourceHtml.length < 10) return;
-
-    // ─── Measure what fits in the source frame ───
-    // Strategy: measure as SINGLE column (no CSS columns complications),
-    // then the available height = frame.height * numberOfColumns
-    const measure = document.createElement('div');
-    const typo = sourceElement.typography;
-    const data = sourceElement.data as Record<string, any>;
-    const pageW = sourcePage.pageSize?.width || 595;
-    const visibleW = Math.min(sourceElement.width, pageW - sourceElement.x);
-    const cols = data.columnsInFrame || 1;
-    const colGap = data.columnGap || 12;
-    const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
-
-    // Single column width = (visibleW - padding - gaps) / cols
-    const padH = (inset.left || 0) + (inset.right || 0);
-    const padV = (inset.top || 0) + (inset.bottom || 0);
-    const singleColW = cols > 1
-      ? (visibleW - padH - (cols - 1) * colGap) / cols
-      : visibleW - padH;
-    // Total available text height across all columns
-    const availableHeight = (sourceElement.height - padV) * cols;
-
-    measure.style.cssText = `position:fixed;top:-9999px;left:-9999px;visibility:hidden;
-      width:${Math.max(50, singleColW)}px;height:auto;overflow:visible;
-      font-family:${typo?.fontFamily || 'Inter'};font-size:${typo?.fontSize || 14}px;
-      font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};`;
-    document.body.appendChild(measure);
-
-    // Parse blocks
-    const parser = new DOMParser();
-    const doc = parser.parseFromString('<body>' + sourceHtml + '</body>', 'text/html');
-    let root: Element = doc.body;
-    while (root.children.length === 1) {
-      const tag = root.children[0].tagName;
-      if (['P','H1','H2','H3','H4','BLOCKQUOTE','UL','OL','LI'].includes(tag)) break;
-      root = root.children[0];
+    if (!sourceEl.threadId) {
+      const tid = crypto.randomUUID();
+      set((s) => ({
+        pages: s.pages.map((p) =>
+          p.elements.some((e) => e.id === elementId)
+            ? { ...p, elements: p.elements.map((e) => (e.id === elementId ? { ...e, threadId: tid, threadOrder: 0 } : e)) }
+            : p,
+        ),
+        isDirty: true,
+      }));
     }
-    const allBlocks: HTMLElement[] = [];
-    for (let i = 0; i < root.childNodes.length; i++) {
-      if (root.childNodes[i].nodeType === 1) allBlocks.push(root.childNodes[i] as HTMLElement);
-    }
-
-    // Check if ALL content fits
-    measure.innerHTML = sourceHtml;
-    if (measure.scrollHeight <= availableHeight + 4) { measure.remove(); return; }
-
-    // Binary search: single-column height <= availableHeight means it fits
-    let fitCount = allBlocks.length;
-    if (allBlocks.length >= 2) {
-      let lo = 1, hi = allBlocks.length;
-      fitCount = allBlocks.length;
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        measure.innerHTML = allBlocks.slice(0, mid).map(b => b.outerHTML).join('');
-        if (measure.scrollHeight <= availableHeight) {
-          fitCount = mid;
-          lo = mid + 1;
-        } else {
-          hi = mid - 1;
-        }
-      }
-      fitCount = Math.max(1, Math.min(fitCount, allBlocks.length - 1));
-    }
-    measure.remove();
-
-    const keepHtml = allBlocks.slice(0, fitCount).map(b => b.outerHTML).join('');
-    const moveHtml = allBlocks.slice(fitCount).map(b => b.outerHTML).join('');
-    if (!moveHtml) return;
-
-    // ─── Find or create next page ───
-    let pages = [...state.pages];
-    const contentPages = pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
-    const sourceIdx = contentPages.findIndex(p => p.pageNumber === sourcePage.pageNumber);
-    let targetPage = sourceIdx >= 0 && sourceIdx < contentPages.length - 1 ? contentPages[sourceIdx + 1] : null;
-    const nextPageNumber = targetPage ? targetPage.pageNumber : sourcePage.pageNumber + 1;
-
-    if (!targetPage) {
-      targetPage = {
-        id: crypto.randomUUID(), pageNumber: nextPageNumber,
-        pageSize: { ...sourcePage.pageSize }, margins: { ...sourcePage.margins },
-        bleed: { ...sourcePage.bleed }, columns: { ...sourcePage.columns },
-        baselineGrid: { ...sourcePage.baselineGrid },
-        isMaster: false, masterPageId: sourcePage.masterPageId,
-        spreadWith: null, backgroundColor: sourcePage.backgroundColor,
-        backgroundAssetId: null, elements: [],
-      };
-      pages = pages.map(p => p.pageNumber >= nextPageNumber ? { ...p, pageNumber: p.pageNumber + 1 } : p);
-      const insertIdx = pages.findIndex(p => p.pageNumber > nextPageNumber);
-      if (insertIdx === -1) pages.push(targetPage);
-      else pages.splice(insertIdx, 0, targetPage);
-    }
-
-    // ─── Calculate continuation position avoiding ALL images on target page ───
-    const mg = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
-    let contY = mg.top || 36;
-    const tPageW = targetPage.pageSize?.width || 595;
-    const tPageH = targetPage.pageSize?.height || 842;
-    const contX = mg.left || 36;
-    const contWidth = tPageW - (mg.left || 36) - (mg.right || 36);
-
-    // Avoid ALL image frames on target page (not just fixed)
-    const IMAGE_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];
-    const imagesOnTarget = targetPage.elements.filter(e => IMAGE_TYPES.includes(e.type) && e.visible);
-    // Also check spread images from previous page
-    const prevPage = contentPages[contentPages.findIndex(p => p.pageNumber === nextPageNumber) - 1];
-    if (prevPage) {
-      imagesOnTarget.push(...prevPage.elements.filter(e => IMAGE_TYPES.includes(e.type) && e.spanMode === 'spread' && e.visible));
-    }
-
-    for (const img of imagesOnTarget) {
-      const imgBottom = img.y + img.height + 8;
-      if (contY < imgBottom && contX < img.x + img.width && contX + contWidth > img.x) {
-        contY = imgBottom;
-      }
-    }
-    const contHeight = Math.max(100, tPageH - contY - (mg.bottom || 36));
-
-    // ─── Create continuation and update source ───
-    const threadId = sourceElement.threadId || crypto.randomUUID();
-    const continuationId = crypto.randomUUID();
-    const maxZ = Math.max(0, ...targetPage.elements.map(e => e.zIndex));
-
-    const continuation: MagElement = {
-      ...structuredClone(sourceElement),
-      id: continuationId, pageNumber: nextPageNumber,
-      x: contX, y: contY, width: contWidth, height: contHeight,
-      threadId, threadOrder: (sourceElement.threadOrder ?? 0) + 1,
-      zIndex: maxZ + 1,
-      data: { ...sourceElement.data, content: moveHtml },
-    };
-
-    // Update source frame: keep only what fits
-    pages = pages.map(p => ({
-      ...p,
-      elements: p.elements.map(e =>
-        e.id === elementId ? { ...e, threadId, threadOrder: e.threadOrder ?? 0, data: { ...e.data, content: keepHtml } } : e
-      ),
-    }));
-
-    // Add continuation to target page
-    pages = pages.map(p =>
-      p.pageNumber === nextPageNumber ? { ...p, elements: [...p.elements, continuation] } : p
-    );
-
-    set({ pages, currentPageNumber: nextPageNumber, selectedIds: [continuationId], isDirty: true });
+    get().runFlow({ paginate: true });
+    get().pushDebugLog('flow:pour', 'store', { elementId });
   },
 
-  // ─── Auto-flow text (run before save) ───
+  // ─── Text flow — the ONE reflow path (engine-backed, Session C) ───
 
-  autoFlowText() {
+  runFlow(opts) {
+    const paginate = opts?.paginate ?? true;
+    const markDirty = opts?.markDirty ?? true;
     const state = get();
-    let pages = [...state.pages];
-    const TEXT_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
-    let changed = false;
-
-    // Measure which text frames overflow using a hidden div
-    const measure = document.createElement('div');
-    measure.style.cssText = 'position:fixed;top:-9999px;left:-9999px;visibility:hidden;';
-    document.body.appendChild(measure);
-
+    if (state.pages.length === 0) return;
     try {
-      // Process each content page
-      const contentPages = pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
-
-      for (const page of contentPages) {
-        const textFrames = page.elements.filter(e => TEXT_TYPES.includes(e.type) && e.visible);
-
-        for (const frame of textFrames) {
-          const data = frame.data as Record<string, any>;
-          const html = data?.content || '';
-          if (!html || html.length < 10) continue;
-
-          // Skip all threaded frames — Pour manages those manually
-          if (frame.threadId) continue;
-
-          // Measure using single-column approach (same as Pour)
-          const typo = frame.typography;
-          const pageW = page.pageSize?.width || 595;
-          const visibleW = Math.min(frame.width, pageW - frame.x);
-          const cols = data.columnsInFrame || 1;
-          const colGap = data.columnGap || 12;
-          const inset = data.textInset || { top: 8, right: 8, bottom: 8, left: 8 };
-          const padH = (inset.left || 0) + (inset.right || 0);
-          const padV = (inset.top || 0) + (inset.bottom || 0);
-          const singleColW = cols > 1 ? (visibleW - padH - (cols - 1) * colGap) / cols : visibleW - padH;
-          const availH = (frame.height - padV) * cols;
-
-          measure.style.cssText = `position:fixed;top:-9999px;left:-9999px;visibility:hidden;
-            width:${Math.max(50, singleColW)}px;height:auto;overflow:visible;
-            font-family:${typo?.fontFamily || 'Inter'};font-size:${(typo?.fontSize || 14)}px;
-            font-weight:${typo?.fontWeight || 400};line-height:${typo?.lineHeight || 1.5};`;
-          measure.innerHTML = html;
-          const overflows = measure.scrollHeight > availH + 4;
-          if (!overflows) continue;
-
-          // Parse blocks
-          const parser = new DOMParser();
-          const doc = parser.parseFromString('<body>' + html + '</body>', 'text/html');
-          let root: Element = doc.body;
-          while (root.children.length === 1) {
-            const child = root.children[0];
-            const tag = child.tagName;
-            if (tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'BLOCKQUOTE' || tag === 'UL' || tag === 'OL') break;
-            root = child;
-          }
-          const allBlocks: Element[] = [];
-          for (let i = 0; i < root.childNodes.length; i++) {
-            if (root.childNodes[i].nodeType === 1) allBlocks.push(root.childNodes[i] as Element);
-          }
-          if (allBlocks.length < 2) continue;
-
-          // Binary search: single-column height <= availH means it fits
-          let lo = 1, hi = allBlocks.length - 1, fitCount = 1;
-          while (lo <= hi) {
-            const mid = Math.floor((lo + hi) / 2);
-            measure.innerHTML = allBlocks.slice(0, mid).map(b => (b as HTMLElement).outerHTML).join('');
-            if (measure.scrollHeight <= availH) {
-              fitCount = mid;
-              lo = mid + 1;
-            } else {
-              hi = mid - 1;
-            }
-          }
-
-          const keepHtml = allBlocks.slice(0, fitCount).map(b => (b as HTMLElement).outerHTML).join('');
-          const moveHtml = allBlocks.slice(fitCount).map(b => (b as HTMLElement).outerHTML).join('');
-          if (!moveHtml) continue;
-
-          // Find or create next content page
-          const cpIdx = contentPages.findIndex(p => p.pageNumber === page.pageNumber);
-          let targetPage = cpIdx < contentPages.length - 1 ? contentPages[cpIdx + 1] : null;
-          const nextPageNum = targetPage ? targetPage.pageNumber : page.pageNumber + 1;
-
-          if (!targetPage) {
-            targetPage = {
-              id: crypto.randomUUID(),
-              pageNumber: nextPageNum,
-              pageSize: { ...page.pageSize },
-              margins: { ...page.margins },
-              bleed: { ...page.bleed },
-              columns: { ...page.columns },
-              baselineGrid: { ...page.baselineGrid },
-              isMaster: false,
-              masterPageId: page.masterPageId,
-              spreadWith: null,
-              backgroundColor: page.backgroundColor,
-              backgroundAssetId: null,
-              elements: [],
-            };
-            pages.push(targetPage);
-            contentPages.push(targetPage);
-          }
-
-          // Create continuation frame — avoid ALL images on target page
-          const margins = targetPage.margins || { top: 36, right: 36, bottom: 36, left: 36 };
-          const tPageW = targetPage.pageSize?.width || 595;
-          const tPageH = targetPage.pageSize?.height || 842;
-          const contW = tPageW - (margins.left || 36) - (margins.right || 36);
-          let contStartY = margins.top || 36;
-          const IMG_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];
-          const imgsOnTarget = targetPage.elements.filter(e => IMG_TYPES.includes(e.type) && e.visible);
-          const prevCp = contentPages[contentPages.findIndex(p => p.pageNumber === nextPageNum) - 1];
-          if (prevCp) imgsOnTarget.push(...prevCp.elements.filter(e => IMG_TYPES.includes(e.type) && e.spanMode === 'spread' && e.visible));
-          for (const fx of imgsOnTarget) {
-            const fxBottom = fx.y + fx.height + 8;
-            if (contStartY < fxBottom) contStartY = fxBottom;
-          }
-          const contH = Math.max(100, tPageH - contStartY - (margins.bottom || 36));
-          const threadId = frame.threadId || crypto.randomUUID();
-          const contId = crypto.randomUUID();
-
-          const continuation: MagElement = {
-            ...structuredClone(frame),
-            id: contId,
-            pageNumber: nextPageNum,
-            x: margins.left || 36,
-            y: contStartY,
-            width: contW,
-            height: contH,
-            threadId,
-            threadOrder: (frame.threadOrder ?? 0) + 1,
-            zIndex: 1,
-            data: { ...frame.data, content: moveHtml },
-          };
-
-          // Update source frame
-          pages = pages.map(p => ({
-            ...p,
-            elements: p.elements.map(e => {
-              if (e.id === frame.id) {
-                return { ...e, threadId, threadOrder: e.threadOrder ?? 0, data: { ...e.data, content: keepHtml } };
-              }
-              return e;
-            }),
-          }));
-
-          // Add continuation to target page
-          pages = pages.map(p => {
-            if (p.pageNumber === nextPageNum) {
-              return { ...p, elements: [...p.elements, continuation] };
-            }
-            return p;
-          });
-
-          changed = true;
-        }
+      const result = runDocumentFlow(state.pages, state.stories, { paginate });
+      if (result.structuralChange) get().pushSnapshot();
+      if (result.changed) {
+        set({
+          pages: result.pages,
+          stories: result.stories,
+          oversetThreads: result.oversetThreads,
+          ...(markDirty ? { isDirty: true } : {}),
+        });
+      } else {
+        set({ stories: result.stories, oversetThreads: result.oversetThreads });
       }
-    } finally {
-      measure.remove();
+      get().pushDebugLog('flow:run', 'engine', {
+        paginate,
+        changed: result.changed,
+        structural: result.structuralChange,
+        oversetThreads: Object.keys(result.oversetThreads).filter((k) => result.oversetThreads[k]),
+      });
+    } catch (err) {
+      // The engine must never take the editor down — log and keep last state
+      // eslint-disable-next-line no-console
+      console.error('[flow] engine error', err);
+      get().pushDebugLog('flow:error', 'engine', { error: String(err) }, 'error');
     }
+  },
 
-    if (changed) {
-      set({ pages, isDirty: true });
+  requestFlow() {
+    if (flowDebounceTimer) clearTimeout(flowDebounceTimer);
+    flowDebounceTimer = setTimeout(() => {
+      flowDebounceTimer = null;
+      get().runFlow({ paginate: true });
+    }, 120);
+  },
+
+  /** legacy save-path hook — now just the engine (name kept for callers) */
+  autoFlowText() {
+    if (flowDebounceTimer) {
+      clearTimeout(flowDebounceTimer);
+      flowDebounceTimer = null;
     }
+    get().runFlow({ paginate: true });
   },
 
   // ─── Selection ───
@@ -1167,6 +992,8 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       selectedIds: [],
       editingElementId: null,
       isDirty: true,
+      stories: {}, // stories re-derive from the restored slices
+      oversetThreads: {},
     });
     get().pushDebugLog('undo', 'store', { pagesRestored: pages.length });
   },
@@ -1186,6 +1013,8 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       selectedIds: [],
       editingElementId: null,
       isDirty: true,
+      stories: {}, // stories re-derive from the restored slices
+      oversetThreads: {},
     });
     get().pushDebugLog('redo', 'store', { pagesRestored: pages.length });
   },

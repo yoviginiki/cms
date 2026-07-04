@@ -148,6 +148,9 @@ function dtpFrameToElement(f: any, pageNumber: number): MagElement {
 
   // Restore typography from metadata if saved
   const savedTypography = f.metadata?._typography;
+  // Restore flow-engine bookkeeping (auto-created continuation + input hash)
+  if (f.metadata?._autoFlow) data._autoFlow = true;
+  if (f.metadata?._flowHash) data._flowHash = f.metadata._flowHash;
 
   return {
     id: f.id,
@@ -295,6 +298,8 @@ function pagesToDtpApi(pages: MagPageData[], apiLayers: any[], apiAssetRefs: any
           threadId: el.threadId || null,
           threadOrder: el.threadOrder ?? null,
           _magType: el.type,
+          _autoFlow: (el.data as any)?._autoFlow ? true : undefined,
+          _flowHash: (el.data as any)?._flowHash,
         }),
       });
     });
@@ -444,6 +449,21 @@ export default function DtpEditorBeta() {
   useEffect(() => {
     if (rolloutData?.issueStatus) setIssueStatus(rolloutData.issueStatus);
   }, [rolloutData]);
+
+  // Verify flow on load: once fonts are ready, re-run the engine WITHOUT
+  // pagination. Frames whose persisted _flowHash still matches keep their
+  // slices byte-identical; mismatches (font/geometry drift) are re-sliced.
+  // markDirty:false — verification alone must not flag unsaved changes.
+  useEffect(() => {
+    if (!apiData) return;
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) useMagazineStore.getState().runFlow({ paginate: false, markDirty: false });
+    };
+    if (document.fonts?.ready) document.fonts.ready.then(run);
+    else setTimeout(run, 300);
+    return () => { cancelled = true; };
+  }, [apiData]);
 
   // Status change mutation
   const statusMutation = useMutation({
@@ -775,6 +795,7 @@ export default function DtpEditorBeta() {
           onToggleFixed={(id, mode) => store.updateElement(id, { positionMode: mode } as any)}
           onToggleSpan={(id, mode) => store.updateElement(id, { spanMode: mode } as any)}
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
+          oversetThreads={store.oversetThreads}
           onMoveToPage={(elementId, direction, newX, newY) => {
             const currentPageNum = store.currentPageNumber;
             const contentPages = store.pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);

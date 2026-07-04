@@ -33,6 +33,8 @@ interface MagazineCanvasProps {
   startEditingId?: string | null;
   layoutMode?: 'single' | 'book' | 'presentation';
   coverMode?: 'standalone' | 'spread';
+  /** engine flow state — threads whose chain currently oversets */
+  oversetThreads?: Record<string, boolean>;
 }
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
@@ -77,6 +79,7 @@ export function MagazineCanvas({
   coverMode = 'standalone',
   onToggleFixed,
   onToggleSpan,
+  oversetThreads,
 }: MagazineCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
@@ -658,6 +661,7 @@ export function MagazineCanvas({
                   exitEditing();
                 }}
                 allPages={allPages}
+                oversetThreads={oversetThreads}
               />
             ))}
 
