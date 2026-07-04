@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Save, Loader2, Plus, Copy, Trash2, ChevronLeft, ChevronRight,
   Rocket, Type, Image as ImageIcon, Square, MousePointerClick, Video, Music, Group,
-  Play,
+  Play, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { sliders } from '@/lib/api';
 import { AssetField } from '@/components/ui/AssetPicker';
@@ -204,6 +204,84 @@ export default function SliderEditor() {
         uses (loaded from resources/js/motion-runtime.js — one builder). ── */
   const tlRef = useRef<PreviewTimeline | null>(null);
   const [playProgress, setPlayProgress] = useState(0);
+
+  /* ── interactive timeline ──
+     bars are draggable: body = start time (delay), right edge = duration.
+     Values live in data.animation.{in,out} (or its tracks[0] in tracks mode). */
+  const [tlReadout, setTlReadout] = useState<string | null>(null);
+  const tlDrag = useRef<{
+    layerId: string; phase: 'in' | 'out'; mode: 'move' | 'dur';
+    startX: number; origDelay: number; origDur: number; trackW: number;
+  } | null>(null);
+
+  const sceneTiming = (scene: any): { delay: number; dur: number } => ({
+    delay: Number(scene?.delay ?? scene?.tracks?.[0]?.delay ?? 0),
+    dur: Number(scene?.duration ?? scene?.tracks?.[0]?.duration ?? 0.6),
+  });
+
+  const writeTiming = (layerId: string, phase: 'in' | 'out', delay: number, dur: number) => {
+    const layer = findBlock(blocks, layerId);
+    if (!layer) return;
+    const anim = ((layer.data as any)?.animation ?? {}) as Record<string, any>;
+    const scene = { ...(anim[phase] ?? {}) };
+    if (Array.isArray(scene.tracks) && scene.tracks.length) {
+      scene.tracks = scene.tracks.map((t: any, i: number) => (i === 0 ? { ...t, delay, duration: dur } : t));
+    } else {
+      scene.delay = delay;
+      scene.duration = dur;
+    }
+    updateBlock(layerId, { animation: { ...anim, [phase]: scene } });
+  };
+
+  const onTlBarPointerDown = (
+    e: React.PointerEvent, layerId: string, phase: 'in' | 'out', mode: 'move' | 'dur', trackEl: HTMLElement,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const layer = findBlock(blocks, layerId);
+    const anim = ((layer?.data as any)?.animation ?? {}) as Record<string, any>;
+    const { delay, dur } = sceneTiming(anim[phase]);
+    tlDrag.current = {
+      layerId, phase, mode, startX: e.clientX,
+      origDelay: delay, origDur: dur, trackW: trackEl.getBoundingClientRect().width,
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onTlPointerMove = (e: React.PointerEvent, totalSec: number) => {
+    const d = tlDrag.current;
+    if (!d) return;
+    const dSec = ((e.clientX - d.startX) / d.trackW) * totalSec;
+    const snap = (v: number) => Math.round(v * 20) / 20; // 0.05s grid
+    if (d.mode === 'move') {
+      const delay = snap(Math.max(0, Math.min(10, d.origDelay + dSec)));
+      writeTiming(d.layerId, d.phase, delay, d.origDur);
+      setTlReadout(`${d.phase.toUpperCase()} starts ${delay.toFixed(2)}s · ${d.origDur.toFixed(2)}s long`);
+    } else {
+      const dur = snap(Math.max(0.1, Math.min(10, d.origDur + dSec)));
+      writeTiming(d.layerId, d.phase, d.origDelay, dur);
+      setTlReadout(`${d.phase.toUpperCase()} starts ${d.origDelay.toFixed(2)}s · ${dur.toFixed(2)}s long`);
+    }
+  };
+  const onTlPointerUp = () => { tlDrag.current = null; setTlReadout(null); };
+
+  /* ── z-order (stacking): normalize every layer to sequential zIndex, then
+     swap the target with its neighbor — predictable "bring forward/backward" */
+  const nudgeZ = (layerId: string, dir: 1 | -1) => {
+    if (!activeSlide) return;
+    const layers = [...(activeSlide.children ?? [])];
+    const zOf = (l: BlockData) => Number(((l.data as any)?.layout?.zIndex ?? 2));
+    layers.sort((a, b) => zOf(a) - zOf(b) || (a.order ?? 0) - (b.order ?? 0));
+    const idx = layers.findIndex(l => l.id === layerId);
+    const swapWith = idx + dir;
+    if (idx < 0 || swapWith < 0 || swapWith >= layers.length) return;
+    [layers[idx], layers[swapWith]] = [layers[swapWith], layers[idx]];
+    layers.forEach((l, i) => {
+      const layout = ((l.data as any)?.layout ?? {}) as Record<string, unknown>;
+      if (Number(layout.zIndex ?? 2) !== i + 1) {
+        updateBlock(l.id, { layout: { ...layout, zIndex: i + 1 } });
+      }
+    });
+  };
   const [playingPhase, setPlayingPhase] = useState<'in' | 'out' | null>(null);
   const [previewNonce, setPreviewNonce] = useState(0);
 
@@ -635,30 +713,105 @@ export default function SliderEditor() {
                 {playingPhase ? `${playingPhase} ▸` : ''} {(playProgress * 100).toFixed(0)}%
               </span>
             </div>
-            {/* horizontal timeline strip: delay→duration bars per layer (IN blue / OUT amber) */}
-            <div className="mt-1 space-y-0.5">
-              {(activeSlide?.children ?? []).map((layer: BlockData) => {
+            {/* interactive timeline: ruler in seconds; drag a bar to change its
+                start time, drag its right edge to change duration; ▲▼ = stacking */}
+            {(() => {
+              const layers = (activeSlide?.children ?? []) as BlockData[];
+              if (!layers.length) return null;
+              // scale: fit the longest scene, min 3s
+              let maxEnd = 0;
+              for (const l of layers) {
+                const anim = ((l.data as any)?.animation ?? {}) as Record<string, any>;
+                for (const ph of ['in', 'out'] as const) {
+                  if (!anim[ph]) continue;
+                  const { delay, dur } = sceneTiming(anim[ph]);
+                  maxEnd = Math.max(maxEnd, delay + dur);
+                }
+              }
+              const totalSec = Math.max(3, Math.ceil((maxEnd + 0.4) * 2) / 2);
+              const ticks = Array.from({ length: Math.floor(totalSec / 0.5) + 1 }, (_, i) => i * 0.5);
+              const zOf = (l: BlockData) => Number(((l.data as any)?.layout?.zIndex ?? 2));
+              const zSorted = [...layers].sort((a, b) => zOf(a) - zOf(b) || (a.order ?? 0) - (b.order ?? 0));
+              const zRank = new Map(zSorted.map((l, i) => [l.id, i]));
+
+              const bar = (layer: BlockData, phase: 'in' | 'out', color: string) => {
                 const anim = ((layer.data as any)?.animation ?? {}) as Record<string, any>;
-                const bar = (scene: any, color: string) => {
-                  if (!scene) return null;
-                  const delay = Number(scene.delay ?? scene.tracks?.[0]?.delay ?? 0);
-                  const dur = Number(scene.duration ?? scene.tracks?.[0]?.duration ?? 0.6);
-                  return <div className={`absolute h-1.5 ${color}`}
-                    style={{ left: `${Math.min(95, delay * 18)}%`, width: `${Math.max(1.5, dur * 18)}%` }} />;
-                };
+                if (!anim[phase]) return null;
+                const { delay, dur } = sceneTiming(anim[phase]);
+                const leftPct = Math.min(98, (delay / totalSec) * 100);
+                const widthPct = Math.max(2, (dur / totalSec) * 100);
                 return (
-                  <div key={layer.id}
-                    className={`flex items-center gap-2 cursor-pointer ${selectedBlockId === layer.id ? 'opacity-100' : 'opacity-60 hover:opacity-90'}`}
-                    onClick={() => selectBlock(layer.id)}>
-                    <span className="text-[9px] text-base-content/40 w-16 truncate shrink-0">{layer.type}</span>
-                    <div className="relative flex-1 h-1.5 bg-base-200">
-                      {bar(anim.in, 'bg-primary')}
-                      {bar(anim.out, 'bg-warning')}
-                    </div>
+                  <div
+                    className={`absolute top-1/2 -translate-y-1/2 h-3 ${color} cursor-grab active:cursor-grabbing group/bar`}
+                    style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                    title={`${phase.toUpperCase()}: starts ${delay.toFixed(2)}s, ${dur.toFixed(2)}s long — drag to move, drag right edge for duration`}
+                    onPointerDown={e => onTlBarPointerDown(e, layer.id, phase, 'move', (e.currentTarget as HTMLElement).parentElement!)}>
+                    <span className="absolute inset-0 flex items-center justify-center text-[8px] text-white/90 font-medium overflow-hidden whitespace-nowrap pointer-events-none">
+                      {dur >= 0.35 * (totalSec / 6) ? `${delay.toFixed(1)}s +${dur.toFixed(1)}s` : ''}
+                    </span>
+                    <span
+                      className="absolute right-0 top-0 h-full w-1.5 bg-black/30 cursor-ew-resize"
+                      title="Drag to change duration"
+                      onPointerDown={e => onTlBarPointerDown(e, layer.id, phase, 'dur', (e.currentTarget as HTMLElement).parentElement!.parentElement!)} />
                   </div>
                 );
-              })}
-            </div>
+              };
+
+              return (
+                <div className="mt-1" onPointerMove={e => onTlPointerMove(e, totalSec)} onPointerUp={onTlPointerUp}>
+                  {/* ruler */}
+                  <div className="flex items-center gap-2">
+                    <span className="w-28 shrink-0 text-right text-[8px] text-base-content/30 pr-1">
+                      {tlReadout ?? 'seconds →'}
+                    </span>
+                    <div className="relative flex-1 h-3.5">
+                      {ticks.map(t => (
+                        <div key={t} className="absolute top-0 h-full border-l border-base-300"
+                          style={{ left: `${(t / totalSec) * 100}%` }}>
+                          {t % 1 === 0 && <span className="absolute top-0 left-0.5 text-[8px] text-base-content/40">{t}s</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* layer rows */}
+                  <div className="space-y-px">
+                    {layers.map((layer: BlockData) => {
+                      const label = String((layer.data as any)?.content ?? (layer.data as any)?.text ?? layer.type)
+                        .replace(/<[^>]*>/g, '').slice(0, 14) || layer.type;
+                      const rank = zRank.get(layer.id) ?? 0;
+                      return (
+                        <div key={layer.id}
+                          className={`flex items-center gap-2 ${selectedBlockId === layer.id ? 'opacity-100 bg-base-200/60' : 'opacity-70 hover:opacity-100'}`}
+                          onClick={() => selectBlock(layer.id)}>
+                          <span className="w-28 shrink-0 flex items-center justify-end gap-0.5">
+                            <span className="text-[9px] text-base-content/50 truncate">{label}</span>
+                            <button title="Bring forward (stack above)" className="p-px hover:text-primary"
+                              onClick={e => { e.stopPropagation(); nudgeZ(layer.id, 1); }}
+                              disabled={rank === layers.length - 1}>
+                              <ChevronUp size={9} />
+                            </button>
+                            <button title="Send backward (stack below)" className="p-px hover:text-primary"
+                              onClick={e => { e.stopPropagation(); nudgeZ(layer.id, -1); }}
+                              disabled={rank === 0}>
+                              <ChevronDown size={9} />
+                            </button>
+                            <span className="text-[8px] text-base-content/30 w-4 text-center tabular-nums"
+                              title={`Stacking: ${rank + 1} of ${layers.length} (${rank === layers.length - 1 ? 'front' : rank === 0 ? 'back' : 'middle'})`}>
+                              {rank + 1}
+                            </span>
+                          </span>
+                          <div className="relative flex-1 h-4 bg-base-200"
+                            style={{ backgroundImage: `repeating-linear-gradient(to right, transparent, transparent calc(${100 / (totalSec * 2)}% - 1px), color-mix(in srgb, currentColor 7%, transparent) calc(${100 / (totalSec * 2)}% - 1px), color-mix(in srgb, currentColor 7%, transparent) ${100 / (totalSec * 2)}%)` }}>
+                            {bar(layer, 'in', 'bg-primary')}
+                            {bar(layer, 'out', 'bg-warning')}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* slide rail */}
