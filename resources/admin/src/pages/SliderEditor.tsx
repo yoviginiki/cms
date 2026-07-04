@@ -35,14 +35,14 @@ import type { BlockData } from '@/types/blocks';
  * No slider-private styling controls.
  */
 
-const LAYER_TYPES: { type: string; label: string; icon: React.ComponentType<{ size?: number }>; defaults: Record<string, unknown> }[] = [
-  { type: 'text', label: 'Text', icon: Type, defaults: { content: 'New text layer' } },
-  { type: 'image', label: 'Image', icon: ImageIcon, defaults: {} },
+const LAYER_TYPES: { type: string; label: string; icon: React.ComponentType<{ size?: number }>; defaults: Record<string, unknown>; size?: { widthPct?: number; heightPct?: number } }[] = [
+  { type: 'text', label: 'Text', icon: Type, defaults: { content: 'New text layer', textColor: '#FBFAF7', fontSize: '28px' } },
+  { type: 'image', label: 'Image', icon: ImageIcon, defaults: {}, size: { widthPct: 30 } },
   { type: 'button', label: 'Button', icon: MousePointerClick, defaults: { text: 'Button', url: '#' } },
-  { type: 'shape', label: 'Shape', icon: Square, defaults: { color: '#E63B2E' } },
-  { type: 'video', label: 'Video', icon: Video, defaults: { muted: true } },
-  { type: 'audio', label: 'Audio', icon: Music, defaults: {} },
-  { type: 'group', label: 'Group', icon: Group, defaults: {} },
+  { type: 'shape', label: 'Shape', icon: Square, defaults: { color: '#E63B2E' }, size: { widthPct: 30, heightPct: 8 } },
+  { type: 'video', label: 'Video', icon: Video, defaults: { muted: true, playsinline: true, controls: false, loop: true }, size: { widthPct: 40, heightPct: 34 } },
+  { type: 'audio', label: 'Audio', icon: Music, defaults: {}, size: { widthPct: 32 } },
+  { type: 'group', label: 'Group', icon: Group, defaults: {}, size: { widthPct: 40, heightPct: 30 } },
 ];
 
 const DEVICE_WIDTHS = { desktop: 1280, tablet: 834, mobile: 390 } as const;
@@ -185,13 +185,13 @@ export default function SliderEditor() {
     if (activeSlideId === id) setActiveSlideId(slides.find(s => s.id !== id)?.id ?? null);
   };
 
-  const addLayer = (type: string, defaults: Record<string, unknown>) => {
+  const addLayer = (type: string, defaults: Record<string, unknown>, size?: { widthPct?: number; heightPct?: number }) => {
     if (!activeSlide) return;
     const layer: BlockData = {
       id: crypto.randomUUID(), type, level: 'module',
       data: {
         ...defaults,
-        layout: { x: '40%', y: '40%', zIndex: 2, ...(type === 'shape' ? { widthPct: 30, heightPct: 8 } : {}) },
+        layout: { x: '30%', y: '35%', zIndex: 2, ...(size ?? {}) },
         animation: { in: { preset: 'fadeUp', delay: 0.2, duration: 0.6 } },
       },
       order: (activeSlide.children ?? []).length, children: [],
@@ -247,7 +247,10 @@ export default function SliderEditor() {
 
   /* ── canvas drag: pointer-move updates data.layout x/y in % ── */
   const canvasRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const dragState = useRef<{
+    id: string; startX: number; startY: number; origX: number; origY: number;
+    moved: boolean; pointerId: number; target: HTMLElement;
+  } | null>(null);
 
   const pctOf = (v: string | undefined, fallback: number) => {
     const n = parseFloat(String(v ?? ''));
@@ -262,34 +265,97 @@ export default function SliderEditor() {
     return { ...base, ...override };
   };
 
+  /** write layout fields to the active device (base layout vs bp override) */
+  const writeLayout = (layerId: string, patch: Record<string, unknown>) => {
+    const layer = findBlock(blocks, layerId);
+    if (!layer) return;
+    if (canvasDevice === 'desktop') {
+      updateBlock(layerId, { layout: { ...(((layer.data as any)?.layout ?? {}) as object), ...patch } });
+    } else {
+      const resp = ((layer.data as any)?.responsiveLayout ?? {}) as Record<string, object>;
+      updateBlock(layerId, { responsiveLayout: { ...resp, [canvasDevice]: { ...(resp[canvasDevice] ?? {}), ...patch } } });
+    }
+  };
+
+  /** double-click enters inline-edit mode: drag is disabled so contenteditable,
+      media-replace buttons etc. inside the Preview receive events */
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const resizeState = useRef<{
+    id: string; mode: 'e' | 'w' | 's' | 'se'; startX: number; startY: number;
+    origX: number; origW: number; origH: number; aspect: number;
+  } | null>(null);
+
   const onLayerPointerDown = (e: React.PointerEvent, layer: BlockData) => {
+    if (editingLayerId === layer.id) {
+      // editing: keep events inside the layer (bubbling to the canvas would
+      // exit edit mode mid-click), but don't drag
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     selectBlock(layer.id);
+    // interrupt playback if running (full reset incl. remount is fine there);
+    // a plain click must NOT remount, or inner interactions die
+    if (tlRef.current) stopPreview();
     const layout = effectiveLayout(layer);
     dragState.current = {
       id: layer.id, startX: e.clientX, startY: e.clientY,
       origX: pctOf(layout.x as string, 40), origY: pctOf(layout.y as string, 40),
+      moved: false, pointerId: e.pointerId, target: e.currentTarget as HTMLElement,
     };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onResizePointerDown = (e: React.PointerEvent, layer: BlockData, mode: 'e' | 'w' | 's' | 'se') => {
+    e.stopPropagation();
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const el = (e.currentTarget as HTMLElement).parentElement!; // the layer wrapper
+    if (!rect) return;
+    const layout = effectiveLayout(layer);
+    const box = el.getBoundingClientRect();
+    const origW = layout.widthPct ?? (box.width / rect.width) * 100;
+    const origH = layout.heightPct ?? (box.height / rect.height) * 100;
+    resizeState.current = {
+      id: layer.id, mode, startX: e.clientX, startY: e.clientY,
+      origX: pctOf(layout.x as string, 0), origW, origH,
+      aspect: origW > 0 ? origH / origW : 1,
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    const d = dragState.current;
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (!d || !rect) return;
-    const layer = findBlock(blocks, d.id);
-    if (!layer) return;
+    if (!rect) return;
+
+    const r = resizeState.current;
+    if (r) {
+      const dxPct = ((e.clientX - r.startX) / rect.width) * 100;
+      const dyPct = ((e.clientY - r.startY) / rect.height) * 100;
+      const clamp = (v: number) => Math.max(2, Math.min(100, v));
+      if (r.mode === 'e') writeLayout(r.id, { widthPct: +clamp(r.origW + dxPct).toFixed(1) });
+      if (r.mode === 'w') writeLayout(r.id, {
+        widthPct: +clamp(r.origW - dxPct).toFixed(1),
+        x: `${Math.max(0, Math.min(96, r.origX + dxPct)).toFixed(1)}%`,
+      });
+      if (r.mode === 's') writeLayout(r.id, { heightPct: +clamp(r.origH + dyPct).toFixed(1) });
+      if (r.mode === 'se') {
+        const w = clamp(r.origW + dxPct);
+        writeLayout(r.id, { widthPct: +w.toFixed(1), heightPct: +clamp(w * r.aspect).toFixed(1) });
+      }
+      return;
+    }
+
+    const d = dragState.current;
+    if (!d) return;
+    // drag threshold: a plain click (no movement) must stay a click so the
+    // Preview's own controls remain usable
+    if (!d.moved) {
+      if (Math.abs(e.clientX - d.startX) < 4 && Math.abs(e.clientY - d.startY) < 4) return;
+      d.moved = true;
+      d.target.setPointerCapture(d.pointerId);
+    }
     const nx = Math.max(0, Math.min(96, d.origX + ((e.clientX - d.startX) / rect.width) * 100));
     const ny = Math.max(0, Math.min(96, d.origY + ((e.clientY - d.startY) / rect.height) * 100));
-    const pos = { x: `${nx.toFixed(1)}%`, y: `${ny.toFixed(1)}%` };
-    if (canvasDevice === 'desktop') {
-      updateBlock(d.id, { layout: { ...(((layer.data as any)?.layout ?? {}) as object), ...pos } });
-    } else {
-      // dragging on tablet/mobile writes that device's override
-      const resp = ((layer.data as any)?.responsiveLayout ?? {}) as Record<string, object>;
-      updateBlock(d.id, { responsiveLayout: { ...resp, [canvasDevice]: { ...(resp[canvasDevice] ?? {}), ...pos } } });
-    }
+    writeLayout(d.id, { x: `${nx.toFixed(1)}%`, y: `${ny.toFixed(1)}%` });
   };
-  const onPointerUp = () => { dragState.current = null; };
+  const onPointerUp = () => { dragState.current = null; resizeState.current = null; };
 
   if (isLoading || !root) {
     return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-base-content/30" /></div>;
@@ -339,8 +405,8 @@ export default function SliderEditor() {
           <div>
             <p className="text-[10px] font-medium text-base-content/40 uppercase tracking-wider mb-1.5">Add layer</p>
             <div className="grid grid-cols-2 gap-1">
-              {LAYER_TYPES.map(({ type, label, icon: Icon, defaults }) => (
-                <button key={type} onClick={() => addLayer(type, defaults)}
+              {LAYER_TYPES.map(({ type, label, icon: Icon, defaults, size }) => (
+                <button key={type} onClick={() => addLayer(type, defaults, size)}
                   className="flex items-center gap-1.5 px-2 py-1.5 text-[11px] border border-base-300 hover:border-primary hover:text-primary">
                   <Icon size={12} /> {label}
                 </button>
@@ -436,7 +502,15 @@ export default function SliderEditor() {
           {/* NOTE: no flex-centering here — centering an overflowing flex child
               makes its left side unreachable by scrolling. A block wrapper with
               margin:auto centers when it fits and scrolls fully when it doesn't. */}
-          <div ref={scrollWrapRef} className="flex-1 overflow-auto p-6">
+          <div ref={scrollWrapRef} className="flex-1 overflow-auto p-6"
+            onPointerDown={e => {
+              // clicking anywhere outside a layer (gray area OR canvas bg)
+              // deselects and exits inline editing
+              if (!(e.target as HTMLElement).closest('[data-layer-id]')) {
+                selectBlock(null);
+                setEditingLayerId(null);
+              }
+            }}>
             <div style={{
               width: Math.round(DEVICE_WIDTHS[canvasDevice] * zoom),
               height: Math.round(DEVICE_VIEWPORT_H[canvasDevice] * canvasHeightRatio * zoom),
@@ -444,7 +518,7 @@ export default function SliderEditor() {
             }}>
             <div ref={canvasRef}
               onPointerMove={onPointerMove} onPointerUp={onPointerUp}
-              onPointerDown={() => selectBlock(null)}
+              onPointerDown={() => { selectBlock(null); setEditingLayerId(null); }}
               className="relative bg-neutral-900 overflow-hidden shadow-lg shrink-0"
               style={{
                 width: DEVICE_WIDTHS[canvasDevice],
@@ -464,11 +538,17 @@ export default function SliderEditor() {
                 if (layout.hidden) return null; // hidden on this device
                 const reg = blockRegistry.get(layer.type);
                 const selected = selectedBlockId === layer.id;
+                const editing = editingLayerId === layer.id;
+                const handle = (mode: 'e' | 'w' | 's' | 'se', cls: string, title: string) => (
+                  <div onPointerDown={e => onResizePointerDown(e, layer, mode)} title={title}
+                    className={`absolute w-2.5 h-2.5 bg-primary border border-white z-10 ${cls}`} />
+                );
                 return (
                   <div key={`${layer.id}-${previewNonce}`}
                     data-layer-id={layer.id}
-                    onPointerDown={e => { stopPreview(); onLayerPointerDown(e, layer); }}
-                    className={`absolute cursor-move ${selected ? 'ring-2 ring-primary ring-offset-1' : 'hover:ring-1 hover:ring-primary/40'}`}
+                    onPointerDown={e => onLayerPointerDown(e, layer)}
+                    onDoubleClick={e => { e.stopPropagation(); setEditingLayerId(layer.id); selectBlock(layer.id); }}
+                    className={`absolute ${editing ? 'ring-2 ring-warning cursor-text' : selected ? 'ring-2 ring-primary ring-offset-1 cursor-move' : 'cursor-move hover:ring-1 hover:ring-primary/40'}`}
                     style={{
                       left: layout.x ?? '40%', top: layout.y ?? '40%',
                       width: layout.widthPct != null ? `${layout.widthPct}%` : undefined,
@@ -478,6 +558,19 @@ export default function SliderEditor() {
                     }}>
                     {reg ? <reg.Preview block={layer} isSelected={selected} onSelect={() => selectBlock(layer.id)} onUpdate={d => updateBlock(layer.id, d)} />
                       : <div className="text-xs text-white/60 p-2">{layer.type}</div>}
+                    {selected && !editing && (
+                      <>
+                        {handle('w', 'left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize', 'Resize width (left)')}
+                        {handle('e', 'right-0 top-1/2 translate-x-1/2 -translate-y-1/2 cursor-ew-resize', 'Resize width (right)')}
+                        {handle('s', 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 cursor-ns-resize', 'Resize height')}
+                        {handle('se', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize', 'Resize proportionally')}
+                      </>
+                    )}
+                    {editing && (
+                      <div className="absolute -top-6 left-0 bg-warning text-warning-content text-[9px] px-1.5 py-0.5 whitespace-nowrap">
+                        editing — click outside to finish
+                      </div>
+                    )}
                   </div>
                 );
               })}

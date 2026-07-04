@@ -27,6 +27,10 @@
 .sp-layer .prose{max-width:none;margin:0;}
 .sp-layer .text-block,.sp-layer .button-block{margin:0;}
 .sp-layer .button-block{display:inline-block;}
+/* media layers fill their (resizable) box; shapes render as ellipse when the
+   box is rectangular, circle when square */
+.sp-layer .video-block,.sp-layer .image-block,.sp-layer figure{margin:0;width:100%;height:100%;}
+.sp-layer video,.sp-layer .image-block img{width:100%;height:100%;object-fit:cover;display:block;}
 .sp-char,.sp-word{display:inline-block;white-space:pre;}
 .sp-line{display:block;overflow:hidden;}
 

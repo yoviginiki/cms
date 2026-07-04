@@ -19,8 +19,10 @@ export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
 
   return (
     <div className="space-y-3">
+      <AssetField label="Video file" value={(data.url as string) || ''} accept="video"
+        onChange={(v) => update('url', v)} />
       <TextField
-        label="Video URL"
+        label="…or Video URL"
         value={data.url || ''}
         onChange={(v) => update('url', v)}
         placeholder="https://youtube.com/watch?v=... or .mp4 URL"
@@ -45,6 +47,23 @@ export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
       </div>
       <AssetField label="Poster image" value={data.poster || ''} onChange={(v) => update('poster', v)} accept="image" />
 
+      {/* Shape applies in ALL modes (round/ellipse via 50%, capsule, custom) */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[11px] text-base-content/50 mb-1 block">Shape</label>
+          <select className="select select-bordered select-xs w-full text-[11px]" value={data.shape || 'none'} onChange={(e) => update('shape', e.target.value)}>
+            <option value="none">Square (none)</option>
+            <option value="rounded">Rounded (2rem)</option>
+            <option value="capsule">Capsule / Pill</option>
+            <option value="circle">Circle / Ellipse</option>
+            <option value="custom">Custom radius</option>
+          </select>
+        </div>
+        {data.shape === 'custom' && (
+          <TextField label="Radius" value={data.shapeRadius || ''} onChange={(v) => update('shapeRadius', v)} placeholder="50% 50% 0 0" />
+        )}
+      </div>
+
       {/* Hero Mode */}
       <div className="border-t border-base-300/20 pt-3">
         <ToggleField label="Hero mode (background video)" value={!!data.heroMode} onChange={(v) => update('heroMode', v)} />
@@ -65,25 +84,7 @@ export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
             </select>
           </div>
 
-          <div>
-            <label className="text-[11px] text-base-content/50 mb-1 block">Shape</label>
-            <select className="select select-bordered select-sm w-full" value={data.shape || 'none'} onChange={(e) => update('shape', e.target.value)}>
-              <option value="none">Full width (no shape)</option>
-              <option value="capsule">Capsule / Pill</option>
-              <option value="circle">Circle</option>
-              <option value="rounded">Rounded (2rem)</option>
-              <option value="custom">Custom radius</option>
-            </select>
-          </div>
-
-          {data.shape === 'custom' && (
-            <TextField
-              label="Custom border-radius"
-              value={data.shapeRadius || ''}
-              onChange={(v) => update('shapeRadius', v)}
-              placeholder="e.g. 50% 50% 0 0"
-            />
-          )}
+          {/* Shape moved to the always-visible section above */}
 
           <div className="border-t border-base-300/10 pt-2">
             <ToggleField label="Color overlay" value={!!data.overlay} onChange={(v) => update('overlay', v)} />

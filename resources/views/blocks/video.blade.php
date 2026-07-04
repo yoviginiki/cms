@@ -84,8 +84,9 @@
             $playsinline = !empty($data['playsinline']) || $heroMode;
             $vPreload = in_array($data['preload'] ?? '', ['none', 'metadata', 'auto']) ? $data['preload'] : 'metadata';
         @endphp
+        {{-- shape (rounded/capsule/circle-ellipse/custom) applies in standard mode too --}}
         <video{{ $showControls ? ' controls' : '' }}{{ $autoplay ? ' autoplay' : '' }}{{ $muted ? ' muted' : '' }}{{ $loop ? ' loop' : '' }}{{ $playsinline ? ' playsinline' : '' }}{{ $poster ? ' poster="' . e($poster) . '"' : '' }}
-               style="width:100%;max-width:100%;" preload="{{ $vPreload }}">
+               style="width:100%;max-width:100%;{{ $shapeStyle }}{{ $shapeStyle ? 'overflow:hidden;' : '' }}" preload="{{ $vPreload }}">
             <source src="{{ e($url) }}">
         </video>
     @endif
