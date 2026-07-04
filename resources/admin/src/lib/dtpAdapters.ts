@@ -196,24 +196,45 @@ export function pagesToDtpApi(
 
   // Each frame saves its own data.content directly (the flow engine's slices)
 
-  // Generate stable spread IDs from page IDs (must be valid UUIDs, max 36 chars)
-  const spreadIdMap = new Map<string, string>();
-  pages.forEach((page) => {
-    // Create a deterministic UUID-like ID from page ID to keep spreads stable across saves
-    const pid = page.id.replace(/-/g, '');
-    const sid = [pid.slice(0, 8), pid.slice(8, 12), '4' + pid.slice(13, 16), '8' + pid.slice(17, 20), pid.slice(20, 32)].join('-');
-    spreadIdMap.set(page.id, sid);
+  // W1-4: spreads are FIRST-CLASS — pages pair into real 2-page spreads with
+  // persisted verso(left)/recto(right) sides; the cover stays standalone
+  // unless coverMode is 'spread'. (Previously every spread was a 1-page
+  // wrapper with side:'single' and pairing was recomputed heuristically at
+  // render time — audit M-A conflict.)
+  const coverStandalone = (issueSettings?.coverMode ?? 'standalone') !== 'spread';
+  const groups: MagPageData[][] = [];
+  let gi = 0;
+  if (coverStandalone && pages.length > 0) {
+    groups.push([pages[0]]);
+    gi = 1;
+  }
+  while (gi < pages.length) {
+    groups.push(pages.slice(gi, gi + 2));
+    gi += 2;
+  }
+  // stable spread id derived from the group's FIRST page id
+  const stableSpreadId = (pageId: string) => {
+    const pid = pageId.replace(/-/g, '');
+    return [pid.slice(0, 8), pid.slice(8, 12), '4' + pid.slice(13, 16), '8' + pid.slice(17, 20), pid.slice(20, 32)].join('-');
+  };
+  const pageSpread = new Map<string, { id: string; side: string }>();
+  groups.forEach((group, sIdx) => {
+    const spreadId = stableSpreadId(group[0].id);
+    spreads.push({ id: spreadId, spread_index: sIdx, name: sIdx === 0 && coverStandalone ? 'Cover' : `Spread ${sIdx + 1}` });
+    group.forEach((pg, pIdx) => {
+      pageSpread.set(pg.id, { id: spreadId, side: group.length === 1 ? 'single' : pIdx === 0 ? 'left' : 'right' });
+    });
   });
 
   pages.forEach((page, idx) => {
-    const spreadId = spreadIdMap.get(page.id) || crypto.randomUUID();
-    spreads.push({ id: spreadId, spread_index: idx, name: `Spread ${idx + 1}` });
+    const sp = pageSpread.get(page.id)!;
+    const spreadId = sp.id;
 
     outPages.push({
       id: page.id,
       spread_id: spreadId,
       page_index: idx,
-      side: 'single',
+      side: sp.side,
       width: page.pageSize.width,
       height: page.pageSize.height,
       margins: page.margins,

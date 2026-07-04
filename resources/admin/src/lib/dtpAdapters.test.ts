@@ -95,6 +95,23 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect(meta.masterPages[0].elements).toHaveLength(1);
   });
 
+  it('W1-4: pages pair into real spreads with verso/recto sides', () => {
+    const pages = [page([]), page([]), page([]), page([]), page([])].map((p, i) => ({ ...p, id: crypto.randomUUID(), pageNumber: i + 1 }));
+    // standalone cover: [1] [2,3] [4,5]
+    const out = pagesToDtpApi(pages, [], [], { coverMode: 'standalone' }, {}) as any;
+    expect(out.spreads).toHaveLength(3);
+    expect(out.pages[0].side).toBe('single');
+    expect(out.pages[1].side).toBe('left');
+    expect(out.pages[2].side).toBe('right');
+    expect(out.pages[1].spread_id).toBe(out.pages[2].spread_id);
+    expect(out.pages[0].spread_id).not.toBe(out.pages[1].spread_id);
+    // spread cover: [1,2] [3,4] [5]
+    const out2 = pagesToDtpApi(pages, [], [], { coverMode: 'spread' }, {}) as any;
+    expect(out2.spreads).toHaveLength(3);
+    expect(out2.pages[0].side).toBe('left');
+    expect(out2.pages[4].side).toBe('single');
+  });
+
   it('page master assignment survives', () => {
     const { pages } = roundTrip([page([])]);
     expect(pages[0].masterPageId).toBe('master-a');
