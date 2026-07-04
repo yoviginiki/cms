@@ -61,8 +61,24 @@ class DtpPdfService
         $pdfPath = "{$base}/issue-{$stamp}.pdf";
         file_put_contents($htmlPath, $html);
 
+        // Chrome needs a writable HOME/XDG + profile dir when run from the
+        // queue worker (crashpad aborts otherwise — verified on this host)
+        $chromeHome = "{$base}/chrome-home";
+        foreach (["{$chromeHome}", "{$chromeHome}/prof", "{$chromeHome}/dumps"] as $dir) {
+            if (!is_dir($dir)) {
+                mkdir($dir, 0775, true);
+            }
+        }
+
         try {
-            $result = Process::timeout(90)->run($this->buildCommand($htmlPath, $pdfPath));
+            $result = Process::timeout(90)
+                ->env([
+                    'HOME' => $chromeHome,
+                    'PATH' => '/usr/local/bin:/usr/bin:/bin',
+                    'XDG_CONFIG_HOME' => $chromeHome,
+                    'XDG_CACHE_HOME' => $chromeHome,
+                ])
+                ->run($this->buildCommand($htmlPath, $pdfPath));
             if (!$result->successful() || !is_file($pdfPath) || filesize($pdfPath) < 1000) {
                 throw new RuntimeException('PDF render failed: ' . mb_substr($result->errorOutput(), 0, 500));
             }
@@ -85,6 +101,9 @@ class DtpPdfService
             '--no-sandbox',
             '--disable-dev-shm-usage',
             '--hide-scrollbars',
+            '--no-first-run',
+            '--user-data-dir=' . storage_path('app/dtp-pdf/chrome-home/prof'),
+            '--crash-dumps-dir=' . storage_path('app/dtp-pdf/chrome-home/dumps'),
             '--force-color-profile=srgb',
             '--virtual-time-budget=15000',
             '--no-pdf-header-footer',
