@@ -425,3 +425,21 @@ button, a, input, select, textarea {
   .gap-6 { gap: 0.75rem !important; }
   .gap-4 { gap: 0.5rem !important; }
 }
+
+/* Slider canvas layers: media fills the layer box EXACTLY like the published
+   .sp-layer rules (motion-runtime.css), so the resize handles align with the
+   visible picture and the editor shows the same crop as the live site */
+.sp-edit-layer .image-block,
+.sp-edit-layer .video-block,
+.sp-edit-layer figure {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+.sp-edit-layer img,
+.sp-edit-layer video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}

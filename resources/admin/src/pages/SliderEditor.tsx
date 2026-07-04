@@ -581,7 +581,7 @@ export default function SliderEditor() {
                     data-layer-id={layer.id}
                     onPointerDown={e => onLayerPointerDown(e, layer)}
                     onDoubleClick={e => { e.stopPropagation(); setEditingLayerId(layer.id); selectBlock(layer.id); }}
-                    className={`absolute ${editing ? 'ring-2 ring-warning cursor-text' : selected ? 'ring-2 ring-primary ring-offset-1 cursor-move' : 'cursor-move hover:ring-1 hover:ring-primary/40'}`}
+                    className={`absolute sp-edit-layer ${editing ? 'ring-2 ring-warning cursor-text' : selected ? 'ring-2 ring-primary ring-offset-1 cursor-move' : 'cursor-move hover:ring-1 hover:ring-primary/40'}`}
                     style={{
                       left: layout.x ?? '40%', top: layout.y ?? '40%',
                       width: layout.widthPct != null ? `${layout.widthPct}%` : undefined,
