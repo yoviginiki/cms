@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { TextField, ToggleField, SelectField, ColorField } from '@/components/editor/fields';
+import WysiwygEditor from '@/components/editor/WysiwygEditor';
 
 
 export const TextEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
@@ -12,7 +13,15 @@ export const TextEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-base-content/40">Edit directly in the block preview above.</p>
+      {/* Rich formatting lives HERE (bold/italic/lists/links…) — the canvas is
+          seamless plain typing; edits in either place sync live */}
+      <WysiwygEditor
+        content={content}
+        onChange={html => update('content', html)}
+        minHeight={120}
+        placeholder="Type your text here…"
+      />
+      <p className="text-[10px] text-base-content/40">Tip: you can also type directly on the block in the canvas.</p>
       <ToggleField label="Show HTML source" value={showSource} onChange={setShowSource} />
       {showSource && (
         <textarea value={content}

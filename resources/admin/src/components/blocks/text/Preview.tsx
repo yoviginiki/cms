@@ -1,5 +1,5 @@
+import { useEffect, useRef } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
-import WysiwygEditor from '@/components/editor/WysiwygEditor';
 import { resolveTextShadow } from '@/lib/blockStyles';
 
 const safeColor = (v: string) => /^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,./%]+\)|oklch\([\d\s,./%]+\))$/.test(v.trim()) ? v.trim() : '';
@@ -30,16 +30,34 @@ export const TextPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
     ...(textShadow ? { textShadow } : {}),
   };
 
+  /* Seamless inline editing: NO box, NO toolbar — you just type in place with
+     the block's own styling. Formatting (bold/italic/lists…) lives in the
+     inspector's rich-text editor, which live-syncs here. Uncontrolled while
+     focused so the caret never resets; re-syncs from data when blurred. */
+  const ref = useRef<HTMLDivElement>(null);
+  const focusedRef = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (el && !focusedRef.current && el.innerHTML !== content) {
+      el.innerHTML = content || '';
+    }
+  }, [content, isSelected]);
+
   if (isSelected) {
     return (
-      <div onClick={e => e.stopPropagation()} style={style}>
-        <WysiwygEditor
-          content={content}
-          onChange={(html) => onUpdate({ content: html })}
-          minHeight={100}
-          placeholder="Type your text here..."
-        />
-      </div>
+      <div
+        ref={ref}
+        className="prose max-w-none outline-none min-w-[60px] min-h-[1em] cursor-text empty:before:content-['Type_here…'] empty:before:text-gray-400"
+        style={style}
+        contentEditable
+        suppressContentEditableWarning
+        onFocus={() => { focusedRef.current = true; }}
+        onBlur={() => { focusedRef.current = false; }}
+        onInput={e => onUpdate({ content: (e.target as HTMLElement).innerHTML })}
+        onPointerDown={e => e.stopPropagation()}
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
     );
   }
 

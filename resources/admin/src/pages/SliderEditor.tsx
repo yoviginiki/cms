@@ -280,9 +280,10 @@ export default function SliderEditor() {
   /** double-click enters inline-edit mode: drag is disabled so contenteditable,
       media-replace buttons etc. inside the Preview receive events */
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  type ResizeMode = 'e' | 'w' | 's' | 'n' | 'se' | 'sw' | 'ne' | 'nw';
   const resizeState = useRef<{
-    id: string; mode: 'e' | 'w' | 's' | 'se'; startX: number; startY: number;
-    origX: number; origW: number; origH: number; aspect: number;
+    id: string; mode: ResizeMode; startX: number; startY: number;
+    origX: number; origY: number; origW: number; origH: number; aspect: number;
   } | null>(null);
 
   const onLayerPointerDown = (e: React.PointerEvent, layer: BlockData) => {
@@ -298,13 +299,23 @@ export default function SliderEditor() {
     // a plain click must NOT remount, or inner interactions die
     if (tlRef.current) stopPreview();
     const layout = effectiveLayout(layer);
+    // freeze the current width before moving: an auto-width absolute layer
+    // shrinks-to-fit against the canvas right edge, so dragging LEFT would
+    // grow it (the "image resizes while moving" bug)
+    if (layout.widthPct == null) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      if (rect && box.width > 0) {
+        writeLayout(layer.id, { widthPct: +((box.width / rect.width) * 100).toFixed(1) });
+      }
+    }
     dragState.current = {
       id: layer.id, startX: e.clientX, startY: e.clientY,
       origX: pctOf(layout.x as string, 40), origY: pctOf(layout.y as string, 40),
       moved: false, pointerId: e.pointerId, target: e.currentTarget as HTMLElement,
     };
   };
-  const onResizePointerDown = (e: React.PointerEvent, layer: BlockData, mode: 'e' | 'w' | 's' | 'se') => {
+  const onResizePointerDown = (e: React.PointerEvent, layer: BlockData, mode: ResizeMode) => {
     e.stopPropagation();
     const rect = canvasRef.current?.getBoundingClientRect();
     const el = (e.currentTarget as HTMLElement).parentElement!; // the layer wrapper
@@ -315,7 +326,8 @@ export default function SliderEditor() {
     const origH = layout.heightPct ?? (box.height / rect.height) * 100;
     resizeState.current = {
       id: layer.id, mode, startX: e.clientX, startY: e.clientY,
-      origX: pctOf(layout.x as string, 0), origW, origH,
+      origX: pctOf(layout.x as string, 0), origY: pctOf(layout.y as string, 0),
+      origW, origH,
       aspect: origW > 0 ? origH / origW : 1,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -329,15 +341,36 @@ export default function SliderEditor() {
       const dxPct = ((e.clientX - r.startX) / rect.width) * 100;
       const dyPct = ((e.clientY - r.startY) / rect.height) * 100;
       const clamp = (v: number) => Math.max(2, Math.min(100, v));
-      if (r.mode === 'e') writeLayout(r.id, { widthPct: +clamp(r.origW + dxPct).toFixed(1) });
-      if (r.mode === 'w') writeLayout(r.id, {
-        widthPct: +clamp(r.origW - dxPct).toFixed(1),
-        x: `${Math.max(0, Math.min(96, r.origX + dxPct)).toFixed(1)}%`,
-      });
-      if (r.mode === 's') writeLayout(r.id, { heightPct: +clamp(r.origH + dyPct).toFixed(1) });
-      if (r.mode === 'se') {
-        const w = clamp(r.origW + dxPct);
-        writeLayout(r.id, { widthPct: +w.toFixed(1), heightPct: +clamp(w * r.aspect).toFixed(1) });
+      const cx = (v: number) => `${Math.max(0, Math.min(96, v)).toFixed(1)}%`;
+      // corners resize proportionally (aspect kept), anchored to the opposite
+      // corner; edges resize one axis (w/n also shift x/y so the far edge stays)
+      switch (r.mode) {
+        case 'e': writeLayout(r.id, { widthPct: +clamp(r.origW + dxPct).toFixed(1) }); break;
+        case 'w': writeLayout(r.id, { widthPct: +clamp(r.origW - dxPct).toFixed(1), x: cx(r.origX + dxPct) }); break;
+        case 's': writeLayout(r.id, { heightPct: +clamp(r.origH + dyPct).toFixed(1) }); break;
+        case 'n': writeLayout(r.id, { heightPct: +clamp(r.origH - dyPct).toFixed(1), y: cx(r.origY + dyPct) }); break;
+        case 'se': {
+          const w = clamp(r.origW + dxPct);
+          writeLayout(r.id, { widthPct: +w.toFixed(1), heightPct: +clamp(w * r.aspect).toFixed(1) });
+          break;
+        }
+        case 'sw': {
+          const w = clamp(r.origW - dxPct);
+          writeLayout(r.id, { widthPct: +w.toFixed(1), heightPct: +clamp(w * r.aspect).toFixed(1), x: cx(r.origX + (r.origW - w)) });
+          break;
+        }
+        case 'ne': {
+          const w = clamp(r.origW + dxPct);
+          const h = clamp(w * r.aspect);
+          writeLayout(r.id, { widthPct: +w.toFixed(1), heightPct: +h.toFixed(1), y: cx(r.origY + (r.origH - h)) });
+          break;
+        }
+        case 'nw': {
+          const w = clamp(r.origW - dxPct);
+          const h = clamp(w * r.aspect);
+          writeLayout(r.id, { widthPct: +w.toFixed(1), heightPct: +h.toFixed(1), x: cx(r.origX + (r.origW - w)), y: cx(r.origY + (r.origH - h)) });
+          break;
+        }
       }
       return;
     }
@@ -539,7 +572,7 @@ export default function SliderEditor() {
                 const reg = blockRegistry.get(layer.type);
                 const selected = selectedBlockId === layer.id;
                 const editing = editingLayerId === layer.id;
-                const handle = (mode: 'e' | 'w' | 's' | 'se', cls: string, title: string) => (
+                const handle = (mode: ResizeMode, cls: string, title: string) => (
                   <div onPointerDown={e => onResizePointerDown(e, layer, mode)} title={title}
                     className={`absolute w-2.5 h-2.5 bg-primary border border-white z-10 ${cls}`} />
                 );
@@ -560,10 +593,14 @@ export default function SliderEditor() {
                       : <div className="text-xs text-white/60 p-2">{layer.type}</div>}
                     {selected && !editing && (
                       <>
+                        {handle('nw', 'left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'Resize proportionally (top-left)')}
+                        {handle('n', 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize', 'Resize height (top)')}
+                        {handle('ne', 'right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize', 'Resize proportionally (top-right)')}
                         {handle('w', 'left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize', 'Resize width (left)')}
                         {handle('e', 'right-0 top-1/2 translate-x-1/2 -translate-y-1/2 cursor-ew-resize', 'Resize width (right)')}
-                        {handle('s', 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 cursor-ns-resize', 'Resize height')}
-                        {handle('se', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize', 'Resize proportionally')}
+                        {handle('sw', 'left-0 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize', 'Resize proportionally (bottom-left)')}
+                        {handle('s', 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 cursor-ns-resize', 'Resize height (bottom)')}
+                        {handle('se', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize', 'Resize proportionally (bottom-right)')}
                       </>
                     )}
                     {editing && (
