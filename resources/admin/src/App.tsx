@@ -17,7 +17,19 @@ const PostsList = lazy(() => import('./pages/PostsList'));
 const PostEditor = lazy(() => import('./pages/PostEditor'));
 const Categories = lazy(() => import('./pages/Categories'));
 const MagazineList = lazy(() => import('./pages/MagazineList'));
-const MagazineEditorV2 = lazy(() => import('./pages/MagazineEditorV2'));
+// W0-1 (user decision 2026-07-04): legacy magazine editor FROZEN read-only —
+// no legacy magazines to migrate; DTP editor is the single magazine editor.
+const FrozenLegacyEditor = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: 12, fontFamily: 'Inter, sans-serif' }}>
+    <h2 style={{ fontSize: 18, fontWeight: 600 }}>Legacy magazine editor is frozen</h2>
+    <p style={{ fontSize: 13, opacity: 0.6, maxWidth: 420, textAlign: 'center' }}>
+      Magazine editing moved to the DTP editor (Magazine Issues). This legacy
+      editor was retired after the flow-engine rebuild — no data was migrated
+      because no legacy magazines exist.
+    </p>
+    <a href="/admin/" style={{ fontSize: 13, color: '#3b82f6' }}>Back to dashboard</a>
+  </div>
+);
 const Assets = lazy(() => import('./pages/Assets'));
 const SiteSettings = lazy(() => import('./pages/SiteSettings'));
 const ImportPage = lazy(() => import('./pages/ImportPage'));
@@ -81,7 +93,7 @@ export default function App() {
           <Route path="/sites/:siteId/magazines" element={<LayoutRoute><MagazineList /></LayoutRoute>} />
           <Route path="/sites/:siteId/magazine/wizard" element={<LayoutRoute><SessionsListPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/magazine/wizard/:id" element={<WizardPage />} />
-          <Route path="/sites/:siteId/magazines/:magazineId/edit" element={<MagazineEditorV2 />} />
+          <Route path="/sites/:siteId/magazines/:magazineId/edit" element={<FrozenLegacyEditor />} />
           <Route path="/sites/:siteId/categories" element={<LayoutRoute><Categories /></LayoutRoute>} />
           <Route path="/sites/:siteId/tags" element={<LayoutRoute><Tags /></LayoutRoute>} />
           <Route path="/sites/:siteId/menus" element={<LayoutRoute><Menus /></LayoutRoute>} />
