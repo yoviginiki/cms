@@ -80,7 +80,11 @@ export function dtpApiToPages(apiData: any): MagPageData[] {
 
 export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
   const content = f.content || {};
-  const magType = FRAME_TYPE_MAP[f.frame_type] || 'text_frame';
+  // metadata._magType restores the SPECIFIC editor type (circular_image,
+  // table_frame, …) that REVERSE_TYPE_MAP collapsed for the API — the audit
+  // flagged reload flattening clip shapes and tables to their generic type
+  const savedMagType = typeof f.metadata?._magType === 'string' ? f.metadata._magType : null;
+  const magType = savedMagType || FRAME_TYPE_MAP[f.frame_type] || 'text_frame';
 
   const data: Record<string, unknown> = {};
   if (['text', 'quote', 'articleReference'].includes(f.frame_type)) {
@@ -94,6 +98,12 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     if (content.autoSize) data.autoSize = content.autoSize;
     if (content.textInset) data.textInset = content.textInset;
     if (content.verticalAlign) data.verticalAlign = content.verticalAlign;
+  }
+  if (savedMagType === 'table_frame') {
+    data.headers = Array.isArray(content.tableHeaders) ? content.tableHeaders : ['Col 1', 'Col 2'];
+    data.rows = Array.isArray(content.tableRows) ? content.tableRows : [['', '']];
+    data.stripes = content.tableStripes !== false;
+    data.borderColor = content.tableBorderColor || '#e5e7eb';
   }
   if (f.frame_type === 'image') {
     data.src = content.src || '';
@@ -247,7 +257,12 @@ export function pagesToDtpApi(
       const frameType = REVERSE_TYPE_MAP[el.type] || 'text';
       const content: Record<string, unknown> = {};
 
-      if (['text', 'quote'].includes(frameType)) {
+      if (el.type === 'table_frame') {
+        content.tableHeaders = (el.data as any)?.headers || ['Col 1', 'Col 2'];
+        content.tableRows = (el.data as any)?.rows || [['', '']];
+        content.tableStripes = (el.data as any)?.stripes !== false;
+        content.tableBorderColor = (el.data as any)?.borderColor || '#e5e7eb';
+      } else if (['text', 'quote'].includes(frameType)) {
         content.html = (el.data as any)?.content || '';
         // Preserve text frame settings
         content.overflow = (el.data as any)?.overflow;

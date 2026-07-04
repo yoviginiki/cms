@@ -527,12 +527,31 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     }
 
     if (el.type === 'table_frame') {
-      const headers = data.headers || ['Col 1', 'Col 2'];
+      // full render (tables track): all rows, stripes, real border color —
+      // must match DtpRenderService::renderTableFrame
+      const headers = (data.headers || ['Col 1', 'Col 2']) as string[];
+      const tRows = (data.rows || [['', '']]) as string[][];
+      const border = (data.borderColor as string) || '#e5e7eb';
+      const stripes = data.stripes !== false;
       return (
-        <div className="w-full h-full overflow-hidden text-[8px]">
-          <table className="w-full border-collapse">
-            <thead><tr>{(headers as string[]).map((h: string, i: number) => <th key={i} className="border border-base-300/20 bg-base-200/50 px-1 py-0.5 text-left text-base-content/50">{h}</th>)}</tr></thead>
-            <tbody>{((data.rows || [['...', '...']]) as string[][]).slice(0, 3).map((row: string[], ri: number) => <tr key={ri}>{row.map((c: string, ci: number) => <td key={ci} className="border border-base-300/10 px-1 py-0.5 text-base-content/30">{c}</td>)}</tr>)}</tbody>
+        <div className="w-full h-full overflow-hidden" style={{ fontSize: 11, color: '#1a1a1a' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {headers.map((h, i) => (
+                  <th key={i} style={{ border: `1px solid ${border}`, padding: '4px 6px', textAlign: 'left', fontWeight: 600, background: '#f6f5f2' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tRows.map((row, ri) => (
+                <tr key={ri} style={stripes && ri % 2 === 1 ? { background: '#fafaf8' } : undefined}>
+                  {headers.map((_, ci) => (
+                    <td key={ci} style={{ border: `1px solid ${border}`, padding: '4px 6px' }}>{row[ci] ?? ''}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       );

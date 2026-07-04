@@ -28,6 +28,7 @@ import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
 import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import TextWrapPanel from '@/components/magazine/properties/TextWrapPanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
+import TablePanel from '@/components/magazine/properties/TablePanel';
 import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
 import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
@@ -806,6 +807,12 @@ export default function DtpEditorBeta() {
                         onContinueThread={handleContinueThread}
                         onUnthread={handleUnthread}
                         availableThreadId={activeThreadId}
+                      />
+                    )}
+                    {selectedEl.type === 'table_frame' && (
+                      <TablePanel
+                        data={(selectedEl.data || {}) as any}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })}
                       />
                     )}
                     {IMAGE_TYPES.includes(selectedEl.type) && (

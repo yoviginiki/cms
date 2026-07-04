@@ -170,6 +170,29 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringNotContainsString('justify-content', $plain['html']);
     }
 
+    public function test_table_frames_publish_as_real_tables(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => [
+                'tableHeaders' => ['Name', 'Qty'],
+                'tableRows' => [['Washi <b>x</b>', '3'], ['Vermilion', '1']],
+                'tableStripes' => true,
+                'tableBorderColor' => '#333333',
+            ],
+            'metadata' => ['_magType' => 'table_frame'],
+        ]);
+        $html = $out['html'];
+        $this->assertStringContainsString('<table', $html);
+        $this->assertStringContainsString('<th style="border:1px solid #333333', $html);
+        $this->assertStringContainsString('Name', $html);
+        $this->assertStringContainsString('background:#fafaf8', $html); // stripe row
+        $this->assertStringContainsString('Washi &lt;b&gt;x&lt;/b&gt;', $html); // cells escaped
+        // plain text frames are unaffected
+        $plain = $this->renderFrame(['frame_type' => 'text', 'content' => ['html' => '<p>x</p>']]);
+        $this->assertStringNotContainsString('<table', $plain['html']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

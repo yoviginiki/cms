@@ -254,7 +254,10 @@ class DtpRenderService
             }
         }
 
-        $html = match ($type) {
+        $magType = $metadata['_magType'] ?? null;
+        $html = match (true) {
+            $magType === 'table_frame' => $this->renderTableFrame($content),
+            default => match ($type) {
             'text' => $this->renderTextFrame($content),
             'image' => $this->renderImageFrame($content),
             'quote' => $this->renderQuoteFrame($content),
@@ -263,6 +266,7 @@ class DtpRenderService
             'line' => '<hr style="border:none;border-top:1px solid #333;margin:0;">',
             'decorative' => '<div style="width:100%;height:100%;"></div>',
             default => '<div></div>',
+            },
         };
 
         // W1-6 vertical alignment + W1-8 drop caps — must match the editor
@@ -397,6 +401,34 @@ class DtpRenderService
     {
         $num = $page->page_index + 1;
         return '<span style="font-size:11px;font-family:monospace;color:#999;">' . $num . '</span>';
+    }
+
+    /** real <table> output (tables track) — mirrors the editor's render */
+    private function renderTableFrame(array $content): string
+    {
+        $headers = is_array($content['tableHeaders'] ?? null) ? $content['tableHeaders'] : ['Col 1', 'Col 2'];
+        $rows = is_array($content['tableRows'] ?? null) ? $content['tableRows'] : [];
+        $border = BlockStyle::safeColor($content['tableBorderColor'] ?? '#e5e7eb') ?: '#e5e7eb';
+        $stripes = ($content['tableStripes'] ?? true) !== false;
+
+        $cellBase = "border:1px solid {$border};padding:4px 6px;";
+        $out = '<table style="width:100%;border-collapse:collapse;font-size:11px;color:#1a1a1a;"><thead><tr>';
+        foreach ($headers as $h) {
+            $out .= '<th style="' . $cellBase . 'text-align:left;font-weight:600;background:#f6f5f2;">' . e((string) $h) . '</th>';
+        }
+        $out .= '</tr></thead><tbody>';
+        foreach ($rows as $ri => $row) {
+            $rowStyle = $stripes && $ri % 2 === 1 ? ' style="background:#fafaf8;"' : '';
+            $out .= '<tr' . $rowStyle . '>';
+            foreach ($headers as $ci => $unused) {
+                $cell = is_array($row) ? ($row[$ci] ?? '') : '';
+                $out .= '<td style="' . $cellBase . '">' . e((string) $cell) . '</td>';
+            }
+            $out .= '</tr>';
+        }
+        $out .= '</tbody></table>';
+
+        return $out;
     }
 
     private function renderShapeFrame(array $content): string

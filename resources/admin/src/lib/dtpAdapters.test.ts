@@ -112,6 +112,26 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect(out2.pages[4].side).toBe('single');
   });
 
+  it('tables round-trip with data and specific type (previously published empty)', () => {
+    const tbl = el({
+      type: 'table_frame', typography: null, threadId: null, threadOrder: null,
+      data: { headers: ['Name', 'Qty'], rows: [['Washi', '3'], ['Vermilion', '1']], stripes: false, borderColor: '#333333' },
+    });
+    const { pages } = roundTrip([page([tbl])]);
+    const out = pages[0].elements[0];
+    expect(out.type).toBe('table_frame'); // _magType restore (was flattened)
+    expect((out.data as any).headers).toEqual(['Name', 'Qty']);
+    expect((out.data as any).rows).toEqual([['Washi', '3'], ['Vermilion', '1']]);
+    expect((out.data as any).stripes).toBe(false);
+    expect((out.data as any).borderColor).toBe('#333333');
+  });
+
+  it('clip-shape image types survive reload via _magType', () => {
+    const img = el({ type: 'circular_image', typography: null, threadId: null, threadOrder: null, data: { src: '/m/x.webp', alt: '', fit: 'fill', focalPoint: { x: 0.5, y: 0.5 } } });
+    const { pages } = roundTrip([page([img])]);
+    expect(pages[0].elements[0].type).toBe('circular_image');
+  });
+
   it('page master assignment survives', () => {
     const { pages } = roundTrip([page([])]);
     expect(pages[0].masterPageId).toBe('master-a');
