@@ -1,0 +1,21 @@
+{
+  "fixtures": [
+    {
+      "name": "feature-article",
+      "siteId": "019dfbc0-0ac0-7044-8ecd-d2f432db4914",
+      "issueId": "019f2e29-e664-704c-beda-90f7049ed1e4",
+      "expect": {
+        "pages": 9,
+        "textFrames": 12,
+        "threads": 1,
+        "lossless": true,
+        "previewMarkers": [
+          "The Substrate Remembers",
+          "fonts.googleapis.com",
+          "::first-letter",
+          "We do not fill pages"
+        ]
+      }
+    }
+  ]
+}
