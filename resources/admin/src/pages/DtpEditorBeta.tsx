@@ -455,6 +455,7 @@ export default function DtpEditorBeta() {
           const path = `/magazine/dtp/${issueId}`;
           return domain ? `https://${domain}${path}` : path;
         })()}
+        pdfUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-pdf`}
       />
 
       {/* ─── DTP Status + Save error ─── */}

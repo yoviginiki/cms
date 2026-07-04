@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\IssueComposer\Models\MagazineIssue;
+use App\Domain\Magazine\Services\DtpPdfService;
 use App\Domain\Magazine\Services\DtpRenderService;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
@@ -55,5 +56,17 @@ class DtpPreviewController extends Controller
             'coverMode' => $data['coverMode'] ?? 'standalone',
             'fontsUrl' => $data['fontsUrl'] ?? null,
         ]);
+    }
+
+    /** Export the issue as PDF (headless Chromium print of the print view). */
+    public function pdf(Site $site, MagazineIssue $issue, DtpPdfService $pdfService)
+    {
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+        $path = $pdfService->export($issue);
+        $name = preg_replace('/[^a-zA-Z0-9\-_ ]/', '', $issue->title ?: 'magazine') . '.pdf';
+
+        return response()->download($path, $name, ['Content-Type' => 'application/pdf'])->deleteFileAfterSend(true);
     }
 }
