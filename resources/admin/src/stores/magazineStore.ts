@@ -143,6 +143,8 @@ interface MagazineActions {
   addMasterPage: (name: string) => void;
   assignMaster: (pageNumber: number, masterPageId: string | null) => void;
   assignMasterToAll: (masterPageId: string | null) => void;
+  /** copy master elements onto the page as editable elements + unlink (override) */
+  detachMaster: (pageNumber: number) => void;
   setEditingMaster: (masterPageId: string | null) => void;
   editingMasterId: string | null;
 
@@ -470,6 +472,24 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       pages.push(newPage);
     } else {
       pages.splice(insertIndex, 0, newPage);
+    }
+
+    // Masters v2: a master text frame flagged _primaryFlow instantiates as a
+    // REAL editable body frame on every new page created from that master
+    if (newPage.masterPageId) {
+      const master = state.pages.find((p) => p.isMaster && p.id === newPage.masterPageId);
+      const primary = master?.elements.find((e) => (e.data as any)?._primaryFlow);
+      if (primary) {
+        newPage.elements.push({
+          ...structuredClone(primary),
+          id: crypto.randomUUID(),
+          pageNumber: newPageNumber,
+          onMaster: false,
+          threadId: null,
+          threadOrder: null,
+          data: { ...primary.data, content: '', _primaryFlow: undefined },
+        });
+      }
     }
 
     set({ pages, currentPageNumber: newPageNumber, isDirty: true });
@@ -1194,6 +1214,33 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       ),
       isDirty: true,
     }));
+  },
+
+  detachMaster(pageNumber) {
+    const state = get();
+    const page = state.pages.find((p) => p.pageNumber === pageNumber && !p.isMaster);
+    const master = page?.masterPageId ? state.pages.find((p) => p.isMaster && p.id === page.masterPageId) : null;
+    if (!page || !master) return;
+    get().pushSnapshot();
+    const maxZ = Math.max(0, ...page.elements.map((e) => e.zIndex));
+    const copies = master.elements.map((el, i) => ({
+      ...structuredClone(el),
+      id: crypto.randomUUID(),
+      pageNumber,
+      onMaster: false,
+      zIndex: maxZ + 1 + i,
+      // resolve master page-number instances to this page's number
+      data: el.type === 'page_number' ? { ...el.data, startAt: pageNumber } : structuredClone(el.data),
+    }));
+    set((s2) => ({
+      pages: s2.pages.map((p) =>
+        p.pageNumber === pageNumber && !p.isMaster
+          ? { ...p, masterPageId: null, elements: [...p.elements, ...copies] }
+          : p,
+      ),
+      isDirty: true,
+    }));
+    get().pushDebugLog('master:detach', 'store', { pageNumber, copied: copies.length });
   },
 
   assignMasterToAll(masterPageId) {

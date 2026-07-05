@@ -110,6 +110,8 @@ interface PageNavigatorProps {
   onAssignMasterToAll?: (masterPageId: string | null) => void;
   onEditMaster?: (masterPageId: string | null) => void;
   editingMasterId?: string | null;
+  onSetMasterApplies?: (masterPageId: string, v: 'all' | 'verso' | 'recto') => void;
+  onDetachMaster?: (pageNumber: number) => void;
 }
 
 export default function PageNavigator({
@@ -126,6 +128,8 @@ export default function PageNavigator({
   onAssignMasterToAll,
   onEditMaster,
   editingMasterId,
+  onSetMasterApplies,
+  onDetachMaster,
 }: PageNavigatorProps) {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmTemplate, setConfirmTemplate] = useState<{ pageNumber: number; template: PageTemplate } | null>(null);
@@ -177,11 +181,25 @@ export default function PageNavigator({
         <div className="w-full mb-2 pb-2 border-b border-base-300/20">
           <span className="text-[8px] font-semibold uppercase tracking-wider text-base-content/30">Masters</span>
           {masterPages.map(mp => (
-            <button key={mp.id} onClick={() => onEditMaster?.(editingMasterId === mp.id ? null : mp.id)}
-              className={`w-full text-left px-1.5 py-1 rounded text-[9px] mt-0.5 transition-colors ${editingMasterId === mp.id ? 'bg-warning/20 text-warning font-medium' : 'text-base-content/50 hover:bg-base-300/20'}`}>
-              {(mp as any)._masterName || `Master ${Math.abs(mp.pageNumber)}`}
-              {editingMasterId === mp.id && <span className="text-[7px] ml-1 text-warning/60">editing</span>}
-            </button>
+            <div key={mp.id} className="mt-0.5">
+              <button onClick={() => onEditMaster?.(editingMasterId === mp.id ? null : mp.id)}
+                className={`w-full text-left px-1.5 py-1 rounded text-[9px] transition-colors ${editingMasterId === mp.id ? 'bg-warning/20 text-warning font-medium' : 'text-base-content/50 hover:bg-base-300/20'}`}>
+                {(mp as any)._masterName || `Master ${Math.abs(mp.pageNumber)}`}
+                {editingMasterId === mp.id && <span className="text-[7px] ml-1 text-warning/60">editing</span>}
+              </button>
+              {onSetMasterApplies && (
+                <select
+                  value={(mp as any)._appliesTo || 'all'}
+                  onChange={e => onSetMasterApplies(mp.id, e.target.value as 'all' | 'verso' | 'recto')}
+                  title="Which pages this master applies to (verso = left, recto = right)"
+                  className="select select-bordered select-xs w-full text-[8px] mt-0.5"
+                >
+                  <option value="all">All pages</option>
+                  <option value="verso">Verso (left) only</option>
+                  <option value="recto">Recto (right) only</option>
+                </select>
+              )}
+            </div>
           ))}
           {editingMasterId && (
             <button onClick={() => onEditMaster?.(null)} className="w-full text-[8px] text-primary mt-1 hover:underline">
@@ -209,6 +227,13 @@ export default function PageNavigator({
             className="text-[7px] text-primary/60 hover:text-primary mt-0.5 block">
             Apply to all pages
           </button>
+          {sorted.find(p => p.pageNumber === currentPage)?.masterPageId && onDetachMaster && (
+            <button onClick={() => onDetachMaster(currentPage)}
+              title="Copy the master's elements onto this page as editable elements and unlink the master (revert by re-assigning)"
+              className="text-[7px] text-warning/70 hover:text-warning mt-0.5 block">
+              Detach master to this page
+            </button>
+          )}
         </div>
       )}
 

@@ -4,6 +4,7 @@ import type { MagPageData, MagElement } from '@/types/magazine';
 import { MagElementRenderer } from './MagElementRenderer';
 import { useMagSelection } from './MagSelectionEngine';
 import { useMagazineStore } from '@/stores/magazineStore';
+import { pageSide } from '@/lib/magazineFormat';
 // Threading engine disabled — Pour splits content at save time
 import {
   MousePointer2, Type, ImageIcon, Square, Circle, Minus,
@@ -658,6 +659,9 @@ export function MagazineCanvas({
               if (!page.masterPageId || !allPages) return null;
               const masterPage = allPages.find(p => p.id === page.masterPageId && p.isMaster);
               if (!masterPage) return null;
+              // verso/recto application (masters v2)
+              const applies = (masterPage as any)._appliesTo || 'all';
+              if (applies !== 'all' && pageSide(page.pageNumber, coverMode) !== applies) return null;
               return masterPage.elements.map(mel => {
                 // Resolve dynamic page number
                 const resolvedEl = mel.type === 'page_number'

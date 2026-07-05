@@ -98,6 +98,58 @@ describe('magazineStore undo/redo (W0-5)', () => {
     expect(useMagazineStore.getState().pages[0].elements).toHaveLength(1);
   });
 
+  it('masters v2: primary text frame instantiates on pages created from master', () => {
+    const s = useMagazineStore.getState();
+    s.addMasterPage('A');
+    const master = useMagazineStore.getState().pages.find((p) => p.isMaster)!;
+    useMagazineStore.getState().updatePage(master.pageNumber, {
+      elements: [{
+        id: 'primary-1', type: 'text_frame', name: 'Body', data: { content: '<p>x</p>', _primaryFlow: true },
+        x: 36, y: 36, width: 500, height: 700, rotation: 0, scaleX: 1, scaleY: 1, zIndex: 1,
+        locked: false, visible: true, layerName: null, style: {} as any, typography: null,
+        textWrap: { type: 'none', offset: { top: 0, right: 0, bottom: 0, left: 0 }, side: 'both', customPath: null, invert: false },
+        threadId: null, threadOrder: null, pageNumber: master.pageNumber, onMaster: true,
+        positionMode: 'free', spanMode: 'page', parentId: null, children: [], responsiveOverrides: {},
+      }],
+    } as any);
+    useMagazineStore.getState().assignMaster(1, master.id);
+    useMagazineStore.getState().addPage(1);
+    const p2 = useMagazineStore.getState().pages.find((p) => p.pageNumber === 2 && !p.isMaster)!;
+    expect(p2.masterPageId).toBe(master.id);
+    expect(p2.elements).toHaveLength(1);
+    expect(p2.elements[0].type).toBe('text_frame');
+    expect(p2.elements[0].onMaster).toBe(false);
+    expect((p2.elements[0].data as any)._primaryFlow).toBeUndefined();
+    expect((p2.elements[0].data as any).content).toBe('');
+  });
+
+  it('masters v2: detachMaster copies elements and unlinks (undoable)', () => {
+    const s = useMagazineStore.getState();
+    s.addMasterPage('A');
+    const master = useMagazineStore.getState().pages.find((p) => p.isMaster)!;
+    useMagazineStore.getState().updatePage(master.pageNumber, {
+      elements: [{
+        id: 'pn-1', type: 'page_number', name: null, data: { format: 'decimal', prefix: '', suffix: '', startAt: 1 },
+        x: 500, y: 800, width: 40, height: 20, rotation: 0, scaleX: 1, scaleY: 1, zIndex: 0,
+        locked: false, visible: true, layerName: null, style: {} as any, typography: null,
+        textWrap: { type: 'none', offset: { top: 0, right: 0, bottom: 0, left: 0 }, side: 'both', customPath: null, invert: false },
+        threadId: null, threadOrder: null, pageNumber: master.pageNumber, onMaster: true,
+        positionMode: 'free', spanMode: 'page', parentId: null, children: [], responsiveOverrides: {},
+      }],
+    } as any);
+    useMagazineStore.getState().assignMaster(1, master.id);
+    useMagazineStore.getState().detachMaster(1);
+    const p1 = useMagazineStore.getState().pages.find((p) => p.pageNumber === 1 && !p.isMaster)!;
+    expect(p1.masterPageId).toBeNull();
+    expect(p1.elements).toHaveLength(1);
+    expect(p1.elements[0].onMaster).toBe(false);
+    expect((p1.elements[0].data as any).startAt).toBe(1); // resolved to page 1
+    useMagazineStore.getState().undo();
+    const p1b = useMagazineStore.getState().pages.find((p) => p.pageNumber === 1 && !p.isMaster)!;
+    expect(p1b.masterPageId).toBe(master.id);
+    expect(p1b.elements).toHaveLength(0);
+  });
+
   it('setEditingMaster does not pollute history', () => {
     useMagazineStore.getState().addMasterPage('A');
     const depth = useMagazineStore.getState().undoStack.length;

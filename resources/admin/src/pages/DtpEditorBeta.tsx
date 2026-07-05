@@ -528,6 +528,11 @@ export default function DtpEditorBeta() {
           onAssignMaster={(pageNumber, masterPageId) => store.assignMaster(pageNumber, masterPageId)}
           onAssignMasterToAll={(masterPageId) => store.assignMasterToAll(masterPageId)}
           onEditMaster={(masterPageId) => store.setEditingMaster(masterPageId)}
+          onSetMasterApplies={(masterPageId, v) => {
+            const master = store.pages.find(p => p.isMaster && p.id === masterPageId);
+            if (master) store.updatePage(master.pageNumber, { _appliesTo: v } as any);
+          }}
+          onDetachMaster={(pageNumber) => store.detachMaster(pageNumber)}
           editingMasterId={store.editingMasterId}
         />
 
@@ -808,6 +813,17 @@ export default function DtpEditorBeta() {
                         onUnthread={handleUnthread}
                         availableThreadId={activeThreadId}
                       />
+                    )}
+                    {store.editingMasterId && ['text_frame'].includes(selectedEl.type) && (
+                      <div className="px-3 py-2 border-t border-base-300/20">
+                        <label className="flex items-center gap-1.5 text-[11px] text-base-content/60 cursor-pointer"
+                          title="New pages created from this master get an editable copy of this frame as their body text frame">
+                          <input type="checkbox" className="checkbox checkbox-xs"
+                            checked={!!(selectedEl.data as any)?._primaryFlow}
+                            onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, _primaryFlow: e.target.checked || undefined } })} />
+                          Primary text frame (body on new pages)
+                        </label>
+                      </div>
                     )}
                     {selectedEl.type === 'table_frame' && (
                       <TablePanel

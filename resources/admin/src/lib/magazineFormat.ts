@@ -70,3 +70,14 @@ export function evalNumericEntry(input: string, current: number): number | null 
   const abs = s.match(/^-?\d+(?:\.\d+)?$/);
   return abs ? parseFloat(s) : null;
 }
+
+/** book side of a page (W2-10 verso/recto): verso=left, recto=right.
+ *  With a standalone cover: p1 recto(single), p2 verso, p3 recto, …
+ *  With a spread cover:     p1 verso, p2 recto, … */
+export function pageSide(pageNumber: number, coverMode: 'standalone' | 'spread' = 'standalone'): 'verso' | 'recto' {
+  if (coverMode !== 'spread') {
+    if (pageNumber <= 1) return 'recto';
+    return pageNumber % 2 === 0 ? 'verso' : 'recto';
+  }
+  return pageNumber % 2 === 1 ? 'verso' : 'recto';
+}

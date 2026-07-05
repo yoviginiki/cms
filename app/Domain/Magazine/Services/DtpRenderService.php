@@ -501,6 +501,15 @@ class DtpRenderService
      */
     public function renderMasterFrames(array $masterDef, MagazineDtpPage $page): array
     {
+        // verso/recto application: persisted page side (left=verso, right=recto;
+        // single pages count as recto)
+        $applies = $masterDef['_appliesTo'] ?? 'all';
+        if ($applies !== 'all') {
+            $side = $page->side === 'left' ? 'verso' : 'recto';
+            if ($side !== $applies) {
+                return [];
+            }
+        }
         $out = [];
         foreach (($masterDef['elements'] ?? []) as $el) {
             if (!is_array($el) || ($el['visible'] ?? true) === false) {

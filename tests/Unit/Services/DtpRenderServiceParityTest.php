@@ -234,6 +234,20 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringStartsWith('master-', $frames[0]['id']);
     }
 
+    public function test_master_verso_recto_application(): void
+    {
+        $svc = app(\App\Domain\Magazine\Services\DtpRenderService::class);
+        $masterDef = ['id' => 'm', '_appliesTo' => 'verso', 'elements' => [
+            ['id' => 'e', 'type' => 'running_header', 'data' => ['customText' => 'FOLIO'], 'x' => 0, 'y' => 0, 'width' => 100, 'height' => 20, 'zIndex' => 0],
+        ]];
+        $left = new MagazineDtpPage();
+        $left->forceFill(['page_index' => 1, 'width' => 595, 'height' => 842, 'side' => 'left']);
+        $right = new MagazineDtpPage();
+        $right->forceFill(['page_index' => 2, 'width' => 595, 'height' => 842, 'side' => 'right']);
+        $this->assertCount(1, $svc->renderMasterFrames($masterDef, $left));
+        $this->assertCount(0, $svc->renderMasterFrames($masterDef, $right));
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);
