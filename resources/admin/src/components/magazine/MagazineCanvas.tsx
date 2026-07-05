@@ -90,6 +90,8 @@ export function MagazineCanvas({
   const [pan, setPan] = useState({ x: 40, y: 40 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  // marquee drag (W2-6): page rect captured at start, coords page-local
+  const marqueeRef = useRef<{ rect: DOMRect; x0: number; y0: number } | null>(null);
 
   // Guide toggles — ONE source of truth: the store (audit W0-3). The top
   // toolbar (MagazineToolbar) writes these same flags, so both toolbars agree.
@@ -303,12 +305,33 @@ export function MagazineCanvas({
       return;
     }
 
-    // Select tool: clear selection
+    // Select tool on empty page: begin MARQUEE (click = clear on pointerup)
     exitEditing();
-    selection.clearSelection();
+    const pageEl = (e.target as HTMLElement).closest('[data-canvas="page"]') ||
+      (e.currentTarget as HTMLElement).querySelector('[data-canvas="page"]');
+    if (pageEl) {
+      const rect = (pageEl as HTMLElement).getBoundingClientRect();
+      const x0 = (e.clientX - rect.left) / zoom;
+      const y0 = (e.clientY - rect.top) / zoom;
+      marqueeRef.current = { rect, x0, y0 };
+      selection.setMarquee({ x: x0, y: y0, width: 0, height: 0 });
+      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+    } else {
+      selection.clearSelection();
+    }
   }, [selection, pan, zoom, onAddElement, exitEditing]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
+    if (marqueeRef.current) {
+      const { rect, x0, y0 } = marqueeRef.current;
+      const x1 = (e.clientX - rect.left) / zoom;
+      const y1 = (e.clientY - rect.top) / zoom;
+      selection.setMarquee({
+        x: Math.min(x0, x1), y: Math.min(y0, y1),
+        width: Math.abs(x1 - x0), height: Math.abs(y1 - y0),
+      });
+      return;
+    }
     if (isPanning && panStartRef.current) {
       setPan({
         x: panStartRef.current.panX + (e.clientX - panStartRef.current.x),
@@ -318,11 +341,27 @@ export function MagazineCanvas({
   }, [isPanning]);
 
   const handleCanvasPointerUp = useCallback(() => {
+    if (marqueeRef.current) {
+      const m = selection.marquee;
+      marqueeRef.current = null;
+      if (m && (m.width > 4 || m.height > 4)) {
+        const hit = elements
+          .filter(el => !el.locked && el.visible !== false &&
+            el.x < m.x + m.width && el.x + el.width > m.x &&
+            el.y < m.y + m.height && el.y + el.height > m.y)
+          .map(el => el.id);
+        selection.setSelectedIds(hit);
+      } else {
+        selection.clearSelection();
+      }
+      selection.setMarquee(null);
+      return;
+    }
     if (isPanning) {
       setIsPanning(false);
       panStartRef.current = null;
     }
-  }, [isPanning]);
+  }, [isPanning, selection, elements]);
 
   // Zoom with wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -730,7 +769,7 @@ export function MagazineCanvas({
               />
             ))}
 
-            {/* Marquee selection (future) */}
+            {/* Marquee selection (W2-6) */}
             {selection.marquee && (
               <div
                 style={{

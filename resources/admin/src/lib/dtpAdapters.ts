@@ -78,6 +78,22 @@ export function dtpApiToPages(apiData: any): MagPageData[] {
   });
 }
 
+/** merge a possibly-PARTIAL persisted style with defaults — a frame saved
+ *  with only { fill } previously crashed panels reading style.cornerRadius.tl */
+export function mergeElementStyle(raw: any): MagElement['style'] {
+  const d = DEFAULT_ELEMENT_STYLE;
+  if (!raw || typeof raw !== 'object' || Object.keys(raw).length === 0) {
+    return structuredClone(d);
+  }
+  return {
+    ...d,
+    ...raw,
+    fill: { ...d.fill, ...(raw.fill || {}) },
+    stroke: { ...d.stroke, ...(raw.stroke || {}) },
+    cornerRadius: { ...d.cornerRadius, ...(raw.cornerRadius || {}) },
+  };
+}
+
 export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
   const content = f.content || {};
   // metadata._magType restores the SPECIFIC editor type (circular_image,
@@ -154,7 +170,7 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     locked: f.locked === true,
     visible: f.visible !== false,
     layerName: null,
-    style: f.style && Object.keys(f.style).length > 0 ? f.style : { ...DEFAULT_ELEMENT_STYLE },
+    style: mergeElementStyle(f.style),
     typography: savedTypography ? { ...DEFAULT_TYPOGRAPHY, ...savedTypography } : (['text', 'quote', 'articleReference'].includes(f.frame_type) ? { ...DEFAULT_TYPOGRAPHY } : null),
     textWrap: f.metadata?._textWrap ? { ...DEFAULT_TEXT_WRAP, ...f.metadata._textWrap } : { ...DEFAULT_TEXT_WRAP },
     threadId: f.metadata?.threadId || null,

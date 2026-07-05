@@ -52,6 +52,8 @@ export function useMagSelection(
   const DRAG_DEAD_ZONE = 3; // px — must move this far before drag activates
   const resizeStartRef = useRef<{ x: number; y: number; origBounds: { x: number; y: number; w: number; h: number } } | null>(null);
   const rotationStartRef = useRef<{ startAngle: number; initialRotation: number; cx: number; cy: number; pageRect: DOMRect | null } | null>(null);
+  // alt+click = select-behind cycle; alt+drag = duplicate-and-drag (W2-6)
+  const altRef = useRef<{ stack: string[] } | null>(null);
 
   const select = useCallback((id: string, addToSelection = false) => {
     setState(s => ({
@@ -97,6 +99,22 @@ export function useMagSelection(
       return;
     }
 
+    if (e.altKey && !e.shiftKey) {
+      const pageEl = (e.currentTarget as HTMLElement).closest('[data-canvas="page"]');
+      const rect = pageEl?.getBoundingClientRect();
+      if (rect) {
+        const px = (e.clientX - rect.left) / zoom;
+        const py = (e.clientY - rect.top) / zoom;
+        const stack = elements
+          .filter(el2 => !el2.locked && px >= el2.x && px <= el2.x + el2.width && py >= el2.y && py <= el2.y + el2.height)
+          .sort((a, b) => b.zIndex - a.zIndex)
+          .map(el2 => el2.id);
+        altRef.current = stack.length > 1 ? { stack } : null;
+      }
+    } else {
+      altRef.current = null;
+    }
+
     const addToSelection = e.shiftKey;
     select(id, addToSelection);
 
@@ -122,6 +140,11 @@ export function useMagSelection(
       const dy = Math.abs(e.clientY - dragStartRef.current.y);
       if (dx > DRAG_DEAD_ZONE || dy > DRAG_DEAD_ZONE) {
         dragPendingRef.current = false;
+        // alt+drag = duplicate: leave copies behind, keep dragging the originals
+        if (altRef.current && dragStartRef.current) {
+          onDuplicateElements([...dragStartRef.current.origPositions.keys()]);
+          altRef.current = null;
+        }
         setState(s => ({ ...s, isDragging: true }));
       }
       return; // Don't move yet until drag is activated
@@ -204,6 +227,17 @@ export function useMagSelection(
 
   const handlePointerUp = useCallback(() => {
     dragPendingRef.current = false;
+
+    // alt+click without drag → cycle selection to the element BELOW (W2-6)
+    if (altRef.current && !state.isDragging && !state.isResizing && !state.isRotating) {
+      const stack = altRef.current.stack;
+      altRef.current = null;
+      const current = state.selectedIds[0];
+      const idx = stack.indexOf(current);
+      const next = stack[(idx + 1) % stack.length];
+      if (next) setState(s => ({ ...s, selectedIds: [next] }));
+      return;
+    }
 
     if (state.isDragging) {
       // Check if any selected element was dragged outside the current page bounds
@@ -301,10 +335,15 @@ export function useMagSelection(
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state.selectedIds, elements, onUpdateElement, onDeleteElements, onDuplicateElements, clearSelection, setTool, toggleSnap]);
 
+  const setSelectedIds = useCallback((ids: string[]) => { setState(s => ({ ...s, selectedIds: ids })); }, []);
+  const setMarquee = useCallback((m: SelectionState['marquee']) => { setState(s => ({ ...s, marquee: m })); }, []);
+
   const storeSnapEnabled = useMagazineStore((st) => st.snapEnabled);
   return {
     ...state,
     snapEnabled: storeSnapEnabled,
+    setSelectedIds,
+    setMarquee,
     select,
     clearSelection,
     setTool,

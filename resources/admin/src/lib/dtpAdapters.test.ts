@@ -132,6 +132,18 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect(pages[0].elements[0].type).toBe('circular_image');
   });
 
+  it('partial persisted styles merge with defaults (crash fix: cornerRadius.tl)', () => {
+    const payload = pagesToDtpApi([page([el({})])], [], [], {}, {});
+    // simulate a frame saved with ONLY a fill (the seeded-headline case)
+    (payload.frames as any[])[0].style = { fill: { color: '#ffffff' } };
+    const pages2 = dtpApiToPages(payload);
+    const st = pages2[0].elements[0].style;
+    expect(st.fill.color).toBe('#ffffff');
+    expect(st.cornerRadius.tl).toBe(0);
+    expect(st.stroke.width).toBe(0);
+    expect(st.opacity).toBe(1);
+  });
+
   it('page master assignment survives', () => {
     const { pages } = roundTrip([page([])]);
     expect(pages[0].masterPageId).toBe('master-a');
