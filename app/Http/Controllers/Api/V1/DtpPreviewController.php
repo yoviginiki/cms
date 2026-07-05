@@ -58,6 +58,23 @@ class DtpPreviewController extends Controller
         ]);
     }
 
+    /** ad-click counts per banner href (Issue tab report) */
+    public function adClicks(Site $site, MagazineIssue $issue)
+    {
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+
+        return response()->json([
+            'data' => \Illuminate\Support\Facades\DB::table('mag_ad_clicks')
+                ->where('issue_id', $issue->id)
+                ->selectRaw('href, count(*) as clicks, max(created_at) as last_click')
+                ->groupBy('href')
+                ->orderByDesc('clicks')
+                ->get(),
+        ]);
+    }
+
     /** standalone ZIP export — extract anywhere, reads without the CMS */
     public function zip(Site $site, MagazineIssue $issue, DtpZipService $zipService)
     {

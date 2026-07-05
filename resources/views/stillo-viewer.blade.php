@@ -167,7 +167,7 @@ body.sv-idle #sv-audio { opacity: .25; }
     <div class="sv-banner {{ $side }}">
         @foreach($sideB as $b)
             @if($b['href'])
-                <a href="{{ e($b['href']) }}" target="_blank" rel="noopener sponsored"><img src="{{ e($b['src']) }}" alt="{{ e($b['alt']) }}" loading="lazy"></a>
+                <a href="{{ e($b['href']) }}" target="_blank" rel="noopener sponsored" data-mag-ad="{{ e($b['href']) }}"><img src="{{ e($b['src']) }}" alt="{{ e($b['alt']) }}" loading="lazy"></a>
             @else
                 <img src="{{ e($b['src']) }}" alt="{{ e($b['alt']) }}" loading="lazy">
             @endif
@@ -427,6 +427,19 @@ body.sv-idle #sv-audio { opacity: .25; }
         load(0); sync();
     })();
     @endif
+
+    // paid-banner click beacon → CMS analytics (absolute URL so the
+    // standalone ZIP deployment still reports; silent on failure)
+    document.querySelectorAll('[data-mag-ad]').forEach(function (a) {
+        a.addEventListener('click', function () {
+            try {
+                navigator.sendBeacon(
+                    '{{ rtrim(config('app.url', 'https://sys.ensodo.eu'), '/') }}/api/v1/mag-metric',
+                    JSON.stringify({ issue: '{{ e($issue['id'] ?? '') }}', href: a.getAttribute('data-mag-ad') })
+                );
+            } catch (e3) { /* analytics never blocks the click */ }
+        });
+    });
 
     window.addEventListener('resize', render);
     render();

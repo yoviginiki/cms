@@ -347,6 +347,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-preview', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'preview']);
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-pdf', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'pdf']);
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-zip', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'zip']);
+            Route::get('sites/{site}/magazine-issues/{issue}/dtp-ad-clicks', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'adClicks']);
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-versions', [\App\Http\Controllers\Api\V1\DtpVersionController::class, 'index']);
             Route::post('sites/{site}/magazine-issues/{issue}/dtp-versions/{versionId}/restore', [\App\Http\Controllers\Api\V1\DtpVersionController::class, 'restore']);
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-preflight', [\App\Http\Controllers\Api\V1\DtpPreflightController::class, 'run']);
@@ -409,3 +410,34 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('debug/clear-cache', [\App\Http\Controllers\Api\V1\DebugController::class, 'clearCache']);
     });
 });
+
+// Magazine viewer ad-click beacon — PUBLIC (works from static/standalone
+// deployments), throttled, no PII. sendBeacon posts text/plain JSON.
+Route::post('mag-metric', function (\Illuminate\Http\Request $request) {
+    $raw = $request->getContent();
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        return response()->noContent();
+    }
+    $issueId = (string) ($data['issue'] ?? '');
+    $href = substr((string) ($data['href'] ?? ''), 0, 500);
+    if (!preg_match('/^[0-9a-f\-]{36}$/i', $issueId) || !preg_match('#^https?://#i', $href)) {
+        return response()->noContent();
+    }
+    try {
+        $tenant = \Illuminate\Support\Facades\DB::selectOne('SELECT tenant_id FROM magazine_issues WHERE id = ?', [$issueId]);
+        if ($tenant) {
+            $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->tenant_id);
+            \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
+            \Illuminate\Support\Facades\DB::table('mag_ad_clicks')->insert([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'issue_id' => $issueId,
+                'href' => $href,
+                'created_at' => now(),
+            ]);
+        }
+    } catch (\Throwable $e) {
+        // beacon must never error outward
+    }
+    return response()->noContent();
+})->middleware('throttle:60,1');

@@ -44,8 +44,9 @@ import { runPreflight } from '@/lib/magazinePreflight';
 import { findMatches, replaceInHtml } from '@/lib/magazineFindReplace';
 import { mapHeadingsToStyles, wordCount } from '@/lib/clipboardNormalizer';
 import { MagSwatchContext } from '@/components/magazine/SwatchPicker';
+import { AssetField } from '@/components/ui/AssetPicker';
 import { extractColorSwatches, DEFAULT_SWATCHES } from '@/lib/themeSwatches';
-import { themeEngine, assets as assetsApi } from '@/lib/api';
+import { themeEngine, assets as assetsApi, api } from '@/lib/api';
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -1197,9 +1198,8 @@ export default function DtpEditorBeta() {
                         </select>
                         <button className="btn btn-ghost btn-xs ml-auto text-error" onClick={() => { const nx = viewerSettings.side_banners.filter((_: any, j: number) => j !== i); setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}>×</button>
                       </div>
-                      <input name={`vs-banner-src-${i}`} type="text" value={b.src || ''} placeholder="Image URL (https://… or /media/…)"
-                        onChange={(e) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, src: e.target.value }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}
-                        className="input input-bordered input-xs w-full text-[10px]" />
+                      <AssetField label="" accept="image" value={b.src || ''}
+                        onChange={(url) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, src: url }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }} />
                       <input name={`vs-banner-href-${i}`} type="text" value={b.href || ''} placeholder="Click-through link (https://… — for paid ads)"
                         onChange={(e) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, href: e.target.value }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}
                         className="input input-bordered input-xs w-full text-[10px]" />
@@ -1207,6 +1207,9 @@ export default function DtpEditorBeta() {
                   ))}
                   <button className="btn btn-ghost btn-xs" onClick={() => { setViewerSettings(s => ({ ...s, side_banners: [...(s.side_banners || []), { side: 'right', src: '', href: '' }] })); store.setDirty(true); }}>+ Add banner</button>
                   <p className="text-[9px] text-base-content/30">Shown beside the magazine on wide screens; links open in a new tab (rel=sponsored).</p>
+                  {((viewerSettings.side_banners || []) as any[]).some((b) => b.href) && (
+                    <AdClicksReport siteId={siteId!} issueId={issueId!} />
+                  )}
                 </div>
 
                 {/* ─── Background audio (reader playlist) ─── */}
@@ -1225,9 +1228,8 @@ export default function DtpEditorBeta() {
                           <input name={`vs-track-title-${i}`} type="text" value={t.title || ''} placeholder="Title"
                             onChange={(e) => { const nx = [...viewerSettings.audio.tracks]; nx[i] = { ...t, title: e.target.value }; setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}
                             className="input input-bordered input-xs w-24 text-[10px]" />
-                          <input name={`vs-track-src-${i}`} type="text" value={t.src || ''} placeholder="MP3 URL"
-                            onChange={(e) => { const nx = [...viewerSettings.audio.tracks]; nx[i] = { ...t, src: e.target.value }; setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}
-                            className="input input-bordered input-xs flex-1 text-[10px]" />
+                          <div className="flex-1 min-w-0"><AssetField label="" accept="audio" value={t.src || ''}
+                            onChange={(url) => { const nx = [...viewerSettings.audio.tracks]; nx[i] = { ...t, src: url }; setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }} /></div>
                           <button className="btn btn-ghost btn-xs text-error" onClick={() => { const nx = viewerSettings.audio.tracks.filter((_: any, j: number) => j !== i); setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}>×</button>
                         </div>
                       ))}
@@ -1569,6 +1571,28 @@ function LargePasteDialog({ paste, onClose }: { paste: { html: string; elementId
           <button className="btn btn-primary btn-xs" onClick={insert}>Insert &amp; flow</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** paid-banner click counts (fed by the public viewer beacon) */
+function AdClicksReport({ siteId, issueId }: { siteId: string; issueId: string }) {
+  const { data } = useQuery({
+    queryKey: ['dtp-ad-clicks', siteId, issueId],
+    queryFn: () => api.get(`/sites/${siteId}/magazine-issues/${issueId}/dtp-ad-clicks`).then((r) => r.data),
+    staleTime: 60000,
+  });
+  const rows: any[] = data?.data || [];
+  if (!rows.length) return <p className="text-[9px] text-base-content/25">No banner clicks recorded yet.</p>;
+  return (
+    <div className="mt-1 space-y-0.5">
+      <h4 className="text-[9px] text-base-content/40 uppercase tracking-wider">Banner clicks</h4>
+      {rows.map((r) => (
+        <div key={r.href} className="flex items-center gap-1.5 text-[10px]">
+          <span className="font-mono text-primary shrink-0">{r.clicks}×</span>
+          <span className="truncate text-base-content/50" title={r.href}>{r.href.replace(/^https?:\/\//, '')}</span>
+        </div>
+      ))}
     </div>
   );
 }
