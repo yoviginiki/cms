@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatPageNumber, evalNumericEntry } from './magazineFormat';
 import { applyExtraSnaps } from './smartGuides';
+import { computeDisplayNumbers } from './magazineFormat';
 
 describe('formatPageNumber (W2-11)', () => {
   it('roman', () => {
@@ -49,5 +50,26 @@ describe('applyExtraSnaps (W2-1/2/3)', () => {
     const o = { ...base, snapGuides: false, snapBaseline: true };
     expect(applyExtraSnaps(10, 51, 40, 40, o).y).toBe(50);
     expect(applyExtraSnaps(10, 44, 40, 40, o).y).toBe(44);
+  });
+});
+
+describe('computeDisplayNumbers (W2-11 sections)', () => {
+  it('front matter roman, body restarts at 1', () => {
+    const pages = [
+      { pageNumber: 1, _section: { startAt: 1, format: 'roman-lower' } },
+      { pageNumber: 2 },
+      { pageNumber: 3, _section: { startAt: 1, format: 'decimal' } },
+      { pageNumber: 4 },
+      { pageNumber: 5 },
+    ];
+    const d = computeDisplayNumbers(pages as any);
+    expect(d[1]).toEqual({ n: 1, format: 'roman-lower' });
+    expect(d[2]).toEqual({ n: 2, format: 'roman-lower' });
+    expect(d[3]).toEqual({ n: 1, format: 'decimal' });
+    expect(d[5]).toEqual({ n: 3, format: 'decimal' });
+  });
+  it('no sections = plain sequence', () => {
+    const d = computeDisplayNumbers([{ pageNumber: 1 }, { pageNumber: 2 }] as any);
+    expect(d[2].n).toBe(2);
   });
 });

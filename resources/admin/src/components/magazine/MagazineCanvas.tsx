@@ -4,7 +4,7 @@ import type { MagPageData, MagElement } from '@/types/magazine';
 import { MagElementRenderer } from './MagElementRenderer';
 import { useMagSelection } from './MagSelectionEngine';
 import { useMagazineStore } from '@/stores/magazineStore';
-import { pageSide } from '@/lib/magazineFormat';
+import { pageSide, computeDisplayNumbers } from '@/lib/magazineFormat';
 // Threading engine disabled — Pour splits content at save time
 import {
   MousePointer2, Type, ImageIcon, Square, Circle, Minus,
@@ -718,7 +718,7 @@ export function MagazineCanvas({
                         <div style={{ position: 'absolute', inset: 0, zIndex: 9998, cursor: 'pointer' }} />
                       )}
 
-                      <div data-canvas="page" style={{ width: pgW, height: pgH, position: 'relative', background: pg.backgroundColor || '#ffffff', overflow: isBookSpread ? 'visible' : 'hidden' }}>
+                      <div data-canvas="page" style={{ width: pgW, height: pgH, position: 'relative', background: pg.backgroundColor || '#ffffff', overflow: previewMode && !isBookSpread ? 'hidden' : 'visible' }}>
                         {/* Spread image elements that span across both pages */}
                         {isLeftPage && spreadElements.map(el => (
                           <div key={`spread-${el.id}`} style={{
@@ -804,8 +804,9 @@ export function MagazineCanvas({
               if (applies !== 'all' && pageSide(page.pageNumber, coverMode) !== applies) return null;
               return masterPage.elements.map(mel => {
                 // Resolve dynamic page number
+                const disp = computeDisplayNumbers(allPages as any)[page.pageNumber];
                 const resolvedEl = mel.type === 'page_number'
-                  ? { ...mel, data: { ...mel.data, startAt: page.pageNumber } }
+                  ? { ...mel, data: { ...mel.data, startAt: disp?.n ?? page.pageNumber, format: (mel.data as any)?.format && (mel.data as any).format !== 'decimal' ? (mel.data as any).format : (disp?.format || 'decimal') } }
                   : mel;
                 return (
                   <div key={`master-${mel.id}`} style={{ position: 'absolute', left: mel.x || 0, top: mel.y || 0, width: mel.width || 100, height: mel.height || 20, zIndex: mel.zIndex || 0, opacity: 0.6, pointerEvents: 'none' }}>

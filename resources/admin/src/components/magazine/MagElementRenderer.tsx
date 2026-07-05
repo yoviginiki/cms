@@ -156,6 +156,27 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
   const renderContent = () => {
     const data = el.data as Record<string, any>;
 
+    if ((el.type === 'group' || el.type === 'clipping_group') && el.children.length > 0) {
+      // children keep ABSOLUTE page coords; offset into the group box
+      return (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          {el.children.map((c) => (
+            <div key={c.id} style={{ position: 'absolute', left: c.x - el.x, top: c.y - el.y, width: c.width, height: c.height }}>
+              <MagElementRenderer
+                element={{ ...c, x: 0, y: 0 }}
+                isSelected={false}
+                isHovered={false}
+                zoom={1}
+                onPointerDown={() => {}}
+                onDoubleClick={() => {}}
+                previewMode
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     if (TEXT_FRAME_TYPES.includes(el.type)) {
       const typo = el.typography;
       const cols = data.columnsInFrame || 1;

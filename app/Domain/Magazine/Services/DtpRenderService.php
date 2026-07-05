@@ -14,6 +14,9 @@ use App\Support\Blocks\BlockStyle;
  */
 class DtpRenderService
 {
+    /** page_id -> ['n' => displayNumber, 'format' => fmt] when sections exist */
+    private array $displayNumbers = [];
+
     /**
      * Sanitize HTML — strip to tag allowlist and remove all attributes
      * except href (http/https only) on <a> tags.
@@ -93,6 +96,28 @@ class DtpRenderService
             if (is_array($mp) && !empty($mp['id'])) {
                 $masterPagesById[$mp['id']] = $mp;
             }
+        }
+
+        // sections (W2-11): _section={startAt,format} on page metadata restarts
+        // display numbering from that page (front matter roman etc.)
+        $this->displayNumbers = [];
+        $hasSections = false;
+        $ordered = $pages->sortBy('page_index')->values();
+        $base = 1;
+        $baseIdx = 0;
+        $fmt = 'decimal';
+        foreach ($ordered as $idx => $p) {
+            $sec = is_array($p->metadata['_section'] ?? null) ? $p->metadata['_section'] : null;
+            if ($sec) {
+                $hasSections = true;
+                $base = max(1, (int) ($sec['startAt'] ?? 1));
+                $baseIdx = $idx;
+                $fmt = $sec['format'] ?? 'decimal';
+            }
+            $this->displayNumbers[$p->id] = ['n' => $base + ($idx - $baseIdx), 'format' => $fmt];
+        }
+        if (!$hasSections) {
+            $this->displayNumbers = [];
         }
 
         $renderedSpreads = [];
@@ -273,6 +298,7 @@ class DtpRenderService
 
         $magType = $metadata['_magType'] ?? null;
         $html = match (true) {
+            $magType === 'group' || $magType === 'clipping_group' => '', // container only — children publish flat
             $magType === 'table_frame' => $this->renderTableFrame($content),
             $magType === 'video_frame' => $this->renderVideoFrame($content),
             $magType === 'audio_player' => $this->renderAudioFrame($content),
@@ -420,9 +446,13 @@ class DtpRenderService
     {
         // W2-11: real formats (the audit found NO roman converter in the repo
         // and published page numbers ignored format/prefix/suffix entirely)
+        $sec = $this->displayNumbers[$page->id] ?? null;
         $startAt = max(1, (int) ($content['startAt'] ?? 1));
-        $n = $page->page_index + $startAt;
-        $formatted = match ($content['format'] ?? 'decimal') {
+        $n = $sec ? $sec['n'] : $page->page_index + $startAt;
+        $fmtChoice = ($content['format'] ?? 'decimal') !== 'decimal'
+            ? $content['format']
+            : ($sec['format'] ?? ($content['format'] ?? 'decimal'));
+        $formatted = match ($fmtChoice) {
             'roman-lower' => strtolower($this->toRoman($n)),
             'roman-upper' => $this->toRoman($n),
             'alpha-lower' => strtolower($this->toAlpha($n)),

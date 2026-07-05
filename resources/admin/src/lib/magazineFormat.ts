@@ -81,3 +81,25 @@ export function pageSide(pageNumber: number, coverMode: 'standalone' | 'spread' 
   }
   return pageNumber % 2 === 1 ? 'verso' : 'recto';
 }
+
+/** sections (W2-11): pages carry metadata _section={startAt,format} at section
+ *  starts; returns pageNumber -> {n, format} display numbering */
+export function computeDisplayNumbers(
+  pages: Array<{ pageNumber: number; isMaster?: boolean; _section?: { startAt?: number; format?: string } | null }>,
+): Record<number, { n: number; format: string }> {
+  const content = pages.filter((p) => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
+  const out: Record<number, { n: number; format: string }> = {};
+  let base = 1;
+  let baseIdx = 0;
+  let format = 'decimal';
+  content.forEach((p, idx) => {
+    const sec = (p as any)._section;
+    if (sec && (sec.startAt != null || sec.format)) {
+      base = Number(sec.startAt) >= 1 ? Number(sec.startAt) : 1;
+      baseIdx = idx;
+      format = sec.format || 'decimal';
+    }
+    out[p.pageNumber] = { n: base + (idx - baseIdx), format };
+  });
+  return out;
+}

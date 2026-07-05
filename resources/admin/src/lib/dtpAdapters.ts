@@ -58,7 +58,19 @@ export function dtpApiToPages(apiData: any): MagPageData[] {
       .filter((f: any) => f.page_id === p.id)
       .sort((a: any, b: any) => (a.z_index || 0) - (b.z_index || 0));
 
-    const elements: MagElement[] = pageFrames.map((f: any) => dtpFrameToElement(f, idx + 1));
+    const flat: MagElement[] = pageFrames.map((f: any) => dtpFrameToElement(f, idx + 1));
+    // reassemble groups from _parentGroupId
+    const byParent = new Map<string, MagElement[]>();
+    pageFrames.forEach((f: any, i: number) => {
+      const pid = f.metadata?._parentGroupId;
+      if (pid) {
+        if (!byParent.has(pid)) byParent.set(pid, []);
+        byParent.get(pid)!.push({ ...flat[i], parentId: pid });
+      }
+    });
+    const elements: MagElement[] = flat
+      .filter((_, i) => !pageFrames[i].metadata?._parentGroupId)
+      .map((el2) => (byParent.has(el2.id) ? { ...el2, children: byParent.get(el2.id)! } : el2));
 
     return {
       id: p.id,
@@ -75,6 +87,7 @@ export function dtpApiToPages(apiData: any): MagPageData[] {
       backgroundAssetId: null,
       elements,
       ...(p.metadata?._guides ? { _guides: p.metadata._guides } : {}),
+      ...(p.metadata?._section ? { _section: p.metadata._section } : {}),
     };
   });
 }
@@ -305,10 +318,10 @@ export function pagesToDtpApi(
       bleed: page.bleed,
       background: { color: page.backgroundColor || '#ffffff' },
       master_page_id: page.masterPageId || null,
-      metadata: stripUndefined({ _guides: (page as any)._guides }),
+      metadata: stripUndefined({ _guides: (page as any)._guides, _section: (page as any)._section }),
     });
 
-    page.elements.forEach(el => {
+    const emitFrame = (el: MagElement, parentGroupId: string | null) => {
       const frameType = REVERSE_TYPE_MAP[el.type] || 'text';
       const content: Record<string, unknown> = {};
 
@@ -396,9 +409,14 @@ export function pagesToDtpApi(
           _textWrap: el.textWrap && el.textWrap.type !== 'none' ? el.textWrap : undefined,
           _scaleX: el.scaleX !== 1 ? el.scaleX : undefined,
           _scaleY: el.scaleY !== 1 ? el.scaleY : undefined,
+          _parentGroupId: parentGroupId || undefined,
         }),
       });
-    });
+      // group children serialize FLAT (absolute coords) so publish renders
+      // them directly; the editor reassembles via _parentGroupId
+      el.children.forEach((c) => emitFrame(c, el.id));
+    };
+    page.elements.forEach(el => emitFrame(el, null));
   });
 
   return {

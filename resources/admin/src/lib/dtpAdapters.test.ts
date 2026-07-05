@@ -161,6 +161,29 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect((pages[0] as any)._guides).toEqual({ v: [120, 250.5], h: [400] });
   });
 
+  it('groups round-trip: children serialize flat and reassemble (W2)', () => {
+    const childA = el({ id: 'c-a', threadId: null, threadOrder: null, x: 20, y: 20 });
+    const childB = el({ id: 'c-b', type: 'rectangle', typography: null, threadId: null, threadOrder: null, x: 120, y: 40, data: { fillColor: '#ccc' } });
+    const grp = el({
+      id: 'g-1', type: 'group', typography: null, threadId: null, threadOrder: null,
+      x: 20, y: 20, width: 180, height: 100, data: { label: 'Group' },
+      children: [ { ...childA, parentId: 'g-1' }, { ...childB, parentId: 'g-1' } ],
+    });
+    const { payload, pages } = roundTrip([page([grp])]);
+    expect((payload.frames as any[]).length).toBe(3);
+    const out = pages[0].elements;
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('group');
+    expect(out[0].children).toHaveLength(2);
+    expect(out[0].children.map((c) => c.x).sort((x, y) => x - y)).toEqual([20, 120]);
+  });
+
+  it('sections round-trip via page metadata (W2-11)', () => {
+    const pg = { ...page([]), _section: { startAt: 1, format: 'roman-lower' } } as any;
+    const { pages } = roundTrip([pg]);
+    expect((pages[0] as any)._section).toEqual({ startAt: 1, format: 'roman-lower' });
+  });
+
   it('page master assignment survives', () => {
     const { pages } = roundTrip([page([])]);
     expect(pages[0].masterPageId).toBe('master-a');

@@ -97,6 +97,10 @@ interface MagazineActions {
   duplicateElements: (ids: string[]) => void;
   /** duplicate selection N times with a fixed offset (W2-6 step-and-repeat) */
   stepAndRepeat: (ids: string[], count: number, dx: number, dy: number) => void;
+  /** group/ungroup (W2 group): children keep ABSOLUTE coords; the group is a
+   *  bounding-box container element; moving/resizing it translates/scales them */
+  groupElements: (ids: string[]) => void;
+  ungroupElements: (groupId: string) => void;
   moveElementToPage: (elementId: string, fromPage: number, toPage: number, newX?: number, newY?: number) => void;
   continueTextToNextPage: (elementId: string) => void;
 
@@ -703,10 +707,33 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       if ('textWrap' in updates) triggerFlow = true;
     }
 
+    // groups: moving translates children; resizing scales them (children
+    // keep ABSOLUTE coordinates so publish stays flat and correct)
+    let groupPatch: Partial<MagElement> | null = null;
+    if (oldEl && (oldEl.type === 'group' || oldEl.type === 'clipping_group') && oldEl.children.length > 0) {
+      const nx = (updates.x ?? oldEl.x) as number;
+      const ny = (updates.y ?? oldEl.y) as number;
+      const nw = (updates.width ?? oldEl.width) as number;
+      const nh = (updates.height ?? oldEl.height) as number;
+      if (nx !== oldEl.x || ny !== oldEl.y || nw !== oldEl.width || nh !== oldEl.height) {
+        const sx = oldEl.width > 0 ? nw / oldEl.width : 1;
+        const sy = oldEl.height > 0 ? nh / oldEl.height : 1;
+        groupPatch = {
+          children: oldEl.children.map((c) => ({
+            ...c,
+            x: nx + (c.x - oldEl.x) * sx,
+            y: ny + (c.y - oldEl.y) * sy,
+            width: c.width * sx,
+            height: c.height * sy,
+          })),
+        };
+      }
+    }
+
     set((s) => ({
       pages: s.pages.map((p) =>
         findElementById(p.elements, id)
-          ? { ...p, elements: updateElementInList(p.elements, id, updates) }
+          ? { ...p, elements: updateElementInList(p.elements, id, groupPatch ? { ...updates, ...groupPatch } : updates) }
           : p,
       ),
       ...(invalidateStoryId
@@ -795,6 +822,55 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       selectedIds: newIds,
       isDirty: true,
     }));
+  },
+
+  groupElements(ids) {
+    if (ids.length < 2) return;
+    const state = get();
+    const page = getCurrentPage(state);
+    if (!page) return;
+    const members = page.elements.filter((e) => ids.includes(e.id) && !e.locked);
+    if (members.length < 2) return;
+    get().pushSnapshot();
+    const x0 = Math.min(...members.map((e) => e.x));
+    const y0 = Math.min(...members.map((e) => e.y));
+    const x1 = Math.max(...members.map((e) => e.x + e.width));
+    const y1 = Math.max(...members.map((e) => e.y + e.height));
+    const groupId = crypto.randomUUID();
+    const group: MagElement = {
+      ...makeDefaultElement('group', x0, y0, x1 - x0, y1 - y0, state.currentPageNumber,
+        Math.max(...members.map((e) => e.zIndex))),
+      id: groupId,
+      name: 'Group',
+      children: members.map((m) => ({ ...structuredClone(m), parentId: groupId })),
+    };
+    set((s2) => ({
+      pages: updateCurrentPageElements(s2.pages, s2.currentPageNumber, (els) => [
+        ...els.filter((e) => !ids.includes(e.id)),
+        group,
+      ]),
+      selectedIds: [groupId],
+      isDirty: true,
+    }));
+    get().pushDebugLog('group:create', 'store', { groupId, members: members.length });
+  },
+
+  ungroupElements(groupId) {
+    const state = get();
+    const page = getCurrentPage(state);
+    const group = page?.elements.find((e) => e.id === groupId && (e.type === 'group' || e.type === 'clipping_group'));
+    if (!page || !group || group.children.length === 0) return;
+    get().pushSnapshot();
+    const freed = group.children.map((c) => ({ ...structuredClone(c), parentId: null }));
+    set((s2) => ({
+      pages: updateCurrentPageElements(s2.pages, s2.currentPageNumber, (els) => [
+        ...els.filter((e) => e.id !== groupId),
+        ...freed,
+      ]),
+      selectedIds: freed.map((c) => c.id),
+      isDirty: true,
+    }));
+    get().pushDebugLog('group:ungroup', 'store', { groupId, freed: freed.length });
   },
 
   stepAndRepeat(ids, count, dx, dy) {

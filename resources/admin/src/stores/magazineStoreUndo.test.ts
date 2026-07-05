@@ -183,6 +183,35 @@ describe('magazineStore undo/redo (W0-5)', () => {
     expect(g.v).toEqual([]);
   });
 
+  it('group/ungroup: bounding box, child transforms, undo (W2)', () => {
+    const st = useMagazineStore.getState();
+    const a = st.addElement('rectangle', 10, 10, 50, 50);
+    const b = useMagazineStore.getState().addElement('rectangle', 100, 40, 40, 40);
+    useMagazineStore.getState().groupElements([a, b]);
+    let els = useMagazineStore.getState().pages[0].elements;
+    expect(els).toHaveLength(1);
+    const g = els[0];
+    expect(g.type).toBe('group');
+    expect([g.x, g.y, g.width, g.height]).toEqual([10, 10, 130, 70]);
+    expect(g.children).toHaveLength(2);
+    vi.setSystemTime(Date.now() + 1000);
+    useMagazineStore.getState().updateElement(g.id, { x: 110, y: 10 });
+    const g2 = useMagazineStore.getState().pages[0].elements[0];
+    expect(g2.children[0].x).toBe(110);
+    expect(g2.children[1].x).toBe(200);
+    vi.setSystemTime(Date.now() + 1000);
+    useMagazineStore.getState().updateElement(g.id, { width: 260 });
+    const g3 = useMagazineStore.getState().pages[0].elements[0];
+    expect(g3.children[1].x).toBe(290); // 110 + (200-110)*2
+    expect(g3.children[1].width).toBe(80);
+    useMagazineStore.getState().ungroupElements(g.id);
+    els = useMagazineStore.getState().pages[0].elements;
+    expect(els).toHaveLength(2);
+    expect(els.every((e) => e.parentId === null)).toBe(true);
+    useMagazineStore.getState().undo();
+    expect(useMagazineStore.getState().pages[0].elements).toHaveLength(1);
+  });
+
   it('setEditingMaster does not pollute history', () => {
     useMagazineStore.getState().addMasterPage('A');
     const depth = useMagazineStore.getState().undoStack.length;

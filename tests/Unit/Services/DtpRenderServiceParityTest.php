@@ -280,6 +280,20 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringContainsString('Intro &lt;x&gt;', $au['html']);
     }
 
+    public function test_sections_drive_published_page_numbers(): void
+    {
+        $svc = app(\App\Domain\Magazine\Services\DtpRenderService::class);
+        $prop = new \ReflectionProperty($svc, 'displayNumbers');
+        $prop->setAccessible(true);
+        $page = new MagazineDtpPage();
+        $page->forceFill(['id' => 'pg-9', 'page_index' => 8, 'width' => 595, 'height' => 842]);
+        $prop->setValue($svc, ['pg-9' => ['n' => 2, 'format' => 'roman-lower']]);
+        $m = new ReflectionMethod($svc, 'renderPageNumberFrame');
+        $m->setAccessible(true);
+        $html = $m->invoke($svc, $page, ['format' => 'decimal']);
+        $this->assertStringContainsString('>ii<', $html); // section wins over index
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

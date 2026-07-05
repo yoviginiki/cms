@@ -268,11 +268,13 @@ export function useMagSelection(
         if (el && !el.locked) {
           const centerX = el.x + el.width / 2;
 
-          if (centerX > pageWidth) {
+          // pasteboard (W2): a 140pt apron around the page is STAGING —
+          // only a drag far beyond it moves the element to the next page
+          if (centerX > pageWidth + 140) {
             // Dragged to the right — move to next page
             const newX = centerX - pageWidth - 24 / zoom; // account for page gap
             onMoveToPage(el.id, 'next', Math.max(0, newX - el.width / 2), el.y);
-          } else if (centerX < 0) {
+          } else if (centerX < -140) {
             // Dragged to the left — move to previous page
             const newX = pageWidth + centerX - 24 / zoom;
             onMoveToPage(el.id, 'prev', Math.max(0, newX - el.width / 2), el.y);
@@ -323,6 +325,18 @@ export function useMagSelection(
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          const sel = state.selectedIds[0];
+          const el2 = elements.find(x => x.id === sel);
+          if (el2 && (el2.type === 'group' || el2.type === 'clipping_group')) store.ungroupElements(sel);
+        } else if (state.selectedIds.length >= 2) {
+          store.groupElements(state.selectedIds);
+          setState(s2 => ({ ...s2, selectedIds: [] }));
+        }
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); store.copy(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') { e.preventDefault(); store.cut(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); store.paste(); return; }
