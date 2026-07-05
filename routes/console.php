@@ -20,14 +20,6 @@ Schedule::call(new \App\Domain\Publishing\Jobs\ProcessScheduledContentJob())
     ->everyMinute()
     ->withoutOverlapping();
 
-// Abandon stale wizard sessions (active > 14 days old)
-Schedule::call(function () {
-    \App\Models\Magazine\WizardSession::where('status', 'active')
-        ->where('updated_at', '<', now()->subDays(14))
-        ->update(['status' => 'abandoned']);
-})->name('wizard-session-cleanup')
-  ->daily();
-
 // Clean up stale editor presence records
 Schedule::call(function () {
     app(\App\Domain\Blocks\Services\EditorPresenceService::class)->cleanup();

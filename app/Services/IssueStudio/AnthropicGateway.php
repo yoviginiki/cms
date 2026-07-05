@@ -12,8 +12,7 @@ use RuntimeException;
  *
  * Raw HTTP (matches the codebase's existing AI clients), with prompt caching
  * via cache_control on system blocks and full usage capture including cache
- * read/write tokens. Old wizard clients (AnthropicClient, AiService) are
- * slated for Phase 6 removal — do not depend on them.
+ * read/write tokens.
  */
 class AnthropicGateway
 {

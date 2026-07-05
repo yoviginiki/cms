@@ -50,10 +50,8 @@ const Templates = lazy(() => import('./pages/Templates'));
 const TemplateEditor = lazy(() => import('./pages/TemplateEditor'));
 const DtpPrototypeShell = lazy(() => import('./components/magazine/prototypes/dtp/DtpPrototypeShell'));
 const DtpEditorBeta = lazy(() => import('./pages/DtpEditorBeta'));
-const SessionsListPage = lazy(() => import('./pages/wizard/SessionsListPage'));
 const IssueStudioListPage = lazy(() => import('./pages/issue-studio/IssueStudioListPage'));
 const IssueStudioPage = lazy(() => import('./pages/issue-studio/IssueStudioPage'));
-const WizardPage = lazy(() => import('./pages/wizard/WizardPage'));
 const StalePages = lazy(() => import('./pages/StalePages'));
 const SlidersList = lazy(() => import('./pages/SlidersList'));
 const SliderEditor = lazy(() => import('./pages/SliderEditor'));
@@ -95,8 +93,6 @@ export default function App() {
           <Route path="/sites/:siteId/magazines" element={<LayoutRoute><MagazineList /></LayoutRoute>} />
           <Route path="/sites/:siteId/issue-studio" element={<LayoutRoute><IssueStudioListPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/issue-studio/:id" element={<LayoutRoute><IssueStudioPage /></LayoutRoute>} />
-          <Route path="/sites/:siteId/magazine/wizard" element={<LayoutRoute><SessionsListPage /></LayoutRoute>} />
-          <Route path="/sites/:siteId/magazine/wizard/:id" element={<WizardPage />} />
           <Route path="/sites/:siteId/magazines/:magazineId/edit" element={<FrozenLegacyEditor />} />
           <Route path="/sites/:siteId/categories" element={<LayoutRoute><Categories /></LayoutRoute>} />
           <Route path="/sites/:siteId/tags" element={<LayoutRoute><Tags /></LayoutRoute>} />

@@ -10,11 +10,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
 
-/**
- * Route parameter is {studioSession} (not {session}) because the legacy
- * wizard registered a global Route::model('session', WizardSession::class)
- * binding that hijacks the shorter name until Phase 6 removes it.
- */
 class IssueStudioController extends Controller
 {
     public function __construct(

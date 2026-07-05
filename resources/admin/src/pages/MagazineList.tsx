@@ -90,7 +90,7 @@ export default function MagazineList() {
           <p className="mt-0.5 text-[13px] text-base-content/40">Create and manage flipbook magazines</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate(`/sites/${siteId}/magazine/wizard`)}
+          <button onClick={() => navigate(`/sites/${siteId}/issue-studio`)}
             className="btn btn-ghost btn-sm text-[12px] gap-1.5 text-primary">
             AI compose issue
           </button>

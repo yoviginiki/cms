@@ -251,8 +251,6 @@ class AppServiceProvider extends ServiceProvider
         // Explicit route model bindings for non-standard model locations
         Route::model('themeTemplate', ThemeTemplate::class);
         Route::model('issue', \App\Domain\IssueComposer\Models\MagazineIssue::class);
-        Route::model('item', \App\Domain\IssueComposer\Models\IssueContentItem::class);
-        Route::model('session', \App\Models\Magazine\WizardSession::class);
 
         Gate::policy(Site::class, SitePolicy::class);
         Gate::policy(Page::class, PagePolicy::class);
@@ -261,6 +259,5 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Asset::class, AssetPolicy::class);
         Gate::policy(Block::class, BlockPolicy::class);
         Gate::policy(Tag::class, TagPolicy::class);
-        Gate::policy(\App\Models\Magazine\WizardSession::class, \App\Policies\Magazine\WizardSessionPolicy::class);
     }
 }

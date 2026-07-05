@@ -22,7 +22,6 @@ use App\Http\Controllers\Api\V1\MenuController;
 use App\Http\Controllers\Api\V1\EditorPresenceController;
 use App\Http\Controllers\Api\V1\MagEditorController;
 use App\Http\Controllers\Api\V1\MagStyleController;
-use App\Http\Controllers\Magazine\WizardController;
 use Illuminate\Support\Facades\Route;
 
 // Auth routes
@@ -168,19 +167,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Magazine Styles
         Route::apiResource('sites.magazine-styles', MagStyleController::class)->parameters(['magazine-styles' => 'style']);
 
-        // Issue Composer
-
-        // Magazine Wizard
-        Route::post('magazine/wizard/sessions', [WizardController::class, 'store']);
-        Route::get('magazine/wizard/sessions', [WizardController::class, 'index']);
-        Route::get('magazine/wizard/sessions/{session}', [WizardController::class, 'show']);
-        Route::delete('magazine/wizard/sessions/{session}', [WizardController::class, 'destroy']);
-        Route::post('magazine/wizard/sessions/{session}/messages', [WizardController::class, 'sendMessage']);
-        Route::post('magazine/wizard/sessions/{session}/lock', [WizardController::class, 'lockStep']);
-        Route::post('magazine/wizard/sessions/{session}/unlock', [WizardController::class, 'unlockStep']);
-        Route::post('magazine/wizard/sessions/{session}/provision', [WizardController::class, 'provision']);
-
-        // Issue Studio (conversational magazine wizard — replaces the old wizard)
+        // Issue Studio (conversational magazine wizard — replaced the legacy Issue Composer wizard)
         Route::middleware('role:admin')->prefix('issue-studio')->group(function () {
             Route::get('sessions', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'index']);
             Route::post('sessions', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'store']);
@@ -233,7 +220,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Publishing
         // Starter templates
-        // Available themes (for wizard — system themes)
+        // Available themes (system themes — used by Dashboard)
         Route::get('available-themes', function () {
             $themes = \App\Models\Theme::where('is_system', true)
                 ->select('id', 'name', 'slug', 'description', 'modes')
