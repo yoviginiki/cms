@@ -25,10 +25,12 @@ function isMsoListParagraph(el: Element): boolean {
 /** effective bold/italic from inline style (Google Docs uses styled spans) */
 function styleFlags(el: Element): { bold: boolean; italic: boolean; normal: boolean } {
   const st = (el.getAttribute('style') || '').toLowerCase();
+  // (?:^|[;\s]) boundary: 'mso-bidi-font-weight:normal' must NOT count as
+  // font-weight — real Word bold is <b style='mso-bidi-font-weight:normal'>
   return {
-    bold: /font-weight\s*:\s*(bold|[7-9]00)/.test(st),
-    italic: /font-style\s*:\s*italic/.test(st),
-    normal: /font-weight\s*:\s*(normal|400)/.test(st),
+    bold: /(?:^|[;\s])font-weight\s*:\s*(bold|[7-9]00)/.test(st),
+    italic: /(?:^|[;\s])font-style\s*:\s*italic/.test(st),
+    normal: /(?:^|[;\s])font-weight\s*:\s*(normal|400)/.test(st),
   };
 }
 
@@ -166,6 +168,27 @@ function cleanBlock(el: Element, doc: Document, blocks: Element[], pending: Node
     return;
   }
 
+  // real figures keep their img + caption structure (W1-11 supports them)
+  if (tag === 'FIGURE') {
+    const img = el.querySelector('img[src^="http"], img[src^="https"]');
+    const cap = el.querySelector('figcaption');
+    if (img) {
+      const fig = doc.createElement('figure');
+      const im = doc.createElement('img');
+      im.setAttribute('src', img.getAttribute('src') || '');
+      if (img.getAttribute('alt')) im.setAttribute('alt', img.getAttribute('alt')!);
+      fig.appendChild(im);
+      const capText = (cap?.textContent || '').trim();
+      if (capText) {
+        const fc = doc.createElement('figcaption');
+        fc.textContent = capText;
+        fig.appendChild(fc);
+      }
+      blocks.push(fig);
+      return;
+    }
+  }
+
   // p / h1-h6 / blockquote / li / figure / figcaption
   const inline: Node[] = [];
   el.childNodes.forEach((c) => {
@@ -211,4 +234,33 @@ export function plainTextToHtml(text: string): string {
     .filter(Boolean)
     .map((para) => `<p>${para.split(/\r?\n/).map(esc).join('<br>')}</p>`)
     .join('');
+}
+
+/** Session E large-paste: word count of normalized html */
+export function wordCount(html: string): number {
+  return html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+}
+
+/** apply a paragraph style's typography as inline styles on chosen heading
+ *  levels (self-contained: publishes correctly with no style registry) */
+export function mapHeadingsToStyles(
+  html: string,
+  mapping: Record<string, { properties: Record<string, any> } | null | undefined>,
+): string {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  for (const [level, style] of Object.entries(mapping)) {
+    if (!style) continue;
+    const t = style.properties || {};
+    const css: string[] = [];
+    if (t.fontFamily) css.push(`font-family:${t.fontFamily}`);
+    if (t.fontSize) css.push(`font-size:${t.fontSize}px`);
+    if (t.fontWeight) css.push(`font-weight:${t.fontWeight}`);
+    if (t.lineHeight) css.push(`line-height:${t.lineHeight}`);
+    if (t.textColor) css.push(`color:${t.textColor}`);
+    if (t.letterSpacing) css.push(`letter-spacing:${t.letterSpacing}em`);
+    if (t.textTransform) css.push(`text-transform:${t.textTransform}`);
+    if (!css.length) continue;
+    doc.body.querySelectorAll(level.toLowerCase()).forEach((h) => h.setAttribute('style', css.join(';')));
+  }
+  return doc.body.innerHTML;
 }

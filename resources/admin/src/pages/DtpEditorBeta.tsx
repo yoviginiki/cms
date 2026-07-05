@@ -42,9 +42,10 @@ import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/
 import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from '@/lib/dtpAdapters';
 import { runPreflight } from '@/lib/magazinePreflight';
 import { findMatches, replaceInHtml } from '@/lib/magazineFindReplace';
+import { mapHeadingsToStyles, wordCount } from '@/lib/clipboardNormalizer';
 import { MagSwatchContext } from '@/components/magazine/SwatchPicker';
 import { extractColorSwatches, DEFAULT_SWATCHES } from '@/lib/themeSwatches';
-import { themeEngine } from '@/lib/api';
+import { themeEngine, assets as assetsApi } from '@/lib/api';
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -234,10 +235,47 @@ export default function DtpEditorBeta() {
   const [lastAutosave, setLastAutosave] = useState<string | null>(null);
   const [findOpen, setFindOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Session E: pasted/dropped images go through the asset pipeline (server
+  // does WebP variants) and land as image frames — not ignored, not base64.
+  const handleImageFile = useCallback(async (file: File, x = 60, y = 60) => {
+    try {
+      const res = await assetsApi.upload(siteId!, file);
+      const asset = res.data?.data || res.data;
+      if (!asset?.id) return;
+      const st = useMagazineStore.getState();
+      const id = st.addElement('image_frame', x, y, 280, 200);
+      const el = useMagazineStore.getState().pages.flatMap(p => p.elements).find(e2 => e2.id === id);
+      useMagazineStore.getState().updateElement(id, {
+        data: { ...(el?.data || {}), src: `/api/v1/sites/${siteId}/assets/${asset.id}/serve`, alt: file.name.replace(/\.[a-z0-9]+$/i, ''), fit: 'cover' },
+      } as any);
+    } catch (err) {
+      console.error('image upload failed', err);
+    }
+  }, [siteId]);
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (document.querySelector('[data-editing-id]')) return; // inline editor owns paste while typing
+      const file = Array.from(e.clipboardData?.files || []).find(f => f.type.startsWith('image/'));
+      if (file) {
+        e.preventDefault();
+        handleImageFile(file);
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [handleImageFile]);
   useEffect(() => {
     const open = () => setShortcutsOpen(true);
     window.addEventListener('mag:shortcuts', open);
     return () => window.removeEventListener('mag:shortcuts', open);
+  }, []);
+  const [largePaste, setLargePaste] = useState<{ html: string; elementId: string } | null>(null);
+  useEffect(() => {
+    const onLarge = (e: Event) => setLargePaste((e as CustomEvent).detail);
+    window.addEventListener('mag:large-paste', onLarge);
+    return () => window.removeEventListener('mag:large-paste', onLarge);
   }, []);
   // theme-token swatches (W3): the site's real palette for every color field
   const { data: themesData } = useQuery({
@@ -518,6 +556,7 @@ export default function DtpEditorBeta() {
       />
       {findOpen && <FindReplacePanel onClose={() => setFindOpen(false)} />}
       {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
+      {largePaste && <LargePasteDialog paste={largePaste} onClose={() => setLargePaste(null)} />}
 
       {/* ─── DTP Status + Save error ─── */}
       {saveError && (
@@ -619,6 +658,7 @@ export default function DtpEditorBeta() {
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
           oversetThreads={store.oversetThreads}
           onNavigateThread={(pageNumber, frameId) => { store.setCurrentPage(pageNumber); store.selectElement(frameId); }}
+          onImageDrop={(file, x, y) => handleImageFile(file, x, y)}
           onMoveToPage={(elementId, direction, newX, newY) => {
             const currentPageNum = store.currentPageNumber;
             const contentPages = store.pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
@@ -1465,6 +1505,65 @@ function ShortcutSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <p className="text-[9px] text-base-content/30 mt-4">In the reader: ← → turn pages, F fullscreen. Press ? anytime to reopen this sheet.</p>
+      </div>
+    </div>
+  );
+}
+
+/** Session E: big pastes get options instead of a raw dump. */
+function LargePasteDialog({ paste, onClose }: { paste: { html: string; elementId: string }; onClose: () => void }) {
+  const store = useMagazineStore();
+  const paraStyles = store.styles.filter((st) => st.type === 'paragraph');
+  const [columns, setColumns] = useState<number>(0); // 0 = keep frame setting
+  const [map, setMap] = useState<Record<string, string>>({ h1: '', h2: '', h3: '' });
+  const words = useMemo(() => wordCount(paste.html), [paste.html]);
+
+  const insert = () => {
+    const el = store.pages.flatMap((p) => p.elements).find((e) => e.id === paste.elementId);
+    if (!el) return onClose();
+    const mapping: Record<string, any> = {};
+    for (const lvl of ['h1', 'h2', 'h3']) {
+      const st = paraStyles.find((ps) => ps.id === map[lvl]);
+      if (st) mapping[lvl] = st;
+    }
+    const mapped = Object.keys(mapping).length ? mapHeadingsToStyles(paste.html, mapping) : paste.html;
+    const data: any = { ...el.data, content: String((el.data as any)?.content || '') + mapped };
+    if (columns > 0) data.columnsInFrame = columns;
+    store.updateElement(el.id, { data } as any);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10006] bg-black/50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-base-100 border border-base-300 rounded-lg shadow-2xl p-5 w-[420px]" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-sm font-semibold mb-1">Large paste — {words.toLocaleString()} words</h2>
+        <p className="text-[10px] text-base-content/40 mb-3">The story will flow through the frame and auto-paginate onto new pages.</p>
+        <div className="space-y-2">
+          <div>
+            <label htmlFor="lp-columns" className="text-[10px] text-base-content/40 block mb-0.5">Columns in this frame</label>
+            <select id="lp-columns" name="lp-columns" className="select select-bordered select-xs w-40"
+              value={columns} onChange={(e) => setColumns(Number(e.target.value))}>
+              <option value={0}>Keep current</option>
+              <option value={1}>1 column</option>
+              <option value={2}>2 columns</option>
+              <option value={3}>3 columns</option>
+            </select>
+          </div>
+          {paraStyles.length > 0 && (['h1', 'h2', 'h3'] as const).map((lvl) => (
+            <div key={lvl}>
+              <label htmlFor={`lp-map-${lvl}`} className="text-[10px] text-base-content/40 block mb-0.5">Map {lvl.toUpperCase()} headings to</label>
+              <select id={`lp-map-${lvl}`} name={`lp-map-${lvl}`} className="select select-bordered select-xs w-40"
+                value={map[lvl]} onChange={(e) => setMap((m) => ({ ...m, [lvl]: e.target.value }))}>
+                <option value="">Keep as-is</option>
+                {paraStyles.map((ps) => <option key={ps.id} value={ps.id}>{ps.name}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button className="btn btn-ghost btn-xs" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary btn-xs" onClick={insert}>Insert &amp; flow</button>
+        </div>
       </div>
     </div>
   );

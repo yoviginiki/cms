@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
-import { normalizeClipboardHtml, plainTextToHtml } from '@/lib/clipboardNormalizer';
+import { normalizeClipboardHtml, plainTextToHtml, wordCount } from '@/lib/clipboardNormalizer';
 import { formatPageNumber } from '@/lib/magazineFormat';
 
 const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img', 'figure', 'figcaption'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
@@ -221,7 +221,14 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
               e.preventDefault();
               e.stopPropagation();
               const clean = rawHtml ? normalizeClipboardHtml(rawHtml) : plainTextToHtml(rawText);
-              if (clean) document.execCommand('insertHTML', false, clean);
+              if (!clean) return;
+              // Session E: BIG pastes go through the large-paste dialog
+              // (heading→style mapping, column choice) instead of raw insert
+              if (wordCount(clean) > 1500) {
+                window.dispatchEvent(new CustomEvent('mag:large-paste', { detail: { html: clean, elementId: el.id } }));
+                return;
+              }
+              document.execCommand('insertHTML', false, clean);
             }}
             onKeyDown={(e) => {
               // Let Escape propagate to exit editing, stop everything else

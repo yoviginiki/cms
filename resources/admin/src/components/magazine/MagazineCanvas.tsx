@@ -29,6 +29,8 @@ interface MagazineCanvasProps {
   onPageClick?: (pageNumber: number) => void;
   onContinueText?: (elementId: string) => void;
   onMoveToPage?: (elementId: string, direction: 'prev' | 'next', newX: number, newY: number) => void;
+  /** Session E: image file dropped on the page → upload + place a frame */
+  onImageDrop?: (file: File, x: number, y: number) => void;
   onToggleFixed?: (elementId: string, mode: 'free' | 'fixed') => void;
   onToggleSpan?: (elementId: string, mode: 'page' | 'spread') => void;
   onEditingChange?: (editingId: string | null) => void;
@@ -76,7 +78,7 @@ export function MagazineCanvas({
   onSelectElement,
   onPageClick,
   onContinueText,
-  onMoveToPage,
+  onMoveToPage, onImageDrop,
   onEditingChange,
   startEditingId,
   layoutMode = 'single',
@@ -602,6 +604,17 @@ export function MagazineCanvas({
         onPointerUp={handleCanvasPointerUp}
         onWheel={handleWheel}
         onContextMenu={handleContextMenu}
+        onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) e.preventDefault(); }}
+        onDrop={(e) => {
+          const file = Array.from(e.dataTransfer?.files || []).find(f => f.type.startsWith('image/'));
+          if (!file || !onImageDrop) return;
+          e.preventDefault();
+          const pageEl = viewportRef.current?.querySelector('[data-canvas="page"]');
+          const r = pageEl?.getBoundingClientRect();
+          const x = r ? (e.clientX - r.left) / zoom : 60;
+          const y = r ? (e.clientY - r.top) / zoom : 60;
+          onImageDrop(file, Math.max(0, x), Math.max(0, y));
+        }}
       >
         {/* Rulers (W2-1) — drag OUT of a ruler to create a guide */}
         {!previewMode && (
