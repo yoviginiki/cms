@@ -104,6 +104,8 @@ body.sv-started:not(.sv-idle):hover #sv-top { opacity: 1; transform: none; }
     transition: opacity .45s, transform .45s;
 }
 body.sv-idle #sv-ctl { opacity: 0; transform: translate(-50%, 10px); pointer-events: none; }
+body.sv-idle #sv-ctl:focus-within { opacity: 1; transform: translateX(-50%); pointer-events: auto; }
+#sv-ctl button:focus-visible, #sv-audio button:focus-visible { outline: 2px solid var(--sv-arrow); outline-offset: 2px; }
 #sv-ctl button {
     background: none; border: 0; cursor: pointer; color: var(--sv-arrow);
     width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
@@ -160,13 +162,13 @@ body.sv-idle #sv-audio { opacity: .25; }
     @endif
 @endforeach
 
-<div id="sv-stage"><div id="sv-book"></div></div>
+<main id="sv-stage" aria-label="{{ e($issue['title'] ?? 'Magazine') }}"><div id="sv-book"></div></main>
 
 {{-- all pages rendered ONCE; JS moves them between layouts (scroll readable without JS) --}}
 <noscript><style>#sv-pages{display:block!important} .sv-page{margin:20px auto}</style></noscript>
 <div id="sv-pages" style="display:none">
 @foreach($allPages as $p)
-    <div class="sv-page" data-idx="{{ $p['index'] }}" style="{{ $p['style'] }}">
+    <div class="sv-page" data-idx="{{ $p['index'] }}" role="region" aria-label="Page {{ $p['index'] + 1 }} of {{ count($allPages) }}" style="{{ $p['style'] }}">
         @foreach($p['frames'] as $f)
             <div class="sv-frame" style="{{ $f['style'] }}">{!! $f['html'] !!}</div>
         @endforeach
@@ -175,24 +177,24 @@ body.sv-idle #sv-audio { opacity: .25; }
 </div>
 
 <div id="sv-ctl">
-    <button id="sv-prev" title="Previous page (←)"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <span id="sv-info"></span>
-    <button id="sv-next" title="Next page (→)"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button id="sv-prev" title="Previous page (←)" aria-label="Previous page"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span id="sv-info" aria-live="polite" role="status"></span>
+    <button id="sv-next" title="Next page (→)" aria-label="Next page"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
     <span class="sv-sep"></span>
-    <button class="mode" data-mode="scroll" title="Vertical scroll"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/></svg></button>
-    <button class="mode" data-mode="book" title="Book (page flip)"><svg viewBox="0 0 24 24"><path d="M12 5c-2-1.5-5-2-8-2v16c3 0 6 .5 8 2 2-1.5 5-2 8-2V3c-3 0-6 .5-8 2zM12 5v16"/></svg></button>
-    <button class="mode" data-mode="presentation" title="Presentation"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="1"/><path d="M12 17v3M8 21h8"/></svg></button>
+    <button class="mode" data-mode="scroll" title="Vertical scroll" aria-label="Vertical scroll mode"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/></svg></button>
+    <button class="mode" data-mode="book" title="Book (page flip)" aria-label="Book mode with page flip"><svg viewBox="0 0 24 24"><path d="M12 5c-2-1.5-5-2-8-2v16c3 0 6 .5 8 2 2-1.5 5-2 8-2V3c-3 0-6 .5-8 2zM12 5v16"/></svg></button>
+    <button class="mode" data-mode="presentation" title="Presentation" aria-label="Presentation mode"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="1"/><path d="M12 17v3M8 21h8"/></svg></button>
     <span class="sv-sep"></span>
-    <button id="sv-fs" title="Fullscreen (F)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button id="sv-fs" title="Fullscreen (F)" aria-label="Toggle fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 </div>
 
 @if($audioOn)
 <div id="sv-audio">
-    <button id="sv-au-play" title="Play / pause">
+    <button id="sv-au-play" title="Play / pause" aria-label="Play or pause audio">
         <svg id="sv-au-i-play" viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;stroke:none"><path d="M7 4l12 8-12 8z"/></svg>
         <svg id="sv-au-i-pause" viewBox="0 0 24 24" style="display:none;width:16px;height:16px;fill:currentColor;stroke:none"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
     </button>
-    <button id="sv-au-next" title="Next track"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;stroke:none"><path d="M5 4l10 8-10 8zM17 4h2v16h-2z"/></svg></button>
+    <button id="sv-au-next" title="Next track" aria-label="Next track"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;stroke:none"><path d="M5 4l10 8-10 8zM17 4h2v16h-2z"/></svg></button>
     <span class="tt" id="sv-au-title"></span>
     <audio id="sv-au"></audio>
 </div>
@@ -234,7 +236,7 @@ body.sv-idle #sv-audio { opacity: .25; }
     function render() {
         book.innerHTML = '';
         document.body.className = 'sv-mode-' + mode + (document.body.classList.contains('sv-idle') ? ' sv-idle' : '') + (document.body.classList.contains('sv-started') ? ' sv-started' : '');
-        document.querySelectorAll('#sv-ctl .mode').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); });
+        document.querySelectorAll('#sv-ctl .mode').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); b.setAttribute('aria-pressed', b.dataset.mode === mode ? 'true' : 'false'); });
         if (mode === 'scroll') {
             var sc = fitScale(1);
             pages.forEach(function (p) {

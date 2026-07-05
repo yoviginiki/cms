@@ -127,7 +127,11 @@ class DtpRenderService
             $renderedPages = [];
 
             foreach ($spreadPages as $page) {
-                $pageFrames = $frames->where('page_id', $page->id)->sortBy('z_index');
+                // a11y (M-I): DOM order = READING order (top-to-bottom, then
+                // left-to-right) so screen readers narrate sensibly; visual
+                // stacking is unaffected — every frame has an explicit z-index.
+                $pageFrames = $frames->where('page_id', $page->id)
+                    ->sortBy(fn ($f) => [round((float) $f->y), round((float) $f->x)]);
                 $renderedFrames = [];
                 $hasSpreadImage = false;
 

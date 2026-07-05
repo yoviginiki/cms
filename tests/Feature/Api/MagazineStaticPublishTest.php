@@ -68,6 +68,30 @@ class MagazineStaticPublishTest extends TestCase
         $this->assertStringContainsString('The Static Quarterly', $html);
     }
 
+    public function test_dom_order_is_reading_order_while_zindex_stacks(): void
+    {
+        // a frame at the TOP of the page with the HIGHEST z-index must come
+        // FIRST in the DOM (screen-reader order) and keep z-index for stacking
+        $issue = $this->makeIssue('published');
+        $page = MagazineDtpPage::where('issue_id', $issue->id)->first();
+        MagazineFrame::where('issue_id', $issue->id)->delete();
+        MagazineFrame::create([
+            'issue_id' => $issue->id, 'page_id' => $page->id, 'frame_type' => 'text',
+            'x' => 36, 'y' => 400, 'width' => 300, 'height' => 100, 'z_index' => 1,
+            'content' => ['html' => '<p>SECOND IN READING ORDER</p>'],
+        ]);
+        MagazineFrame::create([
+            'issue_id' => $issue->id, 'page_id' => $page->id, 'frame_type' => 'text',
+            'x' => 36, 'y' => 40, 'width' => 300, 'height' => 100, 'z_index' => 9,
+            'content' => ['html' => '<p>FIRST IN READING ORDER</p>'],
+        ]);
+        $data = app(\App\Domain\Magazine\Services\DtpRenderService::class)->render($issue);
+        $frames = $data['spreads'][0]['pages'][0]['frames'];
+        $this->assertStringContainsString('FIRST IN READING ORDER', $frames[0]['html']);
+        $this->assertStringContainsString('SECOND IN READING ORDER', $frames[1]['html']);
+        $this->assertStringContainsString('z-index:9', $frames[0]['style']);
+    }
+
     public function test_draft_issues_are_not_published(): void
     {
         $this->makeIssue('draft');
