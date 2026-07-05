@@ -16,7 +16,10 @@ export default defineConfig({
   root: __dirname,
   build: {
     outDir: path.resolve(__dirname, '../../public/admin-assets'),
-    emptyOutDir: true,
+    // keep previous builds' hashed chunks: open admin tabs lazy-load chunks
+    // AFTER a redeploy — emptying the dir 404'd every stale session
+    // (clean old chunks periodically: find assets -mtime +30 -delete)
+    emptyOutDir: false,
     manifest: true,
     rollupOptions: {
       input: path.resolve(__dirname, 'index.html'),
