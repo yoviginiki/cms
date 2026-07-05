@@ -25,10 +25,12 @@ function isMsoListParagraph(el: Element): boolean {
 /** effective bold/italic from inline style (Google Docs uses styled spans) */
 function styleFlags(el: Element): { bold: boolean; italic: boolean; normal: boolean } {
   const st = (el.getAttribute('style') || '').toLowerCase();
+  // (?:^|[;\s]) boundary: 'mso-bidi-font-weight:normal' must NOT count as
+  // font-weight — real Word bold is <b style='mso-bidi-font-weight:normal'>
   return {
-    bold: /font-weight\s*:\s*(bold|[7-9]00)/.test(st),
-    italic: /font-style\s*:\s*italic/.test(st),
-    normal: /font-weight\s*:\s*(normal|400)/.test(st),
+    bold: /(?:^|[;\s])font-weight\s*:\s*(bold|[7-9]00)/.test(st),
+    italic: /(?:^|[;\s])font-style\s*:\s*italic/.test(st),
+    normal: /(?:^|[;\s])font-weight\s*:\s*(normal|400)/.test(st),
   };
 }
 
@@ -166,6 +168,27 @@ function cleanBlock(el: Element, doc: Document, blocks: Element[], pending: Node
     return;
   }
 
+  // real figures keep their img + caption structure (W1-11 supports them)
+  if (tag === 'FIGURE') {
+    const img = el.querySelector('img[src^="http"], img[src^="https"]');
+    const cap = el.querySelector('figcaption');
+    if (img) {
+      const fig = doc.createElement('figure');
+      const im = doc.createElement('img');
+      im.setAttribute('src', img.getAttribute('src') || '');
+      if (img.getAttribute('alt')) im.setAttribute('alt', img.getAttribute('alt')!);
+      fig.appendChild(im);
+      const capText = (cap?.textContent || '').trim();
+      if (capText) {
+        const fc = doc.createElement('figcaption');
+        fc.textContent = capText;
+        fig.appendChild(fc);
+      }
+      blocks.push(fig);
+      return;
+    }
+  }
+
   // p / h1-h6 / blockquote / li / figure / figcaption
   const inline: Node[] = [];
   el.childNodes.forEach((c) => {
@@ -180,10 +203,20 @@ function cleanBlock(el: Element, doc: Document, blocks: Element[], pending: Node
 
   let outTag = tag.toLowerCase();
   if (tag === 'LI' || tag === 'FIGCAPTION') outTag = 'p'; // stray li/caption
-  if (isMsoListParagraph(el)) outTag = 'p';
+  let msoListKind: 'ol' | 'ul' | null = null;
+  if (isMsoListParagraph(el)) {
+    // Word fakes lists as paragraphs with a literal "1." / "·" marker span
+    // (mso-list:Ignore). Detect the kind from the marker, DROP the marker,
+    // and emit a real <li>; runs of them group into <ol>/<ul> afterwards.
+    const markerText = (inline.length && inline[0].textContent) || '';
+    msoListKind = /^\s*\d+[.)]/.test(markerText) ? 'ol' : 'ul';
+    if (/^\s*(\d+[.)]|[·•o§-])/.test(markerText)) inline.shift(); // remove marker node
+    outTag = 'li';
+  }
   if (isHeading) outTag = tag.toLowerCase();
   const block = doc.createElement(outTag);
   inline.forEach((n) => block.appendChild(n));
+  if (msoListKind) block.setAttribute('data-mso-list', msoListKind);
   if ((block.textContent || '').trim() || block.querySelector('img')) blocks.push(block);
 }
 
@@ -199,7 +232,25 @@ export function normalizeClipboardHtml(html: string): string {
     else if (c.nodeType === Node.ELEMENT_NODE) cleanBlock(c as Element, doc, blocks, pending);
   });
   pushParagraph(doc, blocks, pending.splice(0));
-  return blocks.map((b) => b.outerHTML).join('');
+
+  // group consecutive Word list items into real <ol>/<ul>
+  const out: Element[] = [];
+  let run: Element | null = null;
+  for (const b of blocks) {
+    const kind = b.getAttribute('data-mso-list');
+    if (kind) {
+      b.removeAttribute('data-mso-list');
+      if (!run || run.tagName.toLowerCase() !== kind) {
+        run = doc.createElement(kind);
+        out.push(run);
+      }
+      run.appendChild(b);
+    } else {
+      run = null;
+      out.push(b);
+    }
+  }
+  return out.map((b) => b.outerHTML).join('');
 }
 
 /** plain-text paste: blank line = paragraph, single newline = <br> */
@@ -211,4 +262,33 @@ export function plainTextToHtml(text: string): string {
     .filter(Boolean)
     .map((para) => `<p>${para.split(/\r?\n/).map(esc).join('<br>')}</p>`)
     .join('');
+}
+
+/** Session E large-paste: word count of normalized html */
+export function wordCount(html: string): number {
+  return html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+}
+
+/** apply a paragraph style's typography as inline styles on chosen heading
+ *  levels (self-contained: publishes correctly with no style registry) */
+export function mapHeadingsToStyles(
+  html: string,
+  mapping: Record<string, { properties: Record<string, any> } | null | undefined>,
+): string {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  for (const [level, style] of Object.entries(mapping)) {
+    if (!style) continue;
+    const t = style.properties || {};
+    const css: string[] = [];
+    if (t.fontFamily) css.push(`font-family:${t.fontFamily}`);
+    if (t.fontSize) css.push(`font-size:${t.fontSize}px`);
+    if (t.fontWeight) css.push(`font-weight:${t.fontWeight}`);
+    if (t.lineHeight) css.push(`line-height:${t.lineHeight}`);
+    if (t.textColor) css.push(`color:${t.textColor}`);
+    if (t.letterSpacing) css.push(`letter-spacing:${t.letterSpacing}em`);
+    if (t.textTransform) css.push(`text-transform:${t.textTransform}`);
+    if (!css.length) continue;
+    doc.body.querySelectorAll(level.toLowerCase()).forEach((h) => h.setAttribute('style', css.join(';')));
+  }
+  return doc.body.innerHTML;
 }

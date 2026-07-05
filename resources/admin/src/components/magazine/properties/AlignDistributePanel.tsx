@@ -57,7 +57,7 @@ export default function AlignDistributePanel({ onAlign, onDistribute, alignToPag
       </div>
 
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-aligndistributepanel-1"
           type="checkbox"
           checked={alignToPage}
           onChange={onToggleAlignToPage}

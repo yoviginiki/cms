@@ -14,6 +14,12 @@ use App\Support\Blocks\BlockStyle;
  */
 class DtpRenderService
 {
+    /** page_id -> ['n' => displayNumber, 'format' => fmt] when sections exist */
+    private array $displayNumbers = [];
+
+    /** frame_id -> shim html for visible runaround (rebuilt per page) */
+    private array $wrapShims = [];
+
     /**
      * Sanitize HTML — strip to tag allowlist and remove all attributes
      * except href (http/https only) on <a> tags.
@@ -85,6 +91,38 @@ class DtpRenderService
         $pages = MagazineDtpPage::where('issue_id', $issue->id)->orderBy('page_index')->get();
         $frames = MagazineFrame::where('issue_id', $issue->id)->where('visible', true)->orderBy('z_index')->get();
 
+        // Masters v2 (W2-10): persisted master pages (layout_final.masterPages,
+        // editor schema) composite UNDER page frames on every assigned page —
+        // one implementation feeds preview, public viewer AND PDF export.
+        $masterPagesById = [];
+        foreach (($issue->layout_final['masterPages'] ?? []) as $mp) {
+            if (is_array($mp) && !empty($mp['id'])) {
+                $masterPagesById[$mp['id']] = $mp;
+            }
+        }
+
+        // sections (W2-11): _section={startAt,format} on page metadata restarts
+        // display numbering from that page (front matter roman etc.)
+        $this->displayNumbers = [];
+        $hasSections = false;
+        $ordered = $pages->sortBy('page_index')->values();
+        $base = 1;
+        $baseIdx = 0;
+        $fmt = 'decimal';
+        foreach ($ordered as $idx => $p) {
+            $sec = is_array($p->metadata['_section'] ?? null) ? $p->metadata['_section'] : null;
+            if ($sec) {
+                $hasSections = true;
+                $base = max(1, (int) ($sec['startAt'] ?? 1));
+                $baseIdx = $idx;
+                $fmt = $sec['format'] ?? 'decimal';
+            }
+            $this->displayNumbers[$p->id] = ['n' => $base + ($idx - $baseIdx), 'format' => $fmt];
+        }
+        if (!$hasSections) {
+            $this->displayNumbers = [];
+        }
+
         $renderedSpreads = [];
 
         foreach ($spreads as $spread) {
@@ -92,9 +130,35 @@ class DtpRenderService
             $renderedPages = [];
 
             foreach ($spreadPages as $page) {
-                $pageFrames = $frames->where('page_id', $page->id)->sortBy('z_index');
+                // a11y (M-I): DOM order = READING order (top-to-bottom, then
+                // left-to-right) so screen readers narrate sensibly; visual
+                // stacking is unaffected — every frame has an explicit z-index.
+                $pageFrames = $frames->where('page_id', $page->id)
+                    ->sortBy(fn ($f) => [round((float) $f->y), round((float) $f->x)]);
                 $renderedFrames = [];
                 $hasSpreadImage = false;
+
+                // master-on-master ([pro]): walk the base chain, rendering
+                // base masters FIRST so derived masters layer on top.
+                if ($page->master_page_id) {
+                    $chain = [];
+                    $seen = [];
+                    $cur = $page->master_page_id;
+                    for ($d = 0; $d < 4 && $cur && !isset($seen[$cur]) && isset($masterPagesById[$cur]); $d++) {
+                        $seen[$cur] = true;
+                        array_unshift($chain, $masterPagesById[$cur]);
+                        $cur = $masterPagesById[$cur]['basedOnMasterId'] ?? null;
+                    }
+                    foreach ($chain as $masterDef) {
+                        foreach ($this->renderMasterFrames($masterDef, $page) as $mf) {
+                            $renderedFrames[] = $mf;
+                        }
+                    }
+                }
+
+                // visible runaround ([pro]): shape-outside shims for
+                // single-column text frames — mirrors lib/contourTrace.ts
+                $this->wrapShims = $this->computeWrapShims($pageFrames);
 
                 foreach ($pageFrames as $frame) {
                     $renderedFrames[] = $this->renderFrame($frame, $page);
@@ -254,15 +318,24 @@ class DtpRenderService
             }
         }
 
-        $html = match ($type) {
-            'text' => $this->renderTextFrame($content),
+        $magType = $metadata['_magType'] ?? null;
+        $shimHtml = $this->wrapShims[$frame->id] ?? '';
+        $html = match (true) {
+            $magType === 'group' || $magType === 'clipping_group' => '', // container only — children publish flat
+            $magType === 'table_frame' => $this->renderTableFrame($content),
+            $magType === 'text_path' => $this->renderTextPathFrame($content, $frame),
+            $magType === 'video_frame' => $this->renderVideoFrame($content),
+            $magType === 'audio_player' => $this->renderAudioFrame($content),
+            default => match ($type) {
+            'text' => $this->injectShims($shimHtml, $this->renderTextFrame($content)),
             'image' => $this->renderImageFrame($content),
             'quote' => $this->renderQuoteFrame($content),
-            'pageNumber' => $this->renderPageNumberFrame($page),
+            'pageNumber' => $this->renderPageNumberFrame($page, $content),
             'shape' => $this->renderShapeFrame($content),
             'line' => '<hr style="border:none;border-top:1px solid #333;margin:0;">',
             'decorative' => '<div style="width:100%;height:100%;"></div>',
             default => '<div></div>',
+            },
         };
 
         // W1-6 vertical alignment + W1-8 drop caps — must match the editor
@@ -310,6 +383,118 @@ class DtpRenderService
     {
         $adminUrl = rtrim(config('app.url', 'https://sys.ensodo.eu'), '/');
         return preg_replace('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $adminUrl . '/media/$1/$2', $html) ?: $html;
+    }
+
+    /** prepend float shims INSIDE the text flow container */
+    private function injectShims(string $shimHtml, string $html): string
+    {
+        if ($shimHtml === '') {
+            return $html;
+        }
+        $pos = strpos($html, '>');
+
+        return $pos === false ? $html : substr($html, 0, $pos + 1) . $shimHtml . substr($html, $pos + 1);
+    }
+
+    /**
+     * Visible runaround for single-column text frames (mirrors
+     * resources/admin/src/lib/contourTrace.ts computeWrapShims): float shims
+     * with shape-outside polygons — traced bands for object-shape, one band
+     * for bounding-box.
+     */
+    private function computeWrapShims($pageFrames): array
+    {
+        $out = [];
+        $frames = collect($pageFrames)->values();
+        foreach ($frames as $tf) {
+            if (($tf->frame_type->value ?? $tf->frame_type) !== 'text') {
+                continue;
+            }
+            $c = is_array($tf->content) ? $tf->content : [];
+            if ((int) ($c['columnsInFrame'] ?? 1) !== 1) {
+                continue;
+            }
+            $inset = is_array($c['textInset'] ?? null) ? $c['textInset'] : ['top' => 0, 'right' => 0, 'bottom' => 0, 'left' => 0];
+            $ax = (float) $tf->x + (float) ($inset['left'] ?? 0);
+            $ay = (float) $tf->y + (float) ($inset['top'] ?? 0);
+            $aw = (float) $tf->width - (float) ($inset['left'] ?? 0) - (float) ($inset['right'] ?? 0);
+            $ah = (float) $tf->height - (float) ($inset['top'] ?? 0) - (float) ($inset['bottom'] ?? 0);
+            if ($aw <= 0 || $ah <= 0) {
+                continue;
+            }
+            $shims = '';
+            foreach ($frames as $o) {
+                if ($o->id === $tf->id) {
+                    continue;
+                }
+                $wrap = $o->metadata['_textWrap'] ?? null;
+                if (!is_array($wrap) || !in_array($wrap['type'] ?? '', ['bounding-box', 'object-shape'], true)) {
+                    continue;
+                }
+                $off = is_array($wrap['offset'] ?? null) ? $wrap['offset'] : [];
+                $margin = max(0, (float) ($off['top'] ?? 0), (float) ($off['right'] ?? 0), (float) ($off['bottom'] ?? 0), (float) ($off['left'] ?? 0));
+                $ix = (float) $o->x - $ax;
+                $iy = (float) $o->y - $ay;
+                $iw = (float) $o->width;
+                $ih = (float) $o->height;
+                if ($ix - $margin >= $aw || $ix + $iw + $margin <= 0 || $iy - $margin >= $ah || $iy + $ih + $margin <= 0) {
+                    continue;
+                }
+                $side = ($ix + $iw / 2 <= $aw / 2) ? 'left' : 'right';
+                $shimW = min($aw, max(0, $side === 'left' ? $ix + $iw + $margin : $aw - $ix + $margin));
+                $shimH = min($ah, max(0, $iy + $ih + $margin));
+                if ($shimW < 2 || $shimH < 2) {
+                    continue;
+                }
+                $bands = ($wrap['type'] === 'object-shape' && !empty($wrap['customPath']['bands']) && is_array($wrap['customPath']['bands']))
+                    ? $wrap['customPath']['bands']
+                    : [['y0' => 0, 'y1' => $ih, 'x0' => 0, 'x1' => $iw]];
+                $shimX0 = $side === 'left' ? 0 : $aw - $shimW;
+                $pts = [];
+                $cl = fn ($v, $max) => max(0, min($max, round($v * 10) / 10));
+                $shimBands = [];
+                foreach ($bands as $b) {
+                    $sb = [
+                        'y0' => $iy + (float) $b['y0'] - $margin,
+                        'y1' => $iy + (float) $b['y1'] + $margin,
+                        'x0' => $ix + (float) $b['x0'] - $margin - $shimX0,
+                        'x1' => $ix + (float) $b['x1'] + $margin - $shimX0,
+                    ];
+                    if ($sb['y1'] > 0 && $sb['y0'] < $shimH) {
+                        $shimBands[] = $sb;
+                    }
+                }
+                if (!$shimBands) {
+                    continue;
+                }
+                if ($side === 'left') {
+                    $pts[] = '0px 0px';
+                    foreach ($shimBands as $b) {
+                        $x = $cl($b['x1'], $shimW);
+                        $pts[] = "{$x}px {$cl($b['y0'], $shimH)}px";
+                        $pts[] = "{$x}px {$cl($b['y1'], $shimH)}px";
+                    }
+                    $pts[] = '0px ' . $cl(end($shimBands)['y1'], $shimH) . 'px';
+                } else {
+                    $pts[] = "{$shimW}px 0px";
+                    foreach ($shimBands as $b) {
+                        $x = $cl($b['x0'], $shimW);
+                        $pts[] = "{$x}px {$cl($b['y0'], $shimH)}px";
+                        $pts[] = "{$x}px {$cl($b['y1'], $shimH)}px";
+                    }
+                    $pts[] = "{$shimW}px " . $cl(end($shimBands)['y1'], $shimH) . 'px';
+                }
+                $poly = 'polygon(' . implode(', ', $pts) . ')';
+                $w2 = round($shimW * 10) / 10;
+                $h2 = round($shimH * 10) / 10;
+                $shims .= "<div style=\"float:{$side};width:{$w2}px;height:{$h2}px;shape-outside:{$poly};pointer-events:none;\" aria-hidden=\"true\"></div>";
+            }
+            if ($shims !== '') {
+                $out[$tf->id] = $shims;
+            }
+        }
+
+        return $out;
     }
 
     private function renderTextFrame(array $content): string
@@ -393,10 +578,146 @@ class DtpRenderService
         return $out;
     }
 
-    private function renderPageNumberFrame(MagazineDtpPage $page): string
+    private function renderPageNumberFrame(MagazineDtpPage $page, array $content = []): string
     {
-        $num = $page->page_index + 1;
-        return '<span style="font-size:11px;font-family:monospace;color:#999;">' . $num . '</span>';
+        // W2-11: real formats (the audit found NO roman converter in the repo
+        // and published page numbers ignored format/prefix/suffix entirely)
+        $sec = $this->displayNumbers[$page->id] ?? null;
+        $startAt = max(1, (int) ($content['startAt'] ?? 1));
+        $n = $sec ? $sec['n'] : $page->page_index + $startAt;
+        $fmtChoice = ($content['format'] ?? 'decimal') !== 'decimal'
+            ? $content['format']
+            : ($sec['format'] ?? ($content['format'] ?? 'decimal'));
+        $formatted = match ($fmtChoice) {
+            'roman-lower' => strtolower($this->toRoman($n)),
+            'roman-upper' => $this->toRoman($n),
+            'alpha-lower' => strtolower($this->toAlpha($n)),
+            'alpha-upper' => $this->toAlpha($n),
+            default => (string) $n,
+        };
+        $prefix = e((string) ($content['prefix'] ?? ''));
+        $suffix = e((string) ($content['suffix'] ?? ''));
+
+        return '<span style="font-size:11px;color:#666;">' . $prefix . $formatted . $suffix . '</span>';
+    }
+
+    private function toRoman(int $n): string
+    {
+        $table = [1000 => 'M', 900 => 'CM', 500 => 'D', 400 => 'CD', 100 => 'C', 90 => 'XC',
+            50 => 'L', 40 => 'XL', 10 => 'X', 9 => 'IX', 5 => 'V', 4 => 'IV', 1 => 'I'];
+        $out = '';
+        foreach ($table as $val => $sym) {
+            while ($n >= $val) {
+                $out .= $sym;
+                $n -= $val;
+            }
+        }
+        return $out;
+    }
+
+    private function toAlpha(int $n): string
+    {
+        $out = '';
+        while ($n > 0) {
+            $n--;
+            $out = chr(65 + ($n % 26)) . $out;
+            $n = intdiv($n, 26);
+        }
+        return $out;
+    }
+
+    /** real <table> output (tables track) — mirrors the editor's render */
+    private function renderTableFrame(array $content): string
+    {
+        $headers = is_array($content['tableHeaders'] ?? null) ? $content['tableHeaders'] : ['Col 1', 'Col 2'];
+        $rows = is_array($content['tableRows'] ?? null) ? $content['tableRows'] : [];
+        $border = BlockStyle::safeColor($content['tableBorderColor'] ?? '#e5e7eb') ?: '#e5e7eb';
+        $stripes = ($content['tableStripes'] ?? true) !== false;
+
+        $cellBase = "border:1px solid {$border};padding:4px 6px;";
+        $out = '<table style="width:100%;border-collapse:collapse;font-size:11px;color:#1a1a1a;"><thead><tr>';
+        foreach ($headers as $h) {
+            $out .= '<th style="' . $cellBase . 'text-align:left;font-weight:600;background:#f6f5f2;">' . e((string) $h) . '</th>';
+        }
+        $out .= '</tr></thead><tbody>';
+        foreach ($rows as $ri => $row) {
+            $rowStyle = $stripes && $ri % 2 === 1 ? ' style="background:#fafaf8;"' : '';
+            $out .= '<tr' . $rowStyle . '>';
+            foreach ($headers as $ci => $unused) {
+                $cell = is_array($row) ? ($row[$ci] ?? '') : '';
+                $out .= '<td style="' . $cellBase . '">' . e((string) $cell) . '</td>';
+            }
+            $out .= '</tr>';
+        }
+        $out .= '</tbody></table>';
+
+        return $out;
+    }
+
+    /** text-on-path ([pro]): SVG textPath — presets mirror lib/textPathPresets.ts */
+    private function renderTextPathFrame(array $content, $frame): string
+    {
+        $w = max(1, (float) $frame->width);
+        $h = max(1, (float) $frame->height);
+        $preset = (string) ($content['pathPreset'] ?? 'arc-up');
+        $d = match ($preset) {
+            'arc-down' => sprintf('M 0 %.1f Q %.1f %.1f %.1f %.1f', 0.2 * $h, 0.5 * $w, 1.4 * $h, $w, 0.2 * $h),
+            'circle' => (function () use ($w, $h) {
+                $r = min($w, $h) / 2 - 2;
+                $cx = $w / 2;
+                $cy = $h / 2;
+
+                return sprintf('M %.1f %.1f A %.1f %.1f 0 1 1 %.2f %.1f', $cx, $cy - $r, $r, $r, $cx - 0.01, $cy - $r);
+            })(),
+            'wave' => sprintf('M 0 %.1f C %.1f %.1f %.1f %.1f %.1f %.1f', 0.5 * $h, 0.25 * $w, 0.1 * $h, 0.75 * $w, 0.9 * $h, $w, 0.5 * $h),
+            default => sprintf('M 0 %.1f Q %.1f %.1f %.1f %.1f', 0.8 * $h, 0.5 * $w, -0.4 * $h, $w, 0.8 * $h),
+        };
+        $typo = is_array($frame->metadata['_typography'] ?? null) ? $frame->metadata['_typography'] : [];
+        $fontFamily = e((string) ($typo['fontFamily'] ?? 'Inter'));
+        $fontSize = (float) ($typo['fontSize'] ?? 18);
+        $weight = e((string) ($typo['fontWeight'] ?? 600));
+        $fill = preg_match('/^#[0-9a-fA-F]{3,8}$/', $typo['textColor'] ?? '') ? $typo['textColor'] : '#111111';
+        $offset = max(0, min(90, (float) ($content['pathStartOffset'] ?? 0)));
+        $pid = 'tp-' . substr(md5($frame->id), 0, 8);
+        $text = e((string) ($content['pathText'] ?? ''));
+
+        return '<svg width="100%" height="100%" viewBox="0 0 ' . $w . ' ' . $h . '" style="overflow:visible;display:block;">'
+            . '<path id="' . $pid . '" d="' . e($d) . '" fill="none"></path>'
+            . '<text style="font-family:' . $fontFamily . ';font-size:' . $fontSize . 'px;font-weight:' . $weight . ';fill:' . $fill . ';">'
+            . '<textPath href="#' . $pid . '" startOffset="' . $offset . '%">' . $text . '</textPath></text></svg>';
+    }
+
+    /** embedded video (YouTube/Vimeo privacy iframes; direct files as <video>) */
+    private function renderVideoFrame(array $content): string
+    {
+        $url = (string) ($content['videoUrl'] ?? '');
+        if (!preg_match('#^https?://#i', $url)) {
+            return '<div style="width:100%;height:100%;background:#111;color:#777;display:flex;align-items:center;justify-content:center;font-size:11px;">No video</div>';
+        }
+        if (preg_match('#(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{6,20})#', $url, $m)) {
+            return '<iframe src="https://www.youtube-nocookie.com/embed/' . e($m[1]) . '" style="width:100%;height:100%;border:0;" allow="encrypted-media;picture-in-picture;fullscreen" loading="lazy" title="Video"></iframe>';
+        }
+        if (preg_match('#vimeo\.com/(\d{6,12})#', $url, $m)) {
+            return '<iframe src="https://player.vimeo.com/video/' . e($m[1]) . '?dnt=1" style="width:100%;height:100%;border:0;" allow="fullscreen;picture-in-picture" loading="lazy" title="Video"></iframe>';
+        }
+        if (preg_match('#\.(mp4|webm|ogg)(\?|$)#i', $url)) {
+            return '<video controls preload="metadata" style="width:100%;height:100%;object-fit:contain;background:#000;" src="' . e($url) . '"></video>';
+        }
+        return '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;background:#111;color:#9cf;font-size:12px;">▶ Watch video</a>';
+    }
+
+    /** in-page audio element */
+    private function renderAudioFrame(array $content): string
+    {
+        $url = (string) ($content['audioUrl'] ?? '');
+        $ok = preg_match('#^https?://#i', $url) || str_starts_with($url, '/');
+        $title = e((string) ($content['audioTitle'] ?? 'Audio'));
+        if (!$ok) {
+            return '<div style="width:100%;height:100%;background:#f4f2ec;color:#999;display:flex;align-items:center;justify-content:center;font-size:11px;">No audio</div>';
+        }
+        return '<div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px;box-sizing:border-box;">'
+            . '<span style="font-size:11px;font-weight:600;">' . $title . '</span>'
+            . '<audio controls preload="none" style="width:100%;" src="' . e($url) . '"></audio></div>';
     }
 
     private function renderShapeFrame(array $content): string
@@ -404,6 +725,106 @@ class DtpRenderService
         $fill = BlockStyle::safeColor($content['fillColor'] ?? '#e5e7eb') ?: '#e5e7eb';
         $radius = max(0, min(9999, (int) ($content['cornerRadius'] ?? 0)));
         return '<div style="width:100%;height:100%;background:' . $fill . ';border-radius:' . $radius . 'px;"></div>';
+    }
+
+    /**
+     * Render a persisted master page's elements (EDITOR MagElement schema)
+     * for one concrete page, by converting each to an unpersisted frame and
+     * reusing renderFrame. Page numbers resolve to the actual page.
+     * @return list<array>
+     */
+    public function renderMasterFrames(array $masterDef, MagazineDtpPage $page): array
+    {
+        // verso/recto application: persisted page side (left=verso, right=recto;
+        // single pages count as recto)
+        $applies = $masterDef['_appliesTo'] ?? 'all';
+        if ($applies !== 'all') {
+            $side = $page->side === 'left' ? 'verso' : 'recto';
+            if ($side !== $applies) {
+                return [];
+            }
+        }
+        $out = [];
+        foreach (($masterDef['elements'] ?? []) as $el) {
+            if (!is_array($el) || ($el['visible'] ?? true) === false) {
+                continue;
+            }
+            $frame = $this->masterElementToFrame($el);
+            if ($frame === null) {
+                continue;
+            }
+            $rendered = $this->renderFrame($frame, $page);
+            $rendered['id'] = 'master-' . ($el['id'] ?? uniqid());
+            $rendered['fromMaster'] = true;
+            $out[] = $rendered;
+        }
+
+        return $out;
+    }
+
+    /** convert an editor MagElement array to an unpersisted MagazineFrame */
+    private function masterElementToFrame(array $el): ?MagazineFrame
+    {
+        $type = (string) ($el['type'] ?? '');
+        $map = [
+            'text_frame' => 'text', 'headline_frame' => 'text', 'caption_frame' => 'text',
+            'footnote_frame' => 'text', 'marginalia_frame' => 'text', 'running_header' => 'text',
+            'pullquote_frame' => 'quote', 'page_number' => 'pageNumber',
+            'decorative_rule' => 'shape', 'rectangle' => 'shape', 'line' => 'line',
+            'image_frame' => 'image', 'fullbleed_image' => 'image',
+        ];
+        if (!isset($map[$type])) {
+            return null;
+        }
+        $data = is_array($el['data'] ?? null) ? $el['data'] : [];
+        $content = [];
+        switch ($map[$type]) {
+            case 'text':
+            case 'quote':
+                $content['html'] = $type === 'running_header'
+                    ? '<p>' . e((string) ($data['customText'] ?? '')) . '</p>'
+                    : (string) ($data['content'] ?? '');
+                if (isset($data['columnsInFrame'])) $content['columnsInFrame'] = $data['columnsInFrame'];
+                if (isset($data['columnGap'])) $content['columnGap'] = $data['columnGap'];
+                if (isset($data['textInset'])) $content['textInset'] = $data['textInset'];
+                break;
+            case 'pageNumber':
+                $content = [
+                    'format' => $data['format'] ?? 'decimal',
+                    'prefix' => $data['prefix'] ?? '',
+                    'suffix' => $data['suffix'] ?? '',
+                    'startAt' => $data['startAt'] ?? 1,
+                ];
+                break;
+            case 'shape':
+                $content['fillColor'] = $data['strokeColor'] ?? $data['fillColor'] ?? '#e5e7eb';
+                break;
+            case 'image':
+                $content['src'] = $data['src'] ?? '';
+                $content['alt'] = $data['alt'] ?? '';
+                $content['fitMode'] = $data['fit'] ?? 'fill';
+                $content['focalPoint'] = $data['focalPoint'] ?? ['x' => 0.5, 'y' => 0.5];
+                break;
+        }
+
+        $frame = new MagazineFrame();
+        $frame->forceFill([
+            'x' => $el['x'] ?? 0, 'y' => $el['y'] ?? 0,
+            'width' => $el['width'] ?? 100, 'height' => $el['height'] ?? 20,
+            'rotation' => $el['rotation'] ?? 0,
+            'z_index' => $el['zIndex'] ?? 0,
+            'visible' => true, 'locked' => false,
+            'name' => $el['name'] ?? $type,
+            'frame_type' => $map[$type],
+            'content' => $content,
+            'metadata' => [
+                '_typography' => $el['typography'] ?? null,
+                '_magType' => $type,
+                'spanMode' => 'page',
+            ],
+        ]);
+
+        return $frame;
     }
 
     private function buildFrameStyle(MagazineFrame $frame): string

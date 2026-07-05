@@ -2,7 +2,7 @@
 // A field that survives pagesToDtpApi -> dtpApiToPages is truly persisted.
 
 import { describe, it, expect } from 'vitest';
-import { dtpApiToPages, pagesToDtpApi } from './dtpAdapters';
+import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from './dtpAdapters';
 import type { MagElement, MagPageData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 
@@ -110,6 +110,89 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect(out2.spreads).toHaveLength(3);
     expect(out2.pages[0].side).toBe('left');
     expect(out2.pages[4].side).toBe('single');
+  });
+
+  it('tables round-trip with data and specific type (previously published empty)', () => {
+    const tbl = el({
+      type: 'table_frame', typography: null, threadId: null, threadOrder: null,
+      data: { headers: ['Name', 'Qty'], rows: [['Washi', '3'], ['Vermilion', '1']], stripes: false, borderColor: '#333333' },
+    });
+    const { pages } = roundTrip([page([tbl])]);
+    const out = pages[0].elements[0];
+    expect(out.type).toBe('table_frame'); // _magType restore (was flattened)
+    expect((out.data as any).headers).toEqual(['Name', 'Qty']);
+    expect((out.data as any).rows).toEqual([['Washi', '3'], ['Vermilion', '1']]);
+    expect((out.data as any).stripes).toBe(false);
+    expect((out.data as any).borderColor).toBe('#333333');
+  });
+
+  it('clip-shape image types survive reload via _magType', () => {
+    const img = el({ type: 'circular_image', typography: null, threadId: null, threadOrder: null, data: { src: '/m/x.webp', alt: '', fit: 'fill', focalPoint: { x: 0.5, y: 0.5 } } });
+    const { pages } = roundTrip([page([img])]);
+    expect(pages[0].elements[0].type).toBe('circular_image');
+  });
+
+  it('partial persisted styles merge with defaults (crash fix: cornerRadius.tl)', () => {
+    const payload = pagesToDtpApi([page([el({})])], [], [], {}, {});
+    // simulate a frame saved with ONLY a fill (the seeded-headline case)
+    (payload.frames as any[])[0].style = { fill: { color: '#ffffff' } };
+    const pages2 = dtpApiToPages(payload);
+    const st = pages2[0].elements[0].style;
+    expect(st.fill.color).toBe('#ffffff');
+    expect(st.cornerRadius.tl).toBe(0);
+    expect(st.stroke.width).toBe(0);
+    expect(st.opacity).toBe(1);
+  });
+
+  it('API-seeded master elements normalize (children/textWrap/style)', () => {
+    const masters = normalizeMasterPages([{ id: 'm1', pageNumber: -1, elements: [
+      { id: 'e1', type: 'running_header', x: 0, y: 0, width: 100, height: 20, data: { customText: 'F' } },
+    ] }]);
+    const el2 = masters[0].elements[0];
+    expect(el2.children).toEqual([]);
+    expect(el2.textWrap.type).toBe('none');
+    expect(el2.style.cornerRadius.tl).toBe(0);
+    expect(el2.onMaster).toBe(true);
+  });
+
+  it('ruler guides round-trip via page metadata (W2-1)', () => {
+    const pg = { ...page([]), _guides: { v: [120, 250.5], h: [400] } } as any;
+    const { pages } = roundTrip([pg]);
+    expect((pages[0] as any)._guides).toEqual({ v: [120, 250.5], h: [400] });
+  });
+
+  it('groups round-trip: children serialize flat and reassemble (W2)', () => {
+    const childA = el({ id: 'c-a', threadId: null, threadOrder: null, x: 20, y: 20 });
+    const childB = el({ id: 'c-b', type: 'rectangle', typography: null, threadId: null, threadOrder: null, x: 120, y: 40, data: { fillColor: '#ccc' } });
+    const grp = el({
+      id: 'g-1', type: 'group', typography: null, threadId: null, threadOrder: null,
+      x: 20, y: 20, width: 180, height: 100, data: { label: 'Group' },
+      children: [ { ...childA, parentId: 'g-1' }, { ...childB, parentId: 'g-1' } ],
+    });
+    const { payload, pages } = roundTrip([page([grp])]);
+    expect((payload.frames as any[]).length).toBe(3);
+    const out = pages[0].elements;
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('group');
+    expect(out[0].children).toHaveLength(2);
+    expect(out[0].children.map((c) => c.x).sort((x, y) => x - y)).toEqual([20, 120]);
+  });
+
+  it('sections round-trip via page metadata (W2-11)', () => {
+    const pg = { ...page([]), _section: { startAt: 1, format: 'roman-lower' } } as any;
+    const { pages } = roundTrip([pg]);
+    expect((pages[0] as any)._section).toEqual({ startAt: 1, format: 'roman-lower' });
+  });
+
+  it('text-on-path round-trips (pro)', () => {
+    const tp = el({ id: 'tp1', type: 'text_path', typography: null, threadId: null, threadOrder: null,
+      data: { text: 'Curved words', preset: 'wave', startOffset: 15 } });
+    const { pages } = roundTrip([page([tp])]);
+    const out = pages[0].elements[0];
+    expect(out.type).toBe('text_path');
+    expect((out.data as any).text).toBe('Curved words');
+    expect((out.data as any).preset).toBe('wave');
+    expect((out.data as any).startOffset).toBe(15);
   });
 
   it('page master assignment survives', () => {

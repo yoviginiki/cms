@@ -56,6 +56,8 @@ export default function Login() {
               <label className="fieldset-label text-[12px] text-base-content/50 mb-1">Email</label>
               <input
                 type="email"
+                id="login-email"
+                name="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -70,6 +72,8 @@ export default function Login() {
               <label className="fieldset-label text-[12px] text-base-content/50 mb-1">Password</label>
               <input
                 type="password"
+                id="login-password"
+                name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

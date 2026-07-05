@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\IssueComposer\Models\MagazineIssue;
+use App\Domain\Magazine\Jobs\GenerateDtpPdfJob;
+use App\Domain\Magazine\Services\DtpZipService;
 use App\Domain\Magazine\Services\DtpRenderService;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
@@ -46,14 +48,75 @@ class DtpPreviewController extends Controller
             }
         });
 
-        return response()->view('dtp-preview', [
+        return response()->view('stillo-viewer', [
             'issue' => $data['issue'],
             'spreads' => $spreads,
             'pageCount' => $data['pageCount'],
-            'frameCount' => $data['frameCount'],
-            'layoutMode' => $data['layoutMode'] ?? 'single',
+            'viewerSettings' => $issue->layout_final['viewerSettings'] ?? [],
             'coverMode' => $data['coverMode'] ?? 'standalone',
             'fontsUrl' => $data['fontsUrl'] ?? null,
         ]);
+    }
+
+    /** ad-click counts per banner href (Issue tab report) */
+    public function adClicks(Site $site, MagazineIssue $issue)
+    {
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+
+        return response()->json([
+            'data' => \Illuminate\Support\Facades\DB::table('mag_ad_clicks')
+                ->where('issue_id', $issue->id)
+                ->selectRaw('href, count(*) as clicks, max(created_at) as last_click')
+                ->groupBy('href')
+                ->orderByDesc('clicks')
+                ->get(),
+        ]);
+    }
+
+    /** standalone ZIP export — extract anywhere, reads without the CMS */
+    public function zip(Site $site, MagazineIssue $issue, DtpZipService $zipService)
+    {
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+        $path = $zipService->export($issue);
+        $name = preg_replace('/[^a-zA-Z0-9\-_ ]/', '', $issue->title ?: 'magazine') . '-standalone.zip';
+
+        return response()->download($path, $name, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Export the issue as PDF. Chrome runs on the queue worker (the web PHP
+     * pool disables proc_open); we dispatch and short-poll for the result.
+     */
+    public function pdf(Site $site, MagazineIssue $issue)
+    {
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+        $withMarks = (bool) request()->query('marks');
+        $result = GenerateDtpPdfJob::resultPath($issue->id, $withMarks);
+        $error = GenerateDtpPdfJob::errorPath($issue->id, $withMarks);
+        @unlink($result);
+        @unlink($error);
+        GenerateDtpPdfJob::dispatch($issue->id, $issue->tenant_id, $withMarks);
+
+        // short-poll: redis worker normally picks this up within a second
+        $deadline = microtime(true) + 60;
+        while (microtime(true) < $deadline) {
+            if (is_file($result) && filesize($result) > 1000) {
+                $name = preg_replace('/[^a-zA-Z0-9\-_ ]/', '', $issue->title ?: 'magazine') . '.pdf';
+
+                return response()->download($result, $name, ['Content-Type' => 'application/pdf']);
+            }
+            if (is_file($error)) {
+                return response()->json(['message' => 'PDF export failed: ' . file_get_contents($error)], 500);
+            }
+            usleep(500_000);
+        }
+
+        return response()->json(['message' => 'PDF export timed out — try again shortly.'], 504);
     }
 }

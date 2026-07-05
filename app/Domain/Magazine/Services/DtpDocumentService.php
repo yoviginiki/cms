@@ -4,6 +4,7 @@ namespace App\Domain\Magazine\Services;
 
 use App\Domain\IssueComposer\Models\MagazineIssue;
 use App\Domain\Magazine\Models\MagazineAssetReference;
+use App\Domain\Magazine\Models\MagazineDocVersion;
 use App\Domain\Magazine\Models\MagazineDtpPage;
 use App\Domain\Magazine\Models\MagazineFrame;
 use App\Domain\Magazine\Models\MagazineLayer;
@@ -12,6 +13,35 @@ use Illuminate\Support\Facades\DB;
 
 class DtpDocumentService
 {
+    private const VERSION_CAP = 20;
+
+    /** snapshot current persisted doc into the version trail (cap per issue) */
+    public function snapshotVersion(MagazineIssue $issue, ?string $label = null): ?MagazineDocVersion
+    {
+        $doc = $this->loadDocument($issue);
+        if (($doc['meta']['frame_count'] ?? 0) === 0) {
+            return null; // nothing persisted yet — empty snapshots are noise
+        }
+        $version = MagazineDocVersion::create([
+            'issue_id' => $issue->id,
+            'label' => $label,
+            'document' => $doc,
+            'page_count' => $doc['meta']['page_count'] ?? 0,
+            'frame_count' => $doc['meta']['frame_count'] ?? 0,
+            'created_at' => now(),
+        ]);
+        $stale = MagazineDocVersion::where('issue_id', $issue->id)
+            ->orderByDesc('created_at')
+            ->skip(self::VERSION_CAP)
+            ->take(100)
+            ->pluck('id');
+        if ($stale->isNotEmpty()) {
+            MagazineDocVersion::whereIn('id', $stale)->delete();
+        }
+
+        return $version;
+    }
+
     /**
      * Load full DTP document for an issue.
      */
@@ -122,7 +152,7 @@ class DtpDocumentService
                 $changed = true;
             }
             if (!empty($meta['viewerSettings'])) {
-                $allowed = ['display_mode', 'bg_color', 'ui_theme', 'page_transition', 'transition_speed', 'show_thumbnails', 'show_page_numbers', 'auto_hide_ui'];
+                $allowed = ['display_mode', 'bg_color', 'ui_theme', 'arrow_color', 'page_transition', 'transition_speed', 'show_thumbnails', 'show_page_numbers', 'auto_hide_ui', 'side_banners', 'audio'];
                 $layoutFinal['viewerSettings'] = array_intersect_key((array) $meta['viewerSettings'], array_flip($allowed));
                 $changed = true;
             }
@@ -139,6 +169,10 @@ class DtpDocumentService
             if ($changed) {
                 $issue->update(['layout_final' => $layoutFinal]);
             }
+
+            // Version trail (W3): snapshot the CURRENT persisted document
+            // before the atomic replace — every save becomes restorable.
+            $this->snapshotVersion($issue);
 
             // Delete existing DTP data for this issue
             MagazineAssetReference::where('issue_id', $issueId)->delete();

@@ -7,7 +7,7 @@
  *
  * Feature-flagged — old magazine editor remains unchanged.
  */
-import { useEffect, useRef, useState, lazy, Suspense, useCallback } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink, Bug } from 'lucide-react';
@@ -28,6 +28,7 @@ import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
 import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import TextWrapPanel from '@/components/magazine/properties/TextWrapPanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
+import TablePanel from '@/components/magazine/properties/TablePanel';
 import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
 import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
@@ -38,7 +39,14 @@ import type { ConsistencyResult } from '@/lib/dtpConsistencyChecker';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 // Threading imports removed — Pour handles content splitting directly
-import { dtpApiToPages, pagesToDtpApi } from '@/lib/dtpAdapters';
+import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from '@/lib/dtpAdapters';
+import { runPreflight } from '@/lib/magazinePreflight';
+import { findMatches, replaceInHtml } from '@/lib/magazineFindReplace';
+import { mapHeadingsToStyles, wordCount } from '@/lib/clipboardNormalizer';
+import { MagSwatchContext } from '@/components/magazine/SwatchPicker';
+import { AssetField } from '@/components/ui/AssetPicker';
+import { extractColorSwatches, DEFAULT_SWATCHES } from '@/lib/themeSwatches';
+import { themeEngine, assets as assetsApi, api } from '@/lib/api';
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -144,7 +152,7 @@ export default function DtpEditorBeta() {
     // Restore persisted masters (audit W0-6: they were editor-only before —
     // filtered from every save and regenerated with fresh IDs on every load,
     // which left page.master_page_id dangling)
-    const savedMasters = (apiData.meta?.masterPages || []) as MagPageData[];
+    const savedMasters = normalizeMasterPages(apiData.meta?.masterPages || []);
     const allPages = savedMasters.length > 0 ? [...pages, ...savedMasters] : pages;
     // Restore persisted paragraph/character styles (audit defect #5)
     const savedStyles = apiData.meta?.styles || [];
@@ -218,6 +226,82 @@ export default function DtpEditorBeta() {
   }, [apiData]);
 
   // Status change mutation
+  // Autosave (W3): every 30s while dirty; skipped mid-inline-edit and
+  // while a save is already in flight. Reuses the exact manual-save path.
+  const autosaveRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const t = setInterval(() => autosaveRef.current(), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const [lastAutosave, setLastAutosave] = useState<string | null>(null);
+  const [findOpen, setFindOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Session E: pasted/dropped images go through the asset pipeline (server
+  // does WebP variants) and land as image frames — not ignored, not base64.
+  const handleImageFile = useCallback(async (file: File, x = 60, y = 60) => {
+    try {
+      const res = await assetsApi.upload(siteId!, file);
+      const asset = res.data?.data || res.data;
+      if (!asset?.id) return;
+      const st = useMagazineStore.getState();
+      const id = st.addElement('image_frame', x, y, 280, 200);
+      const el = useMagazineStore.getState().pages.flatMap(p => p.elements).find(e2 => e2.id === id);
+      useMagazineStore.getState().updateElement(id, {
+        data: { ...(el?.data || {}), src: `/api/v1/sites/${siteId}/assets/${asset.id}/serve`, alt: file.name.replace(/\.[a-z0-9]+$/i, ''), fit: 'cover' },
+      } as any);
+    } catch (err) {
+      console.error('image upload failed', err);
+    }
+  }, [siteId]);
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (document.querySelector('[data-editing-id]')) return; // inline editor owns paste while typing
+      const file = Array.from(e.clipboardData?.files || []).find(f => f.type.startsWith('image/'));
+      if (file) {
+        e.preventDefault();
+        handleImageFile(file);
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [handleImageFile]);
+  useEffect(() => {
+    const open = () => setShortcutsOpen(true);
+    window.addEventListener('mag:shortcuts', open);
+    return () => window.removeEventListener('mag:shortcuts', open);
+  }, []);
+  const [largePaste, setLargePaste] = useState<{ html: string; elementId: string } | null>(null);
+  useEffect(() => {
+    const onLarge = (e: Event) => setLargePaste((e as CustomEvent).detail);
+    window.addEventListener('mag:large-paste', onLarge);
+    return () => window.removeEventListener('mag:large-paste', onLarge);
+  }, []);
+  // theme-token swatches (W3): the site's real palette for every color field
+  const { data: themesData } = useQuery({
+    queryKey: ['theme-swatches', siteId],
+    queryFn: () => themeEngine.list(siteId!).then((r: any) => r.data),
+    staleTime: 300000,
+  });
+  const swatches = useMemo(() => {
+    const themes: any[] = themesData?.data || themesData || [];
+    const active = themes.find?.((t: any) => t.is_active) || themes[0];
+    const sw = extractColorSwatches(active?.config);
+    return sw.length ? sw : DEFAULT_SWATCHES;
+  }, [themesData]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !e.shiftKey) {
+        e.preventDefault();
+        setFindOpen(true);
+      }
+      if (e.key === 'Escape') setFindOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       await dtpDesigner.updateIssue(siteId, issueId, { status: newStatus });
@@ -278,6 +362,17 @@ export default function DtpEditorBeta() {
       setSaveError(msg);
       if (isDebugMode) store.pushDebugLog('save:fail', 'editor', { error: msg }, 'error');
     },
+  });
+
+  useEffect(() => {
+    autosaveRef.current = () => {
+      const st = useMagazineStore.getState();
+      if (!st.isDirty || saveMutation.isPending) return;
+      if (document.querySelector('[data-editing-id]')) return; // typing — stay out of the way
+      saveMutation.mutate(undefined, {
+        onSuccess: () => setLastAutosave(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+      });
+    };
   });
 
   // Current page & selection
@@ -424,6 +519,7 @@ export default function DtpEditorBeta() {
   const adminTheme = localStorage.getItem('admin-theme') || 'cms-admin';
 
   return (
+    <MagSwatchContext.Provider value={swatches}>
     <div className="flex flex-col h-screen bg-base-200" data-theme={adminTheme}>
       {/* ─── Toolbar ─── */}
       <MagazineToolbar
@@ -446,6 +542,7 @@ export default function DtpEditorBeta() {
         canUndo={store.undoStack.length > 0}
         canRedo={store.redoStack.length > 0}
         onSave={() => saveMutation.mutate()}
+        lastAutosave={lastAutosave}
         isDirty={store.isDirty}
         isSaving={saveMutation.isPending}
         status={issueStatus}
@@ -455,7 +552,12 @@ export default function DtpEditorBeta() {
           const path = `/magazine/dtp/${issueId}`;
           return domain ? `https://${domain}${path}` : path;
         })()}
+        pdfUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-pdf`}
+        zipUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-zip`}
       />
+      {findOpen && <FindReplacePanel onClose={() => setFindOpen(false)} />}
+      {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
+      {largePaste && <LargePasteDialog paste={largePaste} onClose={() => setLargePaste(null)} />}
 
       {/* ─── DTP Status + Save error ─── */}
       {saveError && (
@@ -526,6 +628,11 @@ export default function DtpEditorBeta() {
           onAssignMaster={(pageNumber, masterPageId) => store.assignMaster(pageNumber, masterPageId)}
           onAssignMasterToAll={(masterPageId) => store.assignMasterToAll(masterPageId)}
           onEditMaster={(masterPageId) => store.setEditingMaster(masterPageId)}
+          onSetMasterApplies={(masterPageId, v) => {
+            const master = store.pages.find(p => p.isMaster && p.id === masterPageId);
+            if (master) store.updatePage(master.pageNumber, { _appliesTo: v } as any);
+          }}
+          onDetachMaster={(pageNumber) => store.detachMaster(pageNumber)}
           editingMasterId={store.editingMasterId}
         />
 
@@ -552,6 +659,7 @@ export default function DtpEditorBeta() {
           onContinueText={(elementId) => store.continueTextToNextPage(elementId)}
           oversetThreads={store.oversetThreads}
           onNavigateThread={(pageNumber, frameId) => { store.setCurrentPage(pageNumber); store.selectElement(frameId); }}
+          onImageDrop={(file, x, y) => handleImageFile(file, x, y)}
           onMoveToPage={(elementId, direction, newX, newY) => {
             const currentPageNum = store.currentPageNumber;
             const contentPages = store.pages.filter(p => !p.isMaster).sort((a, b) => a.pageNumber - b.pageNumber);
@@ -695,7 +803,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Width</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="10" max="100" step="5"
+                            <input name="mag-dtpeditorbeta-1" type="range" min="10" max="100" step="5"
                               value={parseInt(selectedInlineImg.style.width) || 40}
                               onChange={(e) => updateInlineImgStyle({ width: e.target.value + '%' })}
                               className="range range-xs range-primary flex-1" />
@@ -724,7 +832,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Border Radius</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="0" max="50" step="2"
+                            <input name="mag-dtpeditorbeta-2" type="range" min="0" max="50" step="2"
                               value={parseInt(selectedInlineImg.style.borderRadius) || 0}
                               onChange={(e) => updateInlineImgStyle({ borderRadius: e.target.value + 'px' })}
                               className="range range-xs flex-1" />
@@ -736,7 +844,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Border Width</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="0" max="10" step="1"
+                            <input name="mag-dtpeditorbeta-3" type="range" min="0" max="10" step="1"
                               value={parseInt(selectedInlineImg.style.borderWidth) || 0}
                               onChange={(e) => {
                                 const w = e.target.value;
@@ -755,7 +863,7 @@ export default function DtpEditorBeta() {
                         {(parseInt(selectedInlineImg.style.borderWidth) || 0) > 0 && (
                           <div>
                             <label className="text-[10px] text-base-content/40 mb-1 block">Border Color</label>
-                            <input type="color"
+                            <input name="mag-dtpeditorbeta-4" type="color"
                               value={selectedInlineImg.style.borderColor || '#000000'}
                               onChange={(e) => updateInlineImgStyle({ borderColor: e.target.value })}
                               className="w-8 h-8 rounded cursor-pointer border border-base-300/30" />
@@ -766,7 +874,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Inner Padding</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="0" max="20" step="2"
+                            <input name="mag-dtpeditorbeta-5" type="range" min="0" max="20" step="2"
                               value={parseInt(selectedInlineImg.style.padding) || 0}
                               onChange={(e) => updateInlineImgStyle({ padding: e.target.value + 'px' })}
                               className="range range-xs flex-1" />
@@ -807,6 +915,46 @@ export default function DtpEditorBeta() {
                         availableThreadId={activeThreadId}
                       />
                     )}
+                    {store.editingMasterId && ['text_frame'].includes(selectedEl.type) && (
+                      <div className="px-3 py-2 border-t border-base-300/20">
+                        <label className="flex items-center gap-1.5 text-[11px] text-base-content/60 cursor-pointer"
+                          title="New pages created from this master get an editable copy of this frame as their body text frame">
+                          <input name="mag-dtpeditorbeta-6" type="checkbox" className="checkbox checkbox-xs"
+                            checked={!!(selectedEl.data as any)?._primaryFlow}
+                            onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, _primaryFlow: e.target.checked || undefined } })} />
+                          Primary text frame (body on new pages)
+                        </label>
+                      </div>
+                    )}
+                    {selectedEl.type === 'text_path' && (
+                        <div className="space-y-1.5 border-t border-base-300/20 pt-3">
+                          <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Text on Path</h3>
+                          <input name="tp-text" type="text" value={(selectedEl.data as any)?.text || ''}
+                            onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, text: e.target.value } } as any)}
+                            className="input input-bordered input-xs w-full" placeholder="Text" />
+                          <select name="tp-preset" value={(selectedEl.data as any)?.preset || 'arc-up'}
+                            onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, preset: e.target.value } } as any)}
+                            className="select select-bordered select-xs w-full">
+                            <option value="arc-up">Arc up</option>
+                            <option value="arc-down">Arc down</option>
+                            <option value="circle">Circle</option>
+                            <option value="wave">Wave</option>
+                          </select>
+                          <div>
+                            <label htmlFor="tp-offset" className="text-[9px] text-base-content/40 block">Start offset {(selectedEl.data as any)?.startOffset ?? 0}%</label>
+                            <input id="tp-offset" name="tp-offset" type="range" min={0} max={90}
+                              value={(selectedEl.data as any)?.startOffset ?? 0}
+                              onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, startOffset: Number(e.target.value) } } as any)}
+                              className="range range-xs" />
+                          </div>
+                        </div>
+                    )}
+                    {selectedEl.type === 'table_frame' && (
+                      <TablePanel
+                        data={(selectedEl.data || {}) as any}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })}
+                      />
+                    )}
                     {IMAGE_TYPES.includes(selectedEl.type) && (
                       <ImagePanel
                         data={(selectedEl.data || {}) as unknown as ImageFrameData}
@@ -815,10 +963,26 @@ export default function DtpEditorBeta() {
                         onAutoOpenDone={() => setAutoOpenImagePicker(false)}
                       />
                     )}
+                    {/* Step and repeat (W2-6) */}
+                    <div className="px-3 py-2 border-t border-base-300/20">
+                      <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-1.5">Step and repeat</h3>
+                      <div className="flex items-end gap-1.5">
+                        <div><label htmlFor="sr-count" className="text-[9px] text-base-content/40 block">Count</label>
+                          <input id="sr-count" type="number" min={1} max={50} defaultValue={3} className="input input-bordered input-xs w-14" /></div>
+                        <div><label htmlFor="sr-dx" className="text-[9px] text-base-content/40 block">ΔX</label>
+                          <input id="sr-dx" type="number" defaultValue={20} className="input input-bordered input-xs w-14" /></div>
+                        <div><label htmlFor="sr-dy" className="text-[9px] text-base-content/40 block">ΔY</label>
+                          <input id="sr-dy" type="number" defaultValue={0} className="input input-bordered input-xs w-14" /></div>
+                        <button className="btn btn-xs btn-ghost" onClick={() => {
+                          const g = (id: string) => Number((document.getElementById(id) as HTMLInputElement)?.value) || 0;
+                          store.stepAndRepeat(store.selectedIds, g('sr-count'), g('sr-dx'), g('sr-dy'));
+                        }}>Apply</button>
+                      </div>
+                    </div>
                     <FillStrokePanel style={selectedEl.style} onChange={(v) => store.updateElement(selectedEl.id, { style: { ...selectedEl.style, ...v } as MagElementStyle })} />
                     <EffectsPanel style={selectedEl.style} onChange={(v) => store.updateElement(selectedEl.id, { style: { ...selectedEl.style, ...v } as MagElementStyle })} />
                     {selectedEl.textWrap && (
-                      <TextWrapPanel value={selectedEl.textWrap} onChange={(v) => store.updateElement(selectedEl.id, { textWrap: { ...selectedEl.textWrap, ...v } as MagTextWrap })} />
+                      <TextWrapPanel value={selectedEl.textWrap} element={selectedEl} onChange={(v) => store.updateElement(selectedEl.id, { textWrap: { ...selectedEl.textWrap, ...v } as MagTextWrap })} />
                     )}
                     {store.selectedIds.length > 1 && (
                       <AlignDistributePanel
@@ -855,8 +1019,9 @@ export default function DtpEditorBeta() {
                   if (el) store.updateElement(id, { locked: !el.locked });
                 }}
                 onReorderZ={(id: string, direction: 'up' | 'down') => {
-                  if (direction === 'up') store.bringToFront([id]);
-                  else store.sendToBack([id]);
+                  // ONE-step arrange (W2-5) — buttons previously jumped to front/back
+                  if (direction === 'up') store.bringForward(id);
+                  else store.sendBackward(id);
                 }}
               />
             )}
@@ -944,15 +1109,46 @@ export default function DtpEditorBeta() {
                   {store.issueSettings.layoutMode === 'presentation' && 'Use Single view for slide-by-slide navigation.'}
                 </div>
 
+                {/* ─── Preflight v2 (W3): clickable checks, jump-to-issue ─── */}
+                {(() => {
+                  const issues = runPreflight(store.pages, store.oversetThreads);
+                  return (
+                    <div className="pb-4 border-b border-base-300/20">
+                      <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">
+                        Preflight {issues.length === 0
+                          ? <span className="text-success normal-case">— all clear ✓</span>
+                          : <span className={issues.some(i => i.severity === 'error') ? 'text-error normal-case' : 'text-warning normal-case'}>— {issues.length} issue{issues.length > 1 ? 's' : ''}</span>}
+                      </h3>
+                      <div className="space-y-1 max-h-56 overflow-y-auto">
+                        {issues.map((iss, n) => (
+                          <button key={n}
+                            className="w-full text-left flex items-start gap-1.5 px-1.5 py-1 rounded hover:bg-base-300/20 transition-colors"
+                            title="Click to jump to this issue"
+                            onClick={() => {
+                              store.setCurrentPage(iss.pageNumber);
+                              if (iss.elementId) store.selectElement(iss.elementId);
+                              setRightTab('properties');
+                            }}>
+                            <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${iss.severity === 'error' ? 'bg-error' : 'bg-warning'}`} />
+                            <span className="text-[10px] text-base-content/60 leading-tight">{iss.message}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ─── Versions (W3): snapshot trail, restore any ─── */}
+                <VersionsSection siteId={siteId!} issueId={issueId!} />
+
                 {/* ─── Viewer Settings ─── */}
                 <div className="border-t border-base-300/20 pt-4">
                   <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-3">Display Mode</h3>
                   <div className="space-y-1.5">
                     {([
-                      { value: 'spread', label: 'Two-page spread', desc: 'Side-by-side pages with page turn animation' },
-                      { value: 'single', label: 'Single page', desc: 'One page at a time with slide navigation' },
-                      { value: 'scroll', label: 'Scroll', desc: 'All pages stacked, scroll to read' },
-                      { value: 'flipbook', label: 'Flipbook', desc: 'Realistic 3D page turns with curl, shadows & swipe gestures' },
+                      { value: 'book', label: 'Book', desc: 'Two-page spreads with a page-flip effect — like a real magazine' },
+                      { value: 'scroll', label: 'Vertical scroll', desc: 'All pages stacked, scroll to read' },
+                      { value: 'presentation', label: 'Presentation', desc: 'One spread at a time, fade transitions, fullscreen-friendly' },
                     ]).map(opt => (
                       <label key={opt.value} className="flex items-start gap-2 cursor-pointer group">
                         <input type="radio" name="viewer_display_mode" value={opt.value}
@@ -990,31 +1186,98 @@ export default function DtpEditorBeta() {
                     ))}
                   </div>
                   <div className="flex gap-1.5 mt-2">
-                    <input type="color" value={viewerSettings.bg_color || '#0a0a0a'}
+                    <input name="mag-dtpeditorbeta-7" type="color" value={viewerSettings.bg_color || '#0a0a0a'}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, bg_color: e.target.value })); store.setDirty(true); }}
                       className="w-7 h-7 rounded cursor-pointer border border-base-300/30" />
-                    <input type="text" value={viewerSettings.bg_color || '#0a0a0a'}
+                    <input name="mag-dtpeditorbeta-8" type="text" value={viewerSettings.bg_color || '#0a0a0a'}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, bg_color: e.target.value })); store.setDirty(true); }}
                       className="input input-bordered input-xs flex-1 text-[10px] font-mono" placeholder="#hex" />
                   </div>
                 </div>
 
+                {/* ─── Arrow / controls color ─── */}
+                <div className="border-t border-base-300/20 pt-4">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Controls Color</h3>
+                  <div className="flex gap-1.5">
+                    <input name="vs-arrow-color" type="color" value={viewerSettings.arrow_color || '#E63B2E'}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, arrow_color: e.target.value })); store.setDirty(true); }}
+                      className="w-7 h-7 rounded cursor-pointer border border-base-300/30" />
+                    <input name="vs-arrow-hex" type="text" value={viewerSettings.arrow_color || '#E63B2E'}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, arrow_color: e.target.value })); store.setDirty(true); }}
+                      className="input input-bordered input-xs flex-1 text-[10px] font-mono" placeholder="#hex" />
+                  </div>
+                  <p className="text-[9px] text-base-content/30 mt-1">Arrows, mode buttons and player accents in the reader.</p>
+                </div>
+
+                {/* ─── Side banners (branding / paid ads) ─── */}
+                <div className="border-t border-base-300/20 pt-4 space-y-2">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Side Banners</h3>
+                  {((viewerSettings.side_banners || []) as any[]).map((b, i) => (
+                    <div key={i} className="space-y-1 border border-base-300/20 p-2 rounded">
+                      <div className="flex gap-1.5 items-center">
+                        <select name={`vs-banner-side-${i}`} value={b.side || 'right'} className="select select-bordered select-xs w-20"
+                          onChange={(e) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, side: e.target.value }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}>
+                          <option value="left">Left</option><option value="right">Right</option>
+                        </select>
+                        <button className="btn btn-ghost btn-xs ml-auto text-error" onClick={() => { const nx = viewerSettings.side_banners.filter((_: any, j: number) => j !== i); setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}>×</button>
+                      </div>
+                      <AssetField label="" accept="image" value={b.src || ''}
+                        onChange={(url) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, src: url }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }} />
+                      <input name={`vs-banner-href-${i}`} type="text" value={b.href || ''} placeholder="Click-through link (https://… — for paid ads)"
+                        onChange={(e) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, href: e.target.value }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}
+                        className="input input-bordered input-xs w-full text-[10px]" />
+                    </div>
+                  ))}
+                  <button className="btn btn-ghost btn-xs" onClick={() => { setViewerSettings(s => ({ ...s, side_banners: [...(s.side_banners || []), { side: 'right', src: '', href: '' }] })); store.setDirty(true); }}>+ Add banner</button>
+                  <p className="text-[9px] text-base-content/30">Shown beside the magazine on wide screens; links open in a new tab (rel=sponsored).</p>
+                  {((viewerSettings.side_banners || []) as any[]).some((b) => b.href) && (
+                    <AdClicksReport siteId={siteId!} issueId={issueId!} />
+                  )}
+                </div>
+
+                {/* ─── Background audio (reader playlist) ─── */}
+                <div className="border-t border-base-300/20 pt-4 space-y-2">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Audio Player</h3>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input name="vs-audio-enabled" type="checkbox" checked={!!viewerSettings.audio?.enabled}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, audio: { ...(s.audio || {}), enabled: e.target.checked, tracks: s.audio?.tracks || [] } })); store.setDirty(true); }}
+                      className="checkbox checkbox-xs checkbox-primary" />
+                    <span className="text-[11px] text-base-content/60">Offer an audio player to readers</span>
+                  </label>
+                  {!!viewerSettings.audio?.enabled && (
+                    <>
+                      {((viewerSettings.audio?.tracks || []) as any[]).map((t, i) => (
+                        <div key={i} className="flex gap-1.5 items-center">
+                          <input name={`vs-track-title-${i}`} type="text" value={t.title || ''} placeholder="Title"
+                            onChange={(e) => { const nx = [...viewerSettings.audio.tracks]; nx[i] = { ...t, title: e.target.value }; setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}
+                            className="input input-bordered input-xs w-24 text-[10px]" />
+                          <div className="flex-1 min-w-0"><AssetField label="" accept="audio" value={t.src || ''}
+                            onChange={(url) => { const nx = [...viewerSettings.audio.tracks]; nx[i] = { ...t, src: url }; setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }} /></div>
+                          <button className="btn btn-ghost btn-xs text-error" onClick={() => { const nx = viewerSettings.audio.tracks.filter((_: any, j: number) => j !== i); setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}>×</button>
+                        </div>
+                      ))}
+                      <button className="btn btn-ghost btn-xs" onClick={() => { setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: [...(s.audio?.tracks || []), { title: '', src: '' }] } })); store.setDirty(true); }}>+ Add track</button>
+                      <p className="text-[9px] text-base-content/30">Playlist controls appear bottom-left in the reader. Playback never autostarts.</p>
+                    </>
+                  )}
+                </div>
+
                 <div className="border-t border-base-300/20 pt-4 space-y-2">
                   <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Viewer Options</h3>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={viewerSettings.show_page_numbers !== false}
+                    <input name="mag-dtpeditorbeta-9" type="checkbox" checked={viewerSettings.show_page_numbers !== false}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, show_page_numbers: e.target.checked })); store.setDirty(true); }}
                       className="checkbox checkbox-xs checkbox-primary" />
                     <span className="text-[11px] text-base-content/60">Show page numbers</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={viewerSettings.show_thumbnails !== false}
+                    <input name="mag-dtpeditorbeta-10" type="checkbox" checked={viewerSettings.show_thumbnails !== false}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, show_thumbnails: e.target.checked })); store.setDirty(true); }}
                       className="checkbox checkbox-xs checkbox-primary" />
                     <span className="text-[11px] text-base-content/60">Show thumbnails</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={viewerSettings.auto_hide_ui !== false}
+                    <input name="mag-dtpeditorbeta-11" type="checkbox" checked={viewerSettings.auto_hide_ui !== false}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, auto_hide_ui: e.target.checked })); store.setDirty(true); }}
                       className="checkbox checkbox-xs checkbox-primary" />
                     <span className="text-[11px] text-base-content/60">Auto-hide UI</span>
@@ -1117,6 +1380,242 @@ export default function DtpEditorBeta() {
         accept="image"
         currentUrl=""
       />
+    </div>
+    </MagSwatchContext.Provider>
+  );
+}
+
+
+/** W3 versions: every save snapshots the previous state server-side (cap 20). */
+function VersionsSection({ siteId, issueId }: { siteId: string; issueId: string }) {
+  const { data, refetch, isFetching } = useQuery({
+    queryKey: ['dtp-versions', siteId, issueId],
+    queryFn: () => dtpDesigner.listVersions(siteId, issueId),
+    staleTime: 15000,
+  });
+  const versions: any[] = data?.data || [];
+  const restore = async (v: any) => {
+    const when = new Date(v.created_at).toLocaleString();
+    if (!window.confirm(`Restore the document as it was at ${when}?\n\nThe current state is snapshotted first, so this is reversible.`)) return;
+    await dtpDesigner.restoreVersion(siteId, issueId, v.id);
+    window.location.reload();
+  };
+  return (
+    <div className="pb-4 border-b border-base-300/20">
+      <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2 flex items-center justify-between">
+        Versions
+        <button className="btn btn-ghost btn-xs h-5 min-h-0 px-1 normal-case" onClick={() => refetch()} disabled={isFetching}>↻</button>
+      </h3>
+      {versions.length === 0 && <p className="text-[9px] text-base-content/30">Snapshots appear here after each save.</p>}
+      <div className="space-y-1 max-h-44 overflow-y-auto">
+        {versions.map((v) => (
+          <div key={v.id} className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-base-300/20">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] text-base-content/60 truncate">{new Date(v.created_at).toLocaleString()}</div>
+              <div className="text-[9px] text-base-content/30">{v.page_count} pages · {v.frame_count} frames{v.label ? ` · ${v.label}` : ''}</div>
+            </div>
+            <button className="btn btn-ghost btn-xs text-primary" onClick={() => restore(v)}>Restore</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** W3 find & replace: HTML-safe, jumps to matches, undo-friendly replaces. */
+function FindReplacePanel({ onClose }: { onClose: () => void }) {
+  const store = useMagazineStore();
+  const [query, setQuery] = useState('');
+  const [replacement, setReplacement] = useState('');
+  const [matchCase, setMatchCase] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const matches = useMemo(
+    () => findMatches(store.pages, query, { matchCase }),
+    [store.pages, query, matchCase],
+  );
+  const current = matches.length ? matches[Math.min(cursor, matches.length - 1)] : null;
+
+  const jump = (m: { pageNumber: number; elementId: string } | null) => {
+    if (!m) return;
+    store.setCurrentPage(m.pageNumber);
+    store.selectElement(m.elementId);
+  };
+  const next = () => {
+    if (!matches.length) return;
+    const n = (cursor + 1) % matches.length;
+    setCursor(n);
+    jump(matches[n]);
+  };
+  const replaceCurrent = () => {
+    if (!current) return;
+    const el = store.pages.flatMap((p) => p.elements).find((e) => e.id === current.elementId);
+    if (!el) return;
+    const r = replaceInHtml(String((el.data as any)?.content || ''), query, replacement, { matchCase, occurrence: current.occurrence });
+    if (r.replaced) store.updateElement(el.id, { data: { ...el.data, content: r.html } } as any);
+  };
+  const replaceAll = () => {
+    if (!matches.length) return;
+    const byEl: string[] = [...new Set(matches.map((m) => m.elementId))];
+    let total = 0;
+    byEl.forEach((id: string) => {
+      const el = store.pages.flatMap((p) => p.elements).find((e) => e.id === id);
+      if (!el) return;
+      const r = replaceInHtml(String((el.data as any)?.content || ''), query, replacement, { matchCase });
+      if (r.replaced) {
+        store.updateElement(id, { data: { ...el.data, content: r.html } } as any);
+        total += r.replaced;
+      }
+    });
+    setCursor(0);
+    if (total) window.setTimeout(() => window.alert(`Replaced ${total} occurrence${total > 1 ? 's' : ''}.`), 50);
+  };
+
+  return (
+    <div className="fixed top-16 right-4 z-[10002] bg-base-100 border border-base-300 shadow-xl rounded-lg p-3 w-72 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wider text-base-content/40 font-medium">Find &amp; Replace</span>
+        <button className="btn btn-ghost btn-xs" onClick={onClose}>×</button>
+      </div>
+      <input autoFocus name="fr-query" type="text" placeholder="Find…" value={query}
+        onChange={(e) => { setQuery(e.target.value); setCursor(0); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') next(); }}
+        className="input input-bordered input-sm w-full text-xs" />
+      <input name="fr-replacement" type="text" placeholder="Replace with…" value={replacement}
+        onChange={(e) => setReplacement(e.target.value)}
+        className="input input-bordered input-sm w-full text-xs" />
+      <label className="flex items-center gap-1.5 text-[10px] text-base-content/50 cursor-pointer">
+        <input name="fr-case" type="checkbox" className="checkbox checkbox-xs" checked={matchCase}
+          onChange={(e) => { setMatchCase(e.target.checked); setCursor(0); }} />
+        Match case
+      </label>
+      <div className="text-[10px] text-base-content/40 min-h-4">
+        {query && (matches.length ? `${Math.min(cursor + 1, matches.length)} of ${matches.length}` : 'No matches')}
+        {current && <div className="truncate text-base-content/30" title={current.preview}>{current.preview}</div>}
+      </div>
+      <div className="flex gap-1.5">
+        <button className="btn btn-xs btn-ghost" disabled={!matches.length} onClick={next}>Next</button>
+        <button className="btn btn-xs btn-ghost" disabled={!current || current.crossSlice} title={current?.crossSlice ? 'This match spans two frames — edit it manually' : undefined} onClick={replaceCurrent}>Replace</button>
+        <button className="btn btn-xs btn-primary btn-outline ml-auto" disabled={!matches.length} onClick={replaceAll}>Replace all</button>
+      </div>
+    </div>
+  );
+}
+
+const SHORTCUTS: Array<[string, Array<[string, string]>]> = [
+  ['Tools', [['V', 'Select'], ['T', 'Text'], ['I', 'Image'], ['R', 'Rectangle'], ['E', 'Ellipse'], ['L', 'Line'], ['W', 'Preview mode']]],
+  ['Editing', [['Ctrl+Z / Ctrl+Y', 'Undo / redo'], ['Ctrl+C / X / V', 'Copy / cut / paste'], ['Ctrl+D', 'Duplicate'], ['Ctrl+A', 'Select all'], ['Del', 'Delete'], ['Esc', 'Deselect / close'], ['Arrows (+Shift)', 'Nudge 1pt (10pt)']]],
+  ['Arrange', [['Ctrl+G', 'Group'], ['Ctrl+Shift+G', 'Ungroup'], ['Alt+drag', 'Duplicate while dragging'], ['Alt+click', 'Select element behind'], ['Right-click', 'Context menu']]],
+  ['Document', [['Ctrl+F', 'Find & replace'], ['Ctrl+Alt+F', 'Insert footnote (in text)'], ['Ctrl+S', 'Save'], ['Drag from ruler', 'Create a guide'], ['?', 'This cheat-sheet']]],
+];
+
+function ShortcutSheet({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[10006] bg-black/50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-base-100 border border-base-300 rounded-lg shadow-2xl p-5 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold">Keyboard shortcuts</h2>
+          <button className="btn btn-ghost btn-xs" onClick={onClose}>×</button>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+          {SHORTCUTS.map(([group, rows]) => (
+            <div key={group}>
+              <h3 className="text-[10px] uppercase tracking-wider text-base-content/40 font-medium mb-1.5">{group}</h3>
+              {rows.map(([keys, what]) => (
+                <div key={keys} className="flex items-center justify-between py-0.5">
+                  <span className="text-[11px] text-base-content/60">{what}</span>
+                  <kbd className="text-[10px] font-mono bg-base-300/40 rounded px-1.5 py-0.5 text-base-content/70">{keys}</kbd>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-base-content/30 mt-4">In the reader: ← → turn pages, F fullscreen. Press ? anytime to reopen this sheet.</p>
+      </div>
+    </div>
+  );
+}
+
+/** Session E: big pastes get options instead of a raw dump. */
+function LargePasteDialog({ paste, onClose }: { paste: { html: string; elementId: string }; onClose: () => void }) {
+  const store = useMagazineStore();
+  const paraStyles = store.styles.filter((st) => st.type === 'paragraph');
+  const [columns, setColumns] = useState<number>(0); // 0 = keep frame setting
+  const [map, setMap] = useState<Record<string, string>>({ h1: '', h2: '', h3: '' });
+  const words = useMemo(() => wordCount(paste.html), [paste.html]);
+
+  const insert = () => {
+    // close any inline editing FIRST — a later blur must never commit a
+    // stale pre-paste snapshot over the inserted story (Session F root cause)
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    useMagazineStore.setState({ editingElementId: null });
+    const el = store.pages.flatMap((p) => p.elements).find((e) => e.id === paste.elementId);
+    if (!el) return onClose();
+    const mapping: Record<string, any> = {};
+    for (const lvl of ['h1', 'h2', 'h3']) {
+      const st = paraStyles.find((ps) => ps.id === map[lvl]);
+      if (st) mapping[lvl] = st;
+    }
+    const mapped = Object.keys(mapping).length ? mapHeadingsToStyles(paste.html, mapping) : paste.html;
+    const data: any = { ...el.data, content: String((el.data as any)?.content || '') + mapped };
+    if (columns > 0) data.columnsInFrame = columns;
+    store.updateElement(el.id, { data } as any);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10006] bg-black/50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-base-100 border border-base-300 rounded-lg shadow-2xl p-5 w-[420px]" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-sm font-semibold mb-1">Large paste — {words.toLocaleString()} words</h2>
+        <p className="text-[10px] text-base-content/40 mb-3">The story will flow through the frame and auto-paginate onto new pages.</p>
+        <div className="space-y-2">
+          <div>
+            <label htmlFor="lp-columns" className="text-[10px] text-base-content/40 block mb-0.5">Columns in this frame</label>
+            <select id="lp-columns" name="lp-columns" className="select select-bordered select-xs w-40"
+              value={columns} onChange={(e) => setColumns(Number(e.target.value))}>
+              <option value={0}>Keep current</option>
+              <option value={1}>1 column</option>
+              <option value={2}>2 columns</option>
+              <option value={3}>3 columns</option>
+            </select>
+          </div>
+          {paraStyles.length > 0 && (['h1', 'h2', 'h3'] as const).map((lvl) => (
+            <div key={lvl}>
+              <label htmlFor={`lp-map-${lvl}`} className="text-[10px] text-base-content/40 block mb-0.5">Map {lvl.toUpperCase()} headings to</label>
+              <select id={`lp-map-${lvl}`} name={`lp-map-${lvl}`} className="select select-bordered select-xs w-40"
+                value={map[lvl]} onChange={(e) => setMap((m) => ({ ...m, [lvl]: e.target.value }))}>
+                <option value="">Keep as-is</option>
+                {paraStyles.map((ps) => <option key={ps.id} value={ps.id}>{ps.name}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button className="btn btn-ghost btn-xs" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary btn-xs" onClick={insert}>Insert &amp; flow</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** paid-banner click counts (fed by the public viewer beacon) */
+function AdClicksReport({ siteId, issueId }: { siteId: string; issueId: string }) {
+  const { data } = useQuery({
+    queryKey: ['dtp-ad-clicks', siteId, issueId],
+    queryFn: () => api.get(`/sites/${siteId}/magazine-issues/${issueId}/dtp-ad-clicks`).then((r) => r.data),
+    staleTime: 60000,
+  });
+  const rows: any[] = data?.data || [];
+  if (!rows.length) return <p className="text-[9px] text-base-content/25">No banner clicks recorded yet.</p>;
+  return (
+    <div className="mt-1 space-y-0.5">
+      <h4 className="text-[9px] text-base-content/40 uppercase tracking-wider">Banner clicks</h4>
+      {rows.map((r) => (
+        <div key={r.href} className="flex items-center gap-1.5 text-[10px]">
+          <span className="font-mono text-primary shrink-0">{r.clicks}×</span>
+          <span className="truncate text-base-content/50" title={r.href}>{r.href.replace(/^https?:\/\//, '')}</span>
+        </div>
+      ))}
     </div>
   );
 }

@@ -55,8 +55,8 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
 
       {/* Alt text */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Alt text</label>
-        <input
+        <label htmlFor="imagepanel-alt-text-1" className="text-[10px] text-base-content/40 mb-0.5 block">Alt text</label>
+        <input id="imagepanel-alt-text-1"
           type="text"
           value={data.alt || ''}
           onChange={(e) => onChange({ alt: e.target.value })}
@@ -70,8 +70,8 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
 
       {/* Caption */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Caption</label>
-        <input
+        <label htmlFor="imagepanel-caption-2" className="text-[10px] text-base-content/40 mb-0.5 block">Caption</label>
+        <input id="imagepanel-caption-2"
           type="text"
           value={(data as any).caption || ''}
           onChange={(e) => onChange({ ...({ caption: e.target.value } as any) })}
@@ -82,7 +82,7 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
 
       {/* Show caption toggle */}
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-imagepanel-1"
           type="checkbox"
           checked={(data as any).showCaption ?? true}
           onChange={(e) => onChange({ ...({ showCaption: e.target.checked } as any) })}
@@ -130,7 +130,7 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-[8px] text-base-content/30 block">X: {focalX}%</label>
-            <input
+            <input name="mag-imagepanel-2"
               type="range"
               min={0}
               max={100}
@@ -141,7 +141,7 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
           </div>
           <div>
             <label className="text-[8px] text-base-content/30 block">Y: {focalY}%</label>
-            <input
+            <input name="mag-imagepanel-3"
               type="range"
               min={0}
               max={100}
@@ -155,8 +155,8 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
 
       {/* Opacity */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
-        <input
+        <label htmlFor="imagepanel-opacity-3" className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
+        <input id="imagepanel-opacity-3"
           type="range"
           min={0}
           max={100}
@@ -169,8 +169,8 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
 
       {/* Image scale */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Scale</label>
-        <input
+        <label htmlFor="imagepanel-scale-4" className="text-[10px] text-base-content/40 mb-0.5 block">Scale</label>
+        <input id="imagepanel-scale-4"
           type="range"
           min={10}
           max={400}
@@ -184,8 +184,8 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
 
       {/* Shadow presets */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Shadow preset</label>
-        <select
+        <label htmlFor="imagepanel-shadow-preset-5" className="text-[10px] text-base-content/40 mb-0.5 block">Shadow preset</label>
+        <select id="imagepanel-shadow-preset-5"
           value={(data as any).shadowPreset || 'none'}
           onChange={(e) => {
             const preset = SHADOW_PRESETS.find(p => p.label.toLowerCase() === e.target.value);
@@ -201,8 +201,8 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
 
       {/* Border radius */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Border radius</label>
-        <input
+        <label htmlFor="imagepanel-border-radius-6" className="text-[10px] text-base-content/40 mb-0.5 block">Border radius</label>
+        <input id="imagepanel-border-radius-6"
           type="range"
           min={0}
           max={50}
@@ -217,13 +217,13 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Background</label>
         <div className="flex gap-1">
-          <input
+          <input name="mag-imagepanel-4"
             type="color"
             value={(data as any).backgroundColor || '#ffffff'}
             onChange={(e) => onChange({ ...({ backgroundColor: e.target.value } as any) })}
             className="w-8 h-6 cursor-pointer rounded border border-base-300"
           />
-          <input
+          <input name="mag-imagepanel-5"
             type="text"
             value={(data as any).backgroundColor || '#ffffff'}
             onChange={(e) => onChange({ ...({ backgroundColor: e.target.value } as any) })}
@@ -247,25 +247,25 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
             {/* Image offset */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">Offset X</label>
-                <input type="number" value={data.imageOffsetX || 0} onChange={(e) => onChange({ imageOffsetX: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
+                <label htmlFor="imagepanel-offset-x-7" className="text-[10px] text-base-content/40 mb-0.5 block">Offset X</label>
+                <input id="imagepanel-offset-x-7" type="number" value={data.imageOffsetX || 0} onChange={(e) => onChange({ imageOffsetX: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
               </div>
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">Offset Y</label>
-                <input type="number" value={data.imageOffsetY || 0} onChange={(e) => onChange({ imageOffsetY: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
+                <label htmlFor="imagepanel-offset-y-8" className="text-[10px] text-base-content/40 mb-0.5 block">Offset Y</label>
+                <input id="imagepanel-offset-y-8" type="number" value={data.imageOffsetY || 0} onChange={(e) => onChange({ imageOffsetY: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
               </div>
             </div>
 
             {/* Image rotation */}
             <div>
-              <label className="text-[10px] text-base-content/40 mb-0.5 block">Rotation</label>
-              <input type="number" min={0} max={360} value={data.imageRotation || 0} onChange={(e) => onChange({ imageRotation: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
+              <label htmlFor="imagepanel-rotation-9" className="text-[10px] text-base-content/40 mb-0.5 block">Rotation</label>
+              <input id="imagepanel-rotation-9" type="number" min={0} max={360} value={data.imageRotation || 0} onChange={(e) => onChange({ imageRotation: Number(e.target.value) })} className="input input-bordered input-xs w-full" />
             </div>
 
             {/* Clip shape */}
             <div>
-              <label className="text-[10px] text-base-content/40 mb-0.5 block">Clip shape</label>
-              <select value={data.clipShape || 'rectangle'} onChange={(e) => onChange({ clipShape: e.target.value as ImageFrameData['clipShape'] })} className="select select-bordered select-xs w-full">
+              <label htmlFor="imagepanel-clip-shape-10" className="text-[10px] text-base-content/40 mb-0.5 block">Clip shape</label>
+              <select id="imagepanel-clip-shape-10" value={data.clipShape || 'rectangle'} onChange={(e) => onChange({ clipShape: e.target.value as ImageFrameData['clipShape'] })} className="select select-bordered select-xs w-full">
                 <option value="rectangle">Rectangle</option>
                 <option value="ellipse">Ellipse</option>
                 <option value="polygon">Polygon</option>
@@ -276,18 +276,18 @@ export default function ImagePanel({ data, onChange, autoOpen, onAutoOpenDone }:
             <h4 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Filters</h4>
             <div>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">Brightness ({data.filters?.brightness ?? 100}%)</label>
-              <input type="range" min={0} max={200} value={data.filters?.brightness ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, brightness: Number(e.target.value) } })} className="range range-xs w-full" />
+              <input name="mag-imagepanel-6" type="range" min={0} max={200} value={data.filters?.brightness ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, brightness: Number(e.target.value) } })} className="range range-xs w-full" />
             </div>
             <div>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">Contrast ({data.filters?.contrast ?? 100}%)</label>
-              <input type="range" min={0} max={200} value={data.filters?.contrast ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, contrast: Number(e.target.value) } })} className="range range-xs w-full" />
+              <input name="mag-imagepanel-7" type="range" min={0} max={200} value={data.filters?.contrast ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, contrast: Number(e.target.value) } })} className="range range-xs w-full" />
             </div>
             <div>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">Saturation ({data.filters?.saturation ?? 100}%)</label>
-              <input type="range" min={0} max={200} value={data.filters?.saturation ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, saturation: Number(e.target.value) } })} className="range range-xs w-full" />
+              <input name="mag-imagepanel-8" type="range" min={0} max={200} value={data.filters?.saturation ?? 100} onChange={(e) => onChange({ filters: { ...data.filters, saturation: Number(e.target.value) } })} className="range range-xs w-full" />
             </div>
             <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={data.filters?.grayscale ?? false} onChange={(e) => onChange({ filters: { ...data.filters, grayscale: e.target.checked } })} className="checkbox checkbox-xs" />
+              <input name="mag-imagepanel-9" type="checkbox" checked={data.filters?.grayscale ?? false} onChange={(e) => onChange({ filters: { ...data.filters, grayscale: e.target.checked } })} className="checkbox checkbox-xs" />
               <span className="text-[10px] text-base-content/40">Grayscale</span>
             </label>
           </div>

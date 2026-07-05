@@ -58,7 +58,19 @@ export function dtpApiToPages(apiData: any): MagPageData[] {
       .filter((f: any) => f.page_id === p.id)
       .sort((a: any, b: any) => (a.z_index || 0) - (b.z_index || 0));
 
-    const elements: MagElement[] = pageFrames.map((f: any) => dtpFrameToElement(f, idx + 1));
+    const flat: MagElement[] = pageFrames.map((f: any) => dtpFrameToElement(f, idx + 1));
+    // reassemble groups from _parentGroupId
+    const byParent = new Map<string, MagElement[]>();
+    pageFrames.forEach((f: any, i: number) => {
+      const pid = f.metadata?._parentGroupId;
+      if (pid) {
+        if (!byParent.has(pid)) byParent.set(pid, []);
+        byParent.get(pid)!.push({ ...flat[i], parentId: pid });
+      }
+    });
+    const elements: MagElement[] = flat
+      .filter((_, i) => !pageFrames[i].metadata?._parentGroupId)
+      .map((el2) => (byParent.has(el2.id) ? { ...el2, children: byParent.get(el2.id)! } : el2));
 
     return {
       id: p.id,
@@ -74,13 +86,55 @@ export function dtpApiToPages(apiData: any): MagPageData[] {
       backgroundColor: p.background?.color || '#ffffff',
       backgroundAssetId: null,
       elements,
+      ...(p.metadata?._guides ? { _guides: p.metadata._guides } : {}),
+      ...(p.metadata?._section ? { _section: p.metadata._section } : {}),
     };
   });
 }
 
+/** merge a possibly-PARTIAL persisted style with defaults — a frame saved
+ *  with only { fill } previously crashed panels reading style.cornerRadius.tl */
+export function mergeElementStyle(raw: any): MagElement['style'] {
+  const d = DEFAULT_ELEMENT_STYLE;
+  if (!raw || typeof raw !== 'object' || Object.keys(raw).length === 0) {
+    return structuredClone(d);
+  }
+  return {
+    ...d,
+    ...raw,
+    fill: { ...d.fill, ...(raw.fill || {}) },
+    stroke: { ...d.stroke, ...(raw.stroke || {}) },
+    cornerRadius: { ...d.cornerRadius, ...(raw.cornerRadius || {}) },
+  };
+}
+
+/** normalize persisted master pages (meta.masterPages): elements seeded via
+ *  API may lack children/textWrap/style — store walkers require them */
+export function normalizeMasterPages(raw: any[]): MagPageData[] {
+  return (Array.isArray(raw) ? raw : []).map((mp: any) => ({
+    ...mp,
+    isMaster: true,
+    elements: (mp.elements || []).map((e: any) => ({
+      rotation: 0, scaleX: 1, scaleY: 1, zIndex: 0, locked: false, visible: true,
+      layerName: null, threadId: null, threadOrder: null, onMaster: true,
+      positionMode: 'free', spanMode: 'page', parentId: null,
+      responsiveOverrides: {}, typography: e.typography ?? null, name: e.name ?? null,
+      ...e,
+      children: Array.isArray(e.children) ? e.children : [],
+      textWrap: e.textWrap ? { ...DEFAULT_TEXT_WRAP, ...e.textWrap } : { ...DEFAULT_TEXT_WRAP },
+      style: mergeElementStyle(e.style),
+      data: e.data || {},
+    })),
+  }));
+}
+
 export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
   const content = f.content || {};
-  const magType = FRAME_TYPE_MAP[f.frame_type] || 'text_frame';
+  // metadata._magType restores the SPECIFIC editor type (circular_image,
+  // table_frame, …) that REVERSE_TYPE_MAP collapsed for the API — the audit
+  // flagged reload flattening clip shapes and tables to their generic type
+  const savedMagType = typeof f.metadata?._magType === 'string' ? f.metadata._magType : null;
+  const magType = savedMagType || FRAME_TYPE_MAP[f.frame_type] || 'text_frame';
 
   const data: Record<string, unknown> = {};
   if (['text', 'quote', 'articleReference'].includes(f.frame_type)) {
@@ -94,6 +148,34 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     if (content.autoSize) data.autoSize = content.autoSize;
     if (content.textInset) data.textInset = content.textInset;
     if (content.verticalAlign) data.verticalAlign = content.verticalAlign;
+  }
+  if (savedMagType === 'table_frame') {
+    data.headers = Array.isArray(content.tableHeaders) ? content.tableHeaders : ['Col 1', 'Col 2'];
+    data.rows = Array.isArray(content.tableRows) ? content.tableRows : [['', '']];
+    data.stripes = content.tableStripes !== false;
+    data.borderColor = content.tableBorderColor || '#e5e7eb';
+  }
+  if (savedMagType === 'text_path') {
+    data.text = content.pathText || '';
+    data.preset = content.pathPreset || 'arc-up';
+    data.startOffset = content.pathStartOffset ?? 0;
+  }
+  if (savedMagType === 'video_frame') {
+    data.url = content.videoUrl || '';
+    data.posterAssetId = content.posterAssetId || null;
+    data.aspectRatio = content.aspectRatio || '16:9';
+    data.autoplay = false;
+  }
+  if (savedMagType === 'audio_player') {
+    data.url = content.audioUrl || '';
+    data.title = content.audioTitle || 'Audio';
+    data.artist = content.audioArtist || '';
+  }
+  if (magType === 'page_number') {
+    data.format = content.format || 'decimal';
+    data.prefix = content.prefix || '';
+    data.suffix = content.suffix || '';
+    data.startAt = content.startAt ?? 1;
   }
   if (f.frame_type === 'image') {
     data.src = content.src || '';
@@ -138,7 +220,7 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     locked: f.locked === true,
     visible: f.visible !== false,
     layerName: null,
-    style: f.style && Object.keys(f.style).length > 0 ? f.style : { ...DEFAULT_ELEMENT_STYLE },
+    style: mergeElementStyle(f.style),
     typography: savedTypography ? { ...DEFAULT_TYPOGRAPHY, ...savedTypography } : (['text', 'quote', 'articleReference'].includes(f.frame_type) ? { ...DEFAULT_TYPOGRAPHY } : null),
     textWrap: f.metadata?._textWrap ? { ...DEFAULT_TEXT_WRAP, ...f.metadata._textWrap } : { ...DEFAULT_TEXT_WRAP },
     threadId: f.metadata?.threadId || null,
@@ -161,7 +243,7 @@ export const REVERSE_TYPE_MAP: Record<string, string> = {
   rectangle: 'shape', ellipse: 'shape', line: 'line', polygon: 'shape',
   freeform_path: 'shape', decorative_rule: 'decorative', gradient_overlay: 'shape',
   page_number: 'pageNumber', running_header: 'text', column_guides: 'text',
-  video_frame: 'text', audio_player: 'text', embed_frame: 'text', svg_icon: 'shape',
+  video_frame: 'text', audio_player: 'text', embed_frame: 'text', svg_icon: 'shape', text_path: 'decorative',
   button: 'text', hotspot: 'shape', tooltip_trigger: 'shape',
   accordion_frame: 'text', slidein_panel: 'text',
   table_frame: 'text', chart_frame: 'text', infographic_number: 'text', progress_indicator: 'shape',
@@ -241,13 +323,38 @@ export function pagesToDtpApi(
       bleed: page.bleed,
       background: { color: page.backgroundColor || '#ffffff' },
       master_page_id: page.masterPageId || null,
+      metadata: stripUndefined({ _guides: (page as any)._guides, _section: (page as any)._section }),
     });
 
-    page.elements.forEach(el => {
+    const emitFrame = (el: MagElement, parentGroupId: string | null) => {
       const frameType = REVERSE_TYPE_MAP[el.type] || 'text';
       const content: Record<string, unknown> = {};
 
-      if (['text', 'quote'].includes(frameType)) {
+      if (el.type === 'table_frame') {
+        content.tableHeaders = (el.data as any)?.headers || ['Col 1', 'Col 2'];
+        content.tableRows = (el.data as any)?.rows || [['', '']];
+        content.tableStripes = (el.data as any)?.stripes !== false;
+        content.tableBorderColor = (el.data as any)?.borderColor || '#e5e7eb';
+      } else if (el.type === 'text_path') {
+        content.pathText = (el.data as any)?.text || '';
+        content.pathPreset = (el.data as any)?.preset || 'arc-up';
+        content.pathStartOffset = (el.data as any)?.startOffset ?? 0;
+      } else if (el.type === 'video_frame') {
+        const vu = (el.data as any)?.url || '';
+        content.videoUrl = /^https?:\/\//i.test(vu) ? vu : '';
+        content.posterAssetId = (el.data as any)?.posterAssetId;
+        content.aspectRatio = (el.data as any)?.aspectRatio || '16:9';
+      } else if (el.type === 'audio_player') {
+        const au = (el.data as any)?.url || '';
+        content.audioUrl = /^https?:\/\//i.test(au) || au.startsWith('/') ? au : '';
+        content.audioTitle = (el.data as any)?.title || 'Audio';
+        content.audioArtist = (el.data as any)?.artist || '';
+      } else if (el.type === 'page_number') {
+        content.format = (el.data as any)?.format || 'decimal';
+        content.prefix = (el.data as any)?.prefix || '';
+        content.suffix = (el.data as any)?.suffix || '';
+        content.startAt = (el.data as any)?.startAt ?? 1;
+      } else if (['text', 'quote'].includes(frameType)) {
         content.html = (el.data as any)?.content || '';
         // Preserve text frame settings
         content.overflow = (el.data as any)?.overflow;
@@ -311,9 +418,14 @@ export function pagesToDtpApi(
           _textWrap: el.textWrap && el.textWrap.type !== 'none' ? el.textWrap : undefined,
           _scaleX: el.scaleX !== 1 ? el.scaleX : undefined,
           _scaleY: el.scaleY !== 1 ? el.scaleY : undefined,
+          _parentGroupId: parentGroupId || undefined,
         }),
       });
-    });
+      // group children serialize FLAT (absolute coords) so publish renders
+      // them directly; the editor reassembles via _parentGroupId
+      el.children.forEach((c) => emitFrame(c, el.id));
+    };
+    page.elements.forEach(el => emitFrame(el, null));
   });
 
   return {

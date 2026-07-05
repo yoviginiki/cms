@@ -170,6 +170,145 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringNotContainsString('justify-content', $plain['html']);
     }
 
+    public function test_table_frames_publish_as_real_tables(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => [
+                'tableHeaders' => ['Name', 'Qty'],
+                'tableRows' => [['Washi <b>x</b>', '3'], ['Vermilion', '1']],
+                'tableStripes' => true,
+                'tableBorderColor' => '#333333',
+            ],
+            'metadata' => ['_magType' => 'table_frame'],
+        ]);
+        $html = $out['html'];
+        $this->assertStringContainsString('<table', $html);
+        $this->assertStringContainsString('<th style="border:1px solid #333333', $html);
+        $this->assertStringContainsString('Name', $html);
+        $this->assertStringContainsString('background:#fafaf8', $html); // stripe row
+        $this->assertStringContainsString('Washi &lt;b&gt;x&lt;/b&gt;', $html); // cells escaped
+        // plain text frames are unaffected
+        $plain = $this->renderFrame(['frame_type' => 'text', 'content' => ['html' => '<p>x</p>']]);
+        $this->assertStringNotContainsString('<table', $plain['html']);
+    }
+
+    public function test_page_number_formats_publish(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'pageNumber',
+            'content' => ['format' => 'roman-lower', 'prefix' => 'p. ', 'suffix' => ' —', 'startAt' => 3],
+        ], ['page_index' => 1]); // page_index 1 + startAt 3 => 4 => "iv"
+        $this->assertStringContainsString('p. iv —', $out['html']);
+
+        $out2 = $this->renderFrame([
+            'frame_type' => 'pageNumber',
+            'content' => ['format' => 'alpha-upper'],
+        ], ['page_index' => 27]); // 28 => AB
+        $this->assertStringContainsString('AB', $out2['html']);
+    }
+
+    public function test_master_pages_composite_at_publish(): void
+    {
+        $svc = app(\App\Domain\Magazine\Services\DtpRenderService::class);
+        $page = new MagazineDtpPage();
+        $page->forceFill(['page_index' => 4, 'width' => 595, 'height' => 842]); // page 5
+        $masterDef = [
+            'id' => 'master-a',
+            'elements' => [
+                ['id' => 'e1', 'type' => 'running_header', 'x' => 36, 'y' => 12, 'width' => 300, 'height' => 20,
+                 'zIndex' => 0, 'data' => ['customText' => 'STILLOPRESS FOLIO <x>'],
+                 'typography' => ['fontSize' => 9, 'letterSpacing' => 0.2]],
+                ['id' => 'e2', 'type' => 'page_number', 'x' => 550, 'y' => 810, 'width' => 40, 'height' => 20,
+                 'zIndex' => 0, 'data' => ['format' => 'roman-lower', 'prefix' => '', 'suffix' => '', 'startAt' => 1]],
+                ['id' => 'e3', 'type' => 'unknown_widget', 'data' => []],
+                ['id' => 'e4', 'type' => 'text_frame', 'visible' => false, 'data' => ['content' => '<p>hidden</p>']],
+            ],
+        ];
+        $frames = $svc->renderMasterFrames($masterDef, $page);
+        $this->assertCount(2, $frames); // unknown + hidden skipped
+        $all = implode('', array_column($frames, 'html'));
+        $this->assertStringContainsString('STILLOPRESS FOLIO &lt;x&gt;', $all); // escaped
+        $this->assertStringContainsString('>v<', $all); // page 5 => roman-lower 'v'
+        $this->assertTrue($frames[0]['fromMaster']);
+        $this->assertStringStartsWith('master-', $frames[0]['id']);
+    }
+
+    public function test_master_verso_recto_application(): void
+    {
+        $svc = app(\App\Domain\Magazine\Services\DtpRenderService::class);
+        $masterDef = ['id' => 'm', '_appliesTo' => 'verso', 'elements' => [
+            ['id' => 'e', 'type' => 'running_header', 'data' => ['customText' => 'FOLIO'], 'x' => 0, 'y' => 0, 'width' => 100, 'height' => 20, 'zIndex' => 0],
+        ]];
+        $left = new MagazineDtpPage();
+        $left->forceFill(['page_index' => 1, 'width' => 595, 'height' => 842, 'side' => 'left']);
+        $right = new MagazineDtpPage();
+        $right->forceFill(['page_index' => 2, 'width' => 595, 'height' => 842, 'side' => 'right']);
+        $this->assertCount(1, $svc->renderMasterFrames($masterDef, $left));
+        $this->assertCount(0, $svc->renderMasterFrames($masterDef, $right));
+    }
+
+    public function test_video_and_audio_frames_publish(): void
+    {
+        $yt = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['videoUrl' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'],
+            'metadata' => ['_magType' => 'video_frame'],
+        ]);
+        $this->assertStringContainsString('youtube-nocookie.com/embed/dQw4w9WgXcQ', $yt['html']);
+
+        $mp4 = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['videoUrl' => 'https://cdn.x.test/clip.mp4'],
+            'metadata' => ['_magType' => 'video_frame'],
+        ]);
+        $this->assertStringContainsString('<video controls', $mp4['html']);
+
+        $bad = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['videoUrl' => 'javascript:alert(1)'],
+            'metadata' => ['_magType' => 'video_frame'],
+        ]);
+        $this->assertStringContainsString('No video', $bad['html']);
+
+        $au = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['audioUrl' => 'https://cdn.x.test/track.mp3', 'audioTitle' => 'Intro <x>'],
+            'metadata' => ['_magType' => 'audio_player'],
+        ]);
+        $this->assertStringContainsString('<audio controls', $au['html']);
+        $this->assertStringContainsString('Intro &lt;x&gt;', $au['html']);
+    }
+
+    public function test_sections_drive_published_page_numbers(): void
+    {
+        $svc = app(\App\Domain\Magazine\Services\DtpRenderService::class);
+        $prop = new \ReflectionProperty($svc, 'displayNumbers');
+        $prop->setAccessible(true);
+        $page = new MagazineDtpPage();
+        $page->forceFill(['id' => 'pg-9', 'page_index' => 8, 'width' => 595, 'height' => 842]);
+        $prop->setValue($svc, ['pg-9' => ['n' => 2, 'format' => 'roman-lower']]);
+        $m = new ReflectionMethod($svc, 'renderPageNumberFrame');
+        $m->setAccessible(true);
+        $html = $m->invoke($svc, $page, ['format' => 'decimal']);
+        $this->assertStringContainsString('>ii<', $html); // section wins over index
+    }
+
+    public function test_text_on_path_publishes_svg_textpath(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'decorative',
+            'width' => 320, 'height' => 120,
+            'content' => ['pathText' => 'Around <the> bend', 'pathPreset' => 'circle', 'pathStartOffset' => 25],
+            'metadata' => ['_magType' => 'text_path', '_typography' => ['fontFamily' => 'Playfair Display', 'fontSize' => 20, 'textColor' => '#e63b2e']],
+        ]);
+        $this->assertStringContainsString('<textPath', $out['html']);
+        $this->assertStringContainsString('startOffset="25%"', $out['html']);
+        $this->assertStringContainsString('Around &lt;the&gt; bend', $out['html']);
+        $this->assertStringContainsString('fill:#e63b2e', $out['html']);
+        $this->assertStringContainsString(' A ', $out['html']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

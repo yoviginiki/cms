@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { MagElement } from '@/types/magazine';
-import { calculateSmartGuides, snapToGrid } from '@/lib/smartGuides';
+import { calculateSmartGuides, snapToGrid, applyExtraSnaps } from '@/lib/smartGuides';
 import { useMagazineStore } from '@/stores/magazineStore';
 
 interface SelectionState {
@@ -52,6 +52,8 @@ export function useMagSelection(
   const DRAG_DEAD_ZONE = 3; // px — must move this far before drag activates
   const resizeStartRef = useRef<{ x: number; y: number; origBounds: { x: number; y: number; w: number; h: number } } | null>(null);
   const rotationStartRef = useRef<{ startAngle: number; initialRotation: number; cx: number; cy: number; pageRect: DOMRect | null } | null>(null);
+  // alt+click = select-behind cycle; alt+drag = duplicate-and-drag (W2-6)
+  const altRef = useRef<{ stack: string[] } | null>(null);
 
   const select = useCallback((id: string, addToSelection = false) => {
     setState(s => ({
@@ -97,6 +99,22 @@ export function useMagSelection(
       return;
     }
 
+    if (e.altKey && !e.shiftKey) {
+      const pageEl = (e.currentTarget as HTMLElement).closest('[data-canvas="page"]');
+      const rect = pageEl?.getBoundingClientRect();
+      if (rect) {
+        const px = (e.clientX - rect.left) / zoom;
+        const py = (e.clientY - rect.top) / zoom;
+        const stack = elements
+          .filter(el2 => !el2.locked && px >= el2.x && px <= el2.x + el2.width && py >= el2.y && py <= el2.y + el2.height)
+          .sort((a, b) => b.zIndex - a.zIndex)
+          .map(el2 => el2.id);
+        altRef.current = stack.length > 1 ? { stack } : null;
+      }
+    } else {
+      altRef.current = null;
+    }
+
     const addToSelection = e.shiftKey;
     select(id, addToSelection);
 
@@ -122,6 +140,11 @@ export function useMagSelection(
       const dy = Math.abs(e.clientY - dragStartRef.current.y);
       if (dx > DRAG_DEAD_ZONE || dy > DRAG_DEAD_ZONE) {
         dragPendingRef.current = false;
+        // alt+drag = duplicate: leave copies behind, keep dragging the originals
+        if (altRef.current && dragStartRef.current) {
+          onDuplicateElements([...dragStartRef.current.origPositions.keys()]);
+          altRef.current = null;
+        }
         setState(s => ({ ...s, isDragging: true }));
       }
       return; // Don't move yet until drag is activated
@@ -138,19 +161,41 @@ export function useMagSelection(
       let newX = firstOrig.x + dx;
       let newY = firstOrig.y + dy;
 
-      if (useMagazineStore.getState().snapEnabled) {
+      // W2-2 snapping consolidation: ONE global switch + per-source prefs
+      const magStore = useMagazineStore.getState();
+      const prefs = magStore.snapPrefs;
+      const snapOn = magStore.snapEnabled;
+      if (snapOn && prefs.grid) {
         newX = snapToGrid(newX, state.gridSize);
         newY = snapToGrid(newY, state.gridSize);
       }
 
-      // Smart guides
+      // Smart guides (margins/objects/center) — now honor the global switch
       const firstEl = elements.find(e => e.id === firstId);
       if (firstEl) {
-        const others = elements.filter(e => !state.selectedIds.includes(e.id));
-        const snap = calculateSmartGuides({ x: newX, y: newY, width: firstEl.width, height: firstEl.height }, others, pageWidth, pageHeight, margins);
-        newX = snap.x;
-        newY = snap.y;
-        setState(s => ({ ...s, guides: snap.guides }));
+        let allGuides: Array<{ type: 'vertical' | 'horizontal'; position: number }> = [];
+        if (snapOn && (prefs.margins || prefs.objects)) {
+          const others = prefs.objects ? elements.filter(e => !state.selectedIds.includes(e.id)) : [];
+          const snap = calculateSmartGuides({ x: newX, y: newY, width: firstEl.width, height: firstEl.height }, others, pageWidth, pageHeight, prefs.margins ? margins : { top: -1e6, right: -1e6, bottom: -1e6, left: -1e6 });
+          newX = snap.x;
+          newY = snap.y;
+          allGuides = snap.guides;
+        }
+        // ruler guides + baseline grid (W2-1/W2-3)
+        if (snapOn && (prefs.guides || prefs.baseline)) {
+          const pg = magStore.pages.find(pp => pp.pageNumber === magStore.currentPageNumber);
+          const g = (pg as any)?._guides || { v: [], h: [] };
+          const extra = applyExtraSnaps(newX, newY, firstEl.width, firstEl.height, {
+            guidesV: g.v || [], guidesH: g.h || [],
+            baselineIncrement: pg?.baselineGrid?.increment || 0,
+            baselineStart: pg?.baselineGrid?.start || 0,
+            snapGuides: prefs.guides, snapBaseline: prefs.baseline,
+          });
+          newX = extra.x;
+          newY = extra.y;
+          allGuides = [...allGuides, ...extra.guides];
+        }
+        setState(s => ({ ...s, guides: allGuides }));
       }
 
       // Apply to all selected
@@ -205,6 +250,17 @@ export function useMagSelection(
   const handlePointerUp = useCallback(() => {
     dragPendingRef.current = false;
 
+    // alt+click without drag → cycle selection to the element BELOW (W2-6)
+    if (altRef.current && !state.isDragging && !state.isResizing && !state.isRotating) {
+      const stack = altRef.current.stack;
+      altRef.current = null;
+      const current = state.selectedIds[0];
+      const idx = stack.indexOf(current);
+      const next = stack[(idx + 1) % stack.length];
+      if (next) setState(s => ({ ...s, selectedIds: [next] }));
+      return;
+    }
+
     if (state.isDragging) {
       // Check if any selected element was dragged outside the current page bounds
       if (onMoveToPage && state.selectedIds.length === 1) {
@@ -212,11 +268,13 @@ export function useMagSelection(
         if (el && !el.locked) {
           const centerX = el.x + el.width / 2;
 
-          if (centerX > pageWidth) {
+          // pasteboard (W2): a 140pt apron around the page is STAGING —
+          // only a drag far beyond it moves the element to the next page
+          if (centerX > pageWidth + 140) {
             // Dragged to the right — move to next page
             const newX = centerX - pageWidth - 24 / zoom; // account for page gap
             onMoveToPage(el.id, 'next', Math.max(0, newX - el.width / 2), el.y);
-          } else if (centerX < 0) {
+          } else if (centerX < -140) {
             // Dragged to the left — move to previous page
             const newX = pageWidth + centerX - 24 / zoom;
             onMoveToPage(el.id, 'prev', Math.max(0, newX - el.width / 2), el.y);
@@ -267,17 +325,31 @@ export function useMagSelection(
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          const sel = state.selectedIds[0];
+          const el2 = elements.find(x => x.id === sel);
+          if (el2 && (el2.type === 'group' || el2.type === 'clipping_group')) store.ungroupElements(sel);
+        } else if (state.selectedIds.length >= 2) {
+          store.groupElements(state.selectedIds);
+          setState(s2 => ({ ...s2, selectedIds: [] }));
+        }
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); store.copy(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') { e.preventDefault(); store.cut(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); store.paste(); return; }
 
       // Tool shortcuts
+      if (e.key === '?') { window.dispatchEvent(new CustomEvent('mag:shortcuts')); return; }
       if (e.key === 'v') setTool('select');
       if (e.key === 't') setTool('text');
       if (e.key === 'i') setTool('image');
       if (e.key === 'r') setTool('rectangle');
       if (e.key === 'e') setTool('ellipse');
       if (e.key === 'l' && !e.ctrlKey) setTool('line');
+      if (e.key === 'w' && !e.ctrlKey && !e.metaKey) { useMagazineStore.getState().togglePreview(); }
 
       // Nudge
       if (state.selectedIds.length && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -300,10 +372,15 @@ export function useMagSelection(
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state.selectedIds, elements, onUpdateElement, onDeleteElements, onDuplicateElements, clearSelection, setTool, toggleSnap]);
 
+  const setSelectedIds = useCallback((ids: string[]) => { setState(s => ({ ...s, selectedIds: ids })); }, []);
+  const setMarquee = useCallback((m: SelectionState['marquee']) => { setState(s => ({ ...s, marquee: m })); }, []);
+
   const storeSnapEnabled = useMagazineStore((st) => st.snapEnabled);
   return {
     ...state,
     snapEnabled: storeSnapEnabled,
+    setSelectedIds,
+    setMarquee,
     select,
     clearSelection,
     setTool,

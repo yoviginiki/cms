@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Plus, Copy, Trash2, LayoutTemplate } from 'lucide-react';
 import type { MagPageData, MagElement } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
+import { useMagazineStore } from '@/stores/magazineStore';
 
 // ─── Page templates ───
 
@@ -110,6 +111,8 @@ interface PageNavigatorProps {
   onAssignMasterToAll?: (masterPageId: string | null) => void;
   onEditMaster?: (masterPageId: string | null) => void;
   editingMasterId?: string | null;
+  onSetMasterApplies?: (masterPageId: string, v: 'all' | 'verso' | 'recto') => void;
+  onDetachMaster?: (pageNumber: number) => void;
 }
 
 export default function PageNavigator({
@@ -126,6 +129,8 @@ export default function PageNavigator({
   onAssignMasterToAll,
   onEditMaster,
   editingMasterId,
+  onSetMasterApplies,
+  onDetachMaster,
 }: PageNavigatorProps) {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmTemplate, setConfirmTemplate] = useState<{ pageNumber: number; template: PageTemplate } | null>(null);
@@ -177,11 +182,52 @@ export default function PageNavigator({
         <div className="w-full mb-2 pb-2 border-b border-base-300/20">
           <span className="text-[8px] font-semibold uppercase tracking-wider text-base-content/30">Masters</span>
           {masterPages.map(mp => (
-            <button key={mp.id} onClick={() => onEditMaster?.(editingMasterId === mp.id ? null : mp.id)}
-              className={`w-full text-left px-1.5 py-1 rounded text-[9px] mt-0.5 transition-colors ${editingMasterId === mp.id ? 'bg-warning/20 text-warning font-medium' : 'text-base-content/50 hover:bg-base-300/20'}`}>
-              {(mp as any)._masterName || `Master ${Math.abs(mp.pageNumber)}`}
-              {editingMasterId === mp.id && <span className="text-[7px] ml-1 text-warning/60">editing</span>}
-            </button>
+            <div key={mp.id} className="mt-0.5">
+              <button onClick={() => onEditMaster?.(editingMasterId === mp.id ? null : mp.id)}
+                className={`w-full text-left px-1.5 py-1 rounded text-[9px] transition-colors ${editingMasterId === mp.id ? 'bg-warning/20 text-warning font-medium' : 'text-base-content/50 hover:bg-base-300/20'}`}>
+                {(mp as any)._masterName || `Master ${Math.abs(mp.pageNumber)}`}
+                {editingMasterId === mp.id && <span className="text-[7px] ml-1 text-warning/60">editing</span>}
+              </button>
+              {onSetMasterApplies && (
+                <select name="mag-pagenavigator-1"
+                  value={(mp as any)._appliesTo || 'all'}
+                  onChange={e => onSetMasterApplies(mp.id, e.target.value as 'all' | 'verso' | 'recto')}
+                  title="Which pages this master applies to (verso = left, recto = right)"
+                  className="select select-bordered select-xs w-full text-[8px] mt-0.5"
+                >
+                  <option value="all">All pages</option>
+                  <option value="verso">Verso (left) only</option>
+                  <option value="recto">Recto (right) only</option>
+                </select>
+              )}
+              {/* master-on-master ([pro]): inherit a base master's elements */}
+              <select name={`pn-based-on-${mp.id.slice(0, 6)}`}
+                value={(mp as any).basedOnMasterId || ''}
+                onChange={(e) => {
+                  const v = e.target.value || null;
+                  useMagazineStore.setState((st) => ({
+                    pages: st.pages.map((p) => (p.id === mp.id ? { ...p, basedOnMasterId: v } : p)),
+                    isDirty: true,
+                  }));
+                }}
+                title="Base master — its elements render underneath this master's"
+                className="select select-bordered select-xs w-full text-[8px] mt-0.5"
+              >
+                <option value="">Based on: none</option>
+                {masterPages.filter((other: any) => {
+                  if (other.id === mp.id) return false;
+                  // no cycles: other's base chain must not reach mp
+                  let cur: any = other;
+                  for (let d = 0; d < 5 && cur; d++) {
+                    if (cur.basedOnMasterId === mp.id) return false;
+                    cur = masterPages.find((x: any) => x.id === cur.basedOnMasterId);
+                  }
+                  return true;
+                }).map((other: any) => (
+                  <option key={other.id} value={other.id}>Based on: {(other as any)._masterName || `Master ${Math.abs(other.pageNumber)}`}</option>
+                ))}
+              </select>
+            </div>
           ))}
           {editingMasterId && (
             <button onClick={() => onEditMaster?.(null)} className="w-full text-[8px] text-primary mt-1 hover:underline">
@@ -194,8 +240,9 @@ export default function PageNavigator({
       {/* Master assignment for current page */}
       {!editingMasterId && masterPages.length > 0 && (
         <div className="w-full mb-2">
-          <label className="text-[8px] text-base-content/30 block mb-0.5">Master for p.{currentPage}</label>
+          <label htmlFor="pn-master-select" className="text-[8px] text-base-content/30 block mb-0.5">Master for p.{currentPage}</label>
           <select
+            id="pn-master-select"
             value={sorted.find(p => p.pageNumber === currentPage)?.masterPageId || ''}
             onChange={e => onAssignMaster?.(currentPage, e.target.value || null)}
             className="select select-bordered select-xs w-full text-[9px]"
@@ -209,6 +256,13 @@ export default function PageNavigator({
             className="text-[7px] text-primary/60 hover:text-primary mt-0.5 block">
             Apply to all pages
           </button>
+          {sorted.find(p => p.pageNumber === currentPage)?.masterPageId && onDetachMaster && (
+            <button onClick={() => onDetachMaster(currentPage)}
+              title="Copy the master's elements onto this page as editable elements and unlink the master (revert by re-assigning)"
+              className="text-[7px] text-warning/70 hover:text-warning mt-0.5 block">
+              Detach master to this page
+            </button>
+          )}
         </div>
       )}
 
@@ -237,14 +291,29 @@ export default function PageNavigator({
               onContextMenu={(e) => { e.preventDefault(); setContextMenu({ page: page.pageNumber, x: e.clientX, y: e.clientY }); }}
               title={`Page ${page.pageNumber} — drag to reorder`}
             >
-              {/* Mini element indicators */}
+              {/* Live schematic thumbnail (W2-9): elements at their TRUE positions,
+                  scaled to the thumb — text = lined block, image = tinted, shape = fill */}
               {page.elements.length > 0 && (
-                <div className="absolute inset-1 flex flex-wrap gap-0.5 items-start content-start overflow-hidden opacity-30">
-                  {page.elements.slice(0, 8).map(el => {
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {[...page.elements].sort((a, b) => a.zIndex - b.zIndex).slice(0, 24).map(el => {
+                    if (el.visible === false) return null;
+                    const sx = thumbW / (page.pageSize.width || 595);
+                    const sy = Math.min(80, Math.max(40, thumbH)) / (page.pageSize.height || 842);
                     const isImg = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'].includes(el.type);
+                    const isText = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'].includes(el.type);
+                    const fill = isImg ? 'rgba(59,130,246,0.35)'
+                      : isText ? 'rgba(120,113,108,0.28)'
+                      : ((el.data as any)?.fillColor || (el.style as any)?.fill?.color || 'rgba(156,163,175,0.4)');
                     return (
-                      <div key={el.id} className={`rounded-sm ${isImg ? 'bg-success/60' : 'bg-base-content/40'}`}
-                        style={{ width: Math.max(4, (el.width / page.pageSize.width) * (thumbW - 8)), height: Math.max(2, (el.height / page.pageSize.height) * (thumbH - 8)) }} />
+                      <div key={el.id} style={{
+                        position: 'absolute',
+                        left: el.x * sx, top: el.y * sy,
+                        width: Math.max(2, el.width * sx), height: Math.max(1.5, el.height * sy),
+                        background: isText
+                          ? 'repeating-linear-gradient(rgba(120,113,108,0.45) 0 1px, transparent 1px 3px)'
+                          : fill,
+                        borderRadius: el.type === 'circular_image' ? '50%' : 0,
+                      }} />
                     );
                   })}
                 </div>

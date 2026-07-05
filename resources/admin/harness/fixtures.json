@@ -7,13 +7,14 @@
       "expect": {
         "pages": 9,
         "textFrames": 12,
-        "threads": 1,
+        "threads": 2,
         "lossless": true,
         "previewMarkers": [
           "The Substrate Remembers",
           "fonts.googleapis.com",
           "::first-letter",
-          "We do not fill pages"
+          "We do not fill pages",
+          "STILLOPRESS FOLIO"
         ]
       }
     }

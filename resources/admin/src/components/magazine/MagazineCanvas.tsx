@@ -4,10 +4,11 @@ import type { MagPageData, MagElement } from '@/types/magazine';
 import { MagElementRenderer } from './MagElementRenderer';
 import { useMagSelection } from './MagSelectionEngine';
 import { useMagazineStore } from '@/stores/magazineStore';
+import { pageSide, computeDisplayNumbers, resolveMasterElements } from '@/lib/magazineFormat';
 // Threading engine disabled — Pour splits content at save time
 import {
   MousePointer2, Type, ImageIcon, Square, Circle, Minus,
-  ZoomIn, ZoomOut, Grid3X3, Magnet, Columns3, AlignVerticalSpaceAround,
+  ZoomIn, ZoomOut, Grid3X3, Magnet, Columns3, AlignVerticalSpaceAround, Eye,
 } from 'lucide-react';
 
 type ViewMode = 'single' | 'spread' | 'grid';
@@ -28,6 +29,8 @@ interface MagazineCanvasProps {
   onPageClick?: (pageNumber: number) => void;
   onContinueText?: (elementId: string) => void;
   onMoveToPage?: (elementId: string, direction: 'prev' | 'next', newX: number, newY: number) => void;
+  /** Session E: image file dropped on the page → upload + place a frame */
+  onImageDrop?: (file: File, x: number, y: number) => void;
   onToggleFixed?: (elementId: string, mode: 'free' | 'fixed') => void;
   onToggleSpan?: (elementId: string, mode: 'page' | 'spread') => void;
   onEditingChange?: (editingId: string | null) => void;
@@ -75,7 +78,7 @@ export function MagazineCanvas({
   onSelectElement,
   onPageClick,
   onContinueText,
-  onMoveToPage,
+  onMoveToPage, onImageDrop,
   onEditingChange,
   startEditingId,
   layoutMode = 'single',
@@ -89,6 +92,29 @@ export function MagazineCanvas({
   const [pan, setPan] = useState({ x: 40, y: 40 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  // marquee drag (W2-6): page rect captured at start, coords page-local
+  const marqueeRef = useRef<{ rect: DOMRect; x0: number; y0: number } | null>(null);
+  // ruler guide drag (W2-1): new (index null) or existing guide being moved
+  const [guideDrag, setGuideDrag] = useState<{ axis: 'v' | 'h'; pos: number; index: number | null } | null>(null);
+  const guidePageRectRef = useRef<DOMRect | null>(null);
+  const [snapMenuOpen, setSnapMenuOpen] = useState(false);
+  const snapPrefs = useMagazineStore((st) => st.snapPrefs);
+  const toggleSnapPref = useMagazineStore((st) => st.toggleSnapPref);
+  const storeAddGuide = useMagazineStore((st) => st.addGuide);
+  const storeMoveGuide = useMagazineStore((st) => st.moveGuide);
+  const storeRemoveGuide = useMagazineStore((st) => st.removeGuide);
+
+  const beginGuideDrag = useCallback((axis: 'v' | 'h', index: number | null, e: React.PointerEvent) => {
+    const pageEl = viewportRef.current?.querySelector('[data-canvas="page"]');
+    if (!pageEl) return;
+    e.preventDefault();
+    e.stopPropagation();
+    guidePageRectRef.current = pageEl.getBoundingClientRect();
+    const r = guidePageRectRef.current;
+    const pos = axis === 'v' ? (e.clientX - r.left) / zoom : (e.clientY - r.top) / zoom;
+    setGuideDrag({ axis, pos, index });
+    try { (viewportRef.current as HTMLElement).setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+  }, [zoom]);
 
   // Guide toggles — ONE source of truth: the store (audit W0-3). The top
   // toolbar (MagazineToolbar) writes these same flags, so both toolbars agree.
@@ -99,6 +125,8 @@ export function MagazineCanvas({
   const toggleColumns = useMagazineStore((st) => st.toggleGrid);
   const toggleBaseline = useMagazineStore((st) => st.toggleBaseline);
   const storeActiveTool = useMagazineStore((st) => st.activeTool);
+  const previewMode = useMagazineStore((st) => st.previewMode);
+  const togglePreview = useMagazineStore((st) => st.togglePreview);
 
   const { width: pageW, height: pageH } = page.pageSize || { width: 595, height: 842 };
   const margins = page.margins || { top: 36, right: 36, bottom: 36, left: 36 };
@@ -108,6 +136,25 @@ export function MagazineCanvas({
     onUpdateElement, onAddElement, onDeleteElements, onDuplicateElements,
     onMoveToPage,
   );
+
+  // right-click context menu (W3): element ops at the cursor
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId: string | null } | null>(null);
+  const storeApi = useMagazineStore;
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (previewMode) return;
+    e.preventDefault();
+    const hit = (e.target as HTMLElement).closest('[data-mag-el]');
+    const id = hit?.getAttribute('data-mag-el') || null;
+    if (id && !selection.selectedIds.includes(id)) selection.setSelectedIds?.([id]);
+    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: id });
+  }, [previewMode, selection]);
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', close);
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', close); };
+  }, [ctxMenu]);
 
   // Top toolbar (MagazineToolbar) writes store.activeTool; mirror it into the
   // selection engine so BOTH toolbars drive one tool state (audit W0-3)
@@ -157,6 +204,19 @@ export function MagazineCanvas({
 
   // Track whether blur already saved content — prevents double-save crash
   const blurSavedRef = useRef(false);
+  // Session F: what the editable held when editing STARTED — exitEditing may
+  // only flush when the USER changed it, never because the STORE moved on
+  // (large-paste dialog / flow slices update content mid-session).
+  const editEntryHtmlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editingId) { editEntryHtmlRef.current = null; return; }
+    // editable mounts a tick after setEditingId
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-editing-id="${CSS.escape(editingId)}"]`) as HTMLElement | null;
+      editEntryHtmlRef.current = el ? el.innerHTML : null;
+    }, 50);
+    return () => clearTimeout(t);
+  }, [editingId]);
 
   const exitEditing = useCallback(() => {
     const currentEditId = editingIdRef.current;
@@ -184,7 +244,9 @@ export function MagazineCanvas({
         }
         if (el) {
           const storedContent = (el.data as any)?.content || '';
-          if (currentHtml !== storedContent) {
+          const entryHtml = editEntryHtmlRef.current;
+          const userChanged = entryHtml === null || sanitizeHtml(entryHtml) !== currentHtml;
+          if (userChanged && currentHtml !== storedContent) {
             onUpdateElement(currentEditId, { data: { ...(el.data || {}), content: currentHtml } } as any);
           }
         }
@@ -300,26 +362,79 @@ export function MagazineCanvas({
       return;
     }
 
-    // Select tool: clear selection
+    // Select tool on empty page: begin MARQUEE (click = clear on pointerup)
     exitEditing();
-    selection.clearSelection();
+    const pageEl = (e.target as HTMLElement).closest('[data-canvas="page"]') ||
+      (e.currentTarget as HTMLElement).querySelector('[data-canvas="page"]');
+    if (pageEl) {
+      const rect = (pageEl as HTMLElement).getBoundingClientRect();
+      const x0 = (e.clientX - rect.left) / zoom;
+      const y0 = (e.clientY - rect.top) / zoom;
+      marqueeRef.current = { rect, x0, y0 };
+      selection.setMarquee({ x: x0, y: y0, width: 0, height: 0 });
+      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+    } else {
+      selection.clearSelection();
+    }
   }, [selection, pan, zoom, onAddElement, exitEditing]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
+    if (guideDrag && guidePageRectRef.current) {
+      const r = guidePageRectRef.current;
+      const pos = guideDrag.axis === 'v' ? (e.clientX - r.left) / zoom : (e.clientY - r.top) / zoom;
+      setGuideDrag({ ...guideDrag, pos });
+      return;
+    }
+    if (marqueeRef.current) {
+      const { rect, x0, y0 } = marqueeRef.current;
+      const x1 = (e.clientX - rect.left) / zoom;
+      const y1 = (e.clientY - rect.top) / zoom;
+      selection.setMarquee({
+        x: Math.min(x0, x1), y: Math.min(y0, y1),
+        width: Math.abs(x1 - x0), height: Math.abs(y1 - y0),
+      });
+      return;
+    }
     if (isPanning && panStartRef.current) {
       setPan({
         x: panStartRef.current.panX + (e.clientX - panStartRef.current.x),
         y: panStartRef.current.panY + (e.clientY - panStartRef.current.y),
       });
     }
-  }, [isPanning]);
+  }, [isPanning, guideDrag, zoom, selection]);
 
   const handleCanvasPointerUp = useCallback(() => {
+    if (guideDrag) {
+      const limit = guideDrag.axis === 'v' ? pageW : pageH;
+      const inside = guideDrag.pos >= 0 && guideDrag.pos <= limit;
+      if (inside && guideDrag.index === null) storeAddGuide(page.pageNumber, guideDrag.axis, guideDrag.pos);
+      else if (inside && guideDrag.index !== null) storeMoveGuide(page.pageNumber, guideDrag.axis, guideDrag.index, guideDrag.pos);
+      else if (!inside && guideDrag.index !== null) storeRemoveGuide(page.pageNumber, guideDrag.axis, guideDrag.index);
+      setGuideDrag(null);
+      guidePageRectRef.current = null;
+      return;
+    }
+    if (marqueeRef.current) {
+      const m = selection.marquee;
+      marqueeRef.current = null;
+      if (m && (m.width > 4 || m.height > 4)) {
+        const hit = elements
+          .filter(el => !el.locked && el.visible !== false &&
+            el.x < m.x + m.width && el.x + el.width > m.x &&
+            el.y < m.y + m.height && el.y + el.height > m.y)
+          .map(el => el.id);
+        selection.setSelectedIds(hit);
+      } else {
+        selection.clearSelection();
+      }
+      selection.setMarquee(null);
+      return;
+    }
     if (isPanning) {
       setIsPanning(false);
       panStartRef.current = null;
     }
-  }, [isPanning]);
+  }, [isPanning, selection, elements, guideDrag, page.pageNumber, pageW, pageH, storeAddGuide, storeMoveGuide, storeRemoveGuide]);
 
   // Zoom with wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -435,6 +550,26 @@ export function MagazineCanvas({
         >
           <Magnet size={14} />
         </button>
+        <button
+          className={`btn btn-xs ${previewMode ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={togglePreview}
+          title="Preview mode — hide all editor chrome (W)"
+        >
+          <Eye size={14} />
+        </button>
+        <div className="relative">
+          <button className="btn btn-xs btn-ghost px-1" onClick={() => setSnapMenuOpen(v => !v)} title="Snapping options">▾</button>
+          {snapMenuOpen && (
+            <div className="absolute top-6 left-0 z-[10001] bg-base-100 border border-base-300 shadow-lg p-2 space-y-1 w-36">
+              {([['grid', 'Grid'], ['guides', 'Guides'], ['margins', 'Margins'], ['objects', 'Objects'], ['baseline', 'Baseline']] as const).map(([k, lbl]) => (
+                <label key={k} className="flex items-center gap-1.5 text-[10px] cursor-pointer">
+                  <input type="checkbox" name={`snap-${k}`} className="checkbox checkbox-xs" checked={snapPrefs[k]} onChange={() => toggleSnapPref(k)} />
+                  Snap to {lbl}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="w-px h-5 bg-base-300 mx-1" />
 
@@ -454,7 +589,7 @@ export function MagazineCanvas({
               <span className="text-[10px]">G</span>
             </button>
             {viewMode === 'grid' && (
-              <select className="select select-xs select-bordered w-14 text-[10px]"
+              <select name="mag-magazinecanvas-1" className="select select-xs select-bordered w-14 text-[10px]"
                 value={gridColumns} onChange={e => onPageClick && onPageClick(-(10 + parseInt(e.target.value)))}>
                 <option value="2">2</option>
                 <option value="3">3</option>
@@ -483,7 +618,72 @@ export function MagazineCanvas({
         onPointerMove={handleCanvasPointerMove}
         onPointerUp={handleCanvasPointerUp}
         onWheel={handleWheel}
+        onContextMenu={handleContextMenu}
+        onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) e.preventDefault(); }}
+        onDrop={(e) => {
+          const file = Array.from(e.dataTransfer?.files || []).find(f => f.type.startsWith('image/'));
+          if (!file || !onImageDrop) return;
+          e.preventDefault();
+          const pageEl = viewportRef.current?.querySelector('[data-canvas="page"]');
+          const r = pageEl?.getBoundingClientRect();
+          const x = r ? (e.clientX - r.left) / zoom : 60;
+          const y = r ? (e.clientY - r.top) / zoom : 60;
+          onImageDrop(file, Math.max(0, x), Math.max(0, y));
+        }}
       >
+        {/* Rulers (W2-1) — drag OUT of a ruler to create a guide */}
+        {!previewMode && (
+          <>
+            <div
+              className="absolute top-0 left-5 right-0 h-5 bg-base-200/95 border-b border-base-300 z-[10000] cursor-row-resize select-none overflow-hidden"
+              title="Drag down to create a horizontal guide"
+              onPointerDown={(e) => beginGuideDrag('h', null, e)}
+            >
+              {Array.from({ length: Math.floor(pageW / 25) + 1 }, (_, i) => i * 25).map((pt) => (
+                <div key={pt} style={{ position: 'absolute', left: pan.x + pt * zoom - 20, bottom: 0, width: 1, height: pt % 100 === 0 ? 10 : 5, background: 'rgba(120,113,108,0.55)' }}>
+                  {pt % 100 === 0 && <span style={{ position: 'absolute', bottom: 9, left: 2, fontSize: 7, color: 'rgba(120,113,108,0.8)' }}>{pt}</span>}
+                </div>
+              ))}
+            </div>
+            <div
+              className="absolute top-5 left-0 bottom-0 w-5 bg-base-200/95 border-r border-base-300 z-[10000] cursor-col-resize select-none overflow-hidden"
+              title="Drag right to create a vertical guide"
+              onPointerDown={(e) => beginGuideDrag('v', null, e)}
+            >
+              {Array.from({ length: Math.floor(pageH / 25) + 1 }, (_, i) => i * 25).map((pt) => (
+                <div key={pt} style={{ position: 'absolute', top: pan.y + pt * zoom, right: 0, height: 1, width: pt % 100 === 0 ? 10 : 5, background: 'rgba(120,113,108,0.55)' }}>
+                  {pt % 100 === 0 && <span style={{ position: 'absolute', left: -1, top: 2, fontSize: 7, color: 'rgba(120,113,108,0.8)', writingMode: 'vertical-rl' }}>{pt}</span>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {ctxMenu && (() => {
+          const st = storeApi.getState();
+          const selIds = selection.selectedIds.length ? selection.selectedIds : (ctxMenu.elementId ? [ctxMenu.elementId] : []);
+          const one = selIds.length === 1 ? st.pages.flatMap(pp => pp.elements).find(el2 => el2.id === selIds[0]) : null;
+          const isGroup = one && (one.type === 'group' || one.type === 'clipping_group');
+          const item = 'w-full text-left px-3 py-1 text-[11px] hover:bg-base-300/30 disabled:opacity-30 disabled:hover:bg-transparent';
+          const run = (fn: () => void) => { fn(); setCtxMenu(null); };
+          return (
+            <div className="fixed z-[10005] bg-base-100 border border-base-300 shadow-xl rounded py-1 w-44"
+              style={{ left: Math.min(ctxMenu.x, window.innerWidth - 190), top: Math.min(ctxMenu.y, window.innerHeight - 300) }}
+              onPointerDown={(e) => e.stopPropagation()}>
+              <button className={item} disabled={!selIds.length} onClick={() => run(() => st.copy())}>Copy <span className="float-right text-base-content/30">Ctrl+C</span></button>
+              <button className={item} disabled={!selIds.length} onClick={() => run(() => st.cut())}>Cut <span className="float-right text-base-content/30">Ctrl+X</span></button>
+              <button className={item} onClick={() => run(() => st.paste())}>Paste <span className="float-right text-base-content/30">Ctrl+V</span></button>
+              <button className={item} disabled={!selIds.length} onClick={() => run(() => st.duplicateElements(selIds))}>Duplicate <span className="float-right text-base-content/30">Ctrl+D</span></button>
+              <div className="border-t border-base-300/30 my-1" />
+              <button className={item} disabled={selIds.length < 2} onClick={() => run(() => st.groupElements(selIds))}>Group <span className="float-right text-base-content/30">Ctrl+G</span></button>
+              <button className={item} disabled={!isGroup} onClick={() => run(() => st.ungroupElements(selIds[0]))}>Ungroup <span className="float-right text-base-content/30">⇧Ctrl+G</span></button>
+              <button className={item} disabled={selIds.length !== 1} onClick={() => run(() => st.bringForward(selIds[0]))}>Bring forward</button>
+              <button className={item} disabled={selIds.length !== 1} onClick={() => run(() => st.sendBackward(selIds[0]))}>Send backward</button>
+              <div className="border-t border-base-300/30 my-1" />
+              <button className={item} disabled={!one} onClick={() => run(() => st.updateElement(selIds[0], { locked: !one!.locked } as any))}>{one?.locked ? 'Unlock' : 'Lock'}</button>
+              <button className={`${item} text-error`} disabled={!selIds.length} onClick={() => run(() => st.deleteElements(selIds))}>Delete <span className="float-right text-base-content/30">Del</span></button>
+            </div>
+          );
+        })()}
         {/* Transformed layer */}
         <div
           style={{
@@ -592,7 +792,7 @@ export function MagazineCanvas({
                         <div style={{ position: 'absolute', inset: 0, zIndex: 9998, cursor: 'pointer' }} />
                       )}
 
-                      <div data-canvas="page" style={{ width: pgW, height: pgH, position: 'relative', background: pg.backgroundColor || '#ffffff', overflow: isBookSpread ? 'visible' : 'hidden' }}>
+                      <div data-canvas="page" style={{ width: pgW, height: pgH, position: 'relative', background: pg.backgroundColor || '#ffffff', overflow: previewMode && !isBookSpread ? 'hidden' : 'visible' }}>
                         {/* Spread image elements that span across both pages */}
                         {isLeftPage && spreadElements.map(el => (
                           <div key={`spread-${el.id}`} style={{
@@ -615,8 +815,32 @@ export function MagazineCanvas({
                             <div style={{ position: 'absolute', top: 2, left: 2, background: 'rgba(168,85,247,0.8)', color: 'white', fontSize: 7, padding: '1px 4px', borderRadius: 2, fontWeight: 700 }}>SPREAD</div>
                           </div>
                         ))}
+            {/* Ruler guides (W2-1): cyan lines, drag to move, drag off page to delete */}
+            {!previewMode && (() => {
+              const g = (page as any)._guides as { v: number[]; h: number[] } | undefined;
+              const isCurrent = pg.pageNumber === page.pageNumber;
+              if (!g || !isCurrent) return null;
+              return (
+                <div style={{ position: 'absolute', inset: 0, zIndex: 9500, pointerEvents: 'none' }}>
+                  {(g.v || []).map((x, i) => (
+                    <div key={`gv-${i}`} title={`x = ${x}`} onPointerDown={(e) => beginGuideDrag('v', i, e)}
+                      style={{ position: 'absolute', left: x, top: 0, bottom: 0, width: 0, borderLeft: '1px solid rgba(34,211,238,0.85)', cursor: 'col-resize', pointerEvents: 'auto' }} />
+                  ))}
+                  {(g.h || []).map((y, i) => (
+                    <div key={`gh-${i}`} title={`y = ${y}`} onPointerDown={(e) => beginGuideDrag('h', i, e)}
+                      style={{ position: 'absolute', top: y, left: 0, right: 0, height: 0, borderTop: '1px solid rgba(34,211,238,0.85)', cursor: 'row-resize', pointerEvents: 'auto' }} />
+                  ))}
+                  {guideDrag && (
+                    guideDrag.axis === 'v'
+                      ? <div style={{ position: 'absolute', left: guideDrag.pos, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(34,211,238,1)' }} />
+                      : <div style={{ position: 'absolute', top: guideDrag.pos, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(34,211,238,1)' }} />
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Margin guides — hide inner edges in book spread */}
-            {showMargins && (
+            {showMargins && !previewMode && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
                 <div style={{ position: 'absolute', top: pgMargins.top, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
                 <div style={{ position: 'absolute', bottom: pgMargins.bottom, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
@@ -627,7 +851,7 @@ export function MagazineCanvas({
             )}
 
             {/* Column guides overlay (audit W0-3: was computed, never rendered) */}
-            {showColumns && columnGuides.length > 0 && (
+            {showColumns && !previewMode && columnGuides.length > 0 && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
                 {columnGuides.map((x, i) => (
                   <div key={`cg-${i}`} style={{ position: 'absolute', left: x, top: pgMargins.top, bottom: pgMargins.bottom, width: 0, borderLeft: '1px solid rgba(59,130,246,0.30)' }} />
@@ -636,7 +860,7 @@ export function MagazineCanvas({
             )}
 
             {/* Baseline grid overlay (audit W0-3: was computed, never rendered) */}
-            {showBaseline && baselineLines.length > 0 && (
+            {showBaseline && !previewMode && baselineLines.length > 0 && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
                 {baselineLines.map((y, i) => (
                   <div key={`bl-${i}`} style={{ position: 'absolute', top: y, left: pgMargins.left, right: pgMargins.right, height: 0, borderTop: '1px solid rgba(56,189,248,0.22)' }} />
@@ -648,11 +872,16 @@ export function MagazineCanvas({
             {(() => {
               if (!page.masterPageId || !allPages) return null;
               const masterPage = allPages.find(p => p.id === page.masterPageId && p.isMaster);
+              const masterEls = resolveMasterElements(page.masterPageId, allPages as any);
               if (!masterPage) return null;
-              return masterPage.elements.map(mel => {
+              // verso/recto application (masters v2)
+              const applies = (masterPage as any)._appliesTo || 'all';
+              if (applies !== 'all' && pageSide(page.pageNumber, coverMode) !== applies) return null;
+              return masterEls.map(mel => {
                 // Resolve dynamic page number
+                const disp = computeDisplayNumbers(allPages as any)[page.pageNumber];
                 const resolvedEl = mel.type === 'page_number'
-                  ? { ...mel, data: { ...mel.data, startAt: page.pageNumber } }
+                  ? { ...mel, data: { ...mel.data, startAt: disp?.n ?? page.pageNumber, format: (mel.data as any)?.format && (mel.data as any).format !== 'decimal' ? (mel.data as any).format : (disp?.format || 'decimal') } }
                   : mel;
                 return (
                   <div key={`master-${mel.id}`} style={{ position: 'absolute', left: mel.x || 0, top: mel.y || 0, width: mel.width || 100, height: mel.height || 20, zIndex: mel.zIndex || 0, opacity: 0.6, pointerEvents: 'none' }}>
@@ -664,8 +893,8 @@ export function MagazineCanvas({
                       onPointerDown={() => {}}
                       onDoubleClick={() => {}}
                     />
-                    <div className="absolute top-0 left-0 bg-warning/20 text-warning text-[6px] px-1 rounded-br font-bold pointer-events-none">MASTER</div>
-                    <div className="absolute inset-0 border border-dashed border-warning/30 rounded pointer-events-none" />
+                    {!previewMode && <div className="absolute top-0 left-0 bg-warning/20 text-warning text-[6px] px-1 rounded-br font-bold pointer-events-none">MASTER</div>}
+                    {!previewMode && <div className="absolute inset-0 border border-dashed border-warning/30 rounded pointer-events-none" />}
                   </div>
                 );
               });
@@ -697,6 +926,7 @@ export function MagazineCanvas({
                 allPages={allPages}
                 oversetThreads={oversetThreads}
                 onNavigateThread={onNavigateThread}
+                previewMode={previewMode}
               />
             ))}
 
@@ -716,7 +946,7 @@ export function MagazineCanvas({
               />
             ))}
 
-            {/* Marquee selection (future) */}
+            {/* Marquee selection (W2-6) */}
             {selection.marquee && (
               <div
                 style={{

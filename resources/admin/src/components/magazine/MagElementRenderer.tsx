@@ -3,7 +3,11 @@ import DOMPurify from 'dompurify';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
-import { normalizeClipboardHtml, plainTextToHtml } from '@/lib/clipboardNormalizer';
+import { computeWrapShims, wrapShimsHtml } from '@/lib/contourTrace';
+import { textPathD } from '@/lib/textPathPresets';
+import { useMagazineStore } from '@/stores/magazineStore';
+import { normalizeClipboardHtml, plainTextToHtml, wordCount } from '@/lib/clipboardNormalizer';
+import { formatPageNumber } from '@/lib/magazineFormat';
 
 const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img', 'figure', 'figcaption'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
 
@@ -30,9 +34,11 @@ interface Props {
   oversetThreads?: Record<string, boolean>;
   /** click a thread port badge to jump to the linked frame (W1-5) */
   onNavigateThread?: (pageNumber: number, frameId: string) => void;
+  /** preview mode (W2-8): suppress ALL editor chrome */
+  previewMode?: boolean;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages, oversetThreads, onNavigateThread }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages, oversetThreads, onNavigateThread, previewMode }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -61,6 +67,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
 
   // When entering edit mode, set initial content ONCE and focus
   const editInitializedRef = useRef(false);
+  const lastSavedRef = useRef<string>('');
   useEffect(() => {
     if (isEditing && editRef.current && !editInitializedRef.current) {
       editInitializedRef.current = true;
@@ -77,6 +84,10 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         sel.selectAllChildren(editRef.current);
         sel.collapseToEnd();
       }
+      // Session F root-cause fix: baseline the edit session's content so an
+      // UNCHANGED editable never blur-commits its stale snapshot over content
+      // that changed externally meanwhile (large-paste dialog, flow slices).
+      lastSavedRef.current = editRef.current.innerHTML;
     }
   }, [isEditing]);
 
@@ -85,7 +96,6 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     if (!isEditing) editInitializedRef.current = false;
   }, [isEditing]);
 
-  const lastSavedRef = useRef<string>('');
   const handleBlur = useCallback((_e: React.FocusEvent) => {
     // Delay blur handling — scrollbar clicks fire blur but focus returns
     setTimeout(() => {
@@ -153,6 +163,49 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
   const renderContent = () => {
     const data = el.data as Record<string, any>;
 
+    if (el.type === 'text_path') {
+      const d = textPathD(data?.preset || 'arc-up', el.width, el.height);
+      const pid = `tp-${el.id.slice(0, 8)}`;
+      const typo = el.typography as any;
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${el.width} ${el.height}`} style={{ overflow: 'visible', display: 'block' }}>
+          <path id={pid} d={d} fill="none" />
+          <text style={{
+            fontFamily: typo?.fontFamily || 'Inter',
+            fontSize: typo?.fontSize || 18,
+            fontWeight: typo?.fontWeight || 600,
+            letterSpacing: typo?.letterSpacing ? `${typo.letterSpacing}em` : undefined,
+            fill: typo?.textColor || '#111111',
+          }}>
+            <textPath href={`#${pid}`} startOffset={`${data?.startOffset ?? 0}%`}>
+              {data?.text || 'Text on a path'}
+            </textPath>
+          </text>
+        </svg>
+      );
+    }
+
+    if ((el.type === 'group' || el.type === 'clipping_group') && el.children.length > 0) {
+      // children keep ABSOLUTE page coords; offset into the group box
+      return (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          {el.children.map((c) => (
+            <div key={c.id} style={{ position: 'absolute', left: c.x - el.x, top: c.y - el.y, width: c.width, height: c.height }}>
+              <MagElementRenderer
+                element={{ ...c, x: 0, y: 0 }}
+                isSelected={false}
+                isHovered={false}
+                zoom={1}
+                onPointerDown={() => {}}
+                onDoubleClick={() => {}}
+                previewMode
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     if (TEXT_FRAME_TYPES.includes(el.type)) {
       const typo = el.typography;
       const cols = data.columnsInFrame || 1;
@@ -197,9 +250,33 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
               e.preventDefault();
               e.stopPropagation();
               const clean = rawHtml ? normalizeClipboardHtml(rawHtml) : plainTextToHtml(rawText);
-              if (clean) document.execCommand('insertHTML', false, clean);
+              if (!clean) return;
+              // Session E: BIG pastes go through the large-paste dialog
+              // (heading→style mapping, column choice) instead of raw insert
+              if (wordCount(clean) > 1500) {
+                window.dispatchEvent(new CustomEvent('mag:large-paste', { detail: { html: clean, elementId: el.id } }));
+                return;
+              }
+              document.execCommand('insertHTML', false, clean);
             }}
             onKeyDown={(e) => {
+              // footnotes ([pro]): Ctrl+Alt+F inserts a numbered marker at the
+              // caret and appends the note to the page's footnote block
+              if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                e.stopPropagation();
+                const note = window.prompt('Footnote text:');
+                if (note && note.trim()) {
+                  const st = useMagazineStore.getState();
+                  const existing = st.pages
+                    .find((p) => p.pageNumber === el.pageNumber)?.elements
+                    .find((e2) => e2.type === 'footnote_frame');
+                  const n = (String((existing?.data as any)?.content || '').match(/class="fn"/g) || []).length + 1;
+                  document.execCommand('insertHTML', false, `<sup>${n}</sup>`);
+                  st.insertFootnote(el.pageNumber, note.trim().replace(/</g, '&lt;'));
+                }
+                return;
+              }
               // Let Escape propagate to exit editing, stop everything else
               if (e.key !== 'Escape') e.stopPropagation();
             }}
@@ -234,12 +311,19 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       const dcStyle = dc?.enabled
         ? `.${dcClass} > p:first-of-type::first-letter{float:left;font-size:${Math.round((typo?.fontSize || 14) * (typo?.lineHeight || 1.5) * (dc.lines || 3) * 0.92)}px;line-height:${Math.round((typo?.fontSize || 14) * (typo?.lineHeight || 1.5) * (dc.lines || 3) * 0.85)}px;padding:0 6px 0 0;font-weight:700;${dc.font ? `font-family:${dc.font};` : ''}${dc.color ? `color:${dc.color};` : ''}}`
         : '';
+      // visible runaround ([pro] contour + square): float shims with
+      // shape-outside for single-column frames — same math publishes in DRS
+      let shimHtml = '';
+      if (!isEditing && allPages) {
+        const pg = allPages.find((p2) => p2.pageNumber === el.pageNumber);
+        if (pg) shimHtml = wrapShimsHtml(computeWrapShims(el as any, pg.elements as any));
+      }
       const inner = (
         <div
           ref={textRef}
           className={dcClass || undefined}
           style={va === 'top' ? textStyle : { ...textStyle, height: 'auto' }}
-          dangerouslySetInnerHTML={{ __html: safeContent }}
+          dangerouslySetInnerHTML={{ __html: shimHtml + safeContent }}
         />
       );
       return (
@@ -527,12 +611,31 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     }
 
     if (el.type === 'table_frame') {
-      const headers = data.headers || ['Col 1', 'Col 2'];
+      // full render (tables track): all rows, stripes, real border color —
+      // must match DtpRenderService::renderTableFrame
+      const headers = (data.headers || ['Col 1', 'Col 2']) as string[];
+      const tRows = (data.rows || [['', '']]) as string[][];
+      const border = (data.borderColor as string) || '#e5e7eb';
+      const stripes = data.stripes !== false;
       return (
-        <div className="w-full h-full overflow-hidden text-[8px]">
-          <table className="w-full border-collapse">
-            <thead><tr>{(headers as string[]).map((h: string, i: number) => <th key={i} className="border border-base-300/20 bg-base-200/50 px-1 py-0.5 text-left text-base-content/50">{h}</th>)}</tr></thead>
-            <tbody>{((data.rows || [['...', '...']]) as string[][]).slice(0, 3).map((row: string[], ri: number) => <tr key={ri}>{row.map((c: string, ci: number) => <td key={ci} className="border border-base-300/10 px-1 py-0.5 text-base-content/30">{c}</td>)}</tr>)}</tbody>
+        <div className="w-full h-full overflow-hidden" style={{ fontSize: 11, color: '#1a1a1a' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {headers.map((h, i) => (
+                  <th key={i} style={{ border: `1px solid ${border}`, padding: '4px 6px', textAlign: 'left', fontWeight: 600, background: '#f6f5f2' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tRows.map((row, ri) => (
+                <tr key={ri} style={stripes && ri % 2 === 1 ? { background: '#fafaf8' } : undefined}>
+                  {headers.map((_, ci) => (
+                    <td key={ci} style={{ border: `1px solid ${border}`, padding: '4px 6px' }}>{row[ci] ?? ''}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       );
@@ -631,7 +734,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     }
 
     if (el.type === 'page_number') {
-      return <div className="w-full h-full flex items-center justify-center"><span style={{ fontFamily: el.typography?.fontFamily || 'Inter', fontSize: el.typography?.fontSize || 10, color: el.typography?.textColor || '#888' }}>{data.prefix || ''}{data.startAt || 1}{data.suffix || ''}</span></div>;
+      return <div className="w-full h-full flex items-center justify-center"><span style={{ fontFamily: el.typography?.fontFamily || 'Inter', fontSize: el.typography?.fontSize || 10, color: el.typography?.textColor || '#888' }}>{data.prefix || ''}{formatPageNumber(Number(data.startAt) || 1, (data.format as any) || 'decimal')}{data.suffix || ''}</span></div>;
     }
 
     if (el.type === 'running_header') {
@@ -709,17 +812,18 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
   return (
     <div
       style={containerStyle}
-      className={`magazine-element ${isSelected ? 'ring-2 ring-blue-500' : ''} ${isHovered && !isSelected ? 'ring-1 ring-blue-300/50' : ''}`}
+      className={`magazine-element ${!previewMode && isSelected ? 'ring-2 ring-blue-500' : ''} ${!previewMode && isHovered && !isSelected ? 'ring-1 ring-blue-300/50' : ''}`}
+      data-mag-el={el.id}
       onPointerDown={e => onPointerDown(e, el.id)}
       onDoubleClick={e => onDoubleClick(e, el.id)}
     >
       {renderContent()}
 
       {/* Lock indicator */}
-      {el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
+      {!previewMode && el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
 
       {/* Pour text to next page button — always visible on text frames when selected */}
-      {TEXT_FRAME_TYPES.includes(el.type) && isSelected && !isEditing && (
+      {!previewMode && TEXT_FRAME_TYPES.includes(el.type) && isSelected && !isEditing && (
         <button
           className="absolute bottom-0 left-0 right-0 h-7 bg-primary hover:bg-primary/80 text-primary-content flex items-center justify-center gap-1 text-[9px] font-bold cursor-pointer z-[9998]"
           title="Pour text to next page — creates a continuation frame"
@@ -730,7 +834,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {/* Overset indicator — CHAIN-AWARE (checklist M-D): threaded frames badge
           only on the LAST frame of an overset chain (engine flow state);
           unthreaded frames keep the local scrollHeight detection */}
-      {TEXT_FRAME_TYPES.includes(el.type) && !isEditing && !isSelected && (() => {
+      {!previewMode && TEXT_FRAME_TYPES.includes(el.type) && !isEditing && !isSelected && (() => {
         if (el.threadId) {
           if (!oversetThreads?.[el.threadId]) return null;
           const allEls = allPages?.flatMap(p => p.elements) || [];
@@ -748,7 +852,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       })()}
 
       {/* Thread / linked frame indicators */}
-      {el.threadId && (() => {
+      {!previewMode && el.threadId && (() => {
         const allEls = allPages?.flatMap(p => p.elements) || [];
         const threadFrames = allEls.filter(e => e.threadId === el.threadId).sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
         const myIndex = threadFrames.findIndex(f => f.id === el.id);
@@ -787,14 +891,14 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
            (overflow:hidden clips anything above the frame boundary) */}
 
       {/* Fixed badge */}
-      {el.positionMode === 'fixed' && (
+      {!previewMode && el.positionMode === 'fixed' && (
         <div className="absolute top-1 left-1 bg-amber-500/80 text-white text-[7px] px-1.5 py-0.5 rounded font-bold pointer-events-none z-[9998]">
           FIXED
         </div>
       )}
 
       {/* Spread badge */}
-      {el.spanMode === 'spread' && (
+      {!previewMode && el.spanMode === 'spread' && (
         <div className="absolute top-1 right-8 bg-purple-500/80 text-white text-[7px] px-1.5 py-0.5 rounded font-bold pointer-events-none z-[9998]">
           SPREAD
         </div>
@@ -803,7 +907,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {/* Fix/Unfix and Spread/Single controls moved to right panel (DtpEditorBeta properties tab) */}
 
       {/* Resize handles when selected */}
-      {isSelected && !el.locked && (
+      {!previewMode && isSelected && !el.locked && (
         <>
           {['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => {
             const isCorner = h.length === 2;

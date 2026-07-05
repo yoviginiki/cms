@@ -75,3 +75,52 @@ export function calculateSmartGuides(
 export function snapToGrid(value: number, gridSize: number): number {
   return Math.round(value / gridSize) * gridSize;
 }
+
+export interface ExtraSnapOptions {
+  guidesV: number[];
+  guidesH: number[];
+  baselineIncrement: number;
+  baselineStart: number;
+  snapGuides: boolean;
+  snapBaseline: boolean;
+  threshold?: number;
+}
+
+/** snap x/y (frame top-left) to ruler guides and the baseline grid (W2-1/2/3).
+ *  Guides attract frame edges AND centers; baseline attracts frame top. */
+export function applyExtraSnaps(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  opts: ExtraSnapOptions,
+): { x: number; y: number; guides: Array<{ type: 'vertical' | 'horizontal'; position: number }> } {
+  const t = opts.threshold ?? 4;
+  const out = { x, y, guides: [] as Array<{ type: 'vertical' | 'horizontal'; position: number }> };
+  if (opts.snapGuides) {
+    for (const g of opts.guidesV) {
+      for (const cand of [x, x + width / 2, x + width]) {
+        if (Math.abs(cand - g) <= t) {
+          out.x = x + (g - cand);
+          out.guides.push({ type: 'vertical', position: g });
+          break;
+        }
+      }
+    }
+    for (const g of opts.guidesH) {
+      for (const cand of [y, y + height / 2, y + height]) {
+        if (Math.abs(cand - g) <= t) {
+          out.y = y + (g - cand);
+          out.guides.push({ type: 'horizontal', position: g });
+          break;
+        }
+      }
+    }
+  }
+  if (opts.snapBaseline && opts.baselineIncrement > 0) {
+    const rel = out.y - opts.baselineStart;
+    const snapped = Math.round(rel / opts.baselineIncrement) * opts.baselineIncrement + opts.baselineStart;
+    if (Math.abs(snapped - out.y) <= t) out.y = snapped;
+  }
+  return out;
+}

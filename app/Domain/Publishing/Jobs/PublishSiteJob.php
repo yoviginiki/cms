@@ -140,6 +140,14 @@ class PublishSiteJob implements ShouldQueue
                 $this->updateProgress($built, $totalItems, "Building post: {$post->title}");
             }
 
+            // Static magazine viewers (W3-9: tenant domains are static-only —
+            // published DTP issues become self-contained /magazine/... pages)
+            $magBuilt = app(\App\Domain\Publishing\Services\MagazineStaticPublisher::class)
+                ->publishForSite($site, $stagingPath);
+            if ($magBuilt > 0) {
+                $this->updateStatus('building', "Built {$magBuilt} magazine viewer(s)");
+            }
+
             // Generate blog index, archives, and RSS
             if ($posts->isNotEmpty()) {
                 $this->buildBlogIndex($site, $posts, $stagingPath);

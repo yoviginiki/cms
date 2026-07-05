@@ -17,8 +17,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
 
       {/* Opacity */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
-        <input
+        <label htmlFor="effectspanel-opacity-1" className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
+        <input id="effectspanel-opacity-1"
           type="range"
           min={0}
           max={100}
@@ -32,7 +32,7 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
       {/* Shadow */}
       <div>
         <label className="flex items-center gap-1.5 cursor-pointer mb-1">
-          <input
+          <input name="mag-effectspanel-1"
             type="checkbox"
             checked={!!style.shadow}
             onChange={(e) => {
@@ -50,8 +50,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
           <div className="space-y-2 pl-4">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">X</label>
-                <input
+                <label htmlFor="effectspanel-x-2" className="text-[10px] text-base-content/40 mb-0.5 block">X</label>
+                <input id="effectspanel-x-2"
                   type="number"
                   value={style.shadow.x}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, x: Number(e.target.value) } })}
@@ -59,8 +59,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">Y</label>
-                <input
+                <label htmlFor="effectspanel-y-3" className="text-[10px] text-base-content/40 mb-0.5 block">Y</label>
+                <input id="effectspanel-y-3"
                   type="number"
                   value={style.shadow.y}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, y: Number(e.target.value) } })}
@@ -70,8 +70,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">Blur</label>
-                <input
+                <label htmlFor="effectspanel-blur-4" className="text-[10px] text-base-content/40 mb-0.5 block">Blur</label>
+                <input id="effectspanel-blur-4"
                   type="number"
                   value={style.shadow.blur}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, blur: Number(e.target.value) } })}
@@ -79,8 +79,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">Spread</label>
-                <input
+                <label htmlFor="effectspanel-spread-5" className="text-[10px] text-base-content/40 mb-0.5 block">Spread</label>
+                <input id="effectspanel-spread-5"
                   type="number"
                   value={style.shadow.spread}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, spread: Number(e.target.value) } })}
@@ -91,13 +91,13 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
             <div>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">Color</label>
               <div className="flex gap-1">
-                <input
+                <input name="mag-effectspanel-2"
                   type="color"
                   value={style.shadow.color.startsWith('rgba') ? '#000000' : style.shadow.color}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, color: e.target.value } })}
                   className="w-8 h-6 cursor-pointer rounded border border-base-300"
                 />
-                <input
+                <input name="mag-effectspanel-3"
                   type="text"
                   value={style.shadow.color}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, color: e.target.value } })}
@@ -112,7 +112,7 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
       {/* Inner shadow */}
       <div>
         <label className="flex items-center gap-1.5 cursor-pointer mb-1">
-          <input
+          <input name="mag-effectspanel-4"
             type="checkbox"
             checked={!!style.innerShadow}
             onChange={(e) => {
@@ -130,8 +130,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
           <div className="space-y-2 pl-4">
             <div className="grid grid-cols-3 gap-1">
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">X</label>
-                <input
+                <label htmlFor="effectspanel-x-6" className="text-[10px] text-base-content/40 mb-0.5 block">X</label>
+                <input id="effectspanel-x-6"
                   type="number"
                   value={style.innerShadow.x}
                   onChange={(e) => onChange({ innerShadow: { ...style.innerShadow!, x: Number(e.target.value) } })}
@@ -139,8 +139,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">Y</label>
-                <input
+                <label htmlFor="effectspanel-y-7" className="text-[10px] text-base-content/40 mb-0.5 block">Y</label>
+                <input id="effectspanel-y-7"
                   type="number"
                   value={style.innerShadow.y}
                   onChange={(e) => onChange({ innerShadow: { ...style.innerShadow!, y: Number(e.target.value) } })}
@@ -148,8 +148,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-base-content/40 mb-0.5 block">Blur</label>
-                <input
+                <label htmlFor="effectspanel-blur-8" className="text-[10px] text-base-content/40 mb-0.5 block">Blur</label>
+                <input id="effectspanel-blur-8"
                   type="number"
                   value={style.innerShadow.blur}
                   onChange={(e) => onChange({ innerShadow: { ...style.innerShadow!, blur: Number(e.target.value) } })}
@@ -160,13 +160,13 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
             <div>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">Color</label>
               <div className="flex gap-1">
-                <input
+                <input name="mag-effectspanel-5"
                   type="color"
                   value={style.innerShadow.color.startsWith('rgba') ? '#000000' : style.innerShadow.color}
                   onChange={(e) => onChange({ innerShadow: { ...style.innerShadow!, color: e.target.value } })}
                   className="w-8 h-6 cursor-pointer rounded border border-base-300"
                 />
-                <input
+                <input name="mag-effectspanel-6"
                   type="text"
                   value={style.innerShadow.color}
                   onChange={(e) => onChange({ innerShadow: { ...style.innerShadow!, color: e.target.value } })}
@@ -180,8 +180,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
 
       {/* Blend mode */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Blend mode</label>
-        <select
+        <label htmlFor="effectspanel-blend-mode-9" className="text-[10px] text-base-content/40 mb-0.5 block">Blend mode</label>
+        <select id="effectspanel-blend-mode-9"
           value={style.blendMode}
           onChange={(e) => onChange({ blendMode: e.target.value as MagElementStyle['blendMode'] })}
           className="select select-bordered select-xs w-full"
@@ -196,8 +196,8 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
 
       {/* Blur */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Blur</label>
-        <input
+        <label htmlFor="effectspanel-blur-10" className="text-[10px] text-base-content/40 mb-0.5 block">Blur</label>
+        <input id="effectspanel-blur-10"
           type="range"
           min={0}
           max={50}

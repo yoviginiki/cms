@@ -238,12 +238,11 @@ class MagazineViewController extends Controller
             }
         });
 
-        return response()->view('dtp-preview', [
+        return response()->view('stillo-viewer', [
             'issue' => $data['issue'],
             'spreads' => $spreads,
             'pageCount' => $data['pageCount'],
-            'frameCount' => $data['frameCount'],
-            'layoutMode' => $data['layoutMode'] ?? 'single',
+            'viewerSettings' => $issue->layout_final['viewerSettings'] ?? [],
             'coverMode' => $data['coverMode'] ?? 'standalone',
             'fontsUrl' => $data['fontsUrl'] ?? null,
         ]);

@@ -41,6 +41,17 @@ class SitemapGenerator
             );
         }
 
+        // Published magazines (statically deployed under /magazine/…)
+        $issues = \App\Domain\IssueComposer\Models\MagazineIssue::where('site_id', $site->id)
+            ->where('status', 'published')->get();
+        $magPublisher = app(\App\Domain\Publishing\Services\MagazineStaticPublisher::class);
+        foreach ($issues as $issue) {
+            $urls[] = $this->urlEntry(
+                $baseUrl . '/' . $magPublisher->issuePath($issue) . '/',
+                '0.7', 'monthly', $issue->updated_at?->toW3cString()
+            );
+        }
+
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
         $xml .= implode("\n", $urls);

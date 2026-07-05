@@ -1,5 +1,6 @@
 
 import type { MagPageData } from '@/types/magazine';
+import { SwatchPicker } from '../SwatchPicker';
 
 interface PagePanelProps {
   page: MagPageData;
@@ -45,8 +46,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
 
       {/* Page size preset */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Page size</label>
-        <select
+        <label htmlFor="pagepanel-page-size-1" className="text-[10px] text-base-content/40 mb-0.5 block">Page size</label>
+        <select id="pagepanel-page-size-1"
           value={presetKey}
           onChange={(e) => handlePreset(e.target.value)}
           className="select select-bordered select-xs w-full"
@@ -61,8 +62,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       {/* Width / Height */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Width</label>
-          <input
+          <label htmlFor="pagepanel-width-2" className="text-[10px] text-base-content/40 mb-0.5 block">Width</label>
+          <input id="pagepanel-width-2"
             type="number"
             value={page.pageSize.width}
             onChange={(e) => onChange({ pageSize: { ...page.pageSize, width: Number(e.target.value) } })}
@@ -70,8 +71,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Height</label>
-          <input
+          <label htmlFor="pagepanel-height-3" className="text-[10px] text-base-content/40 mb-0.5 block">Height</label>
+          <input id="pagepanel-height-3"
             type="number"
             value={page.pageSize.height}
             onChange={(e) => onChange({ pageSize: { ...page.pageSize, height: Number(e.target.value) } })}
@@ -84,7 +85,7 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Orientation</label>
         <label className="flex items-center gap-1.5 cursor-pointer">
-          <input
+          <input name="mag-pagepanel-1"
             type="checkbox"
             checked={isLandscape}
             onChange={toggleOrientation}
@@ -101,7 +102,7 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
             <div key={side}>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase()}</label>
-              <input
+              <input name="mag-pagepanel-2"
                 type="number"
                 value={page.margins[side]}
                 onChange={(e) => onChange({ margins: { ...page.margins, [side]: Number(e.target.value) } })}
@@ -119,7 +120,7 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
             <div key={side}>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase()}</label>
-              <input
+              <input name="mag-pagepanel-3"
                 type="number"
                 value={page.bleed[side]}
                 onChange={(e) => onChange({ bleed: { ...page.bleed, [side]: Number(e.target.value) } })}
@@ -134,8 +135,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Column Grid</h3>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Count</label>
-          <input
+          <label htmlFor="pagepanel-count-4" className="text-[10px] text-base-content/40 mb-0.5 block">Count</label>
+          <input id="pagepanel-count-4"
             type="number"
             min={1}
             value={page.columns.count}
@@ -144,8 +145,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Gutter</label>
-          <input
+          <label htmlFor="pagepanel-gutter-5" className="text-[10px] text-base-content/40 mb-0.5 block">Gutter</label>
+          <input id="pagepanel-gutter-5"
             type="number"
             value={page.columns.gutter}
             onChange={(e) => onChange({ columns: { ...page.columns, gutter: Number(e.target.value) } })}
@@ -158,8 +159,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Baseline Grid</h3>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Increment</label>
-          <input
+          <label htmlFor="pagepanel-increment-6" className="text-[10px] text-base-content/40 mb-0.5 block">Increment</label>
+          <input id="pagepanel-increment-6"
             type="number"
             value={page.baselineGrid.increment}
             onChange={(e) => onChange({ baselineGrid: { ...page.baselineGrid, increment: Number(e.target.value) } })}
@@ -167,8 +168,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Start</label>
-          <input
+          <label htmlFor="pagepanel-start-7" className="text-[10px] text-base-content/40 mb-0.5 block">Start</label>
+          <input id="pagepanel-start-7"
             type="number"
             value={page.baselineGrid.start}
             onChange={(e) => onChange({ baselineGrid: { ...page.baselineGrid, start: Number(e.target.value) } })}
@@ -180,26 +181,14 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       {/* Background color */}
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Background color</label>
-        <div className="flex gap-1">
-          <input
-            type="color"
-            value={page.backgroundColor ?? '#ffffff'}
-            onChange={(e) => onChange({ backgroundColor: e.target.value })}
-            className="w-8 h-6 cursor-pointer rounded border border-base-300"
-          />
-          <input
-            type="text"
-            value={page.backgroundColor ?? ''}
-            onChange={(e) => onChange({ backgroundColor: e.target.value || null })}
-            className="input input-bordered input-xs flex-1"
-          />
-        </div>
+        <SwatchPicker name="pp-bg" value={page.backgroundColor || '#ffffff'}
+          onChange={(c) => onChange({ backgroundColor: c })} />
       </div>
 
       {/* Master page */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Master page</label>
-        <select
+        <label htmlFor="pagepanel-master-page-8" className="text-[10px] text-base-content/40 mb-0.5 block">Master page</label>
+        <select id="pagepanel-master-page-8"
           value={page.masterPageId ?? ''}
           onChange={(e) => onChange({ masterPageId: e.target.value || null })}
           className="select select-bordered select-xs w-full"
@@ -207,6 +196,39 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           <option value="">None</option>
         </select>
       </div>
+      {/* Ruler guides (W2-1): numeric editing */}
+      {(() => {
+        const g = (page as any)._guides as { v: number[]; h: number[] } | undefined;
+        if (!g || (g.v.length === 0 && g.h.length === 0)) return null;
+        const setG = (axis: 'v' | 'h', i: number, val: number) => {
+          const next = { v: [...(g.v || [])], h: [...(g.h || [])] };
+          next[axis][i] = val;
+          onChange({ _guides: next } as any);
+        };
+        const rm = (axis: 'v' | 'h', i: number) => {
+          const next = { v: [...(g.v || [])], h: [...(g.h || [])] };
+          next[axis].splice(i, 1);
+          onChange({ _guides: next } as any);
+        };
+        return (
+          <div>
+            <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-1 mt-3">Guides</h3>
+            {(['v', 'h'] as const).map((axis) =>
+              (g[axis] || []).map((pos, i) => (
+                <div key={`${axis}-${i}`} className="flex items-center gap-1 mb-0.5">
+                  <span className="text-[9px] text-base-content/40 w-3">{axis === 'v' ? 'X' : 'Y'}</span>
+                  <input type="number" name={`guide-${axis}-${i}`} value={pos}
+                    onChange={(e) => setG(axis, i, Number(e.target.value))}
+                    className="input input-bordered input-xs w-20" />
+                  <button className="btn btn-ghost btn-xs px-1" onClick={() => rm(axis, i)}>×</button>
+                </div>
+              )),
+            )}
+            <button className="text-[9px] text-warning/70 hover:text-warning"
+              onClick={() => onChange({ _guides: { v: [], h: [] } } as any)}>Clear all guides</button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

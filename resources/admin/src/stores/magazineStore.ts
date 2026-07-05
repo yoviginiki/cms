@@ -10,6 +10,7 @@ import {
   DEFAULT_TEXT_WRAP,
   DEFAULT_TYPOGRAPHY,
 } from '@/types/magazine';
+import { resolveMasterElements } from '@/lib/magazineFormat';
 import {
   runDocumentFlow,
   collectThreads,
@@ -61,6 +62,10 @@ interface MagazineState {
   showGuides: boolean;
   showBaseline: boolean;
   snapEnabled: boolean;
+  /** per-source snapping toggles (W2-2) — all honored only when snapEnabled */
+  snapPrefs: { grid: boolean; guides: boolean; margins: boolean; objects: boolean; baseline: boolean };
+  /** preview mode (W2-8): hide ALL editor chrome — see it as a reader */
+  previewMode: boolean;
   isDirty: boolean;
   isSaving: boolean;
   styles: MagStyleDefinition[];
@@ -91,6 +96,15 @@ interface MagazineActions {
   updateElement: (id: string, updates: Partial<MagElement>) => void;
   deleteElements: (ids: string[]) => void;
   duplicateElements: (ids: string[]) => void;
+  /** duplicate selection N times with a fixed offset (W2-6 step-and-repeat) */
+  stepAndRepeat: (ids: string[], count: number, dx: number, dy: number) => void;
+  /** group/ungroup (W2 group): children keep ABSOLUTE coords; the group is a
+   *  bounding-box container element; moving/resizing it translates/scales them */
+  groupElements: (ids: string[]) => void;
+  ungroupElements: (groupId: string) => void;
+  /** footnotes ([pro]): append a numbered note to the page's footnote frame
+   *  (created at the page bottom with jump wrap on first use); returns n */
+  insertFootnote: (pageNumber: number, noteHtml: string) => number;
   moveElementToPage: (elementId: string, fromPage: number, toPage: number, newX?: number, newY?: number) => void;
   continueTextToNextPage: (elementId: string) => void;
 
@@ -102,6 +116,8 @@ interface MagazineActions {
   // Layer order
   bringToFront: (ids: string[]) => void;
   sendToBack: (ids: string[]) => void;
+  bringForward: (id: string) => void;
+  sendBackward: (id: string) => void;
 
   // Clipboard
   copy: () => void;
@@ -121,6 +137,13 @@ interface MagazineActions {
   toggleGuides: () => void;
   toggleBaseline: () => void;
   toggleSnap: () => void;
+  toggleSnapPref: (key: 'grid' | 'guides' | 'margins' | 'objects' | 'baseline') => void;
+  togglePreview: () => void;
+  /** ruler guides (W2-1): page-local positions, persisted via page metadata */
+  addGuide: (pageNumber: number, axis: 'v' | 'h', pos: number) => void;
+  moveGuide: (pageNumber: number, axis: 'v' | 'h', index: number, pos: number) => void;
+  removeGuide: (pageNumber: number, axis: 'v' | 'h', index: number) => void;
+  clearGuides: (pageNumber: number) => void;
   setViewMode: (mode: ViewMode) => void;
   setGridColumns: (cols: number) => void;
 
@@ -138,6 +161,8 @@ interface MagazineActions {
   addMasterPage: (name: string) => void;
   assignMaster: (pageNumber: number, masterPageId: string | null) => void;
   assignMasterToAll: (masterPageId: string | null) => void;
+  /** copy master elements onto the page as editable elements + unlink (override) */
+  detachMaster: (pageNumber: number) => void;
   setEditingMaster: (masterPageId: string | null) => void;
   editingMasterId: string | null;
 
@@ -206,7 +231,7 @@ function updateCurrentPageElements(
 function findElementById(elements: MagElement[], id: string): MagElement | undefined {
   for (const el of elements) {
     if (el.id === id) return el;
-    if (el.children.length > 0) {
+    if (el.children?.length > 0) {
       const found = findElementById(el.children, id);
       if (found) return found;
     }
@@ -221,7 +246,7 @@ function updateElementInList(
 ): MagElement[] {
   return elements.map((el) => {
     if (el.id === id) return { ...el, ...updates };
-    if (el.children.length > 0) {
+    if (el.children?.length > 0) {
       const updatedChildren = updateElementInList(el.children, id, updates);
       if (updatedChildren !== el.children) return { ...el, children: updatedChildren };
     }
@@ -233,7 +258,7 @@ function removeElementsFromList(elements: MagElement[], ids: Set<string>): MagEl
   return elements
     .filter((el) => !ids.has(el.id))
     .map((el) =>
-      el.children.length > 0
+      el.children?.length > 0
         ? { ...el, children: removeElementsFromList(el.children, ids) }
         : el,
     );
@@ -270,6 +295,7 @@ function makeDefaultElement(
     freeform_path: { fillColor: null, strokeColor: '#1a1a1a', strokeWidth: 2, path: '' },
     line: { x2: width, y2: 0, strokeWidth: 2, strokeColor: '#1a1a1a', strokeDash: 'solid', startCap: 'none', endCap: 'none' },
     decorative_rule: { strokeColor: '#999', strokeWidth: 2, strokeStyle: 'solid', ornament: 'none' },
+    text_path: { text: 'Text on a path', preset: 'arc-up', startOffset: 0 },
     video_frame: { url: '', posterAssetId: null, autoplay: false, aspectRatio: '16:9' },
     audio_player: { url: '', title: 'Audio', artist: '' },
     embed_frame: { html: '', sandbox: true },
@@ -352,6 +378,8 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   showGuides: true,
   showBaseline: false,
   snapEnabled: true,
+  snapPrefs: { grid: true, guides: true, margins: true, objects: true, baseline: false },
+  previewMode: false,
   isDirty: false,
   isSaving: false,
   styles: [],
@@ -464,6 +492,24 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       pages.push(newPage);
     } else {
       pages.splice(insertIndex, 0, newPage);
+    }
+
+    // Masters v2: a master text frame flagged _primaryFlow instantiates as a
+    // REAL editable body frame on every new page created from that master
+    if (newPage.masterPageId) {
+      const master = state.pages.find((p) => p.isMaster && p.id === newPage.masterPageId);
+      const primary = resolveMasterElements(master?.id, get().pages as any).find((e: MagElement) => (e.data as any)?._primaryFlow);
+      if (primary) {
+        newPage.elements.push({
+          ...structuredClone(primary),
+          id: crypto.randomUUID(),
+          pageNumber: newPageNumber,
+          onMaster: false,
+          threadId: null,
+          threadOrder: null,
+          data: { ...primary.data, content: '', _primaryFlow: undefined },
+        });
+      }
     }
 
     set({ pages, currentPageNumber: newPageNumber, isDirty: true });
@@ -666,10 +712,33 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       if ('textWrap' in updates) triggerFlow = true;
     }
 
+    // groups: moving translates children; resizing scales them (children
+    // keep ABSOLUTE coordinates so publish stays flat and correct)
+    let groupPatch: Partial<MagElement> | null = null;
+    if (oldEl && (oldEl.type === 'group' || oldEl.type === 'clipping_group') && oldEl.children.length > 0) {
+      const nx = (updates.x ?? oldEl.x) as number;
+      const ny = (updates.y ?? oldEl.y) as number;
+      const nw = (updates.width ?? oldEl.width) as number;
+      const nh = (updates.height ?? oldEl.height) as number;
+      if (nx !== oldEl.x || ny !== oldEl.y || nw !== oldEl.width || nh !== oldEl.height) {
+        const sx = oldEl.width > 0 ? nw / oldEl.width : 1;
+        const sy = oldEl.height > 0 ? nh / oldEl.height : 1;
+        groupPatch = {
+          children: oldEl.children.map((c) => ({
+            ...c,
+            x: nx + (c.x - oldEl.x) * sx,
+            y: ny + (c.y - oldEl.y) * sy,
+            width: c.width * sx,
+            height: c.height * sy,
+          })),
+        };
+      }
+    }
+
     set((s) => ({
       pages: s.pages.map((p) =>
         findElementById(p.elements, id)
-          ? { ...p, elements: updateElementInList(p.elements, id, updates) }
+          ? { ...p, elements: updateElementInList(p.elements, id, groupPatch ? { ...updates, ...groupPatch } : updates) }
           : p,
       ),
       ...(invalidateStoryId
@@ -756,6 +825,132 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
         ...newElements,
       ]),
       selectedIds: newIds,
+      isDirty: true,
+    }));
+  },
+
+  groupElements(ids) {
+    if (ids.length < 2) return;
+    const state = get();
+    const page = getCurrentPage(state);
+    if (!page) return;
+    const members = page.elements.filter((e) => ids.includes(e.id) && !e.locked);
+    if (members.length < 2) return;
+    get().pushSnapshot();
+    const x0 = Math.min(...members.map((e) => e.x));
+    const y0 = Math.min(...members.map((e) => e.y));
+    const x1 = Math.max(...members.map((e) => e.x + e.width));
+    const y1 = Math.max(...members.map((e) => e.y + e.height));
+    const groupId = crypto.randomUUID();
+    const group: MagElement = {
+      ...makeDefaultElement('group', x0, y0, x1 - x0, y1 - y0, state.currentPageNumber,
+        Math.max(...members.map((e) => e.zIndex))),
+      id: groupId,
+      name: 'Group',
+      children: members.map((m) => ({ ...structuredClone(m), parentId: groupId })),
+    };
+    set((s2) => ({
+      pages: updateCurrentPageElements(s2.pages, s2.currentPageNumber, (els) => [
+        ...els.filter((e) => !ids.includes(e.id)),
+        group,
+      ]),
+      selectedIds: [groupId],
+      isDirty: true,
+    }));
+    get().pushDebugLog('group:create', 'store', { groupId, members: members.length });
+  },
+
+  ungroupElements(groupId) {
+    const state = get();
+    const page = getCurrentPage(state);
+    const group = page?.elements.find((e) => e.id === groupId && (e.type === 'group' || e.type === 'clipping_group'));
+    if (!page || !group || group.children.length === 0) return;
+    get().pushSnapshot();
+    const freed = group.children.map((c) => ({ ...structuredClone(c), parentId: null }));
+    set((s2) => ({
+      pages: updateCurrentPageElements(s2.pages, s2.currentPageNumber, (els) => [
+        ...els.filter((e) => e.id !== groupId),
+        ...freed,
+      ]),
+      selectedIds: freed.map((c) => c.id),
+      isDirty: true,
+    }));
+    get().pushDebugLog('group:ungroup', 'store', { groupId, freed: freed.length });
+  },
+
+  insertFootnote(pageNumber, noteHtml) {
+    const state = get();
+    const page = state.pages.find((p) => p.pageNumber === pageNumber && !p.isMaster);
+    if (!page) return 0;
+    get().pushSnapshot();
+    let fn = page.elements.find((e) => e.type === 'footnote_frame');
+    let created = false;
+    if (!fn) {
+      const m = page.margins || { top: 36, right: 36, bottom: 36, left: 36 };
+      const w = (page.pageSize?.width || 595) - m.left - m.right;
+      const h = 84;
+      const y = (page.pageSize?.height || 842) - m.bottom - h;
+      fn = {
+        ...makeDefaultElement('footnote_frame', m.left, y, w, h, pageNumber,
+          Math.max(0, ...page.elements.map((e) => e.zIndex)) + 1),
+        name: 'Footnotes',
+      };
+      fn.data = { ...fn.data, content: '<hr>' };
+      fn.typography = { ...(fn.typography as any), fontSize: 8.5, lineHeight: 1.45 };
+      // jump wrap: body text automatically flows CLEAR of the note block
+      fn.textWrap = { type: 'jump', offset: { top: 10, right: 0, bottom: 0, left: 0 }, side: 'both', customPath: null, invert: false };
+      created = true;
+    }
+    const existing = (String((fn.data as any)?.content || '').match(/class="fn"/g) || []).length;
+    const n = existing + 1;
+    const note = `<p class="fn"><sup>${n}</sup> ${noteHtml}</p>`;
+    const content = String((fn.data as any)?.content || '') + note;
+    set((s2) => ({
+      pages: s2.pages.map((p) =>
+        p.pageNumber !== pageNumber || p.isMaster
+          ? p
+          : {
+              ...p,
+              elements: created
+                ? [...p.elements, { ...fn!, data: { ...fn!.data, content } }]
+                : p.elements.map((e) => (e.id === fn!.id ? { ...e, data: { ...e.data, content } } : e)),
+            },
+      ),
+      isDirty: true,
+    }));
+    get().requestFlow();
+    get().pushDebugLog('footnote:insert', 'store', { pageNumber, n, created });
+    return n;
+  },
+
+  stepAndRepeat(ids, count, dx, dy) {
+    if (ids.length === 0 || count < 1) return;
+    const state = get();
+    const page = getCurrentPage(state);
+    if (!page) return;
+    get().pushSnapshot();
+    const originals = ids
+      .map((id) => findElementById(page.elements, id))
+      .filter(Boolean) as MagElement[];
+    const maxZ = Math.max(0, ...page.elements.map((e) => e.zIndex));
+    const copies: MagElement[] = [];
+    const n = Math.min(50, Math.floor(count));
+    for (let step = 1; step <= n; step++) {
+      originals.forEach((orig, i) => {
+        copies.push({
+          ...structuredClone(orig),
+          id: crypto.randomUUID(),
+          x: orig.x + dx * step,
+          y: orig.y + dy * step,
+          zIndex: maxZ + (step - 1) * originals.length + i + 1,
+          threadId: null,
+          threadOrder: null,
+        });
+      });
+    }
+    set((s2) => ({
+      pages: updateCurrentPageElements(s2.pages, s2.currentPageNumber, (els) => [...els, ...copies]),
+      selectedIds: copies.map((c) => c.id),
       isDirty: true,
     }));
   },
@@ -910,6 +1105,42 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
         return els.map((el) =>
           idSet.has(el.id) ? { ...el, zIndex: maxZ + offset++ } : el,
         );
+      }),
+      isDirty: true,
+    }));
+  },
+
+  bringForward(id) {
+    get().pushSnapshot();
+    set((state) => ({
+      pages: updateCurrentPageElements(state.pages, state.currentPageNumber, (els) => {
+        const sorted = [...els].sort((a, b) => a.zIndex - b.zIndex);
+        const i = sorted.findIndex((e) => e.id === id);
+        if (i < 0 || i === sorted.length - 1) return els;
+        const a = sorted[i].zIndex;
+        const b = sorted[i + 1].zIndex;
+        return els.map((e) =>
+          e.id === sorted[i].id ? { ...e, zIndex: b === a ? a + 1 : b }
+          : e.id === sorted[i + 1].id ? { ...e, zIndex: a }
+          : e);
+      }),
+      isDirty: true,
+    }));
+  },
+
+  sendBackward(id) {
+    get().pushSnapshot();
+    set((state) => ({
+      pages: updateCurrentPageElements(state.pages, state.currentPageNumber, (els) => {
+        const sorted = [...els].sort((a, b) => a.zIndex - b.zIndex);
+        const i = sorted.findIndex((e) => e.id === id);
+        if (i <= 0) return els;
+        const a = sorted[i].zIndex;
+        const b = sorted[i - 1].zIndex;
+        return els.map((e) =>
+          e.id === sorted[i].id ? { ...e, zIndex: b === a ? a - 1 : b }
+          : e.id === sorted[i - 1].id ? { ...e, zIndex: a }
+          : e);
       }),
       isDirty: true,
     }));
@@ -1073,6 +1304,62 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     set((s) => ({ snapEnabled: !s.snapEnabled }));
   },
 
+  toggleSnapPref(key) {
+    set((s2) => ({ snapPrefs: { ...s2.snapPrefs, [key]: !s2.snapPrefs[key] } }));
+  },
+
+  addGuide(pageNumber, axis, pos) {
+    get().pushSnapshot();
+    set((s2) => ({
+      pages: s2.pages.map((p) => {
+        if (p.pageNumber !== pageNumber || p.isMaster) return p;
+        const g = (p as any)._guides || { v: [], h: [] };
+        return { ...p, _guides: { ...g, [axis]: [...g[axis], Math.round(pos * 10) / 10] } } as any;
+      }),
+      isDirty: true,
+    }));
+  },
+
+  moveGuide(pageNumber, axis, index, pos) {
+    set((s2) => ({
+      pages: s2.pages.map((p) => {
+        if (p.pageNumber !== pageNumber || p.isMaster) return p;
+        const g = (p as any)._guides || { v: [], h: [] };
+        const arr = [...g[axis]];
+        if (index < 0 || index >= arr.length) return p;
+        arr[index] = Math.round(pos * 10) / 10;
+        return { ...p, _guides: { ...g, [axis]: arr } } as any;
+      }),
+      isDirty: true,
+    }));
+  },
+
+  removeGuide(pageNumber, axis, index) {
+    get().pushSnapshot();
+    set((s2) => ({
+      pages: s2.pages.map((p) => {
+        if (p.pageNumber !== pageNumber || p.isMaster) return p;
+        const g = (p as any)._guides || { v: [], h: [] };
+        return { ...p, _guides: { ...g, [axis]: g[axis].filter((_: number, i: number) => i !== index) } } as any;
+      }),
+      isDirty: true,
+    }));
+  },
+
+  clearGuides(pageNumber) {
+    get().pushSnapshot();
+    set((s2) => ({
+      pages: s2.pages.map((p) =>
+        p.pageNumber === pageNumber && !p.isMaster ? ({ ...p, _guides: { v: [], h: [] } } as any) : p,
+      ),
+      isDirty: true,
+    }));
+  },
+
+  togglePreview() {
+    set((s) => ({ previewMode: !s.previewMode, selectedIds: [], editingElementId: null }));
+  },
+
   setViewMode(mode) {
     set({ viewMode: mode });
   },
@@ -1148,6 +1435,33 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       ),
       isDirty: true,
     }));
+  },
+
+  detachMaster(pageNumber) {
+    const state = get();
+    const page = state.pages.find((p) => p.pageNumber === pageNumber && !p.isMaster);
+    const master = page?.masterPageId ? state.pages.find((p) => p.isMaster && p.id === page.masterPageId) : null;
+    if (!page || !master) return;
+    get().pushSnapshot();
+    const maxZ = Math.max(0, ...page.elements.map((e) => e.zIndex));
+    const copies = resolveMasterElements(master.id, state.pages as any).map((el: MagElement, i: number) => ({
+      ...structuredClone(el),
+      id: crypto.randomUUID(),
+      pageNumber,
+      onMaster: false,
+      zIndex: maxZ + 1 + i,
+      // resolve master page-number instances to this page's number
+      data: el.type === 'page_number' ? { ...el.data, startAt: pageNumber } : structuredClone(el.data),
+    }));
+    set((s2) => ({
+      pages: s2.pages.map((p) =>
+        p.pageNumber === pageNumber && !p.isMaster
+          ? { ...p, masterPageId: null, elements: [...p.elements, ...copies] }
+          : p,
+      ),
+      isDirty: true,
+    }));
+    get().pushDebugLog('master:detach', 'store', { pageNumber, copied: copies.length });
   },
 
   assignMasterToAll(masterPageId) {
