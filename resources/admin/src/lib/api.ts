@@ -294,6 +294,10 @@ export const dtpDesigner = {
     api.get(`/sites/${siteId}/magazine-issues/${issueId}/dtp-document`),
   saveDocument: (siteId: string, issueId: string, data: Record<string, unknown>) =>
     api.put(`/sites/${siteId}/magazine-issues/${issueId}/dtp-document`, data),
+  listVersions: (siteId: string, issueId: string) =>
+    api.get(`/sites/${siteId}/magazine-issues/${issueId}/dtp-versions`).then(r => r.data),
+  restoreVersion: (siteId: string, issueId: string, versionId: string) =>
+    api.post(`/sites/${siteId}/magazine-issues/${issueId}/dtp-versions/${versionId}/restore`).then(r => r.data),
   // Rollout status (always available, not behind feature flag)
   getRolloutStatus: (siteId: string, issueId: string) =>
     api.get(`/sites/${siteId}/magazine-issues/${issueId}/dtp-rollout`),

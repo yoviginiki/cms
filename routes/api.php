@@ -347,6 +347,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-preview', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'preview']);
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-pdf', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'pdf']);
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-zip', [\App\Http\Controllers\Api\V1\DtpPreviewController::class, 'zip']);
+            Route::get('sites/{site}/magazine-issues/{issue}/dtp-versions', [\App\Http\Controllers\Api\V1\DtpVersionController::class, 'index']);
+            Route::post('sites/{site}/magazine-issues/{issue}/dtp-versions/{versionId}/restore', [\App\Http\Controllers\Api\V1\DtpVersionController::class, 'restore']);
             Route::get('sites/{site}/magazine-issues/{issue}/dtp-preflight', [\App\Http\Controllers\Api\V1\DtpPreflightController::class, 'run']);
         });
 

@@ -220,6 +220,15 @@ export default function DtpEditorBeta() {
   }, [apiData]);
 
   // Status change mutation
+  // Autosave (W3): every 30s while dirty; skipped mid-inline-edit and
+  // while a save is already in flight. Reuses the exact manual-save path.
+  const autosaveRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const t = setInterval(() => autosaveRef.current(), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const [lastAutosave, setLastAutosave] = useState<string | null>(null);
+
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       await dtpDesigner.updateIssue(siteId, issueId, { status: newStatus });
@@ -280,6 +289,17 @@ export default function DtpEditorBeta() {
       setSaveError(msg);
       if (isDebugMode) store.pushDebugLog('save:fail', 'editor', { error: msg }, 'error');
     },
+  });
+
+  useEffect(() => {
+    autosaveRef.current = () => {
+      const st = useMagazineStore.getState();
+      if (!st.isDirty || saveMutation.isPending) return;
+      if (document.querySelector('[data-editing-id]')) return; // typing — stay out of the way
+      saveMutation.mutate(undefined, {
+        onSuccess: () => setLastAutosave(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+      });
+    };
   });
 
   // Current page & selection
@@ -448,6 +468,7 @@ export default function DtpEditorBeta() {
         canUndo={store.undoStack.length > 0}
         canRedo={store.redoStack.length > 0}
         onSave={() => saveMutation.mutate()}
+        lastAutosave={lastAutosave}
         isDirty={store.isDirty}
         isSaving={saveMutation.isPending}
         status={issueStatus}
@@ -1016,6 +1037,9 @@ export default function DtpEditorBeta() {
                   );
                 })()}
 
+                {/* ─── Versions (W3): snapshot trail, restore any ─── */}
+                <VersionsSection siteId={siteId!} issueId={issueId!} />
+
                 {/* ─── Viewer Settings ─── */}
                 <div className="border-t border-base-300/20 pt-4">
                   <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-3">Display Mode</h3>
@@ -1254,6 +1278,43 @@ export default function DtpEditorBeta() {
         accept="image"
         currentUrl=""
       />
+    </div>
+  );
+}
+
+
+/** W3 versions: every save snapshots the previous state server-side (cap 20). */
+function VersionsSection({ siteId, issueId }: { siteId: string; issueId: string }) {
+  const { data, refetch, isFetching } = useQuery({
+    queryKey: ['dtp-versions', siteId, issueId],
+    queryFn: () => dtpDesigner.listVersions(siteId, issueId),
+    staleTime: 15000,
+  });
+  const versions: any[] = data?.data || [];
+  const restore = async (v: any) => {
+    const when = new Date(v.created_at).toLocaleString();
+    if (!window.confirm(`Restore the document as it was at ${when}?\n\nThe current state is snapshotted first, so this is reversible.`)) return;
+    await dtpDesigner.restoreVersion(siteId, issueId, v.id);
+    window.location.reload();
+  };
+  return (
+    <div className="pb-4 border-b border-base-300/20">
+      <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2 flex items-center justify-between">
+        Versions
+        <button className="btn btn-ghost btn-xs h-5 min-h-0 px-1 normal-case" onClick={() => refetch()} disabled={isFetching}>↻</button>
+      </h3>
+      {versions.length === 0 && <p className="text-[9px] text-base-content/30">Snapshots appear here after each save.</p>}
+      <div className="space-y-1 max-h-44 overflow-y-auto">
+        {versions.map((v) => (
+          <div key={v.id} className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-base-300/20">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] text-base-content/60 truncate">{new Date(v.created_at).toLocaleString()}</div>
+              <div className="text-[9px] text-base-content/30">{v.page_count} pages · {v.frame_count} frames{v.label ? ` · ${v.label}` : ''}</div>
+            </div>
+            <button className="btn btn-ghost btn-xs text-primary" onClick={() => restore(v)}>Restore</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

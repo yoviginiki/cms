@@ -26,6 +26,7 @@ interface MagazineToolbarProps {
   viewUrl?: string | null;
   pdfUrl?: string | null;
   zipUrl?: string | null;
+  lastAutosave?: string | null;
 }
 
 const TOOLS = [
@@ -53,7 +54,7 @@ export default function MagazineToolbar({
   activeTool, onSetTool, zoom, onZoomChange, currentPage, totalPages, onChangePage,
   showGrid, showGuides, showBaseline, onToggleGrid, onToggleGuides, onToggleBaseline,
   onBack, onUndo, onRedo, canUndo, canRedo, onSave, isDirty, isSaving,
-  status, onStatusChange, viewUrl, pdfUrl, zipUrl,
+  status, onStatusChange, viewUrl, pdfUrl, zipUrl, lastAutosave,
 }: MagazineToolbarProps) {
   const zoomPercent = Math.round(zoom * 100);
 
@@ -215,6 +216,9 @@ export default function MagazineToolbar({
             PDF
           </a>
         </Tip>
+      )}
+      {lastAutosave && (
+        <span className="text-[9px] text-base-content/30 whitespace-nowrap" title="Last autosave">auto {lastAutosave}</span>
       )}
       {zipUrl && (
         <Tip text="Download the standalone magazine (extract anywhere — no CMS needed)">
