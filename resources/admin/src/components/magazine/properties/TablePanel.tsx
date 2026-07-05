@@ -82,13 +82,13 @@ export default function TablePanel({ data, onChange }: TablePanelProps) {
 
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1.5 text-[11px] text-base-content/60 cursor-pointer">
-          <input type="checkbox" className="checkbox checkbox-xs" checked={data.stripes !== false}
+          <input name="mag-tablepanel-1" type="checkbox" className="checkbox checkbox-xs" checked={data.stripes !== false}
             onChange={(e) => onChange({ stripes: e.target.checked })} />
           Stripes
         </label>
         <label className="flex items-center gap-1.5 text-[11px] text-base-content/60">
           Border
-          <input type="color" className="w-6 h-6 cursor-pointer border-0 bg-transparent"
+          <input name="mag-tablepanel-2" type="color" className="w-6 h-6 cursor-pointer border-0 bg-transparent"
             value={data.borderColor || '#e5e7eb'}
             onChange={(e) => onChange({ borderColor: e.target.value })} />
         </label>

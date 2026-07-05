@@ -162,7 +162,7 @@ export default function MagElementPalette({ onAddElement }: Props) {
       <div className="p-2 border-b border-base-300/10">
         <label className="input input-bordered input-xs flex items-center gap-2 text-[11px]">
           <Search className="h-3 w-3 text-base-content/30" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+          <input name="mag-magelementpalette-1" type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search..." className="grow bg-transparent" />
         </label>
       </div>

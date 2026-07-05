@@ -503,7 +503,7 @@ export function MagazineCanvas({
               <span className="text-[10px]">G</span>
             </button>
             {viewMode === 'grid' && (
-              <select className="select select-xs select-bordered w-14 text-[10px]"
+              <select name="mag-magazinecanvas-1" className="select select-xs select-bordered w-14 text-[10px]"
                 value={gridColumns} onChange={e => onPageClick && onPageClick(-(10 + parseInt(e.target.value)))}>
                 <option value="2">2</option>
                 <option value="3">3</option>

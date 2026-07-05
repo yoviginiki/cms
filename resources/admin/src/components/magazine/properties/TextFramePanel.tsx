@@ -94,7 +94,7 @@ export default function TextFramePanel({ data, onChange, threadInfo, threadId, o
 
       {/* Column rule */}
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-textframepanel-1"
           type="checkbox"
           checked={data.columnRule}
           onChange={(e) => onChange({ columnRule: e.target.checked })}
@@ -112,7 +112,7 @@ export default function TextFramePanel({ data, onChange, threadInfo, threadId, o
             return (
               <div key={side}>
                 <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase()}</label>
-                <input
+                <input name="mag-textframepanel-2"
                   type="number"
                   value={inset[side] ?? 8}
                   onChange={(e) => onChange({ textInset: { ...inset, [side]: Number(e.target.value) } })}

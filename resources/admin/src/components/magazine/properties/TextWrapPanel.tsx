@@ -31,7 +31,7 @@ export default function TextWrapPanel({ value, onChange }: TextWrapPanelProps) {
         {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
           <div key={side}>
             <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase() + side.slice(1)}</label>
-            <input
+            <input name="mag-textwrappanel-1"
               type="number"
               value={value.offset[side]}
               onChange={(e) => onChange({ offset: { ...value.offset, [side]: Number(e.target.value) } })}
@@ -58,7 +58,7 @@ export default function TextWrapPanel({ value, onChange }: TextWrapPanelProps) {
 
       {/* Invert */}
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-textwrappanel-2"
           type="checkbox"
           checked={value.invert}
           onChange={(e) => onChange({ invert: e.target.checked })}

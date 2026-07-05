@@ -29,13 +29,13 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Fill</h3>
 
       <div className="flex gap-1 items-center">
-        <input
+        <input name="mag-fillstrokepanel-1"
           type="color"
           value={style.fill?.color ?? '#ffffff'}
           onChange={(e) => onChange({ fill: { ...style.fill, color: e.target.value } })}
           className="w-8 h-6 cursor-pointer rounded border border-base-300"
         />
-        <input
+        <input name="mag-fillstrokepanel-2"
           type="text"
           value={style.fill?.color ?? ''}
           onChange={(e) => onChange({ fill: { ...style.fill, color: e.target.value || null } })}
@@ -59,7 +59,7 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
 
       {/* Gradient toggle */}
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-fillstrokepanel-3"
           type="checkbox"
           checked={gradientEnabled}
           onChange={(e) => {
@@ -110,7 +110,7 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
           </div>
           {style.fill?.gradient.stops.map((stop, i) => (
             <div key={i} className="flex gap-1 items-center">
-              <input
+              <input name="mag-fillstrokepanel-4"
                 type="color"
                 value={stop.color}
                 onChange={(e) => {
@@ -120,7 +120,7 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
                 }}
                 className="w-6 h-5 cursor-pointer rounded border border-base-300"
               />
-              <input
+              <input name="mag-fillstrokepanel-5"
                 type="number"
                 min={0}
                 max={1}
@@ -142,13 +142,13 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Stroke</h3>
 
       <div className="flex gap-1 items-center">
-        <input
+        <input name="mag-fillstrokepanel-6"
           type="color"
           value={style.stroke?.color === 'transparent' ? '#000000' : style.stroke?.color}
           onChange={(e) => onChange({ stroke: { ...style.stroke, color: e.target.value } })}
           className="w-8 h-6 cursor-pointer rounded border border-base-300"
         />
-        <input
+        <input name="mag-fillstrokepanel-7"
           type="text"
           value={style.stroke?.color}
           onChange={(e) => onChange({ stroke: { ...style.stroke, color: e.target.value } })}
@@ -202,7 +202,7 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
         {(['tl', 'tr', 'br', 'bl'] as const).map((corner) => (
           <div key={corner}>
             <label className="text-[10px] text-base-content/40 mb-0.5 block">{corner.toUpperCase()}</label>
-            <input
+            <input name="mag-fillstrokepanel-8"
               type="number"
               min={0}
               value={style.cornerRadius?.[corner] ?? 0}
@@ -214,7 +214,7 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       </div>
 
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-fillstrokepanel-9"
           type="checkbox"
           checked={linkCorners}
           onChange={(e) => setLinkCorners(e.target.checked)}

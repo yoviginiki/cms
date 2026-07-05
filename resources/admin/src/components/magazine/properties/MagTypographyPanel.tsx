@@ -107,7 +107,7 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
 
       {/* Italic toggle */}
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-magtypographypanel-1"
           type="checkbox"
           checked={value.fontStyle === 'italic'}
           onChange={(e) => onChange({ fontStyle: e.target.checked ? 'italic' : 'normal' })}
@@ -179,13 +179,13 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Text color</label>
         <div className="flex gap-1">
-          <input
+          <input name="mag-magtypographypanel-2"
             type="color"
             value={value.textColor}
             onChange={(e) => onChange({ textColor: e.target.value })}
             className="w-8 h-6 cursor-pointer rounded border border-base-300"
           />
-          <input
+          <input name="mag-magtypographypanel-3"
             type="text"
             value={value.textColor}
             onChange={(e) => onChange({ textColor: e.target.value })}
@@ -241,7 +241,7 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
           <div className="space-y-3 mt-2">
             {/* Hyphenation & Hanging punctuation */}
             <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
+              <input name="mag-magtypographypanel-4"
                 type="checkbox"
                 checked={value.hyphenation}
                 onChange={(e) => onChange({ hyphenation: e.target.checked })}
@@ -251,7 +251,7 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
             </label>
 
             <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
+              <input name="mag-magtypographypanel-5"
                 type="checkbox"
                 checked={value.hangingPunctuation}
                 onChange={(e) => onChange({ hangingPunctuation: e.target.checked })}
@@ -280,7 +280,7 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
             <div className="space-y-1">
               <h4 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Drop cap</h4>
               <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
+                <input name="mag-magtypographypanel-6"
                   type="checkbox"
                   checked={value.dropCap.enabled}
                   onChange={(e) => onChange({ dropCap: { ...value.dropCap, enabled: e.target.checked } })}
@@ -327,7 +327,7 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
             <div className="space-y-1">
               <h4 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">OpenType</h4>
               <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
+                <input name="mag-magtypographypanel-7"
                   type="checkbox"
                   checked={value.openType.ligatures}
                   onChange={(e) => onChange({ openType: { ...value.openType, ligatures: e.target.checked } })}
@@ -336,7 +336,7 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
                 <span className="text-[10px] text-base-content/40">Ligatures</span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
+                <input name="mag-magtypographypanel-8"
                   type="checkbox"
                   checked={value.openType.oldstyleNums}
                   onChange={(e) => onChange({ openType: { ...value.openType, oldstyleNums: e.target.checked } })}
@@ -345,7 +345,7 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
                 <span className="text-[10px] text-base-content/40">Oldstyle nums</span>
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
+                <input name="mag-magtypographypanel-9"
                   type="checkbox"
                   checked={value.openType.smallCaps}
                   onChange={(e) => onChange({ openType: { ...value.openType, smallCaps: e.target.checked } })}

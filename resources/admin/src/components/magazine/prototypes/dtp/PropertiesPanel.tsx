@@ -52,7 +52,7 @@ function NumInput({ label, value, onChange, min, max, suffix = 'px' }: {
     <div>
       <label className="text-[9px] text-neutral-500 mb-0.5 block">{label}</label>
       <div className="flex items-center">
-        <input type="text" value={text}
+        <input name="mag-propertiespanel-1" type="text" value={text}
           onChange={e => setText(e.target.value)}
           onBlur={commit}
           onKeyDown={e => { if (e.key === 'Enter') commit(); }}
@@ -251,7 +251,7 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
               {/* Opacity */}
               <div>
                 <label className="text-[9px] text-neutral-500 mb-0.5 block">Opacity: {img.opacity}%</label>
-                <input type="range" min={0} max={100} value={img.opacity}
+                <input name="mag-propertiespanel-2" type="range" min={0} max={100} value={img.opacity}
                   onChange={e => updateImage({ opacity: Number(e.target.value) })}
                   className="w-full h-1 accent-blue-500" />
               </div>

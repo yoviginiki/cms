@@ -32,7 +32,7 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
       {/* Shadow */}
       <div>
         <label className="flex items-center gap-1.5 cursor-pointer mb-1">
-          <input
+          <input name="mag-effectspanel-1"
             type="checkbox"
             checked={!!style.shadow}
             onChange={(e) => {
@@ -91,13 +91,13 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
             <div>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">Color</label>
               <div className="flex gap-1">
-                <input
+                <input name="mag-effectspanel-2"
                   type="color"
                   value={style.shadow.color.startsWith('rgba') ? '#000000' : style.shadow.color}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, color: e.target.value } })}
                   className="w-8 h-6 cursor-pointer rounded border border-base-300"
                 />
-                <input
+                <input name="mag-effectspanel-3"
                   type="text"
                   value={style.shadow.color}
                   onChange={(e) => onChange({ shadow: { ...style.shadow!, color: e.target.value } })}
@@ -112,7 +112,7 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
       {/* Inner shadow */}
       <div>
         <label className="flex items-center gap-1.5 cursor-pointer mb-1">
-          <input
+          <input name="mag-effectspanel-4"
             type="checkbox"
             checked={!!style.innerShadow}
             onChange={(e) => {
@@ -160,13 +160,13 @@ export default function EffectsPanel({ style, onChange }: EffectsPanelProps) {
             <div>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">Color</label>
               <div className="flex gap-1">
-                <input
+                <input name="mag-effectspanel-5"
                   type="color"
                   value={style.innerShadow.color.startsWith('rgba') ? '#000000' : style.innerShadow.color}
                   onChange={(e) => onChange({ innerShadow: { ...style.innerShadow!, color: e.target.value } })}
                   className="w-8 h-6 cursor-pointer rounded border border-base-300"
                 />
-                <input
+                <input name="mag-effectspanel-6"
                   type="text"
                   value={style.innerShadow.color}
                   onChange={(e) => onChange({ innerShadow: { ...style.innerShadow!, color: e.target.value } })}

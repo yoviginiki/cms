@@ -178,7 +178,7 @@ export default function MagazineToolbar({
       {/* Status dropdown */}
       {onStatusChange && (
         <Tip text="Set issue status — Published issues are viewable publicly">
-          <select
+          <select name="mag-magazinetoolbar-1"
             className={`select select-sm select-bordered text-[11px] font-medium ${
               status === 'published' ? 'border-success text-success' : 'border-warning text-warning'
             }`}

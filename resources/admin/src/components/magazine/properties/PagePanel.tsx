@@ -84,7 +84,7 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Orientation</label>
         <label className="flex items-center gap-1.5 cursor-pointer">
-          <input
+          <input name="mag-pagepanel-1"
             type="checkbox"
             checked={isLandscape}
             onChange={toggleOrientation}
@@ -101,7 +101,7 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
             <div key={side}>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase()}</label>
-              <input
+              <input name="mag-pagepanel-2"
                 type="number"
                 value={page.margins[side]}
                 onChange={(e) => onChange({ margins: { ...page.margins, [side]: Number(e.target.value) } })}
@@ -119,7 +119,7 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
             <div key={side}>
               <label className="text-[10px] text-base-content/40 mb-0.5 block">{side.charAt(0).toUpperCase()}</label>
-              <input
+              <input name="mag-pagepanel-3"
                 type="number"
                 value={page.bleed[side]}
                 onChange={(e) => onChange({ bleed: { ...page.bleed, [side]: Number(e.target.value) } })}
@@ -181,13 +181,13 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Background color</label>
         <div className="flex gap-1">
-          <input
+          <input name="mag-pagepanel-4"
             type="color"
             value={page.backgroundColor ?? '#ffffff'}
             onChange={(e) => onChange({ backgroundColor: e.target.value })}
             className="w-8 h-6 cursor-pointer rounded border border-base-300"
           />
-          <input
+          <input name="mag-pagepanel-5"
             type="text"
             value={page.backgroundColor ?? ''}
             onChange={(e) => onChange({ backgroundColor: e.target.value || null })}

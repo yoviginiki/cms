@@ -702,7 +702,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Width</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="10" max="100" step="5"
+                            <input name="mag-dtpeditorbeta-1" type="range" min="10" max="100" step="5"
                               value={parseInt(selectedInlineImg.style.width) || 40}
                               onChange={(e) => updateInlineImgStyle({ width: e.target.value + '%' })}
                               className="range range-xs range-primary flex-1" />
@@ -731,7 +731,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Border Radius</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="0" max="50" step="2"
+                            <input name="mag-dtpeditorbeta-2" type="range" min="0" max="50" step="2"
                               value={parseInt(selectedInlineImg.style.borderRadius) || 0}
                               onChange={(e) => updateInlineImgStyle({ borderRadius: e.target.value + 'px' })}
                               className="range range-xs flex-1" />
@@ -743,7 +743,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Border Width</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="0" max="10" step="1"
+                            <input name="mag-dtpeditorbeta-3" type="range" min="0" max="10" step="1"
                               value={parseInt(selectedInlineImg.style.borderWidth) || 0}
                               onChange={(e) => {
                                 const w = e.target.value;
@@ -762,7 +762,7 @@ export default function DtpEditorBeta() {
                         {(parseInt(selectedInlineImg.style.borderWidth) || 0) > 0 && (
                           <div>
                             <label className="text-[10px] text-base-content/40 mb-1 block">Border Color</label>
-                            <input type="color"
+                            <input name="mag-dtpeditorbeta-4" type="color"
                               value={selectedInlineImg.style.borderColor || '#000000'}
                               onChange={(e) => updateInlineImgStyle({ borderColor: e.target.value })}
                               className="w-8 h-8 rounded cursor-pointer border border-base-300/30" />
@@ -773,7 +773,7 @@ export default function DtpEditorBeta() {
                         <div>
                           <label className="text-[10px] text-base-content/40 mb-1 block">Inner Padding</label>
                           <div className="flex gap-1 items-center">
-                            <input type="range" min="0" max="20" step="2"
+                            <input name="mag-dtpeditorbeta-5" type="range" min="0" max="20" step="2"
                               value={parseInt(selectedInlineImg.style.padding) || 0}
                               onChange={(e) => updateInlineImgStyle({ padding: e.target.value + 'px' })}
                               className="range range-xs flex-1" />
@@ -818,7 +818,7 @@ export default function DtpEditorBeta() {
                       <div className="px-3 py-2 border-t border-base-300/20">
                         <label className="flex items-center gap-1.5 text-[11px] text-base-content/60 cursor-pointer"
                           title="New pages created from this master get an editable copy of this frame as their body text frame">
-                          <input type="checkbox" className="checkbox checkbox-xs"
+                          <input name="mag-dtpeditorbeta-6" type="checkbox" className="checkbox checkbox-xs"
                             checked={!!(selectedEl.data as any)?._primaryFlow}
                             onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, _primaryFlow: e.target.checked || undefined } })} />
                           Primary text frame (body on new pages)
@@ -1031,10 +1031,10 @@ export default function DtpEditorBeta() {
                     ))}
                   </div>
                   <div className="flex gap-1.5 mt-2">
-                    <input type="color" value={viewerSettings.bg_color || '#0a0a0a'}
+                    <input name="mag-dtpeditorbeta-7" type="color" value={viewerSettings.bg_color || '#0a0a0a'}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, bg_color: e.target.value })); store.setDirty(true); }}
                       className="w-7 h-7 rounded cursor-pointer border border-base-300/30" />
-                    <input type="text" value={viewerSettings.bg_color || '#0a0a0a'}
+                    <input name="mag-dtpeditorbeta-8" type="text" value={viewerSettings.bg_color || '#0a0a0a'}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, bg_color: e.target.value })); store.setDirty(true); }}
                       className="input input-bordered input-xs flex-1 text-[10px] font-mono" placeholder="#hex" />
                   </div>
@@ -1043,19 +1043,19 @@ export default function DtpEditorBeta() {
                 <div className="border-t border-base-300/20 pt-4 space-y-2">
                   <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Viewer Options</h3>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={viewerSettings.show_page_numbers !== false}
+                    <input name="mag-dtpeditorbeta-9" type="checkbox" checked={viewerSettings.show_page_numbers !== false}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, show_page_numbers: e.target.checked })); store.setDirty(true); }}
                       className="checkbox checkbox-xs checkbox-primary" />
                     <span className="text-[11px] text-base-content/60">Show page numbers</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={viewerSettings.show_thumbnails !== false}
+                    <input name="mag-dtpeditorbeta-10" type="checkbox" checked={viewerSettings.show_thumbnails !== false}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, show_thumbnails: e.target.checked })); store.setDirty(true); }}
                       className="checkbox checkbox-xs checkbox-primary" />
                     <span className="text-[11px] text-base-content/60">Show thumbnails</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={viewerSettings.auto_hide_ui !== false}
+                    <input name="mag-dtpeditorbeta-11" type="checkbox" checked={viewerSettings.auto_hide_ui !== false}
                       onChange={(e) => { setViewerSettings(s => ({ ...s, auto_hide_ui: e.target.checked })); store.setDirty(true); }}
                       className="checkbox checkbox-xs checkbox-primary" />
                     <span className="text-[11px] text-base-content/60">Auto-hide UI</span>

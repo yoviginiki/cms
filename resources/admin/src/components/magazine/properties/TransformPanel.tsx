@@ -88,7 +88,7 @@ export default function TransformPanel({ x, y, width, height, rotation, onChange
       </div>
 
       <label className="flex items-center gap-1.5 cursor-pointer">
-        <input
+        <input name="mag-transformpanel-1"
           type="checkbox"
           checked={lockProportions}
           onChange={(e) => setLockProportions(e.target.checked)}

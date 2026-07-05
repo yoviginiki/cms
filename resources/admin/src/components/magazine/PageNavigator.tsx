@@ -188,7 +188,7 @@ export default function PageNavigator({
                 {editingMasterId === mp.id && <span className="text-[7px] ml-1 text-warning/60">editing</span>}
               </button>
               {onSetMasterApplies && (
-                <select
+                <select name="mag-pagenavigator-1"
                   value={(mp as any)._appliesTo || 'all'}
                   onChange={e => onSetMasterApplies(mp.id, e.target.value as 'all' | 'verso' | 'recto')}
                   title="Which pages this master applies to (verso = left, recto = right)"
