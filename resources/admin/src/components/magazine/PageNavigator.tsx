@@ -262,14 +262,29 @@ export default function PageNavigator({
               onContextMenu={(e) => { e.preventDefault(); setContextMenu({ page: page.pageNumber, x: e.clientX, y: e.clientY }); }}
               title={`Page ${page.pageNumber} — drag to reorder`}
             >
-              {/* Mini element indicators */}
+              {/* Live schematic thumbnail (W2-9): elements at their TRUE positions,
+                  scaled to the thumb — text = lined block, image = tinted, shape = fill */}
               {page.elements.length > 0 && (
-                <div className="absolute inset-1 flex flex-wrap gap-0.5 items-start content-start overflow-hidden opacity-30">
-                  {page.elements.slice(0, 8).map(el => {
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {[...page.elements].sort((a, b) => a.zIndex - b.zIndex).slice(0, 24).map(el => {
+                    if (el.visible === false) return null;
+                    const sx = thumbW / (page.pageSize.width || 595);
+                    const sy = Math.min(80, Math.max(40, thumbH)) / (page.pageSize.height || 842);
                     const isImg = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'].includes(el.type);
+                    const isText = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'].includes(el.type);
+                    const fill = isImg ? 'rgba(59,130,246,0.35)'
+                      : isText ? 'rgba(120,113,108,0.28)'
+                      : ((el.data as any)?.fillColor || (el.style as any)?.fill?.color || 'rgba(156,163,175,0.4)');
                     return (
-                      <div key={el.id} className={`rounded-sm ${isImg ? 'bg-success/60' : 'bg-base-content/40'}`}
-                        style={{ width: Math.max(4, (el.width / page.pageSize.width) * (thumbW - 8)), height: Math.max(2, (el.height / page.pageSize.height) * (thumbH - 8)) }} />
+                      <div key={el.id} style={{
+                        position: 'absolute',
+                        left: el.x * sx, top: el.y * sy,
+                        width: Math.max(2, el.width * sx), height: Math.max(1.5, el.height * sy),
+                        background: isText
+                          ? 'repeating-linear-gradient(rgba(120,113,108,0.45) 0 1px, transparent 1px 3px)'
+                          : fill,
+                        borderRadius: el.type === 'circular_image' ? '50%' : 0,
+                      }} />
                     );
                   })}
                 </div>

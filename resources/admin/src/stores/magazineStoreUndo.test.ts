@@ -150,6 +150,18 @@ describe('magazineStore undo/redo (W0-5)', () => {
     expect(p1b.elements).toHaveLength(0);
   });
 
+  it('step-and-repeat clones with offsets and is undoable (W2-6)', () => {
+    const s = useMagazineStore.getState();
+    const id = s.addElement('rectangle', 10, 10, 50, 50);
+    useMagazineStore.getState().stepAndRepeat([id], 3, 20, 5);
+    const els = useMagazineStore.getState().pages[0].elements;
+    expect(els).toHaveLength(4);
+    expect(els[3].x).toBe(70); // 10 + 20*3
+    expect(els[3].y).toBe(25); // 10 + 5*3
+    useMagazineStore.getState().undo();
+    expect(useMagazineStore.getState().pages[0].elements).toHaveLength(1);
+  });
+
   it('setEditingMaster does not pollute history', () => {
     useMagazineStore.getState().addMasterPage('A');
     const depth = useMagazineStore.getState().undoStack.length;

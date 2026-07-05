@@ -93,6 +93,8 @@ interface MagazineActions {
   updateElement: (id: string, updates: Partial<MagElement>) => void;
   deleteElements: (ids: string[]) => void;
   duplicateElements: (ids: string[]) => void;
+  /** duplicate selection N times with a fixed offset (W2-6 step-and-repeat) */
+  stepAndRepeat: (ids: string[], count: number, dx: number, dy: number) => void;
   moveElementToPage: (elementId: string, fromPage: number, toPage: number, newX?: number, newY?: number) => void;
   continueTextToNextPage: (elementId: string) => void;
 
@@ -782,6 +784,38 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
         ...newElements,
       ]),
       selectedIds: newIds,
+      isDirty: true,
+    }));
+  },
+
+  stepAndRepeat(ids, count, dx, dy) {
+    if (ids.length === 0 || count < 1) return;
+    const state = get();
+    const page = getCurrentPage(state);
+    if (!page) return;
+    get().pushSnapshot();
+    const originals = ids
+      .map((id) => findElementById(page.elements, id))
+      .filter(Boolean) as MagElement[];
+    const maxZ = Math.max(0, ...page.elements.map((e) => e.zIndex));
+    const copies: MagElement[] = [];
+    const n = Math.min(50, Math.floor(count));
+    for (let step = 1; step <= n; step++) {
+      originals.forEach((orig, i) => {
+        copies.push({
+          ...structuredClone(orig),
+          id: crypto.randomUUID(),
+          x: orig.x + dx * step,
+          y: orig.y + dy * step,
+          zIndex: maxZ + (step - 1) * originals.length + i + 1,
+          threadId: null,
+          threadOrder: null,
+        });
+      });
+    }
+    set((s2) => ({
+      pages: updateCurrentPageElements(s2.pages, s2.currentPageNumber, (els) => [...els, ...copies]),
+      selectedIds: copies.map((c) => c.id),
       isDirty: true,
     }));
   },

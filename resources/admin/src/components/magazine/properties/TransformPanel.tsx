@@ -47,39 +47,42 @@ function MathInput({ label, value, onCommit }: { label: string; value: number; o
   );
 }
 
+const REF_FRACTIONS: Record<string, { fx: number; fy: number }> = {
+  'top-left': { fx: 0, fy: 0 }, 'top-center': { fx: 0.5, fy: 0 }, 'top-right': { fx: 1, fy: 0 },
+  'center-left': { fx: 0, fy: 0.5 }, 'center': { fx: 0.5, fy: 0.5 }, 'center-right': { fx: 1, fy: 0.5 },
+  'bottom-left': { fx: 0, fy: 1 }, 'bottom-center': { fx: 0.5, fy: 1 }, 'bottom-right': { fx: 1, fy: 1 },
+};
+
 export default function TransformPanel({ x, y, width, height, rotation, onChange }: TransformPanelProps) {
   const [lockProportions, setLockProportions] = useState(false);
   const [referencePoint, setReferencePoint] = useState<string>('top-left');
   const aspectRatio = width / (height || 1);
-
-  const handleWidth = (newWidth: number) => {
-    if (lockProportions) {
-      onChange({ width: newWidth, height: Math.round(newWidth / aspectRatio) });
-    } else {
-      onChange({ width: newWidth });
-    }
-  };
-
-  const handleHeight = (newHeight: number) => {
-    if (lockProportions) {
-      onChange({ height: newHeight, width: Math.round(newHeight * aspectRatio) });
-    } else {
-      onChange({ height: newHeight });
-    }
-  };
+  // W2-7: the 9-point proxy is REAL now — X/Y are shown and edited relative
+  // to the chosen reference point of the frame
+  const { fx, fy } = REF_FRACTIONS[referencePoint] || REF_FRACTIONS['top-left'];
+  const refX = x + width * fx;
+  const refY = y + height * fy;
 
   return (
     <div className="space-y-3">
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Transform</h3>
 
       <div className="grid grid-cols-2 gap-2">
-        <MathInput label="X" value={x} onCommit={(v) => onChange({ x: v })} />
-        <MathInput label="Y" value={y} onCommit={(v) => onChange({ y: v })} />
+        <MathInput label="X" value={refX} onCommit={(v) => onChange({ x: v - width * fx })} />
+        <MathInput label="Y" value={refY} onCommit={(v) => onChange({ y: v - height * fy })} />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <MathInput label="Width" value={width} onCommit={(v) => handleWidth(Math.max(1, v))} />
-        <MathInput label="Height" value={height} onCommit={(v) => handleHeight(Math.max(1, v))} />
+        <MathInput label="Width" value={width} onCommit={(v) => {
+          const w2 = Math.max(1, v);
+          const h2 = lockProportions ? Math.round(w2 / aspectRatio) : height;
+          onChange({ width: w2, ...(lockProportions ? { height: h2 } : {}), x: refX - w2 * fx, ...(fy && lockProportions ? { y: refY - h2 * fy } : {}) });
+        }} />
+        <MathInput label="Height" value={height} onCommit={(v) => {
+          const h2 = Math.max(1, v);
+          const w2 = lockProportions ? Math.round(h2 * aspectRatio) : width;
+          onChange({ height: h2, ...(lockProportions ? { width: w2 } : {}), y: refY - h2 * fy, ...(fx && lockProportions ? { x: refX - w2 * fx } : {}) });
+        }} />
       </div>
 
       <label className="flex items-center gap-1.5 cursor-pointer">
