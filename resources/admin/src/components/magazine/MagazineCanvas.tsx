@@ -204,6 +204,19 @@ export function MagazineCanvas({
 
   // Track whether blur already saved content — prevents double-save crash
   const blurSavedRef = useRef(false);
+  // Session F: what the editable held when editing STARTED — exitEditing may
+  // only flush when the USER changed it, never because the STORE moved on
+  // (large-paste dialog / flow slices update content mid-session).
+  const editEntryHtmlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editingId) { editEntryHtmlRef.current = null; return; }
+    // editable mounts a tick after setEditingId
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-editing-id="${CSS.escape(editingId)}"]`) as HTMLElement | null;
+      editEntryHtmlRef.current = el ? el.innerHTML : null;
+    }, 50);
+    return () => clearTimeout(t);
+  }, [editingId]);
 
   const exitEditing = useCallback(() => {
     const currentEditId = editingIdRef.current;
@@ -231,7 +244,9 @@ export function MagazineCanvas({
         }
         if (el) {
           const storedContent = (el.data as any)?.content || '';
-          if (currentHtml !== storedContent) {
+          const entryHtml = editEntryHtmlRef.current;
+          const userChanged = entryHtml === null || sanitizeHtml(entryHtml) !== currentHtml;
+          if (userChanged && currentHtml !== storedContent) {
             onUpdateElement(currentEditId, { data: { ...(el.data || {}), content: currentHtml } } as any);
           }
         }
