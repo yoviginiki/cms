@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatPageNumber, evalNumericEntry } from './magazineFormat';
+import { applyExtraSnaps } from './smartGuides';
 
 describe('formatPageNumber (W2-11)', () => {
   it('roman', () => {
@@ -33,5 +34,20 @@ describe('evalNumericEntry (W2-7)', () => {
     expect(evalNumericEntry('abc', 100)).toBeNull();
     expect(evalNumericEntry('/0', 100)).toBeNull();
     expect(evalNumericEntry('', 100)).toBeNull();
+  });
+});
+
+describe('applyExtraSnaps (W2-1/2/3)', () => {
+  const base = { guidesV: [100], guidesH: [200], baselineIncrement: 14, baselineStart: 36, snapGuides: true, snapBaseline: false };
+  it('snaps frame edges and centers to guides', () => {
+    expect(applyExtraSnaps(97, 50, 40, 40, base).x).toBe(100);
+    expect(applyExtraSnaps(78, 50, 40, 40, base).x).toBe(80);
+    expect(applyExtraSnaps(50, 158, 40, 40, base).y).toBe(160);
+    expect(applyExtraSnaps(50, 50, 40, 40, base).x).toBe(50);
+  });
+  it('snaps to the baseline grid when enabled', () => {
+    const o = { ...base, snapGuides: false, snapBaseline: true };
+    expect(applyExtraSnaps(10, 51, 40, 40, o).y).toBe(50);
+    expect(applyExtraSnaps(10, 44, 40, 40, o).y).toBe(44);
   });
 });

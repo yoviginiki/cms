@@ -92,6 +92,27 @@ export function MagazineCanvas({
   const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   // marquee drag (W2-6): page rect captured at start, coords page-local
   const marqueeRef = useRef<{ rect: DOMRect; x0: number; y0: number } | null>(null);
+  // ruler guide drag (W2-1): new (index null) or existing guide being moved
+  const [guideDrag, setGuideDrag] = useState<{ axis: 'v' | 'h'; pos: number; index: number | null } | null>(null);
+  const guidePageRectRef = useRef<DOMRect | null>(null);
+  const [snapMenuOpen, setSnapMenuOpen] = useState(false);
+  const snapPrefs = useMagazineStore((st) => st.snapPrefs);
+  const toggleSnapPref = useMagazineStore((st) => st.toggleSnapPref);
+  const storeAddGuide = useMagazineStore((st) => st.addGuide);
+  const storeMoveGuide = useMagazineStore((st) => st.moveGuide);
+  const storeRemoveGuide = useMagazineStore((st) => st.removeGuide);
+
+  const beginGuideDrag = useCallback((axis: 'v' | 'h', index: number | null, e: React.PointerEvent) => {
+    const pageEl = viewportRef.current?.querySelector('[data-canvas="page"]');
+    if (!pageEl) return;
+    e.preventDefault();
+    e.stopPropagation();
+    guidePageRectRef.current = pageEl.getBoundingClientRect();
+    const r = guidePageRectRef.current;
+    const pos = axis === 'v' ? (e.clientX - r.left) / zoom : (e.clientY - r.top) / zoom;
+    setGuideDrag({ axis, pos, index });
+    try { (viewportRef.current as HTMLElement).setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+  }, [zoom]);
 
   // Guide toggles — ONE source of truth: the store (audit W0-3). The top
   // toolbar (MagazineToolbar) writes these same flags, so both toolbars agree.
@@ -322,6 +343,12 @@ export function MagazineCanvas({
   }, [selection, pan, zoom, onAddElement, exitEditing]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
+    if (guideDrag && guidePageRectRef.current) {
+      const r = guidePageRectRef.current;
+      const pos = guideDrag.axis === 'v' ? (e.clientX - r.left) / zoom : (e.clientY - r.top) / zoom;
+      setGuideDrag({ ...guideDrag, pos });
+      return;
+    }
     if (marqueeRef.current) {
       const { rect, x0, y0 } = marqueeRef.current;
       const x1 = (e.clientX - rect.left) / zoom;
@@ -341,6 +368,16 @@ export function MagazineCanvas({
   }, [isPanning]);
 
   const handleCanvasPointerUp = useCallback(() => {
+    if (guideDrag) {
+      const limit = guideDrag.axis === 'v' ? pageW : pageH;
+      const inside = guideDrag.pos >= 0 && guideDrag.pos <= limit;
+      if (inside && guideDrag.index === null) storeAddGuide(page.pageNumber, guideDrag.axis, guideDrag.pos);
+      else if (inside && guideDrag.index !== null) storeMoveGuide(page.pageNumber, guideDrag.axis, guideDrag.index, guideDrag.pos);
+      else if (!inside && guideDrag.index !== null) storeRemoveGuide(page.pageNumber, guideDrag.axis, guideDrag.index);
+      setGuideDrag(null);
+      guidePageRectRef.current = null;
+      return;
+    }
     if (marqueeRef.current) {
       const m = selection.marquee;
       marqueeRef.current = null;
@@ -361,7 +398,7 @@ export function MagazineCanvas({
       setIsPanning(false);
       panStartRef.current = null;
     }
-  }, [isPanning, selection, elements]);
+  }, [isPanning, selection, elements, guideDrag, page.pageNumber, pageW, pageH, storeAddGuide, storeMoveGuide, storeRemoveGuide]);
 
   // Zoom with wheel
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -484,6 +521,19 @@ export function MagazineCanvas({
         >
           <Eye size={14} />
         </button>
+        <div className="relative">
+          <button className="btn btn-xs btn-ghost px-1" onClick={() => setSnapMenuOpen(v => !v)} title="Snapping options">▾</button>
+          {snapMenuOpen && (
+            <div className="absolute top-6 left-0 z-[10001] bg-base-100 border border-base-300 shadow-lg p-2 space-y-1 w-36">
+              {([['grid', 'Grid'], ['guides', 'Guides'], ['margins', 'Margins'], ['objects', 'Objects'], ['baseline', 'Baseline']] as const).map(([k, lbl]) => (
+                <label key={k} className="flex items-center gap-1.5 text-[10px] cursor-pointer">
+                  <input type="checkbox" name={`snap-${k}`} className="checkbox checkbox-xs" checked={snapPrefs[k]} onChange={() => toggleSnapPref(k)} />
+                  Snap to {lbl}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="w-px h-5 bg-base-300 mx-1" />
 
@@ -533,6 +583,33 @@ export function MagazineCanvas({
         onPointerUp={handleCanvasPointerUp}
         onWheel={handleWheel}
       >
+        {/* Rulers (W2-1) — drag OUT of a ruler to create a guide */}
+        {!previewMode && (
+          <>
+            <div
+              className="absolute top-0 left-5 right-0 h-5 bg-base-200/95 border-b border-base-300 z-[10000] cursor-row-resize select-none overflow-hidden"
+              title="Drag down to create a horizontal guide"
+              onPointerDown={(e) => beginGuideDrag('h', null, e)}
+            >
+              {Array.from({ length: Math.floor(pageW / 25) + 1 }, (_, i) => i * 25).map((pt) => (
+                <div key={pt} style={{ position: 'absolute', left: pan.x + pt * zoom - 20, bottom: 0, width: 1, height: pt % 100 === 0 ? 10 : 5, background: 'rgba(120,113,108,0.55)' }}>
+                  {pt % 100 === 0 && <span style={{ position: 'absolute', bottom: 9, left: 2, fontSize: 7, color: 'rgba(120,113,108,0.8)' }}>{pt}</span>}
+                </div>
+              ))}
+            </div>
+            <div
+              className="absolute top-5 left-0 bottom-0 w-5 bg-base-200/95 border-r border-base-300 z-[10000] cursor-col-resize select-none overflow-hidden"
+              title="Drag right to create a vertical guide"
+              onPointerDown={(e) => beginGuideDrag('v', null, e)}
+            >
+              {Array.from({ length: Math.floor(pageH / 25) + 1 }, (_, i) => i * 25).map((pt) => (
+                <div key={pt} style={{ position: 'absolute', top: pan.y + pt * zoom, right: 0, height: 1, width: pt % 100 === 0 ? 10 : 5, background: 'rgba(120,113,108,0.55)' }}>
+                  {pt % 100 === 0 && <span style={{ position: 'absolute', left: -1, top: 2, fontSize: 7, color: 'rgba(120,113,108,0.8)', writingMode: 'vertical-rl' }}>{pt}</span>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
         {/* Transformed layer */}
         <div
           style={{
@@ -664,6 +741,30 @@ export function MagazineCanvas({
                             <div style={{ position: 'absolute', top: 2, left: 2, background: 'rgba(168,85,247,0.8)', color: 'white', fontSize: 7, padding: '1px 4px', borderRadius: 2, fontWeight: 700 }}>SPREAD</div>
                           </div>
                         ))}
+            {/* Ruler guides (W2-1): cyan lines, drag to move, drag off page to delete */}
+            {!previewMode && (() => {
+              const g = (page as any)._guides as { v: number[]; h: number[] } | undefined;
+              const isCurrent = pg.pageNumber === page.pageNumber;
+              if (!g || !isCurrent) return null;
+              return (
+                <div style={{ position: 'absolute', inset: 0, zIndex: 9500, pointerEvents: 'none' }}>
+                  {(g.v || []).map((x, i) => (
+                    <div key={`gv-${i}`} title={`x = ${x}`} onPointerDown={(e) => beginGuideDrag('v', i, e)}
+                      style={{ position: 'absolute', left: x, top: 0, bottom: 0, width: 0, borderLeft: '1px solid rgba(34,211,238,0.85)', cursor: 'col-resize', pointerEvents: 'auto' }} />
+                  ))}
+                  {(g.h || []).map((y, i) => (
+                    <div key={`gh-${i}`} title={`y = ${y}`} onPointerDown={(e) => beginGuideDrag('h', i, e)}
+                      style={{ position: 'absolute', top: y, left: 0, right: 0, height: 0, borderTop: '1px solid rgba(34,211,238,0.85)', cursor: 'row-resize', pointerEvents: 'auto' }} />
+                  ))}
+                  {guideDrag && (
+                    guideDrag.axis === 'v'
+                      ? <div style={{ position: 'absolute', left: guideDrag.pos, top: 0, bottom: 0, width: 0, borderLeft: '1px dashed rgba(34,211,238,1)' }} />
+                      : <div style={{ position: 'absolute', top: guideDrag.pos, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(34,211,238,1)' }} />
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Margin guides — hide inner edges in book spread */}
             {showMargins && !previewMode && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>

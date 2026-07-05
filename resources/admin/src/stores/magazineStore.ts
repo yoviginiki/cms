@@ -61,6 +61,8 @@ interface MagazineState {
   showGuides: boolean;
   showBaseline: boolean;
   snapEnabled: boolean;
+  /** per-source snapping toggles (W2-2) — all honored only when snapEnabled */
+  snapPrefs: { grid: boolean; guides: boolean; margins: boolean; objects: boolean; baseline: boolean };
   /** preview mode (W2-8): hide ALL editor chrome — see it as a reader */
   previewMode: boolean;
   isDirty: boolean;
@@ -127,7 +129,13 @@ interface MagazineActions {
   toggleGuides: () => void;
   toggleBaseline: () => void;
   toggleSnap: () => void;
+  toggleSnapPref: (key: 'grid' | 'guides' | 'margins' | 'objects' | 'baseline') => void;
   togglePreview: () => void;
+  /** ruler guides (W2-1): page-local positions, persisted via page metadata */
+  addGuide: (pageNumber: number, axis: 'v' | 'h', pos: number) => void;
+  moveGuide: (pageNumber: number, axis: 'v' | 'h', index: number, pos: number) => void;
+  removeGuide: (pageNumber: number, axis: 'v' | 'h', index: number) => void;
+  clearGuides: (pageNumber: number) => void;
   setViewMode: (mode: ViewMode) => void;
   setGridColumns: (cols: number) => void;
 
@@ -361,6 +369,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   showGuides: true,
   showBaseline: false,
   snapEnabled: true,
+  snapPrefs: { grid: true, guides: true, margins: true, objects: true, baseline: false },
   previewMode: false,
   isDirty: false,
   isSaving: false,
@@ -1167,6 +1176,58 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
 
   toggleSnap() {
     set((s) => ({ snapEnabled: !s.snapEnabled }));
+  },
+
+  toggleSnapPref(key) {
+    set((s2) => ({ snapPrefs: { ...s2.snapPrefs, [key]: !s2.snapPrefs[key] } }));
+  },
+
+  addGuide(pageNumber, axis, pos) {
+    get().pushSnapshot();
+    set((s2) => ({
+      pages: s2.pages.map((p) => {
+        if (p.pageNumber !== pageNumber || p.isMaster) return p;
+        const g = (p as any)._guides || { v: [], h: [] };
+        return { ...p, _guides: { ...g, [axis]: [...g[axis], Math.round(pos * 10) / 10] } } as any;
+      }),
+      isDirty: true,
+    }));
+  },
+
+  moveGuide(pageNumber, axis, index, pos) {
+    set((s2) => ({
+      pages: s2.pages.map((p) => {
+        if (p.pageNumber !== pageNumber || p.isMaster) return p;
+        const g = (p as any)._guides || { v: [], h: [] };
+        const arr = [...g[axis]];
+        if (index < 0 || index >= arr.length) return p;
+        arr[index] = Math.round(pos * 10) / 10;
+        return { ...p, _guides: { ...g, [axis]: arr } } as any;
+      }),
+      isDirty: true,
+    }));
+  },
+
+  removeGuide(pageNumber, axis, index) {
+    get().pushSnapshot();
+    set((s2) => ({
+      pages: s2.pages.map((p) => {
+        if (p.pageNumber !== pageNumber || p.isMaster) return p;
+        const g = (p as any)._guides || { v: [], h: [] };
+        return { ...p, _guides: { ...g, [axis]: g[axis].filter((_: number, i: number) => i !== index) } } as any;
+      }),
+      isDirty: true,
+    }));
+  },
+
+  clearGuides(pageNumber) {
+    get().pushSnapshot();
+    set((s2) => ({
+      pages: s2.pages.map((p) =>
+        p.pageNumber === pageNumber && !p.isMaster ? ({ ...p, _guides: { v: [], h: [] } } as any) : p,
+      ),
+      isDirty: true,
+    }));
   },
 
   togglePreview() {

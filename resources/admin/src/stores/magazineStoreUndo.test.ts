@@ -162,6 +162,27 @@ describe('magazineStore undo/redo (W0-5)', () => {
     expect(useMagazineStore.getState().pages[0].elements).toHaveLength(1);
   });
 
+  it('ruler guides: add/move/remove/clear round-trip in store (W2-1)', () => {
+    const st = useMagazineStore.getState();
+    st.addGuide(1, 'v', 120.34);
+    st.addGuide(1, 'h', 300);
+    let g = (useMagazineStore.getState().pages[0] as any)._guides;
+    expect(g.v).toEqual([120.3]);
+    expect(g.h).toEqual([300]);
+    useMagazineStore.getState().moveGuide(1, 'v', 0, 150);
+    g = (useMagazineStore.getState().pages[0] as any)._guides;
+    expect(g.v).toEqual([150]);
+    useMagazineStore.getState().removeGuide(1, 'h', 0);
+    g = (useMagazineStore.getState().pages[0] as any)._guides;
+    expect(g.h).toEqual([]);
+    useMagazineStore.getState().undo(); // undo remove
+    g = (useMagazineStore.getState().pages[0] as any)._guides;
+    expect(g.h).toEqual([300]);
+    useMagazineStore.getState().clearGuides(1);
+    g = (useMagazineStore.getState().pages[0] as any)._guides;
+    expect(g.v).toEqual([]);
+  });
+
   it('setEditingMaster does not pollute history', () => {
     useMagazineStore.getState().addMasterPage('A');
     const depth = useMagazineStore.getState().undoStack.length;

@@ -155,6 +155,12 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect(el2.onMaster).toBe(true);
   });
 
+  it('ruler guides round-trip via page metadata (W2-1)', () => {
+    const pg = { ...page([]), _guides: { v: [120, 250.5], h: [400] } } as any;
+    const { pages } = roundTrip([pg]);
+    expect((pages[0] as any)._guides).toEqual({ v: [120, 250.5], h: [400] });
+  });
+
   it('page master assignment survives', () => {
     const { pages } = roundTrip([page([])]);
     expect(pages[0].masterPageId).toBe('master-a');

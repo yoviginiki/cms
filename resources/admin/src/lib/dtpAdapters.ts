@@ -74,6 +74,7 @@ export function dtpApiToPages(apiData: any): MagPageData[] {
       backgroundColor: p.background?.color || '#ffffff',
       backgroundAssetId: null,
       elements,
+      ...(p.metadata?._guides ? { _guides: p.metadata._guides } : {}),
     };
   });
 }
@@ -293,6 +294,7 @@ export function pagesToDtpApi(
       bleed: page.bleed,
       background: { color: page.backgroundColor || '#ffffff' },
       master_page_id: page.masterPageId || null,
+      metadata: stripUndefined({ _guides: (page as any)._guides }),
     });
 
     page.elements.forEach(el => {

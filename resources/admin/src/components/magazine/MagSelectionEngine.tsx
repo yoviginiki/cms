@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { MagElement } from '@/types/magazine';
-import { calculateSmartGuides, snapToGrid } from '@/lib/smartGuides';
+import { calculateSmartGuides, snapToGrid, applyExtraSnaps } from '@/lib/smartGuides';
 import { useMagazineStore } from '@/stores/magazineStore';
 
 interface SelectionState {
@@ -161,19 +161,41 @@ export function useMagSelection(
       let newX = firstOrig.x + dx;
       let newY = firstOrig.y + dy;
 
-      if (useMagazineStore.getState().snapEnabled) {
+      // W2-2 snapping consolidation: ONE global switch + per-source prefs
+      const magStore = useMagazineStore.getState();
+      const prefs = magStore.snapPrefs;
+      const snapOn = magStore.snapEnabled;
+      if (snapOn && prefs.grid) {
         newX = snapToGrid(newX, state.gridSize);
         newY = snapToGrid(newY, state.gridSize);
       }
 
-      // Smart guides
+      // Smart guides (margins/objects/center) — now honor the global switch
       const firstEl = elements.find(e => e.id === firstId);
       if (firstEl) {
-        const others = elements.filter(e => !state.selectedIds.includes(e.id));
-        const snap = calculateSmartGuides({ x: newX, y: newY, width: firstEl.width, height: firstEl.height }, others, pageWidth, pageHeight, margins);
-        newX = snap.x;
-        newY = snap.y;
-        setState(s => ({ ...s, guides: snap.guides }));
+        let allGuides: Array<{ type: 'vertical' | 'horizontal'; position: number }> = [];
+        if (snapOn && (prefs.margins || prefs.objects)) {
+          const others = prefs.objects ? elements.filter(e => !state.selectedIds.includes(e.id)) : [];
+          const snap = calculateSmartGuides({ x: newX, y: newY, width: firstEl.width, height: firstEl.height }, others, pageWidth, pageHeight, prefs.margins ? margins : { top: -1e6, right: -1e6, bottom: -1e6, left: -1e6 });
+          newX = snap.x;
+          newY = snap.y;
+          allGuides = snap.guides;
+        }
+        // ruler guides + baseline grid (W2-1/W2-3)
+        if (snapOn && (prefs.guides || prefs.baseline)) {
+          const pg = magStore.pages.find(pp => pp.pageNumber === magStore.currentPageNumber);
+          const g = (pg as any)?._guides || { v: [], h: [] };
+          const extra = applyExtraSnaps(newX, newY, firstEl.width, firstEl.height, {
+            guidesV: g.v || [], guidesH: g.h || [],
+            baselineIncrement: pg?.baselineGrid?.increment || 0,
+            baselineStart: pg?.baselineGrid?.start || 0,
+            snapGuides: prefs.guides, snapBaseline: prefs.baseline,
+          });
+          newX = extra.x;
+          newY = extra.y;
+          allGuides = [...allGuides, ...extra.guides];
+        }
+        setState(s => ({ ...s, guides: allGuides }));
       }
 
       // Apply to all selected

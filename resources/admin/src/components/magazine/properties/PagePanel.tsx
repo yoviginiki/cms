@@ -207,6 +207,39 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           <option value="">None</option>
         </select>
       </div>
+      {/* Ruler guides (W2-1): numeric editing */}
+      {(() => {
+        const g = (page as any)._guides as { v: number[]; h: number[] } | undefined;
+        if (!g || (g.v.length === 0 && g.h.length === 0)) return null;
+        const setG = (axis: 'v' | 'h', i: number, val: number) => {
+          const next = { v: [...(g.v || [])], h: [...(g.h || [])] };
+          next[axis][i] = val;
+          onChange({ _guides: next } as any);
+        };
+        const rm = (axis: 'v' | 'h', i: number) => {
+          const next = { v: [...(g.v || [])], h: [...(g.h || [])] };
+          next[axis].splice(i, 1);
+          onChange({ _guides: next } as any);
+        };
+        return (
+          <div>
+            <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-1 mt-3">Guides</h3>
+            {(['v', 'h'] as const).map((axis) =>
+              (g[axis] || []).map((pos, i) => (
+                <div key={`${axis}-${i}`} className="flex items-center gap-1 mb-0.5">
+                  <span className="text-[9px] text-base-content/40 w-3">{axis === 'v' ? 'X' : 'Y'}</span>
+                  <input type="number" name={`guide-${axis}-${i}`} value={pos}
+                    onChange={(e) => setG(axis, i, Number(e.target.value))}
+                    className="input input-bordered input-xs w-20" />
+                  <button className="btn btn-ghost btn-xs px-1" onClick={() => rm(axis, i)}>×</button>
+                </div>
+              )),
+            )}
+            <button className="text-[9px] text-warning/70 hover:text-warning"
+              onClick={() => onChange({ _guides: { v: [], h: [] } } as any)}>Clear all guides</button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
