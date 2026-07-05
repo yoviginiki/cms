@@ -118,6 +118,20 @@ body.sv-idle #sv-ctl:focus-within { opacity: 1; transform: translateX(-50%); poi
 #sv-info { color: rgba(255,255,255,.75); font-size: 11.5px; min-width: 58px; text-align: center; letter-spacing: .06em; }
 .sv-sep { width: 1px; height: 18px; background: rgba(255,255,255,.15); }
 
+/* ── thumbnails strip ── */
+#sv-thumbs {
+    position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%); z-index: 59;
+    display: none; gap: 6px; padding: 8px 10px; max-width: 86vw; overflow-x: auto;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(10px);
+    border-radius: 10px; border: 1px solid rgba(255,255,255,.12);
+}
+body.sv-thumbs-open #sv-thumbs { display: flex; }
+body.sv-idle #sv-thumbs { opacity: 0; pointer-events: none; transition: opacity .45s; }
+.sv-thumb { position: relative; flex: 0 0 auto; cursor: pointer; border: 2px solid transparent; border-radius: 3px; overflow: hidden; background: #fff; }
+.sv-thumb.on { border-color: var(--sv-arrow); }
+.sv-thumb .n { position: absolute; bottom: 1px; right: 3px; font-size: 8px; color: rgba(0,0,0,.55); z-index: 2; }
+.sv-thumb-inner { transform-origin: top left; pointer-events: none; }
+
 /* ── side banners ── */
 .sv-banner { position: fixed; top: 50%; transform: translateY(-50%); z-index: 50; display: flex; flex-direction: column; gap: 14px; }
 .sv-banner.left { left: 16px; } .sv-banner.right { right: 16px; }
@@ -176,6 +190,7 @@ body.sv-idle #sv-audio { opacity: .25; }
 @endforeach
 </div>
 
+<div id="sv-thumbs" role="navigation" aria-label="Page thumbnails"></div>
 <div id="sv-ctl">
     <button id="sv-prev" title="Previous page (←)" aria-label="Previous page"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
     <span id="sv-info" aria-live="polite" role="status"></span>
@@ -185,6 +200,7 @@ body.sv-idle #sv-audio { opacity: .25; }
     <button class="mode" data-mode="book" title="Book (page flip)" aria-label="Book mode with page flip"><svg viewBox="0 0 24 24"><path d="M12 5c-2-1.5-5-2-8-2v16c3 0 6 .5 8 2 2-1.5 5-2 8-2V3c-3 0-6 .5-8 2zM12 5v16"/></svg></button>
     <button class="mode" data-mode="presentation" title="Presentation" aria-label="Presentation mode"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="1"/><path d="M12 17v3M8 21h8"/></svg></button>
     <span class="sv-sep"></span>
+    <button id="sv-thumbs-btn" title="Page thumbnails (G)" aria-label="Toggle page thumbnails"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/></svg></button>
     <button id="sv-fs" title="Fullscreen (F)" aria-label="Toggle fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 </div>
 
@@ -266,6 +282,7 @@ body.sv-idle #sv-audio { opacity: .25; }
         if (info) info.textContent = label;
         var ti = document.getElementById('sv-top-info');
         if (ti) ti.textContent = label;
+        if (typeof syncThumbs === 'function') try { syncThumbs(); } catch (e2) {}
     }
 
     function step(dir) {
@@ -312,6 +329,51 @@ body.sv-idle #sv-audio { opacity: .25; }
     document.querySelectorAll('#sv-ctl .mode').forEach(function (b) {
         b.addEventListener('click', function () { mode = b.dataset.mode; render(); });
     });
+    // thumbnails strip: built lazily from scaled page clones on first open
+    var thumbsBuilt = false;
+    function buildThumbs() {
+        var strip = document.getElementById('sv-thumbs');
+        var tw = 62, sc = tw / {{ $pw }};
+        pages.forEach(function (p, i) {
+            var t = document.createElement('div');
+            t.className = 'sv-thumb';
+            t.style.width = tw + 'px';
+            t.style.height = ({{ $ph }} * sc) + 'px';
+            var inner = p.cloneNode(true);
+            inner.className = 'sv-thumb-inner';
+            inner.style.transform = 'scale(' + sc + ')';
+            inner.style.width = '{{ $pw }}px';
+            inner.style.height = '{{ $ph }}px';
+            inner.style.margin = '0';
+            inner.querySelectorAll('img[loading="lazy"]').forEach(function (im) { im.loading = 'eager'; });
+            inner.querySelectorAll('video,iframe,audio').forEach(function (m) { m.remove(); });
+            t.appendChild(inner);
+            var n = document.createElement('span');
+            n.className = 'n';
+            n.textContent = i + 1;
+            t.appendChild(n);
+            t.addEventListener('click', function () { cur = i; render(); syncThumbs(); });
+            strip.appendChild(t);
+        });
+        thumbsBuilt = true;
+        syncThumbs();
+    }
+    function syncThumbs() {
+        if (!thumbsBuilt) return;
+        var pair = mode === 'scroll' ? [cur, null] : pairFor(cur);
+        document.querySelectorAll('.sv-thumb').forEach(function (t, i) {
+            t.classList.toggle('on', i === pair[0] || i === pair[1]);
+        });
+        var on = document.querySelector('.sv-thumb.on');
+        if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    }
+    function toggleThumbs() {
+        document.body.classList.toggle('sv-thumbs-open');
+        if (document.body.classList.contains('sv-thumbs-open') && !thumbsBuilt) buildThumbs();
+        syncThumbs();
+    }
+    document.getElementById('sv-thumbs-btn').addEventListener('click', toggleThumbs);
+
     document.getElementById('sv-fs').addEventListener('click', function () {
         if (document.fullscreenElement) document.exitFullscreen();
         else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
@@ -322,6 +384,7 @@ body.sv-idle #sv-audio { opacity: .25; }
         if (e.key === 'Home') { cur = 0; render(); }
         if (e.key === 'End') { cur = total - 1; render(); }
         if (e.key === 'f' || e.key === 'F') document.getElementById('sv-fs').click();
+        if (e.key === 'g' || e.key === 'G') toggleThumbs();
     });
     // touch swipe
     var tx = null;

@@ -92,6 +92,14 @@ class MagazineStaticPublishTest extends TestCase
         $this->assertStringContainsString('z-index:9', $frames[0]['style']);
     }
 
+    public function test_published_magazine_appears_in_sitemap(): void
+    {
+        $issue = $this->makeIssue('published');
+        $xml = app(\App\Domain\Publishing\Services\SitemapGenerator::class)->generate($this->site);
+        $path = app(MagazineStaticPublisher::class)->issuePath($issue);
+        $this->assertStringContainsString($path . '/', $xml);
+    }
+
     public function test_draft_issues_are_not_published(): void
     {
         $this->makeIssue('draft');

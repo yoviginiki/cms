@@ -21,8 +21,7 @@ describe('real-world clipboard fixtures (Session E)', () => {
     expect(html).toMatch(/<h1>[^<]*The Annual Report/);
     expect(html).toContain('<strong>Revenue grew</strong>');
     expect(html).toContain('<em>all divisions</em>');
-    expect(html).toContain('First numbered point');
-    // Word list paragraphs degrade to plain <p> (documented v1 limit)
+    expect(html).toMatch(/<ol><li>[^<]*First numbered point<\/li><li>[^<]*Second numbered point<\/li><\/ol>/);
   });
 
   it('Google Docs: heading + inline weight/style spans → semantic b/i', () => {

@@ -203,10 +203,20 @@ function cleanBlock(el: Element, doc: Document, blocks: Element[], pending: Node
 
   let outTag = tag.toLowerCase();
   if (tag === 'LI' || tag === 'FIGCAPTION') outTag = 'p'; // stray li/caption
-  if (isMsoListParagraph(el)) outTag = 'p';
+  let msoListKind: 'ol' | 'ul' | null = null;
+  if (isMsoListParagraph(el)) {
+    // Word fakes lists as paragraphs with a literal "1." / "·" marker span
+    // (mso-list:Ignore). Detect the kind from the marker, DROP the marker,
+    // and emit a real <li>; runs of them group into <ol>/<ul> afterwards.
+    const markerText = (inline.length && inline[0].textContent) || '';
+    msoListKind = /^\s*\d+[.)]/.test(markerText) ? 'ol' : 'ul';
+    if (/^\s*(\d+[.)]|[·•o§-])/.test(markerText)) inline.shift(); // remove marker node
+    outTag = 'li';
+  }
   if (isHeading) outTag = tag.toLowerCase();
   const block = doc.createElement(outTag);
   inline.forEach((n) => block.appendChild(n));
+  if (msoListKind) block.setAttribute('data-mso-list', msoListKind);
   if ((block.textContent || '').trim() || block.querySelector('img')) blocks.push(block);
 }
 
@@ -222,7 +232,25 @@ export function normalizeClipboardHtml(html: string): string {
     else if (c.nodeType === Node.ELEMENT_NODE) cleanBlock(c as Element, doc, blocks, pending);
   });
   pushParagraph(doc, blocks, pending.splice(0));
-  return blocks.map((b) => b.outerHTML).join('');
+
+  // group consecutive Word list items into real <ol>/<ul>
+  const out: Element[] = [];
+  let run: Element | null = null;
+  for (const b of blocks) {
+    const kind = b.getAttribute('data-mso-list');
+    if (kind) {
+      b.removeAttribute('data-mso-list');
+      if (!run || run.tagName.toLowerCase() !== kind) {
+        run = doc.createElement(kind);
+        out.push(run);
+      }
+      run.appendChild(b);
+    } else {
+      run = null;
+      out.push(b);
+    }
+  }
+  return out.map((b) => b.outerHTML).join('');
 }
 
 /** plain-text paste: blank line = paragraph, single newline = <br> */
