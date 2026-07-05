@@ -212,6 +212,26 @@ describe('magazineStore undo/redo (W0-5)', () => {
     expect(useMagazineStore.getState().pages[0].elements).toHaveLength(1);
   });
 
+  it('footnotes: frame created at page bottom with jump wrap, numbering increments (pro)', () => {
+    const st = useMagazineStore.getState();
+    const n1 = st.insertFootnote(1, 'First source');
+    expect(n1).toBe(1);
+    let page = useMagazineStore.getState().pages[0];
+    const fn = page.elements.find((e) => e.type === 'footnote_frame')!;
+    expect(fn).toBeTruthy();
+    expect(fn.textWrap.type).toBe('jump');
+    expect(fn.y + fn.height).toBeLessThanOrEqual(page.pageSize.height - page.margins.bottom + 0.01);
+    expect((fn.data as any).content).toContain('<sup>1</sup> First source');
+    const n2 = useMagazineStore.getState().insertFootnote(1, 'Second source');
+    expect(n2).toBe(2);
+    page = useMagazineStore.getState().pages[0];
+    expect(page.elements.filter((e) => e.type === 'footnote_frame')).toHaveLength(1); // reused
+    expect((page.elements.find((e) => e.type === 'footnote_frame')!.data as any).content).toContain('<sup>2</sup> Second source');
+    useMagazineStore.getState().undo();
+    page = useMagazineStore.getState().pages[0];
+    expect((page.elements.find((e) => e.type === 'footnote_frame')!.data as any).content).not.toContain('Second');
+  });
+
   it('setEditingMaster does not pollute history', () => {
     useMagazineStore.getState().addMasterPage('A');
     const depth = useMagazineStore.getState().undoStack.length;

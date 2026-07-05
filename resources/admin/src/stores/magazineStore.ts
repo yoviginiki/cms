@@ -101,6 +101,9 @@ interface MagazineActions {
    *  bounding-box container element; moving/resizing it translates/scales them */
   groupElements: (ids: string[]) => void;
   ungroupElements: (groupId: string) => void;
+  /** footnotes ([pro]): append a numbered note to the page's footnote frame
+   *  (created at the page bottom with jump wrap on first use); returns n */
+  insertFootnote: (pageNumber: number, noteHtml: string) => number;
   moveElementToPage: (elementId: string, fromPage: number, toPage: number, newX?: number, newY?: number) => void;
   continueTextToNextPage: (elementId: string) => void;
 
@@ -871,6 +874,51 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
       isDirty: true,
     }));
     get().pushDebugLog('group:ungroup', 'store', { groupId, freed: freed.length });
+  },
+
+  insertFootnote(pageNumber, noteHtml) {
+    const state = get();
+    const page = state.pages.find((p) => p.pageNumber === pageNumber && !p.isMaster);
+    if (!page) return 0;
+    get().pushSnapshot();
+    let fn = page.elements.find((e) => e.type === 'footnote_frame');
+    let created = false;
+    if (!fn) {
+      const m = page.margins || { top: 36, right: 36, bottom: 36, left: 36 };
+      const w = (page.pageSize?.width || 595) - m.left - m.right;
+      const h = 84;
+      const y = (page.pageSize?.height || 842) - m.bottom - h;
+      fn = {
+        ...makeDefaultElement('footnote_frame', m.left, y, w, h, pageNumber,
+          Math.max(0, ...page.elements.map((e) => e.zIndex)) + 1),
+        name: 'Footnotes',
+      };
+      fn.data = { ...fn.data, content: '<hr>' };
+      fn.typography = { ...(fn.typography as any), fontSize: 8.5, lineHeight: 1.45 };
+      // jump wrap: body text automatically flows CLEAR of the note block
+      fn.textWrap = { type: 'jump', offset: { top: 10, right: 0, bottom: 0, left: 0 }, side: 'both', customPath: null, invert: false };
+      created = true;
+    }
+    const existing = (String((fn.data as any)?.content || '').match(/class="fn"/g) || []).length;
+    const n = existing + 1;
+    const note = `<p class="fn"><sup>${n}</sup> ${noteHtml}</p>`;
+    const content = String((fn.data as any)?.content || '') + note;
+    set((s2) => ({
+      pages: s2.pages.map((p) =>
+        p.pageNumber !== pageNumber || p.isMaster
+          ? p
+          : {
+              ...p,
+              elements: created
+                ? [...p.elements, { ...fn!, data: { ...fn!.data, content } }]
+                : p.elements.map((e) => (e.id === fn!.id ? { ...e, data: { ...e.data, content } } : e)),
+            },
+      ),
+      isDirty: true,
+    }));
+    get().requestFlow();
+    get().pushDebugLog('footnote:insert', 'store', { pageNumber, n, created });
+    return n;
   },
 
   stepAndRepeat(ids, count, dx, dy) {

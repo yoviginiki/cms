@@ -4,6 +4,7 @@ import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
 import { computeWrapShims, wrapShimsHtml } from '@/lib/contourTrace';
+import { useMagazineStore } from '@/stores/magazineStore';
 import { normalizeClipboardHtml, plainTextToHtml, wordCount } from '@/lib/clipboardNormalizer';
 import { formatPageNumber } from '@/lib/magazineFormat';
 
@@ -236,6 +237,23 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
               document.execCommand('insertHTML', false, clean);
             }}
             onKeyDown={(e) => {
+              // footnotes ([pro]): Ctrl+Alt+F inserts a numbered marker at the
+              // caret and appends the note to the page's footnote block
+              if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                e.stopPropagation();
+                const note = window.prompt('Footnote text:');
+                if (note && note.trim()) {
+                  const st = useMagazineStore.getState();
+                  const existing = st.pages
+                    .find((p) => p.pageNumber === el.pageNumber)?.elements
+                    .find((e2) => e2.type === 'footnote_frame');
+                  const n = (String((existing?.data as any)?.content || '').match(/class="fn"/g) || []).length + 1;
+                  document.execCommand('insertHTML', false, `<sup>${n}</sup>`);
+                  st.insertFootnote(el.pageNumber, note.trim().replace(/</g, '&lt;'));
+                }
+                return;
+              }
               // Let Escape propagate to exit editing, stop everything else
               if (e.key !== 'Escape') e.stopPropagation();
             }}

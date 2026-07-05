@@ -1482,7 +1482,7 @@ const SHORTCUTS: Array<[string, Array<[string, string]>]> = [
   ['Tools', [['V', 'Select'], ['T', 'Text'], ['I', 'Image'], ['R', 'Rectangle'], ['E', 'Ellipse'], ['L', 'Line'], ['W', 'Preview mode']]],
   ['Editing', [['Ctrl+Z / Ctrl+Y', 'Undo / redo'], ['Ctrl+C / X / V', 'Copy / cut / paste'], ['Ctrl+D', 'Duplicate'], ['Ctrl+A', 'Select all'], ['Del', 'Delete'], ['Esc', 'Deselect / close'], ['Arrows (+Shift)', 'Nudge 1pt (10pt)']]],
   ['Arrange', [['Ctrl+G', 'Group'], ['Ctrl+Shift+G', 'Ungroup'], ['Alt+drag', 'Duplicate while dragging'], ['Alt+click', 'Select element behind'], ['Right-click', 'Context menu']]],
-  ['Document', [['Ctrl+F', 'Find & replace'], ['Ctrl+S', 'Save'], ['Drag from ruler', 'Create a guide'], ['?', 'This cheat-sheet']]],
+  ['Document', [['Ctrl+F', 'Find & replace'], ['Ctrl+Alt+F', 'Insert footnote (in text)'], ['Ctrl+S', 'Save'], ['Drag from ruler', 'Create a guide'], ['?', 'This cheat-sheet']]],
 ];
 
 function ShortcutSheet({ onClose }: { onClose: () => void }) {
