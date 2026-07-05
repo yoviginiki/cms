@@ -18,7 +18,7 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
     if (linkCorners) {
       onChange({ cornerRadius: { tl: val, tr: val, br: val, bl: val } });
     } else {
-      onChange({ cornerRadius: { ...style.cornerRadius, [corner]: val } });
+      onChange({ cornerRadius: { tl: 0, tr: 0, br: 0, bl: 0, ...style.cornerRadius, [corner]: val } });
     }
   };
 
@@ -204,7 +204,7 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
             <input
               type="number"
               min={0}
-              value={style.cornerRadius[corner]}
+              value={style.cornerRadius?.[corner] ?? 0}
               onChange={(e) => handleCornerChange(corner, Number(e.target.value))}
               className="input input-bordered input-xs w-full"
             />
