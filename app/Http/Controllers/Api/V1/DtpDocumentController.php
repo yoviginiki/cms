@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\IssueComposer\Models\MagazineIssue;
 use App\Domain\Magazine\Services\DtpDocumentService;
+use App\Domain\Magazine\Services\MagazineReferenceExtractor;
+use App\Domain\References\Services\ReferenceRecorder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveDtpDocumentRequest;
 use App\Models\Site;
@@ -39,6 +41,16 @@ class DtpDocumentController extends Controller
         }
 
         $document = $this->documentService->saveDocument($issue, $request->validated());
+
+        // W3: record asset usage into the entity_references graph so magazines
+        // get delete-protection + staleness like every other content type.
+        // Reference recording must never fail a save.
+        try {
+            $edges = app(MagazineReferenceExtractor::class)->extract($issue->refresh());
+            app(ReferenceRecorder::class)->persistEdges($site->id, 'magazine_doc', $issue->id, $edges);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('magazine reference recording failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'data' => $document,

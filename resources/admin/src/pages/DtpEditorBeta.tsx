@@ -40,6 +40,7 @@ import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWr
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 // Threading imports removed — Pour handles content splitting directly
 import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from '@/lib/dtpAdapters';
+import { runPreflight } from '@/lib/magazinePreflight';
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -985,6 +986,35 @@ export default function DtpEditorBeta() {
                   {store.issueSettings.layoutMode === 'book' && 'Use Spread view in the toolbar to see side-by-side pages.'}
                   {store.issueSettings.layoutMode === 'presentation' && 'Use Single view for slide-by-slide navigation.'}
                 </div>
+
+                {/* ─── Preflight v2 (W3): clickable checks, jump-to-issue ─── */}
+                {(() => {
+                  const issues = runPreflight(store.pages, store.oversetThreads);
+                  return (
+                    <div className="pb-4 border-b border-base-300/20">
+                      <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">
+                        Preflight {issues.length === 0
+                          ? <span className="text-success normal-case">— all clear ✓</span>
+                          : <span className={issues.some(i => i.severity === 'error') ? 'text-error normal-case' : 'text-warning normal-case'}>— {issues.length} issue{issues.length > 1 ? 's' : ''}</span>}
+                      </h3>
+                      <div className="space-y-1 max-h-56 overflow-y-auto">
+                        {issues.map((iss, n) => (
+                          <button key={n}
+                            className="w-full text-left flex items-start gap-1.5 px-1.5 py-1 rounded hover:bg-base-300/20 transition-colors"
+                            title="Click to jump to this issue"
+                            onClick={() => {
+                              store.setCurrentPage(iss.pageNumber);
+                              if (iss.elementId) store.selectElement(iss.elementId);
+                              setRightTab('properties');
+                            }}>
+                            <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${iss.severity === 'error' ? 'bg-error' : 'bg-warning'}`} />
+                            <span className="text-[10px] text-base-content/60 leading-tight">{iss.message}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* ─── Viewer Settings ─── */}
                 <div className="border-t border-base-300/20 pt-4">
