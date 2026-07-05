@@ -12,6 +12,8 @@ export interface FindMatch {
   /** occurrence index within THIS element (0-based) */
   occurrence: number;
   preview: string;
+  /** the match straddles a thread-slice boundary — jump-to only, no replace */
+  crossSlice?: boolean;
 }
 
 export interface FindOptions {
@@ -82,6 +84,44 @@ export function findMatches(pages: MagPageData[], query: string, opts: FindOptio
             preview: (start > 0 ? '…' : '') + t.slice(start, idx + query.length + 24).trim() + '…',
           });
         }
+      }
+    }
+  }
+  // cross-slice detection: matches that straddle the seam between two
+  // frames of a thread are findable (jump-to) though not replaceable
+  const threads = new Map<string, Array<{ el: any; page: any }>>();
+  for (const p of content) {
+    for (const e of p.elements) {
+      if ((e as any).threadId && SEARCHABLE.has(e.type)) {
+        if (!threads.has((e as any).threadId)) threads.set((e as any).threadId, []);
+        threads.get((e as any).threadId)!.push({ el: e, page: p });
+      }
+    }
+  }
+  const q = matchCase ? query : query.toLowerCase();
+  for (const chain of threads.values()) {
+    chain.sort((a, b) => ((a.el.threadOrder ?? 0) - (b.el.threadOrder ?? 0)));
+    const texts = chain.map((c) => parseBody(String((c.el.data as any)?.content || '')).textContent || '');
+    for (let i = 0; i < texts.length - 1; i++) {
+      // window across the seam only — matches fully inside a slice are
+      // already reported above
+      const tailLen = Math.min(texts[i].length, query.length - 1 + 24);
+      const headLen = Math.min(texts[i + 1].length, query.length - 1 + 24);
+      const seam = texts[i].slice(-tailLen) + ' ' + texts[i + 1].slice(0, headLen);
+      const hay = matchCase ? seam : seam.toLowerCase();
+      let idx = hay.indexOf(q);
+      while (idx !== -1) {
+        const crossesSeam = idx < tailLen && idx + q.length > tailLen;
+        if (crossesSeam) {
+          out.push({
+            pageNumber: chain[i].page.pageNumber,
+            elementId: chain[i].el.id,
+            occurrence: -1,
+            preview: '…' + seam.slice(Math.max(0, idx - 16), idx + query.length + 16).trim() + '… (spans frames)',
+            crossSlice: true,
+          });
+        }
+        idx = hay.indexOf(q, idx + 1);
       }
     }
   }

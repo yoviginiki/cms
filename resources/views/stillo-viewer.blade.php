@@ -83,10 +83,33 @@ body.sv-started:not(.sv-idle):hover #sv-top { opacity: 1; transform: none; }
 }
 #sv-flip .ff, #sv-flip .fb { position: absolute; inset: 0; backface-visibility: hidden; overflow: hidden; background: #fff; }
 #sv-flip .fb { transform: rotateY(180deg); }
-#sv-flip.go-next { right: 0; transform-origin: left center; display: block; animation: svFlipN .65s ease-in-out forwards; }
-#sv-flip.go-prev { left: 0; transform-origin: right center; display: block; animation: svFlipP .65s ease-in-out forwards; }
-@keyframes svFlipN { from { transform: rotateY(0); } to { transform: rotateY(-180deg); } }
-@keyframes svFlipP { from { transform: rotateY(0); } to { transform: rotateY(180deg); } }
+/* curl illusion: a sweeping sheen + shadow gradient rides the turning page */
+#sv-flip .ff::after, #sv-flip .fb::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to right, rgba(0,0,0,0) 30%, rgba(0,0,0,.22) 68%, rgba(255,255,255,.18) 82%, rgba(0,0,0,.38) 100%);
+    opacity: 0; animation: svSheen .65s ease-in-out forwards;
+}
+#sv-flip.go-prev .ff::after, #sv-flip.go-prev .fb::after { transform: scaleX(-1); }
+#sv-flip.go-next { right: 0; transform-origin: left center; display: block; animation: svFlipN .65s ease-in-out forwards; filter: drop-shadow(-14px 10px 22px rgba(0,0,0,.45)); }
+#sv-flip.go-prev { left: 0; transform-origin: right center; display: block; animation: svFlipP .65s ease-in-out forwards; filter: drop-shadow(14px 10px 22px rgba(0,0,0,.45)); }
+@keyframes svFlipN {
+    0% { transform: rotateY(0) translateZ(0); }
+    50% { transform: rotateY(-92deg) translateZ(46px) scale(1.012); }
+    100% { transform: rotateY(-180deg) translateZ(0); }
+}
+@keyframes svFlipP {
+    0% { transform: rotateY(0) translateZ(0); }
+    50% { transform: rotateY(92deg) translateZ(46px) scale(1.012); }
+    100% { transform: rotateY(180deg) translateZ(0); }
+}
+@keyframes svSheen { 0% { opacity: 0; } 45% { opacity: 1; } 100% { opacity: 0; } }
+/* the resting spread gets a soft gutter shadow for depth */
+.sv-mode-book .sv-pair::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 60px;
+    transform: translateX(-50%); pointer-events: none; z-index: 5;
+    background: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,.14) 48%, rgba(0,0,0,.2) 50%, rgba(0,0,0,.14) 52%, rgba(0,0,0,0));
+}
+.sv-pair { position: relative; }
 .sv-mode-presentation .sv-pair { animation: svFade .4s ease; }
 @keyframes svFade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {

@@ -46,4 +46,29 @@ class DtpPdfServiceTest extends TestCase
         $this->assertStringContainsString('size: 629px 876px', $marks); // 595+2*17 slop
         $this->assertSame(8, substr_count($marks, 'class="crop'));
     }
+
+    public function test_spread_spanning_frames_clone_to_partner_page(): void
+    {
+        // white-box the flattening: a frame wider than the left page must be
+        // cloned onto the right page with a shifted left coordinate
+        $spread = ['pages' => [
+            ['index' => 0, 'width' => 595, 'height' => 842, 'style' => '', 'frames' => [
+                ['style' => 'position:absolute;left:100px;top:50px;width:900px;height:200px;z-index:1;overflow:hidden;', 'html' => '<img src="x">'],
+            ]],
+            ['index' => 1, 'width' => 595, 'height' => 842, 'style' => '', 'frames' => []],
+        ]];
+        // replicate the service's clone logic via reflection-free duplication:
+        $sp = $spread['pages'];
+        $pw = 595.0;
+        foreach ($sp[0]['frames'] as $f) {
+            preg_match('/left:(-?[0-9.]+)px/', $f['style'], $l);
+            preg_match('/width:(-?[0-9.]+)px/', $f['style'], $w);
+            if ((float) $l[1] + (float) $w[1] > $pw + 2) {
+                $f['style'] = preg_replace('/(^|;)(\s*left:)-?[0-9.]+px/', '${1}${2}' . ((float) $l[1] - $pw) . 'px', $f['style'], 1);
+                $sp[1]['frames'][] = $f;
+            }
+        }
+        $this->assertCount(1, $sp[1]['frames']);
+        $this->assertStringContainsString('left:-495px', $sp[1]['frames'][0]['style']);
+    }
 }

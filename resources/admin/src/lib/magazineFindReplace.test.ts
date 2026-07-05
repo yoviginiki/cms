@@ -41,3 +41,21 @@ describe('find & replace (W3)', () => {
     expect(replaceInHtml('<p>x</p>', '', 'y').replaced).toBe(0);
   });
 });
+
+describe('cross-slice find (final polish)', () => {
+  it('detects a phrase straddling two thread slices, flags it non-replaceable', () => {
+    const pages = [{
+      id: 'p1', pageNumber: 1, isMaster: false,
+      elements: [
+        { id: 'a', type: 'text_frame', y: 0, x: 0, threadId: 't1', threadOrder: 0, data: { content: '<p>the story ends with margin</p>' } },
+        { id: 'b', type: 'text_frame', y: 100, x: 0, threadId: 't1', threadOrder: 1, data: { content: '<p>vermilion continues the tale</p>' } },
+      ],
+    }] as any;
+    const matches = findMatches(pages, 'margin vermilion');
+    expect(matches).toHaveLength(1);
+    expect(matches[0].crossSlice).toBe(true);
+    expect(matches[0].elementId).toBe('a');
+    expect(matches[0].preview).toContain('spans frames');
+    expect(findMatches(pages, 'vermilion').filter((m) => m.crossSlice)).toHaveLength(0);
+  });
+});

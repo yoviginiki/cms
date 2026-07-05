@@ -32,10 +32,34 @@ class DtpPdfService
             throw new RuntimeException('No DTP content to export.');
         }
 
-        // flatten pages in reading order
+        // flatten pages in reading order; spread-spanning frames (style
+        // extends past the page width, or starts negative) get a shifted
+        // CLONE on the partner page so BOTH halves print (backlog item)
         $pages = [];
         foreach ($data['spreads'] as $spread) {
-            foreach ($spread['pages'] as $p) {
+            $sp = $spread['pages'];
+            if (count($sp) === 2) {
+                $pw = (float) ($sp[0]['width'] ?? 595);
+                $parse = function (string $style, string $prop): ?float {
+                    return preg_match('/(?:^|;)\s*' . $prop . ':(-?[0-9.]+)px/', $style, $m) ? (float) $m[1] : null;
+                };
+                foreach ($sp[0]['frames'] as $f) {
+                    $l = $parse($f['style'], 'left');
+                    $w = $parse($f['style'], 'width');
+                    if ($l !== null && $w !== null && $l + $w > $pw + 2) {
+                        $f['style'] = preg_replace('/(^|;)(\s*left:)-?[0-9.]+px/', '${1}${2}' . ($l - $pw) . 'px', $f['style'], 1);
+                        $sp[1]['frames'][] = $f;
+                    }
+                }
+                foreach ($sp[1]['frames'] as $f) {
+                    $l = $parse($f['style'], 'left');
+                    if ($l !== null && $l < -2) {
+                        $f['style'] = preg_replace('/(^|;)(\s*left:)-?[0-9.]+px/', '${1}${2}' . ($l + $pw) . 'px', $f['style'], 1);
+                        $sp[0]['frames'][] = $f;
+                    }
+                }
+            }
+            foreach ($sp as $p) {
                 $pages[] = $p;
             }
         }

@@ -1494,7 +1494,7 @@ function FindReplacePanel({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex gap-1.5">
         <button className="btn btn-xs btn-ghost" disabled={!matches.length} onClick={next}>Next</button>
-        <button className="btn btn-xs btn-ghost" disabled={!current} onClick={replaceCurrent}>Replace</button>
+        <button className="btn btn-xs btn-ghost" disabled={!current || current.crossSlice} title={current?.crossSlice ? 'This match spans two frames — edit it manually' : undefined} onClick={replaceCurrent}>Replace</button>
         <button className="btn btn-xs btn-primary btn-outline ml-auto" disabled={!matches.length} onClick={replaceAll}>Replace all</button>
       </div>
     </div>
