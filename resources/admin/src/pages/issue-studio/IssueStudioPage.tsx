@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { assets } from '@/lib/api';
 import FlatplanBoard from './FlatplanBoard';
+import GenerationView from './GenerationView';
 import { useStudioStore } from './store';
 import { GENRE_LABELS, STATUS_LABELS, type Brief, type Material } from './types';
 
@@ -48,8 +49,10 @@ export default function IssueStudioPage() {
             </div>
             <ChatPane siteId={siteId} />
           </>
-        ) : (
+        ) : session.status === 'flatplanning' ? (
           <FlatplanBoard />
+        ) : (
+          <GenerationView />
         )}
       </div>
 

@@ -46,4 +46,16 @@ export const studioApi = {
 
   approveFlatplan: (id: string) =>
     api.post(`${BASE}/${id}/flatplan/approve`).then(r => r.data.data as StudioSession),
+
+  generateNextSpread: (id: string) =>
+    api.post(`${BASE}/${id}/spreads/generate-next`).then(r => r.data.data as StudioSession),
+
+  keepSpread: (id: string, position: number) =>
+    api.post(`${BASE}/${id}/spreads/${position}/keep`).then(r => r.data.data as StudioSession),
+
+  reviseSpread: (id: string, position: number, instruction: string) =>
+    api.post(`${BASE}/${id}/spreads/${position}/revise`, { instruction }).then(r => r.data.data as StudioSession),
+
+  rethinkSpread: (id: string, position: number, pattern?: string) =>
+    api.post(`${BASE}/${id}/spreads/${position}/rethink`, { pattern }).then(r => r.data.data as StudioSession),
 };

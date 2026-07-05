@@ -54,7 +54,7 @@ class IssueStudioController extends Controller
     {
         $this->authorizeSession($request, $studioSession);
 
-        return response()->json(['data' => $this->serialize($studioSession)]);
+        return response()->json(['data' => $this->serialize($studioSession, true, true)]);
     }
 
     public function destroy(Request $request, StudioSession $studioSession): JsonResponse
@@ -181,6 +181,62 @@ class IssueStudioController extends Controller
 
         try {
             $studioSession = $this->service->approveFlatplan($studioSession);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession, true, true)]);
+    }
+
+    public function generateNextSpread(Request $request, StudioSession $studioSession): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        try {
+            $studioSession = $this->service->generateNextSpread($studioSession);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession, true, true)]);
+    }
+
+    public function keepSpread(Request $request, StudioSession $studioSession, int $position): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        try {
+            $studioSession = $this->service->keepSpread($studioSession, $position);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession, true, true)]);
+    }
+
+    public function reviseSpread(Request $request, StudioSession $studioSession, int $position): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        $data = $request->validate(['instruction' => 'required|string|max:2000']);
+
+        try {
+            $studioSession = $this->service->reviseGeneratedSpread($studioSession, $position, $data['instruction']);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession, true, true)]);
+    }
+
+    public function rethinkSpread(Request $request, StudioSession $studioSession, int $position): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        $data = $request->validate(['pattern' => 'nullable|string|max:60']);
+
+        try {
+            $studioSession = $this->service->rethinkSpread($studioSession, $position, $data['pattern'] ?? null);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }

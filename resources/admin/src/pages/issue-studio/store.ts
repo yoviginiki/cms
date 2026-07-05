@@ -20,6 +20,11 @@ interface StudioState {
   reviseSpread: (position: number, instruction: string) => Promise<void>;
   reorder: (order: number[]) => Promise<void>;
   approveFlatplan: () => Promise<void>;
+  generatingSpread: boolean;
+  generateNextSpread: () => Promise<void>;
+  keepSpread: (position: number) => Promise<void>;
+  reviseGeneratedSpread: (position: number, instruction: string) => Promise<void>;
+  rethinkSpread: (position: number, pattern?: string) => Promise<void>;
   clearError: () => void;
   reset: () => void;
 }
@@ -35,6 +40,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   sending: false,
   planning: false,
   revisingPosition: null,
+  generatingSpread: false,
   error: null,
 
   load: async (id) => {
@@ -158,6 +164,49 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     }
   },
 
+  generateNextSpread: async () => {
+    const { session } = get();
+    if (!session || get().generatingSpread) return;
+    set({ generatingSpread: true, error: null });
+    try {
+      set({ session: await studioApi.generateNextSpread(session.id), generatingSpread: false });
+    } catch (e) {
+      set({ generatingSpread: false, error: apiError(e) });
+    }
+  },
+
+  keepSpread: async (position) => {
+    const { session } = get();
+    if (!session) return;
+    try {
+      set({ session: await studioApi.keepSpread(session.id, position), error: null });
+    } catch (e) {
+      set({ error: apiError(e) });
+    }
+  },
+
+  reviseGeneratedSpread: async (position, instruction) => {
+    const { session } = get();
+    if (!session || get().generatingSpread) return;
+    set({ generatingSpread: true, error: null });
+    try {
+      set({ session: await studioApi.reviseSpread(session.id, position, instruction), generatingSpread: false });
+    } catch (e) {
+      set({ generatingSpread: false, error: apiError(e) });
+    }
+  },
+
+  rethinkSpread: async (position, pattern) => {
+    const { session } = get();
+    if (!session || get().generatingSpread) return;
+    set({ generatingSpread: true, error: null });
+    try {
+      set({ session: await studioApi.rethinkSpread(session.id, position, pattern), generatingSpread: false });
+    } catch (e) {
+      set({ generatingSpread: false, error: apiError(e) });
+    }
+  },
+
   clearError: () => set({ error: null }),
-  reset: () => set({ session: null, loading: false, sending: false, planning: false, revisingPosition: null, error: null }),
+  reset: () => set({ session: null, loading: false, sending: false, planning: false, revisingPosition: null, generatingSpread: false, error: null }),
 }));

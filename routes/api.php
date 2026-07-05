@@ -194,6 +194,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('sessions/{studioSession}/flatplan/revise', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'reviseFlatplanSpread'])->middleware('throttle:20,1');
             Route::post('sessions/{studioSession}/flatplan/reorder', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'reorderFlatplan']);
             Route::post('sessions/{studioSession}/flatplan/approve', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'approveFlatplan']);
+            Route::post('sessions/{studioSession}/spreads/generate-next', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'generateNextSpread'])->middleware('throttle:10,1');
+            Route::post('sessions/{studioSession}/spreads/{position}/keep', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'keepSpread'])->whereNumber('position');
+            Route::post('sessions/{studioSession}/spreads/{position}/revise', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'reviseSpread'])->whereNumber('position')->middleware('throttle:10,1');
+            Route::post('sessions/{studioSession}/spreads/{position}/rethink', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'rethinkSpread'])->whereNumber('position')->middleware('throttle:10,1');
         });
 
         // Blocks

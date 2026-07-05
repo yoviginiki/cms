@@ -19,6 +19,9 @@ class IssueStudioService
         private InterviewEngine $interview,
         private FlatplanEngine $flatplan,
         private FlatplanValidator $validator,
+        private SpreadEngine $spreadEngine,
+        private SpreadComposer $composer,
+        private Playbook $playbook,
         private TokenBudget $budget,
     ) {
     }
@@ -261,6 +264,150 @@ class IssueStudioService
         $session->save();
 
         return $session;
+    }
+
+    /** Generate the next pending spread (flatplan order, one at a time). */
+    public function generateNextSpread(StudioSession $session): StudioSession
+    {
+        if ($session->status !== 'generating') {
+            throw new RuntimeException('Approve the flatplan before generating spreads.');
+        }
+
+        $open = $session->spreads()->whereIn('status', ['generated', 'revising'])->first();
+        if ($open) {
+            throw new RuntimeException("Decide on spread {$open->position} (keep, revise or rethink) before generating the next one.");
+        }
+
+        $spread = $session->spreads()->where('status', 'pending')->orderBy('position')->first();
+        if (!$spread) {
+            throw new RuntimeException('Every spread is already generated.');
+        }
+
+        $this->budget->assertAvailable($session->tenant_id);
+
+        $result = $this->spreadEngine->generate($session, $spread);
+        $this->persistSpreadDoc($session, $spread, $result);
+
+        return $session->refresh();
+    }
+
+    /** Keep: approve the spread; complete the session when all are approved. */
+    public function keepSpread(StudioSession $session, int $position): StudioSession
+    {
+        $spread = $this->findSpread($session, $position);
+        if ($spread->status !== 'generated') {
+            throw new RuntimeException('Only a freshly generated spread can be kept.');
+        }
+
+        $spread->update(['status' => 'approved']);
+
+        if (!$session->spreads()->where('status', '!=', 'approved')->exists()) {
+            $session->status = 'complete';
+            $session->save();
+        }
+
+        return $session->refresh();
+    }
+
+    /** Conversational revision of a generated (or already approved) spread. */
+    public function reviseGeneratedSpread(StudioSession $session, int $position, string $instruction): StudioSession
+    {
+        $spread = $this->findSpread($session, $position);
+        if (!in_array($spread->status, ['generated', 'approved'], true)) {
+            throw new RuntimeException('This spread has not been generated yet.');
+        }
+
+        $this->budget->assertAvailable($session->tenant_id);
+
+        $currentPages = $this->composer->readSpread($session, $spread);
+        $result = $this->spreadEngine->revise($session, $spread, $currentPages, $instruction);
+        $this->persistSpreadDoc($session, $spread, $result, 'spread-revise');
+
+        // an approved session revising a spread reopens it
+        if ($session->status === 'complete') {
+            $session->status = 'generating';
+            $session->save();
+        }
+
+        return $session->refresh();
+    }
+
+    /** Rethink: regenerate from scratch, optionally with a different pattern. */
+    public function rethinkSpread(StudioSession $session, int $position, ?string $pattern): StudioSession
+    {
+        $spread = $this->findSpread($session, $position);
+        if (!in_array($spread->status, ['generated', 'approved'], true)) {
+            throw new RuntimeException('This spread has not been generated yet.');
+        }
+
+        if ($pattern !== null && $pattern !== $spread->pattern) {
+            $names = $this->playbook->patternNames();
+            $allowed = $position === 0 ? $names['covers'] : $names['spreads'];
+            if (!in_array($pattern, $allowed, true)) {
+                throw new RuntimeException("\"{$pattern}\" is not a valid pattern for this slot.");
+            }
+            $spread->pattern = $pattern;
+            $spread->save();
+
+            // keep the locked flatplan record in sync
+            $flatplan = $session->flatplan;
+            foreach ($flatplan['spreads'] ?? [] as $i => $fp) {
+                if (($fp['position'] ?? null) === $position) {
+                    $flatplan['spreads'][$i]['pattern'] = $pattern;
+                }
+            }
+            $session->flatplan = $flatplan;
+            $session->save();
+        }
+
+        $this->budget->assertAvailable($session->tenant_id);
+
+        $result = $this->spreadEngine->generate($session, $spread);
+        $this->persistSpreadDoc($session, $spread, $result, 'spread-rethink');
+
+        if ($session->status === 'complete') {
+            $session->status = 'generating';
+            $session->save();
+        }
+
+        return $session->refresh();
+    }
+
+    private function persistSpreadDoc(StudioSession $session, \App\Models\IssueStudio\StudioSpread $spread, array $result, string $phase = 'spread'): void
+    {
+        foreach ($result['usage'] as $usage) {
+            $this->recordUsage($session, $phase, $usage);
+        }
+        $session->save();
+
+        $pageIds = $this->composer->writeSpread($session, $spread, $result['doc']);
+
+        $notes = $spread->generation_notes ?? [];
+        $notes[] = [
+            'note' => $result['doc']['editorial_note'] ?? '',
+            'pattern' => $spread->pattern,
+            'phase' => $phase,
+            'at' => now()->toIso8601String(),
+        ];
+
+        $spread->update([
+            'status' => 'generated',
+            'page_ids' => $pageIds,
+            'generation_notes' => array_slice($notes, -10),
+        ]);
+
+        // ids of every other spread's pages were remapped by the full-replace save
+        $this->composer->syncPageIds($session);
+    }
+
+    private function findSpread(StudioSession $session, int $position): \App\Models\IssueStudio\StudioSpread
+    {
+        $spread = $session->spreads()->where('position', $position)->first();
+        if (!$spread) {
+            throw new RuntimeException("No spread at position {$position}.");
+        }
+
+        return $spread;
     }
 
     private function assertEditableFlatplan(StudioSession $session): void

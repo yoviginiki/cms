@@ -57,6 +57,13 @@ export interface Flatplan {
   approved_at?: string;
 }
 
+export interface GenerationNote {
+  note: string;
+  pattern: string;
+  phase: string;
+  at: string;
+}
+
 export interface SpreadRow {
   id: string;
   position: number;
@@ -66,6 +73,8 @@ export interface SpreadRow {
   pattern: string | null;
   materials: string[];
   intent: string | null;
+  page_ids?: string[];
+  generation_notes?: GenerationNote[];
 }
 
 export interface StudioSession {

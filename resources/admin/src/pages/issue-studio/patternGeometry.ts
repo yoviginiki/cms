@@ -265,6 +265,33 @@ export const PATTERN_SKETCHES: Record<string, PatternSketch> = {
   },
 };
 
+/** Rethink alternatives: 2-3 patterns suited to the same editorial intent. */
+export const PATTERN_ALTERNATIVES: Record<string, string[]> = {
+  'cover-image': ['cover-type'],
+  'cover-type': ['cover-image'],
+  'full-bleed-opener': ['poster-type-opener', 'portrait-profile'],
+  'poster-type-opener': ['full-bleed-opener', 'stat-punch'],
+  'portrait-profile': ['full-bleed-opener', 'quote-beat'],
+  'text-well-two-column': ['text-well-three-column', 'quiet-single-column'],
+  'text-well-three-column': ['text-well-two-column', 'sidebar-feature'],
+  'sidebar-feature': ['text-well-three-column', 'data-evidence'],
+  'quiet-single-column': ['text-well-two-column'],
+  'artwork-plate': ['image-grid-quartet', 'image-interruption'],
+  'image-grid-quartet': ['artwork-plate', 'item-mosaic'],
+  'image-interruption': ['quote-beat', 'artwork-plate'],
+  'image-evidence-pair': ['document-evidence', 'image-grid-quartet'],
+  'stat-punch': ['data-evidence', 'poster-type-opener'],
+  'data-evidence': ['stat-punch', 'document-evidence'],
+  'document-evidence': ['data-evidence', 'image-evidence-pair'],
+  'qa-alternating': ['qa-rapid-fire', 'quote-beat'],
+  'qa-rapid-fire': ['qa-alternating', 'quote-beat'],
+  'quote-beat': ['qa-alternating', 'image-interruption'],
+  'fob-stack': ['item-mosaic'],
+  'item-mosaic': ['fob-stack'],
+  'how-to-object': ['item-mosaic', 'sidebar-feature'],
+  'closer-colophon': ['quiet-single-column'],
+};
+
 export function sketchFor(pattern: string): PatternSketch {
   return (
     PATTERN_SKETCHES[pattern] ?? {
