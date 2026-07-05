@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Plus, Copy, Trash2, LayoutTemplate } from 'lucide-react';
 import type { MagPageData, MagElement } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
+import { useMagazineStore } from '@/stores/magazineStore';
 
 // ─── Page templates ───
 
@@ -199,6 +200,33 @@ export default function PageNavigator({
                   <option value="recto">Recto (right) only</option>
                 </select>
               )}
+              {/* master-on-master ([pro]): inherit a base master's elements */}
+              <select name={`pn-based-on-${mp.id.slice(0, 6)}`}
+                value={(mp as any).basedOnMasterId || ''}
+                onChange={(e) => {
+                  const v = e.target.value || null;
+                  useMagazineStore.setState((st) => ({
+                    pages: st.pages.map((p) => (p.id === mp.id ? { ...p, basedOnMasterId: v } : p)),
+                    isDirty: true,
+                  }));
+                }}
+                title="Base master — its elements render underneath this master's"
+                className="select select-bordered select-xs w-full text-[8px] mt-0.5"
+              >
+                <option value="">Based on: none</option>
+                {masterPages.filter((other: any) => {
+                  if (other.id === mp.id) return false;
+                  // no cycles: other's base chain must not reach mp
+                  let cur: any = other;
+                  for (let d = 0; d < 5 && cur; d++) {
+                    if (cur.basedOnMasterId === mp.id) return false;
+                    cur = masterPages.find((x: any) => x.id === cur.basedOnMasterId);
+                  }
+                  return true;
+                }).map((other: any) => (
+                  <option key={other.id} value={other.id}>Based on: {(other as any)._masterName || `Master ${Math.abs(other.pageNumber)}`}</option>
+                ))}
+              </select>
             </div>
           ))}
           {editingMasterId && (

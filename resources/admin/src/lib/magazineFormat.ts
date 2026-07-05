@@ -103,3 +103,26 @@ export function computeDisplayNumbers(
   });
   return out;
 }
+
+/** master-on-master ([pro]): resolve a master's full element list including
+ *  its base chain (base-FIRST so children render on top). Cycle-guarded,
+ *  depth-capped at 4. */
+export function resolveMasterElements(
+  masterId: string | null | undefined,
+  pages: Array<{ id: string; isMaster?: boolean; elements: any[]; basedOnMasterId?: string | null }>,
+): any[] {
+  if (!masterId) return [];
+  const chain: any[][] = [];
+  const seen = new Set<string>();
+  let cur: string | null | undefined = masterId;
+  let depth = 0;
+  while (cur && !seen.has(cur) && depth < 4) {
+    seen.add(cur);
+    const m = pages.find((p) => p.id === cur && p.isMaster);
+    if (!m) break;
+    chain.unshift(m.elements || []);
+    cur = m.basedOnMasterId;
+    depth++;
+  }
+  return chain.flat();
+}

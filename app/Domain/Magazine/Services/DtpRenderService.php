@@ -138,10 +138,21 @@ class DtpRenderService
                 $renderedFrames = [];
                 $hasSpreadImage = false;
 
-                $masterDef = $page->master_page_id ? ($masterPagesById[$page->master_page_id] ?? null) : null;
-                if ($masterDef) {
-                    foreach ($this->renderMasterFrames($masterDef, $page) as $mf) {
-                        $renderedFrames[] = $mf;
+                // master-on-master ([pro]): walk the base chain, rendering
+                // base masters FIRST so derived masters layer on top.
+                if ($page->master_page_id) {
+                    $chain = [];
+                    $seen = [];
+                    $cur = $page->master_page_id;
+                    for ($d = 0; $d < 4 && $cur && !isset($seen[$cur]) && isset($masterPagesById[$cur]); $d++) {
+                        $seen[$cur] = true;
+                        array_unshift($chain, $masterPagesById[$cur]);
+                        $cur = $masterPagesById[$cur]['basedOnMasterId'] ?? null;
+                    }
+                    foreach ($chain as $masterDef) {
+                        foreach ($this->renderMasterFrames($masterDef, $page) as $mf) {
+                            $renderedFrames[] = $mf;
+                        }
                     }
                 }
 

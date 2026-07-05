@@ -10,6 +10,7 @@ import {
   DEFAULT_TEXT_WRAP,
   DEFAULT_TYPOGRAPHY,
 } from '@/types/magazine';
+import { resolveMasterElements } from '@/lib/magazineFormat';
 import {
   runDocumentFlow,
   collectThreads,
@@ -496,7 +497,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     // REAL editable body frame on every new page created from that master
     if (newPage.masterPageId) {
       const master = state.pages.find((p) => p.isMaster && p.id === newPage.masterPageId);
-      const primary = master?.elements.find((e) => (e.data as any)?._primaryFlow);
+      const primary = resolveMasterElements(master?.id, get().pages as any).find((e: MagElement) => (e.data as any)?._primaryFlow);
       if (primary) {
         newPage.elements.push({
           ...structuredClone(primary),
@@ -1442,7 +1443,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     if (!page || !master) return;
     get().pushSnapshot();
     const maxZ = Math.max(0, ...page.elements.map((e) => e.zIndex));
-    const copies = master.elements.map((el, i) => ({
+    const copies = resolveMasterElements(master.id, state.pages as any).map((el: MagElement, i: number) => ({
       ...structuredClone(el),
       id: crypto.randomUUID(),
       pageNumber,

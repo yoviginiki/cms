@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatPageNumber, evalNumericEntry } from './magazineFormat';
 import { applyExtraSnaps } from './smartGuides';
-import { computeDisplayNumbers } from './magazineFormat';
+import { computeDisplayNumbers, resolveMasterElements } from './magazineFormat';
 
 describe('formatPageNumber (W2-11)', () => {
   it('roman', () => {
@@ -71,5 +71,23 @@ describe('computeDisplayNumbers (W2-11 sections)', () => {
   it('no sections = plain sequence', () => {
     const d = computeDisplayNumbers([{ pageNumber: 1 }, { pageNumber: 2 }] as any);
     expect(d[2].n).toBe(2);
+  });
+});
+
+describe('resolveMasterElements (master-on-master, pro)', () => {
+  const pages = [
+    { id: 'base', isMaster: true, elements: [{ id: 'folio' }], basedOnMasterId: null },
+    { id: 'child', isMaster: true, elements: [{ id: 'section-head' }], basedOnMasterId: 'base' },
+    { id: 'loopy', isMaster: true, elements: [{ id: 'x' }], basedOnMasterId: 'loopy2' },
+    { id: 'loopy2', isMaster: true, elements: [{ id: 'y' }], basedOnMasterId: 'loopy' },
+  ];
+  it('base elements come first, child on top', () => {
+    const els = resolveMasterElements('child', pages as any);
+    expect(els.map((e) => e.id)).toEqual(['folio', 'section-head']);
+  });
+  it('plain master unchanged; cycles are guarded', () => {
+    expect(resolveMasterElements('base', pages as any).map((e) => e.id)).toEqual(['folio']);
+    expect(resolveMasterElements('loopy', pages as any).map((e) => e.id)).toEqual(['y', 'x']);
+    expect(resolveMasterElements(null, pages as any)).toEqual([]);
   });
 });

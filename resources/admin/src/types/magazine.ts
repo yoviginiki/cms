@@ -273,6 +273,8 @@ export interface MagPageData {
   backgroundColor: string | null;
   backgroundAssetId: string | null;
   elements: MagElement[];
+  /** master-on-master: this master inherits the base master's elements */
+  basedOnMasterId?: string | null;
 }
 
 // ─── Style definitions ───

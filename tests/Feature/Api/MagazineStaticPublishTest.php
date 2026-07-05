@@ -124,6 +124,23 @@ class MagazineStaticPublishTest extends TestCase
         $this->assertStringContainsString('float:right', $all);
     }
 
+    public function test_master_on_master_composites_base_chain(): void
+    {
+        $issue = $this->makeIssue('published');
+        $issue->update(['layout_final' => array_merge($issue->layout_final ?? [], ['masterPages' => [
+            ['id' => 'a1b2c3d4-0000-4000-8000-00000000000a', '_masterName' => 'Base', 'basedOnMasterId' => null,
+             'elements' => [['id' => 'e-base', 'type' => 'text_frame', 'x' => 10, 'y' => 10, 'width' => 100, 'height' => 20, 'data' => ['content' => '<p>BASE FOLIO</p>'], 'zIndex' => 1]]],
+            ['id' => 'a1b2c3d4-0000-4000-8000-00000000000b', '_masterName' => 'Child', 'basedOnMasterId' => 'a1b2c3d4-0000-4000-8000-00000000000a',
+             'elements' => [['id' => 'e-child', 'type' => 'text_frame', 'x' => 10, 'y' => 40, 'width' => 100, 'height' => 20, 'data' => ['content' => '<p>CHILD HEAD</p>'], 'zIndex' => 2]]],
+        ]])]);
+        MagazineDtpPage::where('issue_id', $issue->id)->update(['master_page_id' => 'a1b2c3d4-0000-4000-8000-00000000000b']);
+
+        $out = json_encode(app(\App\Domain\Magazine\Services\DtpRenderService::class)->render($issue)['spreads']);
+        $this->assertStringContainsString('BASE FOLIO', $out);
+        $this->assertStringContainsString('CHILD HEAD', $out);
+        $this->assertLessThan(strpos($out, 'CHILD HEAD'), strpos($out, 'BASE FOLIO')); // base renders first
+    }
+
     public function test_draft_issues_are_not_published(): void
     {
         $this->makeIssue('draft');
