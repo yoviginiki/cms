@@ -69,7 +69,8 @@ for (const fx of config.fixtures) {
 
   const prevRes = await page.request.get(`${BASE}/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-preview`, { headers: { Referer: BASE + '/admin/', 'X-Requested-With': 'XMLHttpRequest' } });
   const prevHtml = await prevRes.text();
-  const previewPages = (prevHtml.match(/class="page"/g) || []).length;
+  // stillo-viewer runtime (Viewer 2.0) emits .sv-page; legacy emitted .page
+  const previewPages = (prevHtml.match(/class="sv-page"/g) || []).length || (prevHtml.match(/class="page"/g) || []).length;
 
   if (UPDATE) {
     fx.expect = { ...fx.expect, ...actual, lossless: true };
