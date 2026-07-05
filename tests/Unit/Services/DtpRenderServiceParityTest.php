@@ -248,6 +248,38 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertCount(0, $svc->renderMasterFrames($masterDef, $right));
     }
 
+    public function test_video_and_audio_frames_publish(): void
+    {
+        $yt = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['videoUrl' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'],
+            'metadata' => ['_magType' => 'video_frame'],
+        ]);
+        $this->assertStringContainsString('youtube-nocookie.com/embed/dQw4w9WgXcQ', $yt['html']);
+
+        $mp4 = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['videoUrl' => 'https://cdn.x.test/clip.mp4'],
+            'metadata' => ['_magType' => 'video_frame'],
+        ]);
+        $this->assertStringContainsString('<video controls', $mp4['html']);
+
+        $bad = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['videoUrl' => 'javascript:alert(1)'],
+            'metadata' => ['_magType' => 'video_frame'],
+        ]);
+        $this->assertStringContainsString('No video', $bad['html']);
+
+        $au = $this->renderFrame([
+            'frame_type' => 'text',
+            'content' => ['audioUrl' => 'https://cdn.x.test/track.mp3', 'audioTitle' => 'Intro <x>'],
+            'metadata' => ['_magType' => 'audio_player'],
+        ]);
+        $this->assertStringContainsString('<audio controls', $au['html']);
+        $this->assertStringContainsString('Intro &lt;x&gt;', $au['html']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

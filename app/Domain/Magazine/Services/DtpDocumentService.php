@@ -122,7 +122,7 @@ class DtpDocumentService
                 $changed = true;
             }
             if (!empty($meta['viewerSettings'])) {
-                $allowed = ['display_mode', 'bg_color', 'ui_theme', 'page_transition', 'transition_speed', 'show_thumbnails', 'show_page_numbers', 'auto_hide_ui'];
+                $allowed = ['display_mode', 'bg_color', 'ui_theme', 'arrow_color', 'page_transition', 'transition_speed', 'show_thumbnails', 'show_page_numbers', 'auto_hide_ui', 'side_banners', 'audio'];
                 $layoutFinal['viewerSettings'] = array_intersect_key((array) $meta['viewerSettings'], array_flip($allowed));
                 $changed = true;
             }

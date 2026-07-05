@@ -142,6 +142,17 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     data.stripes = content.tableStripes !== false;
     data.borderColor = content.tableBorderColor || '#e5e7eb';
   }
+  if (savedMagType === 'video_frame') {
+    data.url = content.videoUrl || '';
+    data.posterAssetId = content.posterAssetId || null;
+    data.aspectRatio = content.aspectRatio || '16:9';
+    data.autoplay = false;
+  }
+  if (savedMagType === 'audio_player') {
+    data.url = content.audioUrl || '';
+    data.title = content.audioTitle || 'Audio';
+    data.artist = content.audioArtist || '';
+  }
   if (magType === 'page_number') {
     data.format = content.format || 'decimal';
     data.prefix = content.prefix || '';
@@ -306,6 +317,16 @@ export function pagesToDtpApi(
         content.tableRows = (el.data as any)?.rows || [['', '']];
         content.tableStripes = (el.data as any)?.stripes !== false;
         content.tableBorderColor = (el.data as any)?.borderColor || '#e5e7eb';
+      } else if (el.type === 'video_frame') {
+        const vu = (el.data as any)?.url || '';
+        content.videoUrl = /^https?:\/\//i.test(vu) ? vu : '';
+        content.posterAssetId = (el.data as any)?.posterAssetId;
+        content.aspectRatio = (el.data as any)?.aspectRatio || '16:9';
+      } else if (el.type === 'audio_player') {
+        const au = (el.data as any)?.url || '';
+        content.audioUrl = /^https?:\/\//i.test(au) || au.startsWith('/') ? au : '';
+        content.audioTitle = (el.data as any)?.title || 'Audio';
+        content.audioArtist = (el.data as any)?.artist || '';
       } else if (el.type === 'page_number') {
         content.format = (el.data as any)?.format || 'decimal';
         content.prefix = (el.data as any)?.prefix || '';

@@ -25,6 +25,7 @@ interface MagazineToolbarProps {
   onStatusChange?: (status: string) => void;
   viewUrl?: string | null;
   pdfUrl?: string | null;
+  zipUrl?: string | null;
 }
 
 const TOOLS = [
@@ -52,7 +53,7 @@ export default function MagazineToolbar({
   activeTool, onSetTool, zoom, onZoomChange, currentPage, totalPages, onChangePage,
   showGrid, showGuides, showBaseline, onToggleGrid, onToggleGuides, onToggleBaseline,
   onBack, onUndo, onRedo, canUndo, canRedo, onSave, isDirty, isSaving,
-  status, onStatusChange, viewUrl, pdfUrl,
+  status, onStatusChange, viewUrl, pdfUrl, zipUrl,
 }: MagazineToolbarProps) {
   const zoomPercent = Math.round(zoom * 100);
 
@@ -212,6 +213,17 @@ export default function MagazineToolbar({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2M7 3h7l5 5v3" />
             </svg>
             PDF
+          </a>
+        </Tip>
+      )}
+      {zipUrl && (
+        <Tip text="Download the standalone magazine (extract anywhere — no CMS needed)">
+          <a href={zipUrl} target="_blank" rel="noopener noreferrer"
+            className="btn btn-sm btn-ghost gap-1 text-base-content/60 hover:text-primary">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4v10l8 4 8-4V7zM12 3v18M4 7l8 4 8-4" />
+            </svg>
+            ZIP
           </a>
         </Tip>
       )}

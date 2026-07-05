@@ -274,6 +274,8 @@ class DtpRenderService
         $magType = $metadata['_magType'] ?? null;
         $html = match (true) {
             $magType === 'table_frame' => $this->renderTableFrame($content),
+            $magType === 'video_frame' => $this->renderVideoFrame($content),
+            $magType === 'audio_player' => $this->renderAudioFrame($content),
             default => match ($type) {
             'text' => $this->renderTextFrame($content),
             'image' => $this->renderImageFrame($content),
@@ -484,6 +486,39 @@ class DtpRenderService
         $out .= '</tbody></table>';
 
         return $out;
+    }
+
+    /** embedded video (YouTube/Vimeo privacy iframes; direct files as <video>) */
+    private function renderVideoFrame(array $content): string
+    {
+        $url = (string) ($content['videoUrl'] ?? '');
+        if (!preg_match('#^https?://#i', $url)) {
+            return '<div style="width:100%;height:100%;background:#111;color:#777;display:flex;align-items:center;justify-content:center;font-size:11px;">No video</div>';
+        }
+        if (preg_match('#(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{6,20})#', $url, $m)) {
+            return '<iframe src="https://www.youtube-nocookie.com/embed/' . e($m[1]) . '" style="width:100%;height:100%;border:0;" allow="encrypted-media;picture-in-picture;fullscreen" loading="lazy" title="Video"></iframe>';
+        }
+        if (preg_match('#vimeo\.com/(\d{6,12})#', $url, $m)) {
+            return '<iframe src="https://player.vimeo.com/video/' . e($m[1]) . '?dnt=1" style="width:100%;height:100%;border:0;" allow="fullscreen;picture-in-picture" loading="lazy" title="Video"></iframe>';
+        }
+        if (preg_match('#\.(mp4|webm|ogg)(\?|$)#i', $url)) {
+            return '<video controls preload="metadata" style="width:100%;height:100%;object-fit:contain;background:#000;" src="' . e($url) . '"></video>';
+        }
+        return '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;background:#111;color:#9cf;font-size:12px;">▶ Watch video</a>';
+    }
+
+    /** in-page audio element */
+    private function renderAudioFrame(array $content): string
+    {
+        $url = (string) ($content['audioUrl'] ?? '');
+        $ok = preg_match('#^https?://#i', $url) || str_starts_with($url, '/');
+        $title = e((string) ($content['audioTitle'] ?? 'Audio'));
+        if (!$ok) {
+            return '<div style="width:100%;height:100%;background:#f4f2ec;color:#999;display:flex;align-items:center;justify-content:center;font-size:11px;">No audio</div>';
+        }
+        return '<div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px;box-sizing:border-box;">'
+            . '<span style="font-size:11px;font-weight:600;">' . $title . '</span>'
+            . '<audio controls preload="none" style="width:100%;" src="' . e($url) . '"></audio></div>';
     }
 
     private function renderShapeFrame(array $content): string

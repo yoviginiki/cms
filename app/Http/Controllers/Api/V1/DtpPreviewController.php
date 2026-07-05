@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\IssueComposer\Models\MagazineIssue;
 use App\Domain\Magazine\Jobs\GenerateDtpPdfJob;
+use App\Domain\Magazine\Services\DtpZipService;
 use App\Domain\Magazine\Services\DtpRenderService;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
@@ -47,15 +48,26 @@ class DtpPreviewController extends Controller
             }
         });
 
-        return response()->view('dtp-preview', [
+        return response()->view('stillo-viewer', [
             'issue' => $data['issue'],
             'spreads' => $spreads,
             'pageCount' => $data['pageCount'],
-            'frameCount' => $data['frameCount'],
-            'layoutMode' => $data['layoutMode'] ?? 'single',
+            'viewerSettings' => $issue->layout_final['viewerSettings'] ?? [],
             'coverMode' => $data['coverMode'] ?? 'standalone',
             'fontsUrl' => $data['fontsUrl'] ?? null,
         ]);
+    }
+
+    /** standalone ZIP export — extract anywhere, reads without the CMS */
+    public function zip(Site $site, MagazineIssue $issue, DtpZipService $zipService)
+    {
+        if ($issue->site_id !== $site->id) {
+            abort(404);
+        }
+        $path = $zipService->export($issue);
+        $name = preg_replace('/[^a-zA-Z0-9\-_ ]/', '', $issue->title ?: 'magazine') . '-standalone.zip';
+
+        return response()->download($path, $name, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
     }
 
     /**

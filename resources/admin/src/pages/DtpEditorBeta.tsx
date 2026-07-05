@@ -457,6 +457,7 @@ export default function DtpEditorBeta() {
           return domain ? `https://${domain}${path}` : path;
         })()}
         pdfUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-pdf`}
+        zipUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-zip`}
       />
 
       {/* ─── DTP Status + Save error ─── */}
@@ -990,10 +991,9 @@ export default function DtpEditorBeta() {
                   <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-3">Display Mode</h3>
                   <div className="space-y-1.5">
                     {([
-                      { value: 'spread', label: 'Two-page spread', desc: 'Side-by-side pages with page turn animation' },
-                      { value: 'single', label: 'Single page', desc: 'One page at a time with slide navigation' },
-                      { value: 'scroll', label: 'Scroll', desc: 'All pages stacked, scroll to read' },
-                      { value: 'flipbook', label: 'Flipbook', desc: 'Realistic 3D page turns with curl, shadows & swipe gestures' },
+                      { value: 'book', label: 'Book', desc: 'Two-page spreads with a page-flip effect — like a real magazine' },
+                      { value: 'scroll', label: 'Vertical scroll', desc: 'All pages stacked, scroll to read' },
+                      { value: 'presentation', label: 'Presentation', desc: 'One spread at a time, fade transitions, fullscreen-friendly' },
                     ]).map(opt => (
                       <label key={opt.value} className="flex items-start gap-2 cursor-pointer group">
                         <input type="radio" name="viewer_display_mode" value={opt.value}
@@ -1038,6 +1038,72 @@ export default function DtpEditorBeta() {
                       onChange={(e) => { setViewerSettings(s => ({ ...s, bg_color: e.target.value })); store.setDirty(true); }}
                       className="input input-bordered input-xs flex-1 text-[10px] font-mono" placeholder="#hex" />
                   </div>
+                </div>
+
+                {/* ─── Arrow / controls color ─── */}
+                <div className="border-t border-base-300/20 pt-4">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Controls Color</h3>
+                  <div className="flex gap-1.5">
+                    <input name="vs-arrow-color" type="color" value={viewerSettings.arrow_color || '#E63B2E'}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, arrow_color: e.target.value })); store.setDirty(true); }}
+                      className="w-7 h-7 rounded cursor-pointer border border-base-300/30" />
+                    <input name="vs-arrow-hex" type="text" value={viewerSettings.arrow_color || '#E63B2E'}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, arrow_color: e.target.value })); store.setDirty(true); }}
+                      className="input input-bordered input-xs flex-1 text-[10px] font-mono" placeholder="#hex" />
+                  </div>
+                  <p className="text-[9px] text-base-content/30 mt-1">Arrows, mode buttons and player accents in the reader.</p>
+                </div>
+
+                {/* ─── Side banners (branding / paid ads) ─── */}
+                <div className="border-t border-base-300/20 pt-4 space-y-2">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Side Banners</h3>
+                  {((viewerSettings.side_banners || []) as any[]).map((b, i) => (
+                    <div key={i} className="space-y-1 border border-base-300/20 p-2 rounded">
+                      <div className="flex gap-1.5 items-center">
+                        <select name={`vs-banner-side-${i}`} value={b.side || 'right'} className="select select-bordered select-xs w-20"
+                          onChange={(e) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, side: e.target.value }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}>
+                          <option value="left">Left</option><option value="right">Right</option>
+                        </select>
+                        <button className="btn btn-ghost btn-xs ml-auto text-error" onClick={() => { const nx = viewerSettings.side_banners.filter((_: any, j: number) => j !== i); setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}>×</button>
+                      </div>
+                      <input name={`vs-banner-src-${i}`} type="text" value={b.src || ''} placeholder="Image URL (https://… or /media/…)"
+                        onChange={(e) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, src: e.target.value }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}
+                        className="input input-bordered input-xs w-full text-[10px]" />
+                      <input name={`vs-banner-href-${i}`} type="text" value={b.href || ''} placeholder="Click-through link (https://… — for paid ads)"
+                        onChange={(e) => { const nx = [...viewerSettings.side_banners]; nx[i] = { ...b, href: e.target.value }; setViewerSettings(s => ({ ...s, side_banners: nx })); store.setDirty(true); }}
+                        className="input input-bordered input-xs w-full text-[10px]" />
+                    </div>
+                  ))}
+                  <button className="btn btn-ghost btn-xs" onClick={() => { setViewerSettings(s => ({ ...s, side_banners: [...(s.side_banners || []), { side: 'right', src: '', href: '' }] })); store.setDirty(true); }}>+ Add banner</button>
+                  <p className="text-[9px] text-base-content/30">Shown beside the magazine on wide screens; links open in a new tab (rel=sponsored).</p>
+                </div>
+
+                {/* ─── Background audio (reader playlist) ─── */}
+                <div className="border-t border-base-300/20 pt-4 space-y-2">
+                  <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Audio Player</h3>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input name="vs-audio-enabled" type="checkbox" checked={!!viewerSettings.audio?.enabled}
+                      onChange={(e) => { setViewerSettings(s => ({ ...s, audio: { ...(s.audio || {}), enabled: e.target.checked, tracks: s.audio?.tracks || [] } })); store.setDirty(true); }}
+                      className="checkbox checkbox-xs checkbox-primary" />
+                    <span className="text-[11px] text-base-content/60">Offer an audio player to readers</span>
+                  </label>
+                  {!!viewerSettings.audio?.enabled && (
+                    <>
+                      {((viewerSettings.audio?.tracks || []) as any[]).map((t, i) => (
+                        <div key={i} className="flex gap-1.5 items-center">
+                          <input name={`vs-track-title-${i}`} type="text" value={t.title || ''} placeholder="Title"
+                            onChange={(e) => { const nx = [...viewerSettings.audio.tracks]; nx[i] = { ...t, title: e.target.value }; setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}
+                            className="input input-bordered input-xs w-24 text-[10px]" />
+                          <input name={`vs-track-src-${i}`} type="text" value={t.src || ''} placeholder="MP3 URL"
+                            onChange={(e) => { const nx = [...viewerSettings.audio.tracks]; nx[i] = { ...t, src: e.target.value }; setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}
+                            className="input input-bordered input-xs flex-1 text-[10px]" />
+                          <button className="btn btn-ghost btn-xs text-error" onClick={() => { const nx = viewerSettings.audio.tracks.filter((_: any, j: number) => j !== i); setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: nx } })); store.setDirty(true); }}>×</button>
+                        </div>
+                      ))}
+                      <button className="btn btn-ghost btn-xs" onClick={() => { setViewerSettings(s => ({ ...s, audio: { ...s.audio, tracks: [...(s.audio?.tracks || []), { title: '', src: '' }] } })); store.setDirty(true); }}>+ Add track</button>
+                      <p className="text-[9px] text-base-content/30">Playlist controls appear bottom-left in the reader. Playback never autostarts.</p>
+                    </>
+                  )}
                 </div>
 
                 <div className="border-t border-base-300/20 pt-4 space-y-2">
