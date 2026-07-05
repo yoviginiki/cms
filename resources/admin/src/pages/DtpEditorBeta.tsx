@@ -7,7 +7,7 @@
  *
  * Feature-flagged — old magazine editor remains unchanged.
  */
-import { useEffect, useRef, useState, lazy, Suspense, useCallback } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink, Bug } from 'lucide-react';
@@ -41,6 +41,7 @@ import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/
 // Threading imports removed — Pour handles content splitting directly
 import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from '@/lib/dtpAdapters';
 import { runPreflight } from '@/lib/magazinePreflight';
+import { findMatches, replaceInHtml } from '@/lib/magazineFindReplace';
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -228,6 +229,18 @@ export default function DtpEditorBeta() {
     return () => clearInterval(t);
   }, []);
   const [lastAutosave, setLastAutosave] = useState<string | null>(null);
+  const [findOpen, setFindOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !e.shiftKey) {
+        e.preventDefault();
+        setFindOpen(true);
+      }
+      if (e.key === 'Escape') setFindOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -481,6 +494,7 @@ export default function DtpEditorBeta() {
         pdfUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-pdf`}
         zipUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-zip`}
       />
+      {findOpen && <FindReplacePanel onClose={() => setFindOpen(false)} />}
 
       {/* ─── DTP Status + Save error ─── */}
       {saveError && (
@@ -1314,6 +1328,85 @@ function VersionsSection({ siteId, issueId }: { siteId: string; issueId: string 
             <button className="btn btn-ghost btn-xs text-primary" onClick={() => restore(v)}>Restore</button>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** W3 find & replace: HTML-safe, jumps to matches, undo-friendly replaces. */
+function FindReplacePanel({ onClose }: { onClose: () => void }) {
+  const store = useMagazineStore();
+  const [query, setQuery] = useState('');
+  const [replacement, setReplacement] = useState('');
+  const [matchCase, setMatchCase] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const matches = useMemo(
+    () => findMatches(store.pages, query, { matchCase }),
+    [store.pages, query, matchCase],
+  );
+  const current = matches.length ? matches[Math.min(cursor, matches.length - 1)] : null;
+
+  const jump = (m: { pageNumber: number; elementId: string } | null) => {
+    if (!m) return;
+    store.setCurrentPage(m.pageNumber);
+    store.selectElement(m.elementId);
+  };
+  const next = () => {
+    if (!matches.length) return;
+    const n = (cursor + 1) % matches.length;
+    setCursor(n);
+    jump(matches[n]);
+  };
+  const replaceCurrent = () => {
+    if (!current) return;
+    const el = store.pages.flatMap((p) => p.elements).find((e) => e.id === current.elementId);
+    if (!el) return;
+    const r = replaceInHtml(String((el.data as any)?.content || ''), query, replacement, { matchCase, occurrence: current.occurrence });
+    if (r.replaced) store.updateElement(el.id, { data: { ...el.data, content: r.html } } as any);
+  };
+  const replaceAll = () => {
+    if (!matches.length) return;
+    const byEl: string[] = [...new Set(matches.map((m) => m.elementId))];
+    let total = 0;
+    byEl.forEach((id: string) => {
+      const el = store.pages.flatMap((p) => p.elements).find((e) => e.id === id);
+      if (!el) return;
+      const r = replaceInHtml(String((el.data as any)?.content || ''), query, replacement, { matchCase });
+      if (r.replaced) {
+        store.updateElement(id, { data: { ...el.data, content: r.html } } as any);
+        total += r.replaced;
+      }
+    });
+    setCursor(0);
+    if (total) window.setTimeout(() => window.alert(`Replaced ${total} occurrence${total > 1 ? 's' : ''}.`), 50);
+  };
+
+  return (
+    <div className="fixed top-16 right-4 z-[10002] bg-base-100 border border-base-300 shadow-xl rounded-lg p-3 w-72 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wider text-base-content/40 font-medium">Find &amp; Replace</span>
+        <button className="btn btn-ghost btn-xs" onClick={onClose}>×</button>
+      </div>
+      <input autoFocus name="fr-query" type="text" placeholder="Find…" value={query}
+        onChange={(e) => { setQuery(e.target.value); setCursor(0); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') next(); }}
+        className="input input-bordered input-sm w-full text-xs" />
+      <input name="fr-replacement" type="text" placeholder="Replace with…" value={replacement}
+        onChange={(e) => setReplacement(e.target.value)}
+        className="input input-bordered input-sm w-full text-xs" />
+      <label className="flex items-center gap-1.5 text-[10px] text-base-content/50 cursor-pointer">
+        <input name="fr-case" type="checkbox" className="checkbox checkbox-xs" checked={matchCase}
+          onChange={(e) => { setMatchCase(e.target.checked); setCursor(0); }} />
+        Match case
+      </label>
+      <div className="text-[10px] text-base-content/40 min-h-4">
+        {query && (matches.length ? `${Math.min(cursor + 1, matches.length)} of ${matches.length}` : 'No matches')}
+        {current && <div className="truncate text-base-content/30" title={current.preview}>{current.preview}</div>}
+      </div>
+      <div className="flex gap-1.5">
+        <button className="btn btn-xs btn-ghost" disabled={!matches.length} onClick={next}>Next</button>
+        <button className="btn btn-xs btn-ghost" disabled={!current} onClick={replaceCurrent}>Replace</button>
+        <button className="btn btn-xs btn-primary btn-outline ml-auto" disabled={!matches.length} onClick={replaceAll}>Replace all</button>
       </div>
     </div>
   );
