@@ -52,6 +52,7 @@ export default function TablePanel({ data, onChange }: TablePanelProps) {
               {headers.map((h, i) => (
                 <th key={i} className="p-0">
                   <input
+                    name={`mag-table-header-${i}`}
                     className="input input-xs input-bordered w-24 font-semibold text-[10px] rounded-none"
                     value={h}
                     onChange={(e) => setHeader(i, e.target.value)}
@@ -66,6 +67,7 @@ export default function TablePanel({ data, onChange }: TablePanelProps) {
                 {headers.map((_, ci) => (
                   <td key={ci} className="p-0">
                     <input
+                      name={`mag-table-cell-${ri}-${ci}`}
                       className="input input-xs input-bordered w-24 text-[10px] rounded-none"
                       value={row[ci] ?? ''}
                       onChange={(e) => setCell(ri, ci, e.target.value)}

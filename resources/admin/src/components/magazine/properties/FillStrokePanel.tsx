@@ -18,7 +18,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
     if (linkCorners) {
       onChange({ cornerRadius: { tl: val, tr: val, br: val, bl: val } });
     } else {
-      onChange({ cornerRadius: { tl: 0, tr: 0, br: 0, bl: 0, ...style.cornerRadius, [corner]: val } });
+      const base = style.cornerRadius || { tl: 0, tr: 0, br: 0, bl: 0 };
+      onChange({ cornerRadius: { ...base, [corner]: val } });
     }
   };
 

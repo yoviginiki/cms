@@ -36,6 +36,8 @@ function MathInput({ label, value, onCommit }: { label: string; value: number; o
       <input
         type="text"
         inputMode="decimal"
+        id={`mag-transform-${label.toLowerCase()}`}
+        name={`mag-transform-${label.toLowerCase()}`}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
