@@ -1519,6 +1519,10 @@ function LargePasteDialog({ paste, onClose }: { paste: { html: string; elementId
   const words = useMemo(() => wordCount(paste.html), [paste.html]);
 
   const insert = () => {
+    // close any inline editing FIRST — a later blur must never commit a
+    // stale pre-paste snapshot over the inserted story (Session F root cause)
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    useMagazineStore.setState({ editingElementId: null });
     const el = store.pages.flatMap((p) => p.elements).find((e) => e.id === paste.elementId);
     if (!el) return onClose();
     const mapping: Record<string, any> = {};

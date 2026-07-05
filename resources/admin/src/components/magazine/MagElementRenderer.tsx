@@ -64,6 +64,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
 
   // When entering edit mode, set initial content ONCE and focus
   const editInitializedRef = useRef(false);
+  const lastSavedRef = useRef<string>('');
   useEffect(() => {
     if (isEditing && editRef.current && !editInitializedRef.current) {
       editInitializedRef.current = true;
@@ -80,6 +81,10 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         sel.selectAllChildren(editRef.current);
         sel.collapseToEnd();
       }
+      // Session F root-cause fix: baseline the edit session's content so an
+      // UNCHANGED editable never blur-commits its stale snapshot over content
+      // that changed externally meanwhile (large-paste dialog, flow slices).
+      lastSavedRef.current = editRef.current.innerHTML;
     }
   }, [isEditing]);
 
@@ -88,7 +93,6 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     if (!isEditing) editInitializedRef.current = false;
   }, [isEditing]);
 
-  const lastSavedRef = useRef<string>('');
   const handleBlur = useCallback((_e: React.FocusEvent) => {
     // Delay blur handling — scrollbar clicks fire blur but focus returns
     setTimeout(() => {

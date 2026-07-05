@@ -128,6 +128,30 @@ function summarize(
   return summarize(res, html, performance.now() - t0);
 };
 
+// Session F repro: tiny 300x150 2-col starting frame, placeholder para +
+// <h1> + big story — mirrors the acceptance E2E's large-paste-into-default-
+// frame path that lost the h1 + first words of p0.
+(window as any).runAcceptanceRepro = (): HarnessSummary & { hasFirst: boolean; hasLast: boolean; headOfSlice1: string } => {
+  const html = '<p>Type your text here</p><h1>ALPHAOPEN Acceptance Story</h1>' +
+    Array.from({ length: 170 }, (_, i) => `<p>p${i} ${'substrate colophon vermilion quire deckle gutter impression margin platen baseline registration signature '.repeat(5)}</p>`).join('') +
+    '<p>closing paragraph OMEGAEND</p>';
+  const page = makePage(1);
+  const frame = makeTextFrame(html, 1);
+  frame.x = 60; frame.y = 60; frame.width = 300; frame.height = 150;
+  page.elements.push(frame);
+  const t0 = performance.now();
+  const res = runDocumentFlow([page], {}, { paginate: true });
+  const base = summarize(res, html, performance.now() - t0);
+  const allHtml = res.pages.flatMap((p) => p.elements).map((e) => String((e.data as any)?.content || '')).join(' ');
+  const first = res.pages.flatMap((p) => p.elements).find((e) => (e as any).threadOrder === 0 || (e as any).threadId);
+  return {
+    ...base,
+    hasFirst: allHtml.includes('ALPHAOPEN'),
+    hasLast: allHtml.includes('OMEGAEND'),
+    headOfSlice1: String((first?.data as any)?.content || '').replace(/<[^>]+>/g, ' ').trim().slice(0, 90),
+  };
+};
+
 (window as any).runShrinkHarness = (): {
   grow: HarnessSummary;
   shrink: HarnessSummary;
