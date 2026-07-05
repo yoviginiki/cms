@@ -180,6 +180,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('magazine/wizard/sessions/{session}/unlock', [WizardController::class, 'unlockStep']);
         Route::post('magazine/wizard/sessions/{session}/provision', [WizardController::class, 'provision']);
 
+        // Issue Studio (conversational magazine wizard — replaces the old wizard)
+        Route::middleware('role:admin')->prefix('issue-studio')->group(function () {
+            Route::get('sessions', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'index']);
+            Route::post('sessions', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'store']);
+            Route::get('sessions/{studioSession}', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'show']);
+            Route::delete('sessions/{studioSession}', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'destroy']);
+            Route::post('sessions/{studioSession}/messages', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'sendMessage'])->middleware('throttle:30,1');
+            Route::post('sessions/{studioSession}/materials', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'addMaterial']);
+            Route::delete('sessions/{studioSession}/materials/{materialId}', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'removeMaterial']);
+            Route::post('sessions/{studioSession}/complete-interview', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'completeInterview']);
+        });
+
         // Blocks
         Route::get('blocks/types', [BlockController::class, 'types']);
         Route::get('sites/{site}/pages/{page}/blocks', [BlockController::class, 'indexForPage']);

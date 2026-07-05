@@ -31,6 +31,12 @@ return [
         'max_tokens' => (int) env('AI_MAX_TOKENS', 2000),
     ],
 
+    'issue_studio' => [
+        // Sonnet drives the interview; Opus drives flatplan + spread generation.
+        'model_interview' => env('ISSUE_STUDIO_MODEL_INTERVIEW', 'claude-sonnet-5'),
+        'model_generate' => env('ISSUE_STUDIO_MODEL_GENERATE', 'claude-opus-4-8'),
+    ],
+
     'database' => [
         'rls_enabled' => env('DB_CONNECTION') === 'pgsql',
         'driver' => env('DB_CONNECTION', 'mysql'),
