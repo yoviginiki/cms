@@ -2,7 +2,7 @@
 // A field that survives pagesToDtpApi -> dtpApiToPages is truly persisted.
 
 import { describe, it, expect } from 'vitest';
-import { dtpApiToPages, pagesToDtpApi } from './dtpAdapters';
+import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from './dtpAdapters';
 import type { MagElement, MagPageData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 
@@ -142,6 +142,17 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect(st.cornerRadius.tl).toBe(0);
     expect(st.stroke.width).toBe(0);
     expect(st.opacity).toBe(1);
+  });
+
+  it('API-seeded master elements normalize (children/textWrap/style)', () => {
+    const masters = normalizeMasterPages([{ id: 'm1', pageNumber: -1, elements: [
+      { id: 'e1', type: 'running_header', x: 0, y: 0, width: 100, height: 20, data: { customText: 'F' } },
+    ] }]);
+    const el2 = masters[0].elements[0];
+    expect(el2.children).toEqual([]);
+    expect(el2.textWrap.type).toBe('none');
+    expect(el2.style.cornerRadius.tl).toBe(0);
+    expect(el2.onMaster).toBe(true);
   });
 
   it('page master assignment survives', () => {

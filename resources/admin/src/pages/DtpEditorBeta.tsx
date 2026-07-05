@@ -39,7 +39,7 @@ import type { ConsistencyResult } from '@/lib/dtpConsistencyChecker';
 import type { MagElement, MagPageData, MagTypography, MagElementStyle, MagTextWrap, TextFrameData, ImageFrameData } from '@/types/magazine';
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/types/magazine';
 // Threading imports removed — Pour handles content splitting directly
-import { dtpApiToPages, pagesToDtpApi } from '@/lib/dtpAdapters';
+import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from '@/lib/dtpAdapters';
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -145,7 +145,7 @@ export default function DtpEditorBeta() {
     // Restore persisted masters (audit W0-6: they were editor-only before —
     // filtered from every save and regenerated with fresh IDs on every load,
     // which left page.master_page_id dangling)
-    const savedMasters = (apiData.meta?.masterPages || []) as MagPageData[];
+    const savedMasters = normalizeMasterPages(apiData.meta?.masterPages || []);
     const allPages = savedMasters.length > 0 ? [...pages, ...savedMasters] : pages;
     // Restore persisted paragraph/character styles (audit defect #5)
     const savedStyles = apiData.meta?.styles || [];

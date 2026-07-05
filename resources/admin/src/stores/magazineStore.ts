@@ -215,7 +215,7 @@ function updateCurrentPageElements(
 function findElementById(elements: MagElement[], id: string): MagElement | undefined {
   for (const el of elements) {
     if (el.id === id) return el;
-    if (el.children.length > 0) {
+    if (el.children?.length > 0) {
       const found = findElementById(el.children, id);
       if (found) return found;
     }
@@ -230,7 +230,7 @@ function updateElementInList(
 ): MagElement[] {
   return elements.map((el) => {
     if (el.id === id) return { ...el, ...updates };
-    if (el.children.length > 0) {
+    if (el.children?.length > 0) {
       const updatedChildren = updateElementInList(el.children, id, updates);
       if (updatedChildren !== el.children) return { ...el, children: updatedChildren };
     }
@@ -242,7 +242,7 @@ function removeElementsFromList(elements: MagElement[], ids: Set<string>): MagEl
   return elements
     .filter((el) => !ids.has(el.id))
     .map((el) =>
-      el.children.length > 0
+      el.children?.length > 0
         ? { ...el, children: removeElementsFromList(el.children, ids) }
         : el,
     );

@@ -94,6 +94,26 @@ export function mergeElementStyle(raw: any): MagElement['style'] {
   };
 }
 
+/** normalize persisted master pages (meta.masterPages): elements seeded via
+ *  API may lack children/textWrap/style — store walkers require them */
+export function normalizeMasterPages(raw: any[]): MagPageData[] {
+  return (Array.isArray(raw) ? raw : []).map((mp: any) => ({
+    ...mp,
+    isMaster: true,
+    elements: (mp.elements || []).map((e: any) => ({
+      rotation: 0, scaleX: 1, scaleY: 1, zIndex: 0, locked: false, visible: true,
+      layerName: null, threadId: null, threadOrder: null, onMaster: true,
+      positionMode: 'free', spanMode: 'page', parentId: null,
+      responsiveOverrides: {}, typography: e.typography ?? null, name: e.name ?? null,
+      ...e,
+      children: Array.isArray(e.children) ? e.children : [],
+      textWrap: e.textWrap ? { ...DEFAULT_TEXT_WRAP, ...e.textWrap } : { ...DEFAULT_TEXT_WRAP },
+      style: mergeElementStyle(e.style),
+      data: e.data || {},
+    })),
+  }));
+}
+
 export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
   const content = f.content || {};
   // metadata._magType restores the SPECIFIC editor type (circular_image,
