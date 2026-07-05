@@ -294,6 +294,21 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringContainsString('>ii<', $html); // section wins over index
     }
 
+    public function test_text_on_path_publishes_svg_textpath(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'decorative',
+            'width' => 320, 'height' => 120,
+            'content' => ['pathText' => 'Around <the> bend', 'pathPreset' => 'circle', 'pathStartOffset' => 25],
+            'metadata' => ['_magType' => 'text_path', '_typography' => ['fontFamily' => 'Playfair Display', 'fontSize' => 20, 'textColor' => '#e63b2e']],
+        ]);
+        $this->assertStringContainsString('<textPath', $out['html']);
+        $this->assertStringContainsString('startOffset="25%"', $out['html']);
+        $this->assertStringContainsString('Around &lt;the&gt; bend', $out['html']);
+        $this->assertStringContainsString('fill:#e63b2e', $out['html']);
+        $this->assertStringContainsString(' A ', $out['html']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

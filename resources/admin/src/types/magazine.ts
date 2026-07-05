@@ -12,7 +12,7 @@ export type MagElementType =
   | 'gallery_frame' | 'background_image'
   // Shapes
   | 'rectangle' | 'ellipse' | 'line' | 'polygon' | 'freeform_path'
-  | 'decorative_rule' | 'gradient_overlay'
+  | 'decorative_rule' | 'gradient_overlay' | 'text_path'
   // Media
   | 'video_frame' | 'audio_player' | 'embed_frame' | 'svg_icon'
   // Interactive

@@ -926,6 +926,29 @@ export default function DtpEditorBeta() {
                         </label>
                       </div>
                     )}
+                    {selectedEl.type === 'text_path' && (
+                        <div className="space-y-1.5 border-t border-base-300/20 pt-3">
+                          <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium">Text on Path</h3>
+                          <input name="tp-text" type="text" value={(selectedEl.data as any)?.text || ''}
+                            onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, text: e.target.value } } as any)}
+                            className="input input-bordered input-xs w-full" placeholder="Text" />
+                          <select name="tp-preset" value={(selectedEl.data as any)?.preset || 'arc-up'}
+                            onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, preset: e.target.value } } as any)}
+                            className="select select-bordered select-xs w-full">
+                            <option value="arc-up">Arc up</option>
+                            <option value="arc-down">Arc down</option>
+                            <option value="circle">Circle</option>
+                            <option value="wave">Wave</option>
+                          </select>
+                          <div>
+                            <label htmlFor="tp-offset" className="text-[9px] text-base-content/40 block">Start offset {(selectedEl.data as any)?.startOffset ?? 0}%</label>
+                            <input id="tp-offset" name="tp-offset" type="range" min={0} max={90}
+                              value={(selectedEl.data as any)?.startOffset ?? 0}
+                              onChange={(e) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, startOffset: Number(e.target.value) } } as any)}
+                              className="range range-xs" />
+                          </div>
+                        </div>
+                    )}
                     {selectedEl.type === 'table_frame' && (
                       <TablePanel
                         data={(selectedEl.data || {}) as any}

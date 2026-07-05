@@ -323,6 +323,7 @@ class DtpRenderService
         $html = match (true) {
             $magType === 'group' || $magType === 'clipping_group' => '', // container only — children publish flat
             $magType === 'table_frame' => $this->renderTableFrame($content),
+            $magType === 'text_path' => $this->renderTextPathFrame($content, $frame),
             $magType === 'video_frame' => $this->renderVideoFrame($content),
             $magType === 'audio_player' => $this->renderAudioFrame($content),
             default => match ($type) {
@@ -651,6 +652,39 @@ class DtpRenderService
         $out .= '</tbody></table>';
 
         return $out;
+    }
+
+    /** text-on-path ([pro]): SVG textPath — presets mirror lib/textPathPresets.ts */
+    private function renderTextPathFrame(array $content, $frame): string
+    {
+        $w = max(1, (float) $frame->width);
+        $h = max(1, (float) $frame->height);
+        $preset = (string) ($content['pathPreset'] ?? 'arc-up');
+        $d = match ($preset) {
+            'arc-down' => sprintf('M 0 %.1f Q %.1f %.1f %.1f %.1f', 0.2 * $h, 0.5 * $w, 1.4 * $h, $w, 0.2 * $h),
+            'circle' => (function () use ($w, $h) {
+                $r = min($w, $h) / 2 - 2;
+                $cx = $w / 2;
+                $cy = $h / 2;
+
+                return sprintf('M %.1f %.1f A %.1f %.1f 0 1 1 %.2f %.1f', $cx, $cy - $r, $r, $r, $cx - 0.01, $cy - $r);
+            })(),
+            'wave' => sprintf('M 0 %.1f C %.1f %.1f %.1f %.1f %.1f %.1f', 0.5 * $h, 0.25 * $w, 0.1 * $h, 0.75 * $w, 0.9 * $h, $w, 0.5 * $h),
+            default => sprintf('M 0 %.1f Q %.1f %.1f %.1f %.1f', 0.8 * $h, 0.5 * $w, -0.4 * $h, $w, 0.8 * $h),
+        };
+        $typo = is_array($frame->metadata['_typography'] ?? null) ? $frame->metadata['_typography'] : [];
+        $fontFamily = e((string) ($typo['fontFamily'] ?? 'Inter'));
+        $fontSize = (float) ($typo['fontSize'] ?? 18);
+        $weight = e((string) ($typo['fontWeight'] ?? 600));
+        $fill = preg_match('/^#[0-9a-fA-F]{3,8}$/', $typo['textColor'] ?? '') ? $typo['textColor'] : '#111111';
+        $offset = max(0, min(90, (float) ($content['pathStartOffset'] ?? 0)));
+        $pid = 'tp-' . substr(md5($frame->id), 0, 8);
+        $text = e((string) ($content['pathText'] ?? ''));
+
+        return '<svg width="100%" height="100%" viewBox="0 0 ' . $w . ' ' . $h . '" style="overflow:visible;display:block;">'
+            . '<path id="' . $pid . '" d="' . e($d) . '" fill="none"></path>'
+            . '<text style="font-family:' . $fontFamily . ';font-size:' . $fontSize . 'px;font-weight:' . $weight . ';fill:' . $fill . ';">'
+            . '<textPath href="#' . $pid . '" startOffset="' . $offset . '%">' . $text . '</textPath></text></svg>';
     }
 
     /** embedded video (YouTube/Vimeo privacy iframes; direct files as <video>) */

@@ -295,6 +295,7 @@ function makeDefaultElement(
     freeform_path: { fillColor: null, strokeColor: '#1a1a1a', strokeWidth: 2, path: '' },
     line: { x2: width, y2: 0, strokeWidth: 2, strokeColor: '#1a1a1a', strokeDash: 'solid', startCap: 'none', endCap: 'none' },
     decorative_rule: { strokeColor: '#999', strokeWidth: 2, strokeStyle: 'solid', ornament: 'none' },
+    text_path: { text: 'Text on a path', preset: 'arc-up', startOffset: 0 },
     video_frame: { url: '', posterAssetId: null, autoplay: false, aspectRatio: '16:9' },
     audio_player: { url: '', title: 'Audio', artist: '' },
     embed_frame: { html: '', sandbox: true },

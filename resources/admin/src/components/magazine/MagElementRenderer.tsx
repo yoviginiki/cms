@@ -4,6 +4,7 @@ import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
 import { computeWrapShims, wrapShimsHtml } from '@/lib/contourTrace';
+import { textPathD } from '@/lib/textPathPresets';
 import { useMagazineStore } from '@/stores/magazineStore';
 import { normalizeClipboardHtml, plainTextToHtml, wordCount } from '@/lib/clipboardNormalizer';
 import { formatPageNumber } from '@/lib/magazineFormat';
@@ -161,6 +162,28 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
   // Type-specific content rendering
   const renderContent = () => {
     const data = el.data as Record<string, any>;
+
+    if (el.type === 'text_path') {
+      const d = textPathD(data?.preset || 'arc-up', el.width, el.height);
+      const pid = `tp-${el.id.slice(0, 8)}`;
+      const typo = el.typography as any;
+      return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${el.width} ${el.height}`} style={{ overflow: 'visible', display: 'block' }}>
+          <path id={pid} d={d} fill="none" />
+          <text style={{
+            fontFamily: typo?.fontFamily || 'Inter',
+            fontSize: typo?.fontSize || 18,
+            fontWeight: typo?.fontWeight || 600,
+            letterSpacing: typo?.letterSpacing ? `${typo.letterSpacing}em` : undefined,
+            fill: typo?.textColor || '#111111',
+          }}>
+            <textPath href={`#${pid}`} startOffset={`${data?.startOffset ?? 0}%`}>
+              {data?.text || 'Text on a path'}
+            </textPath>
+          </text>
+        </svg>
+      );
+    }
 
     if ((el.type === 'group' || el.type === 'clipping_group') && el.children.length > 0) {
       // children keep ABSOLUTE page coords; offset into the group box

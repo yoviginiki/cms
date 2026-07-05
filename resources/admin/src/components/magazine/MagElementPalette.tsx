@@ -25,6 +25,7 @@ const MAGAZINE_ELEMENTS: CategoryGroup[] = [
       { type: 'text_frame', label: 'Text frame', description: 'General text container with rich formatting', width: 300, height: 150 },
       { type: 'headline_frame', label: 'Headline', description: 'Large display text for titles', width: 400, height: 80 },
       { type: 'pullquote_frame', label: 'Pull quote', description: 'Decorative quote pulled from text', width: 300, height: 120 },
+      { type: 'text_path', label: 'Text on path', description: 'Text following an arc, circle or wave', width: 320, height: 120 },
       { type: 'caption_frame', label: 'Caption', description: 'Small text for image captions', width: 250, height: 40 },
       { type: 'footnote_frame', label: 'Footnote', description: 'Reference note at bottom of page', width: 300, height: 30 },
       { type: 'marginalia_frame', label: 'Marginalia', description: 'Side note in the margin area', width: 150, height: 100 },

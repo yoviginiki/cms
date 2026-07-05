@@ -184,6 +184,17 @@ describe('DTP adapter round-trip (W0-6)', () => {
     expect((pages[0] as any)._section).toEqual({ startAt: 1, format: 'roman-lower' });
   });
 
+  it('text-on-path round-trips (pro)', () => {
+    const tp = el({ id: 'tp1', type: 'text_path', typography: null, threadId: null, threadOrder: null,
+      data: { text: 'Curved words', preset: 'wave', startOffset: 15 } });
+    const { pages } = roundTrip([page([tp])]);
+    const out = pages[0].elements[0];
+    expect(out.type).toBe('text_path');
+    expect((out.data as any).text).toBe('Curved words');
+    expect((out.data as any).preset).toBe('wave');
+    expect((out.data as any).startOffset).toBe(15);
+  });
+
   it('page master assignment survives', () => {
     const { pages } = roundTrip([page([])]);
     expect(pages[0].masterPageId).toBe('master-a');

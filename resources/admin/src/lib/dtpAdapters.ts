@@ -155,6 +155,11 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     data.stripes = content.tableStripes !== false;
     data.borderColor = content.tableBorderColor || '#e5e7eb';
   }
+  if (savedMagType === 'text_path') {
+    data.text = content.pathText || '';
+    data.preset = content.pathPreset || 'arc-up';
+    data.startOffset = content.pathStartOffset ?? 0;
+  }
   if (savedMagType === 'video_frame') {
     data.url = content.videoUrl || '';
     data.posterAssetId = content.posterAssetId || null;
@@ -238,7 +243,7 @@ export const REVERSE_TYPE_MAP: Record<string, string> = {
   rectangle: 'shape', ellipse: 'shape', line: 'line', polygon: 'shape',
   freeform_path: 'shape', decorative_rule: 'decorative', gradient_overlay: 'shape',
   page_number: 'pageNumber', running_header: 'text', column_guides: 'text',
-  video_frame: 'text', audio_player: 'text', embed_frame: 'text', svg_icon: 'shape',
+  video_frame: 'text', audio_player: 'text', embed_frame: 'text', svg_icon: 'shape', text_path: 'decorative',
   button: 'text', hotspot: 'shape', tooltip_trigger: 'shape',
   accordion_frame: 'text', slidein_panel: 'text',
   table_frame: 'text', chart_frame: 'text', infographic_number: 'text', progress_indicator: 'shape',
@@ -330,6 +335,10 @@ export function pagesToDtpApi(
         content.tableRows = (el.data as any)?.rows || [['', '']];
         content.tableStripes = (el.data as any)?.stripes !== false;
         content.tableBorderColor = (el.data as any)?.borderColor || '#e5e7eb';
+      } else if (el.type === 'text_path') {
+        content.pathText = (el.data as any)?.text || '';
+        content.pathPreset = (el.data as any)?.preset || 'arc-up';
+        content.pathStartOffset = (el.data as any)?.startOffset ?? 0;
       } else if (el.type === 'video_frame') {
         const vu = (el.data as any)?.url || '';
         content.videoUrl = /^https?:\/\//i.test(vu) ? vu : '';
