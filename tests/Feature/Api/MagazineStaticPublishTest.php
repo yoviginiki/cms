@@ -100,6 +100,30 @@ class MagazineStaticPublishTest extends TestCase
         $this->assertStringContainsString($path . '/', $xml);
     }
 
+    public function test_contour_wrap_publishes_shape_outside_shims(): void
+    {
+        $issue = $this->makeIssue('published');
+        $page = MagazineDtpPage::where('issue_id', $issue->id)->first();
+        // image with traced bands overlapping the text frame's right side
+        MagazineFrame::create([
+            'issue_id' => $issue->id, 'page_id' => $page->id, 'frame_type' => 'image',
+            'x' => 250, 'y' => 80, 'width' => 150, 'height' => 150, 'z_index' => 5,
+            'content' => ['src' => 'https://cdn.x.test/cutout.png'],
+            'metadata' => ['_textWrap' => [
+                'type' => 'object-shape',
+                'offset' => ['top' => 4, 'right' => 4, 'bottom' => 4, 'left' => 4],
+                'customPath' => ['bands' => [
+                    ['y0' => 0, 'y1' => 75, 'x0' => 40, 'x1' => 150],
+                    ['y0' => 75, 'y1' => 150, 'x0' => 10, 'x1' => 150],
+                ]],
+            ]],
+        ]);
+        $data = app(\App\Domain\Magazine\Services\DtpRenderService::class)->render($issue);
+        $all = json_encode($data['spreads']);
+        $this->assertStringContainsString('shape-outside:polygon(', $all);
+        $this->assertStringContainsString('float:right', $all);
+    }
+
     public function test_draft_issues_are_not_published(): void
     {
         $this->makeIssue('draft');

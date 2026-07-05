@@ -152,6 +152,30 @@ function summarize(
   };
 };
 
+// contour wrap ([pro]): triangle-silhouette bands must carve losslessly
+(window as any).runContourHarness = (): HarnessSummary => {
+  const html = genHtml(3000);
+  const page = makePage(1);
+  const tf = makeTextFrame(html, 1, 1);
+  page.elements.push(tf);
+  const img: MagElement = { ...makeTextFrame('', 1, 1), id: crypto.randomUUID(), type: 'image_frame' };
+  img.x = 320; img.y = 120; img.width = 200; img.height = 240;
+  img.data = { src: '' } as any;
+  img.textWrap = {
+    type: 'object-shape',
+    offset: { top: 6, right: 6, bottom: 6, left: 6 },
+    side: 'both',
+    invert: false,
+    customPath: { bands: Array.from({ length: 12 }, (_, i) => ({
+      y0: i * 20, y1: (i + 1) * 20, x0: 200 - (i + 1) * (200 / 12), x1: 200,
+    })) } as any,
+  };
+  page.elements.push(img);
+  const t0 = performance.now();
+  const res = runDocumentFlow([page], {}, { paginate: true });
+  return summarize(res, html, performance.now() - t0);
+};
+
 (window as any).runShrinkHarness = (): {
   grow: HarnessSummary;
   shrink: HarnessSummary;

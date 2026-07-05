@@ -17,6 +17,9 @@ class DtpRenderService
     /** page_id -> ['n' => displayNumber, 'format' => fmt] when sections exist */
     private array $displayNumbers = [];
 
+    /** frame_id -> shim html for visible runaround (rebuilt per page) */
+    private array $wrapShims = [];
+
     /**
      * Sanitize HTML — strip to tag allowlist and remove all attributes
      * except href (http/https only) on <a> tags.
@@ -141,6 +144,10 @@ class DtpRenderService
                         $renderedFrames[] = $mf;
                     }
                 }
+
+                // visible runaround ([pro]): shape-outside shims for
+                // single-column text frames — mirrors lib/contourTrace.ts
+                $this->wrapShims = $this->computeWrapShims($pageFrames);
 
                 foreach ($pageFrames as $frame) {
                     $renderedFrames[] = $this->renderFrame($frame, $page);
@@ -301,13 +308,14 @@ class DtpRenderService
         }
 
         $magType = $metadata['_magType'] ?? null;
+        $shimHtml = $this->wrapShims[$frame->id] ?? '';
         $html = match (true) {
             $magType === 'group' || $magType === 'clipping_group' => '', // container only — children publish flat
             $magType === 'table_frame' => $this->renderTableFrame($content),
             $magType === 'video_frame' => $this->renderVideoFrame($content),
             $magType === 'audio_player' => $this->renderAudioFrame($content),
             default => match ($type) {
-            'text' => $this->renderTextFrame($content),
+            'text' => $this->injectShims($shimHtml, $this->renderTextFrame($content)),
             'image' => $this->renderImageFrame($content),
             'quote' => $this->renderQuoteFrame($content),
             'pageNumber' => $this->renderPageNumberFrame($page, $content),
@@ -363,6 +371,118 @@ class DtpRenderService
     {
         $adminUrl = rtrim(config('app.url', 'https://sys.ensodo.eu'), '/');
         return preg_replace('#/api/v1/sites/([^/]+)/assets/([^/]+)/serve#', $adminUrl . '/media/$1/$2', $html) ?: $html;
+    }
+
+    /** prepend float shims INSIDE the text flow container */
+    private function injectShims(string $shimHtml, string $html): string
+    {
+        if ($shimHtml === '') {
+            return $html;
+        }
+        $pos = strpos($html, '>');
+
+        return $pos === false ? $html : substr($html, 0, $pos + 1) . $shimHtml . substr($html, $pos + 1);
+    }
+
+    /**
+     * Visible runaround for single-column text frames (mirrors
+     * resources/admin/src/lib/contourTrace.ts computeWrapShims): float shims
+     * with shape-outside polygons — traced bands for object-shape, one band
+     * for bounding-box.
+     */
+    private function computeWrapShims($pageFrames): array
+    {
+        $out = [];
+        $frames = collect($pageFrames)->values();
+        foreach ($frames as $tf) {
+            if (($tf->frame_type->value ?? $tf->frame_type) !== 'text') {
+                continue;
+            }
+            $c = is_array($tf->content) ? $tf->content : [];
+            if ((int) ($c['columnsInFrame'] ?? 1) !== 1) {
+                continue;
+            }
+            $inset = is_array($c['textInset'] ?? null) ? $c['textInset'] : ['top' => 0, 'right' => 0, 'bottom' => 0, 'left' => 0];
+            $ax = (float) $tf->x + (float) ($inset['left'] ?? 0);
+            $ay = (float) $tf->y + (float) ($inset['top'] ?? 0);
+            $aw = (float) $tf->width - (float) ($inset['left'] ?? 0) - (float) ($inset['right'] ?? 0);
+            $ah = (float) $tf->height - (float) ($inset['top'] ?? 0) - (float) ($inset['bottom'] ?? 0);
+            if ($aw <= 0 || $ah <= 0) {
+                continue;
+            }
+            $shims = '';
+            foreach ($frames as $o) {
+                if ($o->id === $tf->id) {
+                    continue;
+                }
+                $wrap = $o->metadata['_textWrap'] ?? null;
+                if (!is_array($wrap) || !in_array($wrap['type'] ?? '', ['bounding-box', 'object-shape'], true)) {
+                    continue;
+                }
+                $off = is_array($wrap['offset'] ?? null) ? $wrap['offset'] : [];
+                $margin = max(0, (float) ($off['top'] ?? 0), (float) ($off['right'] ?? 0), (float) ($off['bottom'] ?? 0), (float) ($off['left'] ?? 0));
+                $ix = (float) $o->x - $ax;
+                $iy = (float) $o->y - $ay;
+                $iw = (float) $o->width;
+                $ih = (float) $o->height;
+                if ($ix - $margin >= $aw || $ix + $iw + $margin <= 0 || $iy - $margin >= $ah || $iy + $ih + $margin <= 0) {
+                    continue;
+                }
+                $side = ($ix + $iw / 2 <= $aw / 2) ? 'left' : 'right';
+                $shimW = min($aw, max(0, $side === 'left' ? $ix + $iw + $margin : $aw - $ix + $margin));
+                $shimH = min($ah, max(0, $iy + $ih + $margin));
+                if ($shimW < 2 || $shimH < 2) {
+                    continue;
+                }
+                $bands = ($wrap['type'] === 'object-shape' && !empty($wrap['customPath']['bands']) && is_array($wrap['customPath']['bands']))
+                    ? $wrap['customPath']['bands']
+                    : [['y0' => 0, 'y1' => $ih, 'x0' => 0, 'x1' => $iw]];
+                $shimX0 = $side === 'left' ? 0 : $aw - $shimW;
+                $pts = [];
+                $cl = fn ($v, $max) => max(0, min($max, round($v * 10) / 10));
+                $shimBands = [];
+                foreach ($bands as $b) {
+                    $sb = [
+                        'y0' => $iy + (float) $b['y0'] - $margin,
+                        'y1' => $iy + (float) $b['y1'] + $margin,
+                        'x0' => $ix + (float) $b['x0'] - $margin - $shimX0,
+                        'x1' => $ix + (float) $b['x1'] + $margin - $shimX0,
+                    ];
+                    if ($sb['y1'] > 0 && $sb['y0'] < $shimH) {
+                        $shimBands[] = $sb;
+                    }
+                }
+                if (!$shimBands) {
+                    continue;
+                }
+                if ($side === 'left') {
+                    $pts[] = '0px 0px';
+                    foreach ($shimBands as $b) {
+                        $x = $cl($b['x1'], $shimW);
+                        $pts[] = "{$x}px {$cl($b['y0'], $shimH)}px";
+                        $pts[] = "{$x}px {$cl($b['y1'], $shimH)}px";
+                    }
+                    $pts[] = '0px ' . $cl(end($shimBands)['y1'], $shimH) . 'px';
+                } else {
+                    $pts[] = "{$shimW}px 0px";
+                    foreach ($shimBands as $b) {
+                        $x = $cl($b['x0'], $shimW);
+                        $pts[] = "{$x}px {$cl($b['y0'], $shimH)}px";
+                        $pts[] = "{$x}px {$cl($b['y1'], $shimH)}px";
+                    }
+                    $pts[] = "{$shimW}px " . $cl(end($shimBands)['y1'], $shimH) . 'px';
+                }
+                $poly = 'polygon(' . implode(', ', $pts) . ')';
+                $w2 = round($shimW * 10) / 10;
+                $h2 = round($shimH * 10) / 10;
+                $shims .= "<div style=\"float:{$side};width:{$w2}px;height:{$h2}px;shape-outside:{$poly};pointer-events:none;\" aria-hidden=\"true\"></div>";
+            }
+            if ($shims !== '') {
+                $out[$tf->id] = $shims;
+            }
+        }
+
+        return $out;
     }
 
     private function renderTextFrame(array $content): string

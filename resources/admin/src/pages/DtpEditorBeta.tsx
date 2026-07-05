@@ -959,7 +959,7 @@ export default function DtpEditorBeta() {
                     <FillStrokePanel style={selectedEl.style} onChange={(v) => store.updateElement(selectedEl.id, { style: { ...selectedEl.style, ...v } as MagElementStyle })} />
                     <EffectsPanel style={selectedEl.style} onChange={(v) => store.updateElement(selectedEl.id, { style: { ...selectedEl.style, ...v } as MagElementStyle })} />
                     {selectedEl.textWrap && (
-                      <TextWrapPanel value={selectedEl.textWrap} onChange={(v) => store.updateElement(selectedEl.id, { textWrap: { ...selectedEl.textWrap, ...v } as MagTextWrap })} />
+                      <TextWrapPanel value={selectedEl.textWrap} element={selectedEl} onChange={(v) => store.updateElement(selectedEl.id, { textWrap: { ...selectedEl.textWrap, ...v } as MagTextWrap })} />
                     )}
                     {store.selectedIds.length > 1 && (
                       <AlignDistributePanel

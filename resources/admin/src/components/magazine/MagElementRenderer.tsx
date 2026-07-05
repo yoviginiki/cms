@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
+import { computeWrapShims, wrapShimsHtml } from '@/lib/contourTrace';
 import { normalizeClipboardHtml, plainTextToHtml, wordCount } from '@/lib/clipboardNormalizer';
 import { formatPageNumber } from '@/lib/magazineFormat';
 
@@ -269,12 +270,19 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       const dcStyle = dc?.enabled
         ? `.${dcClass} > p:first-of-type::first-letter{float:left;font-size:${Math.round((typo?.fontSize || 14) * (typo?.lineHeight || 1.5) * (dc.lines || 3) * 0.92)}px;line-height:${Math.round((typo?.fontSize || 14) * (typo?.lineHeight || 1.5) * (dc.lines || 3) * 0.85)}px;padding:0 6px 0 0;font-weight:700;${dc.font ? `font-family:${dc.font};` : ''}${dc.color ? `color:${dc.color};` : ''}}`
         : '';
+      // visible runaround ([pro] contour + square): float shims with
+      // shape-outside for single-column frames — same math publishes in DRS
+      let shimHtml = '';
+      if (!isEditing && allPages) {
+        const pg = allPages.find((p2) => p2.pageNumber === el.pageNumber);
+        if (pg) shimHtml = wrapShimsHtml(computeWrapShims(el as any, pg.elements as any));
+      }
       const inner = (
         <div
           ref={textRef}
           className={dcClass || undefined}
           style={va === 'top' ? textStyle : { ...textStyle, height: 'auto' }}
-          dangerouslySetInnerHTML={{ __html: safeContent }}
+          dangerouslySetInnerHTML={{ __html: shimHtml + safeContent }}
         />
       );
       return (

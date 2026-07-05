@@ -89,21 +89,37 @@ function elToSpec(el: MagElement, page: MagPageData): FlowFrameSpec {
     if (other.id === el.id || !other.visible) continue;
     const wrap = other.textWrap;
     if (!wrap || wrap.type === 'none') continue;
-    // v1: bounding-box + jump are engine-backed; object-shape falls back to
-    // bounding-box until contour wrap lands ([pro] backlog)
     const mode: FlowExclusion['mode'] = wrap.type === 'jump' ? 'jump' : 'wrap';
     const off = wrap.offset || { top: 0, right: 0, bottom: 0, left: 0 };
     const margin = Math.max(0, off.top ?? 0, off.right ?? 0, off.bottom ?? 0, off.left ?? 0);
-    const ex: FlowExclusion = {
-      x: other.x - areaX,
-      y: other.y - areaY,
-      w: other.width,
-      h: other.height,
-      margin,
-      mode,
+    const bands = wrap.type === 'object-shape' ? (wrap.customPath as any)?.bands : null;
+    const pushEx = (ex: FlowExclusion) => {
+      const R = { x: ex.x - ex.margin, y: ex.y - ex.margin, w: ex.w + 2 * ex.margin, h: ex.h + 2 * ex.margin };
+      if (R.x < width && R.x + R.w > 0 && R.y < height && R.y + R.h > 0) exclusions.push(ex);
     };
-    const R = { x: ex.x - margin, y: ex.y - margin, w: ex.w + 2 * margin, h: ex.h + 2 * margin };
-    if (R.x < width && R.x + R.w > 0 && R.y < height && R.y + R.h > 0) exclusions.push(ex);
+    if (Array.isArray(bands) && bands.length) {
+      // contour ([pro]): one thin rect per traced alpha band — the carving
+      // loop composes them into a shaped hole
+      for (const b of bands) {
+        pushEx({
+          x: other.x + b.x0 - areaX,
+          y: other.y + b.y0 - areaY,
+          w: Math.max(0, b.x1 - b.x0),
+          h: Math.max(0, b.y1 - b.y0),
+          margin,
+          mode,
+        });
+      }
+    } else {
+      pushEx({
+        x: other.x - areaX,
+        y: other.y - areaY,
+        w: other.width,
+        h: other.height,
+        margin,
+        mode,
+      });
+    }
   }
   return { id: el.id, width, height, columns: data.columnsInFrame || 1, columnGap: data.columnGap || 12, exclusions };
 }
