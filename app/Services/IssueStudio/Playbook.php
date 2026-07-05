@@ -51,6 +51,23 @@ class Playbook
         ]];
     }
 
+    /**
+     * The pattern vocabulary, parsed from spread-patterns.md headings
+     * (### `name`) so playbook and validator can never drift apart.
+     *
+     * @return array{covers: string[], spreads: string[]}
+     */
+    public function patternNames(): array
+    {
+        preg_match_all('/^### `([a-z0-9-]+)`/m', $this->doc('spread-patterns'), $m);
+        $all = $m[1] ?? [];
+
+        $covers = array_values(array_filter($all, fn ($p) => str_starts_with($p, 'cover-')));
+        $spreads = array_values(array_diff($all, $covers));
+
+        return ['covers' => $covers, 'spreads' => $spreads];
+    }
+
     /** Docs for a flatplan/spread call given the brief's genre. */
     public function docsForGenre(?string $genre, array $extra = []): array
     {

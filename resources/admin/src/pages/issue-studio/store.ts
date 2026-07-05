@@ -6,6 +6,8 @@ interface StudioState {
   session: StudioSession | null;
   loading: boolean;
   sending: boolean;
+  planning: boolean;
+  revisingPosition: number | null;
   error: string | null;
 
   load: (id: string) => Promise<void>;
@@ -14,6 +16,10 @@ interface StudioState {
   addImage: (title: string, assetId: string) => Promise<void>;
   removeMaterial: (materialId: string) => Promise<void>;
   completeInterview: () => Promise<void>;
+  generateFlatplan: () => Promise<void>;
+  reviseSpread: (position: number, instruction: string) => Promise<void>;
+  reorder: (order: number[]) => Promise<void>;
+  approveFlatplan: () => Promise<void>;
   clearError: () => void;
   reset: () => void;
 }
@@ -27,6 +33,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   session: null,
   loading: false,
   sending: false,
+  planning: false,
+  revisingPosition: null,
   error: null,
 
   load: async (id) => {
@@ -101,6 +109,55 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     }
   },
 
+  generateFlatplan: async () => {
+    const { session } = get();
+    if (!session || get().planning) return;
+    set({ planning: true, error: null });
+    try {
+      set({ session: await studioApi.generateFlatplan(session.id), planning: false });
+    } catch (e) {
+      set({ planning: false, error: apiError(e) });
+    }
+  },
+
+  reviseSpread: async (position, instruction) => {
+    const { session } = get();
+    if (!session || get().revisingPosition !== null) return;
+    set({ revisingPosition: position, error: null });
+    try {
+      set({ session: await studioApi.reviseFlatplanSpread(session.id, position, instruction), revisingPosition: null });
+    } catch (e) {
+      set({ revisingPosition: null, error: apiError(e) });
+    }
+  },
+
+  reorder: async (order) => {
+    const { session } = get();
+    if (!session?.flatplan) return;
+
+    // optimistic local reorder
+    const byPos = new Map(session.flatplan.spreads.map((s) => [s.position, s]));
+    const reordered = order.map((oldPos, newPos) => ({ ...byPos.get(oldPos)!, position: newPos }));
+    set({ session: { ...session, flatplan: { ...session.flatplan, spreads: reordered } } });
+
+    try {
+      set({ session: await studioApi.reorderFlatplan(session.id, order), error: null });
+    } catch (e) {
+      set({ session, error: apiError(e) });
+    }
+  },
+
+  approveFlatplan: async () => {
+    const { session } = get();
+    if (!session) return;
+    set({ error: null });
+    try {
+      set({ session: await studioApi.approveFlatplan(session.id) });
+    } catch (e) {
+      set({ error: apiError(e) });
+    }
+  },
+
   clearError: () => set({ error: null }),
-  reset: () => set({ session: null, loading: false, sending: false, error: null }),
+  reset: () => set({ session: null, loading: false, sending: false, planning: false, revisingPosition: null, error: null }),
 }));

@@ -17,6 +17,8 @@ class IssueStudioService
 {
     public function __construct(
         private InterviewEngine $interview,
+        private FlatplanEngine $flatplan,
+        private FlatplanValidator $validator,
         private TokenBudget $budget,
     ) {
     }
@@ -144,6 +146,131 @@ class IssueStudioService
         $session->save();
 
         return $session;
+    }
+
+    /** Generate (or regenerate) the flatplan. Only while flatplanning and unapproved. */
+    public function generateFlatplan(StudioSession $session): StudioSession
+    {
+        if ($session->status !== 'flatplanning') {
+            throw new RuntimeException('Flatplans are generated after the interview, before approval.');
+        }
+        if ($session->flatplan['approved'] ?? false) {
+            throw new RuntimeException('The flatplan is already approved and locked.');
+        }
+
+        $this->budget->assertAvailable($session->tenant_id);
+
+        $result = $this->flatplan->generate($session);
+        foreach ($result['usage'] as $usage) {
+            $this->recordUsage($session, 'flatplan', $usage);
+        }
+
+        $session->flatplan = [
+            'spreads' => $result['spreads'],
+            'approved' => false,
+            'generated_at' => now()->toIso8601String(),
+        ];
+        $session->save();
+
+        return $session;
+    }
+
+    /** Conversational revision of one flatplan slot. */
+    public function reviseFlatplanSpread(StudioSession $session, int $position, string $instruction): StudioSession
+    {
+        $this->assertEditableFlatplan($session);
+        $this->budget->assertAvailable($session->tenant_id);
+
+        $result = $this->flatplan->reviseSpread($session, $position, $instruction);
+        foreach ($result['usage'] as $usage) {
+            $this->recordUsage($session, 'flatplan-revise', $usage);
+        }
+
+        $flatplan = $session->flatplan;
+        foreach ($flatplan['spreads'] as $i => $spread) {
+            if (($spread['position'] ?? null) === $position) {
+                $flatplan['spreads'][$i] = $result['spread'];
+            }
+        }
+        $session->flatplan = $flatplan;
+        $session->save();
+
+        return $session;
+    }
+
+    /**
+     * Persist a drag-reorder. $order is the array of CURRENT positions in
+     * their new sequence; positions are then rewritten 0..n and re-validated.
+     */
+    public function reorderFlatplan(StudioSession $session, array $order): StudioSession
+    {
+        $this->assertEditableFlatplan($session);
+
+        $spreads = $session->flatplan['spreads'];
+        $byPosition = collect($spreads)->keyBy('position');
+
+        if (count($order) !== count($spreads) || array_diff($byPosition->keys()->all(), $order) !== []) {
+            throw new RuntimeException('Reorder must be a permutation of all current spread positions.');
+        }
+
+        $reordered = [];
+        foreach (array_values($order) as $newPos => $oldPos) {
+            $spread = $byPosition->get($oldPos);
+            $spread['position'] = $newPos;
+            $reordered[] = $spread;
+        }
+
+        $errors = $this->validator->validate($reordered, $session->brief ?? []);
+        if ($errors !== []) {
+            throw new RuntimeException('That order breaks the issue structure: ' . implode(' | ', $errors));
+        }
+
+        $flatplan = $session->flatplan;
+        $flatplan['spreads'] = $reordered;
+        $session->flatplan = $flatplan;
+        $session->save();
+
+        return $session;
+    }
+
+    /** Approval locks the flatplan and creates the spread rows. */
+    public function approveFlatplan(StudioSession $session): StudioSession
+    {
+        $this->assertEditableFlatplan($session);
+
+        $flatplan = $session->flatplan;
+        $flatplan['approved'] = true;
+        $flatplan['approved_at'] = now()->toIso8601String();
+
+        $session->spreads()->delete();
+        foreach ($flatplan['spreads'] as $spread) {
+            $session->spreads()->create([
+                'tenant_id' => $session->tenant_id,
+                'position' => $spread['position'],
+                'status' => 'pending',
+                'working_title' => $spread['working_title'],
+                'section' => $spread['section'],
+                'pattern' => $spread['pattern'],
+                'materials' => $spread['materials'],
+                'intent' => $spread['intent'],
+            ]);
+        }
+
+        $session->flatplan = $flatplan;
+        $session->status = 'generating';
+        $session->save();
+
+        return $session;
+    }
+
+    private function assertEditableFlatplan(StudioSession $session): void
+    {
+        if ($session->status !== 'flatplanning' || !is_array($session->flatplan)) {
+            throw new RuntimeException('There is no editable flatplan on this session.');
+        }
+        if ($session->flatplan['approved'] ?? false) {
+            throw new RuntimeException('The flatplan is approved and locked.');
+        }
     }
 
     public function abandon(StudioSession $session): void

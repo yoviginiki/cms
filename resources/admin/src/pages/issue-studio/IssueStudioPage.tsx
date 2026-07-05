@@ -5,6 +5,7 @@ import {
   Mic, Sparkles, Trash2, X,
 } from 'lucide-react';
 import { assets } from '@/lib/api';
+import FlatplanBoard from './FlatplanBoard';
 import { useStudioStore } from './store';
 import { GENRE_LABELS, STATUS_LABELS, type Brief, type Material } from './types';
 
@@ -29,19 +30,27 @@ export default function IssueStudioPage() {
     );
   }
 
+  const interviewing = session.status === 'interviewing';
+
   return (
     <div className="flex gap-6 h-[calc(100vh-7.5rem)] min-h-[480px]">
-      <div className="flex-1 min-w-0 flex flex-col border border-base-300">
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-base-300">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-[14px] font-medium text-base-content/80 truncate">
-            {session.title || 'New issue'}
-          </span>
-          <span className="ml-auto text-[11px] uppercase tracking-wide text-primary border border-primary/40 px-2 py-0.5">
-            {STATUS_LABELS[session.status]}
-          </span>
-        </div>
-        <ChatPane siteId={siteId} />
+      <div className={`flex-1 min-w-0 flex flex-col ${interviewing ? 'border border-base-300' : 'overflow-y-auto'}`}>
+        {interviewing ? (
+          <>
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-base-300">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-[14px] font-medium text-base-content/80 truncate">
+                {session.title || 'New issue'}
+              </span>
+              <span className="ml-auto text-[11px] uppercase tracking-wide text-primary border border-primary/40 px-2 py-0.5">
+                {STATUS_LABELS[session.status]}
+              </span>
+            </div>
+            <ChatPane siteId={siteId} />
+          </>
+        ) : (
+          <FlatplanBoard />
+        )}
       </div>
 
       <div className="w-[340px] shrink-0 overflow-y-auto">
@@ -188,7 +197,7 @@ function ChatPane({ siteId }: { siteId: string }) {
         ) : (
           <div className="flex items-center gap-2 text-[13px] text-base-content/50 px-1 py-1">
             <CheckCircle2 className="h-4 w-4 text-success" />
-            Interview complete — the brief is locked in. Flatplanning arrives in the next step of the build.
+            Interview complete — the brief is locked in.
           </div>
         )}
         {interviewing && (session?.brief.topic ?? null) && (

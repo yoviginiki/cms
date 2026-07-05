@@ -34,4 +34,16 @@ export const studioApi = {
 
   completeInterview: (id: string) =>
     api.post(`${BASE}/${id}/complete-interview`).then(r => r.data.data as StudioSession),
+
+  generateFlatplan: (id: string) =>
+    api.post(`${BASE}/${id}/flatplan/generate`).then(r => r.data.data as StudioSession),
+
+  reviseFlatplanSpread: (id: string, position: number, instruction: string) =>
+    api.post(`${BASE}/${id}/flatplan/revise`, { position, instruction }).then(r => r.data.data as StudioSession),
+
+  reorderFlatplan: (id: string, order: number[]) =>
+    api.post(`${BASE}/${id}/flatplan/reorder`, { order }).then(r => r.data.data as StudioSession),
+
+  approveFlatplan: (id: string) =>
+    api.post(`${BASE}/${id}/flatplan/approve`).then(r => r.data.data as StudioSession),
 };

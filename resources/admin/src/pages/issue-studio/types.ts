@@ -39,6 +39,35 @@ export interface TokenUsageEntry {
   at: string;
 }
 
+export type Section = 'cover' | 'fob' | 'feature' | 'bob';
+
+export interface FlatplanSpread {
+  position: number;
+  working_title: string;
+  section: Section;
+  pattern: string;
+  materials: string[];
+  intent: string;
+}
+
+export interface Flatplan {
+  spreads: FlatplanSpread[];
+  approved: boolean;
+  generated_at: string;
+  approved_at?: string;
+}
+
+export interface SpreadRow {
+  id: string;
+  position: number;
+  status: 'pending' | 'generated' | 'approved' | 'revising';
+  working_title: string | null;
+  section: Section | null;
+  pattern: string | null;
+  materials: string[];
+  intent: string | null;
+}
+
 export interface StudioSession {
   id: string;
   site_id: string;
@@ -46,13 +75,21 @@ export interface StudioSession {
   status: SessionStatus;
   brief: Brief;
   transcript: TranscriptEntry[];
-  flatplan: unknown | null;
+  flatplan: Flatplan | null;
   magazine_issue_id: string | null;
   token_usage: TokenUsageEntry[];
   total_tokens: number;
+  spreads?: SpreadRow[] | null;
   created_at: string;
   updated_at: string;
 }
+
+export const SECTION_LABELS: Record<Section, string> = {
+  cover: 'Cover',
+  fob: 'Front of book',
+  feature: 'Feature well',
+  bob: 'Back of book',
+};
 
 export interface SessionSummary {
   id: string;

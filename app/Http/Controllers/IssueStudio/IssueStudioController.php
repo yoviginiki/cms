@@ -126,13 +126,78 @@ class IssueStudioController extends Controller
         return response()->json(['data' => $this->serialize($studioSession)]);
     }
 
+    public function generateFlatplan(Request $request, StudioSession $studioSession): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        try {
+            $studioSession = $this->service->generateFlatplan($studioSession);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession)]);
+    }
+
+    public function reviseFlatplanSpread(Request $request, StudioSession $studioSession): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        $data = $request->validate([
+            'position' => 'required|integer|min:0',
+            'instruction' => 'required|string|max:2000',
+        ]);
+
+        try {
+            $studioSession = $this->service->reviseFlatplanSpread($studioSession, $data['position'], $data['instruction']);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession)]);
+    }
+
+    public function reorderFlatplan(Request $request, StudioSession $studioSession): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        $data = $request->validate([
+            'order' => 'required|array|min:2',
+            'order.*' => 'integer|min:0',
+        ]);
+
+        try {
+            $studioSession = $this->service->reorderFlatplan($studioSession, $data['order']);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession)]);
+    }
+
+    public function approveFlatplan(Request $request, StudioSession $studioSession): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        try {
+            $studioSession = $this->service->approveFlatplan($studioSession);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->serialize($studioSession, true, true)]);
+    }
+
     private function authorizeSession(Request $request, StudioSession $session): void
     {
         abort_unless($session->tenant_id === $request->user()->tenant_id, 404);
     }
 
-    private function serialize(StudioSession $session, bool $full = true): array
+    private function serialize(StudioSession $session, bool $full = true, bool $withSpreads = false): array
     {
+        if ($withSpreads) {
+            $session->load('spreads');
+        }
         $base = [
             'id' => $session->id,
             'site_id' => $session->site_id,
@@ -157,6 +222,7 @@ class IssueStudioController extends Controller
             'flatplan' => $session->flatplan,
             'magazine_issue_id' => $session->magazine_issue_id,
             'token_usage' => $session->token_usage,
+            'spreads' => $session->relationLoaded('spreads') ? $session->spreads->toArray() : null,
         ];
     }
 }
