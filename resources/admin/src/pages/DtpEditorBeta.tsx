@@ -233,6 +233,12 @@ export default function DtpEditorBeta() {
   }, []);
   const [lastAutosave, setLastAutosave] = useState<string | null>(null);
   const [findOpen, setFindOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setShortcutsOpen(true);
+    window.addEventListener('mag:shortcuts', open);
+    return () => window.removeEventListener('mag:shortcuts', open);
+  }, []);
   // theme-token swatches (W3): the site's real palette for every color field
   const { data: themesData } = useQuery({
     queryKey: ['theme-swatches', siteId],
@@ -511,6 +517,7 @@ export default function DtpEditorBeta() {
         zipUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-zip`}
       />
       {findOpen && <FindReplacePanel onClose={() => setFindOpen(false)} />}
+      {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
 
       {/* ─── DTP Status + Save error ─── */}
       {saveError && (
@@ -1424,6 +1431,40 @@ function FindReplacePanel({ onClose }: { onClose: () => void }) {
         <button className="btn btn-xs btn-ghost" disabled={!matches.length} onClick={next}>Next</button>
         <button className="btn btn-xs btn-ghost" disabled={!current} onClick={replaceCurrent}>Replace</button>
         <button className="btn btn-xs btn-primary btn-outline ml-auto" disabled={!matches.length} onClick={replaceAll}>Replace all</button>
+      </div>
+    </div>
+  );
+}
+
+const SHORTCUTS: Array<[string, Array<[string, string]>]> = [
+  ['Tools', [['V', 'Select'], ['T', 'Text'], ['I', 'Image'], ['R', 'Rectangle'], ['E', 'Ellipse'], ['L', 'Line'], ['W', 'Preview mode']]],
+  ['Editing', [['Ctrl+Z / Ctrl+Y', 'Undo / redo'], ['Ctrl+C / X / V', 'Copy / cut / paste'], ['Ctrl+D', 'Duplicate'], ['Ctrl+A', 'Select all'], ['Del', 'Delete'], ['Esc', 'Deselect / close'], ['Arrows (+Shift)', 'Nudge 1pt (10pt)']]],
+  ['Arrange', [['Ctrl+G', 'Group'], ['Ctrl+Shift+G', 'Ungroup'], ['Alt+drag', 'Duplicate while dragging'], ['Alt+click', 'Select element behind'], ['Right-click', 'Context menu']]],
+  ['Document', [['Ctrl+F', 'Find & replace'], ['Ctrl+S', 'Save'], ['Drag from ruler', 'Create a guide'], ['?', 'This cheat-sheet']]],
+];
+
+function ShortcutSheet({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[10006] bg-black/50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-base-100 border border-base-300 rounded-lg shadow-2xl p-5 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold">Keyboard shortcuts</h2>
+          <button className="btn btn-ghost btn-xs" onClick={onClose}>×</button>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+          {SHORTCUTS.map(([group, rows]) => (
+            <div key={group}>
+              <h3 className="text-[10px] uppercase tracking-wider text-base-content/40 font-medium mb-1.5">{group}</h3>
+              {rows.map(([keys, what]) => (
+                <div key={keys} className="flex items-center justify-between py-0.5">
+                  <span className="text-[11px] text-base-content/60">{what}</span>
+                  <kbd className="text-[10px] font-mono bg-base-300/40 rounded px-1.5 py-0.5 text-base-content/70">{keys}</kbd>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-base-content/30 mt-4">In the reader: ← → turn pages, F fullscreen. Press ? anytime to reopen this sheet.</p>
       </div>
     </div>
   );

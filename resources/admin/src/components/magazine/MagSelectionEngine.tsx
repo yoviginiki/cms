@@ -342,6 +342,7 @@ export function useMagSelection(
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); store.paste(); return; }
 
       // Tool shortcuts
+      if (e.key === '?') { window.dispatchEvent(new CustomEvent('mag:shortcuts')); return; }
       if (e.key === 'v') setTool('select');
       if (e.key === 't') setTool('text');
       if (e.key === 'i') setTool('image');

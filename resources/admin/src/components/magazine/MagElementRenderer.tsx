@@ -753,6 +753,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     <div
       style={containerStyle}
       className={`magazine-element ${!previewMode && isSelected ? 'ring-2 ring-blue-500' : ''} ${!previewMode && isHovered && !isSelected ? 'ring-1 ring-blue-300/50' : ''}`}
+      data-mag-el={el.id}
       onPointerDown={e => onPointerDown(e, el.id)}
       onDoubleClick={e => onDoubleClick(e, el.id)}
     >

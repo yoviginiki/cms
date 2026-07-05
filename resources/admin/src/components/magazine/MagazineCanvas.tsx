@@ -135,6 +135,25 @@ export function MagazineCanvas({
     onMoveToPage,
   );
 
+  // right-click context menu (W3): element ops at the cursor
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId: string | null } | null>(null);
+  const storeApi = useMagazineStore;
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (previewMode) return;
+    e.preventDefault();
+    const hit = (e.target as HTMLElement).closest('[data-mag-el]');
+    const id = hit?.getAttribute('data-mag-el') || null;
+    if (id && !selection.selectedIds.includes(id)) selection.setSelectedIds?.([id]);
+    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: id });
+  }, [previewMode, selection]);
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', close);
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', close); };
+  }, [ctxMenu]);
+
   // Top toolbar (MagazineToolbar) writes store.activeTool; mirror it into the
   // selection engine so BOTH toolbars drive one tool state (audit W0-3)
   useEffect(() => {
@@ -582,6 +601,7 @@ export function MagazineCanvas({
         onPointerMove={handleCanvasPointerMove}
         onPointerUp={handleCanvasPointerUp}
         onWheel={handleWheel}
+        onContextMenu={handleContextMenu}
       >
         {/* Rulers (W2-1) — drag OUT of a ruler to create a guide */}
         {!previewMode && (
@@ -610,6 +630,32 @@ export function MagazineCanvas({
             </div>
           </>
         )}
+        {ctxMenu && (() => {
+          const st = storeApi.getState();
+          const selIds = selection.selectedIds.length ? selection.selectedIds : (ctxMenu.elementId ? [ctxMenu.elementId] : []);
+          const one = selIds.length === 1 ? st.pages.flatMap(pp => pp.elements).find(el2 => el2.id === selIds[0]) : null;
+          const isGroup = one && (one.type === 'group' || one.type === 'clipping_group');
+          const item = 'w-full text-left px-3 py-1 text-[11px] hover:bg-base-300/30 disabled:opacity-30 disabled:hover:bg-transparent';
+          const run = (fn: () => void) => { fn(); setCtxMenu(null); };
+          return (
+            <div className="fixed z-[10005] bg-base-100 border border-base-300 shadow-xl rounded py-1 w-44"
+              style={{ left: Math.min(ctxMenu.x, window.innerWidth - 190), top: Math.min(ctxMenu.y, window.innerHeight - 300) }}
+              onPointerDown={(e) => e.stopPropagation()}>
+              <button className={item} disabled={!selIds.length} onClick={() => run(() => st.copy())}>Copy <span className="float-right text-base-content/30">Ctrl+C</span></button>
+              <button className={item} disabled={!selIds.length} onClick={() => run(() => st.cut())}>Cut <span className="float-right text-base-content/30">Ctrl+X</span></button>
+              <button className={item} onClick={() => run(() => st.paste())}>Paste <span className="float-right text-base-content/30">Ctrl+V</span></button>
+              <button className={item} disabled={!selIds.length} onClick={() => run(() => st.duplicateElements(selIds))}>Duplicate <span className="float-right text-base-content/30">Ctrl+D</span></button>
+              <div className="border-t border-base-300/30 my-1" />
+              <button className={item} disabled={selIds.length < 2} onClick={() => run(() => st.groupElements(selIds))}>Group <span className="float-right text-base-content/30">Ctrl+G</span></button>
+              <button className={item} disabled={!isGroup} onClick={() => run(() => st.ungroupElements(selIds[0]))}>Ungroup <span className="float-right text-base-content/30">⇧Ctrl+G</span></button>
+              <button className={item} disabled={selIds.length !== 1} onClick={() => run(() => st.bringForward(selIds[0]))}>Bring forward</button>
+              <button className={item} disabled={selIds.length !== 1} onClick={() => run(() => st.sendBackward(selIds[0]))}>Send backward</button>
+              <div className="border-t border-base-300/30 my-1" />
+              <button className={item} disabled={!one} onClick={() => run(() => st.updateElement(selIds[0], { locked: !one!.locked } as any))}>{one?.locked ? 'Unlock' : 'Lock'}</button>
+              <button className={`${item} text-error`} disabled={!selIds.length} onClick={() => run(() => st.deleteElements(selIds))}>Delete <span className="float-right text-base-content/30">Del</span></button>
+            </div>
+          );
+        })()}
         {/* Transformed layer */}
         <div
           style={{
