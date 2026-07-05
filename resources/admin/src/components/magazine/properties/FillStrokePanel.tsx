@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MagElementStyle } from '@/types/magazine';
+import { SwatchPicker } from '../SwatchPicker';
 
 interface FillStrokePanelProps {
   style: MagElementStyle;
@@ -28,21 +29,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       {/* Fill section */}
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Fill</h3>
 
-      <div className="flex gap-1 items-center">
-        <input name="mag-fillstrokepanel-1"
-          type="color"
-          value={style.fill?.color ?? '#ffffff'}
-          onChange={(e) => onChange({ fill: { ...style.fill, color: e.target.value } })}
-          className="w-8 h-6 cursor-pointer rounded border border-base-300"
-        />
-        <input name="mag-fillstrokepanel-2"
-          type="text"
-          value={style.fill?.color ?? ''}
-          onChange={(e) => onChange({ fill: { ...style.fill, color: e.target.value || null } })}
-          className="input input-bordered input-xs flex-1"
-          placeholder="Color"
-        />
-      </div>
+      <SwatchPicker name="mag-fill" value={style.fill?.color ?? '#ffffff'}
+        onChange={(c) => onChange({ fill: { ...style.fill, color: c || null } })} />
 
       <div>
         <label htmlFor="fillstrokepanel-opacity-1" className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
@@ -141,20 +129,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       {/* Stroke section */}
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Stroke</h3>
 
-      <div className="flex gap-1 items-center">
-        <input name="mag-fillstrokepanel-6"
-          type="color"
-          value={style.stroke?.color === 'transparent' ? '#000000' : style.stroke?.color}
-          onChange={(e) => onChange({ stroke: { ...style.stroke, color: e.target.value } })}
-          className="w-8 h-6 cursor-pointer rounded border border-base-300"
-        />
-        <input name="mag-fillstrokepanel-7"
-          type="text"
-          value={style.stroke?.color}
-          onChange={(e) => onChange({ stroke: { ...style.stroke, color: e.target.value } })}
-          className="input input-bordered input-xs flex-1"
-        />
-      </div>
+      <SwatchPicker name="mag-stroke" value={style.stroke?.color === 'transparent' ? '#000000' : (style.stroke?.color ?? '#000000')}
+        onChange={(c) => onChange({ stroke: { ...style.stroke, color: c } })} />
 
       <div className="grid grid-cols-2 gap-2">
         <div>

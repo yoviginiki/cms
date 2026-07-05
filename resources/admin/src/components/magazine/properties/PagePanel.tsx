@@ -1,5 +1,6 @@
 
 import type { MagPageData } from '@/types/magazine';
+import { SwatchPicker } from '../SwatchPicker';
 
 interface PagePanelProps {
   page: MagPageData;
@@ -180,20 +181,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       {/* Background color */}
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Background color</label>
-        <div className="flex gap-1">
-          <input name="mag-pagepanel-4"
-            type="color"
-            value={page.backgroundColor ?? '#ffffff'}
-            onChange={(e) => onChange({ backgroundColor: e.target.value })}
-            className="w-8 h-6 cursor-pointer rounded border border-base-300"
-          />
-          <input name="mag-pagepanel-5"
-            type="text"
-            value={page.backgroundColor ?? ''}
-            onChange={(e) => onChange({ backgroundColor: e.target.value || null })}
-            className="input input-bordered input-xs flex-1"
-          />
-        </div>
+        <SwatchPicker name="pp-bg" value={page.backgroundColor || '#ffffff'}
+          onChange={(c) => onChange({ backgroundColor: c })} />
       </div>
 
       {/* Master page */}

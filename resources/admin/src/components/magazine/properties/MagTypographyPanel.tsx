@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MagTypography } from '@/types/magazine';
+import { SwatchPicker } from '../SwatchPicker';
 
 interface MagTypographyPanelProps {
   value: MagTypography;
@@ -178,20 +179,8 @@ export default function MagTypographyPanel({ value, onChange }: MagTypographyPan
       {/* Text color */}
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Text color</label>
-        <div className="flex gap-1">
-          <input name="mag-magtypographypanel-2"
-            type="color"
-            value={value.textColor}
-            onChange={(e) => onChange({ textColor: e.target.value })}
-            className="w-8 h-6 cursor-pointer rounded border border-base-300"
-          />
-          <input name="mag-magtypographypanel-3"
-            type="text"
-            value={value.textColor}
-            onChange={(e) => onChange({ textColor: e.target.value })}
-            className="input input-bordered input-xs flex-1"
-          />
-        </div>
+        <SwatchPicker name="mag-textcolor" value={value.textColor}
+          onChange={(c) => onChange({ textColor: c })} />
       </div>
 
       {/* Text indent */}

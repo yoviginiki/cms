@@ -42,6 +42,9 @@ import { DEFAULT_ELEMENT_STYLE, DEFAULT_TEXT_WRAP, DEFAULT_TYPOGRAPHY } from '@/
 import { dtpApiToPages, pagesToDtpApi, normalizeMasterPages } from '@/lib/dtpAdapters';
 import { runPreflight } from '@/lib/magazinePreflight';
 import { findMatches, replaceInHtml } from '@/lib/magazineFindReplace';
+import { MagSwatchContext } from '@/components/magazine/SwatchPicker';
+import { extractColorSwatches, DEFAULT_SWATCHES } from '@/lib/themeSwatches';
+import { themeEngine } from '@/lib/api';
 
 // ─── Helper: create a frame for master pages ───
 function makeFrame(type: string, name: string, x: number, y: number, w: number, h: number, data: Record<string, unknown>, pageNumber = 1): MagElement {
@@ -230,6 +233,18 @@ export default function DtpEditorBeta() {
   }, []);
   const [lastAutosave, setLastAutosave] = useState<string | null>(null);
   const [findOpen, setFindOpen] = useState(false);
+  // theme-token swatches (W3): the site's real palette for every color field
+  const { data: themesData } = useQuery({
+    queryKey: ['theme-swatches', siteId],
+    queryFn: () => themeEngine.list(siteId!).then((r: any) => r.data),
+    staleTime: 300000,
+  });
+  const swatches = useMemo(() => {
+    const themes: any[] = themesData?.data || themesData || [];
+    const active = themes.find?.((t: any) => t.is_active) || themes[0];
+    const sw = extractColorSwatches(active?.config);
+    return sw.length ? sw : DEFAULT_SWATCHES;
+  }, [themesData]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !e.shiftKey) {
@@ -459,6 +474,7 @@ export default function DtpEditorBeta() {
   const adminTheme = localStorage.getItem('admin-theme') || 'cms-admin';
 
   return (
+    <MagSwatchContext.Provider value={swatches}>
     <div className="flex flex-col h-screen bg-base-200" data-theme={adminTheme}>
       {/* ─── Toolbar ─── */}
       <MagazineToolbar
@@ -1293,6 +1309,7 @@ export default function DtpEditorBeta() {
         currentUrl=""
       />
     </div>
+    </MagSwatchContext.Provider>
   );
 }
 
