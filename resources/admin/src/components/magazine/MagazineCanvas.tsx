@@ -365,7 +365,7 @@ export function MagazineCanvas({
         y: panStartRef.current.panY + (e.clientY - panStartRef.current.y),
       });
     }
-  }, [isPanning]);
+  }, [isPanning, guideDrag, zoom, selection]);
 
   const handleCanvasPointerUp = useCallback(() => {
     if (guideDrag) {
