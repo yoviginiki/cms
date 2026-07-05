@@ -193,6 +193,21 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringNotContainsString('<table', $plain['html']);
     }
 
+    public function test_page_number_formats_publish(): void
+    {
+        $out = $this->renderFrame([
+            'frame_type' => 'pageNumber',
+            'content' => ['format' => 'roman-lower', 'prefix' => 'p. ', 'suffix' => ' —', 'startAt' => 3],
+        ], ['page_index' => 1]); // page_index 1 + startAt 3 => 4 => "iv"
+        $this->assertStringContainsString('p. iv —', $out['html']);
+
+        $out2 = $this->renderFrame([
+            'frame_type' => 'pageNumber',
+            'content' => ['format' => 'alpha-upper'],
+        ], ['page_index' => 27]); // 28 => AB
+        $this->assertStringContainsString('AB', $out2['html']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

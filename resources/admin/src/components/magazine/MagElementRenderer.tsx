@@ -4,6 +4,7 @@ import type { MagElement } from '@/types/magazine';
 import { ImageIcon, Film, Lock } from 'lucide-react';
 import { buildTextFrameStyle } from '@/engine/flow/textStyle';
 import { normalizeClipboardHtml, plainTextToHtml } from '@/lib/clipboardNormalizer';
+import { formatPageNumber } from '@/lib/magazineFormat';
 
 const SAFE_HTML_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'span', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'sub', 'sup', 'hr', 'div', 'img', 'figure', 'figcaption'], ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'], ALLOW_DATA_ATTR: false };
 
@@ -30,9 +31,11 @@ interface Props {
   oversetThreads?: Record<string, boolean>;
   /** click a thread port badge to jump to the linked frame (W1-5) */
   onNavigateThread?: (pageNumber: number, frameId: string) => void;
+  /** preview mode (W2-8): suppress ALL editor chrome */
+  previewMode?: boolean;
 }
 
-export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages, oversetThreads, onNavigateThread }: Props) {
+export function MagElementRenderer({ element: el, isSelected, isHovered, isEditing, threadedContent, onPointerDown, onDoubleClick, onContentChange, onContinueText, onStartEditing: _onStartEditing, onStopEditing: _onStopEditing, onToggleFixed: _onToggleFixed, onToggleSpan: _onToggleSpan, allPages, oversetThreads, onNavigateThread, previewMode }: Props) {
   const editRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -650,7 +653,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
     }
 
     if (el.type === 'page_number') {
-      return <div className="w-full h-full flex items-center justify-center"><span style={{ fontFamily: el.typography?.fontFamily || 'Inter', fontSize: el.typography?.fontSize || 10, color: el.typography?.textColor || '#888' }}>{data.prefix || ''}{data.startAt || 1}{data.suffix || ''}</span></div>;
+      return <div className="w-full h-full flex items-center justify-center"><span style={{ fontFamily: el.typography?.fontFamily || 'Inter', fontSize: el.typography?.fontSize || 10, color: el.typography?.textColor || '#888' }}>{data.prefix || ''}{formatPageNumber(Number(data.startAt) || 1, (data.format as any) || 'decimal')}{data.suffix || ''}</span></div>;
     }
 
     if (el.type === 'running_header') {
@@ -728,17 +731,17 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
   return (
     <div
       style={containerStyle}
-      className={`magazine-element ${isSelected ? 'ring-2 ring-blue-500' : ''} ${isHovered && !isSelected ? 'ring-1 ring-blue-300/50' : ''}`}
+      className={`magazine-element ${!previewMode && isSelected ? 'ring-2 ring-blue-500' : ''} ${!previewMode && isHovered && !isSelected ? 'ring-1 ring-blue-300/50' : ''}`}
       onPointerDown={e => onPointerDown(e, el.id)}
       onDoubleClick={e => onDoubleClick(e, el.id)}
     >
       {renderContent()}
 
       {/* Lock indicator */}
-      {el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
+      {!previewMode && el.locked && <div className="absolute top-1 right-1 bg-warning/80 rounded p-0.5"><Lock size={8} className="text-warning-content" /></div>}
 
       {/* Pour text to next page button — always visible on text frames when selected */}
-      {TEXT_FRAME_TYPES.includes(el.type) && isSelected && !isEditing && (
+      {!previewMode && TEXT_FRAME_TYPES.includes(el.type) && isSelected && !isEditing && (
         <button
           className="absolute bottom-0 left-0 right-0 h-7 bg-primary hover:bg-primary/80 text-primary-content flex items-center justify-center gap-1 text-[9px] font-bold cursor-pointer z-[9998]"
           title="Pour text to next page — creates a continuation frame"
@@ -749,7 +752,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {/* Overset indicator — CHAIN-AWARE (checklist M-D): threaded frames badge
           only on the LAST frame of an overset chain (engine flow state);
           unthreaded frames keep the local scrollHeight detection */}
-      {TEXT_FRAME_TYPES.includes(el.type) && !isEditing && !isSelected && (() => {
+      {!previewMode && TEXT_FRAME_TYPES.includes(el.type) && !isEditing && !isSelected && (() => {
         if (el.threadId) {
           if (!oversetThreads?.[el.threadId]) return null;
           const allEls = allPages?.flatMap(p => p.elements) || [];
@@ -767,7 +770,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       })()}
 
       {/* Thread / linked frame indicators */}
-      {el.threadId && (() => {
+      {!previewMode && el.threadId && (() => {
         const allEls = allPages?.flatMap(p => p.elements) || [];
         const threadFrames = allEls.filter(e => e.threadId === el.threadId).sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
         const myIndex = threadFrames.findIndex(f => f.id === el.id);
@@ -806,14 +809,14 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
            (overflow:hidden clips anything above the frame boundary) */}
 
       {/* Fixed badge */}
-      {el.positionMode === 'fixed' && (
+      {!previewMode && el.positionMode === 'fixed' && (
         <div className="absolute top-1 left-1 bg-amber-500/80 text-white text-[7px] px-1.5 py-0.5 rounded font-bold pointer-events-none z-[9998]">
           FIXED
         </div>
       )}
 
       {/* Spread badge */}
-      {el.spanMode === 'spread' && (
+      {!previewMode && el.spanMode === 'spread' && (
         <div className="absolute top-1 right-8 bg-purple-500/80 text-white text-[7px] px-1.5 py-0.5 rounded font-bold pointer-events-none z-[9998]">
           SPREAD
         </div>
@@ -822,7 +825,7 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
       {/* Fix/Unfix and Spread/Single controls moved to right panel (DtpEditorBeta properties tab) */}
 
       {/* Resize handles when selected */}
-      {isSelected && !el.locked && (
+      {!previewMode && isSelected && !el.locked && (
         <>
           {['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(h => {
             const isCorner = h.length === 2;

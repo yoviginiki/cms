@@ -61,6 +61,8 @@ interface MagazineState {
   showGuides: boolean;
   showBaseline: boolean;
   snapEnabled: boolean;
+  /** preview mode (W2-8): hide ALL editor chrome — see it as a reader */
+  previewMode: boolean;
   isDirty: boolean;
   isSaving: boolean;
   styles: MagStyleDefinition[];
@@ -102,6 +104,8 @@ interface MagazineActions {
   // Layer order
   bringToFront: (ids: string[]) => void;
   sendToBack: (ids: string[]) => void;
+  bringForward: (id: string) => void;
+  sendBackward: (id: string) => void;
 
   // Clipboard
   copy: () => void;
@@ -121,6 +125,7 @@ interface MagazineActions {
   toggleGuides: () => void;
   toggleBaseline: () => void;
   toggleSnap: () => void;
+  togglePreview: () => void;
   setViewMode: (mode: ViewMode) => void;
   setGridColumns: (cols: number) => void;
 
@@ -352,6 +357,7 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
   showGuides: true,
   showBaseline: false,
   snapEnabled: true,
+  previewMode: false,
   isDirty: false,
   isSaving: false,
   styles: [],
@@ -915,6 +921,42 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
     }));
   },
 
+  bringForward(id) {
+    get().pushSnapshot();
+    set((state) => ({
+      pages: updateCurrentPageElements(state.pages, state.currentPageNumber, (els) => {
+        const sorted = [...els].sort((a, b) => a.zIndex - b.zIndex);
+        const i = sorted.findIndex((e) => e.id === id);
+        if (i < 0 || i === sorted.length - 1) return els;
+        const a = sorted[i].zIndex;
+        const b = sorted[i + 1].zIndex;
+        return els.map((e) =>
+          e.id === sorted[i].id ? { ...e, zIndex: b === a ? a + 1 : b }
+          : e.id === sorted[i + 1].id ? { ...e, zIndex: a }
+          : e);
+      }),
+      isDirty: true,
+    }));
+  },
+
+  sendBackward(id) {
+    get().pushSnapshot();
+    set((state) => ({
+      pages: updateCurrentPageElements(state.pages, state.currentPageNumber, (els) => {
+        const sorted = [...els].sort((a, b) => a.zIndex - b.zIndex);
+        const i = sorted.findIndex((e) => e.id === id);
+        if (i <= 0) return els;
+        const a = sorted[i].zIndex;
+        const b = sorted[i - 1].zIndex;
+        return els.map((e) =>
+          e.id === sorted[i].id ? { ...e, zIndex: b === a ? a - 1 : b }
+          : e.id === sorted[i - 1].id ? { ...e, zIndex: a }
+          : e);
+      }),
+      isDirty: true,
+    }));
+  },
+
   sendToBack(ids) {
     if (ids.length === 0) return;
     get().pushSnapshot();
@@ -1071,6 +1113,10 @@ export const useMagazineStore = create<MagazineState & MagazineActions>((set, ge
 
   toggleSnap() {
     set((s) => ({ snapEnabled: !s.snapEnabled }));
+  },
+
+  togglePreview() {
+    set((s) => ({ previewMode: !s.previewMode, selectedIds: [], editingElementId: null }));
   },
 
   setViewMode(mode) {

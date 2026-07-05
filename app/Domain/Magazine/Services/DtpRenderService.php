@@ -261,7 +261,7 @@ class DtpRenderService
             'text' => $this->renderTextFrame($content),
             'image' => $this->renderImageFrame($content),
             'quote' => $this->renderQuoteFrame($content),
-            'pageNumber' => $this->renderPageNumberFrame($page),
+            'pageNumber' => $this->renderPageNumberFrame($page, $content),
             'shape' => $this->renderShapeFrame($content),
             'line' => '<hr style="border:none;border-top:1px solid #333;margin:0;">',
             'decorative' => '<div style="width:100%;height:100%;"></div>',
@@ -397,10 +397,48 @@ class DtpRenderService
         return $out;
     }
 
-    private function renderPageNumberFrame(MagazineDtpPage $page): string
+    private function renderPageNumberFrame(MagazineDtpPage $page, array $content = []): string
     {
-        $num = $page->page_index + 1;
-        return '<span style="font-size:11px;font-family:monospace;color:#999;">' . $num . '</span>';
+        // W2-11: real formats (the audit found NO roman converter in the repo
+        // and published page numbers ignored format/prefix/suffix entirely)
+        $startAt = max(1, (int) ($content['startAt'] ?? 1));
+        $n = $page->page_index + $startAt;
+        $formatted = match ($content['format'] ?? 'decimal') {
+            'roman-lower' => strtolower($this->toRoman($n)),
+            'roman-upper' => $this->toRoman($n),
+            'alpha-lower' => strtolower($this->toAlpha($n)),
+            'alpha-upper' => $this->toAlpha($n),
+            default => (string) $n,
+        };
+        $prefix = e((string) ($content['prefix'] ?? ''));
+        $suffix = e((string) ($content['suffix'] ?? ''));
+
+        return '<span style="font-size:11px;color:#666;">' . $prefix . $formatted . $suffix . '</span>';
+    }
+
+    private function toRoman(int $n): string
+    {
+        $table = [1000 => 'M', 900 => 'CM', 500 => 'D', 400 => 'CD', 100 => 'C', 90 => 'XC',
+            50 => 'L', 40 => 'XL', 10 => 'X', 9 => 'IX', 5 => 'V', 4 => 'IV', 1 => 'I'];
+        $out = '';
+        foreach ($table as $val => $sym) {
+            while ($n >= $val) {
+                $out .= $sym;
+                $n -= $val;
+            }
+        }
+        return $out;
+    }
+
+    private function toAlpha(int $n): string
+    {
+        $out = '';
+        while ($n > 0) {
+            $n--;
+            $out = chr(65 + ($n % 26)) . $out;
+            $n = intdiv($n, 26);
+        }
+        return $out;
     }
 
     /** real <table> output (tables track) — mirrors the editor's render */

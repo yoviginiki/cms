@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { evalNumericEntry } from '@/lib/magazineFormat';
 
 interface TransformPanelProps {
   x: number;
@@ -14,6 +15,37 @@ const REFERENCE_POINTS = [
   'center-left', 'center', 'center-right',
   'bottom-left', 'bottom-center', 'bottom-right',
 ] as const;
+
+/**
+ * numeric field with math entry (W2-7): accepts "+10", "*2", "/4" relative to
+ * the current value; plain numbers replace it. Commits on blur/Enter.
+ */
+function MathInput({ label, value, onCommit }: { label: string; value: number; onCommit: (v: number) => void }) {
+  const [text, setText] = useState(String(Math.round(value * 100) / 100));
+  useEffect(() => {
+    setText(String(Math.round(value * 100) / 100));
+  }, [value]);
+  const commit = () => {
+    const next = evalNumericEntry(text, value);
+    if (next !== null && next !== value) onCommit(Math.round(next * 100) / 100);
+    else setText(String(Math.round(value * 100) / 100));
+  };
+  return (
+    <div>
+      <label className="text-[10px] text-base-content/40 mb-0.5 block">{label}</label>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); (e.target as HTMLInputElement).blur(); } }}
+        title='Math entry: "+10", "*2", "/4" apply to the current value'
+        className="input input-bordered input-xs w-full"
+      />
+    </div>
+  );
+}
 
 export default function TransformPanel({ x, y, width, height, rotation, onChange }: TransformPanelProps) {
   const [lockProportions, setLockProportions] = useState(false);
@@ -41,47 +73,13 @@ export default function TransformPanel({ x, y, width, height, rotation, onChange
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Transform</h3>
 
       <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">X</label>
-          <input
-            type="number"
-            step={1}
-            value={x}
-            onChange={(e) => onChange({ x: Number(e.target.value) })}
-            className="input input-bordered input-xs w-full"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Y</label>
-          <input
-            type="number"
-            step={1}
-            value={y}
-            onChange={(e) => onChange({ y: Number(e.target.value) })}
-            className="input input-bordered input-xs w-full"
-          />
-        </div>
+        <MathInput label="X" value={x} onCommit={(v) => onChange({ x: v })} />
+        <MathInput label="Y" value={y} onCommit={(v) => onChange({ y: v })} />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Width</label>
-          <input
-            type="number"
-            value={width}
-            onChange={(e) => handleWidth(Number(e.target.value))}
-            className="input input-bordered input-xs w-full"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Height</label>
-          <input
-            type="number"
-            value={height}
-            onChange={(e) => handleHeight(Number(e.target.value))}
-            className="input input-bordered input-xs w-full"
-          />
-        </div>
+        <MathInput label="Width" value={width} onCommit={(v) => handleWidth(Math.max(1, v))} />
+        <MathInput label="Height" value={height} onCommit={(v) => handleHeight(Math.max(1, v))} />
       </div>
 
       <label className="flex items-center gap-1.5 cursor-pointer">
@@ -94,17 +92,7 @@ export default function TransformPanel({ x, y, width, height, rotation, onChange
         <span className="text-[10px] text-base-content/40">Lock proportions</span>
       </label>
 
-      <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Rotation</label>
-        <input
-          type="number"
-          min={0}
-          max={360}
-          value={rotation}
-          onChange={(e) => onChange({ rotation: Number(e.target.value) })}
-          className="input input-bordered input-xs w-full"
-        />
-      </div>
+      <MathInput label="Rotation" value={rotation} onCommit={(v) => onChange({ rotation: ((v % 360) + 360) % 360 })} />
 
       <div>
         <label className="text-[10px] text-base-content/40 mb-0.5 block">Reference point</label>

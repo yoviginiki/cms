@@ -863,8 +863,9 @@ export default function DtpEditorBeta() {
                   if (el) store.updateElement(id, { locked: !el.locked });
                 }}
                 onReorderZ={(id: string, direction: 'up' | 'down') => {
-                  if (direction === 'up') store.bringToFront([id]);
-                  else store.sendToBack([id]);
+                  // ONE-step arrange (W2-5) — buttons previously jumped to front/back
+                  if (direction === 'up') store.bringForward(id);
+                  else store.sendBackward(id);
                 }}
               />
             )}

@@ -278,6 +278,7 @@ export function useMagSelection(
       if (e.key === 'r') setTool('rectangle');
       if (e.key === 'e') setTool('ellipse');
       if (e.key === 'l' && !e.ctrlKey) setTool('line');
+      if (e.key === 'w' && !e.ctrlKey && !e.metaKey) { useMagazineStore.getState().togglePreview(); }
 
       // Nudge
       if (state.selectedIds.length && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {

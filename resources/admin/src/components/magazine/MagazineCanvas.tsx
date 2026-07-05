@@ -7,7 +7,7 @@ import { useMagazineStore } from '@/stores/magazineStore';
 // Threading engine disabled — Pour splits content at save time
 import {
   MousePointer2, Type, ImageIcon, Square, Circle, Minus,
-  ZoomIn, ZoomOut, Grid3X3, Magnet, Columns3, AlignVerticalSpaceAround,
+  ZoomIn, ZoomOut, Grid3X3, Magnet, Columns3, AlignVerticalSpaceAround, Eye,
 } from 'lucide-react';
 
 type ViewMode = 'single' | 'spread' | 'grid';
@@ -99,6 +99,8 @@ export function MagazineCanvas({
   const toggleColumns = useMagazineStore((st) => st.toggleGrid);
   const toggleBaseline = useMagazineStore((st) => st.toggleBaseline);
   const storeActiveTool = useMagazineStore((st) => st.activeTool);
+  const previewMode = useMagazineStore((st) => st.previewMode);
+  const togglePreview = useMagazineStore((st) => st.togglePreview);
 
   const { width: pageW, height: pageH } = page.pageSize || { width: 595, height: 842 };
   const margins = page.margins || { top: 36, right: 36, bottom: 36, left: 36 };
@@ -435,6 +437,13 @@ export function MagazineCanvas({
         >
           <Magnet size={14} />
         </button>
+        <button
+          className={`btn btn-xs ${previewMode ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={togglePreview}
+          title="Preview mode — hide all editor chrome (W)"
+        >
+          <Eye size={14} />
+        </button>
 
         <div className="w-px h-5 bg-base-300 mx-1" />
 
@@ -616,7 +625,7 @@ export function MagazineCanvas({
                           </div>
                         ))}
             {/* Margin guides — hide inner edges in book spread */}
-            {showMargins && (
+            {showMargins && !previewMode && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
                 <div style={{ position: 'absolute', top: pgMargins.top, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
                 <div style={{ position: 'absolute', bottom: pgMargins.bottom, left: 0, right: 0, height: 0, borderTop: '1px dashed rgba(255,0,128,0.35)' }} />
@@ -627,7 +636,7 @@ export function MagazineCanvas({
             )}
 
             {/* Column guides overlay (audit W0-3: was computed, never rendered) */}
-            {showColumns && columnGuides.length > 0 && (
+            {showColumns && !previewMode && columnGuides.length > 0 && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
                 {columnGuides.map((x, i) => (
                   <div key={`cg-${i}`} style={{ position: 'absolute', left: x, top: pgMargins.top, bottom: pgMargins.bottom, width: 0, borderLeft: '1px solid rgba(59,130,246,0.30)' }} />
@@ -636,7 +645,7 @@ export function MagazineCanvas({
             )}
 
             {/* Baseline grid overlay (audit W0-3: was computed, never rendered) */}
-            {showBaseline && baselineLines.length > 0 && (
+            {showBaseline && !previewMode && baselineLines.length > 0 && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9000 }}>
                 {baselineLines.map((y, i) => (
                   <div key={`bl-${i}`} style={{ position: 'absolute', top: y, left: pgMargins.left, right: pgMargins.right, height: 0, borderTop: '1px solid rgba(56,189,248,0.22)' }} />
@@ -664,8 +673,8 @@ export function MagazineCanvas({
                       onPointerDown={() => {}}
                       onDoubleClick={() => {}}
                     />
-                    <div className="absolute top-0 left-0 bg-warning/20 text-warning text-[6px] px-1 rounded-br font-bold pointer-events-none">MASTER</div>
-                    <div className="absolute inset-0 border border-dashed border-warning/30 rounded pointer-events-none" />
+                    {!previewMode && <div className="absolute top-0 left-0 bg-warning/20 text-warning text-[6px] px-1 rounded-br font-bold pointer-events-none">MASTER</div>}
+                    {!previewMode && <div className="absolute inset-0 border border-dashed border-warning/30 rounded pointer-events-none" />}
                   </div>
                 );
               });
@@ -697,6 +706,7 @@ export function MagazineCanvas({
                 allPages={allPages}
                 oversetThreads={oversetThreads}
                 onNavigateThread={onNavigateThread}
+                previewMode={previewMode}
               />
             ))}
 

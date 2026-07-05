@@ -105,6 +105,12 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     data.stripes = content.tableStripes !== false;
     data.borderColor = content.tableBorderColor || '#e5e7eb';
   }
+  if (magType === 'page_number') {
+    data.format = content.format || 'decimal';
+    data.prefix = content.prefix || '';
+    data.suffix = content.suffix || '';
+    data.startAt = content.startAt ?? 1;
+  }
   if (f.frame_type === 'image') {
     data.src = content.src || '';
     data.alt = content.alt || '';
@@ -262,6 +268,11 @@ export function pagesToDtpApi(
         content.tableRows = (el.data as any)?.rows || [['', '']];
         content.tableStripes = (el.data as any)?.stripes !== false;
         content.tableBorderColor = (el.data as any)?.borderColor || '#e5e7eb';
+      } else if (el.type === 'page_number') {
+        content.format = (el.data as any)?.format || 'decimal';
+        content.prefix = (el.data as any)?.prefix || '';
+        content.suffix = (el.data as any)?.suffix || '';
+        content.startAt = (el.data as any)?.startAt ?? 1;
       } else if (['text', 'quote'].includes(frameType)) {
         content.html = (el.data as any)?.content || '';
         // Preserve text frame settings
