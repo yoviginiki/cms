@@ -208,6 +208,32 @@ class DtpRenderServiceParityTest extends TestCase
         $this->assertStringContainsString('AB', $out2['html']);
     }
 
+    public function test_master_pages_composite_at_publish(): void
+    {
+        $svc = app(\App\Domain\Magazine\Services\DtpRenderService::class);
+        $page = new MagazineDtpPage();
+        $page->forceFill(['page_index' => 4, 'width' => 595, 'height' => 842]); // page 5
+        $masterDef = [
+            'id' => 'master-a',
+            'elements' => [
+                ['id' => 'e1', 'type' => 'running_header', 'x' => 36, 'y' => 12, 'width' => 300, 'height' => 20,
+                 'zIndex' => 0, 'data' => ['customText' => 'STILLOPRESS FOLIO <x>'],
+                 'typography' => ['fontSize' => 9, 'letterSpacing' => 0.2]],
+                ['id' => 'e2', 'type' => 'page_number', 'x' => 550, 'y' => 810, 'width' => 40, 'height' => 20,
+                 'zIndex' => 0, 'data' => ['format' => 'roman-lower', 'prefix' => '', 'suffix' => '', 'startAt' => 1]],
+                ['id' => 'e3', 'type' => 'unknown_widget', 'data' => []],
+                ['id' => 'e4', 'type' => 'text_frame', 'visible' => false, 'data' => ['content' => '<p>hidden</p>']],
+            ],
+        ];
+        $frames = $svc->renderMasterFrames($masterDef, $page);
+        $this->assertCount(2, $frames); // unknown + hidden skipped
+        $all = implode('', array_column($frames, 'html'));
+        $this->assertStringContainsString('STILLOPRESS FOLIO &lt;x&gt;', $all); // escaped
+        $this->assertStringContainsString('>v<', $all); // page 5 => roman-lower 'v'
+        $this->assertTrue($frames[0]['fromMaster']);
+        $this->assertStringStartsWith('master-', $frames[0]['id']);
+    }
+
     public function test_fonts_url_collects_document_families(): void
     {
         $svc = app(DtpRenderService::class);

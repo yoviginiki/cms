@@ -85,6 +85,16 @@ class DtpRenderService
         $pages = MagazineDtpPage::where('issue_id', $issue->id)->orderBy('page_index')->get();
         $frames = MagazineFrame::where('issue_id', $issue->id)->where('visible', true)->orderBy('z_index')->get();
 
+        // Masters v2 (W2-10): persisted master pages (layout_final.masterPages,
+        // editor schema) composite UNDER page frames on every assigned page —
+        // one implementation feeds preview, public viewer AND PDF export.
+        $masterPagesById = [];
+        foreach (($issue->layout_final['masterPages'] ?? []) as $mp) {
+            if (is_array($mp) && !empty($mp['id'])) {
+                $masterPagesById[$mp['id']] = $mp;
+            }
+        }
+
         $renderedSpreads = [];
 
         foreach ($spreads as $spread) {
@@ -95,6 +105,13 @@ class DtpRenderService
                 $pageFrames = $frames->where('page_id', $page->id)->sortBy('z_index');
                 $renderedFrames = [];
                 $hasSpreadImage = false;
+
+                $masterDef = $page->master_page_id ? ($masterPagesById[$page->master_page_id] ?? null) : null;
+                if ($masterDef) {
+                    foreach ($this->renderMasterFrames($masterDef, $page) as $mf) {
+                        $renderedFrames[] = $mf;
+                    }
+                }
 
                 foreach ($pageFrames as $frame) {
                     $renderedFrames[] = $this->renderFrame($frame, $page);
@@ -474,6 +491,97 @@ class DtpRenderService
         $fill = BlockStyle::safeColor($content['fillColor'] ?? '#e5e7eb') ?: '#e5e7eb';
         $radius = max(0, min(9999, (int) ($content['cornerRadius'] ?? 0)));
         return '<div style="width:100%;height:100%;background:' . $fill . ';border-radius:' . $radius . 'px;"></div>';
+    }
+
+    /**
+     * Render a persisted master page's elements (EDITOR MagElement schema)
+     * for one concrete page, by converting each to an unpersisted frame and
+     * reusing renderFrame. Page numbers resolve to the actual page.
+     * @return list<array>
+     */
+    public function renderMasterFrames(array $masterDef, MagazineDtpPage $page): array
+    {
+        $out = [];
+        foreach (($masterDef['elements'] ?? []) as $el) {
+            if (!is_array($el) || ($el['visible'] ?? true) === false) {
+                continue;
+            }
+            $frame = $this->masterElementToFrame($el);
+            if ($frame === null) {
+                continue;
+            }
+            $rendered = $this->renderFrame($frame, $page);
+            $rendered['id'] = 'master-' . ($el['id'] ?? uniqid());
+            $rendered['fromMaster'] = true;
+            $out[] = $rendered;
+        }
+
+        return $out;
+    }
+
+    /** convert an editor MagElement array to an unpersisted MagazineFrame */
+    private function masterElementToFrame(array $el): ?MagazineFrame
+    {
+        $type = (string) ($el['type'] ?? '');
+        $map = [
+            'text_frame' => 'text', 'headline_frame' => 'text', 'caption_frame' => 'text',
+            'footnote_frame' => 'text', 'marginalia_frame' => 'text', 'running_header' => 'text',
+            'pullquote_frame' => 'quote', 'page_number' => 'pageNumber',
+            'decorative_rule' => 'shape', 'rectangle' => 'shape', 'line' => 'line',
+            'image_frame' => 'image', 'fullbleed_image' => 'image',
+        ];
+        if (!isset($map[$type])) {
+            return null;
+        }
+        $data = is_array($el['data'] ?? null) ? $el['data'] : [];
+        $content = [];
+        switch ($map[$type]) {
+            case 'text':
+            case 'quote':
+                $content['html'] = $type === 'running_header'
+                    ? '<p>' . e((string) ($data['customText'] ?? '')) . '</p>'
+                    : (string) ($data['content'] ?? '');
+                if (isset($data['columnsInFrame'])) $content['columnsInFrame'] = $data['columnsInFrame'];
+                if (isset($data['columnGap'])) $content['columnGap'] = $data['columnGap'];
+                if (isset($data['textInset'])) $content['textInset'] = $data['textInset'];
+                break;
+            case 'pageNumber':
+                $content = [
+                    'format' => $data['format'] ?? 'decimal',
+                    'prefix' => $data['prefix'] ?? '',
+                    'suffix' => $data['suffix'] ?? '',
+                    'startAt' => $data['startAt'] ?? 1,
+                ];
+                break;
+            case 'shape':
+                $content['fillColor'] = $data['strokeColor'] ?? $data['fillColor'] ?? '#e5e7eb';
+                break;
+            case 'image':
+                $content['src'] = $data['src'] ?? '';
+                $content['alt'] = $data['alt'] ?? '';
+                $content['fitMode'] = $data['fit'] ?? 'fill';
+                $content['focalPoint'] = $data['focalPoint'] ?? ['x' => 0.5, 'y' => 0.5];
+                break;
+        }
+
+        $frame = new MagazineFrame();
+        $frame->forceFill([
+            'x' => $el['x'] ?? 0, 'y' => $el['y'] ?? 0,
+            'width' => $el['width'] ?? 100, 'height' => $el['height'] ?? 20,
+            'rotation' => $el['rotation'] ?? 0,
+            'z_index' => $el['zIndex'] ?? 0,
+            'visible' => true, 'locked' => false,
+            'name' => $el['name'] ?? $type,
+            'frame_type' => $map[$type],
+            'content' => $content,
+            'metadata' => [
+                '_typography' => $el['typography'] ?? null,
+                '_magType' => $type,
+                'spanMode' => 'page',
+            ],
+        ]);
+
+        return $frame;
     }
 
     private function buildFrameStyle(MagazineFrame $frame): string
