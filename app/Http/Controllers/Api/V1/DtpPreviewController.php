@@ -96,11 +96,12 @@ class DtpPreviewController extends Controller
         if ($issue->site_id !== $site->id) {
             abort(404);
         }
-        $result = GenerateDtpPdfJob::resultPath($issue->id);
-        $error = GenerateDtpPdfJob::errorPath($issue->id);
+        $withMarks = (bool) request()->query('marks');
+        $result = GenerateDtpPdfJob::resultPath($issue->id, $withMarks);
+        $error = GenerateDtpPdfJob::errorPath($issue->id, $withMarks);
         @unlink($result);
         @unlink($error);
-        GenerateDtpPdfJob::dispatch($issue->id, $issue->tenant_id);
+        GenerateDtpPdfJob::dispatch($issue->id, $issue->tenant_id, $withMarks);
 
         // short-poll: redis worker normally picks this up within a second
         $deadline = microtime(true) + 60;

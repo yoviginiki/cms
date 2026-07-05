@@ -26,19 +26,20 @@ class GenerateDtpPdfJob implements ShouldQueue
     public function __construct(
         public string $issueId,
         public string $tenantId,
+        public bool $withMarks = false,
     ) {
     }
 
-    public static function resultPath(string $issueId): string
+    public static function resultPath(string $issueId, bool $withMarks = false): string
     {
-        $safe = preg_replace('/[^a-f0-9\-]/', '', $issueId);
+        $safe = preg_replace('/[^a-f0-9\-]/', '', $issueId) . ($withMarks ? '-marks' : '');
 
         return storage_path("app/dtp-pdf/issue-{$safe}.pdf");
     }
 
-    public static function errorPath(string $issueId): string
+    public static function errorPath(string $issueId, bool $withMarks = false): string
     {
-        return self::resultPath($issueId) . '.error';
+        return self::resultPath($issueId, $withMarks) . '.error';
     }
 
     public function handle(DtpPdfService $pdfService): void
@@ -48,13 +49,13 @@ class GenerateDtpPdfJob implements ShouldQueue
         $tenantId = preg_replace('/[^a-f0-9\-]/', '', $this->tenantId);
         DB::unprepared("SET app.current_tenant_id = '{$tenantId}'");
 
-        $result = self::resultPath($this->issueId);
-        $error = self::errorPath($this->issueId);
+        $result = self::resultPath($this->issueId, $this->withMarks);
+        $error = self::errorPath($this->issueId, $this->withMarks);
         @unlink($error);
 
         try {
             $issue = MagazineIssue::findOrFail($this->issueId);
-            $tmp = $pdfService->export($issue);
+            $tmp = $pdfService->export($issue, $this->withMarks);
             @rename($tmp, $result) || copy($tmp, $result);
             @chmod($result, 0664);
         } catch (\Throwable $e) {

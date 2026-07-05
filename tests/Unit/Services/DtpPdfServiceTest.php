@@ -34,4 +34,16 @@ class DtpPdfServiceTest extends TestCase
         $this->assertStringContainsString('fonts.googleapis.com', $html);
         $this->assertStringContainsString('page-break-after: always', $html);
     }
+
+    public function test_print_template_adds_bleed_sheet_and_crop_marks(): void
+    {
+        $pageData = ['style' => 'width:595px;height:842px;background:#fff', 'frames' => [], 'index' => 0, 'width' => 595, 'height' => 842];
+        $plain = view('dtp-print', ['issue' => ['title' => 'X'], 'pages' => [$pageData], 'pageW' => 595, 'pageH' => 842, 'fontsUrl' => null, 'withMarks' => false, 'bleedSize' => 9])->render();
+        $this->assertStringContainsString('size: 595px 842px', $plain);
+        $this->assertStringNotContainsString('class="crop', $plain);
+
+        $marks = view('dtp-print', ['issue' => ['title' => 'X'], 'pages' => [$pageData], 'pageW' => 595, 'pageH' => 842, 'fontsUrl' => null, 'withMarks' => true, 'bleedSize' => 9])->render();
+        $this->assertStringContainsString('size: 629px 876px', $marks); // 595+2*17 slop
+        $this->assertSame(8, substr_count($marks, 'class="crop'));
+    }
 }

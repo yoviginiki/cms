@@ -217,6 +217,14 @@ export default function MagazineToolbar({
           </a>
         </Tip>
       )}
+      {pdfUrl && (
+        <Tip text="Print-ready PDF with bleed + crop marks">
+          <a href={`${pdfUrl}?marks=1`} target="_blank" rel="noopener noreferrer"
+            className="btn btn-sm btn-ghost gap-1 px-1.5 text-base-content/40 hover:text-primary text-[10px]">
+            +marks
+          </a>
+        </Tip>
+      )}
       {lastAutosave && (
         <span className="text-[9px] text-base-content/30 whitespace-nowrap" title="Last autosave">auto {lastAutosave}</span>
       )}

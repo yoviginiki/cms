@@ -25,7 +25,7 @@ class DtpPdfService
     }
 
     /** returns the path of a generated PDF temp file (caller deletes) */
-    public function export(MagazineIssue $issue): string
+    public function export(MagazineIssue $issue, bool $withMarks = false): string
     {
         $data = $this->renderService->render($issue);
         if (empty($data['spreads'])) {
@@ -50,6 +50,8 @@ class DtpPdfService
             'pageW' => $pageW,
             'pageH' => $pageH,
             'fontsUrl' => $data['fontsUrl'] ?? null,
+            'withMarks' => $withMarks,
+            'bleedSize' => 9,
         ])->render();
 
         $base = storage_path('app/dtp-pdf');
