@@ -7,7 +7,7 @@
       "expect": {
         "pages": 9,
         "textFrames": 12,
-        "threads": 1,
+        "threads": 2,
         "lossless": true,
         "previewMarkers": [
           "The Substrate Remembers",
