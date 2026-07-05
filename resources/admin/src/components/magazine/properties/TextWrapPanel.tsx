@@ -13,8 +13,8 @@ export default function TextWrapPanel({ value, onChange }: TextWrapPanelProps) {
 
       {/* Type */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Type</label>
-        <select
+        <label htmlFor="textwrappanel-type-1" className="text-[10px] text-base-content/40 mb-0.5 block">Type</label>
+        <select id="textwrappanel-type-1"
           value={value.type}
           onChange={(e) => onChange({ type: e.target.value as MagTextWrap['type'] })}
           className="select select-bordered select-xs w-full"
@@ -43,8 +43,8 @@ export default function TextWrapPanel({ value, onChange }: TextWrapPanelProps) {
 
       {/* Side */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Side</label>
-        <select
+        <label htmlFor="textwrappanel-side-2" className="text-[10px] text-base-content/40 mb-0.5 block">Side</label>
+        <select id="textwrappanel-side-2"
           value={value.side}
           onChange={(e) => onChange({ side: e.target.value as MagTextWrap['side'] })}
           className="select select-bordered select-xs w-full"

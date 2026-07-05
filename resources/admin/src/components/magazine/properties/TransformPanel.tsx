@@ -32,7 +32,7 @@ function MathInput({ label, value, onCommit }: { label: string; value: number; o
   };
   return (
     <div>
-      <label className="text-[10px] text-base-content/40 mb-0.5 block">{label}</label>
+      <label htmlFor={`mag-transform-${label.toLowerCase()}`} className="text-[10px] text-base-content/40 mb-0.5 block">{label}</label>
       <input
         type="text"
         inputMode="decimal"

@@ -258,8 +258,8 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
 
               {/* Alt text */}
               <div>
-                <label className="text-[9px] text-neutral-500 mb-0.5 block">Alt text</label>
-                <input type="text" value={img.alt}
+                <label htmlFor="propertiespanel-alt-text-1" className="text-[9px] text-neutral-500 mb-0.5 block">Alt text</label>
+                <input id="propertiespanel-alt-text-1" type="text" value={img.alt}
                   onChange={e => updateImage({ alt: e.target.value })}
                   className="w-full bg-neutral-700 text-neutral-200 text-[10px] px-1.5 py-1 rounded border border-neutral-600 focus:border-blue-500 focus:outline-none"
                   placeholder="Describe the image..." />
@@ -267,8 +267,8 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
 
               {/* Caption */}
               <div>
-                <label className="text-[9px] text-neutral-500 mb-0.5 block">Caption</label>
-                <input type="text" value={img.caption}
+                <label htmlFor="propertiespanel-caption-2" className="text-[9px] text-neutral-500 mb-0.5 block">Caption</label>
+                <input id="propertiespanel-caption-2" type="text" value={img.caption}
                   onChange={e => updateImage({ caption: e.target.value })}
                   className="w-full bg-neutral-700 text-neutral-200 text-[10px] px-1.5 py-1 rounded border border-neutral-600 focus:border-blue-500 focus:outline-none"
                   placeholder="Image caption..." />

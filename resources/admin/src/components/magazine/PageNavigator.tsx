@@ -212,8 +212,9 @@ export default function PageNavigator({
       {/* Master assignment for current page */}
       {!editingMasterId && masterPages.length > 0 && (
         <div className="w-full mb-2">
-          <label className="text-[8px] text-base-content/30 block mb-0.5">Master for p.{currentPage}</label>
+          <label htmlFor="pn-master-select" className="text-[8px] text-base-content/30 block mb-0.5">Master for p.{currentPage}</label>
           <select
+            id="pn-master-select"
             value={sorted.find(p => p.pageNumber === currentPage)?.masterPageId || ''}
             onChange={e => onAssignMaster?.(currentPage, e.target.value || null)}
             className="select select-bordered select-xs w-full text-[9px]"

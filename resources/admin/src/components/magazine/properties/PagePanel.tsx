@@ -45,8 +45,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
 
       {/* Page size preset */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Page size</label>
-        <select
+        <label htmlFor="pagepanel-page-size-1" className="text-[10px] text-base-content/40 mb-0.5 block">Page size</label>
+        <select id="pagepanel-page-size-1"
           value={presetKey}
           onChange={(e) => handlePreset(e.target.value)}
           className="select select-bordered select-xs w-full"
@@ -61,8 +61,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       {/* Width / Height */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Width</label>
-          <input
+          <label htmlFor="pagepanel-width-2" className="text-[10px] text-base-content/40 mb-0.5 block">Width</label>
+          <input id="pagepanel-width-2"
             type="number"
             value={page.pageSize.width}
             onChange={(e) => onChange({ pageSize: { ...page.pageSize, width: Number(e.target.value) } })}
@@ -70,8 +70,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Height</label>
-          <input
+          <label htmlFor="pagepanel-height-3" className="text-[10px] text-base-content/40 mb-0.5 block">Height</label>
+          <input id="pagepanel-height-3"
             type="number"
             value={page.pageSize.height}
             onChange={(e) => onChange({ pageSize: { ...page.pageSize, height: Number(e.target.value) } })}
@@ -134,8 +134,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Column Grid</h3>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Count</label>
-          <input
+          <label htmlFor="pagepanel-count-4" className="text-[10px] text-base-content/40 mb-0.5 block">Count</label>
+          <input id="pagepanel-count-4"
             type="number"
             min={1}
             value={page.columns.count}
@@ -144,8 +144,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Gutter</label>
-          <input
+          <label htmlFor="pagepanel-gutter-5" className="text-[10px] text-base-content/40 mb-0.5 block">Gutter</label>
+          <input id="pagepanel-gutter-5"
             type="number"
             value={page.columns.gutter}
             onChange={(e) => onChange({ columns: { ...page.columns, gutter: Number(e.target.value) } })}
@@ -158,8 +158,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-2">Baseline Grid</h3>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Increment</label>
-          <input
+          <label htmlFor="pagepanel-increment-6" className="text-[10px] text-base-content/40 mb-0.5 block">Increment</label>
+          <input id="pagepanel-increment-6"
             type="number"
             value={page.baselineGrid.increment}
             onChange={(e) => onChange({ baselineGrid: { ...page.baselineGrid, increment: Number(e.target.value) } })}
@@ -167,8 +167,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Start</label>
-          <input
+          <label htmlFor="pagepanel-start-7" className="text-[10px] text-base-content/40 mb-0.5 block">Start</label>
+          <input id="pagepanel-start-7"
             type="number"
             value={page.baselineGrid.start}
             onChange={(e) => onChange({ baselineGrid: { ...page.baselineGrid, start: Number(e.target.value) } })}
@@ -198,8 +198,8 @@ export default function PagePanel({ page, onChange }: PagePanelProps) {
 
       {/* Master page */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Master page</label>
-        <select
+        <label htmlFor="pagepanel-master-page-8" className="text-[10px] text-base-content/40 mb-0.5 block">Master page</label>
+        <select id="pagepanel-master-page-8"
           value={page.masterPageId ?? ''}
           onChange={(e) => onChange({ masterPageId: e.target.value || null })}
           className="select select-bordered select-xs w-full"

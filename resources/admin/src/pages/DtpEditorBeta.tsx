@@ -843,11 +843,11 @@ export default function DtpEditorBeta() {
                     <div className="px-3 py-2 border-t border-base-300/20">
                       <h3 className="text-[10px] text-base-content/30 uppercase tracking-wider font-medium mb-1.5">Step and repeat</h3>
                       <div className="flex items-end gap-1.5">
-                        <div><label className="text-[9px] text-base-content/40 block">Count</label>
+                        <div><label htmlFor="sr-count" className="text-[9px] text-base-content/40 block">Count</label>
                           <input id="sr-count" type="number" min={1} max={50} defaultValue={3} className="input input-bordered input-xs w-14" /></div>
-                        <div><label className="text-[9px] text-base-content/40 block">ΔX</label>
+                        <div><label htmlFor="sr-dx" className="text-[9px] text-base-content/40 block">ΔX</label>
                           <input id="sr-dx" type="number" defaultValue={20} className="input input-bordered input-xs w-14" /></div>
-                        <div><label className="text-[9px] text-base-content/40 block">ΔY</label>
+                        <div><label htmlFor="sr-dy" className="text-[9px] text-base-content/40 block">ΔY</label>
                           <input id="sr-dy" type="number" defaultValue={0} className="input input-bordered input-xs w-14" /></div>
                         <button className="btn btn-xs btn-ghost" onClick={() => {
                           const g = (id: string) => Number((document.getElementById(id) as HTMLInputElement)?.value) || 0;

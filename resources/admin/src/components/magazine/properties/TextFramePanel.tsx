@@ -26,8 +26,8 @@ export default function TextFramePanel({ data, onChange, threadInfo, threadId, o
 
       {/* Overflow */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Overflow</label>
-        <select
+        <label htmlFor="textframepanel-overflow-1" className="text-[10px] text-base-content/40 mb-0.5 block">Overflow</label>
+        <select id="textframepanel-overflow-1"
           value={data.overflow}
           onChange={(e) => onChange({ overflow: e.target.value as TextFrameData['overflow'] })}
           className="select select-bordered select-xs w-full"
@@ -40,8 +40,8 @@ export default function TextFramePanel({ data, onChange, threadInfo, threadId, o
 
       {/* Auto-size */}
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Auto-size</label>
-        <select
+        <label htmlFor="textframepanel-auto-size-2" className="text-[10px] text-base-content/40 mb-0.5 block">Auto-size</label>
+        <select id="textframepanel-auto-size-2"
           value={data.autoSize}
           onChange={(e) => onChange({ autoSize: e.target.value as TextFrameData['autoSize'] })}
           className="select select-bordered select-xs w-full"
@@ -55,8 +55,8 @@ export default function TextFramePanel({ data, onChange, threadInfo, threadId, o
       {/* Columns */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Columns</label>
-          <input
+          <label htmlFor="textframepanel-columns-3" className="text-[10px] text-base-content/40 mb-0.5 block">Columns</label>
+          <input id="textframepanel-columns-3"
             type="number"
             min={1}
             max={4}
@@ -66,8 +66,8 @@ export default function TextFramePanel({ data, onChange, threadInfo, threadId, o
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Column gap</label>
-          <input
+          <label htmlFor="textframepanel-column-gap-4" className="text-[10px] text-base-content/40 mb-0.5 block">Column gap</label>
+          <input id="textframepanel-column-gap-4"
             type="number"
             value={data.columnGap}
             onChange={(e) => onChange({ columnGap: Number(e.target.value) })}

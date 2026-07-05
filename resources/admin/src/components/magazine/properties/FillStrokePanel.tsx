@@ -45,8 +45,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       </div>
 
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
-        <input
+        <label htmlFor="fillstrokepanel-opacity-1" className="text-[10px] text-base-content/40 mb-0.5 block">Opacity</label>
+        <input id="fillstrokepanel-opacity-1"
           type="range"
           min={0}
           max={100}
@@ -83,8 +83,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       {gradientEnabled && style.fill?.gradient && (
         <div className="space-y-2 pl-4">
           <div>
-            <label className="text-[10px] text-base-content/40 mb-0.5 block">Type</label>
-            <select
+            <label htmlFor="fillstrokepanel-type-2" className="text-[10px] text-base-content/40 mb-0.5 block">Type</label>
+            <select id="fillstrokepanel-type-2"
               value={style.fill?.gradient.type}
               onChange={(e) =>
                 onChange({ fill: { ...style.fill, gradient: { ...style.fill?.gradient!, type: e.target.value as 'linear' | 'radial' } } })
@@ -96,8 +96,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-base-content/40 mb-0.5 block">Angle</label>
-            <input
+            <label htmlFor="fillstrokepanel-angle-3" className="text-[10px] text-base-content/40 mb-0.5 block">Angle</label>
+            <input id="fillstrokepanel-angle-3"
               type="number"
               min={0}
               max={360}
@@ -158,8 +158,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Width</label>
-          <input
+          <label htmlFor="fillstrokepanel-width-4" className="text-[10px] text-base-content/40 mb-0.5 block">Width</label>
+          <input id="fillstrokepanel-width-4"
             type="number"
             min={0}
             max={20}
@@ -169,8 +169,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
           />
         </div>
         <div>
-          <label className="text-[10px] text-base-content/40 mb-0.5 block">Style</label>
-          <select
+          <label htmlFor="fillstrokepanel-style-5" className="text-[10px] text-base-content/40 mb-0.5 block">Style</label>
+          <select id="fillstrokepanel-style-5"
             value={typeof style.stroke?.style === 'string' ? style.stroke?.style : 'solid'}
             onChange={(e) => onChange({ stroke: { ...style.stroke, style: e.target.value as 'solid' | 'dashed' | 'dotted' } })}
             className="select select-bordered select-xs w-full"
@@ -183,8 +183,8 @@ export default function FillStrokePanel({ style, onChange }: FillStrokePanelProp
       </div>
 
       <div>
-        <label className="text-[10px] text-base-content/40 mb-0.5 block">Alignment</label>
-        <select
+        <label htmlFor="fillstrokepanel-alignment-6" className="text-[10px] text-base-content/40 mb-0.5 block">Alignment</label>
+        <select id="fillstrokepanel-alignment-6"
           value={style.stroke?.alignment}
           onChange={(e) => onChange({ stroke: { ...style.stroke, alignment: e.target.value as 'inside' | 'center' | 'outside' } })}
           className="select select-bordered select-xs w-full"
