@@ -27,7 +27,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 10 | Block registry contract compliance | full | yes (ExtractorCoverageTest — currently RED) | 85/86 compliant | yes (scripted full cross-reference) | 🟡 YELLOW | Healthiest subsystem so far, near-GREEN: 86 types, all 86 have Blade views, 84/84 React dirs complete (Editor+Preview+definition), extractor registry with an enforcing test. Only gaps: `langswitcher` missing its extractor entry (ExtractorCoverageTest failing), orphan `quote.blade.php` leftover. See §10. |
 | 11 | Block editor (CRUD/nesting/undo) | full | yes (Hierarchy 10, InspectorRoundTrip 14, many ValidationTests) | pass | yes (read save path + ran tests) | 🟡 YELLOW | Nesting is server-enforced + well-tested (Section→Row→Column→Module, depth≤4, ≤500 blocks); property round-trip to published CSS tested; block IDs preserved; undo exists. But save is a destructive DELETE-all-then-reinsert that cascades block-scoped `theme_overrides`/`grid_position_blocks` (silent data loss), and there's no concurrency protection — `active_editors` is presence-only → last-write-wins clobbering. See §11. |
 | 12 | Magazine editor | full (rebuilt) | yes — 94 pass / 2 fail across DTP+IssueStudio | 94/96 | yes (ran suites, confirmed freeze) | 🟡 YELLOW | NOT "known-broken" anymore — rebuilt. Legacy editor intentionally FROZEN (product decision, no data to migrate); DTP editor is the single current editor (extensive render/PDF/publish/version tests); Issue Studio is the live creation wizard (tests pass). Only 2 failing tests (DTP video-frame QR overlay SVG). See §12. |
-| 13 | Block templates / presets | — | — | — | — | ⬜ | Session C |
+| 13 | Block templates / presets | full | thin (PresetsCopyTest = 1) | 1/1 | yes (read flow, ran test) | 🟡 YELLOW | Block templates (save subtree → client-side copy-instantiate) work with correct copy-not-reference semantics (verified). Style/scene presets are validated block fields. But coverage is thin (1 preset test), block-template `store`/`destroy` have no role auth (xref §2), `blocks_data` is stored raw/unvalidated, and 5 overlapping "template" concepts create sprawl. See §13. |
 | 14 | entity_references / dependency graph | — | — | — | — | ⬜ | Session D |
 | 15 | Slider system | — | — | — | — | ⬜ | Session D |
 | 16 | Menus / theme refs / slug staleness | — | — | — | — | ⬜ | Session D |
@@ -456,3 +456,25 @@ The brief labels this "current known-broken state." That is **out of date** — 
 
 ### Rating rationale
 This is not a broken subsystem — it is a **rebuilt, live, and well-tested** one (94/96 passing, legacy cleanly frozen, Issue Studio in production). It is not GREEN only because 2 tests fail (QR overlay) and the current editor still carries "beta"/prototype status with some multi-generation cleanup owed. 🟡 YELLOW (healthy). The dedicated "magazine rebuild track" the brief anticipated is effectively **already done**; what remains is the QR fix and de-beta cleanup, not a rebuild.
+
+---
+
+## §13 — Block templates / presets-from-primitives  🟡 YELLOW  (audited 2026-07-06)
+
+### The template/preset landscape
+There are **five overlapping "template" concepts**: block templates (`block_templates`, `BlockTemplateController` — reusable block subtrees), theme/page-post templates (`theme_templates`, `ThemeTemplateController` — audited under theme engine §17-19), starter templates (`StarterTemplateService`, whole-site scaffolds via `apply-template`), site templates (`site_templates`, `SiteCloneController::importTemplate`), and grid presets (`GridPresetSeeder`). Plus per-block **style/scene presets** (`in:preset,custom` shadow modes; Experience-Mode scene presets on `section`).
+
+### What works (verified)
+- **Block templates: save + copy-instantiate work with correct semantics.** `store` saves the selected block subtree as a `blocks_data` JSON column; instantiation is a **client-side copy** into the page's block tree (then persisted via `syncBlocks`). `PresetsCopyTest` (**passes**, 4 assertions) confirms the key invariant: **instantiating a template creates no reference edges to the template** — the inserted blocks are independent copies, so deleting/changing the template can't dangle a live page. This is the correct "preset = copy, not reference" behavior.
+- **Style/scene presets** are ordinary validated block fields (covered by per-block ValidationTests + `InspectorRoundTripTest`).
+- `destroy` blocks system templates and checks site ownership.
+
+### Defects
+**D1 (moderate) — Block-template `store`/`destroy` have no role authorization (cross-ref §2 D1).** Both rely only on the tenant-checked `Site $site` binding, so any tenant user (incl. `viewer`) can create or delete block templates. **Severity: moderate (folds into FIX-A2a).**
+
+**D2 (minor) — `blocks_data` is stored raw and unvalidated.** `store` accepts `blocks_data` as any array with no `HierarchyValidator`/depth/size check and no sanitization (same at-rest model as blocks — sanitized only at render). A template can therefore carry an invalid or oversized tree that instantiates into a page; it's bounded by the block editor's (bypassable, §11) guarantees on the eventual save, not at template creation. **Severity: minor.**
+
+**D3 (minor) — Thin test coverage + concept sprawl.** Only one preset/template test (`PresetsCopyTest`). The five overlapping template systems have no unifying model and little cross-coverage; the `index` `orWhere('is_system', true)` for system block templates is effectively dead (0 exist, and RLS would hide `site_id IS NULL` rows anyway — cross-ref §1 the themes-style is_system exception is absent here). **Severity: minor.**
+
+### Rating rationale
+Block templates and presets **function correctly** where it matters — the copy-not-reference invariant is verified, and style presets round-trip. It is not GREEN because coverage is thin (one test across five template systems), the block-template write endpoints lack role authorization, and stored `blocks_data` is unvalidated. No broken behavior, but light and slightly sprawling. 🟡 YELLOW.
