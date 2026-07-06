@@ -177,6 +177,13 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     data.suffix = content.suffix || '';
     data.startAt = content.startAt ?? 1;
   }
+  if (f.frame_type === 'shape') {
+    // shape visuals were silently dropped on reload -> save (no branch here)
+    if (content.fillColor != null) data.fillColor = content.fillColor;
+    if (content.strokeColor != null) data.strokeColor = content.strokeColor;
+    if (content.strokeWidth != null) data.strokeWidth = content.strokeWidth;
+    if (content.cornerRadius != null) data.cornerRadius = content.cornerRadius;
+  }
   if (f.frame_type === 'image') {
     data.src = content.src || '';
     data.alt = content.alt || '';
@@ -365,6 +372,12 @@ export function pagesToDtpApi(
         content.autoSize = (el.data as any)?.autoSize;
         content.textInset = (el.data as any)?.textInset;
         content.verticalAlign = (el.data as any)?.verticalAlign;
+      }
+      if (frameType === 'shape') {
+        if ((el.data as any)?.fillColor != null) content.fillColor = (el.data as any).fillColor;
+        if ((el.data as any)?.strokeColor != null) content.strokeColor = (el.data as any).strokeColor;
+        if ((el.data as any)?.strokeWidth != null) content.strokeWidth = (el.data as any).strokeWidth;
+        if ((el.data as any)?.cornerRadius != null) content.cornerRadius = (el.data as any).cornerRadius;
       }
       if (frameType === 'image') {
         const imgSrc = (el.data as any)?.src || '';

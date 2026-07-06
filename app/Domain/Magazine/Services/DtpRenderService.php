@@ -844,6 +844,11 @@ class DtpRenderService
         if ($r !== 0) {
             $style .= "transform:rotate({$r}deg);";
         }
+        // editor parity: the canvas applies element style.opacity (0-1)
+        $opacity = $frame->style['opacity'] ?? null;
+        if (is_numeric($opacity) && (float) $opacity < 1) {
+            $style .= 'opacity:' . max(0, (float) $opacity) . ';';
+        }
         return $style;
     }
 

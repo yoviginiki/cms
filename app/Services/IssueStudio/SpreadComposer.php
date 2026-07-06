@@ -244,8 +244,12 @@ class SpreadComposer
             ], fn ($v) => $v !== null);
         } elseif (in_array($type, SpreadElementContract::IMAGE_TYPES, true)) {
             $asset = $this->assetForMaterial($session, (string) $el['material_id']);
-            // normalize CSS-style fit modes the model may emit
+            // normalize CSS-style fit modes the model may emit; bleeding
+            // image types exist to fill — letterboxing them is never right
             $fitMode = ['cover' => 'fill', 'contain' => 'fit'][$el['fit_mode'] ?? ''] ?? ($el['fit_mode'] ?? 'fill');
+            if (in_array($type, ['background_image', 'fullbleed_image'], true)) {
+                $fitMode = 'fill';
+            }
             $content = [
                 'src' => "/api/v1/sites/{$session->site_id}/assets/{$asset}/serve",
                 'alt' => mb_substr(strip_tags((string) $el['alt']), 0, 300),
@@ -260,10 +264,9 @@ class SpreadComposer
                 $content['caption'] = mb_substr(strip_tags((string) $el['caption']), 0, 500);
             }
         } elseif (in_array($type, SpreadElementContract::SHAPE_TYPES, true)) {
-            // the shape renderer paints fillColor only — bake opacity into rgba
-            $hex = $safeColor($el['fill_color']) ?? '#eeeeee';
-            $alpha = max(0, min(100, (float) ($el['opacity'] ?? 100))) / 100;
-            $content = ['fillColor' => $alpha < 1 ? self::hexToRgba($hex, $alpha) : $hex];
+            // editor-safe encoding: hex fill in content, translucency as
+            // style.opacity (the editor's own semantics; renderer applies it)
+            $content = ['fillColor' => $safeColor($el['fill_color']) ?? '#eeeeee'];
         } elseif ($type === 'table_frame') {
             $content = [
                 'tableHeaders' => array_map(fn ($hd) => mb_substr(strip_tags((string) $hd), 0, 120), $el['table_headers']),
@@ -273,6 +276,14 @@ class SpreadComposer
                 ),
                 'tableStripes' => true,
             ];
+        }
+
+        $style = [];
+        if (in_array($type, SpreadElementContract::SHAPE_TYPES, true)) {
+            $alpha = max(0, min(100, (float) ($el['opacity'] ?? 100))) / 100;
+            if ($alpha < 1) {
+                $style['opacity'] = round($alpha, 2);
+            }
         }
 
         return [
@@ -291,26 +302,13 @@ class SpreadComposer
             'visible' => true,
             'locked' => false,
             'content' => $content,
-            'style' => [],
+            'style' => $style,
             'metadata' => array_filter([
                 '_magType' => $type,
                 '_issueStudio' => true,
                 '_typography' => $typography ?: null,
             ]),
         ];
-    }
-
-    private static function hexToRgba(string $hex, float $alpha): string
-    {
-        $hex = ltrim($hex, '#');
-        if (strlen($hex) === 3) {
-            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
-        }
-        $r = hexdec(substr($hex, 0, 2));
-        $g = hexdec(substr($hex, 2, 2));
-        $b = hexdec(substr($hex, 4, 2));
-
-        return sprintf('rgba(%d,%d,%d,%.2f)', $r, $g, $b, $alpha);
     }
 
     private function assetForMaterial(StudioSession $session, string $materialId): string
