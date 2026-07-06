@@ -216,18 +216,26 @@ All authenticated routes require a valid Sanctum session cookie. Tenant-scoped r
 |--------|----------|-----------|-------------|
 | CRUD | `/sites/{site}/magazine-styles` | `MagStyleController` | Style presets |
 
-## Magazine Wizard
+## Issue Studio (admin/owner role)
 
 | Method | Endpoint | Controller | Description |
 |--------|----------|-----------|-------------|
-| POST | `/magazine/wizard/sessions` | `WizardController@store` | Create session |
-| GET | `/magazine/wizard/sessions` | `WizardController@index` | List sessions |
-| GET | `/magazine/wizard/sessions/{s}` | `WizardController@show` | Show session |
-| DELETE | `/magazine/wizard/sessions/{s}` | `WizardController@destroy` | Delete session |
-| POST | `/magazine/wizard/sessions/{s}/messages` | `WizardController@sendMessage` | Send message |
-| POST | `/magazine/wizard/sessions/{s}/lock` | `WizardController@lockStep` | Lock step |
-| POST | `/magazine/wizard/sessions/{s}/unlock` | `WizardController@unlockStep` | Unlock step |
-| POST | `/magazine/wizard/sessions/{s}/provision` | `WizardController@provision` | Provision magazine |
+| GET | `/issue-studio/sessions` | `IssueStudioController@index` | List sessions |
+| POST | `/issue-studio/sessions` | `IssueStudioController@store` | Create session |
+| GET | `/issue-studio/sessions/{s}` | `IssueStudioController@show` | Show session |
+| DELETE | `/issue-studio/sessions/{s}` | `IssueStudioController@destroy` | Abandon session |
+| POST | `/issue-studio/sessions/{s}/messages` | `IssueStudioController@sendMessage` | Interview chat turn |
+| POST | `/issue-studio/sessions/{s}/materials` | `IssueStudioController@addMaterial` | Add text/image material |
+| DELETE | `/issue-studio/sessions/{s}/materials/{id}` | `IssueStudioController@removeMaterial` | Remove material |
+| POST | `/issue-studio/sessions/{s}/complete-interview` | `IssueStudioController@completeInterview` | Force to flatplanning |
+| POST | `/issue-studio/sessions/{s}/flatplan/generate` | `IssueStudioController@generateFlatplan` | Generate/regenerate flatplan |
+| POST | `/issue-studio/sessions/{s}/flatplan/revise` | `IssueStudioController@reviseFlatplanSpread` | Revise one slot |
+| POST | `/issue-studio/sessions/{s}/flatplan/reorder` | `IssueStudioController@reorderFlatplan` | Persist drag-reorder |
+| POST | `/issue-studio/sessions/{s}/flatplan/approve` | `IssueStudioController@approveFlatplan` | Lock plan, create spread rows |
+| POST | `/issue-studio/sessions/{s}/spreads/generate-next` | `IssueStudioController@generateNextSpread` | Generate next pending spread |
+| POST | `/issue-studio/sessions/{s}/spreads/{pos}/keep` | `IssueStudioController@keepSpread` | Approve spread |
+| POST | `/issue-studio/sessions/{s}/spreads/{pos}/revise` | `IssueStudioController@reviseSpread` | Conversational revision |
+| POST | `/issue-studio/sessions/{s}/spreads/{pos}/rethink` | `IssueStudioController@rethinkSpread` | Regenerate (optional new pattern) |
 
 ## AI Content Assistant
 

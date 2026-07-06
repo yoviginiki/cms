@@ -32,7 +32,7 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 
 - [Site Settings](SITE-SETTINGS.md) -- all JSONB settings fields, SEO defaults, deploy config
 - [Magazine Editor](MAGAZINE-EDITOR.md) -- freeform InDesign-like page layout editor
-- [Magazine Wizard](magazine-wizard.md) -- AI-powered magazine creation workflow
+- [Issue Studio](issue-studio.md) -- conversational AI magazine creation (interview -> flatplan -> spreads)
 
 ## Block Properties Audit
 

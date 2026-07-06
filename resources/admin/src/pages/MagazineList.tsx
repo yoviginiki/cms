@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, BookOpen, Search, ExternalLink, Paintbrush, Layers, Eye } from 'lucide-react';
-import { magazines, pages as pagesApi, sites, issueComposer, dtpDesigner } from '@/lib/api';
+import { magazines, pages as pagesApi, sites, magazineIssues, dtpDesigner } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -53,7 +53,7 @@ export default function MagazineList() {
   const publicDomain = siteData?.custom_domain || siteData?.slug + '.ensodo.eu';
   const publicBase = publicDomain ? `https://${publicDomain}` : '';
 
-  // Also load pages with editor_mode=magazine (from Issue Composer handoffs)
+  // Also load pages with editor_mode=magazine (legacy composer handoffs)
   const { data: composerPages } = useQuery<ComposerPage[]>({
     queryKey: ['composer-pages', siteId],
     queryFn: () => pagesApi.list(siteId, { editor_mode: 'magazine' }).then((r: any) => {
@@ -165,15 +165,15 @@ export default function MagazineList() {
         </div>
       )}
 
-      {/* DTP Beta Editor — Issue Composer Issues */}
+      {/* Magazine issues (DTP editor) */}
       <DtpIssueSection siteId={siteId} />
 
-      {/* Issue Composer handoff pages */}
+      {/* Legacy magazine pages (old composer handoffs) */}
       {composerPages && composerPages.length > 0 && (
         <div className="mt-8">
           <h2 className="text-sm font-medium text-base-content/70 mb-3 flex items-center gap-2">
             <Paintbrush size={14} className="text-primary/50" />
-            Issue Composer Pages
+            Legacy Magazine Pages
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {composerPages.map(pg => (
@@ -243,14 +243,14 @@ function DtpIssueSection({ siteId }: { siteId: string }) {
   const queryClient = useQueryClient();
   const { data: issues, isLoading } = useQuery<any[]>({
     queryKey: ['dtp-issues', siteId],
-    queryFn: () => issueComposer.list(siteId).then((r: any) => {
+    queryFn: () => magazineIssues.list(siteId).then((r: any) => {
       const raw = r.data.data?.data ?? r.data.data ?? r.data ?? [];
       return Array.isArray(raw) ? raw : [];
     }),
   });
 
   const createIssueMut = useMutation({
-    mutationFn: (title: string) => issueComposer.create(siteId, { title, status: 'draft' }),
+    mutationFn: (title: string) => magazineIssues.create(siteId, { title, status: 'draft' }),
     onSuccess: (r: any) => {
       const id = r.data?.data?.id ?? r.data?.id;
       queryClient.invalidateQueries({ queryKey: ['dtp-issues', siteId] });
@@ -310,7 +310,7 @@ function DtpIssueCard({ siteId, issue, onOpen }: { siteId: string; issue: any; o
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteMut = useMutation({
-    mutationFn: () => issueComposer.delete(siteId, issue.id),
+    mutationFn: () => magazineIssues.delete(siteId, issue.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dtp-issues', siteId] });
       setConfirmDelete(false);

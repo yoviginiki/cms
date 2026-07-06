@@ -92,7 +92,7 @@ src/
 │   ├── ThemeEngine.tsx       ← Theme listing + management
 │   ├── ThemeStudio.tsx       ← Live theme preview frames
 │   ├── Users.tsx             ← User management
-│   └── wizard/               ← Magazine wizard multi-step flow
+│   └── issue-studio/         ← Issue Studio conversational magazine wizard
 ├── stores/                    ← Zustand state stores
 │   ├── editorStore.ts        ← Block editor state (selected block, dirty state, undo)
 │   └── magazineStore.ts      ← Magazine editor state (pages, elements, zoom)

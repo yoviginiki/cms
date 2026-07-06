@@ -275,17 +275,12 @@ export const magStyles = {
   delete: (siteId: string, styleId: string) => api.delete(`/sites/${siteId}/magazine-styles/${styleId}`),
 };
 
-export const issueComposer = {
+export const magazineIssues = {
   list: (siteId: string, params?: Record<string, unknown>) => api.get(`/sites/${siteId}/magazine-issues`, { params }),
   get: (siteId: string, issueId: string) => api.get(`/sites/${siteId}/magazine-issues/${issueId}`),
   create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/magazine-issues`, data),
   update: (siteId: string, issueId: string, data: Record<string, unknown>) => api.patch(`/sites/${siteId}/magazine-issues/${issueId}`, data),
   delete: (siteId: string, issueId: string) => api.delete(`/sites/${siteId}/magazine-issues/${issueId}`),
-  addItem: (siteId: string, issueId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/magazine-issues/${issueId}/content-items`, data),
-  updateItem: (siteId: string, issueId: string, itemId: string, data: Record<string, unknown>) => api.patch(`/sites/${siteId}/magazine-issues/${issueId}/content-items/${itemId}`, data),
-  removeItem: (siteId: string, issueId: string, itemId: string) => api.delete(`/sites/${siteId}/magazine-issues/${issueId}/content-items/${itemId}`),
-  runLayout: (siteId: string, issueId: string) => api.post(`/sites/${siteId}/magazine-issues/${issueId}/layout/run`),
-  handoff: (siteId: string, issueId: string) => api.post(`/sites/${siteId}/magazine-issues/${issueId}/handoff`),
 };
 
 // DTP Designer API (feature-flagged)
