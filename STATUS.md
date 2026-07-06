@@ -18,7 +18,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 1 | Tenancy & RLS | partial | yes (2 suites, 9 tests) | yes (9/9) | yes (DB-level probe) | 🔴 RED | RLS-only isolation; 7+ tenant tables RLS-enabled-but-not-FORCED → owner role bypasses; 14 tenant tables have NO RLS; app-scope traits are dead code. Cross-tenant IDOR on menus. See §1. |
 | 2 | Auth, roles, RBAC gates | full (auth) / partial (RBAC) | stub only (7 tests, all `markTestIncomplete`) | n/a (no real assertions) | yes (code+config read) | 🟡 YELLOW | Auth core is solid (throttled login, secure session, CSRF, no debug). But 7 controllers have write endpoints with NO role check (viewer can mutate themes/magazines/templates); invite/updateRole escalation asymmetry; owner-demotion; `role` mass-assignable; zero real test coverage. See §2. |
 | 3 | DB schema integrity | full | indirect (RefreshDatabase migrates every test) | yes (66/66 ran clean, 0 pending) | yes (live-DB FK/orphan/index probes) | 🟡 YELLOW | Strong: all migrations reversible+clean, broad sensible FKs, good scoping-index coverage, no orphans in current data. Gaps: page/post delete orphans polymorphic blocks (no FK/cascade/hook); 3 delete-blocking FKs; 1 irreversible drop migration; some missing indexes; no referential-integrity tests. See §3. |
-| 4 | Security layers (purifier/MIME/CSP) | — | — | — | — | ⬜ | Not yet audited (Session A #4) |
+| 4 | Security layers (purifier/MIME/CSP) | partial | yes (Xss + SecuritySanitization pass; unit sanitizer suite is stubs) | partial (top-level XSS covered; 2 vectors uncaught) | yes (concrete PoC of both XSS holes) | 🔴 RED | HTMLPurifier is strong for top-level fields, uploads are well-guarded. But 2 confirmed stored-XSS vectors (allowHtml→strip_tags keeps event handlers; nested array fields never purified) render raw via `{!! !!}`, and there is NO CSP anywhere + NO security headers on published static sites. See §4. |
 | 5 | Blade rendering of every block | — | — | — | — | ⬜ | Session B |
 | 6 | Atomic publish / versions / rollback | — | — | — | — | ⬜ | Session B |
 | 7 | Delta publish correctness | — | — | — | — | ⬜ | Session B |
@@ -197,3 +197,45 @@ Cross-ref §1: the `blocks` and `themes` RLS policies use `current_setting('app.
 
 ### Rating rationale
 The schema is genuinely well-engineered and continuously migration-tested, so it is far healthier than §1/§2. It is not GREEN because of one **confirmed data-integrity defect** (polymorphic orphan-on-delete that will silently accumulate dead rows in production) plus the absence of any referential-integrity/orphan tests. Everything else is minor perf/hygiene. Honest rating: 🟡 YELLOW (healthy end).
+
+---
+
+## §4 — Security layers (sanitization / uploads / headers)  🔴 RED  (audited 2026-07-06)
+
+### What was checked
+- Read `SanitizationService` (3 HTMLPurifier profiles), traced where it is invoked in the publish path (`BuildPageService::renderBlock`), and enumerated the 40+ `{!! !!}` raw sinks in `resources/views/blocks/*.blade.php`.
+- Read `SecurityHeaders` middleware, the published-output generator (`PublishSiteJob`), CORS config, upload validation (`UploadAssetRequest` + `AssetController` + `AssetService`).
+- Ran the security test suites and produced concrete PoCs for the two XSS vectors.
+
+### What works (verified)
+- **HTMLPurifier is well-configured** (`SanitizationService.php`): a rich profile (allowlisted tags, `URI.AllowedSchemes` = http/https/mailto/tel so `javascript:` is blocked), a strict profile (strips all HTML), and a magazine profile with a constrained CSS property allowlist. `purifyRich`/`purifyMagazine` are shared by the magazine/DTP renderers.
+- **Top-level field sanitization is correct and tested.** `XssTest` (6 pass) and `SecuritySanitizationTest` (4 pass) confirm script tags, event handlers, `javascript:` URLs, iframe/object, and SVG script/handler/entity-expansion payloads are stripped for top-level string fields and the magazine path.
+- **Upload validation is solid** (`UploadAssetRequest`): a hard `BLOCKED_EXTENSIONS` denylist (`php`, `phtml`, `sh`, `exe`, `htaccess`, `env`, `jsp`, `asp`…) applied even over site-configured allowlists; content-sniffed MIME (`getMimeType`) cross-checked against extension; `getimagesize()` real-content validation for rasters; an SVG `<script>`/`<foreignObject>`/`on*=` scan; 100 MB cap; `authorize('upload')` role gate; stored on a dedicated `assets` disk (not the app webroot).
+- **Admin HTTP headers are reasonable**: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` locking camera/mic/geo, `X-Frame-Options: DENY` (SAMEORIGIN only for studio/preview). CORS is scoped to `api/*` and `*.ensodo.eu` origins.
+
+### Defects
+
+**D1 (blocker) — Stored XSS via `allowHtml` → `strip_tags`.** `SanitizationService::sanitizeBlock` (line 127-129) sanitizes the `allowHtml` inline path with `strip_tags($value, '<br><em><strong><span>')`. **`strip_tags` does not remove attributes.** PoC (executed):
+`strip_tags('<span onmouseover="alert(document.cookie)" onclick="steal()">hi</span>', '<br><em><strong><span>')` → returns the string **unchanged**, event handlers intact. Any block with `allowHtml=true` in a `text/heading/title/quote` field (editor-settable) injects live event handlers that render raw via `{!! !!}` (e.g. `heading.blade.php:50`). **Severity: blocker (stored XSS).**
+
+**D2 (blocker) — Stored XSS via unsanitized nested array fields.** `sanitizeBlock` iterates `foreach ($data as $key => $value)` and, at line 119, **passes through any non-string value untouched** (`if (!is_string($value)) { $sanitized[$key] = $value; continue; }`). Blocks that store HTML inside arrays — `accordion` (`items[].content`), `catalog` (`items[].content`/`contentSecondary`) and similar — are therefore **never purified**, then rendered raw: `accordion.blade.php:32` `{!! $item['content'] !!}`, `catalog.blade.php:77,81`. PoC confirmed: accordion's definition stores `items: [{content: '<p>Answer</p>'}]`; an editor can set `items[].content = '<img src=x onerror=alert(1)>'` and it publishes verbatim. Reachable by any editor, executes on the published static site **and in the admin preview origin** (`sys.ensodo.eu`), where it can run with an admin/owner's session → within-tenant privilege escalation. **Severity: blocker (stored XSS).**
+
+**D3 (major) — No Content-Security-Policy anywhere, and NO security headers on published sites.** `SecurityHeaders` sets no CSP and no HSTS, and it only decorates Laravel admin responses. The published static tenant sites get **zero** security headers — `PublishSiteJob` writes an `.htaccess` containing only redirect RewriteRules (`:488-502`). So the D1/D2 XSS payloads execute on published output with **no CSP backstop**, and there is no HSTS on admin or published output. **Severity: major (removes the defense-in-depth that would contain D1/D2).**
+
+**D4 (major) — Sanitizer unit tests are stubs.** `tests/Unit/Services/SanitizationServiceTest.php` has all 5 tests as `markTestIncomplete()` (WARN, 0 assertions). The passing feature tests only exercise top-level string fields, so **both D1 and D2 are entirely uncovered**. **Severity: major.**
+
+**D5 (major, by-design) — `html-embed` block is a full stored-XSS primitive.** `BuildPageService::renderBlock:311` skips sanitization for `html-embed`, and `HtmlEmbedBlockDefinition` sets `HTML.Allowed => '*'`; the content renders raw at `html-embed.blade.php:17`. Any editor can inject arbitrary `<script>`/`<iframe>`/`<style>` into a published page. This is deliberate ("trusted HTML"), but with **no CSP** (D3) there is zero mitigation and it's available to the lowest write role. Confirm against the intended trust model; gate to owner/admin at minimum. **Severity: major.**
+
+### Secondary findings
+- **Sanitization runs on render, not on write.** Block writes (`BlockController.php:39-52`) store **raw** HTML in the DB; safety depends on every read/render path calling `sanitizeBlock`/`purify`. Any future render path that emits stored data raw becomes a live sink. On-write purification would add defense-in-depth. (moderate)
+- **Raw theme-controlled JS/CSS injected into every published page** — `{!! $customCss !!}`, `{!! $headScripts !!}`, `{!! $bodyScripts !!}`, hook scripts in `grid-layout.blade.php` / `layouts/cytechno.blade.php`. Server/theme-sourced (not editor input) so trusted-by-origin, but unsanitized and, again, no CSP backstop. (moderate)
+- **CORS pattern** `/https?:\/\/(.*\.)?ensodo\.eu$/` with `supports_credentials: true` and `allowed_headers: ['*']` allows **any** `*.ensodo.eu` subdomain over **http or https** to make credentialed requests — a compromised/attacker subdomain could ride user credentials against the API. Tighten to https + the specific admin origin. (minor-moderate)
+- **No image dimension / pixel-count cap** on uploads (`UploadAssetRequest`) → decompression-bomb DoS risk; original (non-SVG) image bytes stored verbatim (EXIF retained; only derived variants are re-encoded). (minor)
+- **`X-XSS-Protection: 0`** is intentional/correct (the legacy header is deprecated). Not a defect.
+
+### Strengths worth recording
+- **SVG handling is genuinely strong** (corrected): a dedicated DOM-based `app/Domain/Assets/Services/SvgSanitizer.php` (strips script/foreignObject/iframe/embed/animate/on*-handlers, restricts URL attrs, kills `url()`/`expression`/`@import`, rejects `<!ENTITY>` for XXE/billion-laughs, loads with `LIBXML_NONET`) applied at upload in `AssetService`, **double-gated** by the `UploadAssetRequest` regex scan.
+- Consistent `javascript:`/`data:`/`vbscript:` scheme blocking across `BlockStyle::safeUrl`, `MenuItem::resolveUrl`, `MenuRenderer`, `DtpRenderService`. Executable-extension denylist. Tenant-isolated asset storage (`sites/{siteId}/assets/`). No hardcoded secrets found.
+
+### Rating rationale
+Upload hardening and top-level HTMLPurifier usage are genuinely good, but this subsystem ships **two confirmed, editor-reachable stored-XSS vectors** whose output lands unescaped on public sites and in the admin preview origin, with **no CSP anywhere** to contain them and **no test coverage** over the affected code paths. For a public-facing publishing platform that is a 🔴 RED — these gate launch and should be the highest-priority security fixes alongside the §1 tenancy work.

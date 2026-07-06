@@ -47,6 +47,23 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 ---
 
+### FIX-A4a — Close the two stored-XSS holes in block sanitization
+**Source:** STATUS.md §4, Defects D1 & D2. **Severity: blocker.** **Effort: ~0.5 day.**
+
+> `SanitizationService::sanitizeBlock` has two holes, both ending in `{!! !!}` sinks. **(1)** The `allowHtml` path (line 127-129) uses `strip_tags($value, '<br><em><strong><span>')`, which does NOT strip attributes — `<span onmouseover=...>` survives. Replace it with a real HTMLPurifier profile that allows exactly `br,em,strong,span` with NO attributes (or the minimal safe set), same as the rich profile but tag-restricted. **(2)** The `foreach` skips non-string values (line 119), so nested HTML in arrays (`accordion.items[].content`, `catalog.items[].content/contentSecondary`, and any block storing HTML in arrays) is never purified. Make sanitization **recursive**: walk nested arrays/objects and purify every string leaf that corresponds to an HTML field, driven by each block definition's declared HTML fields (extend `sanitizationConfig()` to name nested HTML paths, e.g. `items.*.content`). Then add tests proving: `allowHtml` span with `onmouseover` is stripped; accordion `items[].content` with `<img onerror>` is stripped; both in the published HTML. Verify against every block that renders `{!! !!}` (grep `resources/views/blocks/*.blade.php` for `{!!` — accordion, catalog, runningtext, dropcap, footnote, latestposts, heading, etc.) that its HTML-bearing fields are covered.
+
+### FIX-A4b — Add a Content-Security-Policy (admin + published) and security headers to published output
+**Source:** STATUS.md §4, Defect D3. **Severity: major.** **Effort: ~0.5-1 day.**
+
+> Two surfaces. **(1) Admin:** add a `Content-Security-Policy` to `SecurityHeaders` middleware (start report-only, then enforce) restricting `script-src`/`style-src`/`img-src`/`connect-src` to self + known origins; add `Strict-Transport-Security` (HSTS) since the admin is https-only. **(2) Published static sites:** `PublishSiteJob` currently writes only redirect rules to `.htaccess` (`:488-502`) — extend it (and/or the deploy nginx template) to emit `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options`, `Referrer-Policy`, and HSTS for the published output, OR inject a CSP `<meta http-equiv>` into the generated HTML `<head>` as a fallback where server config isn't controlled. This is the defense-in-depth backstop for FIX-A4a; do both, don't rely on either alone.
+
+### FIX-A4c — Real sanitizer tests + gate html-embed + tighten CORS/uploads
+**Source:** STATUS.md §4, Defects D4/D5 + secondary. **Severity: major (tests, html-embed) / minor (rest).** **Effort: ~0.5 day.**
+
+> Implement the 5 stubbed `tests/Unit/Services/SanitizationServiceTest.php` tests for real and add the D1/D2 regression cases. Gate the raw `html-embed` block (`HTML.Allowed => '*'`, `BuildPageService::renderBlock:311`) behind an owner/admin `authorize` check and document it as a trusted-HTML surface — today any editor can inject arbitrary `<script>` through it. Tighten CORS (`config/cors.php`) to `https` + the specific admin origin instead of any `*.ensodo.eu` over http/https with credentials + `allowed_headers:['*']`. Add an image dimension/pixel-count cap to `UploadAssetRequest` (decompression-bomb guard). SVG handling is already solid (dedicated `SvgSanitizer` + regex double-gate) — no change needed there. Optionally add on-write purification as defense-in-depth so the DB never stores raw HTML.
+
+---
+
 ## P1 — SCHEMA / DATA INTEGRITY
 
 ### FIX-A3a — Stop orphaning polymorphic blocks on parent delete
