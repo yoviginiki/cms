@@ -63,7 +63,7 @@ class DtpRenderService
                         'padding','padding-top','padding-bottom','padding-left','padding-right',
                         'border','border-radius','border-width','border-style','border-color',
                         'float','width','height','max-width','display',
-                        'column-count','column-gap','column-fill','overflow'];
+                        'column-count','column-gap','column-fill','column-span','overflow'];
                     foreach (explode(';', $css) as $decl) {
                         $decl = trim($decl);
                         if (!$decl) continue;

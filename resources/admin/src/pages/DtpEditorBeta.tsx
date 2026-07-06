@@ -30,6 +30,7 @@ import TextWrapPanel from '@/components/magazine/properties/TextWrapPanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
 import TablePanel from '@/components/magazine/properties/TablePanel';
 import MediaPanel from '@/components/magazine/properties/MediaPanel';
+import InlineFigureToolbar from '@/components/magazine/InlineFigureToolbar';
 import { GalleryPanel, ChartPanel, StatPanel, ProgressPanel } from '@/components/magazine/properties/DataElementsPanel';
 import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
 import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
@@ -1355,6 +1356,9 @@ export default function DtpEditorBeta() {
         </Suspense>
       )}
 
+      {/* Floating toolbar for inline figures in text frames */}
+      <InlineFigureToolbar />
+
       {/* Inline image picker for text frames */}
       <AssetPicker
         open={inlineImagePickerOpen}
@@ -1386,11 +1390,17 @@ export default function DtpEditorBeta() {
             img.src = asset.url;
             img.alt = asset.filename || '';
             img.style.cssText = 'width:100%;height:auto;display:block;';
-            const cap = document.createElement('figcaption');
-            cap.textContent = (asset as any).alt_text || asset.filename || 'Caption';
-            cap.style.cssText = 'font-size:10px;opacity:0.7;margin-top:4px;';
             fig.appendChild(img);
-            fig.appendChild(cap);
+            // Caption only when the asset has real alt text — never the raw
+            // filename. Click the image for the figure toolbar (size, flow,
+            // caption, remove).
+            const altText = (asset as any).alt_text;
+            if (altText && altText.trim() !== '') {
+              const cap = document.createElement('figcaption');
+              cap.textContent = altText;
+              cap.style.cssText = 'font-size:10px;opacity:0.7;margin-top:4px;';
+              fig.appendChild(cap);
+            }
             document.execCommand('insertHTML', false, fig.outerHTML);
             // Persist immediately to store — don't wait for blur
             const editId = editable.getAttribute('data-editing-id');

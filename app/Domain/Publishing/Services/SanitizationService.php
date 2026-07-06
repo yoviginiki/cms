@@ -52,18 +52,32 @@ class SanitizationService
         $magConfig->set('HTML.Allowed',
             'p[style],br,b,i,u,em,strong,s,span[class|style],a[href|target|rel],' .
             'ul[style],ol[style],li,h1[style],h2[style],h3[style],h4[style],h5[style],h6[style],' .
-            'blockquote[style],sub,sup,hr,div[style],figure[style],figcaption,' .
+            'blockquote[style],sub,sup,hr,div[style],figure[style],figcaption[style],' .
             'img[src|alt|width|height|style]');
         $magConfig->set('CSS.AllowedProperties', [
             'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
             'padding', 'text-indent', 'text-align', 'float', 'width', 'height',
             'max-width', 'border-radius', 'border', 'display',
+            'font-size', 'opacity', 'column-span',
         ]);
+
         $magConfig->set('HTML.TargetBlank', true);
         $magConfig->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'mailto' => true, 'tel' => true]);
         $magConfig->set('Attr.AllowedFrameTargets', ['_blank']);
         $magConfig->set('AutoFormat.RemoveEmpty', false);
         $magConfig->set('Cache.DefinitionImpl', null);
+        // HTMLPurifier predates HTML5 — it silently DROPS figure/figcaption
+        // (inline images in text frames lost their wrapper + float/width styles
+        // at publish). Teach the raw definition both elements, and teach the
+        // CSS definition column-span (figures spanning all text columns).
+        // Definition getters finalize the config, so these stay the last steps.
+        $magConfig->set('HTML.DefinitionID', 'stillopress-magazine');
+        $magConfig->set('HTML.DefinitionRev', 1);
+        if ($htmlDef = $magConfig->maybeGetRawHTMLDefinition()) {
+            $htmlDef->addElement('figure', 'Block', 'Flow', 'Common');
+            $htmlDef->addElement('figcaption', 'Block', 'Flow', 'Common');
+        }
+        $magConfig->getCSSDefinition()->info['column-span'] = new \HTMLPurifier_AttrDef_Enum(['none', 'all']);
         $this->magazinePurifier = new HTMLPurifier($magConfig);
 
         // Restore original error handler
