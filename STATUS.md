@@ -20,7 +20,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 3 | DB schema integrity | full | indirect (RefreshDatabase migrates every test) | yes (66/66 ran clean, 0 pending) | yes (live-DB FK/orphan/index probes) | 🟡 YELLOW | Strong: all migrations reversible+clean, broad sensible FKs, good scoping-index coverage, no orphans in current data. Gaps: page/post delete orphans polymorphic blocks (no FK/cascade/hook); 3 delete-blocking FKs; 1 irreversible drop migration; some missing indexes; no referential-integrity tests. See §3. |
 | 4 | Security layers (purifier/MIME/CSP) | partial | yes (Xss + SecuritySanitization pass; unit sanitizer suite is stubs) | partial (top-level XSS covered; 2 vectors uncaught) | yes (concrete PoC of both XSS holes) | 🔴 RED | HTMLPurifier is strong for top-level fields, uploads are well-guarded. But 2 confirmed stored-XSS vectors (allowHtml→strip_tags keeps event handlers; nested array fields never purified) render raw via `{!! !!}`, and there is NO CSP anywhere + NO security headers on published static sites. See §4. |
 | 5 | Blade rendering of every block | full (86 types) | new audit script renders all 86 | 84/86 render clean; 2 throw | yes (rendered every view, empty + fixture data) | 🟡 YELLOW | 84/86 blocks render robustly with missing data. `category-header` and `readingprogress` throw on default data (null-safety bugs), and the main publish loop has no per-block try/catch → one bad block fails the whole page. See §5. |
-| 6 | Atomic publish / versions / rollback | — | — | — | — | ⬜ | Session B |
+| 6 | Atomic publish / versions / rollback | full (versions) / broken (rollback) | PublishTest = 6 stubs; VersionTest = 5 real pass | versions pass; publish untested | yes (read swap/rollback/prune/job code) | 🔴 RED | Slug-site go-live IS atomic; versioning works+tested. But ROLLBACK is a silent no-op (job ignores target, republishes current); global build prune keeps only 3 newest across ALL sites while live symlinks point into that dir (>3 sites → broken live output); custom-domain/rename deploys are non-atomic; publish has zero real tests. See §6. |
 | 7 | Delta publish correctness | — | — | — | — | ⬜ | Session B |
 | 8 | SEO output (sitemap/robots/OG) | — | — | — | — | ⬜ | Session B |
 | 9 | Asset pipeline (WebP/hashing) | — | — | — | — | ⬜ | Session B |
@@ -261,3 +261,36 @@ Wrote `audit/render_blocks.php` + `audit/render_blocks2.php` (read-only): enumer
 
 ### Rating rationale
 Block rendering is broadly healthy — 84/86 types render robustly and the shared-property/overlay plumbing works. It is not GREEN because two blocks have confirmed crash-on-default-data bugs, there is no per-block error isolation at publish time (one bad block breaks a whole page), and until this audit no test rendered the full block set. 🟡 YELLOW.
+
+---
+
+## §6 — Atomic publish / versions / rollback  🔴 RED  (audited 2026-07-06)
+
+### What was checked
+Read the full publish flow (`PublishController` → `PublishOrchestrator` → `PublishSiteJob` → `DeployService` → `SymlinkDeployStrategy`/`RenameDeployStrategy`), the retention/prune functions, rollback wiring, `page_versions` snapshot/restore, and the concurrency guard. Ran `PublishTest` and `VersionTest`.
+
+### What works (verified)
+- **Slug-site go-live is genuinely atomic.** `SymlinkDeployStrategy::deploy` builds `{publicPath}.new` → `symlink($staging, .new)` → `rename($new, $publicPath)` (`:20,:33`). `rename(2)` of a symlink on the same filesystem is atomic — no broken window.
+- **Per-site publish is guarded** by a Postgres advisory lock (`AdvisoryLock::run("publish_site_{id}")`, `PublishOrchestrator.php:35`) plus an active-deployment `exists()` pre-check (`:27-33`).
+- **Versioning works and is tested.** `createVersion` snapshots `blocks_snapshot` + `seo_snapshot` (block JSON + SEO, per page/post) on every publish and on block save (`PublishSiteJob.php:219-234`). `VersionController` restore writes blocks back to the DB. `VersionTest` = **5 real passing tests** (list/show/restore for page + post, editor role). This is the healthy part of the subsystem.
+
+### Defects
+
+**D1 (blocker) — Rollback is a silent no-op.** `PublishController::rollback` → `PublishOrchestrator::rollback` creates a `type='rollback'` deployment and dispatches `PublishSiteJob::dispatch($deployment, 'rollback', $target)`, but **`PublishSiteJob::handle()` never reads `$this->rollbackTargetId`** (stored at `:38,:49`, never used in `handle`). So "roll back to deployment X" just runs a **normal full rebuild from current DB state** — it does not restore the target build or snapshot. All the real rollback code (`DeployService::rollback`, `SymlinkDeployStrategy::rollback`, `RenameDeployStrategy::rollback`) is **dead — never invoked**, and the `rolled_back` status is never set. No test references rollback at all. Users get a success response while nothing is actually reverted. **Severity: blocker (data/operational — a broken deploy cannot be undone).**
+
+**D2 (blocker) — Global build pruning deletes live sites' build targets.** The live symlink points **directly into** `storage/app/builds/{deploymentId}` (no copy to a stable location). `PublishSiteJob::cleanOldBuilds` (`:665-677`, runs every publish) globs the **global** `storage/app/builds` across **all sites/tenants**, sorts by mtime, and deletes everything beyond the **3 newest** (`$dirs->slice(3)`). `SymlinkDeployStrategy::cleanOldBuilds` does the same keeping 5. So once there are more than 3 build dirs globally — i.e. more than ~3 active sites, or one site publishing 3× — the older sites' **live build directories are deleted**, leaving their live symlinks dangling → 404/500 on those tenants' published sites. Retention is global where it must be per-site. **Severity: blocker (multi-tenant availability).**
+
+**D3 (major) — Non-atomic deploy for custom-domain sites and the rename fallback.** Custom-domain sites (real customer domains) never use symlink — `DeployService::deployLocal` routes them to `copyDeploy()`, a per-file `File::copy` into the live `public_html` (`DeployService.php:81-95,138-164`). `RenameDeployStrategy` copies each file to `.tmp`+rename one by one (`:40-48`) — atomic per file but the site is **half-updated across the loop**, and it never deletes files for removed pages (stale/deleted pages stay live). On mid-deploy failure the live site is left half-written (the `catch` only sets `status='failed'`, no FS revert). **Severity: major (broken-window on every custom-domain publish).**
+
+**D4 (major) — `cleanUnpublishedPosts` mutates the live docroot mid-build.** `PublishSiteJob:569-631` deletes directories from the **live** `publishing.public_path` *before* the atomic swap (`:173`, swap at `:177`), and scans the **shared parent** `sites/` dir rather than a per-site root — so its deletes are not cleanly tenant-scoped and touch live output during the build for all strategies. **Severity: major.**
+
+**D5 (major) — Concurrency race for slow builds.** The advisory lock only wraps deployment-record *creation*, not `PublishSiteJob::handle()` on the worker. The guard also **hard-deletes** any deployment stuck `queued/building/deploying` for >5 min (`PublishOrchestrator.php:20-24`) — so a build legitimately taking >5 min has its row deleted, letting a second publish start and race the live docroot / symlink swap. The stale-batch promote path (`StaleContentController`, `RepublishStaleJob`) takes no lock at all and writes per-file to live. **Severity: major.**
+
+**D6 (major) — Zero real publish test coverage.** `tests/Feature/Publishing/PublishTest.php` is **6 `markTestIncomplete` stubs** (0 assertions). Nothing exercises the deploy swap, retention, rollback, or concurrency. Only versioning (`VersionTest`) is genuinely tested. **Severity: major.**
+
+### Secondary
+- **`deploy_artifacts` is a dead table** — no `DeployArtifact::create` anywhere; the `output_path`/`content_hash` manifest columns are never populated, so there is no per-file manifest or content hashing in the pipeline (relevant to §7 delta publish). (info/major)
+- Custom-domain path sanitizes the domain against traversal (`DeployService.php:85-87`) — good.
+
+### Rating rationale
+The atomic go-live for slug sites and the versioning subsystem are correct and (for versions) tested — but **rollback does not work at all**, **routine publishing deletes other tenants' live sites** once more than ~3 sites exist, custom-domain publishes are non-atomic, the live docroot is mutated mid-build, concurrency races on slow builds, and the publish pipeline has no real test coverage. These are production-availability and data-safety blockers. 🔴 RED.

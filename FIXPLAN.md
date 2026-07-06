@@ -85,6 +85,21 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > Two one-line null-safety fixes: `category-header.blade.php:23` returns unguarded `$data['textAlign']` from the ternary true-branch — capture the coalesced value into a variable first (`$ta = $data['textAlign'] ?? 'center'; $textAlign = in_array($ta,[...]) ? $ta : 'center';`). `readingprogress.blade.php:18` uses `?:` — change `$data['color'] ?: '#3b82f6'` to `($data['color'] ?? '') ?: '#3b82f6'`. Then add per-block isolation in `BuildPageService::renderBlock`'s callers (the `foreach` at `:220-221`, and the templated/context loops): wrap each `renderBlock` in try/catch, emit an HTML comment placeholder + log on failure, so one fragile block can't fail the entire page publish. Add the `audit/render_blocks.php` sweep as a real test (render every registered block with empty data, assert no throw) to prevent regressions.
 
+### FIX-B6a — Make build retention per-site so publishing can't delete other sites' live output
+**Source:** STATUS.md §6, Defect D2. **Severity: blocker.** **Effort: ~0.5 day.**
+
+> The live symlink points into `storage/app/builds/{deploymentId}` and BOTH prune functions (`PublishSiteJob::cleanOldBuilds` keep-3, `SymlinkDeployStrategy::cleanOldBuilds` keep-5) glob the GLOBAL builds dir and delete by mtime — so >3 active sites means older sites' live builds get deleted (dangling symlink → dead site). Fix: partition builds per site (`storage/app/builds/{siteId}/{deploymentId}`) and make retention prune only within the current site's subtree; NEVER delete the build the site's live symlink currently targets (read the symlink, exclude its target). Unify the two divergent prune functions into one. Add a test: publish site A, publish site B ×4, assert site A's live build still exists and its symlink resolves.
+
+### FIX-B6b — Actually implement rollback (it is currently a silent no-op)
+**Source:** STATUS.md §6, Defect D1. **Severity: blocker.** **Effort: ~0.5-1 day.**
+
+> `PublishSiteJob::handle()` ignores `$this->rollbackTargetId` and republishes current DB content, so rollback restores nothing; `DeployService::rollback` and both strategy `rollback()` methods are dead code. Wire `handle()` to branch on the rollback type: for symlink sites, re-point the live symlink to the target deployment's retained build (atomically, via `.new`+rename — see FIX-B6c); mark the new deployment `rolled_back`. This depends on FIX-B6a (the target build must still exist — retain enough per-site history to cover the rollback window, and block rollback with a clear error if the target build was pruned). Add a test that publishes v1, publishes v2, rolls back, and asserts the live output matches v1.
+
+### FIX-B6c — Make custom-domain / rename deploys atomic + fix mid-build live mutation & concurrency
+**Source:** STATUS.md §6, Defects D3/D4/D5. **Severity: major.** **Effort: ~1 day.**
+
+> (1) Custom-domain sites use per-file `copyDeploy` into live `public_html` (non-atomic). Build into a staging dir and swap atomically (symlink where the FS allows, else build-then-rename-dir); on failure leave the previous live output untouched. (2) `RenameDeployStrategy` must also delete files for removed pages (diff old vs new manifest) so deleted pages don't stay live. (3) Move `cleanUnpublishedPosts` so it operates on the staging tree (or the post-swap live tree), never mutating the live docroot mid-build, and scope it to the site's own root, not the shared `sites/` parent. (4) Hold the publish advisory lock (or a DB `building` guard that is NOT auto-deleted mid-flight) across the whole job, and remove/raise the >5-min stale-delete so a slow build can't be wiped and raced. Replace the 6 `PublishTest` stubs with real tests covering deploy swap, retention, and concurrent-publish rejection.
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)
