@@ -47,6 +47,20 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 ---
 
+## P1 — SCHEMA / DATA INTEGRITY
+
+### FIX-A3a — Stop orphaning polymorphic blocks on parent delete
+**Source:** STATUS.md §3, Defect D1. **Severity: moderate.** **Effort: ~0.5 day.**
+
+> `blocks.blockable_id` (and `taggables.taggable_id`) are polymorphic with no DB FK, and no `deleting` cascade exists on `Page`/`Post`/`Slider`/`ThemeTemplate` — `PageController::destroy` just calls `$page->delete()`, so every deleted parent leaks its block/taggable rows forever. Fix: add a `static::deleting` hook to each parent model that deletes `$model->blocks()` (and detaches taggables), OR centralize it in a trait applied to all blockable parents. Guard against the soft-delete case if any parent uses SoftDeletes (delete blocks only on force-delete, or keep them for restore — decide per model). Add a test: create page+blocks, delete page, assert 0 orphan blocks. Optionally add a one-off cleanup command for any orphans already accumulated in prod. Note the interaction with §1 FIX-A1a — blocks RLS must stay correct after cleanup.
+
+### FIX-A3b — Add missing FK indexes + fix delete-blocking FKs (perf + teardown safety)
+**Source:** STATUS.md §3, Defects D2/D4/D5. **Severity: minor.** **Effort: ~0.5 day.**
+
+> One migration to: (1) add indexes on hot unindexed FK/scoping columns — prioritize `themes.site_id`, `deploy_artifacts.{deployment_id,page_id,post_id}`, `menu_items.{page_id,post_id,category_id,parent_id}`, `global_blocks.site_id`, `popups.site_id`, `sites.active_theme_id`; (2) change the 3 `NO ACTION` user/tenant FKs to `SET NULL` (`deployments.triggered_by`, `page_versions.published_by`) and confirm tenant-teardown order for `magazine_issues.tenant_id`; (3) optionally add FK constraints on the un-constrained `tenant_id` columns (`layouts`, `theme_*`, `issue_studio_*`) for referential safety. Forward migration only — no `migrate:fresh`. Low risk, measurable query improvement once sites have real data.
+
+---
+
 ## Secondary (schedule into the owning subsystem's fix-session)
 - **`SET LOCAL` vs `SET`** for tenant GUC — revisit when auditing Auth (A#2) / publish (B). Context can leak across requests on reused connections (Octane/queue).
 - **`ProcessScheduledContentJob:18`** cross-tenant `Site::withoutGlobalScopes()->get()` returns 0 rows under enforced RLS with no prior context — fix as part of Publish pipeline (Session B).

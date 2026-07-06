@@ -17,7 +17,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 |---|-----------|-------------|-------------|---------------|-------------------|--------|-------|
 | 1 | Tenancy & RLS | partial | yes (2 suites, 9 tests) | yes (9/9) | yes (DB-level probe) | 🔴 RED | RLS-only isolation; 7+ tenant tables RLS-enabled-but-not-FORCED → owner role bypasses; 14 tenant tables have NO RLS; app-scope traits are dead code. Cross-tenant IDOR on menus. See §1. |
 | 2 | Auth, roles, RBAC gates | full (auth) / partial (RBAC) | stub only (7 tests, all `markTestIncomplete`) | n/a (no real assertions) | yes (code+config read) | 🟡 YELLOW | Auth core is solid (throttled login, secure session, CSRF, no debug). But 7 controllers have write endpoints with NO role check (viewer can mutate themes/magazines/templates); invite/updateRole escalation asymmetry; owner-demotion; `role` mass-assignable; zero real test coverage. See §2. |
-| 3 | DB schema integrity | — | — | — | — | ⬜ | Not yet audited (Session A #3) |
+| 3 | DB schema integrity | full | indirect (RefreshDatabase migrates every test) | yes (66/66 ran clean, 0 pending) | yes (live-DB FK/orphan/index probes) | 🟡 YELLOW | Strong: all migrations reversible+clean, broad sensible FKs, good scoping-index coverage, no orphans in current data. Gaps: page/post delete orphans polymorphic blocks (no FK/cascade/hook); 3 delete-blocking FKs; 1 irreversible drop migration; some missing indexes; no referential-integrity tests. See §3. |
 | 4 | Security layers (purifier/MIME/CSP) | — | — | — | — | ⬜ | Not yet audited (Session A #4) |
 | 5 | Blade rendering of every block | — | — | — | — | ⬜ | Session B |
 | 6 | Atomic publish / versions / rollback | — | — | — | — | ⬜ | Session B |
@@ -158,3 +158,42 @@ Note the double jeopardy with §1: several of these tables (`magazine_issues`, `
 
 ### Rating rationale
 The authentication core is genuinely well-built and cross-tenant reads are still held for the RLS-protected surface, so this is not RED. But **within-tenant authorization is enforced inconsistently** — an entire class of write endpoints (theme + magazine + templates) skips the role system, two user-management escalation paths exist, `role` is mass-assignable, and there is **no functional test coverage** to catch regressions. That is a solid 🟡 YELLOW with major gaps that must close before public launch.
+
+---
+
+## §3 — DB schema integrity  🟡 YELLOW  (audited 2026-07-06)
+
+### What was checked
+- `php artisan migrate:status` (read-only) on the dev DB; migration source read across all 66 files.
+- Live-DB probes (as the app role `cms_saas`): full FK inventory with `ON DELETE` rules, index coverage on every `site_id`/`tenant_id`, orphan queries against seeded data, PK-type consistency, RLS-policy expressions.
+- Verified the delete paths for polymorphic children (blocks) in controllers/models.
+- **No migration command was run** (read-only track). Migration cleanliness is evidenced indirectly by the full test suite, which uses `RefreshDatabase` (migrates a fresh test DB on every run).
+
+### What works (verified)
+- **All 66 migrations ran clean, 0 pending**, and **every migration defines a `down()`** (only one is a deliberate no-op — see D3). Continuously re-verified by `RefreshDatabase`.
+- **Broad, sensible FK coverage.** ~100 FK constraints: `CASCADE` for ownership edges (site→content, magazine→pages, issue→children), `SET NULL` for optional refs (author, layout, grid, parent). Live DB confirms the rules.
+- **Good scoping-index coverage.** Of all `site_id`/`tenant_id` columns, only 4 lack an index (see D4).
+- **No orphaned rows** in the current seeded data (blocks→page/post, taggables→tag, magazine_pages→magazine all clean).
+- **Enum enforcement at DB level** for the important status columns (`sites.status`, `pages.status`, `posts.status`, `users.role`, `deployments.type/status`, `sliders.status` are Laravel `enum()` → CHECK constraints).
+- **Blocks polymorphic RLS was correctly extended** to 4 blockable types (page/post/template/slider) — the 88 non-page/post blocks are legitimately scoped, not a leak.
+
+### Defects
+
+**D1 (moderate, confirmed) — Page/Post deletion orphans polymorphic blocks.** `blocks.blockable_id` is polymorphic with **no DB FK**, and there is **no `static::deleting` cascade** on `Page`/`Post`/`Slider`/`ThemeTemplate` (only `Layout` has a deleting hook, for a different purpose). `PageController::destroy` (`PageController.php`) simply calls `$page->delete()` with no block cleanup. So every hard-deleted page/post/slider/template leaves its `blocks` rows (and `taggables` rows) permanently orphaned — dead rows that RLS still counts and that accumulate forever. Currently latent (dev DB has 0 orphans because nothing has been deleted yet), but the code path is wrong. **Severity: moderate (data integrity, slow leak).**
+
+**D2 (minor, latent) — 3 delete-blocking FKs (`NO ACTION`).** `deployments.triggered_by → users`, `page_versions.published_by → users`, and `magazine_issues.tenant_id → tenants` have no `onDelete`. Normal user deletion is safe because `User` uses `SoftDeletes` (no hard DELETE fires the FK), but a **tenant hard-teardown** or any real user DELETE will be blocked/ordering-sensitive. **Severity: minor/latent.**
+
+**D3 (minor) — One irreversible migration.** `2026_07_05_210001_drop_legacy_issue_composer_wizard_tables.php` drops 5 tables (`mag_wizard_*`, `issue_content_items`, `magazine_curation_runs`, `issue_design_system`) with an empty comment-only `down()` — rollback does not recreate them (permanent loss). Intentional cleanup of legacy tables, but flagged for the record. Also `2026_05_14_rename_quote_to_pullquote` has a lossy `down()` that over-reverts. **Severity: minor (hygiene).**
+
+**D4 (minor) — Missing indexes on FK/scoping columns.** Postgres does not auto-index FKs. Notably unindexed: `themes.site_id` (queried on every render), `deploy_artifacts.{deployment_id,page_id,post_id}` (table has zero indexes), `menu_items.{page_id,post_id,category_id,parent_id}`, `global_blocks.site_id`, `popups.site_id`, `sites.active_theme_id`, plus many optional-ref columns. These table-scan on join/cascade. **Severity: minor (perf, grows with data).**
+
+**D5 (minor) — Some `tenant_id` columns have no FK to `tenants`.** `layouts.tenant_id`, the three `theme_assignments/overrides/versions.tenant_id`, and `issue_studio_*` tenant columns have no referential constraint — RLS relies solely on the app-set session var, so a bad `tenant_id` write has no DB guard. **Severity: minor.**
+
+**D6 (info) — PK-strategy inconsistency.** The schema is uniformly UUID except `page_views` which uses a bigint auto-increment PK (`2026_04_16_..._create_analytics_tables.php:12`) while carrying a uuid `site_id` FK. No join type-mismatch (FK targets are uuid), just an outlier. `taggables` uses a composite varchar PK (normal for a pivot). **Severity: cosmetic.**
+
+**D7 (minor) — Several enum-like columns lack DB CHECK** (`theme mode`, `magazine_frames.frame_type`, `entity_references.source_type/target_type`, `grid_assignments.assignable_type`, `activity_logs.action`) — validated only in app code. **Severity: minor.**
+
+Cross-ref §1: the `blocks` and `themes` RLS policies use `current_setting('app.current_tenant_id')` **without** the `,true` missing_ok flag, so those tables **throw** (not return empty) when queried with no tenant context — a robustness hazard for public-render/job code paths.
+
+### Rating rationale
+The schema is genuinely well-engineered and continuously migration-tested, so it is far healthier than §1/§2. It is not GREEN because of one **confirmed data-integrity defect** (polymorphic orphan-on-delete that will silently accumulate dead rows in production) plus the absence of any referential-integrity/orphan tests. Everything else is minor perf/hygiene. Honest rating: 🟡 YELLOW (healthy end).
