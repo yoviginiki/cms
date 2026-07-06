@@ -82,7 +82,10 @@ class DtpPreflightService
                 $src = $content['src'] ?? '';
                 if (!$src) {
                     $items[] = $this->item('error', 'MISSING_IMAGE', "{$name}: no image selected.", frameId: $frame->id, blocking: true);
-                } elseif (!in_array(strtolower((string) parse_url($src, PHP_URL_SCHEME)), ['http', 'https'])) {
+                } elseif (!in_array(strtolower((string) parse_url($src, PHP_URL_SCHEME)), ['http', 'https'])
+                    && !str_starts_with((string) $src, '/')) {
+                    // relative /api/v1/.../serve paths are the editor's canonical
+                    // asset src (same rule as SaveDtpDocumentRequest)
                     $items[] = $this->item('error', 'UNSAFE_IMAGE_URL', "{$name}: image URL uses unsafe scheme.", frameId: $frame->id, blocking: true);
                 }
 

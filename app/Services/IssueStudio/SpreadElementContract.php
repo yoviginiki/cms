@@ -54,6 +54,12 @@ LAYOUT CONTRACT (how your JSON becomes a real magazine document):
   pull quotes 18-26pt. One display + one text face - no others.
 
 TEXT FITTING (hard rule - overset text is a defect):
+- Frame HEIGHT must fit the lines: height >= font_size x 1.5 per line of text
+  (count wrapped lines: chars per line ~ width / (font_size x 0.48) for display,
+  width / 5.2 at 10pt body). When unsure, make text frames TALLER - extra air
+  below text is good design; clipped text is a defect.
+- Captions on light imagery need dark text; on dark imagery, white. Choose
+  text_color per background, never by habit.
 - Body text at 10pt fits roughly width x height / 72 characters per frame.
 - Headlines: one line fits roughly width / (font_size * 0.48) characters.
 - You are the editor: CUT text to fit. Excerpt the strongest passage of a long

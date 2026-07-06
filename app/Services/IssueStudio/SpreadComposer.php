@@ -220,6 +220,7 @@ class SpreadComposer
         $frameType = SpreadElementContract::TYPE_MAP[$type];
 
         $content = [];
+        $typography = [];
         $safeColor = fn (?string $c) => (is_string($c) && preg_match('/^#[0-9a-fA-F]{3,8}$/', $c)) ? $c : null;
 
         if (in_array($type, SpreadElementContract::TEXT_TYPES, true)) {
@@ -228,26 +229,27 @@ class SpreadComposer
                 $content['attribution'] = mb_substr(strip_tags((string) ($el['attribution'] ?? '')), 0, 200);
             }
             if (!empty($el['columns']) && $type === 'text_frame') {
-                $content['columns'] = max(1, min(3, (int) $el['columns']));
+                // renderer + editor key is columnsInFrame
+                $content['columnsInFrame'] = max(1, min(3, (int) $el['columns']));
                 $content['columnGap'] = 12;
             }
+            // renderer + editor read typography from metadata._typography
             $typography = array_filter([
                 'fontSize' => isset($el['font_size']) ? max(6, min(120, (float) $el['font_size'])) : null,
                 'lineHeight' => isset($el['line_height']) ? max(0.8, min(3, (float) $el['line_height'])) : null,
                 'fontFamily' => in_array($el['font_family'] ?? null, ['Barlow', 'Barlow Condensed'], true) ? $el['font_family'] : null,
-                'fontWeight' => in_array($el['font_weight'] ?? null, ['300', '400', '500', '600', '700', '800'], true) ? $el['font_weight'] : null,
+                'fontWeight' => in_array($el['font_weight'] ?? null, ['300', '400', '500', '600', '700', '800'], true) ? (int) $el['font_weight'] : null,
                 'textColor' => $safeColor($el['text_color'] ?? null),
-                'textAlign' => $el['text_align'] ?? null,
+                'textAlign' => in_array($el['text_align'] ?? null, ['left', 'center', 'right', 'justify'], true) ? $el['text_align'] : null,
             ], fn ($v) => $v !== null);
-            if ($typography !== []) {
-                $content['typography'] = $typography;
-            }
         } elseif (in_array($type, SpreadElementContract::IMAGE_TYPES, true)) {
             $asset = $this->assetForMaterial($session, (string) $el['material_id']);
+            // normalize CSS-style fit modes the model may emit
+            $fitMode = ['cover' => 'fill', 'contain' => 'fit'][$el['fit_mode'] ?? ''] ?? ($el['fit_mode'] ?? 'fill');
             $content = [
                 'src' => "/api/v1/sites/{$session->site_id}/assets/{$asset}/serve",
                 'alt' => mb_substr(strip_tags((string) $el['alt']), 0, 300),
-                'fitMode' => $el['fit_mode'] ?? 'fill',
+                'fitMode' => in_array($fitMode, ['fill', 'fit', 'stretch', 'original'], true) ? $fitMode : 'fill',
                 'focalPoint' => [
                     'x' => max(0, min(1, (float) ($el['focal_x'] ?? 0.5))),
                     'y' => max(0, min(1, (float) ($el['focal_y'] ?? 0.5))),
@@ -258,10 +260,10 @@ class SpreadComposer
                 $content['caption'] = mb_substr(strip_tags((string) $el['caption']), 0, 500);
             }
         } elseif (in_array($type, SpreadElementContract::SHAPE_TYPES, true)) {
-            $content = [
-                'fillColor' => $safeColor($el['fill_color']) ?? '#eeeeee',
-                'opacity' => (int) max(0, min(100, (float) ($el['opacity'] ?? 100))),
-            ];
+            // the shape renderer paints fillColor only — bake opacity into rgba
+            $hex = $safeColor($el['fill_color']) ?? '#eeeeee';
+            $alpha = max(0, min(100, (float) ($el['opacity'] ?? 100))) / 100;
+            $content = ['fillColor' => $alpha < 1 ? self::hexToRgba($hex, $alpha) : $hex];
         } elseif ($type === 'table_frame') {
             $content = [
                 'tableHeaders' => array_map(fn ($hd) => mb_substr(strip_tags((string) $hd), 0, 120), $el['table_headers']),
@@ -290,8 +292,25 @@ class SpreadComposer
             'locked' => false,
             'content' => $content,
             'style' => [],
-            'metadata' => ['_magType' => $type, '_issueStudio' => true],
+            'metadata' => array_filter([
+                '_magType' => $type,
+                '_issueStudio' => true,
+                '_typography' => $typography ?: null,
+            ]),
         ];
+    }
+
+    private static function hexToRgba(string $hex, float $alpha): string
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+
+        return sprintf('rgba(%d,%d,%d,%.2f)', $r, $g, $b, $alpha);
     }
 
     private function assetForMaterial(StudioSession $session, string $materialId): string
