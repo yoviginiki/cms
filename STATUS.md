@@ -19,7 +19,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 2 | Auth, roles, RBAC gates | full (auth) / partial (RBAC) | stub only (7 tests, all `markTestIncomplete`) | n/a (no real assertions) | yes (code+config read) | 🟡 YELLOW | Auth core is solid (throttled login, secure session, CSRF, no debug). But 7 controllers have write endpoints with NO role check (viewer can mutate themes/magazines/templates); invite/updateRole escalation asymmetry; owner-demotion; `role` mass-assignable; zero real test coverage. See §2. |
 | 3 | DB schema integrity | full | indirect (RefreshDatabase migrates every test) | yes (66/66 ran clean, 0 pending) | yes (live-DB FK/orphan/index probes) | 🟡 YELLOW | Strong: all migrations reversible+clean, broad sensible FKs, good scoping-index coverage, no orphans in current data. Gaps: page/post delete orphans polymorphic blocks (no FK/cascade/hook); 3 delete-blocking FKs; 1 irreversible drop migration; some missing indexes; no referential-integrity tests. See §3. |
 | 4 | Security layers (purifier/MIME/CSP) | partial | yes (Xss + SecuritySanitization pass; unit sanitizer suite is stubs) | partial (top-level XSS covered; 2 vectors uncaught) | yes (concrete PoC of both XSS holes) | 🔴 RED | HTMLPurifier is strong for top-level fields, uploads are well-guarded. But 2 confirmed stored-XSS vectors (allowHtml→strip_tags keeps event handlers; nested array fields never purified) render raw via `{!! !!}`, and there is NO CSP anywhere + NO security headers on published static sites. See §4. |
-| 5 | Blade rendering of every block | — | — | — | — | ⬜ | Session B |
+| 5 | Blade rendering of every block | full (86 types) | new audit script renders all 86 | 84/86 render clean; 2 throw | yes (rendered every view, empty + fixture data) | 🟡 YELLOW | 84/86 blocks render robustly with missing data. `category-header` and `readingprogress` throw on default data (null-safety bugs), and the main publish loop has no per-block try/catch → one bad block fails the whole page. See §5. |
 | 6 | Atomic publish / versions / rollback | — | — | — | — | ⬜ | Session B |
 | 7 | Delta publish correctness | — | — | — | — | ⬜ | Session B |
 | 8 | SEO output (sitemap/robots/OG) | — | — | — | — | ⬜ | Session B |
@@ -239,3 +239,25 @@ The schema is genuinely well-engineered and continuously migration-tested, so it
 
 ### Rating rationale
 Upload hardening and top-level HTMLPurifier usage are genuinely good, but this subsystem ships **two confirmed, editor-reachable stored-XSS vectors** whose output lands unescaped on public sites and in the admin preview origin, with **no CSP anywhere** to contain them and **no test coverage** over the affected code paths. For a public-facing publishing platform that is a 🔴 RED — these gate launch and should be the highest-priority security fixes alongside the §1 tenancy work.
+
+---
+
+## §5 — Blade rendering of every registered block  🟡 YELLOW  (audited 2026-07-06)
+
+### What was checked
+Wrote `audit/render_blocks.php` + `audit/render_blocks2.php` (read-only): enumerate all registered block types from `BlockRegistry`, and render each block's Blade view twice — with **empty data** and with a **fixture** — under a real seeded `Site`, catching throws and empty output. This is the first exhaustive render sweep; no prior test renders every block.
+
+### Results
+- **86 registered block types; all 86 have a Blade view; 84 render cleanly** with missing/empty data (they use `?? default` guards correctly).
+- **2 blocks throw on default data** (confirmed real null-safety bugs):
+  - `category-header.blade.php:23` — `in_array($data['textAlign'] ?? 'center', [...]) ? $data['textAlign'] : 'center'`: the null-coalesce guards the `in_array` condition but the ternary's true-branch returns the **unguarded** `$data['textAlign']`, so a block with no `textAlign` throws `Undefined array key`.
+  - `readingprogress.blade.php:18` — `$color = $data['color'] ?: '#3b82f6'` uses `?:` (elvis) instead of `??`, so a missing `color` key raises `Undefined array key` → thrown ErrorException.
+- The 7 additional throws in the first pass were **fixture artifacts** (my generic fixture injected `columns`/`items`/`rows` as arrays into blocks that read those as scalars, e.g. `stats` reads `columns` as a number at `stats.blade.php:21`). A clean scalar-only fixture reproduced **only** the 2 real throws. Recorded so the false positives aren't mistaken for defects.
+- `langswitcher` renders empty output (0 bytes) with no locales configured — legitimate (nothing to switch), not a defect.
+
+### Defect
+
+**D1 (moderate) — 2 blocks crash on default data, and the publish loop does not isolate a failing block.** The main page build loop (`BuildPageService.php:220-221`) calls `$renderedBlocks .= $this->renderBlock($block, $site)` with **no per-block try/catch**. So when `category-header` or `readingprogress` (or any future fragile block) throws on missing data — reachable via API/import/template creation, data-shape drift, or a field added before defaults — the **entire page publish fails**, not just that block. The two null-safety bugs are one-line fixes; the missing isolation is the systemic amplifier. **Severity: moderate (publish reliability).**
+
+### Rating rationale
+Block rendering is broadly healthy — 84/86 types render robustly and the shared-property/overlay plumbing works. It is not GREEN because two blocks have confirmed crash-on-default-data bugs, there is no per-block error isolation at publish time (one bad block breaks a whole page), and until this audit no test rendered the full block set. 🟡 YELLOW.

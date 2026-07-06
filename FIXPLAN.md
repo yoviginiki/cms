@@ -78,6 +78,15 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 ---
 
+## P1 — PUBLISH RELIABILITY
+
+### FIX-B5a — Fix 2 crash-on-default-data blocks + isolate block failures at publish
+**Source:** STATUS.md §5, Defect D1. **Severity: moderate.** **Effort: ~0.25 day.**
+
+> Two one-line null-safety fixes: `category-header.blade.php:23` returns unguarded `$data['textAlign']` from the ternary true-branch — capture the coalesced value into a variable first (`$ta = $data['textAlign'] ?? 'center'; $textAlign = in_array($ta,[...]) ? $ta : 'center';`). `readingprogress.blade.php:18` uses `?:` — change `$data['color'] ?: '#3b82f6'` to `($data['color'] ?? '') ?: '#3b82f6'`. Then add per-block isolation in `BuildPageService::renderBlock`'s callers (the `foreach` at `:220-221`, and the templated/context loops): wrap each `renderBlock` in try/catch, emit an HTML comment placeholder + log on failure, so one fragile block can't fail the entire page publish. Add the `audit/render_blocks.php` sweep as a real test (render every registered block with empty data, assert no throw) to prevent regressions.
+
+---
+
 ## Secondary (schedule into the owning subsystem's fix-session)
 - **`SET LOCAL` vs `SET`** for tenant GUC — revisit when auditing Auth (A#2) / publish (B). Context can leak across requests on reused connections (Octane/queue).
 - **`ProcessScheduledContentJob:18`** cross-tenant `Site::withoutGlobalScopes()->get()` returns 0 rows under enforced RLS with no prior context — fix as part of Publish pipeline (Session B).
