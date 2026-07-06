@@ -56,6 +56,8 @@ export const sites = {
 };
 
 export const pages = {
+  translations: (siteId: string, pageId: string) => api.get(`/sites/${siteId}/pages/${pageId}/translations`),
+  translate: (siteId: string, pageId: string, locale: string) => api.post(`/sites/${siteId}/pages/${pageId}/translate`, { locale }),
   list: (siteId: string, params?: Record<string, unknown>) => api.get(`/sites/${siteId}/pages`, { params }),
   get: (siteId: string, pageId: string) => api.get(`/sites/${siteId}/pages/${pageId}`),
   create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/pages`, data),
@@ -75,6 +77,8 @@ export const blocks = {
 };
 
 export const posts = {
+  translations: (siteId: string, postId: string) => api.get(`/sites/${siteId}/posts/${postId}/translations`),
+  translate: (siteId: string, postId: string, locale: string) => api.post(`/sites/${siteId}/posts/${postId}/translate`, { locale }),
   list: (siteId: string, params?: Record<string, unknown>) => api.get(`/sites/${siteId}/posts`, { params }),
   get: (siteId: string, postId: string) => api.get(`/sites/${siteId}/posts/${postId}`),
   create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/posts`, data),

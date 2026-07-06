@@ -22,6 +22,7 @@ import { BlockPicker } from '@/components/editor/BlockPicker';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { VersionHistory } from '@/components/editor/VersionHistory';
 import { SeoAnalyzer } from '@/components/editor/SeoAnalyzer';
+import { TranslationsPanel } from '@/components/editor/TranslationsPanel';
 import { MagazineCanvas } from '@/components/magazine/MagazineCanvas';
 import MagLayersPanel from '@/components/magazine/MagLayersPanel';
 import PageNavigator from '@/components/magazine/PageNavigator';
@@ -850,6 +851,10 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
   metaRef?: React.MutableRefObject<Record<string, any> | null>;
   onDirty?: () => void;
 }) {
+  const { data: site } = useQuery<any>({
+    queryKey: ['site', siteId],
+    queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
+  });
   const [saving, setSaving] = useState(false);
   const [localMeta, setLocalMeta] = useState<Record<string, any>>(page?.seo_meta || {});
   const metaDirtyRef = useRef(false);
@@ -972,6 +977,13 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
           <option value="zh">中文</option>
           <option value="tr">Türkçe</option>
         </select>
+      </div>
+
+      {/* Translations */}
+      <div>
+        <label className="text-[11px] text-gray-500 mb-1 block">Translations</label>
+        <TranslationsPanel siteId={siteId} contentType="pages" contentId={pageId}
+          seoMeta={page?.seo_meta} site={site} />
       </div>
 
       {/* Editor Mode */}

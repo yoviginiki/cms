@@ -122,6 +122,36 @@ class PageController extends Controller
         return response()->json(['message' => 'Pages reordered.']);
     }
 
+
+    public function translate(Site $site, Page $page, \Illuminate\Http\Request $request): JsonResponse
+    {
+        $this->authorize('create', [Page::class, $site]);
+        $locale = (string) $request->validate(['locale' => ['required', 'string', 'max:10']])['locale'];
+
+        $translation = app(\App\Domain\Publishing\Services\TranslationService::class)
+            ->translate($page, $locale, $site);
+
+        return (new PageResource($translation))->response()->setStatusCode(201);
+    }
+
+    public function translations(Site $site, Page $page): JsonResponse
+    {
+        $this->authorize('view', $page);
+
+        $rows = [];
+        foreach (app(\App\Domain\Publishing\Services\TranslationService::class)->siblings($page, $site) as $locale => $sibling) {
+            $rows[] = [
+                'locale' => $locale,
+                'id' => $sibling->id,
+                'title' => $sibling->title,
+                'slug' => $sibling->slug,
+                'status' => $sibling->status,
+            ];
+        }
+
+        return response()->json(['data' => $rows]);
+    }
+
     public function duplicate(Site $site, Page $page): JsonResponse
     {
         $this->authorize('create', [Page::class, $site]);

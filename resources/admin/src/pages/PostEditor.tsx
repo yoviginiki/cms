@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { TranslationsPanel } from '@/components/editor/TranslationsPanel';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -339,6 +340,7 @@ export default function PostEditor() {
                   categories={categoriesList || []}
                   versions={versionsList || []}
                   siteId={siteId} postId={postId}
+                  seoMeta={post?.seo_meta} site={siteData}
                 />
               </div>
             </div>
@@ -397,6 +399,7 @@ export default function PostEditor() {
                           categories={categoriesList || []}
                           versions={versionsList || []}
                           siteId={siteId} postId={postId}
+                          seoMeta={post?.seo_meta} site={siteData}
                         />
                       )}
                     </div>
@@ -445,6 +448,7 @@ export default function PostEditor() {
                     categories={categoriesList || []}
                     versions={versionsList || []}
                     siteId={siteId} postId={postId}
+                    seoMeta={post?.seo_meta} site={siteData}
                   />
                 )}
               </div>
@@ -491,6 +495,7 @@ export default function PostEditor() {
                     categories={categoriesList || []}
                     versions={versionsList || []}
                     siteId={siteId} postId={postId}
+                    seoMeta={post?.seo_meta} site={siteData}
                   />
                 )}
               </div>
@@ -505,7 +510,7 @@ export default function PostEditor() {
 // ═══════════════════════════════════════════
 // Post Metadata Panel
 // ═══════════════════════════════════════════
-function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId }: {
+function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId, seoMeta, site }: {
   slug: string; setSlug: (v: string) => void;
   slugManual: boolean; setSlugManual: (v: boolean) => void;
   title: string;
@@ -523,6 +528,7 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
   categories: Array<{ id: string; name: string }>;
   versions: Array<{ id: string; created_at: string }>;
   siteId: string; postId: string;
+  seoMeta?: Record<string, unknown> | null; site?: any;
 }) {
   const [showVersions, setShowVersions] = useState(false);
 
@@ -664,6 +670,13 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
         {showVersions && (!versions || versions.length === 0) && (
           <p className="text-[10px] text-base-content/25 mt-2">No revisions yet. Revisions are created automatically when you save.</p>
         )}
+      </div>
+
+      {/* Translations */}
+      <div className="border-t border-base-300/20 pt-3">
+        <label className="text-[11px] text-base-content/40 mb-1 block">Translations</label>
+        <TranslationsPanel siteId={siteId} contentType="posts" contentId={postId}
+          seoMeta={seoMeta} site={site} />
       </div>
 
       {/* Quick links */}

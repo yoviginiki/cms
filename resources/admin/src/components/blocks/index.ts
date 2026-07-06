@@ -82,6 +82,7 @@ import './flipbook';
 import './scroll_page';
 import './menu';
 import './breadcrumbs';
+import './langswitcher';
 import './anchormenu';
 import './post-title';
 import './post-content';

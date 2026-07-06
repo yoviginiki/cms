@@ -64,6 +64,7 @@ use App\Domain\Blocks\Definitions\AnchormenuBlockDefinition;
 use App\Domain\Blocks\Definitions\BreadcrumbsBlockDefinition;
 use App\Domain\Blocks\Definitions\TocBlockDefinition;
 use App\Domain\Blocks\Definitions\MenuBlockDefinition;
+use App\Domain\Blocks\Definitions\LangSwitcherBlockDefinition;
 use App\Domain\Blocks\Definitions\ReadingprogressBlockDefinition;
 use App\Domain\Blocks\Definitions\FeaturegridBlockDefinition;
 use App\Domain\Blocks\Definitions\FeaturecomparisonBlockDefinition;
@@ -167,6 +168,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new BreadcrumbsBlockDefinition());
             $registry->register(new TocBlockDefinition());
             $registry->register(new MenuBlockDefinition());
+            $registry->register(new LangSwitcherBlockDefinition());
             $registry->register(new ReadingprogressBlockDefinition());
             $registry->register(new FeaturegridBlockDefinition());
             $registry->register(new FeaturecomparisonBlockDefinition());

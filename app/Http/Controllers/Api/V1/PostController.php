@@ -128,6 +128,36 @@ class PostController extends Controller
         return response()->json(null, 204);
     }
 
+
+    public function translate(Site $site, Post $post, \Illuminate\Http\Request $request): JsonResponse
+    {
+        $this->authorize('create', [Post::class, $site]);
+        $locale = (string) $request->validate(['locale' => ['required', 'string', 'max:10']])['locale'];
+
+        $translation = app(\App\Domain\Publishing\Services\TranslationService::class)
+            ->translate($post, $locale, $site);
+
+        return (new PostResource($translation))->response()->setStatusCode(201);
+    }
+
+    public function translations(Site $site, Post $post): JsonResponse
+    {
+        $this->authorize('view', $post);
+
+        $rows = [];
+        foreach (app(\App\Domain\Publishing\Services\TranslationService::class)->siblings($post, $site) as $locale => $sibling) {
+            $rows[] = [
+                'locale' => $locale,
+                'id' => $sibling->id,
+                'title' => $sibling->title,
+                'slug' => $sibling->slug,
+                'status' => $sibling->status,
+            ];
+        }
+
+        return response()->json(['data' => $rows]);
+    }
+
     public function duplicate(Site $site, Post $post): JsonResponse
     {
         $this->authorize('create', [Post::class, $site]);
