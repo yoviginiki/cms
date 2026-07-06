@@ -26,7 +26,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 9 | Asset pipeline (WebP/hashing) | full (broken) | none | no | yes (empirical: read() throws, 0/21 variants, rewrite mangles) | 🔴 RED | Content hashing/dedup + tenant-isolated storage + SVG scrub + base-URL resolution all work. But image variant generation is 100% broken — `AssetService` calls `ImageManager::read()` which doesn't exist in the installed Intervention v4, throws, and is swallowed by a silent catch → 0/21 assets have variants. Even if fixed, `AssetPublisher` mangles variant URLs and never publishes variant files. WebP/responsive pipeline is non-functional end-to-end. See §9. |
 | 10 | Block registry contract compliance | full | yes (ExtractorCoverageTest — currently RED) | 85/86 compliant | yes (scripted full cross-reference) | 🟡 YELLOW | Healthiest subsystem so far, near-GREEN: 86 types, all 86 have Blade views, 84/84 React dirs complete (Editor+Preview+definition), extractor registry with an enforcing test. Only gaps: `langswitcher` missing its extractor entry (ExtractorCoverageTest failing), orphan `quote.blade.php` leftover. See §10. |
 | 11 | Block editor (CRUD/nesting/undo) | full | yes (Hierarchy 10, InspectorRoundTrip 14, many ValidationTests) | pass | yes (read save path + ran tests) | 🟡 YELLOW | Nesting is server-enforced + well-tested (Section→Row→Column→Module, depth≤4, ≤500 blocks); property round-trip to published CSS tested; block IDs preserved; undo exists. But save is a destructive DELETE-all-then-reinsert that cascades block-scoped `theme_overrides`/`grid_position_blocks` (silent data loss), and there's no concurrency protection — `active_editors` is presence-only → last-write-wins clobbering. See §11. |
-| 12 | Magazine editor | — | — | — | — | ⬜ | Session C |
+| 12 | Magazine editor | full (rebuilt) | yes — 94 pass / 2 fail across DTP+IssueStudio | 94/96 | yes (ran suites, confirmed freeze) | 🟡 YELLOW | NOT "known-broken" anymore — rebuilt. Legacy editor intentionally FROZEN (product decision, no data to migrate); DTP editor is the single current editor (extensive render/PDF/publish/version tests); Issue Studio is the live creation wizard (tests pass). Only 2 failing tests (DTP video-frame QR overlay SVG). See §12. |
 | 13 | Block templates / presets | — | — | — | — | ⬜ | Session C |
 | 14 | entity_references / dependency graph | — | — | — | — | ⬜ | Session D |
 | 15 | Slider system | — | — | — | — | ⬜ | Session D |
@@ -432,3 +432,27 @@ Read `BlockService::syncBlocks`/`insertBlocks`/`buildTree`, `SyncBlocksRequest`,
 
 ### Rating rationale
 The editor's core — level-containment nesting (well-tested in isolation), property round-trip to output, per-block validation, ID preservation, and a persisted undo stack — is solid. It is not GREEN because the save model is a **destructive bulk-replace that cascades away block-linked data**, there is **no protection against concurrent-edit clobbering** (presence-only, last-write-wins), and the server nesting check is **bypassable** (level-omission / type-blind / no maxChildren). Real, if usage-dependent, data-loss and invalid-state paths. 🟡 YELLOW.
+
+---
+
+## §12 — Magazine editor  🟡 YELLOW  (audited 2026-07-06)
+
+### Correction to the audit brief
+The brief labels this "current known-broken state." That is **out of date** — the magazine editor was **rebuilt** (Magazine Flow Engine + Issue Studio) and the legacy editor was intentionally retired. Recording the actual current state.
+
+### The three magazine systems (current topology)
+1. **Legacy page-flip editor** (`MagazineEditorV2`, `Magazine`/`MagazinePage`/`MagazineElement`) — **intentionally FROZEN read-only** by explicit product decision (`App.tsx:20-22`: "legacy magazine editor FROZEN read-only — no legacy magazines to migrate; DTP editor is the single magazine editor"). `magazine-editor-acceptance.md` documents the acceptance. **Not a defect — a deliberate retirement** (there were no legacy magazines to migrate).
+2. **DTP editor** (`DtpEditorBeta`, `magazine_dtp_pages`/`magazine_frames`/`magazine_spreads`/`magazine_layers`) — the **single current magazine editor**. Renders via `DtpRenderService` to static output + PDF (`DtpPdfService`/`DtpZipService`), with preflight, versioning, and rollout services.
+3. **Issue Studio** (`IssueStudioService` + Flatplan/Spread/Interview engines) — the **live conversational creation wizard** (routes `/issue-studio*`), the primary way issues are authored.
+
+### What works (verified)
+- **94 of 96 magazine tests pass (349 assertions).** Coverage spans `DtpRenderServiceParityTest` (editor→publish render parity), `DataElementRenderTest`, `InlineFigureSanitizeTest`, `DtpPdfServiceTest`, `MagazineReferenceExtractorTest`, `MagazineStaticPublishTest`, `DtpVersionsTest`, `DtpRolloutTest`, and Issue Studio `IssueStudioSessionTest`/`FlatplanTest`/`SpreadGenerationTest`. This is substantial, genuine coverage — the magazine subsystem is one of the better-tested areas.
+- Recent hardening (per git history) fixed editor round-trip of shape visuals, figure/figcaption publish survival, and data-element/video-frame rendering.
+
+### Defects
+**D1 (minor) — 2 failing tests: DTP video-frame QR overlay.** `tests/Unit/Magazine/VideoFrameRenderTest.php:35` and `:50` expect a `<svg` QR overlay when `showQr` is set, but the rendered video frame omits it (the play button is a CSS triangle; the QR SVG isn't emitted). A cosmetic rendering gap in `DtpRenderService`'s video frame, not a structural break — but it's a red suite. **Severity: minor.**
+
+**D2 (minor) — Multi-generation sprawl / "beta" labeling.** Three magazine systems coexist (frozen legacy + `DtpEditorBeta` + Issue Studio) plus a `dtp-prototype` route. The current editor is still named/routed as "beta." The legacy freeze is clean, but the beta labeling and prototype routes are latent confusion/cleanup debt. **Severity: minor.**
+
+### Rating rationale
+This is not a broken subsystem — it is a **rebuilt, live, and well-tested** one (94/96 passing, legacy cleanly frozen, Issue Studio in production). It is not GREEN only because 2 tests fail (QR overlay) and the current editor still carries "beta"/prototype status with some multi-generation cleanup owed. 🟡 YELLOW (healthy). The dedicated "magazine rebuild track" the brief anticipated is effectively **already done**; what remains is the QR fix and de-beta cleanup, not a rebuild.

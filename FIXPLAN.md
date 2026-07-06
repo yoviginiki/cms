@@ -140,6 +140,11 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > Close the three API bypass holes so an invalid tree can't be persisted regardless of client: (1) derive/require `level` from `type` server-side (a `type:'section'` must be `level:'section'`) instead of only validating when `level` is present — remove the `if ($hasLevels)` gate; (2) validate the type→level mapping, not just level containment; (3) enforce `maxChildren()`/`allowsChildren()` from the block definitions in `SyncBlocksRequest` (they're currently only exposed to the frontend). Add tests asserting the API rejects: a level-less section-in-section, a type/level mismatch, and a Row exceeding maxChildren.
 
+### FIX-C12a — Fix DTP video-frame QR overlay + de-beta cleanup (low priority)
+**Source:** STATUS.md §12, Defects D1/D2. **Severity: minor.** **Effort: ~0.25 day.**
+
+> Restore the QR-overlay `<svg>` in `DtpRenderService`'s video-frame render so `VideoFrameRenderTest:35,:50` pass (currently the poster/cover path omits the QR SVG when `showQr` is set). Separately, low priority: rename/retire the "beta"/"prototype" DTP routes (`DtpEditorBeta`, `dtp-prototype`) now that DTP is the single production editor, and remove the frozen-legacy `MagazineEditorV2` code path if truly unused. This subsystem does NOT need a rebuild — the brief's "magazine rebuild track" is already complete.
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)
