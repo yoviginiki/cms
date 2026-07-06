@@ -115,6 +115,16 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > D1: `StructuredDataService` hardcodes `/blog/{slug}` for the JSON-LD Article url (`:34`) and post breadcrumb, but posts serve at `/{category}/{slug}/`. Replace the hardcoded `/blog/` construction with `LocalePaths::urlPath($site, $post)` (the same helper the sitemap and — via `SeoService`'s path logic — the canonical use) so structured data, canonical, og:url, and sitemap all agree. Do the same for the page WebPage url and every breadcrumb item. D2: broaden `SeoService::autoDescription` to fall back across text-bearing block types (`paragraph`, `rich-text`, `text`, `heading`, hero subtitle) — pull the first non-empty stripped text — so pages without an explicit description aren't shipped empty. Add SEO tests asserting canonical == og:url == JSON-LD url == sitemap URL for a page and a categorized post, and that description is non-empty when the page has text.
 
+### FIX-B9a — Repair image variant generation (Intervention v4 API) + stop silently swallowing failures
+**Source:** STATUS.md §9, Defect D1. **Severity: blocker.** **Effort: ~0.25 day.**
+
+> `AssetService::generateImageVariants:100` calls `$this->imageManager->read()`, which doesn't exist in the installed Intervention Image v4.0.1 — so it throws and the trailing `catch (\Throwable) {}` hides it, yielding 0 variants for all images. Update to the v4 API (`$this->imageManager->read(...)` is the v3 name; use the v4 equivalent — `read()` was replaced; confirm against the installed version's `ImageManager` methods, e.g. `->read()`/`->decode*`), and **stop swallowing the error** — log it (or at least `report($e)`) so a future library break is visible instead of silently disabling the whole pipeline. Backfill variants for existing assets with a one-off command. Add a test that uploads a >800px image and asserts webp_800/medium_800/thumb_200 variants are created and non-empty.
+
+### FIX-B9b — Make AssetPublisher actually serve variants (URL + publish)
+**Source:** STATUS.md §9, Defect D2. **Severity: major (do WITH B9a — it's a landmine otherwise).** **Effort: ~0.5 day.**
+
+> `AssetPublisher::resolveUrl` ignores the variant suffix and the `rewriteHtml` regex (`/serve(?:/[a-z]+)?`) mangles `…/serve/webp_800` into `/assets/files/{hash}.{ext}_800`. Fixes: (1) parse the full variant name in both the `resolveUrl` API-URL regex and `rewriteHtml` (allow `[a-z0-9_]+`), (2) map each variant to its own hashed public path and **copy the variant file** (not the original) to the deploy target, (3) return the variant's public URL. Verify `image.blade`'s `<picture>`/`srcset` resolve to real files for a >800px image end-to-end (publish, then assert every `src`/`srcset` URL exists on disk). MUST land together with B9a, or fixing generation will break large images in published output.
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)

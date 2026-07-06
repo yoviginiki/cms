@@ -23,7 +23,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 6 | Atomic publish / versions / rollback | full (versions) / broken (rollback) | PublishTest = 6 stubs; VersionTest = 5 real pass | versions pass; publish untested | yes (read swap/rollback/prune/job code) | 🔴 RED | Slug-site go-live IS atomic; versioning works+tested. But ROLLBACK is a silent no-op (job ignores target, republishes current); global build prune keeps only 3 newest across ALL sites while live symlinks point into that dir (>3 sites → broken live output); custom-domain/rename deploys are non-atomic; publish has zero real tests. See §6. |
 | 7 | Delta publish correctness | full (engine) / partial (write) | yes — References suite 35 pass | yes (35/35) | yes (traced delta path) | 🟡 YELLOW | Staleness/dependency ENGINE is well-built + tested (transitive, cycle-guarded, slug-rename flags referrers); needs_republish lifecycle is safe. But delta OUTPUT is incomplete: no sitemap/RSS/archive rebuild, no deleted/renamed-file removal, no version snapshot; write is non-atomic and mutates the live build in place; SmartPublisher delta engine is dead code. See §7. |
 | 8 | SEO output (sitemap/robots/OG) | full | none (no SEO tests) | yes (generated real output) | yes (live-site sitemap/robots/head) | 🟡 YELLOW | Comprehensive, correct per-page meta/OG/Twitter/canonical, valid sitemap+robots (verified on live "Ensodo" site). But JSON-LD/breadcrumb URLs hardcode `/blog/{slug}` while posts serve at `/{category}/{slug}/` → structured data points to non-existent URLs, conflicting with canonical; auto meta-description only reads `text` blocks (often empty); no SEO tests. See §8. |
-| 9 | Asset pipeline (WebP/hashing) | — | — | — | — | ⬜ | Session B |
+| 9 | Asset pipeline (WebP/hashing) | full (broken) | none | no | yes (empirical: read() throws, 0/21 variants, rewrite mangles) | 🔴 RED | Content hashing/dedup + tenant-isolated storage + SVG scrub + base-URL resolution all work. But image variant generation is 100% broken — `AssetService` calls `ImageManager::read()` which doesn't exist in the installed Intervention v4, throws, and is swallowed by a silent catch → 0/21 assets have variants. Even if fixed, `AssetPublisher` mangles variant URLs and never publishes variant files. WebP/responsive pipeline is non-functional end-to-end. See §9. |
 | 10 | Block registry contract compliance | — | — | — | — | ⬜ | Session C |
 | 11 | Block editor (CRUD/nesting/undo) | — | — | — | — | ⬜ | Session C |
 | 12 | Magazine editor | — | — | — | — | ⬜ | Session C |
@@ -358,3 +358,24 @@ Read `SeoService`, `SitemapGenerator`, `RobotsGenerator`, `StructuredDataService
 
 ### Rating rationale
 The SEO output is broadly strong and, for the core surface (title/description/OG/Twitter/canonical/sitemap/robots/clean URLs), verifiably correct on a real live site — well above the audit's average. It is not GREEN because the JSON-LD/breadcrumb URLs are hardcoded to a `/blog/` scheme that doesn't match the actual `/{category}/{slug}/` routing (conflicting canonical signals to a 404), auto-descriptions are frequently empty, and there are zero SEO tests to guard any of it. 🟡 YELLOW.
+
+---
+
+## §9 — Asset pipeline (WebP variants / content hashing / reference resolution)  🔴 RED  (audited 2026-07-06)
+
+### What was checked
+Read `AssetService` (upload/hashing/variant generation), `AssetPublisher` (publish-time resolution/rewrite), and `image.blade`. Then empirically: queried variant coverage across all tenants, reproduced the URL-rewrite behavior, and tested Intervention Image's API in isolation.
+
+### What works (verified)
+- **Content hashing + dedup**: sha256 `hash_file` checksum, dedup by `(site_id, checksum)` returns the existing asset on re-upload (`AssetService.php:23-32`). Published filenames are content-hashed (`/assets/files/{checksum}.{ext}`, `AssetPublisher.php`), giving correct cache-busting.
+- **Tenant-isolated storage** (`sites/{site_id}/assets/…`), **SVG sanitization** at upload, and **base image references resolve correctly** — `rewriteHtml` (wired into publish at `BuildPageService.php:169,288`) rewrites the base `…/serve` URL to the hashed static path, so images **do display** on published sites.
+- GD and WebP are available on the server (so the fix below is just the code, not the environment).
+
+### Defects
+
+**D1 (blocker) — Image variant generation is 100% broken (silently).** `AssetService::generateImageVariants:100` calls `$this->imageManager->read($path)`, but the installed **Intervention Image v4.0.1** `ImageManager` has **no `read()` method** (it exposes `decode`/`decodePath`/…). Verified empirically: `$manager->read(...)` throws `Call to undefined method Intervention\Image\ImageManager::read()`. So **every** upload's variant generation throws at the first line and is swallowed by the method's silent `catch (\Throwable) {}`, returning `[]`. Confirmed against data: **0 of 21 image assets (all tenants) have any variants.** No thumb, no responsive sizes, and **no WebP is ever produced**. The silent catch hid this library-upgrade regression entirely. **Severity: blocker (the pipeline's defining feature produces nothing; every published image is a full-size original — directly undermines the PageSpeed goals, §22).**
+
+**D2 (major, latent) — Even with variants, `AssetPublisher` can't serve them.** Three compounding bugs: (a) `resolveUrl` extracts only the asset UUID and **ignores the variant suffix**, always returning the original file's path; (b) the `rewriteHtml` regex `…/serve(?:/[a-z]+)?` matches `[a-z]+` only, so a variant URL like `…/serve/webp_800` rewrites to a **mangled** `/assets/files/{hash}.{ext}_800` (verified by reproduction); (c) variant files are **never copied** to the published output — only `$asset->storage_path` (the original) is. Because `image.blade:61` uses `medium_800` as the `<img src>` for images >800px, fixing D1 without D2 would immediately **break the base image** for large images in published output (broken `src` + broken `srcset`). **Severity: major (latent landmine — activates the moment D1 is fixed).**
+
+### Rating rationale
+Content hashing, dedup, tenant-isolated storage, SVG scrubbing, and base-image resolution all work — but the asset pipeline's headline capability, **WebP + responsive variants, is non-functional end-to-end**: variants are never generated (a silent library-API regression), and the publish layer would mangle and fail to serve them even if they were. Published sites ship full-size originals with no WebP. Two of the three named capabilities for this subsystem (WebP variants; variant reference resolution) are broken. 🔴 RED.
