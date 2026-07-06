@@ -163,6 +163,8 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
   if (savedMagType === 'video_frame') {
     data.url = content.videoUrl || '';
     data.posterAssetId = content.posterAssetId || null;
+    data.posterSrc = content.posterSrc || '';
+    data.showQr = content.showQr === true;
     data.aspectRatio = content.aspectRatio || '16:9';
     data.autoplay = false;
   }
@@ -350,6 +352,9 @@ export function pagesToDtpApi(
         const vu = (el.data as any)?.url || '';
         content.videoUrl = /^https?:\/\//i.test(vu) ? vu : '';
         content.posterAssetId = (el.data as any)?.posterAssetId;
+        const ps = (el.data as any)?.posterSrc || '';
+        content.posterSrc = /^https?:\/\//i.test(ps) || ps.startsWith('/') ? ps : '';
+        content.showQr = (el.data as any)?.showQr === true;
         content.aspectRatio = (el.data as any)?.aspectRatio || '16:9';
       } else if (el.type === 'audio_player') {
         const au = (el.data as any)?.url || '';

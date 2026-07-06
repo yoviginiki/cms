@@ -507,6 +507,25 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
 
     if (el.type === 'video_frame') {
       const url = (data.url || '') as string;
+      const posterSrc = (data.posterSrc || '') as string;
+      const showQr = (data as any).showQr === true;
+      if (posterSrc) {
+        return (
+          <div className="w-full h-full relative bg-black overflow-hidden">
+            <img src={posterSrc} alt="Video cover" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center shadow">
+                <div className="w-0 h-0 border-y-[7px] border-y-transparent border-l-[12px] border-l-white ml-1" />
+              </div>
+            </div>
+            {showQr && (
+              <div className="absolute right-[4%] bottom-[4%] w-[24%] aspect-square bg-white shadow flex items-center justify-center">
+                <span className="text-[8px] font-bold text-black/60 tracking-wider">QR</span>
+              </div>
+            )}
+          </div>
+        );
+      }
       // Try to extract embed URL for YouTube/Vimeo
       const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
       const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
@@ -517,10 +536,15 @@ export function MagElementRenderer({ element: el, isSelected, isHovered, isEditi
         return <iframe src={`https://player.vimeo.com/video/${vimeoMatch[1]}`} className="w-full h-full border-0" allow="autoplay; fullscreen" allowFullScreen />;
       }
       return (
-        <div className="w-full h-full bg-neutral/5 flex flex-col items-center justify-center border border-dashed border-base-300/30">
+        <div className="w-full h-full bg-neutral/5 flex flex-col items-center justify-center border border-dashed border-base-300/30 relative">
           <Film size={20} className="text-base-content/15 mb-1" />
           <span className="text-[9px] text-base-content/20">Video</span>
           <span className="text-[8px] text-base-content/15 mt-0.5">{url ? 'Unsupported URL' : 'Set URL in Properties'}</span>
+          {showQr && (
+            <div className="absolute right-[4%] bottom-[4%] w-[24%] aspect-square bg-white shadow flex items-center justify-center">
+              <span className="text-[8px] font-bold text-black/60 tracking-wider">QR</span>
+            </div>
+          )}
         </div>
       );
     }

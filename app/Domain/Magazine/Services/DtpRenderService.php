@@ -687,23 +687,82 @@ class DtpRenderService
             . '<textPath href="#' . $pid . '" startOffset="' . $offset . '%">' . $text . '</textPath></text></svg>';
     }
 
-    /** embedded video (YouTube/Vimeo privacy iframes; direct files as <video>) */
+    /**
+     * Embedded video (YouTube/Vimeo privacy iframes; direct files as <video>).
+     * Optional cover image renders on top with click-to-play, and an optional
+     * QR code of the video URL overlays the corner — so a printed page (or
+     * PDF) gives the reader something to scan instead of a dead embed.
+     */
     private function renderVideoFrame(array $content): string
     {
         $url = (string) ($content['videoUrl'] ?? '');
         if (!preg_match('#^https?://#i', $url)) {
             return '<div style="width:100%;height:100%;background:#111;color:#777;display:flex;align-items:center;justify-content:center;font-size:11px;">No video</div>';
         }
+
+        // resolve the embed target
+        $kind = 'link';
+        $embedSrc = $url;
         if (preg_match('#(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{6,20})#', $url, $m)) {
-            return '<iframe src="https://www.youtube-nocookie.com/embed/' . e($m[1]) . '" style="width:100%;height:100%;border:0;" allow="encrypted-media;picture-in-picture;fullscreen" loading="lazy" title="Video"></iframe>';
+            $kind = 'iframe';
+            $embedSrc = 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?autoplay=1';
+        } elseif (preg_match('#vimeo\.com/(\d{6,12})#', $url, $m)) {
+            $kind = 'iframe';
+            $embedSrc = 'https://player.vimeo.com/video/' . $m[1] . '?dnt=1&autoplay=1';
+        } elseif (preg_match('#\.(mp4|webm|ogg)(\?|$)#i', $url)) {
+            $kind = 'video';
         }
-        if (preg_match('#vimeo\.com/(\d{6,12})#', $url, $m)) {
-            return '<iframe src="https://player.vimeo.com/video/' . e($m[1]) . '?dnt=1" style="width:100%;height:100%;border:0;" allow="fullscreen;picture-in-picture" loading="lazy" title="Video"></iframe>';
+
+        // QR overlay (scan to watch — survives print/PDF where embeds die)
+        $qr = '';
+        if (!empty($content['showQr'])) {
+            try {
+                $qr = '<div style="position:absolute;right:4%;bottom:4%;width:24%;max-width:140px;aspect-ratio:1/1;'
+                    . 'background:#fff;padding:1.2%;box-shadow:0 1px 6px rgba(0,0,0,.35);pointer-events:none;z-index:3;">'
+                    . \App\Domain\Publishing\Services\QrCodeService::svg($url)
+                    . '</div>';
+            } catch (\Throwable $e) {
+                $qr = '';
+            }
         }
-        if (preg_match('#\.(mp4|webm|ogg)(\?|$)#i', $url)) {
-            return '<video controls preload="metadata" style="width:100%;height:100%;object-fit:contain;background:#000;" src="' . e($url) . '"></video>';
+
+        $poster = (string) ($content['posterSrc'] ?? '');
+        $posterOk = $poster !== '' && (preg_match('#^https?://#i', $poster) || str_starts_with($poster, '/'));
+
+        if (!$posterOk) {
+            $inner = match ($kind) {
+                'iframe' => '<iframe src="' . e(str_replace(['?autoplay=1', '&autoplay=1'], ['', ''], $embedSrc)) . '" style="width:100%;height:100%;border:0;" allow="encrypted-media;picture-in-picture;fullscreen" loading="lazy" title="Video"></iframe>',
+                'video' => '<video controls preload="metadata" style="width:100%;height:100%;object-fit:contain;background:#000;" src="' . e($url) . '"></video>',
+                default => '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;background:#111;color:#9cf;font-size:12px;">▶ Watch video</a>',
+            };
+
+            return $qr === '' ? $inner
+                : '<div style="position:relative;width:100%;height:100%;">' . $inner . $qr . '</div>';
         }
-        return '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;background:#111;color:#9cf;font-size:12px;">▶ Watch video</a>';
+
+        // cover mode: poster + play button; click swaps in the real player
+        $posterImg = '<img src="' . e($poster) . '" alt="Video cover" loading="lazy" '
+            . 'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">';
+        $playBadge = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;">'
+            . '<div style="width:64px;height:64px;max-width:38%;max-height:38%;aspect-ratio:1/1;border-radius:50%;background:rgba(0,0,0,.55);'
+            . 'display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4);">'
+            . '<div style="width:0;height:0;border-style:solid;border-width:12px 0 12px 20px;border-color:transparent transparent transparent #fff;margin-left:5px;"></div>'
+            . '</div></div>';
+
+        if ($kind === 'link') {
+            return '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer" '
+                . 'style="position:relative;display:block;width:100%;height:100%;background:#000;">'
+                . $posterImg . $playBadge . $qr . '</a>';
+        }
+
+        $swap = $kind === 'video'
+            ? "var v=document.createElement('video');v.controls=true;v.autoplay=true;v.src=this.dataset.src;v.style.cssText='width:100%;height:100%;object-fit:contain;background:#000;';this.replaceChildren(v);"
+            : "var f=document.createElement('iframe');f.src=this.dataset.src;f.allow='autoplay;encrypted-media;picture-in-picture;fullscreen';f.allowFullscreen=true;f.style.cssText='width:100%;height:100%;border:0;background:#000;';this.replaceChildren(f);";
+
+        return '<div style="position:relative;width:100%;height:100%;background:#000;cursor:pointer;" role="button" tabindex="0" '
+            . 'aria-label="Play video" data-src="' . e($kind === 'video' ? $url : $embedSrc) . '" '
+            . 'onclick="' . e($swap) . '" onkeydown="if(event.key===\'Enter\')this.click()">'
+            . $posterImg . $playBadge . $qr . '</div>';
     }
 
     /** in-page audio element */
