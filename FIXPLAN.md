@@ -125,6 +125,11 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > `AssetPublisher::resolveUrl` ignores the variant suffix and the `rewriteHtml` regex (`/serve(?:/[a-z]+)?`) mangles `…/serve/webp_800` into `/assets/files/{hash}.{ext}_800`. Fixes: (1) parse the full variant name in both the `resolveUrl` API-URL regex and `rewriteHtml` (allow `[a-z0-9_]+`), (2) map each variant to its own hashed public path and **copy the variant file** (not the original) to the deploy target, (3) return the variant's public URL. Verify `image.blade`'s `<picture>`/`srcset` resolve to real files for a >800px image end-to-end (publish, then assert every `src`/`srcset` URL exists on disk). MUST land together with B9a, or fixing generation will break large images in published output.
 
+### FIX-C10a — Restore extractor-contract coverage (langswitcher) + delete orphan view
+**Source:** STATUS.md §10, Defects D1/D2. **Severity: moderate.** **Effort: ~15 min.**
+
+> Add a `'langswitcher' => new NullExtractor()` entry (or a real `FieldMapExtractor` if the block references locale-linked content) to `ReferenceExtractorRegistry::__construct` so `ExtractorCoverageTest` goes green again — the test is currently RED, which also means it isn't gating CI. Delete the orphan `resources/views/blocks/quote.blade.php` (leftover from the quote→pullquote rename; no registered type renders it). While here, ensure `ExtractorCoverageTest` (and the suite generally) actually runs in CI so a future block added without its contract artifacts fails the build.
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)

@@ -24,7 +24,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 7 | Delta publish correctness | full (engine) / partial (write) | yes — References suite 35 pass | yes (35/35) | yes (traced delta path) | 🟡 YELLOW | Staleness/dependency ENGINE is well-built + tested (transitive, cycle-guarded, slug-rename flags referrers); needs_republish lifecycle is safe. But delta OUTPUT is incomplete: no sitemap/RSS/archive rebuild, no deleted/renamed-file removal, no version snapshot; write is non-atomic and mutates the live build in place; SmartPublisher delta engine is dead code. See §7. |
 | 8 | SEO output (sitemap/robots/OG) | full | none (no SEO tests) | yes (generated real output) | yes (live-site sitemap/robots/head) | 🟡 YELLOW | Comprehensive, correct per-page meta/OG/Twitter/canonical, valid sitemap+robots (verified on live "Ensodo" site). But JSON-LD/breadcrumb URLs hardcode `/blog/{slug}` while posts serve at `/{category}/{slug}/` → structured data points to non-existent URLs, conflicting with canonical; auto meta-description only reads `text` blocks (often empty); no SEO tests. See §8. |
 | 9 | Asset pipeline (WebP/hashing) | full (broken) | none | no | yes (empirical: read() throws, 0/21 variants, rewrite mangles) | 🔴 RED | Content hashing/dedup + tenant-isolated storage + SVG scrub + base-URL resolution all work. But image variant generation is 100% broken — `AssetService` calls `ImageManager::read()` which doesn't exist in the installed Intervention v4, throws, and is swallowed by a silent catch → 0/21 assets have variants. Even if fixed, `AssetPublisher` mangles variant URLs and never publishes variant files. WebP/responsive pipeline is non-functional end-to-end. See §9. |
-| 10 | Block registry contract compliance | — | — | — | — | ⬜ | Session C |
+| 10 | Block registry contract compliance | full | yes (ExtractorCoverageTest — currently RED) | 85/86 compliant | yes (scripted full cross-reference) | 🟡 YELLOW | Healthiest subsystem so far, near-GREEN: 86 types, all 86 have Blade views, 84/84 React dirs complete (Editor+Preview+definition), extractor registry with an enforcing test. Only gaps: `langswitcher` missing its extractor entry (ExtractorCoverageTest failing), orphan `quote.blade.php` leftover. See §10. |
 | 11 | Block editor (CRUD/nesting/undo) | — | — | — | — | ⬜ | Session C |
 | 12 | Magazine editor | — | — | — | — | ⬜ | Session C |
 | 13 | Block templates / presets | — | — | — | — | ⬜ | Session C |
@@ -379,3 +379,26 @@ Read `AssetService` (upload/hashing/variant generation), `AssetPublisher` (publi
 
 ### Rating rationale
 Content hashing, dedup, tenant-isolated storage, SVG scrubbing, and base-image resolution all work — but the asset pipeline's headline capability, **WebP + responsive variants, is non-functional end-to-end**: variants are never generated (a silent library-API regression), and the publish layer would mangle and fail to serve them even if they were. Published sites ship full-size originals with no WebP. Two of the three named capabilities for this subsystem (WebP variants; variant reference resolution) are broken. 🔴 RED.
+
+---
+
+## §10 — Block registry contract compliance  🟡 YELLOW  (audited 2026-07-06)
+
+### What was checked
+Wrote `audit/block_compliance.php` (read-only): for all 86 registered block types, cross-referenced the presence of the PHP definition, Blade view, React `Editor.tsx`/`Preview.tsx`/`definition.ts`, `index.ts` registration, `sanitizationConfig`, and reference-extractor entry — plus orphan detection (React dirs / Blade views with no registered type). Ran `ExtractorCoverageTest`.
+
+### Results — the healthiest subsystem so far (near-GREEN)
+Contrary to the audit's prediction that this would be "the biggest finding," compliance is **excellent**:
+- **86 registered PHP types; all 86 have a Blade view** (0 missing).
+- **All 84 React block directories are complete** — every one has `Editor.tsx` + `Preview.tsx` + `definition.ts` (0 missing any of them).
+- **`sanitizationConfig` present on all 86** definitions.
+- **Reference-extractor coverage is a first-class, enforced contract**: `ReferenceExtractorRegistry` maps every type explicitly (`NullExtractor` for reference-free blocks), and `ExtractorCoverageTest` fails the build if a type is unmapped.
+- The `slide`/`slider` types having no standalone React dir is **by design** — the slider system is authored via the `slider_ref` block (full Editor/Preview/definition) and a dedicated slider builder, not the standard per-block editor.
+
+### Defects
+**D1 (moderate) — `langswitcher` violates the extractor contract; `ExtractorCoverageTest` is RED.** The recently-added `langswitcher` block has no entry in `ReferenceExtractorRegistry`, so `tests/Unit/References/ExtractorCoverageTest.php` **currently fails** ("Block types without a reference extractor: langswitcher"). This is both a live contract violation and a red test sitting in the suite (implying it isn't being run/enforced in CI). The fix is one line (add a `NullExtractor` or a real extractor entry). **Severity: moderate (contract gap + failing test).**
+
+**D2 (minor) — Orphan `quote.blade.php`.** `resources/views/blocks/quote.blade.php` has no registered block type — a leftover from the `quote → pullquote` rename (the `quote` references elsewhere in app/ are the separate magazine DTP frame type, not this page block). Dead file. **Severity: minor (cleanup).**
+
+### Rating rationale
+The block registry contract is genuinely well-defined and largely enforced — Blade, React (editor/preview/schema), sanitizer, and extractor coverage are complete for 85 of 86 types, with a test that guards extractor completeness. It is not GREEN only because that guard test is **currently failing** (langswitcher unmapped) and there's a dead orphan view — a single-line fix and a file deletion away from GREEN. 🟡 YELLOW (near-GREEN, the healthiest subsystem audited).
