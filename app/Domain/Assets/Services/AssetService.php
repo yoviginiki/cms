@@ -95,13 +95,13 @@ class AssetService
         $disk = Storage::disk('assets');
 
         try {
-            $image = $this->imageManager->read($file->getRealPath());
+            $image = $this->imageManager->decodePath($file->getRealPath());
 
             // thumb_200: 200px square crop
             $thumb = clone $image;
             $thumb->cover(200, 200);
             $thumbPath = "{$basePath}/{$uuid}_thumb_200.jpg";
-            $disk->put($thumbPath, $thumb->toJpeg(80)->toString());
+            $disk->put($thumbPath, $thumb->encodeUsingFileExtension('jpg', 80));
             $variants['thumb_200'] = $thumbPath;
 
             // medium_800: 800px wide, maintain aspect
@@ -109,12 +109,12 @@ class AssetService
                 $medium = clone $image;
                 $medium->scale(width: 800);
                 $mediumPath = "{$basePath}/{$uuid}_medium_800.jpg";
-                $disk->put($mediumPath, $medium->toJpeg(85)->toString());
+                $disk->put($mediumPath, $medium->encodeUsingFileExtension('jpg', 85));
                 $variants['medium_800'] = $mediumPath;
 
                 // webp_800
                 $webpPath = "{$basePath}/{$uuid}_webp_800.webp";
-                $disk->put($webpPath, $medium->toWebp(80)->toString());
+                $disk->put($webpPath, $medium->encodeUsingFileExtension('webp', 80));
                 $variants['webp_800'] = $webpPath;
             }
 
@@ -123,11 +123,11 @@ class AssetService
                 $small = clone $image;
                 $small->scale(width: 400);
                 $smallPath = "{$basePath}/{$uuid}_small_400.jpg";
-                $disk->put($smallPath, $small->toJpeg(80)->toString());
+                $disk->put($smallPath, $small->encodeUsingFileExtension('jpg', 80));
                 $variants['small_400'] = $smallPath;
 
                 $webp400Path = "{$basePath}/{$uuid}_webp_400.webp";
-                $disk->put($webp400Path, $small->toWebp(75)->toString());
+                $disk->put($webp400Path, $small->encodeUsingFileExtension('webp', 75));
                 $variants['webp_400'] = $webp400Path;
             }
 
@@ -136,15 +136,18 @@ class AssetService
                 $large = clone $image;
                 $large->scale(width: 1600);
                 $largePath = "{$basePath}/{$uuid}_large_1600.jpg";
-                $disk->put($largePath, $large->toJpeg(85)->toString());
+                $disk->put($largePath, $large->encodeUsingFileExtension('jpg', 85));
                 $variants['large_1600'] = $largePath;
 
                 $webp1600Path = "{$basePath}/{$uuid}_webp_1600.webp";
-                $disk->put($webp1600Path, $large->toWebp(80)->toString());
+                $disk->put($webp1600Path, $large->encodeUsingFileExtension('webp', 80));
                 $variants['webp_1600'] = $webp1600Path;
             }
-        } catch (\Throwable) {
-            // Image processing failed, continue without variants
+        } catch (\Throwable $e) {
+            // Don't fail the upload over variant generation, but DON'T swallow
+            // silently — a broken image library must be visible, not hidden.
+            logger()->warning("Image variant generation failed for {$uuid}: {$e->getMessage()}");
+            report($e);
         }
 
         return $variants;
