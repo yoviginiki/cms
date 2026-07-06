@@ -69,8 +69,13 @@ class SpreadValidator
                 $w = (float) ($el['w'] ?? 0);
                 $h = (float) ($el['h'] ?? 0);
 
-                if ($w < 2 || $h < 2 || $x < 0 || $y < 0 || $x + $w > 595.5 || $y + $h > 842.5) {
-                    $errors[] = "{$label} ({$type}): geometry out of bounds — x/y >= 0, x+w <= 595, y+h <= 842 (page-local points).";
+                // rules may be 1pt hairlines; everything else needs real area
+                $minDim = in_array($type, ['line', 'decorative_rule'], true) ? 1 : 2;
+                if ($w < $minDim || $h < $minDim) {
+                    $errors[] = "{$label} ({$type}): too small — width and height must be >= {$minDim}pt.";
+                }
+                if ($x < 0 || $y < 0 || $x + $w > 595.5 || $y + $h > 842.5) {
+                    $errors[] = "{$label} ({$type}): outside the page — x/y >= 0, x+w <= 595, y+h <= 842 (page-local points).";
                 }
 
                 if (in_array($type, SpreadElementContract::TEXT_TYPES, true)) {

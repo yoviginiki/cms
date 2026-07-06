@@ -59,20 +59,22 @@ class SpreadEngine
         $errors = [];
 
         for ($attempt = 0; $attempt < 2; $attempt++) {
+            // NOTE: no structured-output schema here — the element schema is
+            // too complex for the API's schema compiler ("Schema is too
+            // complex"). Plain JSON + hard validation + repair instead.
             $result = $this->gateway->complete(
                 (string) config('cms.issue_studio.model_generate', 'claude-opus-4-8'),
                 $this->systemBlocks($brief),
                 [['role' => 'user', 'content' => $attempt === 0
                     ? $prompt
                     : $prompt . "\n\nYour previous design failed validation:\n- " . implode("\n- ", $errors) . "\nFix every point and return the complete corrected document."]],
-                32000,
-                SpreadElementContract::schema(),
+                8192,
             );
             $usages[] = $result['usage'];
 
-            $doc = json_decode($result['text'], true);
+            $doc = $this->decodeJson($result['text']);
             if (!is_array($doc)) {
-                $errors = ['Response was not a JSON object.'];
+                $errors = ['Response was not a JSON object. Respond with ONLY the JSON document, no commentary, no markdown fences.'];
                 continue;
             }
 
@@ -83,6 +85,25 @@ class SpreadEngine
         }
 
         throw new RuntimeException('Spread generation failed validation twice: ' . implode(' | ', array_slice($errors, 0, 6)));
+    }
+
+    /** Tolerant JSON extraction: plain decode, then first-{ .. last-} slice. */
+    private function decodeJson(string $text): ?array
+    {
+        $decoded = json_decode(trim($text), true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        $start = strpos($text, '{');
+        $end = strrpos($text, '}');
+        if ($start === false || $end === false || $end <= $start) {
+            return null;
+        }
+
+        $decoded = json_decode(substr($text, $start, $end - $start + 1), true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 
     private function systemBlocks(array $brief): array

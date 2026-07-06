@@ -71,73 +71,61 @@ ELEMENT TYPES (emit nothing else):
   focal_x/focal_y (0-1) place the subject. alt is required, factual.
 - rectangle / ellipse / gradient_overlay: fill_color hex + opacity (0-100).
   Use for grounds, tint panels and legibility scrims only.
-- line / decorative_rule: thin rules; give the rect they occupy.
+- line / decorative_rule: thin rules (1-3pt thick is right); give the rect they occupy.
 - table_frame: table_headers (strings) + table_rows (array of string rows).
   Plain text cells. Always include a source line as a caption_frame beneath.
 
 OUTPUT: {"editorial_note": "...", "pages": [{"side": "...", "elements": [...]}]}
+Each element: {"type", "x", "y", "w", "h"} plus only the fields that apply to its
+type (html/attribution/columns/font_size/line_height/font_family/font_weight/
+text_color/text_align for text; material_id/alt/caption/fit_mode/focal_x/focal_y
+for images; fill_color/opacity for shapes; table_headers/table_rows for tables;
+rotation/z anywhere). Respond with ONLY the JSON object - no markdown fences,
+no commentary before or after.
 The editorial_note is 1-2 sentences to the user explaining your key choices
 ("Full-bleed opener because this is the strongest image; text held to one column
 for restraint"). Write it warm and plain - the user is not an editor.
 BRIEF;
     }
 
-    /** JSON schema for structured output. All fields required, nullable where optional. */
+    /**
+     * JSON schema for structured output. Only geometry + type are required;
+     * content fields are OPTIONAL plain types (no null unions — the API
+     * rejects schemas with many union-typed parameters).
+     */
     public static function schema(): array
     {
-        $nullNum = ['type' => ['number', 'null']];
-        $nullStr = ['type' => ['string', 'null']];
-        $nullInt = ['type' => ['integer', 'null']];
-
         $element = [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => [
-                'type', 'x', 'y', 'w', 'h', 'rotation', 'z',
-                'html', 'attribution', 'columns',
-                'font_size', 'line_height', 'font_family', 'font_weight', 'text_color', 'text_align',
-                'material_id', 'alt', 'caption', 'fit_mode', 'focal_x', 'focal_y',
-                'fill_color', 'opacity', 'table_headers', 'table_rows',
-            ],
+            'required' => ['type', 'x', 'y', 'w', 'h'],
             'properties' => [
                 'type' => ['type' => 'string', 'enum' => array_keys(self::TYPE_MAP)],
                 'x' => ['type' => 'number'],
                 'y' => ['type' => 'number'],
                 'w' => ['type' => 'number'],
                 'h' => ['type' => 'number'],
-                'rotation' => $nullNum,
-                'z' => $nullInt,
-                'html' => $nullStr,
-                'attribution' => $nullStr,
-                'columns' => $nullInt,
-                'font_size' => $nullNum,
-                'line_height' => $nullNum,
-                'font_family' => $nullStr,
-                'font_weight' => $nullStr,
-                'text_color' => $nullStr,
-                'text_align' => ['anyOf' => [
-                    ['type' => 'string', 'enum' => ['left', 'center', 'right', 'justify']],
-                    ['type' => 'null'],
-                ]],
-                'material_id' => $nullStr,
-                'alt' => $nullStr,
-                'caption' => $nullStr,
-                'fit_mode' => ['anyOf' => [
-                    ['type' => 'string', 'enum' => ['fill', 'fit', 'stretch', 'original']],
-                    ['type' => 'null'],
-                ]],
-                'focal_x' => $nullNum,
-                'focal_y' => $nullNum,
-                'fill_color' => $nullStr,
-                'opacity' => $nullNum,
-                'table_headers' => ['anyOf' => [
-                    ['type' => 'array', 'items' => ['type' => 'string']],
-                    ['type' => 'null'],
-                ]],
-                'table_rows' => ['anyOf' => [
-                    ['type' => 'array', 'items' => ['type' => 'array', 'items' => ['type' => 'string']]],
-                    ['type' => 'null'],
-                ]],
+                'rotation' => ['type' => 'number'],
+                'z' => ['type' => 'integer'],
+                'html' => ['type' => 'string'],
+                'attribution' => ['type' => 'string'],
+                'columns' => ['type' => 'integer'],
+                'font_size' => ['type' => 'number'],
+                'line_height' => ['type' => 'number'],
+                'font_family' => ['type' => 'string'],
+                'font_weight' => ['type' => 'string'],
+                'text_color' => ['type' => 'string'],
+                'text_align' => ['type' => 'string', 'enum' => ['left', 'center', 'right', 'justify']],
+                'material_id' => ['type' => 'string'],
+                'alt' => ['type' => 'string'],
+                'caption' => ['type' => 'string'],
+                'fit_mode' => ['type' => 'string', 'enum' => ['fill', 'fit', 'stretch', 'original']],
+                'focal_x' => ['type' => 'number'],
+                'focal_y' => ['type' => 'number'],
+                'fill_color' => ['type' => 'string'],
+                'opacity' => ['type' => 'number'],
+                'table_headers' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'table_rows' => ['type' => 'array', 'items' => ['type' => 'array', 'items' => ['type' => 'string']]],
             ],
         ];
 

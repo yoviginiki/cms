@@ -50,7 +50,17 @@ class AnthropicGateway
             $payload['output_config'] = ['format' => ['type' => 'json_schema', 'schema' => $jsonSchema]];
         }
 
-        $response = $this->post($payload);
+        try {
+            $response = $this->post($payload);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::warning('IssueStudio: Anthropic connection failure, retrying once', ['error' => $e->getMessage()]);
+            sleep(3);
+            try {
+                $response = $this->post($payload);
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                throw new RuntimeException('AI request timed out twice — try again in a moment.');
+            }
+        }
 
         if ($response->status() === 429 || $response->status() >= 500) {
             // one retry after backoff for transient failures
@@ -97,6 +107,6 @@ class AnthropicGateway
             'x-api-key' => $this->apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
-        ])->timeout(180)->post('https://api.anthropic.com/v1/messages', $payload);
+        ])->timeout(480)->post('https://api.anthropic.com/v1/messages', $payload);
     }
 }
