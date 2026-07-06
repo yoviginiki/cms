@@ -21,7 +21,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 4 | Security layers (purifier/MIME/CSP) | partial | yes (Xss + SecuritySanitization pass; unit sanitizer suite is stubs) | partial (top-level XSS covered; 2 vectors uncaught) | yes (concrete PoC of both XSS holes) | 🔴 RED | HTMLPurifier is strong for top-level fields, uploads are well-guarded. But 2 confirmed stored-XSS vectors (allowHtml→strip_tags keeps event handlers; nested array fields never purified) render raw via `{!! !!}`, and there is NO CSP anywhere + NO security headers on published static sites. See §4. |
 | 5 | Blade rendering of every block | full (86 types) | new audit script renders all 86 | 84/86 render clean; 2 throw | yes (rendered every view, empty + fixture data) | 🟡 YELLOW | 84/86 blocks render robustly with missing data. `category-header` and `readingprogress` throw on default data (null-safety bugs), and the main publish loop has no per-block try/catch → one bad block fails the whole page. See §5. |
 | 6 | Atomic publish / versions / rollback | full (versions) / broken (rollback) | PublishTest = 6 stubs; VersionTest = 5 real pass | versions pass; publish untested | yes (read swap/rollback/prune/job code) | 🔴 RED | Slug-site go-live IS atomic; versioning works+tested. But ROLLBACK is a silent no-op (job ignores target, republishes current); global build prune keeps only 3 newest across ALL sites while live symlinks point into that dir (>3 sites → broken live output); custom-domain/rename deploys are non-atomic; publish has zero real tests. See §6. |
-| 7 | Delta publish correctness | — | — | — | — | ⬜ | Session B |
+| 7 | Delta publish correctness | full (engine) / partial (write) | yes — References suite 35 pass | yes (35/35) | yes (traced delta path) | 🟡 YELLOW | Staleness/dependency ENGINE is well-built + tested (transitive, cycle-guarded, slug-rename flags referrers); needs_republish lifecycle is safe. But delta OUTPUT is incomplete: no sitemap/RSS/archive rebuild, no deleted/renamed-file removal, no version snapshot; write is non-atomic and mutates the live build in place; SmartPublisher delta engine is dead code. See §7. |
 | 8 | SEO output (sitemap/robots/OG) | — | — | — | — | ⬜ | Session B |
 | 9 | Asset pipeline (WebP/hashing) | — | — | — | — | ⬜ | Session B |
 | 10 | Block registry contract compliance | — | — | — | — | ⬜ | Session C |
@@ -294,3 +294,38 @@ Read the full publish flow (`PublishController` → `PublishOrchestrator` → `P
 
 ### Rating rationale
 The atomic go-live for slug sites and the versioning subsystem are correct and (for versions) tested — but **rollback does not work at all**, **routine publishing deletes other tenants' live sites** once more than ~3 sites exist, custom-domain publishes are non-atomic, the live docroot is mutated mid-build, concurrency races on slow builds, and the publish pipeline has no real test coverage. These are production-availability and data-safety blockers. 🔴 RED.
+
+---
+
+## §7 — Delta / partial publish correctness  🟡 YELLOW  (audited 2026-07-06)
+
+### What was checked
+Traced both delta systems, the entity_references staleness engine, the `needs_republish` lifecycle, and the delta write path; ran the full `tests/Feature/References/` suite.
+
+### Architecture note — two delta systems, one is dead
+- **`SmartPublisher` + `DependencyGraph::getAffectedTargets`** (the DependencyGraph-based delta engine) is **dead code** — zero callers in app/tests/routes. `DependencyGraph` is used only by an admin graph-visualization endpoint. Its closure logic (homepage/menu/archive targeting) never runs.
+- **The live delta** is the References staleness engine: `StalenessResolver` sets `needs_republish` → `StaleAutoRepublisher`/`StaleContentController` snapshot a `stale_batch` → `RepublishStaleJob` builds only the target pages/posts to staging → `DeployService::deployPartial` per-file merges into live.
+
+### What works (verified — this is a real strength)
+- **The staleness/dependency engine is well-built and well-tested: `tests/Feature/References/` = 35 tests / 97 assertions, all pass.** It walks `entity_references` inverse edges (BFS, cycle-guarded via a visited set, bounded to depth 5), correctly propagates `embeds`/`uses_asset`/`lists`/`site_scope`, flags referrers on **slug change and delete** (`markStaleForLinkTargets`), flags listing pages on new-post publish, and collapses menu/theme changes to a single site flag rather than per-page rows. Delete protection (409 + force + flag referrers) is tested.
+- **`needs_republish` clears only after a successful promote** (per built-id, in `autoPromote`/`StaleContentController::promote`/`clearForSite`); a failed promote leaves the batch `staged` for manual retry — no optimistic clear.
+- **Slug rename/delete removes the old static file immediately** via `StaticCleaner::removePath`/`removeContent` in `PageController::update/destroy`.
+- Promotion is human-confirmed (build → `staged` → operator promote) unless `auto_republish_stale` is on.
+
+### Defects
+
+**D1 (major) — Delta output is incomplete: sitemap / RSS / archives / homepage go stale.** `RepublishStaleJob` explicitly does not regenerate `sitemap.xml`, `feed.xml`, or archives (docblock `:22-26`); only a full publish does. So any incremental/auto-republish (new post, deleted page, slug rename) leaves the **sitemap and feeds pointing at old/dead URLs** until a full publish. Worse, **changing the homepage rebuilds nothing at all**: `SiteController::update` mutates `settings['homepage_id']` with no `markStale`/trigger, so the old `index.html` stays live indefinitely on every path. **Severity: major (silent stale output, SEO impact; full publish is the only fix).**
+
+**D2 (major) — Lost-update race on re-flag during a pending batch.** A batch snapshots page IDs at queue time and reads content at build time, but clears `needs_republish` by **ID unconditionally** at promote time — with no check that the flag/reason is still the one that was built. If dependency X changes again after the build snapshot but before promote, the newer staleness is erased and live output reflects the older build; the dedupe guard (`StaleAutoRepublisher`) even suppresses the corrective follow-up batch. Result: stale output with `needs_republish=false`. **Severity: major (silent data staleness).**
+
+**D3 (moderate) — Delta write is non-atomic and mutates the live build in place.** `deployPartial` → `copyDeploy` copies each file directly onto the live docroot one by one; for slug sites it resolves the live symlink and writes **into the served full-build directory** (`readlink`, `DeployService.php:57`). So the site is a partially-updated set during promotion (broken window), and the mutated build no longer matches its deployment/version snapshot (and is prunable per §6). **Severity: moderate.**
+
+**D4 (moderate) — Some structural changes aren't auto-covered.** Site-wide menu/header/footer and theme edits set only a site flag; `StaleAutoRepublisher` skips site-wide changes, so with `auto_republish_stale` on (but full auto-publish off) a menu edit **queues nothing** and relies on the operator noticing the site-level flag. Category/tag name/slug edits have no `markStale` caller in the live path (only post-change touches the category). Slug rename writes **no redirect** and does not rewrite stored hrefs, so the old URL 404s and referrer links stay broken until an editor manually fixes them. Dependency chains deeper than 5 hops are silently truncated (logged only). **Severity: moderate.**
+
+**D5 (info) — `SmartPublisher`/`DependencyGraph::getAffectedTargets` dead code.** The more complete delta engine that would target homepage/menus/archives is unwired; the live path is the narrower References engine. **Severity: info (confusing dead code; also a fix opportunity for D1).**
+
+### Test coverage
+The dependency closure is well-covered (35 References tests). **Uncovered:** sitemap/feed staleness after delta (D1), homepage-change rebuild (D1), the lost-update re-flag race (D2), delta-write atomicity / partial-promote crash (D3), and redirect-on-rename (D4).
+
+### Rating rationale
+The "what to rebuild" brain — the staleness/dependency engine — is genuinely well-designed and is the best-tested subsystem in the audit so far, and the `needs_republish` clear-after-success ordering is safe. But the delta **output** is incomplete (stale sitemap/feeds, homepage never rebuilt, site-wide menu/theme not auto-covered), it has a real lost-update race, and the write is non-atomic and mutates builds in place. These are silent-staleness correctness bugs, mitigated by the fact that a full publish (the default publish path) regenerates everything — so the blast radius is limited to users relying on the incremental/auto-republish feature. Not RED (the tested core is correct and a working escape hatch exists); not GREEN (multiple silent-staleness gaps + a lost-update race). 🟡 YELLOW (weak end).

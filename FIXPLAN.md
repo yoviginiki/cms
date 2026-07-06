@@ -100,6 +100,16 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > (1) Custom-domain sites use per-file `copyDeploy` into live `public_html` (non-atomic). Build into a staging dir and swap atomically (symlink where the FS allows, else build-then-rename-dir); on failure leave the previous live output untouched. (2) `RenameDeployStrategy` must also delete files for removed pages (diff old vs new manifest) so deleted pages don't stay live. (3) Move `cleanUnpublishedPosts` so it operates on the staging tree (or the post-swap live tree), never mutating the live docroot mid-build, and scope it to the site's own root, not the shared `sites/` parent. (4) Hold the publish advisory lock (or a DB `building` guard that is NOT auto-deleted mid-flight) across the whole job, and remove/raise the >5-min stale-delete so a slow build can't be wiped and raced. Replace the 6 `PublishTest` stubs with real tests covering deploy swap, retention, and concurrent-publish rejection.
 
+### FIX-B7a — Make delta publish regenerate sitemap/feeds/homepage (output completeness)
+**Source:** STATUS.md §7, Defect D1. **Severity: major.** **Effort: ~0.5 day.**
+
+> Incremental/auto-republish leaves the sitemap, RSS/feed, and archives stale, and a homepage change (`settings['homepage_id']`) rebuilds nothing. Fixes: (1) in `RepublishStaleJob` (or its promote step) always regenerate `sitemap.xml` + `feed.xml` when the batch adds/removes/renames any published URL (cheap, deterministic). (2) In `SiteController::update`, when `homepage_id`/`homepage_type`/`homepage_grid_id` changes, mark the homepage stale (or trigger a homepage rebuild) so the old `index.html` doesn't persist. (3) Wire category/tag name/slug edits to `markStale` so archive labels refresh. Consider reviving the dead `DependencyGraph::getAffectedTargets` closure (it already models these targets) instead of re-deriving. Add tests asserting sitemap/homepage refresh after a delta publish.
+
+### FIX-B7b — Close the lost-update race + write a redirect on slug rename
+**Source:** STATUS.md §7, Defects D2/D4. **Severity: major (D2) / moderate (D4).** **Effort: ~0.5 day.**
+
+> D2: at promote time, clear `needs_republish` only for rows whose flag/reason still matches what was built (compare `needs_republish_reason` or a per-batch version token, or re-check `updated_at` against the build snapshot), so a re-flag arriving after the build snapshot isn't erased; and let the dedupe guard queue a corrective batch when the flag was re-set. D4: on slug rename (`PageController::update`/`PostController::update`), auto-create a `Redirect` from the old path to the new (the redirects table + `.htaccess` generation already exist) so the old URL 301s instead of 404ing. Add tests for both (re-flag during pending batch stays stale; renamed URL redirects).
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)
