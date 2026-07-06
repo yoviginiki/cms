@@ -22,7 +22,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 5 | Blade rendering of every block | full (86 types) | new audit script renders all 86 | 84/86 render clean; 2 throw | yes (rendered every view, empty + fixture data) | 🟡 YELLOW | 84/86 blocks render robustly with missing data. `category-header` and `readingprogress` throw on default data (null-safety bugs), and the main publish loop has no per-block try/catch → one bad block fails the whole page. See §5. |
 | 6 | Atomic publish / versions / rollback | full (versions) / broken (rollback) | PublishTest = 6 stubs; VersionTest = 5 real pass | versions pass; publish untested | yes (read swap/rollback/prune/job code) | 🔴 RED | Slug-site go-live IS atomic; versioning works+tested. But ROLLBACK is a silent no-op (job ignores target, republishes current); global build prune keeps only 3 newest across ALL sites while live symlinks point into that dir (>3 sites → broken live output); custom-domain/rename deploys are non-atomic; publish has zero real tests. See §6. |
 | 7 | Delta publish correctness | full (engine) / partial (write) | yes — References suite 35 pass | yes (35/35) | yes (traced delta path) | 🟡 YELLOW | Staleness/dependency ENGINE is well-built + tested (transitive, cycle-guarded, slug-rename flags referrers); needs_republish lifecycle is safe. But delta OUTPUT is incomplete: no sitemap/RSS/archive rebuild, no deleted/renamed-file removal, no version snapshot; write is non-atomic and mutates the live build in place; SmartPublisher delta engine is dead code. See §7. |
-| 8 | SEO output (sitemap/robots/OG) | — | — | — | — | ⬜ | Session B |
+| 8 | SEO output (sitemap/robots/OG) | full | none (no SEO tests) | yes (generated real output) | yes (live-site sitemap/robots/head) | 🟡 YELLOW | Comprehensive, correct per-page meta/OG/Twitter/canonical, valid sitemap+robots (verified on live "Ensodo" site). But JSON-LD/breadcrumb URLs hardcode `/blog/{slug}` while posts serve at `/{category}/{slug}/` → structured data points to non-existent URLs, conflicting with canonical; auto meta-description only reads `text` blocks (often empty); no SEO tests. See §8. |
 | 9 | Asset pipeline (WebP/hashing) | — | — | — | — | ⬜ | Session B |
 | 10 | Block registry contract compliance | — | — | — | — | ⬜ | Session C |
 | 11 | Block editor (CRUD/nesting/undo) | — | — | — | — | ⬜ | Session C |
@@ -329,3 +329,32 @@ The dependency closure is well-covered (35 References tests). **Uncovered:** sit
 
 ### Rating rationale
 The "what to rebuild" brain — the staleness/dependency engine — is genuinely well-designed and is the best-tested subsystem in the audit so far, and the `needs_republish` clear-after-success ordering is safe. But the delta **output** is incomplete (stale sitemap/feeds, homepage never rebuilt, site-wide menu/theme not auto-covered), it has a real lost-update race, and the write is non-atomic and mutates builds in place. These are silent-staleness correctness bugs, mitigated by the fact that a full publish (the default publish path) regenerates everything — so the blast radius is limited to users relying on the incremental/auto-republish feature. Not RED (the tested core is correct and a working escape hatch exists); not GREEN (multiple silent-staleness gaps + a lost-update race). 🟡 YELLOW (weak end).
+
+---
+
+## §8 — SEO output (sitemap / robots / OG / clean URLs)  🟡 YELLOW  (audited 2026-07-06)
+
+### What was checked
+Read `SeoService`, `SitemapGenerator`, `RobotsGenerator`, `StructuredDataService`, and the layout head wiring; then **generated real output** (`audit/seo_output.php`, `audit/seo_head.php`) for the seeded sites — including the live "Ensodo" site (custom domain, 11 published pages) — and inspected the actual sitemap, robots, and page/post `<head>`.
+
+### What works (verified with real output)
+- **Per-page SEO head is comprehensive and correct.** `SeoService::generatePageHead` (wired to `$headContent` for every page/post at `BuildPageService.php:51`) emits: title with `{title} | {site_name}` template, meta description, `no_index` support, `<link rel=canonical>`, full Open Graph (title/description/url/type/site_name/image), Twitter card, and for posts `article:published_time`/`modified_time`/`section` — all properly `e()`-escaped. Confirmed on a real published page and post.
+- **Structured data present**: JSON-LD `WebPage`/`Article` + `BreadcrumbList` emitted per page/post.
+- **Sitemap is valid and comprehensive**: well-formed XML, absolute URLs, `priority`/`changefreq`/`lastmod` (W3C), covering homepage + published pages + categories-with-posts + posts + published magazines, locale-aware (`LocalePaths::urlPath`), escaped `<loc>`.
+- **Robots is correct**: `User-agent: *`, `Allow: /`, `Disallow: /admin/`, absolute `Sitemap:` directive; fully overridable via `settings['robots']`.
+- **Clean URLs**: content is written as `{path}/index.html` and served without `.html` in the URL. Custom-domain vs `{slug}.ensodo.eu` base URL handled consistently.
+
+### Defects
+
+**D1 (moderate) — Structured-data URLs are wrong and conflict with the canonical.** `StructuredDataService` hardcodes `/blog/{slug}` for the JSON-LD `Article` url (`:34`) and the post breadcrumb's final item, but posts are actually served at `/{category}/{slug}/` (`LocalePaths::postPath:152-159`), which is what the (correct) canonical, `og:url`, and sitemap use. Real output for post "Hello world": canonical/og:url = `https://ensodo.eu/aboutenso/hello-world` but JSON-LD `"url":"https://ensodo.eu/blog/hello-world"` and breadcrumb item = `/blog/hello-world` — **a non-existent URL**, inconsistent even within the breadcrumb (category item is `/aboutenso`, post item is `/blog/...`). Search engines get conflicting canonical signals pointing at a 404. **Severity: moderate (SEO correctness).**
+
+**D2 (moderate) — Auto meta-description only reads top-level `text` blocks.** `SeoService::autoDescription` queries `blocks()->where('type','text')` only, so a page built from `paragraph`/`rich-text`/`hero`/`heading` blocks and no explicit `seo_meta.description` gets an **empty** `<meta name="description">`. Many pages will ship with no description. **Severity: moderate.**
+
+**D3 (minor) — Canonical omits the trailing slash of the served URL.** Canonical/og:url emit `/retrijt` while the page is served at `/retrijt/` (directory index). Minor duplicate-URL ambiguity for crawlers. **Severity: minor.**
+
+**D4 (minor) — Sitemap completeness + no og:image fallback.** The sitemap includes categories but not tag/author archives or the blog index; pages with no configured image emit no `og:image` (no site-logo fallback). **Severity: minor.**
+
+**D5 (moderate) — No SEO tests at all.** Nothing asserts sitemap validity, canonical correctness, or URL consistency — which is exactly why D1's structured-data/canonical mismatch went unnoticed. **Severity: moderate.** Cross-ref §7: delta publish does not regenerate the sitemap, so it can also go stale between full publishes.
+
+### Rating rationale
+The SEO output is broadly strong and, for the core surface (title/description/OG/Twitter/canonical/sitemap/robots/clean URLs), verifiably correct on a real live site — well above the audit's average. It is not GREEN because the JSON-LD/breadcrumb URLs are hardcoded to a `/blog/` scheme that doesn't match the actual `/{category}/{slug}/` routing (conflicting canonical signals to a 404), auto-descriptions are frequently empty, and there are zero SEO tests to guard any of it. 🟡 YELLOW.

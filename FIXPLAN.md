@@ -110,6 +110,11 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > D2: at promote time, clear `needs_republish` only for rows whose flag/reason still matches what was built (compare `needs_republish_reason` or a per-batch version token, or re-check `updated_at` against the build snapshot), so a re-flag arriving after the build snapshot isn't erased; and let the dedupe guard queue a corrective batch when the flag was re-set. D4: on slug rename (`PageController::update`/`PostController::update`), auto-create a `Redirect` from the old path to the new (the redirects table + `.htaccess` generation already exist) so the old URL 301s instead of 404ing. Add tests for both (re-flag during pending batch stays stale; renamed URL redirects).
 
+### FIX-B8a — Fix structured-data URLs + empty meta descriptions
+**Source:** STATUS.md §8, Defects D1/D2. **Severity: moderate.** **Effort: ~0.25 day.**
+
+> D1: `StructuredDataService` hardcodes `/blog/{slug}` for the JSON-LD Article url (`:34`) and post breadcrumb, but posts serve at `/{category}/{slug}/`. Replace the hardcoded `/blog/` construction with `LocalePaths::urlPath($site, $post)` (the same helper the sitemap and — via `SeoService`'s path logic — the canonical use) so structured data, canonical, og:url, and sitemap all agree. Do the same for the page WebPage url and every breadcrumb item. D2: broaden `SeoService::autoDescription` to fall back across text-bearing block types (`paragraph`, `rich-text`, `text`, `heading`, hero subtitle) — pull the first non-empty stripped text — so pages without an explicit description aren't shipped empty. Add SEO tests asserting canonical == og:url == JSON-LD url == sitemap URL for a page and a categorized post, and that description is non-empty when the page has text.
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)
