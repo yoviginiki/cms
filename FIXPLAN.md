@@ -25,6 +25,26 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > `app/Domain/Concerns/TenantScoped.php` + `SiteScoped.php` advertise a "second layer after RLS" but are applied to zero models — the docblocks lie and there is no defense-in-depth if RLS is ever misconfigured (as it was, above). Either (preferred) apply `SiteScoped` to every site-scoped model and `TenantScoped` to every tenant-scoped model so a forgotten `FORCE` can't silently expose data again, and add `withoutGlobalScopes()` only where genuinely cross-tenant (audit those call sites — `ProcessScheduledContentJob:18`, `PositionRenderer` ×22, `ReferencesBackfillCommand`); OR delete the traits and add a code comment on the tenancy design that RLS is the sole layer, so nobody assumes a backstop exists. If wiring them: confirm the global scope resolves tenant from `Auth::user()` correctly inside queue jobs (Auth is null there — the scope no-ops, which is why RLS must stay primary).
 
+### FIX-A2a — Add role authorization to unguarded write endpoints
+**Source:** STATUS.md §2, Defect D1. **Severity: major.** **Effort: ~0.5 day.**
+
+> Seven controllers expose create/update/delete with only the tenant-checked `Site $site` binding and NO role check, so a `viewer` can mutate them: `MagazineIssueController::store/update/destroy`, `ThemeEngineController::{update,fork,assign,saveOverrides,import,restoreVersion}`, `ThemeTemplateController::{store,update,destroy}`, `MagStyleController::{store,update,destroy}`, `BlockTemplateController::{store,destroy}`, `DtpDocumentController::save`, `DtpVersionController::restore`, and the `sites/{site}/apply-template` route closure (`routes/api.php:237`). Add `$this->authorize('update', $site)` (or a dedicated policy ability) to each write method — mirror the pattern already in `MagazineController::savePages`. For the DTP endpoints keep the feature-flag gate AND add the role check. Then add feature tests asserting a `viewer` gets 403 and an `editor` succeeds on each. This overlaps FIX-A1a/b: for `magazine_issues`/`mag_styles`/`theme_*` the missing role check is also a cross-tenant hole until RLS is forced, so land A1a first or together.
+
+### FIX-A2b — Close user-management escalation paths + lock down `role` mass-assignment
+**Source:** STATUS.md §2, Defects D2/D3/D4. **Severity: major.** **Effort: ~0.25 day.**
+
+> Three fixes in `UserController` + `User`: (1) `invite` (`:41`) allows any admin to create an `admin` — apply the same `isOwner()` gate `updateRole` uses (`:93`) before allowing `role=admin` on invite. (2) `updateRole` (`:78-99`) can demote the tenant **owner** — add a guard rejecting any `updateRole` whose target `$user->isOwner()` (mirror the owner-protection already in `destroy` `:112`). (3) Remove `'role'` from `User::$fillable` (`app/Models/User.php:18`) and set it only through explicit, gated code paths, so a future `update($request->all())` can't escalate. Add tests: admin-invites-admin → 403; admin-demotes-owner → 403; mass-assignment of role via any user-writing endpoint is ignored.
+
+### FIX-A2c — Implement real auth/RBAC test coverage
+**Source:** STATUS.md §2, Defect D5. **Severity: major (blocks trustworthy GREEN).** **Effort: ~0.5 day.**
+
+> `tests/Feature/Auth/LoginTest.php` is entirely `markTestIncomplete()` stubs (0 assertions). Implement the 7 login/logout/me/throttle tests for real, then add an RBAC matrix test: for each role (viewer/author/editor/admin/owner) assert allowed vs 403 on representative create/update/delete/publish endpoints across Page, Post, Asset, Theme, MagazineIssue, MagStyle, User-management. This suite is what proves FIX-A2a/b landed and prevents regressions. Also add a test asserting password-reset and invite-acceptance flows once FIX-A2d wires them.
+
+### FIX-A2d — Finish invite-acceptance + password-reset delivery (functional, not security)
+**Source:** STATUS.md §2, Secondary. **Severity: minor.** **Effort: ~0.5 day.**
+
+> `PasswordResetController::forgotPassword` has its mail send commented out (reset is non-functional in prod) and there is NO server route consuming `invitation_token`, so invited users can never set a password. Wire an accept-invite endpoint (validate token + expiry, set password, clear token, never accept a `role` from the request) and re-enable reset email. Stop returning raw `invitation_token` in `UserController::index` (`:21`).
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)

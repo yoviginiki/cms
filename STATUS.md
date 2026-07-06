@@ -16,7 +16,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | # | Subsystem | Implemented | Tests exist | Tests passing | Manually verified | Rating | Notes |
 |---|-----------|-------------|-------------|---------------|-------------------|--------|-------|
 | 1 | Tenancy & RLS | partial | yes (2 suites, 9 tests) | yes (9/9) | yes (DB-level probe) | 🔴 RED | RLS-only isolation; 7+ tenant tables RLS-enabled-but-not-FORCED → owner role bypasses; 14 tenant tables have NO RLS; app-scope traits are dead code. Cross-tenant IDOR on menus. See §1. |
-| 2 | Auth, roles, RBAC gates | — | — | — | — | ⬜ | Not yet audited (Session A #2) |
+| 2 | Auth, roles, RBAC gates | full (auth) / partial (RBAC) | stub only (7 tests, all `markTestIncomplete`) | n/a (no real assertions) | yes (code+config read) | 🟡 YELLOW | Auth core is solid (throttled login, secure session, CSRF, no debug). But 7 controllers have write endpoints with NO role check (viewer can mutate themes/magazines/templates); invite/updateRole escalation asymmetry; owner-demotion; `role` mass-assignable; zero real test coverage. See §2. |
 | 3 | DB schema integrity | — | — | — | — | ⬜ | Not yet audited (Session A #3) |
 | 4 | Security layers (purifier/MIME/CSP) | — | — | — | — | ⬜ | Not yet audited (Session A #4) |
 | 5 | Blade rendering of every block | — | — | — | — | ⬜ | Session B |
@@ -107,3 +107,54 @@ Confirmed by live DB (`relrowsecurity=f`) on tables carrying `site_id`/`tenant_i
 
 ### Rating rationale
 Isolation is real and tested for core content (sites/pages/posts/assets/categories/blocks/entity_references), but is **absent or owner-bypassable for the entire magazine and theme-customization subsystems and for menus/tags/redirects/grids**, with **no application-level backstop**, and at least two **confirmed cross-tenant write** vectors. A multi-tenant platform with cross-tenant write IDOR cannot be rated above RED regardless of passing tests.
+
+---
+
+## §2 — Auth, roles, RBAC gates  🟡 YELLOW  (audited 2026-07-06)
+
+### Intended behaviour
+Session-based SPA authentication (Sanctum stateful cookie over the `web` session guard) with a 5-level role hierarchy — `viewer(0) < author(1) < editor(2) < admin(3) < owner(4)` — enforced via Eloquent Policies (`$this->authorize()`), inline `hasMinimumRole()` checks, and a `role:<name>` route middleware (`EnsureRole`).
+
+### What was checked
+- Read the auth config (`config/auth.php`, `config/sanctum.php`, `config/session.php`), `bootstrap/app.php` middleware wiring, `AuthController`, `LoginRequest`, `PasswordResetController`, `UserController`.
+- Read the `User` role model, all 7 Policies, the `AuthorizesWithTenant` trait, and `EnsureRole`.
+- Swept all 40 API controllers comparing write-method count to authorization-call count; inspected every controller with write methods but zero auth calls.
+- Verified production `.env` security flags and ran the auth test suite.
+
+### What works (verified)
+- **Session/auth hardening is correct.** `AuthController::login` uses `Auth::attempt` + `session()->regenerate()` (fixation-safe); `logout` invalidates + regenerates token. Login is throttled **three ways** (route `throttle:5,1` at `routes/api.php:29`, `LoginRequest::ensureIsNotRateLimited` 5/min keyed by email+IP, and `RateLimiter::hit/clear` in the controller).
+- **Production env is safe.** `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true`, `SESSION_DOMAIN=sys.ensodo.eu`, `SANCTUM_STATEFUL_DOMAINS=sys.ensodo.eu`. CSRF enforced via the Sanctum stateful flow. (Note: `.env.example` leaves `SESSION_SECURE_COOKIE` unset — a deploy footgun, but the live env is correct.)
+- **No self-registration** endpoint and **no `Gate::before` super-admin bypass** — owner privilege is expressed purely through hierarchy ordering.
+- **Core content is properly policy-gated.** Site/Page/Post/Category/Tag/Asset/Block/Menu/Magazine(save)/Publish controllers all call `$this->authorize()` with tenant-aware policies (create/update→editor, delete→admin, site delete/reset→owner, publish→editor). User/System/Debug management is admin-gated inline; Issue Studio is behind `role:admin` middleware.
+
+### Defects
+
+**D1 (major) — 7 controllers expose write endpoints with NO role authorization.** They rely only on the tenant-checked `Site $site` binding, so **any authenticated tenant user — including a `viewer` (intended read-only) — can create/update/delete**:
+| Controller.method | File:line |
+|---|---|
+| `MagazineIssueController::store/update/destroy` | `MagazineIssueController.php:23,41,57` (index authorizes view; writes do not) |
+| `ThemeEngineController::update/fork/assign/saveOverrides/import/restoreVersion` | `ThemeEngineController.php:79,115,178,235,287,338` |
+| `ThemeTemplateController::store/update/destroy` | `ThemeTemplateController.php:42,77,102` |
+| `MagStyleController::store/update/destroy` | `MagStyleController.php:28,59,79` |
+| `BlockTemplateController::store/destroy` | `BlockTemplateController.php:25,46` |
+| `DtpDocumentController::save` | `DtpDocumentController.php:37` (feature-flag gate only) |
+| `DtpVersionController::restore` | `DtpVersionController.php:34` (feature-flag gate only) |
+| inline route closure `sites/{site}/apply-template` | `routes/api.php:237` (mutates site content, no role check) |
+Note the double jeopardy with §1: several of these tables (`magazine_issues`, `mag_styles`, `theme_*`) also lack forced RLS, so the unauthorized write is *also* cross-tenant where the child is bound by global id. **Severity: major** (within-tenant privilege bypass across the whole theme + magazine subsystem; cross-tenant where it compounds with §1).
+
+**D2 (major) — Privilege-escalation asymmetry in user management.** `UserController::updateRole` requires `isOwner()` to assign the `admin` role (`:93`), but `UserController::invite` validates `role in editor,admin,viewer,author` with **no owner check** (`:41`) — so a plain **admin can create a brand-new admin account**, escalating admin population beyond the intended owner-gated boundary. **Severity: major.**
+
+**D3 (major) — `updateRole` can demote the tenant owner.** `updateRole` only blocks *setting* the `admin` role for non-owners; it has no guard preventing an admin from targeting the **owner** and setting them to `editor`/`viewer` (`UserController.php:78-99`). `destroy` explicitly protects the owner (`:112`) but `updateRole` does not — an admin can strip the owner's control. **Severity: major (integrity/escalation).**
+
+**D4 (major) — `role` is mass-assignable.** `User::$fillable` includes `'role'` (`app/Models/User.php:18`). Current writers use explicit arrays, but any future `User::create/update($request->all())` silently becomes a privilege-escalation hole. **Severity: major (latent).**
+
+**D5 (major) — Zero real auth/RBAC test coverage.** The only auth test file, `tests/Feature/Auth/LoginTest.php`, has all 7 tests stubbed with `markTestIncomplete()` (0 assertions — the suite reports WARN/incomplete, not PASS). There are **no policy tests** and no tests asserting that a `viewer` is denied writes. Per the honesty rule this subsystem cannot be GREEN. **Severity: major.**
+
+### Secondary findings
+- **Password-reset email is not sent** — the mail dispatch in `PasswordResetController::forgotPassword` (~`:30`) is commented out; reset is non-functional end-to-end in production. (minor/functional)
+- **Invite acceptance is not implemented** — `invitation_token` is generated (`UserController::invite`) but **no server-side route consumes it**; invited users cannot set a password / complete signup. Also `UserController::index` returns raw `invitation_token` values in the list response (`:21`). (minor/functional + hygiene)
+- **No email verification, no 2FA, no account lockout** beyond rate limiting. Password strength is only `min:8` on reset. (minor — acceptable for an admin CMS, note for launch)
+- **No CSP header** (SecurityHeaders sets X-Frame-Options/X-Content-Type-Options/Referrer-Policy but not Content-Security-Policy) — defer to §4 (security layers).
+
+### Rating rationale
+The authentication core is genuinely well-built and cross-tenant reads are still held for the RLS-protected surface, so this is not RED. But **within-tenant authorization is enforced inconsistently** — an entire class of write endpoints (theme + magazine + templates) skips the role system, two user-management escalation paths exist, `role` is mass-assignable, and there is **no functional test coverage** to catch regressions. That is a solid 🟡 YELLOW with major gaps that must close before public launch.
