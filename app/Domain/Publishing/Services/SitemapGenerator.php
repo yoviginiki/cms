@@ -13,12 +13,13 @@ class SitemapGenerator
         // Homepage
         $urls[] = $this->urlEntry($baseUrl . '/', '1.0', 'daily', now()->toW3cString());
 
-        // Pages
+        // Pages (locale-aware paths; the default-locale homepage is already listed)
         $pages = $site->pages()->where('status', 'published')->orderBy('sort_order')->get();
         foreach ($pages as $page) {
-            if ($page->slug === 'home') continue;
+            $path = LocalePaths::urlPath($site, $page);
+            if ($path === '/') continue; // homepage entry above
             $urls[] = $this->urlEntry(
-                $baseUrl . '/' . $page->slug,
+                rtrim($baseUrl . $path, '/'),
                 '0.8', 'weekly', $page->updated_at->toW3cString()
             );
         }
@@ -36,7 +37,7 @@ class SitemapGenerator
         $posts = $site->posts()->where('status', 'published')->orderByDesc('published_at')->get();
         foreach ($posts as $post) {
             $urls[] = $this->urlEntry(
-                $baseUrl . '/blog/' . $post->slug,
+                rtrim($baseUrl . LocalePaths::urlPath($site, $post), '/'),
                 '0.7', 'monthly', $post->updated_at->toW3cString()
             );
         }

@@ -77,7 +77,25 @@ class PageController extends Controller
 
         $oldStatus = $page->status;
         $oldSlug = $page->slug;
+        $oldPublishedPath = $oldStatus === 'published'
+            ? \App\Domain\Publishing\Services\LocalePaths::pagePath($site, $page)
+            : null;
         $page = $this->pageService->updatePage($page, $request->validated());
+
+        // Static delete-half: remove the old published file when the content
+        // was unpublished or its path changed (slug/category/locale)
+        try {
+            if ($oldPublishedPath !== null) {
+                $newPath = \App\Domain\Publishing\Services\LocalePaths::pagePath($site, $page);
+                if ($page->status !== 'published' || $newPath !== $oldPublishedPath) {
+                    app(\App\Domain\Publishing\Services\StaticCleaner::class)->removePath($site, $oldPublishedPath);
+                }
+            }
+        } catch (\Throwable $e) {
+            logger()->warning('StaticCleaner (update) failed: ' . $e->getMessage());
+        }
+
+
 
         // Slug change: pages/posts linking here still contain the old URL
         if ($page->slug !== $oldSlug && $oldStatus === 'published') {
@@ -99,6 +117,13 @@ class PageController extends Controller
         $this->authorize('delete', $page);
 
         $wasPublished = $page->status === 'published';
+        if ($wasPublished) {
+            try {
+                app(\App\Domain\Publishing\Services\StaticCleaner::class)->removeContent($site, $page);
+            } catch (\Throwable $e) {
+                logger()->warning('StaticCleaner (delete) failed: ' . $e->getMessage());
+            }
+        }
         $page->delete();
 
         if ($wasPublished) {

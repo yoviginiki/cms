@@ -228,4 +228,40 @@ class LocalePaths
             . 'box-shadow:0 2px 8px rgba(0,0,0,0.08);font-size:12px;letter-spacing:0.05em;">'
             . $links . '</div>';
     }
+
+    /**
+     * Post-process built HTML for multilingual sites: hreflang alternates in
+     * <head> and the fallback switcher pill before </body> (skipped when the
+     * page already contains a langswitcher block). Single-language sites get
+     * their HTML back byte-identical.
+     */
+    public static function localizeHtml(Site $site, Page|Post $content, string $html): string
+    {
+        if (!self::isMultilingual($site)) return $html;
+
+        $base = self::baseUrl($site);
+        $alternates = self::alternates($site, $content);
+
+        $links = '';
+        foreach ($alternates as $lang => $alt) {
+            $links .= '<link rel="alternate" hreflang="' . e($lang) . '" href="' . e($base . $alt['url']) . '">' . "\n";
+        }
+        $default = self::defaultLanguage($site);
+        $xDefault = $alternates[$default]['url'] ?? self::urlPath($site, $content);
+        $links .= '<link rel="alternate" hreflang="x-default" href="' . e($base . $xDefault) . '">' . "\n";
+
+        $pos = stripos($html, '</head>');
+        if ($pos !== false) {
+            $html = substr($html, 0, $pos) . $links . substr($html, $pos);
+        }
+
+        if (!str_contains($html, 'lang-switcher')) {
+            $pos = strripos($html, '</body>');
+            if ($pos !== false) {
+                $html = substr($html, 0, $pos) . self::switcherHtml($site, $content) . substr($html, $pos);
+            }
+        }
+
+        return $html;
+    }
 }

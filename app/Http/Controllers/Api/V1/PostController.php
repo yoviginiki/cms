@@ -89,7 +89,25 @@ class PostController extends Controller
 
         $oldStatus = $post->status;
         $oldSlug = $post->slug;
+        $oldPublishedPath = $oldStatus === 'published'
+            ? \App\Domain\Publishing\Services\LocalePaths::postPath($site, $post->loadMissing('category'))
+            : null;
         $post = $this->postService->updatePost($post, $request->validated());
+
+        // Static delete-half: remove the old published file when the content
+        // was unpublished or its path changed (slug/category/locale)
+        try {
+            if ($oldPublishedPath !== null) {
+                $newPath = \App\Domain\Publishing\Services\LocalePaths::postPath($site, $post->fresh('category'));
+                if ($post->status !== 'published' || $newPath !== $oldPublishedPath) {
+                    app(\App\Domain\Publishing\Services\StaticCleaner::class)->removePath($site, $oldPublishedPath);
+                }
+            }
+        } catch (\Throwable $e) {
+            logger()->warning('StaticCleaner (update) failed: ' . $e->getMessage());
+        }
+
+
 
         if ($post->status === 'published' || $oldStatus === 'published') {
             // Listing pages + postcards embedding this post are now stale
@@ -114,6 +132,13 @@ class PostController extends Controller
         $this->authorize('delete', $post);
 
         $wasPublished = $post->status === 'published';
+        if ($wasPublished) {
+            try {
+                app(\App\Domain\Publishing\Services\StaticCleaner::class)->removeContent($site, $post->loadMissing('category'));
+            } catch (\Throwable $e) {
+                logger()->warning('StaticCleaner (delete) failed: ' . $e->getMessage());
+            }
+        }
         $post->delete();
 
         if ($wasPublished) {

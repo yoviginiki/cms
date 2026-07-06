@@ -75,7 +75,7 @@ class RepublishStaleJob implements ShouldQueue
                 ->get();
             foreach ($pages as $page) {
                 try {
-                    $html = $buildService->buildAndValidate($page, $site->theme, $site)['html'];
+                    $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $page, $buildService->buildAndValidate($page, $site->theme, $site)['html']);
                     $path = $this->getPagePath($site, $page);
                     File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
                     File::put("{$stagingPath}/{$path}", $html);
@@ -92,8 +92,8 @@ class RepublishStaleJob implements ShouldQueue
                 ->get();
             foreach ($posts as $post) {
                 try {
-                    $html = $buildService->buildAndValidate($post, $site->theme, $site)['html'];
-                    $path = $this->getPostPath($post);
+                    $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $post, $buildService->buildAndValidate($post, $site->theme, $site)['html']);
+                    $path = $this->getPostPath($site, $post);
                     File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
                     File::put("{$stagingPath}/{$path}", $html);
                     $built[] = ['type' => 'post', 'id' => $post->id, 'title' => $post->title, 'path' => $path];
@@ -185,22 +185,14 @@ class RepublishStaleJob implements ShouldQueue
         return config('publishing.public_path') . '/' . $site->slug;
     }
 
-    // Same path logic as PublishSiteJob::getPagePath/getPostPath
+    // Same path logic as PublishSiteJob (single source of truth: LocalePaths)
     private function getPagePath($site, Page $page): string
     {
-        $homepageId = $site->settings['homepage_id'] ?? null;
-        $isHomepage = ($homepageId && $page->id === $homepageId) || (!$homepageId && $page->slug === 'home');
-        $slug = $isHomepage ? '' : $page->slug;
-
-        return ($slug ? "{$slug}/" : '') . 'index.html';
+        return \App\Domain\Publishing\Services\LocalePaths::pagePath($site, $page);
     }
 
-    private function getPostPath(Post $post): string
+    private function getPostPath($site, Post $post): string
     {
-        if ($post->category && $post->category->slug) {
-            return "{$post->category->slug}/{$post->slug}/index.html";
-        }
-
-        return "{$post->slug}/index.html";
+        return \App\Domain\Publishing\Services\LocalePaths::postPath($site, $post);
     }
 }

@@ -111,7 +111,7 @@ class PublishSiteJob implements ShouldQueue
             // Build pages
             foreach ($pages as $page) {
                 $result = $buildService->buildAndValidate($page, $site->theme, $site);
-                $html = $result['html'];
+                $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $page, $result['html']);
                 $validationResults["page:{$page->slug}"] = $result['validation'];
 
                 $pagePath = $this->getPagePath($page);
@@ -128,7 +128,7 @@ class PublishSiteJob implements ShouldQueue
             // Build posts
             foreach ($posts as $post) {
                 $result = $buildService->buildAndValidate($post, $site->theme, $site);
-                $html = $result['html'];
+                $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $post, $result['html']);
                 $validationResults["post:{$post->slug}"] = $result['validation'];
                 $postPath = $this->getPostPath($post);
                 File::ensureDirectoryExists(dirname("{$stagingPath}/{$postPath}"));
@@ -235,22 +235,14 @@ class PublishSiteJob implements ShouldQueue
 
     private function getPagePath($page): string
     {
-        $site = $this->deployment->site;
-        $homepageId = $site->settings['homepage_id'] ?? null;
-
-        // Page is homepage if: explicitly set as homepage OR slug is 'home' (legacy fallback)
-        $isHomepage = ($homepageId && $page->id === $homepageId) || (!$homepageId && $page->slug === 'home');
-        $slug = $isHomepage ? '' : $page->slug;
-
-        return ($slug ? "{$slug}/" : '') . 'index.html';
+        // identical to the old inline logic for default-locale content;
+        // translated content publishes under /{locale}/ with the suffix stripped
+        return \App\Domain\Publishing\Services\LocalePaths::pagePath($this->deployment->site, $page);
     }
 
     private function getPostPath($post): string
     {
-        if ($post->category && $post->category->slug) {
-            return "{$post->category->slug}/{$post->slug}/index.html";
-        }
-        return "{$post->slug}/index.html";
+        return \App\Domain\Publishing\Services\LocalePaths::postPath($this->deployment->site, $post);
     }
 
     private function updateStatus(string $status, string $message): void
