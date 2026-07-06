@@ -25,7 +25,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 | 8 | SEO output (sitemap/robots/OG) | full | none (no SEO tests) | yes (generated real output) | yes (live-site sitemap/robots/head) | 🟡 YELLOW | Comprehensive, correct per-page meta/OG/Twitter/canonical, valid sitemap+robots (verified on live "Ensodo" site). But JSON-LD/breadcrumb URLs hardcode `/blog/{slug}` while posts serve at `/{category}/{slug}/` → structured data points to non-existent URLs, conflicting with canonical; auto meta-description only reads `text` blocks (often empty); no SEO tests. See §8. |
 | 9 | Asset pipeline (WebP/hashing) | full (broken) | none | no | yes (empirical: read() throws, 0/21 variants, rewrite mangles) | 🔴 RED | Content hashing/dedup + tenant-isolated storage + SVG scrub + base-URL resolution all work. But image variant generation is 100% broken — `AssetService` calls `ImageManager::read()` which doesn't exist in the installed Intervention v4, throws, and is swallowed by a silent catch → 0/21 assets have variants. Even if fixed, `AssetPublisher` mangles variant URLs and never publishes variant files. WebP/responsive pipeline is non-functional end-to-end. See §9. |
 | 10 | Block registry contract compliance | full | yes (ExtractorCoverageTest — currently RED) | 85/86 compliant | yes (scripted full cross-reference) | 🟡 YELLOW | Healthiest subsystem so far, near-GREEN: 86 types, all 86 have Blade views, 84/84 React dirs complete (Editor+Preview+definition), extractor registry with an enforcing test. Only gaps: `langswitcher` missing its extractor entry (ExtractorCoverageTest failing), orphan `quote.blade.php` leftover. See §10. |
-| 11 | Block editor (CRUD/nesting/undo) | — | — | — | — | ⬜ | Session C |
+| 11 | Block editor (CRUD/nesting/undo) | full | yes (Hierarchy 10, InspectorRoundTrip 14, many ValidationTests) | pass | yes (read save path + ran tests) | 🟡 YELLOW | Nesting is server-enforced + well-tested (Section→Row→Column→Module, depth≤4, ≤500 blocks); property round-trip to published CSS tested; block IDs preserved; undo exists. But save is a destructive DELETE-all-then-reinsert that cascades block-scoped `theme_overrides`/`grid_position_blocks` (silent data loss), and there's no concurrency protection — `active_editors` is presence-only → last-write-wins clobbering. See §11. |
 | 12 | Magazine editor | — | — | — | — | ⬜ | Session C |
 | 13 | Block templates / presets | — | — | — | — | ⬜ | Session C |
 | 14 | entity_references / dependency graph | — | — | — | — | ⬜ | Session D |
@@ -402,3 +402,29 @@ Contrary to the audit's prediction that this would be "the biggest finding," com
 
 ### Rating rationale
 The block registry contract is genuinely well-defined and largely enforced — Blade, React (editor/preview/schema), sanitizer, and extractor coverage are complete for 85 of 86 types, with a test that guards extractor completeness. It is not GREEN only because that guard test is **currently failing** (langswitcher unmapped) and there's a dead orphan view — a single-line fix and a file deletion away from GREEN. 🟡 YELLOW (near-GREEN, the healthiest subsystem audited).
+
+---
+
+## §11 — Block editor (CRUD / nesting / undo / save integrity)  🟡 YELLOW  (audited 2026-07-06)
+
+### What was checked
+Read `BlockService::syncBlocks`/`insertBlocks`/`buildTree`, `SyncBlocksRequest`, `HierarchyValidator`, and the concurrency/undo surfaces; ran the hierarchy, round-trip, and validation tests.
+
+### What works (verified)
+- **Nesting is enforced server-side and well-tested.** `SyncBlocksRequest` (the save endpoint's FormRequest) rejects invalid trees: hierarchy containment via `HierarchyValidator::validate` (`:91`), max depth 4 (Section→Row→Column→Module), max 500 blocks per page. `HierarchyValidatorTest` = **10 passing** (module-in-section fails, row-in-row fails, column/row-at-root fail, module-with-children fails, path in error). So the constraint is authoritative on the server, not just the DnD layer.
+- **Property round-trip to published output is tested.** `InspectorRoundTripTest` = **14 passing** — editor-set style/token/opacity/border/object-fit/video-audio attributes all reach the published CSS/markup.
+- **Block IDs are preserved on save** (`insertBlocks`: `'id' => $blockData['id'] ?? uuid`), and `syncBlocks` is transactional with entity_reference edges recomputed in the same transaction.
+- **Per-block data validation** exists for dozens of block types (`tests/Unit/Blocks/*ValidationTest`), and **undo/history exists** in the React editor stores (`editorStore.ts`, `storeFlow.ts`; `magazineStoreUndo.test.ts` covers the magazine store).
+
+### Defects
+
+**D1 (moderate) — Destructive bulk-replace silently loses block-linked data.** `syncBlocks` **deletes all of a page's blocks and re-inserts the tree** on every save. Because `theme_overrides.block_id` and `grid_position_blocks.block_id` are `ON DELETE CASCADE` (§3), the delete step **cascades those rows away**, and the re-insert (same block ids) does **not** restore them — nothing in `BlockService`/`BlockController` preserves or re-creates them (grep-confirmed). So a block-scoped theme override or a grid-position block association vanishes the next time its page's blocks are saved. **Severity: moderate (silent data loss, feature-usage dependent).**
+
+**D2 (moderate) — No concurrency protection (last-write-wins).** `active_editors` (`EditorPresenceService`) is **presence-only** — there is no version token, optimistic lock, `If-Match`, or conflict detection in the block save path. Two editors on the same page (or two browser tabs, or an autosave racing a manual save) each send a full tree; the second `syncBlocks` **overwrites the first's entire block tree** with no warning. **Severity: moderate (collaborative data loss).**
+
+**D3 (minor) — Round-trip JSON is not byte-identical.** `insertBlocks` stores `style`/`animation`/`responsive`/`advanced` **both** in dedicated columns **and** as `data.__style`/`__animation`/… keys; `buildTree` restores the top-level fields but leaves the `__`-prefixed duplicates inside `data`. So reloaded block JSON carries extra keys vs what was sent (functionally harmless, but not identity-clean and it grows the stored blob). **Severity: minor.**
+
+**D4 (minor) — Hierarchy check skipped for level-less blocks.** Validation only runs when `anyBlockHasLevel($blocks)` is true (backward-compat), so blocks with no `level` field bypass containment rules. Intentional but a soft spot. **Severity: minor.**
+
+### Rating rationale
+The editor's core — server-enforced nesting, property round-trip, per-block validation, ID preservation, and an undo stack — is solid and genuinely tested (one of the better-tested subsystems). It is not GREEN because the save model is a **destructive bulk-replace that cascades away block-linked data** and there is **no protection against concurrent-edit clobbering** (presence-only, last-write-wins) — two real, if usage-dependent, data-loss paths. 🟡 YELLOW.

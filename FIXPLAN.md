@@ -130,6 +130,11 @@ This file is populated as the audit proceeds; only subsystems already audited ap
 
 > Add a `'langswitcher' => new NullExtractor()` entry (or a real `FieldMapExtractor` if the block references locale-linked content) to `ReferenceExtractorRegistry::__construct` so `ExtractorCoverageTest` goes green again — the test is currently RED, which also means it isn't gating CI. Delete the orphan `resources/views/blocks/quote.blade.php` (leftover from the quote→pullquote rename; no registered type renders it). While here, ensure `ExtractorCoverageTest` (and the suite generally) actually runs in CI so a future block added without its contract artifacts fails the build.
 
+### FIX-C11a — Stop block-save from cascading away block-linked data + add concurrency guard
+**Source:** STATUS.md §11, Defects D1/D2. **Severity: moderate.** **Effort: ~0.5-1 day.**
+
+> D1: `syncBlocks` deletes all blocks then re-inserts, so `theme_overrides.block_id` / `grid_position_blocks.block_id` (ON DELETE CASCADE) rows are wiped and never restored. Options: (a) make `syncBlocks` a real diff (update-in-place existing block ids, insert new, delete removed) instead of delete-all — this preserves the FK rows for unchanged blocks; or (b) snapshot the block-scoped `theme_overrides`/`grid_position_blocks` before the delete and re-attach them to the recreated same-id blocks inside the transaction. Prefer (a). Add a test: create a page with a block, add a block-scoped theme override, re-save the page's blocks, assert the override still exists. D2: add optimistic concurrency to the save — the page/blockable carries a version or `updated_at`; the editor sends it back and `syncBlocks` rejects (409) if it changed since load, so a second editor can't silently clobber. Surface the conflict in the editor (reload/merge prompt).
+
 ---
 
 ## Secondary (schedule into the owning subsystem's fix-session)
