@@ -326,6 +326,10 @@ class DtpRenderService
             $magType === 'text_path' => $this->renderTextPathFrame($content, $frame),
             $magType === 'video_frame' => $this->renderVideoFrame($content),
             $magType === 'audio_player' => $this->renderAudioFrame($content),
+            $magType === 'gallery_frame' => $this->renderGalleryFrame($content),
+            $magType === 'chart_frame' => $this->renderChartFrame($content),
+            $magType === 'infographic_number' => $this->renderStatFrame($content, $metadata),
+            $magType === 'progress_indicator' => $this->renderProgressFrame($content),
             default => match ($type) {
             'text' => $this->injectShims($shimHtml, $this->renderTextFrame($content)),
             'image' => $this->renderImageFrame($content),
@@ -763,6 +767,154 @@ class DtpRenderService
             . 'aria-label="Play video" data-src="' . e($kind === 'video' ? $url : $embedSrc) . '" '
             . 'onclick="' . e($swap) . '" onkeydown="if(event.key===\'Enter\')this.click()">'
             . $posterImg . $playBadge . $qr . '</div>';
+    }
+
+    /** image gallery — CSS grid of figures (print-safe, no JS) */
+    private function renderGalleryFrame(array $content): string
+    {
+        $images = is_array($content['galleryImages'] ?? null) ? $content['galleryImages'] : [];
+        $images = array_values(array_filter($images, function ($im) {
+            $src = is_array($im) ? (string) ($im['src'] ?? '') : '';
+            return $src !== '' && (preg_match('#^https?://#i', $src) || str_starts_with($src, '/'));
+        }));
+        if ($images === []) {
+            return '<div style="width:100%;height:100%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">Empty gallery</div>';
+        }
+
+        $cols = max(1, min(6, (int) ($content['galleryColumns'] ?? 2)));
+        $showCaptions = ($content['galleryShowCaptions'] ?? true) !== false;
+
+        $cells = '';
+        foreach ($images as $im) {
+            $src = $this->convertAssetUrls((string) $im['src']);
+            $alt = e((string) ($im['alt'] ?? ''));
+            $caption = trim((string) ($im['caption'] ?? ''));
+            $cells .= '<figure style="margin:0;display:flex;flex-direction:column;min-height:0;">'
+                . '<img src="' . e($src) . '" alt="' . $alt . '" loading="lazy" style="width:100%;flex:1;min-height:0;object-fit:cover;display:block;">'
+                . ($showCaptions && $caption !== '' ? '<figcaption style="font-size:8.5px;color:#6b7280;padding-top:3px;">' . e($caption) . '</figcaption>' : '')
+                . '</figure>';
+        }
+
+        return '<div style="width:100%;height:100%;display:grid;grid-template-columns:repeat(' . $cols . ',1fr);grid-auto-rows:1fr;gap:6px;">' . $cells . '</div>';
+    }
+
+    /** bar / line / pie / donut chart as inline SVG (print-safe) */
+    private function renderChartFrame(array $content): string
+    {
+        $items = is_array($content['chartData'] ?? null) ? array_values($content['chartData']) : [];
+        $items = array_filter($items, fn ($i) => is_array($i));
+        if ($items === []) {
+            return '<div style="width:100%;height:100%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No chart data</div>';
+        }
+
+        $palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+        $type = in_array($content['chartType'] ?? 'bar', ['bar', 'pie', 'donut', 'line'], true) ? $content['chartType'] : 'bar';
+        $showValues = ($content['chartShowValues'] ?? true) !== false;
+        $safe = fn ($c, $i) => \App\Support\Blocks\BlockStyle::safeColor($c ?? '') ?: $palette[$i % count($palette)];
+
+        if ($type === 'pie' || $type === 'donut') {
+            $total = max(array_sum(array_map(fn ($i) => max(0, (float) ($i['value'] ?? 0)), $items)), 0.0001);
+            $slices = '';
+            $angle = -90.0;
+            foreach (array_values($items) as $idx => $item) {
+                $sweep = ((float) ($item['value'] ?? 0)) / $total * 360;
+                if ($sweep <= 0) continue;
+                $a0 = deg2rad($angle);
+                $a1 = deg2rad($angle + min($sweep, 359.99));
+                $x0 = 50 + 40 * cos($a0); $y0 = 50 + 40 * sin($a0);
+                $x1 = 50 + 40 * cos($a1); $y1 = 50 + 40 * sin($a1);
+                $large = $sweep > 180 ? 1 : 0;
+                $slices .= '<path d="M50 50 L' . round($x0, 2) . ' ' . round($y0, 2)
+                    . ' A40 40 0 ' . $large . ' 1 ' . round($x1, 2) . ' ' . round($y1, 2) . ' Z" fill="' . e($safe($item['color'] ?? null, $idx)) . '"/>';
+                $angle += $sweep;
+            }
+            if ($type === 'donut') {
+                $slices .= '<circle cx="50" cy="50" r="22" fill="#fff"/>';
+            }
+            $legend = '';
+            foreach (array_values($items) as $idx => $item) {
+                $legend .= '<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-size:8.5px;color:#374151;">'
+                    . '<span style="width:8px;height:8px;background:' . e($safe($item['color'] ?? null, $idx)) . ';display:inline-block;"></span>'
+                    . e((string) ($item['label'] ?? '')) . ($showValues ? ' (' . e((string) ($item['value'] ?? '')) . ')' : '') . '</span>';
+            }
+
+            return '<div style="width:100%;height:100%;display:flex;flex-direction:column;">'
+                . '<svg viewBox="0 0 100 100" style="flex:1;min-height:0;" preserveAspectRatio="xMidYMid meet">' . $slices . '</svg>'
+                . '<div style="text-align:center;padding-top:2px;">' . $legend . '</div></div>';
+        }
+
+        // bar / line share a value axis
+        $max = max(array_map(fn ($i) => (float) ($i['value'] ?? 0), $items));
+        $max = $max > 0 ? $max : 1;
+        $n = count($items);
+
+        if ($type === 'line') {
+            $pts = [];
+            foreach (array_values($items) as $idx => $item) {
+                $x = $n === 1 ? 50 : 5 + 90 * $idx / ($n - 1);
+                $y = 78 - 70 * ((float) ($item['value'] ?? 0)) / $max;
+                $pts[] = round($x, 2) . ',' . round($y, 2);
+            }
+            $labels = '';
+            foreach (array_values($items) as $idx => $item) {
+                $x = $n === 1 ? 50 : 5 + 90 * $idx / ($n - 1);
+                $labels .= '<text x="' . round($x, 2) . '" y="88" font-size="5" text-anchor="middle" fill="#6b7280">' . e((string) ($item['label'] ?? '')) . '</text>';
+            }
+
+            return '<svg viewBox="0 0 100 92" style="width:100%;height:100%;" preserveAspectRatio="none">'
+                . '<polyline points="' . implode(' ', $pts) . '" fill="none" stroke="' . e($safe(null, 0)) . '" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>'
+                . $labels . '</svg>';
+        }
+
+        $bars = '';
+        $bw = 90 / $n;
+        foreach (array_values($items) as $idx => $item) {
+            $v = max(0, (float) ($item['value'] ?? 0));
+            $h = 70 * $v / $max;
+            $x = 5 + $idx * $bw + $bw * 0.125;
+            $bars .= '<rect x="' . round($x, 2) . '" y="' . round(78 - $h, 2) . '" width="' . round($bw * 0.75, 2) . '" height="' . round($h, 2) . '" fill="' . e($safe($item['color'] ?? null, $idx)) . '"/>';
+            $bars .= '<text x="' . round($x + $bw * 0.375, 2) . '" y="88" font-size="5" text-anchor="middle" fill="#6b7280">' . e((string) ($item['label'] ?? '')) . '</text>';
+            if ($showValues) {
+                $bars .= '<text x="' . round($x + $bw * 0.375, 2) . '" y="' . round(74 - $h, 2) . '" font-size="4.5" text-anchor="middle" fill="#374151">' . e((string) ($item['value'] ?? '')) . '</text>';
+            }
+        }
+
+        return '<svg viewBox="0 0 100 92" style="width:100%;height:100%;" preserveAspectRatio="none">' . $bars . '</svg>';
+    }
+
+    /** big stat number + label (the stat-punch element) */
+    private function renderStatFrame(array $content, array $metadata = []): string
+    {
+        $typo = is_array($metadata['_typography'] ?? null) ? $metadata['_typography'] : [];
+        $size = (float) ($typo['fontSize'] ?? 48);
+        $family = preg_replace('/[^a-zA-Z0-9\s,\-]/', '', (string) ($typo['fontFamily'] ?? 'Barlow Condensed'));
+        $color = \App\Support\Blocks\BlockStyle::safeColor($content['statColor'] ?? '') ?: (\App\Support\Blocks\BlockStyle::safeColor($typo['textColor'] ?? '') ?: '#111827');
+        $value = e((string) ($content['statValue'] ?? '0'));
+        $prefix = e((string) ($content['statPrefix'] ?? ''));
+        $suffix = e((string) ($content['statSuffix'] ?? ''));
+        $label = trim((string) ($content['statLabel'] ?? ''));
+
+        return '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">'
+            . '<div style="font-family:' . e($family) . ';font-size:' . $size . 'px;font-weight:700;line-height:1;color:' . e($color) . ';">'
+            . $prefix . $value . $suffix . '</div>'
+            . ($label !== '' ? '<div style="font-size:' . max(9, round($size * 0.22)) . 'px;color:#6b7280;margin-top:6px;letter-spacing:.06em;text-transform:uppercase;">' . e($label) . '</div>' : '')
+            . '</div>';
+    }
+
+    /** progress bar (print-safe) */
+    private function renderProgressFrame(array $content): string
+    {
+        $max = max(1.0, (float) ($content['progressMax'] ?? 100));
+        $value = min($max, max(0.0, (float) ($content['progressValue'] ?? 0)));
+        $pct = round($value / $max * 100);
+        $color = \App\Support\Blocks\BlockStyle::safeColor($content['progressColor'] ?? '') ?: '#3b82f6';
+        $label = trim((string) ($content['progressLabel'] ?? ''));
+        $showLabel = ($content['progressShowLabel'] ?? true) !== false;
+
+        return '<div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;">'
+            . ($showLabel && $label !== '' ? '<div style="font-size:9px;color:#6b7280;">' . e($label) . ': ' . $pct . '%</div>' : '')
+            . '<div style="width:100%;height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;">'
+            . '<div style="width:' . $pct . '%;height:100%;background:' . e($color) . ';border-radius:99px;"></div></div></div>';
     }
 
     /** in-page audio element */

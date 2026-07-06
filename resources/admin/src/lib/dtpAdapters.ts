@@ -168,6 +168,30 @@ export function dtpFrameToElement(f: any, pageNumber: number): MagElement {
     data.aspectRatio = content.aspectRatio || '16:9';
     data.autoplay = false;
   }
+  if (savedMagType === 'gallery_frame') {
+    data.images = Array.isArray(content.galleryImages) ? content.galleryImages : [];
+    data.columns = content.galleryColumns || 2;
+    data.showCaptions = content.galleryShowCaptions !== false;
+  }
+  if (savedMagType === 'chart_frame') {
+    data.chartType = content.chartType || 'bar';
+    data.data = Array.isArray(content.chartData) ? content.chartData : [];
+    data.showValues = content.chartShowValues !== false;
+  }
+  if (savedMagType === 'infographic_number') {
+    data.value = content.statValue ?? '0';
+    data.prefix = content.statPrefix || '';
+    data.suffix = content.statSuffix || '';
+    data.label = content.statLabel || '';
+    data.color = content.statColor || '';
+  }
+  if (savedMagType === 'progress_indicator') {
+    data.value = content.progressValue ?? 0;
+    data.max = content.progressMax ?? 100;
+    data.label = content.progressLabel || '';
+    data.showLabel = content.progressShowLabel !== false;
+    data.color = content.progressColor || '';
+  }
   if (savedMagType === 'audio_player') {
     data.url = content.audioUrl || '';
     data.title = content.audioTitle || 'Audio';
@@ -356,6 +380,34 @@ export function pagesToDtpApi(
         content.posterSrc = /^https?:\/\//i.test(ps) || ps.startsWith('/') ? ps : '';
         content.showQr = (el.data as any)?.showQr === true;
         content.aspectRatio = (el.data as any)?.aspectRatio || '16:9';
+      } else if (el.type === 'gallery_frame') {
+        content.galleryImages = (Array.isArray((el.data as any)?.images) ? (el.data as any).images : [])
+          .filter((im: any) => im && (im.src || im.assetId))
+          .map((im: any) => ({
+            assetId: im.assetId || null,
+            src: typeof im.src === 'string' && (/^https?:\/\//i.test(im.src) || im.src.startsWith('/')) ? im.src : '',
+            alt: im.alt || '',
+            caption: im.caption || '',
+          }));
+        content.galleryColumns = Math.min(6, Math.max(1, Number((el.data as any)?.columns) || 2));
+        content.galleryShowCaptions = (el.data as any)?.showCaptions !== false;
+      } else if (el.type === 'chart_frame') {
+        content.chartType = ['bar', 'pie', 'donut', 'line'].includes((el.data as any)?.chartType) ? (el.data as any).chartType : 'bar';
+        content.chartData = (Array.isArray((el.data as any)?.data) ? (el.data as any).data : [])
+          .map((d: any) => ({ label: String(d?.label ?? ''), value: Number(d?.value) || 0, color: d?.color || null }));
+        content.chartShowValues = (el.data as any)?.showValues !== false;
+      } else if (el.type === 'infographic_number') {
+        content.statValue = String((el.data as any)?.value ?? '0');
+        content.statPrefix = String((el.data as any)?.prefix ?? '');
+        content.statSuffix = String((el.data as any)?.suffix ?? '');
+        content.statLabel = String((el.data as any)?.label ?? '');
+        content.statColor = String((el.data as any)?.color ?? '');
+      } else if (el.type === 'progress_indicator') {
+        content.progressValue = Number((el.data as any)?.value) || 0;
+        content.progressMax = Math.max(1, Number((el.data as any)?.max) || 100);
+        content.progressLabel = String((el.data as any)?.label ?? '');
+        content.progressShowLabel = (el.data as any)?.showLabel !== false;
+        content.progressColor = String((el.data as any)?.color ?? '');
       } else if (el.type === 'audio_player') {
         const au = (el.data as any)?.url || '';
         content.audioUrl = /^https?:\/\//i.test(au) || au.startsWith('/') ? au : '';

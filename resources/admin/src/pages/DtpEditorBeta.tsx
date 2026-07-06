@@ -30,6 +30,7 @@ import TextWrapPanel from '@/components/magazine/properties/TextWrapPanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
 import TablePanel from '@/components/magazine/properties/TablePanel';
 import MediaPanel from '@/components/magazine/properties/MediaPanel';
+import { GalleryPanel, ChartPanel, StatPanel, ProgressPanel } from '@/components/magazine/properties/DataElementsPanel';
 import AlignDistributePanel from '@/components/magazine/properties/AlignDistributePanel';
 import RichTextToolbar from '@/components/magazine/properties/RichTextToolbar';
 import PagePanel from '@/components/magazine/properties/PagePanel';
@@ -956,6 +957,22 @@ export default function DtpEditorBeta() {
                         data={(selectedEl.data || {}) as any}
                         onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })}
                       />
+                    )}
+                    {selectedEl.type === 'gallery_frame' && (
+                      <GalleryPanel data={(selectedEl.data || {}) as any}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })} />
+                    )}
+                    {selectedEl.type === 'chart_frame' && (
+                      <ChartPanel data={(selectedEl.data || {}) as any}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })} />
+                    )}
+                    {selectedEl.type === 'infographic_number' && (
+                      <StatPanel data={(selectedEl.data || {}) as any}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })} />
+                    )}
+                    {selectedEl.type === 'progress_indicator' && (
+                      <ProgressPanel data={(selectedEl.data || {}) as any}
+                        onChange={(v) => store.updateElement(selectedEl.id, { data: { ...selectedEl.data, ...v } })} />
                     )}
                     {selectedEl.type === 'table_frame' && (
                       <TablePanel

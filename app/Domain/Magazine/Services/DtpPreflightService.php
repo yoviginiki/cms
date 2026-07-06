@@ -77,6 +77,19 @@ class DtpPreflightService
                 }
             }
 
+            // ─── Elements without a publish path ───
+            $editorOnly = ['embed_frame', 'svg_icon', 'hotspot', 'tooltip_trigger', 'accordion_frame', 'slidein_panel', 'component_instance', 'freeform_path'];
+            $mt = is_array($frame->metadata) ? ($frame->metadata['_magType'] ?? null) : null;
+            if ($mt && in_array($mt, $editorOnly, true)) {
+                $items[] = $this->item('warning', 'EDITOR_ONLY_ELEMENT', "{$name}: '{$mt}' has no publish rendering yet — it will be empty on the published page.", frameId: $frame->id);
+            }
+            if ($mt === 'gallery_frame' && empty($content['galleryImages'])) {
+                $items[] = $this->item('warning', 'EMPTY_GALLERY', "{$name}: gallery has no images.", frameId: $frame->id);
+            }
+            if ($mt === 'chart_frame' && empty($content['chartData'])) {
+                $items[] = $this->item('warning', 'EMPTY_CHART', "{$name}: chart has no data.", frameId: $frame->id);
+            }
+
             // ─── Image frame checks ───
             if ($type === 'image') {
                 $src = $content['src'] ?? '';

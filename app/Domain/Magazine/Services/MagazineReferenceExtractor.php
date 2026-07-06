@@ -38,6 +38,14 @@ class MagazineReferenceExtractor
             if (!empty($c['posterAssetId']) && $this->isUuid($c['posterAssetId'])) {
                 $assetIds[$c['posterAssetId']] = true;
             }
+            $harvest($c['posterSrc'] ?? null);
+            foreach ((array) ($c['galleryImages'] ?? []) as $gi) {
+                if (!is_array($gi)) continue;
+                $harvest($gi['src'] ?? null);
+                if (!empty($gi['assetId']) && $this->isUuid($gi['assetId'])) {
+                    $assetIds[$gi['assetId']] = true;
+                }
+            }
         }
 
         $vs = $issue->layout_final['viewerSettings'] ?? [];

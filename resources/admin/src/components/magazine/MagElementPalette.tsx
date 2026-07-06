@@ -59,18 +59,18 @@ const MAGAZINE_ELEMENTS: CategoryGroup[] = [
     items: [
       { type: 'video_frame', label: 'Video', description: 'Embedded YouTube/Vimeo video', width: 400, height: 225 },
       { type: 'audio_player', label: 'Audio player', description: 'Embedded audio with controls', width: 300, height: 60 },
-      { type: 'embed_frame', label: 'Embed', description: 'Custom HTML or iframe embed', width: 400, height: 300 },
-      { type: 'svg_icon', label: 'Icon', description: 'SVG icon from icon library', width: 48, height: 48 },
+      { type: 'embed_frame', label: 'Embed', description: 'Editor-only for now — does not publish', width: 400, height: 300 },
+      { type: 'svg_icon', label: 'Icon', description: 'Editor-only for now — does not publish', width: 48, height: 48 },
     ],
   },
   {
     label: 'Interactive',
     items: [
       { type: 'button', label: 'Button', description: 'Clickable CTA button', width: 200, height: 50 },
-      { type: 'hotspot', label: 'Hotspot', description: 'Invisible clickable area', width: 100, height: 100 },
-      { type: 'tooltip_trigger', label: 'Tooltip', description: 'Hover to show tooltip text', width: 100, height: 30 },
-      { type: 'accordion_frame', label: 'Accordion', description: 'Expandable content sections', width: 400, height: 200 },
-      { type: 'slidein_panel', label: 'Slide-in panel', description: 'Content that slides in on click', width: 300, height: 400 },
+      { type: 'hotspot', label: 'Hotspot', description: 'Editor-only for now — does not publish', width: 100, height: 100 },
+      { type: 'tooltip_trigger', label: 'Tooltip', description: 'Editor-only for now — does not publish', width: 100, height: 30 },
+      { type: 'accordion_frame', label: 'Accordion', description: 'Editor-only for now — does not publish', width: 400, height: 200 },
+      { type: 'slidein_panel', label: 'Slide-in panel', description: 'Editor-only for now — does not publish', width: 300, height: 400 },
     ],
   },
   {
