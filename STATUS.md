@@ -25,11 +25,13 @@ Fixes implemented and verified against the full test suite (**1086 passing, 0 fa
 | §5 D1 blocks crash on default data | FIX-B5a: null-safety on category-header/readingprogress; per-block render isolation. | ✅ **fixed + verified** |
 | §8 D1/D2 SEO structured-data URL | FIX-B8a: JSON-LD/breadcrumb via `LocalePaths::urlPath` (== canonical); broadened auto-description. | ✅ **fixed + verified** |
 | §9 D1/D2 asset variant pipeline (RED) | FIX-B9a/b: Intervention v4 API (`decodePath`/`encodeUsingFileExtension`) + stop swallowing errors; AssetPublisher serves/publishes named variants. | ✅ **fixed + verified** |
+| §6 D1 rollback silent no-op (RED) | FIX-B6b: PublishSiteJob honors rollback — re-points live site to the target build, marks `rolled_back`. | ✅ **fixed + tested** |
+| §6 D2 global prune deletes live builds (RED) | FIX-B6a: `BuildRetention` never deletes a build a live symlink targets. | ✅ **fixed + tested** |
 | §10 D1 langswitcher extractor (RED test) | FIX-C10a: NullExtractor entry + deleted orphan `quote.blade.php`. | ✅ **fixed + tested** |
 | §12 D1 magazine QR overlay | Was a stale-worktree-vendor artifact (`bacon/bacon-qr-code` not installed) — NOT a code bug. `composer install` fixes it. | ✅ **resolved** |
 | ~10 pre-existing stale-test failures | Updated assertions to current correct behavior (hashed runtime, redirect, breakpoint, max:30, deep-nesting depth). | ✅ **fixed** |
 
-**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 atomic-publish/rollback (RED — rollback no-op, global build prune, custom-domain atomicity, concurrency); §4 html-embed role gate + sanitizer stub tests; §7 delta output completeness + lost-update race; §11 block-editor concurrency + bulk-replace cascade; §3 orphan cleanup + FK indexes; the 56 stub tests (LoginTest/PublishTest/SanitizationServiceTest). Also surfaced during remediation: the DB `users_role_check` only permits owner/admin/editor, so `viewer`/`author` in the app role hierarchy are unreachable — reconcile.
+**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 remaining (FIX-B6c — custom-domain/rename non-atomic deploys, mid-build live-docroot mutation, slow-build concurrency race); §4 html-embed role gate + sanitizer stub tests; §7 delta output completeness + lost-update race; §11 block-editor concurrency + bulk-replace cascade; §3 orphan cleanup + FK indexes; the 56 stub tests (LoginTest/PublishTest/SanitizationServiceTest). Also surfaced during remediation: the DB `users_role_check` only permits owner/admin/editor, so `viewer`/`author` in the app role hierarchy are unreachable — reconcile.
 
 ---
 
