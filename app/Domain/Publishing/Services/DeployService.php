@@ -139,6 +139,8 @@ class DeployService
     {
         File::ensureDirectoryExists($targetPath);
 
+        // Copy new content and record every relative path the build defines.
+        $keep = [];
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($stagingPath, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST
@@ -146,6 +148,7 @@ class DeployService
 
         foreach ($iterator as $item) {
             $relative = str_replace($stagingPath . '/', '', $item->getPathname());
+            $keep[$relative] = true;
             $dest = $targetPath . '/' . $relative;
 
             if ($item->isDir()) {
@@ -160,7 +163,34 @@ class DeployService
             }
         }
 
+        // FIX-B6c/D3: remove stale target files the new build no longer
+        // contains (deleted pages) so they don't stay live. Dot-entries
+        // (.well-known for SSL, other infra) are preserved.
+        $this->pruneStale($targetPath, $targetPath, $keep);
+
         $deployment->update(['artifact_path' => $stagingPath]);
+    }
+
+    /** Delete files/dirs under $dir that aren't in $keep (relative to $root); never touch dot-entries. */
+    private function pruneStale(string $root, string $dir, array $keep): void
+    {
+        foreach (scandir($dir) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+                continue; // preserve dotfiles/dot-dirs (SSL, infra, VCS)
+            }
+            $path = $dir . '/' . $entry;
+            $relative = ltrim(str_replace($root, '', $path), '/');
+
+            if (is_dir($path)) {
+                $this->pruneStale($root, $path, $keep);
+                // remove now-empty directory that the build no longer defines
+                if (!isset($keep[$relative]) && count(scandir($path) ?: []) <= 2) {
+                    @rmdir($path);
+                }
+            } elseif (!isset($keep[$relative])) {
+                @unlink($path);
+            }
+        }
     }
 
     private function resolveLocalStrategy(): SymlinkDeployStrategy|RenameDeployStrategy
