@@ -63,6 +63,20 @@ class BlockService
         });
     }
 
+    /**
+     * A version token for a blockable's current block tree (FIX-C11a opt-in
+     * optimistic concurrency). Changes whenever the blocks are re-saved, so a
+     * client that captured it on load can detect a concurrent edit on save.
+     */
+    public function blocksVersion(Model $blockable): ?string
+    {
+        $q = Block::where('blockable_type', $blockable->getMorphClass())
+            ->where('blockable_id', $blockable->getKey());
+        $latest = (clone $q)->max('updated_at');
+
+        return $latest ? $q->count() . ':' . $latest : '0:';
+    }
+
     public function getBlockTree(Model $blockable): array
     {
         $blocks = Block::where('blockable_type', $blockable->getMorphClass())
