@@ -41,6 +41,7 @@ class ThemeTemplateController extends Controller
 
     public function store(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:post,archive,header,footer,404,search'],
@@ -76,6 +77,7 @@ class ThemeTemplateController extends Controller
 
     public function update(Request $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
+        $this->authorize('update', $site);
         $this->assertOwnership($site, $themeTemplate);
 
         $data = $request->validate([
@@ -101,6 +103,7 @@ class ThemeTemplateController extends Controller
 
     public function destroy(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
+        $this->authorize('update', $site);
         $this->assertOwnership($site, $themeTemplate);
         $themeTemplate->blocks()->delete();
         $themeTemplate->delete();

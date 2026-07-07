@@ -36,6 +36,7 @@ class DtpDocumentController extends Controller
      */
     public function save(SaveDtpDocumentRequest $request, Site $site, MagazineIssue $issue): JsonResponse
     {
+        $this->authorize('update', $site);
         if ($issue->site_id !== $site->id) {
             abort(404);
         }

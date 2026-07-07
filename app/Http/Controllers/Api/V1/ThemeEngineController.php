@@ -78,6 +78,7 @@ class ThemeEngineController extends Controller
      */
     public function fork(Request $request, Site $site, string $themeId): JsonResponse
     {
+        $this->authorize('update', $site);
         $source = $this->findTheme($themeId);
         if (!$source) {
             return response()->json(['message' => 'Source theme not found'], 404);
@@ -114,6 +115,7 @@ class ThemeEngineController extends Controller
      */
     public function update(Request $request, Site $site, Theme $theme): JsonResponse
     {
+        $this->authorize('update', $site);
         if ($theme->is_system) {
             return response()->json(['message' => 'Cannot edit system themes. Fork first.'], 403);
         }
@@ -177,6 +179,7 @@ class ThemeEngineController extends Controller
      */
     public function assign(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $request->validate([
             'theme_id' => ['nullable', 'string'],
             'page_id' => ['sometimes', 'nullable', 'string'],
@@ -234,6 +237,7 @@ class ThemeEngineController extends Controller
      */
     public function saveOverrides(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $request->validate([
             'overrides' => ['required', 'array'],
             'overrides.*.token_path' => ['required', 'string'],
@@ -286,6 +290,7 @@ class ThemeEngineController extends Controller
      */
     public function import(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $request->validate([
             'document' => ['required', 'array'],
             'name' => ['sometimes', 'string', 'max:255'],
@@ -337,6 +342,7 @@ class ThemeEngineController extends Controller
      */
     public function restoreVersion(Request $request, Site $site, string $versionId): JsonResponse
     {
+        $this->authorize('update', $site);
         $version = ThemeVersion::where('site_id', $site->id)->findOrFail($versionId);
         $theme = Theme::findOrFail($version->theme_id);
 
