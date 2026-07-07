@@ -172,6 +172,31 @@ class StalenessResolver
     }
 
     /**
+     * Clear needs_republish for the items a delta batch built, but ONLY where
+     * the item hasn't been re-flagged since the build (its updated_at still
+     * matches the captured build stamp). Closes the lost-update race (§7 D2):
+     * if a dependency changed again after the build snapshot, the newer
+     * staleness is preserved instead of being erased by a blanket clear.
+     *
+     * @param array<int,array{type:string,id:string,stamp?:?string}> $built
+     */
+    public function clearBuiltIfUnchanged(array $built): void
+    {
+        foreach ($built as $item) {
+            $model = ($item['type'] ?? null) === 'post'
+                ? Post::find($item['id'] ?? null)
+                : Page::find($item['id'] ?? null);
+            if (!$model) {
+                continue;
+            }
+            $currentStamp = optional($model->updated_at)->toIso8601String();
+            if (($item['stamp'] ?? null) === $currentStamp) {
+                $model->forceFill(['needs_republish' => false, 'needs_republish_reason' => null])->save();
+            }
+        }
+    }
+
+    /**
      * A successful FULL publish covers everything: clear all flags.
      */
     public function clearForSite(Site $site): void

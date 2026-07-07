@@ -144,18 +144,10 @@ class StaleContentController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        // Clear flags ONLY for successfully built sources
-        $built = collect($deployment->metadata['built'] ?? []);
-        $builtPageIds = $built->where('type', 'page')->pluck('id')->all();
-        $builtPostIds = $built->where('type', 'post')->pluck('id')->all();
-        if ($builtPageIds !== []) {
-            Page::whereIn('id', $builtPageIds)
-                ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
-        }
-        if ($builtPostIds !== []) {
-            Post::whereIn('id', $builtPostIds)
-                ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
-        }
+        // Clear flags ONLY for successfully built sources that haven't been
+        // re-flagged since the build (§7 D2 lost-update race).
+        $built = collect($deployment->metadata['built'] ?? [])->all();
+        app(\App\Domain\References\Services\StalenessResolver::class)->clearBuiltIfUnchanged($built);
 
         $deployment->update([
             'status' => 'live',

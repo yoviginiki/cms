@@ -79,7 +79,7 @@ class RepublishStaleJob implements ShouldQueue
                     $path = $this->getPagePath($site, $page);
                     File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
                     File::put("{$stagingPath}/{$path}", $html);
-                    $built[] = ['type' => 'page', 'id' => $page->id, 'title' => $page->title, 'path' => $path];
+                    $built[] = ['type' => 'page', 'id' => $page->id, 'title' => $page->title, 'path' => $path, 'stamp' => optional($page->updated_at)->toIso8601String()];
                 } catch (\Throwable $e) {
                     $failed[] = ['type' => 'page', 'id' => $page->id, 'title' => $page->title, 'error' => $e->getMessage()];
                 }
@@ -96,7 +96,7 @@ class RepublishStaleJob implements ShouldQueue
                     $path = $this->getPostPath($site, $post);
                     File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
                     File::put("{$stagingPath}/{$path}", $html);
-                    $built[] = ['type' => 'post', 'id' => $post->id, 'title' => $post->title, 'path' => $path];
+                    $built[] = ['type' => 'post', 'id' => $post->id, 'title' => $post->title, 'path' => $path, 'stamp' => optional($post->updated_at)->toIso8601String()];
                 } catch (\Throwable $e) {
                     $failed[] = ['type' => 'post', 'id' => $post->id, 'title' => $post->title, 'error' => $e->getMessage()];
                 }
@@ -162,14 +162,8 @@ class RepublishStaleJob implements ShouldQueue
             return;
         }
 
-        $builtPageIds = array_column(array_filter($built, fn ($b) => $b['type'] === 'page'), 'id');
-        $builtPostIds = array_column(array_filter($built, fn ($b) => $b['type'] === 'post'), 'id');
-        if ($builtPageIds !== []) {
-            Page::whereIn('id', $builtPageIds)->update(['needs_republish' => false, 'needs_republish_reason' => null]);
-        }
-        if ($builtPostIds !== []) {
-            Post::whereIn('id', $builtPostIds)->update(['needs_republish' => false, 'needs_republish_reason' => null]);
-        }
+        // Clear flags only for items not re-flagged since the build (§7 D2).
+        app(\App\Domain\References\Services\StalenessResolver::class)->clearBuiltIfUnchanged($built);
 
         $log = app(\App\Services\ActivityLogService::class);
         $reason = $deployment->metadata['reason'] ?? 'stale content';
