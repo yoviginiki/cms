@@ -102,6 +102,21 @@ class RepublishStaleJob implements ShouldQueue
                 }
             }
 
+            // FIX-B7a: regenerate sitemap.xml / feed.xml / robots.txt so a delta
+            // publish doesn't leave them pointing at old/dead URLs until the next
+            // full publish. Cheap + deterministic; merged live by deployPartial.
+            if ($built !== []) {
+                try {
+                    File::put("{$stagingPath}/sitemap.xml", app(\App\Domain\Publishing\Services\SitemapGenerator::class)->generate($site));
+                    File::put("{$stagingPath}/robots.txt", app(\App\Domain\Publishing\Services\RobotsGenerator::class)->generate($site));
+                    if ($site->posts()->where('status', 'published')->exists()) {
+                        File::put("{$stagingPath}/feed.xml", app(\App\Domain\Publishing\Services\RssFeedGenerator::class)->generate($site));
+                    }
+                } catch (\Throwable $e) {
+                    logger()->warning("Delta sitemap/feed regeneration failed for site {$site->id}: {$e->getMessage()}");
+                }
+            }
+
             $deployment->update([
                 'status' => 'staged',
                 'artifact_path' => $stagingPath,
