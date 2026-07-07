@@ -33,11 +33,13 @@ Fixes implemented and verified against the full test suite (**1086 passing, 0 fa
 | §7 D1 homepage change rebuilds nothing | FIX-B7a: SiteController flags homepage stale on change. | ✅ **fixed + tested** |
 | §7 D4 no redirect on slug rename | FIX-B7b: PageController writes a 301 old→new on rename. | ✅ **fixed + tested** |
 | §11 D1 bulk-replace cascades block-scoped data | FIX-C11a: `id` made fillable (block ids were silently regenerated every save) + snapshot/restore of theme_overrides & grid-position links. | ✅ **fixed + tested** |
+| §6 D3 custom-domain deploy leaves deleted pages live | FIX-B6c: copyDeploy prunes stale target files (preserves dotfiles). | ✅ **fixed + tested** |
+| §6 D5 slow-build reaped mid-run + raced | FIX-B6c: reap threshold 5→30 min, mark-failed not delete. | ✅ **fixed + tested** |
 | §10 D1 langswitcher extractor (RED test) | FIX-C10a: NullExtractor entry + deleted orphan `quote.blade.php`. | ✅ **fixed + tested** |
 | §12 D1 magazine QR overlay | Was a stale-worktree-vendor artifact (`bacon/bacon-qr-code` not installed) — NOT a code bug. `composer install` fixes it. | ✅ **resolved** |
 | ~10 pre-existing stale-test failures | Updated assertions to current correct behavior (hashed runtime, redirect, breakpoint, max:30, deep-nesting depth). | ✅ **fixed** |
 
-**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 remaining (FIX-B6c — custom-domain/rename non-atomic deploys, mid-build live-docroot mutation, slow-build concurrency race); §7 remaining (delta sitemap/RSS regeneration; lost-update race D2); §11 remaining (concurrent-edit optimistic lock — needs frontend contract change); sanitizer + the 56 `markTestIncomplete` stub tests (LoginTest/PublishTest/SanitizationServiceTest). Also surfaced during remediation: the DB `users_role_check` only permits owner/admin/editor, so `viewer`/`author` in the app role hierarchy are unreachable — reconcile.
+**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 residual (custom-domain deploy is now delete-stale-correct but still not fully atomic — a true webroot swap needs infra changes; RenameDeployStrategy fallback delete-stale; legacy `cleanUnpublishedPosts` now redundant); §7 remaining (delta sitemap/RSS regeneration; lost-update race D2); §11 remaining (concurrent-edit optimistic lock — needs frontend contract change); the 56 `markTestIncomplete` stub tests (LoginTest/PublishTest/SanitizationServiceTest). Also surfaced during remediation: the DB `users_role_check` only permits owner/admin/editor, so `viewer`/`author` in the app role hierarchy are unreachable — reconcile.
 
 ---
 
