@@ -90,7 +90,7 @@ class ExperienceModePublishTest extends TestCase
         $page = $this->createPageWithSections('cinematic');
         $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
 
-        $this->assertStringContainsString('experience-runtime.js', $html);
+        $this->assertMatchesRegularExpression('#experience-runtime\.[a-f0-9]+\.js#', $html);
         $this->assertStringContainsString('defer', $html);
     }
 
@@ -99,7 +99,7 @@ class ExperienceModePublishTest extends TestCase
         $page = $this->createPageWithSections('cinematic');
         $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
 
-        $this->assertStringContainsString('experience-runtime.css', $html);
+        $this->assertMatchesRegularExpression('#experience-runtime\.[a-f0-9]+\.css#', $html);
     }
 
     // ─── Cinematic page with experience attributes on sections ───
@@ -263,8 +263,8 @@ class ExperienceModePublishTest extends TestCase
         $html = app(BuildPageService::class)->build($page, $this->site->theme, $this->site);
 
         $this->assertStringContainsString('@view-transition', $html);
-        $this->assertStringContainsString('experience-runtime.js', $html);
-        $this->assertStringContainsString('experience-runtime.css', $html);
+        $this->assertMatchesRegularExpression('#experience-runtime\.[a-f0-9]+\.js#', $html);
+        $this->assertMatchesRegularExpression('#experience-runtime\.[a-f0-9]+\.css#', $html);
         $this->assertStringContainsString('experience-config', $html);
         $this->assertStringContainsString('data-scene="reveal"', $html);
     }
