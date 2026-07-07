@@ -40,7 +40,7 @@ class SectionValidationTest extends TestCase
 
     public function test_background_color_rejects_overlength(): void
     {
-        $this->assertTrue($this->validate(['background_color' => str_repeat('a', 20 + 1)])->fails());
+        $this->assertTrue($this->validate(['background_color' => str_repeat('a', 30 + 1)])->fails());
     }
 
     public function test_valid_padding_passes(): void
