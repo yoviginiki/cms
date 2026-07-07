@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Domain\Concerns\PurgesBlocksOnForceDelete;
 
 /**
  * Standalone slider library entity. The block tree (slider → slides → layers)
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Slider extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasUuids, SoftDeletes, PurgesBlocksOnForceDelete;
 
     protected $fillable = [
         'site_id', 'name', 'status', 'root_block_id', 'published_at',

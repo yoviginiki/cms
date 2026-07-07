@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Domain\Concerns\PurgesBlocksOnForceDelete;
 
 class Post extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasUuids, SoftDeletes, PurgesBlocksOnForceDelete;
 
     protected $fillable = [
         'site_id', 'category_id', 'author_id', 'title', 'slug', 'excerpt', 'layout_id',
