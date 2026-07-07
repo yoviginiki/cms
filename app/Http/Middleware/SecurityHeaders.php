@@ -16,6 +16,11 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
+        // HSTS — the admin app is served over https only (FIX-A4b).
+        if ($request->secure()) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        }
+
         // Allow same-origin framing for studio/preview iframes, deny cross-origin
         $isFrameable = str_contains($request->path(), 'studio/frame')
             || str_contains($request->path(), '/preview');

@@ -476,22 +476,33 @@ class PublishSiteJob implements ShouldQueue
     private function buildRedirectsManifest($site, string $stagingPath): void
     {
         $redirects = \App\Models\Redirect::where('site_id', $site->id)->get();
-        if ($redirects->isEmpty()) return;
 
-        // Generate _redirects file (Netlify/Cloudflare Pages format)
-        $lines = [];
-        foreach ($redirects as $r) {
-            $lines[] = "{$r->source_path} {$r->target_url} {$r->status_code}";
-        }
-        File::put("{$stagingPath}/_redirects", implode("\n", $lines));
+        // Security headers for the published static site (FIX-A4b): the CMS
+        // previously emitted no CSP/HSTS/X-Frame/etc on published output, so
+        // XSS had no backstop. Written on EVERY publish, redirects or not.
+        $htaccess = "# CMS security headers\n";
+        $htaccess .= "<IfModule mod_headers.c>\n";
+        $htaccess .= "  Header always set X-Content-Type-Options \"nosniff\"\n";
+        $htaccess .= "  Header always set X-Frame-Options \"SAMEORIGIN\"\n";
+        $htaccess .= "  Header always set Referrer-Policy \"strict-origin-when-cross-origin\"\n";
+        $htaccess .= "  Header always set Strict-Transport-Security \"max-age=31536000; includeSubDomains\"\n";
+        $htaccess .= "  Header always set Content-Security-Policy \"default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; connect-src 'self' https:\"\n";
+        $htaccess .= "</IfModule>\n";
 
-        // Also generate .htaccess rules for Apache
-        $htaccess = "# CMS Redirects\n";
-        $htaccess .= "RewriteEngine On\n";
-        foreach ($redirects as $r) {
-            $flag = $r->status_code === 301 ? 'R=301,L' : 'R=302,L';
-            $source = preg_quote($r->source_path, '/');
-            $htaccess .= "RewriteRule ^" . ltrim($r->source_path, '/') . "$ {$r->target_url} [{$flag}]\n";
+        if (!$redirects->isEmpty()) {
+            // _redirects file (Netlify/Cloudflare Pages format)
+            $lines = [];
+            foreach ($redirects as $r) {
+                $lines[] = "{$r->source_path} {$r->target_url} {$r->status_code}";
+            }
+            File::put("{$stagingPath}/_redirects", implode("\n", $lines));
+
+            // .htaccess RewriteRules for Apache
+            $htaccess .= "\n# CMS Redirects\nRewriteEngine On\n";
+            foreach ($redirects as $r) {
+                $flag = $r->status_code === 301 ? 'R=301,L' : 'R=302,L';
+                $htaccess .= "RewriteRule ^" . ltrim($r->source_path, '/') . "$ {$r->target_url} [{$flag}]\n";
+            }
         }
 
         // Append to existing .htaccess or create new
