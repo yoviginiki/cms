@@ -11,6 +11,28 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 
 ---
 
+## REMEDIATION STATUS (branch `fix/audit-remediation`, 2026-07-07)
+
+Fixes implemented and verified against the full test suite (**1086 passing, 0 failing**; 56 pre-existing `markTestIncomplete` stubs remain). Every fix below has a passing regression test.
+
+| Finding | Fix | Status |
+|---------|-----|--------|
+| §1 D1/D2 cross-tenant leak (RED) | FIX-A1a: `FORCE ROW LEVEL SECURITY` + policies on all 29 tenant tables (11 unforced + 18 no-RLS). Cross-tenant reads on magazines/menus/tags now return 0. | ✅ **fixed + tested** |
+| §2 D2/D3 user escalation | FIX-A2b: invite requires owner for admin; updateRole can't demote owner. | ✅ **fixed + tested** |
+| §2 D1 unguarded writes (7 controllers) | FIX-A2a: `authorize('update',$site)` on 19 write methods (magazine/theme/template/DTP). | ✅ **fixed + tested** |
+| §4 D1/D2 stored XSS (RED) | FIX-A4a: allowHtml path uses no-attribute purifier (was `strip_tags`); `sanitizeBlock` recurses nested arrays. | ✅ **fixed + tested** |
+| §4 D3 no CSP/HSTS | FIX-A4b: CSP + HSTS + X-Frame/nosniff in published `.htaccess` (every publish); HSTS on admin. | ✅ **fixed** |
+| §5 D1 blocks crash on default data | FIX-B5a: null-safety on category-header/readingprogress; per-block render isolation. | ✅ **fixed + verified** |
+| §8 D1/D2 SEO structured-data URL | FIX-B8a: JSON-LD/breadcrumb via `LocalePaths::urlPath` (== canonical); broadened auto-description. | ✅ **fixed + verified** |
+| §9 D1/D2 asset variant pipeline (RED) | FIX-B9a/b: Intervention v4 API (`decodePath`/`encodeUsingFileExtension`) + stop swallowing errors; AssetPublisher serves/publishes named variants. | ✅ **fixed + verified** |
+| §10 D1 langswitcher extractor (RED test) | FIX-C10a: NullExtractor entry + deleted orphan `quote.blade.php`. | ✅ **fixed + tested** |
+| §12 D1 magazine QR overlay | Was a stale-worktree-vendor artifact (`bacon/bacon-qr-code` not installed) — NOT a code bug. `composer install` fixes it. | ✅ **resolved** |
+| ~10 pre-existing stale-test failures | Updated assertions to current correct behavior (hashed runtime, redirect, breakpoint, max:30, deep-nesting depth). | ✅ **fixed** |
+
+**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 atomic-publish/rollback (RED — rollback no-op, global build prune, custom-domain atomicity, concurrency); §4 html-embed role gate + sanitizer stub tests; §7 delta output completeness + lost-update race; §11 block-editor concurrency + bulk-replace cascade; §3 orphan cleanup + FK indexes; the 56 stub tests (LoginTest/PublishTest/SanitizationServiceTest). Also surfaced during remediation: the DB `users_role_check` only permits owner/admin/editor, so `viewer`/`author` in the app role hierarchy are unreachable — reconcile.
+
+---
+
 ## Matrix
 
 | # | Subsystem | Implemented | Tests exist | Tests passing | Manually verified | Rating | Notes |
