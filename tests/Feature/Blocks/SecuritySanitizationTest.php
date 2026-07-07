@@ -11,6 +11,39 @@ use Tests\TestCase;
  */
 class SecuritySanitizationTest extends TestCase
 {
+    public function test_allow_html_inline_path_strips_event_handlers(): void
+    {
+        // FIX-A4a: the allowHtml inline path used strip_tags(), which left
+        // event-handler attributes intact. It must now strip them.
+        $block = new \App\Models\Block();
+        $block->type = 'heading';
+        $block->data = ['allowHtml' => true, 'heading' => '<span onmouseover="steal()" onclick="x()">hi</span>'];
+
+        $out = app(SanitizationService::class)->sanitizeBlock($block);
+
+        $this->assertStringNotContainsString('onmouseover', $out['heading']);
+        $this->assertStringNotContainsString('onclick', $out['heading']);
+        $this->assertStringContainsString('hi', $out['heading']);
+    }
+
+    public function test_nested_array_html_is_sanitized(): void
+    {
+        // FIX-A4a: nested array fields (accordion/catalog items) previously
+        // bypassed sanitization and reached {!! !!} raw.
+        $block = new \App\Models\Block();
+        $block->type = 'accordion';
+        $block->data = ['items' => [
+            ['title' => 'Q', 'content' => '<p>ok</p><img src=x onerror=alert(1)><script>alert(2)</script>'],
+        ]];
+
+        $out = app(SanitizationService::class)->sanitizeBlock($block);
+        $content = $out['items'][0]['content'];
+
+        $this->assertStringNotContainsString('onerror', $content);
+        $this->assertStringNotContainsString('<script', $content);
+        $this->assertStringContainsString('<p>ok</p>', $content);
+    }
+
     public function test_svg_scripts_handlers_and_external_refs_are_removed(): void
     {
         $svg = <<<'SVG'
