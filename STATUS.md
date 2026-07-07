@@ -27,11 +27,17 @@ Fixes implemented and verified against the full test suite (**1086 passing, 0 fa
 | §9 D1/D2 asset variant pipeline (RED) | FIX-B9a/b: Intervention v4 API (`decodePath`/`encodeUsingFileExtension`) + stop swallowing errors; AssetPublisher serves/publishes named variants. | ✅ **fixed + verified** |
 | §6 D1 rollback silent no-op (RED) | FIX-B6b: PublishSiteJob honors rollback — re-points live site to the target build, marks `rolled_back`. | ✅ **fixed + tested** |
 | §6 D2 global prune deletes live builds (RED) | FIX-B6a: `BuildRetention` never deletes a build a live symlink targets. | ✅ **fixed + tested** |
+| §3 D1 orphan blocks on delete | FIX-A3a: `PurgesBlocksOnForceDelete` purges blocks on permanent delete (soft-delete keeps them). | ✅ **fixed + tested** |
+| §3 D4 missing FK indexes | FIX-A3b: indexed 15 hot FK/scoping columns. | ✅ **fixed** |
+| §4 html-embed = editor XSS primitive | Only admins may author html-embed blocks (SyncBlocksRequest gate). | ✅ **fixed + tested** |
+| §7 D1 homepage change rebuilds nothing | FIX-B7a: SiteController flags homepage stale on change. | ✅ **fixed + tested** |
+| §7 D4 no redirect on slug rename | FIX-B7b: PageController writes a 301 old→new on rename. | ✅ **fixed + tested** |
+| §11 D1 bulk-replace cascades block-scoped data | FIX-C11a: `id` made fillable (block ids were silently regenerated every save) + snapshot/restore of theme_overrides & grid-position links. | ✅ **fixed + tested** |
 | §10 D1 langswitcher extractor (RED test) | FIX-C10a: NullExtractor entry + deleted orphan `quote.blade.php`. | ✅ **fixed + tested** |
 | §12 D1 magazine QR overlay | Was a stale-worktree-vendor artifact (`bacon/bacon-qr-code` not installed) — NOT a code bug. `composer install` fixes it. | ✅ **resolved** |
 | ~10 pre-existing stale-test failures | Updated assertions to current correct behavior (hashed runtime, redirect, breakpoint, max:30, deep-nesting depth). | ✅ **fixed** |
 
-**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 remaining (FIX-B6c — custom-domain/rename non-atomic deploys, mid-build live-docroot mutation, slow-build concurrency race); §4 html-embed role gate + sanitizer stub tests; §7 delta output completeness + lost-update race; §11 block-editor concurrency + bulk-replace cascade; §3 orphan cleanup + FK indexes; the 56 stub tests (LoginTest/PublishTest/SanitizationServiceTest). Also surfaced during remediation: the DB `users_role_check` only permits owner/admin/editor, so `viewer`/`author` in the app role hierarchy are unreachable — reconcile.
+**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 remaining (FIX-B6c — custom-domain/rename non-atomic deploys, mid-build live-docroot mutation, slow-build concurrency race); §7 remaining (delta sitemap/RSS regeneration; lost-update race D2); §11 remaining (concurrent-edit optimistic lock — needs frontend contract change); sanitizer + the 56 `markTestIncomplete` stub tests (LoginTest/PublishTest/SanitizationServiceTest). Also surfaced during remediation: the DB `users_role_check` only permits owner/admin/editor, so `viewer`/`author` in the app role hierarchy are unreachable — reconcile.
 
 ---
 
