@@ -56,16 +56,10 @@ class SymlinkDeployStrategy
 
     private function cleanOldBuilds(string $parentDir): void
     {
-        $maxRetained = config('publishing.max_retained_builds', 5);
-        $buildPath = config('publishing.staging_path');
-        if (!is_dir($buildPath)) return;
-
-        $dirs = collect(File::directories($buildPath))
-            ->sortByDesc(fn($d) => File::lastModified($d))
-            ->values();
-
-        foreach ($dirs->slice($maxRetained) as $old) {
-            File::deleteDirectory($old);
-        }
+        // Delegates to the live-safe retention helper (FIX-B6a) so a publish
+        // never deletes a build another site's live symlink still points to.
+        \App\Domain\Publishing\Services\BuildRetention::prune(
+            (int) config('publishing.max_retained_builds', 5) + 5
+        );
     }
 }

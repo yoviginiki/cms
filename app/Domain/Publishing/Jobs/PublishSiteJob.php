@@ -74,6 +74,30 @@ class PublishSiteJob implements ShouldQueue
         $stagingPath = storage_path("app/builds/{$this->deployment->id}");
 
         try {
+            // Rollback (FIX-B6b): re-point the live site to a prior deployment's
+            // build instead of rebuilding current DB content. Previously the job
+            // ignored the target and republished today's content (a silent no-op).
+            if ($this->type === 'rollback' && $this->rollbackTargetId) {
+                $target = Deployment::find($this->rollbackTargetId);
+                $targetBuild = storage_path("app/builds/{$this->rollbackTargetId}");
+                if (!$target || !is_dir($targetBuild)) {
+                    throw new \RuntimeException('Rollback target build no longer exists (pruned); cannot roll back to this deployment.');
+                }
+                $this->updateStatus('deploying', 'Rolling back...');
+                $deployService->deploy($this->deployment, $targetBuild);
+                $this->deployment->update([
+                    'status' => 'rolled_back',
+                    'artifact_path' => $targetBuild,
+                    'completed_at' => now(),
+                    'metadata' => array_merge($this->deployment->metadata ?? [], [
+                        'current_step' => 'rolled_back',
+                        'rolled_back_to' => $this->rollbackTargetId,
+                    ]),
+                ]);
+                $this->broadcast('Rolled back successfully!');
+                return;
+            }
+
             $this->updateStatus('building', 'Starting build...');
             File::ensureDirectoryExists($stagingPath);
 
@@ -675,16 +699,9 @@ class PublishSiteJob implements ShouldQueue
 
     private function cleanOldBuilds(): void
     {
-        $buildPath = storage_path('app/builds');
-        if (!File::isDirectory($buildPath)) return;
-
-        $dirs = collect(File::directories($buildPath))
-            ->sortByDesc(fn($d) => File::lastModified($d))
-            ->values();
-
-        foreach ($dirs->slice(3) as $old) {
-            File::deleteDirectory($old);
-        }
+        // Live-safe pruning: never delete a build a live site symlink targets
+        // (FIX-B6a). Keeps enough per-tenant history for a rollback window.
+        \App\Domain\Publishing\Services\BuildRetention::prune(10);
     }
 
     /**
