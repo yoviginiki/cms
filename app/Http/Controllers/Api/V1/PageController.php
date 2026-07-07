@@ -103,6 +103,20 @@ class PageController extends Controller
                 $site, 'page', $page->id,
                 "Internal link target renamed: /{$oldSlug} → /{$page->slug}",
             );
+
+            // FIX-B7b: write a 301 from the old URL to the new one so the
+            // renamed page's old address doesn't 404 (delete-half above removed
+            // the old file).
+            if ($oldPublishedPath !== null) {
+                $oldUrl = '/' . preg_replace('~index\.html$~', '', $oldPublishedPath);
+                $newUrl = \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $page);
+                if ($oldUrl !== $newUrl) {
+                    \App\Models\Redirect::firstOrCreate(
+                        ['site_id' => $site->id, 'source_path' => $oldUrl],
+                        ['target_url' => $newUrl, 'status_code' => 301],
+                    );
+                }
+            }
         }
 
         if ($page->status === 'published' || $oldStatus === 'published') {
