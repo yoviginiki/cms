@@ -57,7 +57,30 @@ class SiteController extends Controller
     {
         $this->authorize('update', $site);
 
+        // Capture homepage config before the update so we can detect a change
+        // (FIX-B7a): changing the homepage must rebuild the site root, else the
+        // old index.html stays live and stale indefinitely.
+        $before = collect($site->settings ?? [])->only(['homepage_id', 'homepage_type', 'homepage_grid_id'])->all();
+
         $site = $this->siteService->updateSite($site, $request->validated());
+
+        $after = collect($site->settings ?? [])->only(['homepage_id', 'homepage_type', 'homepage_grid_id'])->all();
+        if ($before !== $after) {
+            try {
+                $resolver = app(\App\Domain\References\Services\StalenessResolver::class);
+                // Flag both the old and new homepage pages so the root rebuilds.
+                foreach (array_filter([$before['homepage_id'] ?? null, $after['homepage_id'] ?? null]) as $pageId) {
+                    if ($page = \App\Models\Page::where('site_id', $site->id)->find($pageId)) {
+                        $resolver->markStaleForLinkTargets($site, 'page', $page->id, 'Homepage changed');
+                        $page->update(['needs_republish' => true, 'needs_republish_reason' => 'Homepage changed']);
+                    }
+                }
+                $resolver->markSiteStale($site, 'Homepage configuration changed');
+            } catch (\Throwable $e) {
+                logger()->warning("Homepage staleness flag failed for site {$site->id}: {$e->getMessage()}");
+            }
+        }
+
         $site->loadCount(['pages', 'posts']);
 
         return (new SiteResource($site))->response();

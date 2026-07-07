@@ -21,6 +21,22 @@ class SiteTest extends TestCase
         $this->markTestIncomplete();
     }
 
+    public function test_changing_homepage_flags_it_stale(): void
+    {
+        // FIX-B7a: changing the homepage must mark it for republish so the
+        // site root is rebuilt (old index.html mustn't stay live).
+        $this->setTenantScope($this->owner);
+        $site = \App\Models\Site::factory()->create(['tenant_id' => $this->tenant->id]);
+        $page = \App\Models\Page::factory()->create(['site_id' => $site->id, 'needs_republish' => false]);
+
+        $response = $this->actingAsOwner()->putJson("/api/v1/sites/{$site->id}", [
+            'settings' => ['homepage_type' => 'page', 'homepage_id' => $page->id],
+        ], $this->apiHeaders());
+
+        $response->assertOk();
+        $this->assertTrue($page->fresh()->needs_republish, 'new homepage was not flagged stale');
+    }
+
     public function test_can_delete_site(): void
     {
         $this->markTestIncomplete();
