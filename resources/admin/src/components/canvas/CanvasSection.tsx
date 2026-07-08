@@ -63,6 +63,10 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
           <input type="checkbox" className="checkbox checkbox-xs" checked={section.settings.bleed} onChange={(e) => updateSectionSettings(section.id, { bleed: e.target.checked })} />
           bleed
         </label>
+        <label className="flex items-center gap-1" title="Flex with the viewport (elements hold their pin anchors) instead of stacking">
+          <input type="checkbox" className="checkbox checkbox-xs" checked={!!section.settings.fluid} onChange={(e) => updateSectionSettings(section.id, { fluid: e.target.checked })} />
+          fluid
+        </label>
         <label className="flex items-center gap-1">
           bg
           <input type="color" className="w-6 h-5 rounded border-0 bg-transparent p-0" value={section.settings.background || '#ffffff'} onChange={(e) => updateSectionSettings(section.id, { background: e.target.value })} />

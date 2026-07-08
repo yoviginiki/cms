@@ -445,7 +445,7 @@ class BuildPageService
         $mobileCss = '';
         $out = '';
         foreach ($sections as $section) {
-            $out .= $this->renderCanvasSection($section, $site, $mobileWidth, $mobileCss);
+            $out .= $this->renderCanvasSection($section, $site, $canvasWidth, $mobileWidth, $mobileCss);
             if ($isSingle) {
                 break; // single: one fixed canvas, no scroll/stack
             }
@@ -454,16 +454,19 @@ class BuildPageService
         $css = '<style>'
             . '.cv-page{--cv-w:' . $canvasWidth . 'px}'
             . '.cv-section{position:relative;margin-left:auto;margin-right:auto;width:var(--cv-w);max-width:100%}'
+            // Fluid sections flex with the viewport (capped at the design width);
+            // elements hold their pin anchors instead of stacking.
+            . '.cv-fluid{width:100%!important;max-width:var(--cv-w)!important;margin-left:auto;margin-right:auto}'
             . '.cv-bleed{position:relative;width:100%}'
             . '.cv-el{position:absolute;box-sizing:border-box}'
             . '.cv-el>*{width:100%;height:100%}'
-            // Zone 2 — tablet/below-design-width: auto-stack into source order.
+            // Zone 2 — tablet/below-design-width: auto-stack (non-fluid only).
             . '@media(max-width:' . $canvasWidth . 'px){'
-            . '.cv-section{width:100%!important;height:auto!important;min-height:0!important}'
-            . '.cv-bleed .cv-section{padding-left:1rem;padding-right:1rem}'
-            . '.cv-el{position:static!important;width:100%!important;height:auto!important;'
+            . '.cv-section:not(.cv-fluid){width:100%!important;height:auto!important;min-height:0!important}'
+            . '.cv-bleed .cv-section:not(.cv-fluid){padding-left:1rem;padding-right:1rem}'
+            . '.cv-section:not(.cv-fluid) .cv-el{position:static!important;width:100%!important;height:auto!important;'
             . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
-            . '.cv-el>*{height:auto}'
+            . '.cv-section:not(.cv-fluid) .cv-el>*{height:auto}'
             . '}'
             // Zone 3 — phone: sections with a custom mobile layout un-stack.
             . ($mobileCss !== '' ? '@media(max-width:767px){' . $mobileCss . '}' : '')
@@ -472,11 +475,12 @@ class BuildPageService
         return '<div class="cv-page">' . $css . $out . '</div>';
     }
 
-    private function renderCanvasSection(Block $section, Site $site, int $mobileWidth, string &$mobileCss): string
+    private function renderCanvasSection(Block $section, Site $site, int $canvasWidth, int $mobileWidth, string &$mobileCss): string
     {
         $data = is_array($section->data) ? $section->data : [];
         $canvas = $data['canvas'] ?? [];
         $bleed = ! empty($canvas['bleed']);
+        $fluid = ! empty($canvas['fluid']);
         $bg = BlockStyle::safeColor($canvas['background'] ?? ($data['bg_color'] ?? ''));
         $bgStyle = $bg ? "background:{$bg};" : '';
 
@@ -511,11 +515,16 @@ class BuildPageService
             }
             $t = $l['rotation'] !== 0.0 ? "transform:rotate({$l['rotation']}deg);" : '';
             $z = $l['zIndex'] !== 0 ? "z-index:{$l['zIndex']};" : '';
+            // Fluid sections position by pin anchor; others use plain left/width.
+            $pos = $fluid
+                ? $this->pinHorizontalCss($l, $canvasWidth) . "top:{$l['y']}px;height:{$l['h']}px;"
+                : "left:{$l['x']}px;top:{$l['y']}px;width:{$l['w']}px;height:{$l['h']}px;";
             $els .= '<div class="cv-el" id="' . $eid . '" style="'
-                . "left:{$l['x']}px;top:{$l['y']}px;width:{$l['w']}px;height:{$l['h']}px;{$t}{$z}"
+                . $pos . $t . $z
                 . '">' . $inner . '</div>';
 
             // Mobile override for this element (base merged with layout.bp.mobile).
+            // Resets pin props (right/margin) so the phone layout is fully absolute.
             $m = $this->childMobile($child, $l);
             if ($m !== null) {
                 $hasMobile = true;
@@ -523,13 +532,14 @@ class BuildPageService
                     $mobRules .= "#{$eid}{display:none!important}";
                 } else {
                     $mt = "transform:rotate({$m['rotation']}deg)!important;";
-                    $mobRules .= "#{$eid}{left:{$m['x']}px!important;top:{$m['y']}px!important;"
+                    $mobRules .= "#{$eid}{left:{$m['x']}px!important;top:{$m['y']}px!important;right:auto!important;margin-left:0!important;"
                         . "width:{$m['w']}px!important;height:{$m['h']}px!important;{$mt}z-index:{$m['zIndex']}!important}";
                     $mobBottom = max($mobBottom, $m['y'] + $m['h']);
                 }
             }
         }
 
+        $fluidClass = $fluid ? ' cv-fluid' : '';
         $mobClass = '';
         if ($hasMobile) {
             $mobClass = ' cv-mob ' . $sid;
@@ -542,11 +552,11 @@ class BuildPageService
 
         if ($bleed) {
             return '<section class="cv-bleed" style="' . $bgStyle . '">'
-                . '<div class="cv-section' . $mobClass . '" style="height:' . $sectionH . 'px">' . $els . '</div>'
+                . '<div class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px">' . $els . '</div>'
                 . '</section>';
         }
 
-        return '<section class="cv-section' . $mobClass . '" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
+        return '<section class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
     }
 
     /**
@@ -582,6 +592,11 @@ class BuildPageService
 
         $px = fn ($v, $def) => (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
 
+        $pin = $lay['pinX'] ?? 'left';
+        if (! in_array($pin, ['left', 'center', 'right', 'stretch'], true)) {
+            $pin = 'left';
+        }
+
         return [
             'x' => max(-5000, min(20000, $px($lay['x'] ?? 0, 0))),
             'y' => max(-5000, min(50000, $px($lay['y'] ?? 0, 0))),
@@ -589,7 +604,26 @@ class BuildPageService
             'h' => max(1, min(20000, $px($lay['height'] ?? 100, 100))),
             'rotation' => max(-360.0, min(360.0, (float) ($lay['rotation'] ?? 0))),
             'zIndex' => max(0, min(9999, (int) ($lay['zIndex'] ?? 0))),
+            'pinX' => $pin,
         ];
+    }
+
+    /**
+     * Horizontal CSS for a canvas element by its pin anchor, relative to the
+     * design width — so in a fluid section it holds that edge as the container
+     * flexes. Vertical is always top-anchored by the caller.
+     */
+    private function pinHorizontalCss(array $l, int $canvasWidth): string
+    {
+        $x = $l['x'];
+        $w = $l['w'];
+        $rInset = $canvasWidth - ($x + $w);
+        return match ($l['pinX']) {
+            'right' => "right:{$rInset}px;width:{$w}px;",
+            'center' => 'left:50%;margin-left:' . ($x - intdiv($canvasWidth, 2)) . "px;width:{$w}px;",
+            'stretch' => "left:{$x}px;right:{$rInset}px;",
+            default => "left:{$x}px;width:{$w}px;",
+        };
     }
 
     /**

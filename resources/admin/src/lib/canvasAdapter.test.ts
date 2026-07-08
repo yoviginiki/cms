@@ -79,6 +79,26 @@ describe('canvasAdapter', () => {
     expect(layout.bp).toEqual({ mobile: { x: 10, y: 20, width: 340 } });
   });
 
+  it('round-trips per-element pinX and section fluid flag', () => {
+    const d: CanvasDoc = {
+      pageType: 'website', width: 1200,
+      sections: [{
+        id: 's', settings: { height: 300, bleed: false, background: '', fluid: true }, data: {}, style: {},
+        elements: [{
+          id: 'e', blockType: 'text', data: {}, x: 800, y: 20, width: 300, height: 60, rotation: 0, zIndex: 1, locked: false, style: {},
+          pinX: 'right',
+        }],
+      }],
+    };
+    const round = blockToCanvas(canvasToBlocks(d), { pageType: 'website', width: 1200 });
+    expect(round).toEqual(d);
+    // default 'left' pin is normalized away (not serialized)
+    const leftDoc: CanvasDoc = { ...d, sections: [{ ...d.sections[0], settings: { height: 300, bleed: false, background: '' }, elements: [{ ...d.sections[0].elements[0], pinX: 'left' }] }] };
+    const leftBlocks = canvasToBlocks(leftDoc);
+    expect((leftBlocks[0].children[0].style as Record<string, Record<string, unknown>>).layout.pinX).toBeUndefined();
+    expect((leftBlocks[0].data as Record<string, unknown>).canvas).not.toHaveProperty('fluid');
+  });
+
   it('reads an existing block tree into the canvas model', () => {
     const blocks: BlockData[] = [{
       id: 's', type: 'section', data: { canvas: { height: 300, bleed: true, background: '#fff' } }, order: 0,

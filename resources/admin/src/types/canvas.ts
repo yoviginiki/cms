@@ -6,6 +6,10 @@
 
 export type CanvasPageType = 'website' | 'single';
 
+// Horizontal anchor for an element in a fluid section: which edge it holds as
+// the container width flexes below the design width. Default 'left'.
+export type PinX = 'left' | 'center' | 'right' | 'stretch';
+
 // Editor breakpoints. `desktop` is the base layout (style.layout.{x,y,…});
 // `mobile` is an optional per-element override stored under layout.bp.mobile.
 export type Breakpoint = 'desktop' | 'mobile';
@@ -36,6 +40,8 @@ export interface CanvasElement {
   rotation: number;
   zIndex: number;
   locked: boolean;
+  // Horizontal anchor used in fluid sections (default 'left').
+  pinX?: PinX;
   // Per-breakpoint position overrides (currently just `mobile`).
   bp?: { mobile?: BreakpointLayout };
   // Everything else on the block, carried verbatim so save is lossless.
@@ -61,6 +67,9 @@ export interface CanvasSectionSettings {
   height: number | 'auto';
   bleed: boolean;
   background: string;
+  // When true the section stays absolute and flexes with the viewport (elements
+  // hold their pinX anchors) instead of auto-stacking below the design width.
+  fluid?: boolean;
 }
 
 export interface CanvasSection {

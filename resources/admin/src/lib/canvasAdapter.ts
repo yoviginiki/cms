@@ -27,7 +27,7 @@ function blockToElement(block: BlockData): CanvasElement {
   const layout = (styleIn.layout ?? {}) as Record<string, unknown>;
   // Split the position keys (represented as element fields) from any residual
   // layout props (maxWidth, alignment, …) which are carried verbatim.
-  const { x, y, width, height, rotation, zIndex, position, locked, bp, ...restLayout } = layout;
+  const { x, y, width, height, rotation, zIndex, position, locked, bp, pinX, ...restLayout } = layout;
   const style: Record<string, unknown> = { ...styleIn };
   if (Object.keys(restLayout).length) style.layout = restLayout;
   else delete style.layout;
@@ -44,6 +44,7 @@ function blockToElement(block: BlockData): CanvasElement {
     rotation: px(rotation, 0),
     zIndex: typeof zIndex === 'number' ? zIndex : 0,
     locked: locked === true,
+    ...(pinX && pinX !== 'left' ? { pinX: pinX as CanvasElement['pinX'] } : {}),
     ...(bp && typeof bp === 'object' ? { bp: bp as CanvasElement['bp'] } : {}),
     style,
     ...(block.animation ? { animation: block.animation as Record<string, unknown> } : {}),
@@ -64,6 +65,7 @@ function blockToSection(block: BlockData): CanvasSection {
       height,
       bleed: canvas.bleed === true,
       background: typeof canvas.background === 'string' ? canvas.background : '',
+      ...(canvas.fluid === true ? { fluid: true } : {}),
     },
     data: restData,
     style: (block.style ?? {}) as Record<string, unknown>,
@@ -99,6 +101,7 @@ function elementToBlock(el: CanvasElement, order: number): BlockData {
     rotation: el.rotation,
     zIndex: el.zIndex,
     locked: el.locked,
+    ...(el.pinX && el.pinX !== 'left' ? { pinX: el.pinX } : {}),
     ...(el.bp && el.bp.mobile ? { bp: el.bp } : {}),
   };
   return {
@@ -126,6 +129,7 @@ function sectionToBlock(section: CanvasSection, order: number): BlockData {
         height: section.settings.height,
         bleed: section.settings.bleed,
         background: section.settings.background,
+        ...(section.settings.fluid ? { fluid: true } : {}),
       },
     },
     style: section.style ?? {},

@@ -27,8 +27,16 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const {
     addSection, undo, redo, toggleSnap, setZoom, deleteElements, updateElements,
     duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
-    setPageType, setWidth, setBreakpoint, clearMobileOverride,
+    setPageType, setWidth, setBreakpoint, clearMobileOverride, setElementPin,
   } = useCanvasStore();
+
+  // Pin controls apply to a single selected element in a fluid section.
+  const selSection = selectedIds.length === 1
+    ? sections.find(s => s.elements.some(e => e.id === selectedIds[0]))
+    : undefined;
+  const selEl = selSection?.elements.find(e => e.id === selectedIds[0]);
+  const pinnable = !!(selSection?.settings.fluid && selEl);
+  const currentPin = selEl?.pinX ?? 'left';
 
   // Persist page-type + design width to seo_meta.canvas (merged, non-clobbering).
   const persistCanvasMeta = (patch: { page_type?: CanvasPageType; width?: number }) => {
@@ -120,6 +128,20 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
           </div>
           {activeBreakpoint === 'mobile' && selectedIds.length === 1 && (
             <button className="btn btn-xs btn-ghost" onClick={() => clearMobileOverride(selectedIds[0])} title="Reset this element to inherit the desktop position">reset</button>
+          )}
+          {pinnable && (
+            <>
+              <div className="w-px h-4 bg-base-300 mx-1" />
+              <span className="text-[10px] text-base-content/40">pin</span>
+              {([['left', 'L'], ['center', 'C'], ['right', 'R'], ['stretch', '↔']] as const).map(([p, label]) => (
+                <button
+                  key={p}
+                  className={`btn btn-xs ${currentPin === p ? 'btn-primary' : 'btn-ghost'}`}
+                  title={`Pin ${p}`}
+                  onClick={() => setElementPin(selectedIds[0], p)}
+                >{label}</button>
+              ))}
+            </>
           )}
           <div className="flex-1" />
           <label className="flex items-center gap-1 text-[10px] text-base-content/50" title="Page type">

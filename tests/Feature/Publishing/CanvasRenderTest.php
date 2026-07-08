@@ -226,9 +226,45 @@ class CanvasRenderTest extends TestCase
         $this->assertMatchesRegularExpression('/class="cv-section cv-mob cvs-[0-9a-f-]+"/', $html);
         // a ≤767 media query carries the per-element override (width from override, height inherited = 90)
         $this->assertStringContainsString('@media(max-width:767px)', $html);
-        $this->assertMatchesRegularExpression('/#cve-77777777[0-9a-f-]*\{left:12px!important;top:24px!important;width:340px!important;height:90px!important/', $html);
+        $this->assertMatchesRegularExpression('/#cve-77777777[0-9a-f-]*\{left:12px!important;top:24px!important;right:auto!important;margin-left:0!important;width:340px!important;height:90px!important/', $html);
         // desktop inline still has the base position
         $this->assertStringContainsString('left:700px;top:40px;width:500px', $html);
+    }
+
+    public function test_fluid_section_positions_elements_by_pin_anchor(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = $this->createSiteWithPages(0);
+        $page = Page::factory()->create([
+            'site_id' => $site->id, 'editor_mode' => 'canvas', 'status' => 'published',
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200]],
+        ]);
+        $s = Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 0,
+            'data' => ['canvas' => ['height' => 300, 'bleed' => false, 'fluid' => true]],
+        ]);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'text', 'order' => 0,
+            'data' => ['content' => 'L'],
+            'style' => ['layout' => ['x' => 50, 'y' => 20, 'width' => '200px', 'height' => '60px', 'pinX' => 'left']],
+        ]);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'text', 'order' => 1,
+            'data' => ['content' => 'R'],
+            'style' => ['layout' => ['x' => 800, 'y' => 20, 'width' => '300px', 'height' => '60px', 'pinX' => 'right']],
+        ]);
+        $html = app(BuildPageService::class)->build($page->fresh(), $site->theme, $site);
+
+        // fluid container + it is excluded from the auto-stack media query
+        $this->assertMatchesRegularExpression('/class="cv-section cv-fluid"/', $html);
+        $this->assertStringContainsString('.cv-fluid{width:100%!important;max-width:var(--cv-w)!important', $html);
+        $this->assertStringContainsString('.cv-section:not(.cv-fluid) .cv-el{position:static!important', $html);
+        // left pin holds the left edge; right pin holds the right edge (rInset = 1200-(800+300)=100)
+        $this->assertStringContainsString('style="left:50px;width:200px;top:20px', $html);
+        $this->assertStringContainsString('style="right:100px;width:300px;top:20px', $html);
     }
 
     public function test_block_editor_pages_are_unaffected(): void

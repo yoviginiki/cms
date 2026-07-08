@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BlockData } from '@/types/blocks';
-import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout } from '@/types/canvas';
+import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout, PinX } from '@/types/canvas';
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 
@@ -45,6 +45,7 @@ interface CanvasState {
   // Breakpoint-aware position write: desktop → base, mobile → bp.mobile override.
   updateElementLayout: (id: string, patch: BreakpointLayout, bp: Breakpoint) => void;
   clearMobileOverride: (id: string) => void;
+  setElementPin: (id: string, pinX: PinX) => void;
   setBreakpoint: (bp: Breakpoint) => void;
   deleteElements: (ids: string[]) => void;
   duplicateElements: (ids: string[]) => void;
@@ -211,6 +212,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           if (Object.keys(rest).length) next.bp = rest; else delete next.bp;
           return next;
         }),
+      })),
+      isDirty: true,
+    }));
+  },
+
+  setElementPin: (id, pinX) => {
+    get().pushSnapshot();
+    set(s => ({
+      sections: s.sections.map(sec => ({
+        ...sec,
+        elements: sec.elements.map(e => (e.id === id ? { ...e, pinX } : e)),
       })),
       isDirty: true,
     }));
