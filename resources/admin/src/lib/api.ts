@@ -45,6 +45,10 @@ api.interceptors.response.use(
 );
 
 // API methods
+export const auth = {
+  me: () => api.get('/auth/me'),
+};
+
 export const sites = {
   list: () => api.get('/sites'),
   get: (id: string) => api.get(`/sites/${id}`),

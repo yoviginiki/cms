@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useCanvasStore } from '@/stores/canvasStore';
-import { pages as pagesApi, posts as postsApi } from '@/lib/api';
+import { pages as pagesApi, posts as postsApi, auth } from '@/lib/api';
+import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
-import { useCanvasPresence } from './useCanvasPresence';
+import { useCanvasCollab } from './useCanvasCollab';
 import { effectiveLayout } from '@/types/canvas';
 import type { CanvasPageType, CanvasAnim } from '@/types/canvas';
 
@@ -48,7 +50,12 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     apiFor.update(siteId, pageId, { seo_meta: { ...(seoMeta ?? {}), canvas } }).catch(() => { /* soft */ });
   };
 
-  const presence = useCanvasPresence(pageId, contentType);
+  const { data: me } = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => auth.me().then((r) => r.data.user as { id: string; name: string }),
+    staleTime: Infinity,
+  });
+  const { members: presence, cursors, broadcastCursor } = useCanvasCollab(pageId, contentType, me?.id);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMobile, setPreviewMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -203,7 +210,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
                 <span
                   key={p.id}
                   className="w-5 h-5 rounded-full border border-base-100 flex items-center justify-center text-[9px] font-bold text-white"
-                  style={{ background: p.color }}
+                  style={{ background: colorForId(p.id) }}
                 >{(p.name || '?').charAt(0).toUpperCase()}</span>
               ))}
               {presence.length > 5 && <span className="text-[10px] text-base-content/40 pl-2">+{presence.length - 5}</span>}
@@ -232,6 +239,9 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
               canMoveUp={i > 0}
               canMoveDown={i < sections.length - 1}
               singleMode={singleMode}
+              peerCursors={Object.values(cursors).filter((c) => c.sectionId === section.id)}
+              members={presence}
+              onCursorMove={broadcastCursor}
             />
           ))}
         </div>

@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react';
+import { useRef } from 'react';
 import type { CanvasSection as Section } from '@/types/canvas';
 import { effectiveLayout } from '@/types/canvas';
+import { colorForId } from '@/lib/collabColor';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { useCanvasSelection } from './useCanvasSelection';
 import { CanvasElement } from './CanvasElement';
 import { CanvasPalette } from './CanvasPalette';
+import type { PeerCursor, PresenceMember } from './useCanvasCollab';
 
 interface Props {
   section: Section;
@@ -15,14 +18,18 @@ interface Props {
   canMoveUp: boolean;
   canMoveDown: boolean;
   singleMode: boolean;
+  peerCursors?: PeerCursor[];
+  members?: PresenceMember[];
+  onCursorMove?: (sectionId: string, x: number, y: number) => void;
 }
 
-export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode }: Props) {
+export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode, peerCursors = [], members = [], onCursorMove }: Props) {
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const bp = useCanvasStore(s => s.activeBreakpoint);
   const mobileWidth = useCanvasStore(s => s.mobileWidth);
   const { updateSectionSettings, deleteSection, moveSection, addElement, clearSelection, setActiveSection } = useCanvasStore();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   const effWidth = bp === 'mobile' ? mobileWidth : width;
   const laid = section.elements.map(el => ({ el, eff: effectiveLayout(el, bp) })).filter(x => !x.eff.hidden);
@@ -89,8 +96,14 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
       <div className="flex justify-center bg-base-300/30 py-4 overflow-hidden">
         <div style={{ width: effWidth * zoom, height: displayHeight * zoom }}>
           <div
+            ref={canvasRef}
             className="cv-canvas relative shadow-sm"
             onPointerDown={() => { clearSelection(); setActiveSection(section.id); }}
+            onPointerMove={(e) => {
+              if (!onCursorMove || !canvasRef.current) return;
+              const r = canvasRef.current.getBoundingClientRect();
+              onCursorMove(section.id, (e.clientX - r.left) / (zoom || 1), (e.clientY - r.top) / (zoom || 1));
+            }}
             style={{
               width: effWidth, height: displayHeight,
               transform: `scale(${zoom})`, transformOrigin: 'top left',
@@ -121,6 +134,21 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
                   : { position: 'absolute', top: g.position, left: 0, right: 0, height: 1, background: '#ec4899', pointerEvents: 'none' }}
               />
             ))}
+            {/* live peer cursors (Phase 2) — counter-scaled to stay constant size */}
+            {peerCursors.map((c) => {
+              const color = colorForId(c.id);
+              const name = members.find((m) => m.id === c.id)?.name ?? '';
+              return (
+                <div key={c.id} style={{ position: 'absolute', left: c.x, top: c.y, transform: `scale(${1 / (zoom || 1)})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: 10000, willChange: 'left, top' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" style={{ display: 'block', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.35))' }}>
+                    <path d="M4 2l7 18 2.5-7.5L21 10z" fill={color} stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" />
+                  </svg>
+                  {name && (
+                    <span style={{ display: 'inline-block', marginLeft: 10, marginTop: -4, background: color, color: '#fff', fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>{name}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

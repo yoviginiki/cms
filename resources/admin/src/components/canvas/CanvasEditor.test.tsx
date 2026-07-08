@@ -1,8 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { createElement } from 'react';
 import { render, cleanup, fireEvent, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CanvasEditor } from './CanvasEditor';
 import { useCanvasStore } from '@/stores/canvasStore';
 import type { BlockData } from '@/types/blocks';
+
+// CanvasEditor uses react-query (auth/me for collab identity) — provide a client.
+const renderEditor = () =>
+  render(createElement(QueryClientProvider, { client: new QueryClient() },
+    createElement(CanvasEditor, { siteId: 's', pageId: 'p' })));
 
 const section = (id: string): BlockData => ({
   id, type: 'section', level: 'section', order: 0, data: { canvas: { height: 400, bleed: false, background: '' } }, children: [],
@@ -20,7 +27,7 @@ describe('CanvasEditor keyboard nudge batching', () => {
   afterEach(() => { cleanup(); vi.useRealTimers(); });
 
   it('collapses a run of nudges into one undo entry, then starts a new group after the idle gap', () => {
-    render(<CanvasEditor siteId="s" pageId="p" />);
+    renderEditor();
     const base = useCanvasStore.getState().undoStack.length;
 
     // three quick nudges → one snapshot, element moves 3px
