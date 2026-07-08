@@ -1,0 +1,140 @@
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
+import { useCanvasStore } from '@/stores/canvasStore';
+import { CanvasSection } from './CanvasSection';
+
+interface Props {
+  siteId: string;
+  pageId: string;
+  onDirty?: () => void;
+}
+
+export function CanvasEditor({ siteId, pageId, onDirty }: Props) {
+  const sections = useCanvasStore(s => s.sections);
+  const pageType = useCanvasStore(s => s.pageType);
+  const width = useCanvasStore(s => s.width);
+  const zoom = useCanvasStore(s => s.zoom);
+  const snapEnabled = useCanvasStore(s => s.snapEnabled);
+  const activeSectionId = useCanvasStore(s => s.activeSectionId);
+  const isDirty = useCanvasStore(s => s.isDirty);
+  const {
+    addSection, undo, redo, toggleSnap, setZoom, deleteElements, updateElements,
+    duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
+  } = useCanvasStore();
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewMobile, setPreviewMobile] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const singleMode = pageType === 'single';
+
+  useEffect(() => { if (isDirty) onDirty?.(); }, [isDirty, onDirty]);
+
+  // keyboard: nudge / delete / duplicate / undo-redo / z-order / escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+      const st = useCanvasStore.getState();
+      const sel = st.selectedIds;
+      const meta = e.metaKey || e.ctrlKey;
+
+      if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+      if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+      if (!sel.length) { if (e.key === 'Escape') clearSelection(); return; }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteElements(sel); return; }
+      if (e.key === 'Escape') { clearSelection(); return; }
+      if (meta && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateElements(sel); return; }
+      if (meta && e.key === ']') { e.preventDefault(); bringToFront(sel); return; }
+      if (meta && e.key === '[') { e.preventDefault(); sendToBack(sel); return; }
+
+      const step = e.shiftKey ? 10 : 1;
+      const delta = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key];
+      if (delta) {
+        e.preventDefault();
+        pushSnapshot();
+        const [dx, dy] = delta;
+        const els = st.sections.flatMap(s => s.elements).filter(el => sel.includes(el.id));
+        updateElements(els.map(el => ({ id: el.id, patch: { x: el.x + dx, y: el.y + dy } })));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements]);
+
+  const previewUrl = `/api/v1/sites/${siteId}/pages/${pageId}/preview`;
+  const refreshPreview = () => { if (iframeRef.current) iframeRef.current.src = `${previewUrl}?t=${Date.now()}`; };
+
+  return (
+    <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* toolbar */}
+        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-base-200 bg-base-100 text-sm">
+          {!singleMode && (
+            <button className="btn btn-xs btn-primary gap-1" onClick={() => addSection(activeSectionId ?? undefined)}>
+              <Plus size={13} /> Section
+            </button>
+          )}
+          <div className="w-px h-4 bg-base-300 mx-1" />
+          <button className="btn btn-xs btn-ghost" onClick={undo} title="Undo (Ctrl+Z)"><Undo2 size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={redo} title="Redo (Ctrl+Shift+Z)"><Redo2 size={14} /></button>
+          <button className={`btn btn-xs ${snapEnabled ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleSnap} title="Snapping"><Magnet size={14} /></button>
+          <div className="w-px h-4 bg-base-300 mx-1" />
+          <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom - 0.1)} title="Zoom out"><ZoomOut size={14} /></button>
+          <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
+          <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom + 0.1)} title="Zoom in"><ZoomIn size={14} /></button>
+          <div className="flex-1" />
+          <span className="text-[10px] text-base-content/40 mr-2">canvas {width}px · {pageType}</span>
+          <button className={`btn btn-xs ${previewOpen ? 'btn-primary' : 'btn-ghost'} gap-1`} onClick={() => { setPreviewOpen(v => !v); setTimeout(refreshPreview, 50); }}>
+            <Eye size={14} /> Preview
+          </button>
+        </div>
+
+        {/* section stack */}
+        <div className="flex-1 overflow-y-auto bg-base-300/20" onPointerDown={() => clearSelection()}>
+          {sections.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-base-content/40 gap-3">
+              <p>This canvas page is empty.</p>
+              <button className="btn btn-sm btn-primary gap-1" onClick={() => addSection()}><Plus size={14} /> Add a section</button>
+            </div>
+          )}
+          {sections.map((section, i) => (
+            <CanvasSection
+              key={section.id}
+              section={section}
+              width={width}
+              zoom={zoom}
+              isActive={section.id === activeSectionId}
+              canMoveUp={i > 0}
+              canMoveDown={i < sections.length - 1}
+              singleMode={singleMode}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* live preview split-pane */}
+      {previewOpen && (
+        <div className="w-[45%] max-w-[640px] border-l border-base-200 flex flex-col bg-base-200">
+          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-base-300 text-xs">
+            <span className="font-medium text-base-content/60">Live preview</span>
+            <div className="flex-1" />
+            <button className={`btn btn-xs ${!previewMobile ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPreviewMobile(false)} title="Desktop"><Monitor size={14} /></button>
+            <button className={`btn btn-xs ${previewMobile ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPreviewMobile(true)} title="Mobile"><Smartphone size={14} /></button>
+            <button className="btn btn-xs btn-ghost" onClick={refreshPreview} title="Refresh (shows last saved)"><RefreshCw size={14} /></button>
+          </div>
+          <div className="flex-1 overflow-auto flex justify-center p-3">
+            <iframe
+              ref={iframeRef}
+              src={previewUrl}
+              title="Canvas preview"
+              className="bg-white shadow"
+              style={{ width: previewMobile ? 390 : '100%', height: '100%', border: 'none' }}
+            />
+          </div>
+          <p className="text-[10px] text-base-content/40 px-2 py-1">Preview reflects the last SAVED version — save, then refresh.</p>
+        </div>
+      )}
+    </div>
+  );
+}

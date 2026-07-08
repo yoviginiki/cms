@@ -1,0 +1,62 @@
+import { describe, it, expect } from 'vitest';
+import { blockToCanvas, canvasToBlocks } from './canvasAdapter';
+import type { CanvasDoc } from '@/types/canvas';
+import type { BlockData } from '@/types/blocks';
+
+const doc: CanvasDoc = {
+  pageType: 'website',
+  width: 1200,
+  sections: [
+    {
+      id: 'sec-1',
+      settings: { height: 600, bleed: false, background: '#f5f5f5' },
+      data: { padding_top: '2rem' },
+      style: {},
+      elements: [
+        {
+          id: 'el-1', blockType: 'heading', data: { text: 'Hi', level: 'h1' },
+          x: 80, y: 40, width: 600, height: 90, rotation: -3, zIndex: 2, locked: false, style: {},
+        },
+        {
+          id: 'el-2', blockType: 'text', data: { content: '<p>x</p>' },
+          x: 100, y: 400, width: 500, height: 120, rotation: 0, zIndex: 1, locked: true, style: {},
+        },
+      ],
+    },
+    {
+      id: 'sec-2',
+      settings: { height: 'auto', bleed: true, background: '#0f172a' },
+      data: {}, style: {}, elements: [],
+    },
+  ],
+};
+
+describe('canvasAdapter', () => {
+  it('canvas -> blocks -> canvas is identical', () => {
+    const round = blockToCanvas(canvasToBlocks(doc), { pageType: 'website', width: 1200 });
+    expect(round).toEqual(doc);
+  });
+
+  it('maps elements to child section blocks with absolute style.layout', () => {
+    const blocks = canvasToBlocks(doc);
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0].type).toBe('section');
+    expect((blocks[0].data as Record<string, unknown>).canvas).toEqual({ height: 600, bleed: false, background: '#f5f5f5' });
+    const el = blocks[0].children[0];
+    const layout = (el.style as Record<string, Record<string, unknown>>).layout;
+    expect(layout).toMatchObject({ position: 'absolute', x: 80, y: 40, width: '600px', height: '90px', rotation: -3, zIndex: 2 });
+  });
+
+  it('reads an existing block tree into the canvas model', () => {
+    const blocks: BlockData[] = [{
+      id: 's', type: 'section', data: { canvas: { height: 300, bleed: true, background: '#fff' } }, order: 0,
+      children: [{
+        id: 'e', type: 'button', data: { text: 'Go' }, order: 0, children: [],
+        style: { layout: { x: 10, y: 20, width: '150px', height: '40px', rotation: 0, zIndex: 3 } },
+      }],
+    } as unknown as BlockData];
+    const c = blockToCanvas(blocks);
+    expect(c.sections[0].settings).toEqual({ height: 300, bleed: true, background: '#fff' });
+    expect(c.sections[0].elements[0]).toMatchObject({ blockType: 'button', x: 10, y: 20, width: 150, height: 40, zIndex: 3 });
+  });
+});
