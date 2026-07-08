@@ -27,7 +27,7 @@ function blockToElement(block: BlockData): CanvasElement {
   const layout = (styleIn.layout ?? {}) as Record<string, unknown>;
   // Split the position keys (represented as element fields) from any residual
   // layout props (maxWidth, alignment, …) which are carried verbatim.
-  const { x, y, width, height, rotation, zIndex, position, locked, bp, pinX, ...restLayout } = layout;
+  const { x, y, width, height, rotation, zIndex, position, locked, bp, pinX, anim, ...restLayout } = layout;
   const style: Record<string, unknown> = { ...styleIn };
   if (Object.keys(restLayout).length) style.layout = restLayout;
   else delete style.layout;
@@ -45,6 +45,7 @@ function blockToElement(block: BlockData): CanvasElement {
     zIndex: typeof zIndex === 'number' ? zIndex : 0,
     locked: locked === true,
     ...(pinX && pinX !== 'left' ? { pinX: pinX as CanvasElement['pinX'] } : {}),
+    ...(anim && typeof anim === 'object' ? { anim: anim as CanvasElement['anim'] } : {}),
     ...(bp && typeof bp === 'object' ? { bp: bp as CanvasElement['bp'] } : {}),
     style,
     ...(block.animation ? { animation: block.animation as Record<string, unknown> } : {}),
@@ -102,6 +103,7 @@ function elementToBlock(el: CanvasElement, order: number): BlockData {
     zIndex: el.zIndex,
     locked: el.locked,
     ...(el.pinX && el.pinX !== 'left' ? { pinX: el.pinX } : {}),
+    ...(el.anim && el.anim.type && el.anim.type !== 'none' ? { anim: el.anim } : {}),
     ...(el.bp && el.bp.mobile ? { bp: el.bp } : {}),
   };
   return {

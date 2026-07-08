@@ -4,7 +4,7 @@ import { useCanvasStore } from '@/stores/canvasStore';
 import { pages as pagesApi, posts as postsApi } from '@/lib/api';
 import { CanvasSection } from './CanvasSection';
 import { effectiveLayout } from '@/types/canvas';
-import type { CanvasPageType } from '@/types/canvas';
+import type { CanvasPageType, CanvasAnim } from '@/types/canvas';
 
 interface Props {
   siteId: string;
@@ -27,7 +27,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const {
     addSection, undo, redo, toggleSnap, setZoom, deleteElements, updateElements,
     duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
-    setPageType, setWidth, setBreakpoint, clearMobileOverride, setElementPin,
+    setPageType, setWidth, setBreakpoint, clearMobileOverride, setElementPin, setElementAnim,
   } = useCanvasStore();
 
   // Pin controls apply to a single selected element in a fluid section.
@@ -141,6 +141,35 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
                   onClick={() => setElementPin(selectedIds[0], p)}
                 >{label}</button>
               ))}
+            </>
+          )}
+          {selEl && (
+            <>
+              <div className="w-px h-4 bg-base-300 mx-1" />
+              <label className="flex items-center gap-1 text-[10px] text-base-content/40" title="Scroll-in animation">
+                anim
+                <select
+                  className="select select-xs select-bordered"
+                  value={selEl.anim?.type ?? 'none'}
+                  onChange={(e) => setElementAnim(selectedIds[0], { ...selEl.anim, type: e.target.value as CanvasAnim['type'] })}
+                >
+                  {(['none', 'fade', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'zoom', 'scale-in'] as const).map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+              {selEl.anim && selEl.anim.type !== 'none' && (
+                <input
+                  type="number"
+                  className="input input-xs input-bordered w-14"
+                  title="Delay (ms)"
+                  min={0}
+                  max={5000}
+                  step={50}
+                  value={selEl.anim.delay ?? 0}
+                  onChange={(e) => setElementAnim(selectedIds[0], { type: selEl.anim!.type, delay: Number(e.target.value) })}
+                />
+              )}
             </>
           )}
           <div className="flex-1" />

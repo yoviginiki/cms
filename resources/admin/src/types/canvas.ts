@@ -10,6 +10,10 @@ export type CanvasPageType = 'website' | 'single';
 // the container width flexes below the design width. Default 'left'.
 export type PinX = 'left' | 'center' | 'right' | 'stretch';
 
+// Scroll-triggered entrance animation (reuses the theme's block-* keyframes).
+export type CanvasAnimType = 'none' | 'fade' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'zoom' | 'scale-in';
+export interface CanvasAnim { type: CanvasAnimType; delay?: number; duration?: number; }
+
 // Editor breakpoints. `desktop` is the base layout (style.layout.{x,y,…});
 // `mobile` is an optional per-element override stored under layout.bp.mobile.
 export type Breakpoint = 'desktop' | 'mobile';
@@ -42,6 +46,8 @@ export interface CanvasElement {
   locked: boolean;
   // Horizontal anchor used in fluid sections (default 'left').
   pinX?: PinX;
+  // Scroll-triggered entrance animation.
+  anim?: CanvasAnim;
   // Per-breakpoint position overrides (currently just `mobile`).
   bp?: { mobile?: BreakpointLayout };
   // Everything else on the block, carried verbatim so save is lossless.

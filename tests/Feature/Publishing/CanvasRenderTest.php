@@ -267,6 +267,44 @@ class CanvasRenderTest extends TestCase
         $this->assertStringContainsString('style="right:100px;width:300px;top:20px', $html);
     }
 
+    public function test_scroll_animation_wraps_element_and_emits_reveal_runtime(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = $this->createSiteWithPages(0);
+        $page = Page::factory()->create([
+            'site_id' => $site->id, 'editor_mode' => 'canvas', 'status' => 'published',
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200]],
+        ]);
+        $s = Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 0,
+            'data' => ['canvas' => ['height' => 400, 'bleed' => false]],
+        ]);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'heading', 'order' => 0,
+            'data' => ['text' => 'Hi', 'level' => 'h1'],
+            'style' => ['layout' => ['x' => 60, 'y' => 30, 'width' => '400px', 'height' => '80px', 'anim' => ['type' => 'slide-up', 'delay' => 150]]],
+        ]);
+        $html = app(BuildPageService::class)->build($page->fresh(), $site->theme, $site);
+
+        // element wrapped in a reveal-tagged animation layer with the mapped keyframe
+        $this->assertMatchesRegularExpression('/<div class="cv-anim" data-cv-anim style="animation-name:block-slide-up;animation-duration:600ms;animation-delay:150ms;/', $html);
+        // scroll-reveal CSS + reduced-motion guard + the observer script
+        $this->assertStringContainsString('.cv-page.cv-ready .cv-anim.cv-in{animation-play-state:running}', $html);
+        $this->assertStringContainsString('@media(prefers-reduced-motion:reduce){.cv-anim{animation:none!important}}', $html);
+        $this->assertStringContainsString('IntersectionObserver', $html);
+        $this->assertStringContainsString('classList.add("cv-in")', $html);
+    }
+
+    public function test_no_animation_means_no_reveal_script(): void
+    {
+        [$site, $page] = $this->canvasPage();
+        $html = app(BuildPageService::class)->build($page, $site->theme, $site);
+        $this->assertStringNotContainsString('data-cv-anim', $html);
+        $this->assertStringNotContainsString('IntersectionObserver', $html);
+    }
+
     public function test_block_editor_pages_are_unaffected(): void
     {
         // Regression guard: a normal block-editor page must NOT get canvas markup.

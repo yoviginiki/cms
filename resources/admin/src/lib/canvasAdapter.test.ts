@@ -99,6 +99,20 @@ describe('canvasAdapter', () => {
     expect((leftBlocks[0].data as Record<string, unknown>).canvas).not.toHaveProperty('fluid');
   });
 
+  it('round-trips a scroll-in animation', () => {
+    const d: CanvasDoc = {
+      pageType: 'website', width: 1200,
+      sections: [{
+        id: 's', settings: { height: 300, bleed: false, background: '' }, data: {}, style: {},
+        elements: [{
+          id: 'e', blockType: 'text', data: {}, x: 10, y: 10, width: 200, height: 60, rotation: 0, zIndex: 1, locked: false, style: {},
+          anim: { type: 'slide-up', delay: 150 },
+        }],
+      }],
+    };
+    expect(blockToCanvas(canvasToBlocks(d), { pageType: 'website', width: 1200 })).toEqual(d);
+  });
+
   it('reads an existing block tree into the canvas model', () => {
     const blocks: BlockData[] = [{
       id: 's', type: 'section', data: { canvas: { height: 300, bleed: true, background: '#fff' } }, order: 0,

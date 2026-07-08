@@ -443,9 +443,10 @@ class BuildPageService
         // emitted in one ≤767px media query AFTER the tablet-stack rule so the
         // custom mobile layout wins (id/2-class selectors beat the stack rules).
         $mobileCss = '';
+        $hasAnim = false;
         $out = '';
         foreach ($sections as $section) {
-            $out .= $this->renderCanvasSection($section, $site, $canvasWidth, $mobileWidth, $mobileCss);
+            $out .= $this->renderCanvasSection($section, $site, $canvasWidth, $mobileWidth, $mobileCss, $hasAnim);
             if ($isSingle) {
                 break; // single: one fixed canvas, no scroll/stack
             }
@@ -459,23 +460,38 @@ class BuildPageService
             . '.cv-fluid{width:100%!important;max-width:var(--cv-w)!important;margin-left:auto;margin-right:auto}'
             . '.cv-bleed{position:relative;width:100%}'
             . '.cv-el{position:absolute;box-sizing:border-box}'
-            . '.cv-el>*{width:100%;height:100%}'
+            . '.cv-anim{display:block;width:100%;height:100%}'
+            . '.cv-el>*,.cv-anim>*{width:100%;height:100%}'
+            // Scroll-reveal: paused until in view (only once JS marks the page
+            // ready — no-JS falls back to an on-load entrance); honor reduced-motion.
+            . '.cv-page.cv-ready .cv-anim{animation-play-state:paused}'
+            . '.cv-page.cv-ready .cv-anim.cv-in{animation-play-state:running}'
+            . '@media(prefers-reduced-motion:reduce){.cv-anim{animation:none!important}}'
             // Zone 2 — tablet/below-design-width: auto-stack (non-fluid only).
             . '@media(max-width:' . $canvasWidth . 'px){'
             . '.cv-section:not(.cv-fluid){width:100%!important;height:auto!important;min-height:0!important}'
             . '.cv-bleed .cv-section:not(.cv-fluid){padding-left:1rem;padding-right:1rem}'
             . '.cv-section:not(.cv-fluid) .cv-el{position:static!important;width:100%!important;height:auto!important;'
             . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
-            . '.cv-section:not(.cv-fluid) .cv-el>*{height:auto}'
+            . '.cv-section:not(.cv-fluid) .cv-anim{height:auto!important}'
+            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto}'
             . '}'
             // Zone 3 — phone: sections with a custom mobile layout un-stack.
             . ($mobileCss !== '' ? '@media(max-width:767px){' . $mobileCss . '}' : '')
             . '</style>';
 
-        return '<div class="cv-page">' . $css . $out . '</div>';
+        // ~12-line vanilla reveal observer, emitted only when animations are used.
+        $script = $hasAnim
+            ? '<script>(function(){var p=document.currentScript.closest(".cv-page")||document.querySelector(".cv-page");if(!p)return;p.classList.add("cv-ready");'
+                . 'if(!("IntersectionObserver" in window)){p.querySelectorAll("[data-cv-anim]").forEach(function(e){e.classList.add("cv-in")});return;}'
+                . 'var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("cv-in");o.unobserve(e.target);}});},{threshold:0.12});'
+                . 'p.querySelectorAll("[data-cv-anim]").forEach(function(e){o.observe(e);});})();</script>'
+            : '';
+
+        return '<div class="cv-page">' . $css . $out . $script . '</div>';
     }
 
-    private function renderCanvasSection(Block $section, Site $site, int $canvasWidth, int $mobileWidth, string &$mobileCss): string
+    private function renderCanvasSection(Block $section, Site $site, int $canvasWidth, int $mobileWidth, string &$mobileCss, bool &$hasAnim): string
     {
         $data = is_array($section->data) ? $section->data : [];
         $canvas = $data['canvas'] ?? [];
@@ -515,6 +531,14 @@ class BuildPageService
             }
             $t = $l['rotation'] !== 0.0 ? "transform:rotate({$l['rotation']}deg);" : '';
             $z = $l['zIndex'] !== 0 ? "z-index:{$l['zIndex']};" : '';
+            // Scroll-triggered entrance animation wraps the block (separate from
+            // the cv-el rotate transform so the two never fight).
+            $animCss = $this->childAnimCss($child);
+            if ($animCss !== '') {
+                $hasAnim = true;
+                $inner = '<div class="cv-anim" data-cv-anim style="' . $animCss . '">' . $inner . '</div>';
+            }
+
             // Fluid sections position by pin anchor; others use plain left/width.
             $pos = $fluid
                 ? $this->pinHorizontalCss($l, $canvasWidth) . "top:{$l['y']}px;height:{$l['h']}px;"
@@ -557,6 +581,30 @@ class BuildPageService
         }
 
         return '<section class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
+    }
+
+    /** Entrance-animation CSS for a canvas element, or '' when none/invalid. */
+    private function childAnimCss(Block $child): string
+    {
+        $style = is_array($child->style) ? $child->style : (($child->data['__style'] ?? []) ?: []);
+        $lay = is_array($style['layout'] ?? null) ? $style['layout'] : [];
+        $anim = $lay['anim'] ?? null;
+        if (! is_array($anim)) {
+            return '';
+        }
+        $map = [
+            'fade' => 'block-fade', 'slide-up' => 'block-slide-up', 'slide-down' => 'block-slide-down',
+            'slide-left' => 'block-slide-left', 'slide-right' => 'block-slide-right',
+            'zoom' => 'block-zoom', 'scale-in' => 'block-scale-in',
+        ];
+        $name = $map[$anim['type'] ?? 'none'] ?? null;
+        if ($name === null) {
+            return '';
+        }
+        $dur = max(50, min(3000, (int) ($anim['duration'] ?? 600)));
+        $del = max(0, min(5000, (int) ($anim['delay'] ?? 0)));
+
+        return "animation-name:{$name};animation-duration:{$dur}ms;animation-delay:{$del}ms;animation-timing-function:ease-out;animation-fill-mode:both;";
     }
 
     /**
