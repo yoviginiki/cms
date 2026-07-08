@@ -5,6 +5,7 @@ namespace Tests\Feature\Publishing;
 use App\Domain\Publishing\Services\BuildPageService;
 use App\Models\Block;
 use App\Models\Page;
+use App\Models\Post;
 use App\Models\Site;
 use Tests\TestCase;
 
@@ -171,6 +172,30 @@ class CanvasRenderTest extends TestCase
         $this->assertStringContainsString('left:10px', $html);         // numeric part kept, injection stripped
         $this->assertMatchesRegularExpression('/z-index:\d{1,4};/', $html); // clamped ≤ 9999
         $this->assertDoesNotMatchRegularExpression('/rotate\(999999deg\)/', $html); // clamped ≤ 360
+    }
+
+    public function test_canvas_mode_works_for_posts_too(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = $this->createSiteWithPages(0);
+        $post = Post::factory()->create([
+            'site_id' => $site->id, 'editor_mode' => 'canvas', 'status' => 'published',
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200]],
+        ]);
+        $s = Block::create([
+            'blockable_type' => $post->getMorphClass(), 'blockable_id' => $post->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 0,
+            'data' => ['canvas' => ['height' => 400, 'bleed' => false]],
+        ]);
+        Block::create([
+            'blockable_type' => $post->getMorphClass(), 'blockable_id' => $post->id,
+            'parent_block_id' => $s->id, 'type' => 'heading', 'order' => 0,
+            'data' => ['text' => 'POST-CANVAS', 'level' => 'h1'],
+            'style' => ['layout' => ['x' => 60, 'y' => 30, 'width' => 400, 'height' => 80]],
+        ]);
+        $html = app(BuildPageService::class)->build($post->fresh(), $site->theme, $site);
+        $this->assertStringContainsString('class="cv-page"', $html);
+        $this->assertMatchesRegularExpression('/class="cv-el" style="left:60px;top:30px;/', $html);
     }
 
     public function test_block_editor_pages_are_unaffected(): void

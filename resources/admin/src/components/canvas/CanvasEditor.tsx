@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
 import { useCanvasStore } from '@/stores/canvasStore';
-import { pages as pagesApi } from '@/lib/api';
+import { pages as pagesApi, posts as postsApi } from '@/lib/api';
 import { CanvasSection } from './CanvasSection';
 import type { CanvasPageType } from '@/types/canvas';
 
 interface Props {
   siteId: string;
-  pageId: string;
+  pageId: string;                       // content id (page or post)
+  contentType?: 'pages' | 'posts';
   seoMeta?: Record<string, unknown>;
   onDirty?: () => void;
 }
 
-export function CanvasEditor({ siteId, pageId, seoMeta, onDirty }: Props) {
+export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, onDirty }: Props) {
   const sections = useCanvasStore(s => s.sections);
   const pageType = useCanvasStore(s => s.pageType);
   const width = useCanvasStore(s => s.width);
@@ -31,7 +32,8 @@ export function CanvasEditor({ siteId, pageId, seoMeta, onDirty }: Props) {
     const prev = (seoMeta?.canvas ?? {}) as Record<string, unknown>;
     const st = useCanvasStore.getState();
     const canvas = { page_type: st.pageType, width: st.width, ...prev, ...patch };
-    pagesApi.update(siteId, pageId, { seo_meta: { ...(seoMeta ?? {}), canvas } }).catch(() => { /* soft */ });
+    const apiFor = contentType === 'posts' ? postsApi : pagesApi;
+    apiFor.update(siteId, pageId, { seo_meta: { ...(seoMeta ?? {}), canvas } }).catch(() => { /* soft */ });
   };
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -74,7 +76,7 @@ export function CanvasEditor({ siteId, pageId, seoMeta, onDirty }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements]);
 
-  const previewUrl = `/api/v1/sites/${siteId}/pages/${pageId}/preview`;
+  const previewUrl = `/api/v1/sites/${siteId}/${contentType}/${pageId}/preview`;
   const refreshPreview = () => { if (iframeRef.current) iframeRef.current.src = `${previewUrl}?t=${Date.now()}`; };
 
   return (

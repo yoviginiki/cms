@@ -3,7 +3,7 @@ import { TranslationsPanel } from '@/components/editor/TranslationsPanel';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Save, Loader2, LayoutList, Paintbrush, Eye,
+  ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye,
   Calendar, FolderTree, Clock, History, Globe, ChevronDown,
 } from 'lucide-react';
 import { usePostData } from '@/hooks/usePageData';
@@ -11,6 +11,8 @@ import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useThemeFonts } from '@/hooks/useThemeFonts';
 import { useEditorStore } from '@/stores/editorStore';
+import { useCanvasStore } from '@/stores/canvasStore';
+import { CanvasEditor } from '@/components/canvas/CanvasEditor';
 import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { MagazineEditorCanvas } from '@/components/editor/MagazineEditorCanvas';
 import { BlockSettings } from '@/components/editor/BlockSettings';
@@ -23,7 +25,7 @@ import { slugify } from '@/lib/slugify';
 
 import '@/components/blocks';
 
-type EditorMode = 'simple' | 'block' | 'magazine';
+type EditorMode = 'simple' | 'block' | 'magazine' | 'canvas';
 type RightTab = 'settings' | 'post' | 'layers' | 'blocks';
 
 export default function PostEditor() {
@@ -106,8 +108,16 @@ export default function PostEditor() {
       if (textBlock?.data?.content) {
         setSimpleContent(textBlock.data.content as string);
       }
+      // Canvas mode reads the SAME block tree into the canvas store.
+      if (post?.editor_mode === 'canvas') {
+        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+        useCanvasStore.getState().loadFromBlocks(fetchedBlocks, {
+          pageType: cv?.page_type === 'single' ? 'single' : 'website',
+          width: cv?.width,
+        });
+      }
     }
-  }, [fetchedBlocks, setBlocks]);
+  }, [fetchedBlocks, setBlocks, post]);
 
   const initializedPost = useRef(false);
   useEffect(() => {
@@ -130,7 +140,7 @@ export default function PostEditor() {
     setPublishedAt(post.published_at ? new Date(post.published_at).toISOString().slice(0, 16) : '');
     setScheduledAt(post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '');
     setSlugManual(!!post.slug);
-    if (post.editor_mode === 'simple' || post.editor_mode === 'block' || post.editor_mode === 'magazine') {
+    if (['simple', 'block', 'magazine', 'canvas'].includes(post.editor_mode)) {
       setEditorMode(post.editor_mode as EditorMode);
       setStoreEditorMode(post.editor_mode as EditorMode);
     }
@@ -162,7 +172,10 @@ export default function PostEditor() {
       });
       setMetaDirty(false);
       // Save blocks — in simple mode, wrap content in a single text block
-      if (editorMode === 'simple') {
+      if (editorMode === 'canvas') {
+        await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
+        useCanvasStore.getState().markClean();
+      } else if (editorMode === 'simple') {
         // Find existing text/rich-text block to preserve its ID, keep all other blocks
         const existingText = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
         const otherBlocks = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
@@ -210,7 +223,10 @@ export default function PostEditor() {
         published_at: pubDate, scheduled_at: scheduledAt || null,
       });
       // Save blocks
-      if (editorMode === 'simple') {
+      if (editorMode === 'canvas') {
+        await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
+        useCanvasStore.getState().markClean();
+      } else if (editorMode === 'simple') {
         const existingText2 = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
         const otherBlocks2 = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
         await blocksApi.sync(siteId, 'posts', postId, [
@@ -237,6 +253,15 @@ export default function PostEditor() {
     setEditorMode(mode);
     setStoreEditorMode(mode);
     setMetaDirty(true);
+    // Hydrate the canvas store from the live block tree when switching INTO
+    // canvas mid-session (non-section blocks carried as passthrough).
+    if (mode === 'canvas') {
+      const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+      useCanvasStore.getState().loadFromBlocks(useEditorStore.getState().blocks, {
+        pageType: cv?.page_type === 'single' ? 'single' : 'website',
+        width: cv?.width,
+      });
+    }
   }
 
   function markMetaDirty() { setMetaDirty(true); }
@@ -276,9 +301,15 @@ export default function PostEditor() {
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${editorMode === 'block' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40'}`}>
               <LayoutList size={12} /> Blocks
             </button>
+            <button onClick={() => switchEditorMode('canvas')}
+              title="Freeform section canvases — drag & position blocks"
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${editorMode === 'canvas' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40'}`}>
+              <LayoutTemplate size={12} /> Canvas
+            </button>
             <button onClick={() => switchEditorMode('magazine')}
+              title="Page-based magazine layout (legacy)"
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${editorMode === 'magazine' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40'}`}>
-              <Paintbrush size={12} /> Canvas
+              <Paintbrush size={12} /> Magazine
             </button>
           </div>
           <div className="w-px h-5 bg-base-300/30" />
@@ -305,7 +336,9 @@ export default function PostEditor() {
 
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
-        {editorMode === 'simple' ? (
+        {editorMode === 'canvas' ? (
+          <CanvasEditor siteId={siteId} pageId={postId} contentType="posts" seoMeta={post?.seo_meta} onDirty={() => setDirty(true)} />
+        ) : editorMode === 'simple' ? (
           /* Simple WYSIWYG editor — full screen, classic WordPress-like */
           <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
             <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto p-4 lg:p-8">
