@@ -58,7 +58,15 @@ A third `editor_mode = 'canvas'` for pages/posts — a vertical stack of Section
 | Editor (Phase 2) | `canvasStore` (zustand) + `useCanvasSelection` (drag/resize/rotate/multi-select/nudge, reusing the shared `smartGuides`) + block-registry previews + split-pane preview iframe with mobile toggle. | ✅ **built + compiles; interactive feel = manual gate** |
 | Round-trip integrity | save → reload → identical (ids preserved via the audit block-id fix); idempotent. | ✅ **pinned (CanvasRoundTripTest + canvasAdapter.test)** |
 | Safe mode-switching (Phase 3) | Non-section top-level blocks carried as passthrough (never dropped); page-type (website/single) + design-width controls persisted to `seo_meta.canvas`. | ✅ **done + tested** |
-| Regression guarantee (Phase 4) | Additive only (1761+/11−). MagSelectionEngine / MagazineCanvas / magazineStore / smartGuides / BuilderCanvas / DtpRenderService / MagazineRenderer all UNTOUCHED. | ✅ **proven — 1157 PHP + 269 JS tests pass, 0 regressions** |
+| Pages **and** posts | PostEditor wired for canvas (separate component); `CanvasEditor` parameterized by content type; backend `renderCanvasPage` accepts Page\|Post. | ✅ **done + tested** |
+| Per-breakpoint (mobile) layouts | Element-level phone override at `style.layout.bp.mobile`; editor breakpoint switcher; 3-zone responsive publish (desktop absolute → tablet stack → phone custom-absolute). | ✅ **done + tested** |
+| Per-element pin/anchor | Opt-in `fluid` sections; each element holds left/center/right/stretch as the container flexes. Pure CSS, transform-safe. | ✅ **done + tested** |
+| Scroll-triggered animations | Entrance anims (fade/slide/zoom/scale) reusing theme keyframes; IntersectionObserver reveal emitted only when used; no-JS + reduced-motion fallbacks. | ✅ **done + tested** |
+| Self-review hardening | 2 interaction bugs fixed (multi-select drag, undo spam); rotation-aware resize; zoom-constant handles; batched-nudge undo. Headless interaction tests drive real pointer events. | ✅ **done + tested** |
+| Regression guarantee | Additive only. MagSelectionEngine / MagazineCanvas / magazineStore / smartGuides / BuilderCanvas / DtpRenderService / MagazineRenderer all UNTOUCHED across the whole branch. | ✅ **proven — 1165 PHP + 290 JS tests pass, 0 regressions** |
+| Deferred (not built) | Magazine→canvas duplication (niche; needs conversion-semantics call). Collaborative editing (needs websocket infra + multi-client testing — not a headless build). | ⏸ **open — needs product/infra decision** |
+
+Interactive *feel* acceptance (drag ergonomics, snap thresholds) and opening the PR remain manual — everything verifiable headless is green.
 
 ---
 
