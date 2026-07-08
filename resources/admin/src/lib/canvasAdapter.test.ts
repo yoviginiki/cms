@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { blockToCanvas, canvasToBlocks } from './canvasAdapter';
+import { blockToCanvas, canvasToBlocks, extractPassthrough } from './canvasAdapter';
 import type { CanvasDoc } from '@/types/canvas';
 import type { BlockData } from '@/types/blocks';
 
@@ -45,6 +45,20 @@ describe('canvasAdapter', () => {
     const el = blocks[0].children[0];
     const layout = (el.style as Record<string, Record<string, unknown>>).layout;
     expect(layout).toMatchObject({ position: 'absolute', x: 80, y: 40, width: '600px', height: '90px', rotation: -3, zIndex: 2 });
+  });
+
+  it('preserves non-section top-level blocks (non-destructive mode switch)', () => {
+    const blocks: BlockData[] = [
+      { id: 's', type: 'section', data: { canvas: { height: 300, bleed: false, background: '' } }, order: 0, children: [] } as unknown as BlockData,
+      { id: 'row1', type: 'row', data: { foo: 1 }, order: 1, children: [{ id: 'c', type: 'column', data: {}, order: 0, children: [] }] } as unknown as BlockData,
+    ];
+    const passthrough = extractPassthrough(blocks);
+    expect(passthrough.map(b => b.id)).toEqual(['row1']);
+    // canvas edit drops nothing: the row block survives the round-trip, re-appended after sections
+    const doc = blockToCanvas(blocks);
+    const out = canvasToBlocks(doc, passthrough);
+    expect(out.map(b => b.type)).toEqual(['section', 'row']);
+    expect(out.find(b => b.id === 'row1')?.data).toEqual({ foo: 1 });
   });
 
   it('reads an existing block tree into the canvas model', () => {

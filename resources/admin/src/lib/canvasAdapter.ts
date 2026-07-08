@@ -132,8 +132,17 @@ function sectionToBlock(section: CanvasSection, order: number): BlockData {
   } as BlockData;
 }
 
-export function canvasToBlocks(doc: CanvasDoc): BlockData[] {
-  return doc.sections.map((s, i) => sectionToBlock(s, i));
+// Non-section top-level blocks are NOT part of the canvas model but must not be
+// lost when a page is switched into canvas mode — they are carried as passthrough
+// and re-appended on save (non-destructive mode switching).
+export function extractPassthrough(blocks: BlockData[]): BlockData[] {
+  return blocks.filter(b => b.type !== 'section');
+}
+
+export function canvasToBlocks(doc: CanvasDoc, passthrough: BlockData[] = []): BlockData[] {
+  const sectionBlocks = doc.sections.map((s, i) => sectionToBlock(s, i));
+  const carried = passthrough.map((b, i) => ({ ...b, order: sectionBlocks.length + i }));
+  return [...sectionBlocks, ...carried];
 }
 
 // ── factories ───────────────────────────────────────────────────────────────

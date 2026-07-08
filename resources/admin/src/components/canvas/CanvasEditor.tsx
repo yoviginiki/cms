@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
 import { useCanvasStore } from '@/stores/canvasStore';
+import { pages as pagesApi } from '@/lib/api';
 import { CanvasSection } from './CanvasSection';
+import type { CanvasPageType } from '@/types/canvas';
 
 interface Props {
   siteId: string;
   pageId: string;
+  seoMeta?: Record<string, unknown>;
   onDirty?: () => void;
 }
 
-export function CanvasEditor({ siteId, pageId, onDirty }: Props) {
+export function CanvasEditor({ siteId, pageId, seoMeta, onDirty }: Props) {
   const sections = useCanvasStore(s => s.sections);
   const pageType = useCanvasStore(s => s.pageType);
   const width = useCanvasStore(s => s.width);
@@ -20,7 +23,16 @@ export function CanvasEditor({ siteId, pageId, onDirty }: Props) {
   const {
     addSection, undo, redo, toggleSnap, setZoom, deleteElements, updateElements,
     duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
+    setPageType, setWidth,
   } = useCanvasStore();
+
+  // Persist page-type + design width to seo_meta.canvas (merged, non-clobbering).
+  const persistCanvasMeta = (patch: { page_type?: CanvasPageType; width?: number }) => {
+    const prev = (seoMeta?.canvas ?? {}) as Record<string, unknown>;
+    const st = useCanvasStore.getState();
+    const canvas = { page_type: st.pageType, width: st.width, ...prev, ...patch };
+    pagesApi.update(siteId, pageId, { seo_meta: { ...(seoMeta ?? {}), canvas } }).catch(() => { /* soft */ });
+  };
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMobile, setPreviewMobile] = useState(false);
@@ -84,7 +96,28 @@ export function CanvasEditor({ siteId, pageId, onDirty }: Props) {
           <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
           <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom + 0.1)} title="Zoom in"><ZoomIn size={14} /></button>
           <div className="flex-1" />
-          <span className="text-[10px] text-base-content/40 mr-2">canvas {width}px · {pageType}</span>
+          <label className="flex items-center gap-1 text-[10px] text-base-content/50" title="Page type">
+            <select
+              className="select select-xs select-bordered"
+              value={pageType}
+              onChange={(e) => { const t = e.target.value as CanvasPageType; setPageType(t); persistCanvasMeta({ page_type: t }); }}
+            >
+              <option value="website">Website (stack + scroll)</option>
+              <option value="single">Single (one canvas)</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-1 text-[10px] text-base-content/50 mr-2" title="Design width (px)">
+            W
+            <input
+              type="number"
+              className="input input-xs input-bordered w-16"
+              value={width}
+              min={320}
+              max={3000}
+              onChange={(e) => setWidth(Number(e.target.value))}
+              onBlur={(e) => persistCanvasMeta({ width: Number(e.target.value) })}
+            />
+          </label>
           <button className={`btn btn-xs ${previewOpen ? 'btn-primary' : 'btn-ghost'} gap-1`} onClick={() => { setPreviewOpen(v => !v); setTimeout(refreshPreview, 50); }}>
             <Eye size={14} /> Preview
           </button>

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { BlockData } from '@/types/blocks';
 import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType } from '@/types/canvas';
 import { DEFAULT_CANVAS_WIDTH } from '@/types/canvas';
-import { blockToCanvas, canvasToBlocks, createElement, createSection } from '@/lib/canvasAdapter';
+import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 
 const MAX_UNDO = 50;
 
@@ -12,6 +12,7 @@ interface CanvasState {
   width: number;
   pageType: CanvasPageType;
   sections: CanvasSection[];
+  passthrough: BlockData[];   // non-section top-level blocks, carried verbatim
   selectedIds: string[];      // selected element ids
   activeSectionId: string | null;
   snapEnabled: boolean;
@@ -26,6 +27,8 @@ interface CanvasState {
   loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number }) => void;
   toBlocks: () => BlockData[];
   markClean: () => void;
+  setPageType: (t: CanvasPageType) => void;
+  setWidth: (w: number) => void;
 
   // sections
   addSection: (afterId?: string) => void;
@@ -64,6 +67,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   width: DEFAULT_CANVAS_WIDTH,
   pageType: 'website',
   sections: [],
+  passthrough: [],
   selectedIds: [],
   activeSectionId: null,
   snapEnabled: true,
@@ -80,6 +84,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       width: doc.width,
       pageType: doc.pageType,
       sections: doc.sections,
+      passthrough: extractPassthrough(blocks),
       gridSize: doc.width / 12,
       selectedIds: [],
       activeSectionId: doc.sections[0]?.id ?? null,
@@ -89,8 +94,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
   },
 
-  toBlocks: () => canvasToBlocks({ pageType: get().pageType, width: get().width, sections: get().sections }),
+  toBlocks: () => canvasToBlocks({ pageType: get().pageType, width: get().width, sections: get().sections }, get().passthrough),
   markClean: () => set({ isDirty: false }),
+  setPageType: (t) => set({ pageType: t, isDirty: true }),
+  setWidth: (w) => { const width = Math.max(320, Math.min(3000, Math.round(w))); set({ width, gridSize: width / 12, isDirty: true }); },
 
   addSection: (afterId) => {
     get().pushSnapshot();

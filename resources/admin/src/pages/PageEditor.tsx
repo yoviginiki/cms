@@ -296,6 +296,16 @@ export default function PageEditor() {
   async function switchEditorMode(mode: EditorMode) {
     setEditorMode(mode);
     setStoreEditorMode(mode);
+    // Hydrate the canvas store from the current block tree when switching INTO
+    // canvas mid-session (load effect only fires on page load). Non-section
+    // blocks are carried as passthrough, so switching never drops content.
+    if (mode === 'canvas') {
+      const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+      useCanvasStore.getState().loadFromBlocks(useEditorStore.getState().blocks, {
+        pageType: cv?.page_type === 'single' ? 'single' : 'website',
+        width: cv?.width,
+      });
+    }
     try {
       await pagesApi.update(siteId, pageId, { editor_mode: mode });
     } catch { /* silently fail */ }
@@ -410,7 +420,7 @@ export default function PageEditor() {
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
         {page?.editor_mode === 'canvas' ? (
-          <CanvasEditor siteId={siteId} pageId={pageId} onDirty={() => setDirty(true)} />
+          <CanvasEditor siteId={siteId} pageId={pageId} seoMeta={page?.seo_meta} onDirty={() => setDirty(true)} />
         ) : page?.editor_mode !== 'magazine' ? (
           <BuilderDndProvider>
             <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
