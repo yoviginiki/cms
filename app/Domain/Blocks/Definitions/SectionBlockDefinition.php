@@ -19,6 +19,11 @@ class SectionBlockDefinition implements BlockDefinition
             'padding_bottom' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],
             'max_width' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],
             'anchor_id' => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_-]*$/'],
+            // Canvas editor: this section is a freeform positioning context.
+            'canvas' => ['sometimes', 'nullable', 'array'],
+            'canvas.height' => ['sometimes', 'nullable'], // number (px) or 'auto'
+            'canvas.bleed' => ['sometimes', 'boolean'],
+            'canvas.background' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[#a-zA-Z0-9(),.\s]*$/'],
             // BackgroundEditor fields
             'bg_type' => ['sometimes', 'nullable', 'in:none,color,gradient,image'],
             'bg_color' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[#a-zA-Z0-9(),.\s]*$/'],

@@ -208,6 +208,11 @@ class BuildPageService
 
             if ($template) {
                 $renderedBlocks = $this->renderTemplatedPost($content, $template, $site);
+            } elseif ($content->editor_mode === 'canvas') {
+                // Canvas editor mode: a vertical stack of Section canvases with
+                // absolutely-positioned block children (theme-width, mobile
+                // auto-stack). Reuses the same header/footer/layout wrapping below.
+                $renderedBlocks = $this->renderCanvasPage($content, $site);
             } else {
                 // Standard: render content's own blocks
                 $blocks = $content->blocks()
@@ -403,6 +408,127 @@ class BuildPageService
         }
 
         return $rendered;
+    }
+
+    /**
+     * Canvas editor render (Phase 1). A canvas page is a vertical stack of
+     * Section canvases; each section is a positioning context whose child
+     * blocks are placed freeform via style.layout {x,y,width,height,rotation,
+     * zIndex}. Width = theme content width (per-page overridable). Below the
+     * design width the whole thing auto-stacks into reading order (children are
+     * already emitted sorted by y,x so the source order is correct for SEO/a11y;
+     * CSS just drops absolute positioning).
+     */
+    private function renderCanvasPage(Page|Post $content, Site $site): string
+    {
+        $meta = is_array($content->seo_meta) ? $content->seo_meta : [];
+        $cfg = $meta['canvas'] ?? [];
+        $canvasWidth = (int) ($cfg['width'] ?? 1200);
+        if ($canvasWidth < 320 || $canvasWidth > 3000) {
+            $canvasWidth = 1200;
+        }
+        $isSingle = (($cfg['page_type'] ?? 'website') === 'single');
+
+        $sections = $content->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with(['children' => fn ($q) => $q->orderBy('order')])
+            ->get();
+
+        $css = '<style>'
+            . '.cv-page{--cv-w:' . $canvasWidth . 'px}'
+            . '.cv-section{position:relative;margin-left:auto;margin-right:auto;width:var(--cv-w);max-width:100%}'
+            . '.cv-bleed{position:relative;width:100%}'
+            . '.cv-el{position:absolute;box-sizing:border-box}'
+            . '.cv-el>*{width:100%;height:100%}'
+            . '@media(max-width:' . $canvasWidth . 'px){'
+            . '.cv-section{width:100%!important;height:auto!important;min-height:0!important}'
+            . '.cv-bleed .cv-section{padding-left:1rem;padding-right:1rem}'
+            . '.cv-el{position:static!important;width:100%!important;height:auto!important;'
+            . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
+            . '.cv-el>*{height:auto}'
+            . '}'
+            . '</style>';
+
+        $out = '';
+        foreach ($sections as $section) {
+            $out .= $this->renderCanvasSection($section, $site);
+            if ($isSingle) {
+                break; // single: one fixed canvas, no scroll/stack
+            }
+        }
+
+        return '<div class="cv-page">' . $css . $out . '</div>';
+    }
+
+    private function renderCanvasSection(Block $section, Site $site): string
+    {
+        $data = is_array($section->data) ? $section->data : [];
+        $canvas = $data['canvas'] ?? [];
+        $bleed = ! empty($canvas['bleed']);
+        $bg = BlockStyle::safeColor($canvas['background'] ?? ($data['bg_color'] ?? ''));
+        $bgStyle = $bg ? "background:{$bg};" : '';
+
+        $children = $section->children->sortBy(function ($c) {
+            $l = $this->childLayout($c);
+            return sprintf('%08d-%08d', $l['y'] + 100000, $l['x'] + 100000);
+        })->values();
+
+        // Section height: fixed px, or auto-fit to the lowest child (absolute
+        // children don't give a parent height, so compute it at publish).
+        $heightSetting = $canvas['height'] ?? 'auto';
+        if (is_numeric($heightSetting)) {
+            $sectionH = max(1, (int) $heightSetting);
+        } else {
+            $maxBottom = 0;
+            foreach ($children as $c) {
+                $l = $this->childLayout($c);
+                $maxBottom = max($maxBottom, $l['y'] + $l['h']);
+            }
+            $sectionH = $maxBottom > 0 ? $maxBottom : 200;
+        }
+
+        $els = '';
+        foreach ($children as $child) {
+            $l = $this->childLayout($child);
+            try {
+                $inner = $this->renderBlock($child, $site);
+            } catch (\Throwable $e) {
+                logger()->warning("Canvas element render failed (type={$child->type}, id={$child->id}): {$e->getMessage()}");
+                $inner = "<!-- canvas element failed: {$child->type} -->";
+            }
+            $t = $l['rotation'] !== 0.0 ? "transform:rotate({$l['rotation']}deg);" : '';
+            $z = $l['zIndex'] !== 0 ? "z-index:{$l['zIndex']};" : '';
+            $els .= '<div class="cv-el" style="'
+                . "left:{$l['x']}px;top:{$l['y']}px;width:{$l['w']}px;height:{$l['h']}px;{$t}{$z}"
+                . '">' . $inner . '</div>';
+        }
+
+        if ($bleed) {
+            return '<section class="cv-bleed" style="' . $bgStyle . '">'
+                . '<div class="cv-section" style="height:' . $sectionH . 'px">' . $els . '</div>'
+                . '</section>';
+        }
+
+        return '<section class="cv-section" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
+    }
+
+    /** Sanitized freeform layout for a canvas child block (from its style.layout). */
+    private function childLayout(Block $child): array
+    {
+        $style = is_array($child->style) ? $child->style : (($child->data['__style'] ?? []) ?: []);
+        $lay = is_array($style['layout'] ?? null) ? $style['layout'] : [];
+
+        $px = fn ($v, $def) => (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
+
+        return [
+            'x' => max(-5000, min(20000, $px($lay['x'] ?? 0, 0))),
+            'y' => max(-5000, min(50000, $px($lay['y'] ?? 0, 0))),
+            'w' => max(1, min(6000, $px($lay['width'] ?? 200, 200))),
+            'h' => max(1, min(20000, $px($lay['height'] ?? 100, 100))),
+            'rotation' => max(-360.0, min(360.0, (float) ($lay['rotation'] ?? 0))),
+            'zIndex' => max(0, min(9999, (int) ($lay['zIndex'] ?? 0))),
+        ];
     }
 
     /**
