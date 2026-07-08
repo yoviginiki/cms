@@ -184,23 +184,32 @@ the real testing is.
 - `tests/Feature/Collab/CanvasChannelAuthTest` — owner joins, same-tenant editor
   joins, **cross-tenant user rejected**, no PII in the payload.
 
-**Remaining Phase 0 (needs network + a process; run at deploy):**
+**Now installed + wired on this branch:**
+- `laravel/reverb` (composer) and `laravel-echo` + `pusher-js` (admin) are in.
+- `src/lib/echo.ts` — lazy Reverb/Echo singleton; **no-op when
+  `VITE_REVERB_APP_KEY` is unset**, so the admin runs fine without a collab
+  server. Channel auth routes through the existing cookie/XSRF path to
+  `/broadcasting/auth`.
+- **Phase 1 presence** — `useCanvasPresence` joins `canvas.page.{id}`; the
+  CanvasEditor toolbar shows a live editor roster (colored initials). App builds
+  green (tsc 0, vite OK, 290 JS tests).
+
+**Remaining to activate (needs a running process + env; run at deploy):**
 ```
-composer require laravel/reverb
-php artisan reverb:install          # or set the vars below by hand
-# .env:
+# server .env:
 BROADCAST_CONNECTION=reverb
 REVERB_APP_ID=...   REVERB_APP_KEY=...   REVERB_APP_SECRET=...
 REVERB_HOST="sys.ensodo.eu"   REVERB_PORT=443   REVERB_SCHEME=https
-# admin frontend:
-cd resources/admin && npm i laravel-echo pusher-js
-#   → Echo bootstrap pointing authEndpoint at /broadcasting/auth (cookie auth)
+# admin build-time (Vite) env — so the client knows where Reverb is:
+VITE_REVERB_APP_KEY=${REVERB_APP_KEY}
+VITE_REVERB_HOST="sys.ensodo.eu"   VITE_REVERB_PORT=443   VITE_REVERB_SCHEME=https
 # process manager (supervisor/systemd):
 php artisan reverb:start
 # reverse proxy: allow the wss upgrade on the reverb port
 ```
-The channel-auth security contract is already proven; the above is transport
-plumbing. Phase 1 (presence roster) builds on the Echo client once installed.
+Everything up to the live socket is built and tested; the above turns it on.
+Phases 2–4 (cursors, convergent ops) still require the running server + a
+two-client harness to develop against.
 
 ## 9. Recommendation
 

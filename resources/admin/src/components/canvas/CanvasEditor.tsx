@@ -3,6 +3,7 @@ import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, 
 import { useCanvasStore } from '@/stores/canvasStore';
 import { pages as pagesApi, posts as postsApi } from '@/lib/api';
 import { CanvasSection } from './CanvasSection';
+import { useCanvasPresence } from './useCanvasPresence';
 import { effectiveLayout } from '@/types/canvas';
 import type { CanvasPageType, CanvasAnim } from '@/types/canvas';
 
@@ -47,6 +48,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     apiFor.update(siteId, pageId, { seo_meta: { ...(seoMeta ?? {}), canvas } }).catch(() => { /* soft */ });
   };
 
+  const presence = useCanvasPresence(pageId, contentType);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMobile, setPreviewMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -195,6 +197,18 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
               onBlur={(e) => persistCanvasMeta({ width: Number(e.target.value) })}
             />
           </label>
+          {presence.length > 0 && (
+            <div className="flex items-center -space-x-1.5 mr-2" title={`Editing now: ${presence.map(p => p.name).join(', ')}`}>
+              {presence.slice(0, 5).map(p => (
+                <span
+                  key={p.id}
+                  className="w-5 h-5 rounded-full border border-base-100 flex items-center justify-center text-[9px] font-bold text-white"
+                  style={{ background: p.color }}
+                >{(p.name || '?').charAt(0).toUpperCase()}</span>
+              ))}
+              {presence.length > 5 && <span className="text-[10px] text-base-content/40 pl-2">+{presence.length - 5}</span>}
+            </div>
+          )}
           <button className={`btn btn-xs ${previewOpen ? 'btn-primary' : 'btn-ghost'} gap-1`} onClick={() => { setPreviewOpen(v => !v); setTimeout(refreshPreview, 50); }}>
             <Eye size={14} /> Preview
           </button>
