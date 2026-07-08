@@ -40,11 +40,19 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const [previewMobile, setPreviewMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const singleMode = pageType === 'single';
+  // A run of arrow-key nudges collapses into one undo entry: snapshot on the
+  // first nudge, then again only after a short idle gap or another action.
+  const nudgeActive = useRef(false);
+  const nudgeTimer = useRef<number | null>(null);
 
   useEffect(() => { if (isDirty) onDirty?.(); }, [isDirty, onDirty]);
 
   // keyboard: nudge / delete / duplicate / undo-redo / z-order / escape
   useEffect(() => {
+    const endNudge = () => {
+      nudgeActive.current = false;
+      if (nudgeTimer.current !== null) { clearTimeout(nudgeTimer.current); nudgeTimer.current = null; }
+    };
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
@@ -52,28 +60,31 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       const sel = st.selectedIds;
       const meta = e.metaKey || e.ctrlKey;
 
-      if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
-      if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-      if (!sel.length) { if (e.key === 'Escape') clearSelection(); return; }
+      if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); endNudge(); e.shiftKey ? redo() : undo(); return; }
+      if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); endNudge(); redo(); return; }
+      if (!sel.length) { if (e.key === 'Escape') { endNudge(); clearSelection(); } return; }
 
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteElements(sel); return; }
-      if (e.key === 'Escape') { clearSelection(); return; }
-      if (meta && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateElements(sel); return; }
-      if (meta && e.key === ']') { e.preventDefault(); bringToFront(sel); return; }
-      if (meta && e.key === '[') { e.preventDefault(); sendToBack(sel); return; }
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); endNudge(); deleteElements(sel); return; }
+      if (e.key === 'Escape') { endNudge(); clearSelection(); return; }
+      if (meta && e.key.toLowerCase() === 'd') { e.preventDefault(); endNudge(); duplicateElements(sel); return; }
+      if (meta && e.key === ']') { e.preventDefault(); endNudge(); bringToFront(sel); return; }
+      if (meta && e.key === '[') { e.preventDefault(); endNudge(); sendToBack(sel); return; }
 
       const step = e.shiftKey ? 10 : 1;
       const delta = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key];
       if (delta) {
         e.preventDefault();
-        pushSnapshot();
+        // Snapshot once per nudge run; keep the run alive on each keypress.
+        if (!nudgeActive.current) { pushSnapshot(); nudgeActive.current = true; }
+        if (nudgeTimer.current !== null) clearTimeout(nudgeTimer.current);
+        nudgeTimer.current = window.setTimeout(endNudge, 600);
         const [dx, dy] = delta;
         const els = st.sections.flatMap(s => s.elements).filter(el => sel.includes(el.id));
         updateElements(els.map(el => ({ id: el.id, patch: { x: el.x + dx, y: el.y + dy } })));
       }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); endNudge(); };
   }, [undo, redo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements]);
 
   const previewUrl = `/api/v1/sites/${siteId}/${contentType}/${pageId}/preview`;
