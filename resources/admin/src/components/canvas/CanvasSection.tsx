@@ -95,6 +95,7 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
                 key={el.id}
                 el={el}
                 selected={selectedIds.includes(el.id)}
+                zoom={zoom}
                 onPointerDown={onElementPointerDown}
                 onResizeDown={onResizePointerDown}
                 onRotateDown={onRotatePointerDown}

@@ -11,24 +11,37 @@ const CURSORS: Record<ResizeHandle, string> = {
   nw: 'nwse-resize', n: 'ns-resize', ne: 'nesw-resize', e: 'ew-resize',
   se: 'nwse-resize', s: 'ns-resize', sw: 'nesw-resize', w: 'ew-resize',
 };
-const POS: Record<ResizeHandle, React.CSSProperties> = {
-  nw: { left: -5, top: -5 }, n: { left: '50%', top: -5, marginLeft: -5 }, ne: { right: -5, top: -5 },
-  e: { right: -5, top: '50%', marginTop: -5 }, se: { right: -5, bottom: -5 }, s: { left: '50%', bottom: -5, marginLeft: -5 },
-  sw: { left: -5, bottom: -5 }, w: { left: -5, top: '50%', marginTop: -5 },
-};
+
+// Handle positions expressed in terms of a half-size offset `o` (= half the
+// handle, negated) so they can be counter-scaled by the canvas zoom.
+const posFor = (o: number): Record<ResizeHandle, React.CSSProperties> => ({
+  nw: { left: o, top: o }, n: { left: '50%', top: o, marginLeft: o }, ne: { right: o, top: o },
+  e: { right: o, top: '50%', marginTop: o }, se: { right: o, bottom: o }, s: { left: '50%', bottom: o, marginLeft: o },
+  sw: { left: o, bottom: o }, w: { left: o, top: '50%', marginTop: o },
+});
 
 interface Props {
   el: El;
   selected: boolean;
+  zoom: number;
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   onResizeDown: (e: React.PointerEvent, id: string, handle: ResizeHandle) => void;
   onRotateDown: (e: React.PointerEvent, id: string, center: { cx: number; cy: number }) => void;
 }
 
-export function CanvasElement({ el, selected, onPointerDown, onResizeDown, onRotateDown }: Props) {
+export function CanvasElement({ el, selected, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const updateElement = useCanvasStore(s => s.updateElement);
   const reg = blockRegistry.get(el.blockType);
+
+  // Counter-scale editing chrome by 1/zoom so handles/outlines stay a constant
+  // on-screen size regardless of the canvas scale.
+  const z = zoom || 1;
+  const hSize = 10 / z;          // resize handle
+  const hBorder = 1.5 / z;
+  const posMap = posFor(-(hSize / 2));
+  const rSize = 12 / z;          // rotate handle
+  const outlineW = (selected ? 1.5 : 1) / z;
 
   const block: BlockData = { id: el.id, type: el.blockType, data: el.data, children: [], order: 0, style: el.style };
 
@@ -48,7 +61,7 @@ export function CanvasElement({ el, selected, onPointerDown, onResizeDown, onRot
         left: el.x, top: el.y, width: el.width, height: el.height,
         transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
         zIndex: el.zIndex,
-        outline: selected ? '1.5px solid #2563eb' : '1px dashed rgba(37,99,235,0.25)',
+        outline: selected ? `${outlineW}px solid #2563eb` : `${outlineW}px dashed rgba(37,99,235,0.25)`,
         cursor: el.locked ? 'default' : 'move',
         boxSizing: 'border-box',
       }}
@@ -72,14 +85,14 @@ export function CanvasElement({ el, selected, onPointerDown, onResizeDown, onRot
           <div
             onPointerDown={rotateDown}
             title="Rotate"
-            style={{ position: 'absolute', left: '50%', top: -26, marginLeft: -6, width: 12, height: 12, borderRadius: '50%', background: '#2563eb', cursor: 'grab', border: '2px solid #fff' }}
+            style={{ position: 'absolute', left: '50%', top: -26 / z, marginLeft: -(rSize / 2), width: rSize, height: rSize, borderRadius: '50%', background: '#2563eb', cursor: 'grab', border: `${2 / z}px solid #fff` }}
           />
           {/* resize handles */}
           {HANDLES.map(h => (
             <div
               key={h}
               onPointerDown={(e) => onResizeDown(e, el.id, h)}
-              style={{ position: 'absolute', width: 10, height: 10, background: '#fff', border: '1.5px solid #2563eb', borderRadius: 2, cursor: CURSORS[h], ...POS[h] }}
+              style={{ position: 'absolute', width: hSize, height: hSize, background: '#fff', border: `${hBorder}px solid #2563eb`, borderRadius: 2 / z, cursor: CURSORS[h], ...posMap[h] }}
             />
           ))}
         </>
