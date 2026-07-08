@@ -63,6 +63,7 @@ export const pages = {
   create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/pages`, data),
   update: (siteId: string, pageId: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/pages/${pageId}`, data),
   delete: (siteId: string, pageId: string) => api.delete(`/sites/${siteId}/pages/${pageId}`),
+  duplicateAsCanvas: (siteId: string, pageId: string) => api.post(`/sites/${siteId}/pages/${pageId}/duplicate-as-canvas`),
   reorder: (siteId: string, items: unknown[]) => api.post(`/sites/${siteId}/pages/reorder`, { items }),
   diff: (siteId: string, pageId: string) => api.get(`/sites/${siteId}/pages/${pageId}/diff`),
 };

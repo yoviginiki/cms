@@ -366,6 +366,22 @@ export default function PageEditor() {
             </button>
           </div>
 
+          {page?.editor_mode === 'magazine' && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await pagesApi.duplicateAsCanvas(siteId, pageId);
+                  const newId = (res as { data?: { data?: { id?: string } } }).data?.data?.id;
+                  if (newId) navigate(`/sites/${siteId}/pages/${newId}/edit`);
+                } catch { /* noop */ }
+              }}
+              title="Create a new canvas-editor page from this magazine layout (original untouched)"
+              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-base-content/50 hover:text-base-content/80"
+            >
+              <LayoutTemplate size={12} /> Duplicate as Canvas
+            </button>
+          )}
+
           <div className="w-px h-5 bg-base-300/30" />
 
           {/* Layout picker */}
