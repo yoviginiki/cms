@@ -15,6 +15,7 @@ interface DragState {
   startClientY: number;
   orig: Map<string, Rect>;
   primaryId: string;
+  snapshotted: boolean; // undo snapshot taken on the FIRST real move, not on down
   cx?: number; cy?: number; startAngle?: number;
 }
 
@@ -41,6 +42,9 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
     const d = drag.current;
     if (!d) return;
     const st = useCanvasStore.getState();
+    // One undo entry per gesture: snapshot the pre-drag state on the first real
+    // move, so a bare click (down + up, no move) leaves the undo stack alone.
+    if (!d.snapshotted) { st.pushSnapshot(); d.snapshotted = true; }
     const zoom = st.zoom || 1;
     const dx = (e.clientX - d.startClientX) / zoom;
     const dy = (e.clientY - d.startClientY) / zoom;
@@ -109,24 +113,25 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
     const el = st.sections.find(s => s.id === sectionId)?.elements.find(x => x.id === id);
     if (el?.locked) return;
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
-    st.select(id, additive);
+    const alreadySelected = st.selectedIds.includes(id);
+    // Keep an existing multi-selection when grabbing one of its members without
+    // a modifier — so the whole group drags. Only reset when clicking outside it.
+    if (additive) st.select(id, true);
+    else if (!alreadySelected) st.select(id, false);
     const sel = useCanvasStore.getState().selectedIds;
     const ids = sel.includes(id) ? sel : [id];
-    st.pushSnapshot();
-    begin({ mode: 'move', ids, primaryId: id, startClientX: e.clientX, startClientY: e.clientY, orig: origFor(ids) });
+    begin({ mode: 'move', ids, primaryId: id, snapshotted: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor(ids) });
   }, [sectionId, begin, origFor]);
 
   const onResizePointerDown = useCallback((e: React.PointerEvent, id: string, handle: ResizeHandle) => {
     e.stopPropagation();
-    useCanvasStore.getState().pushSnapshot();
-    begin({ mode: 'resize', ids: [id], primaryId: id, handle, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]) });
+    begin({ mode: 'resize', ids: [id], primaryId: id, handle, snapshotted: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]) });
   }, [begin, origFor]);
 
   const onRotatePointerDown = useCallback((e: React.PointerEvent, id: string, elCenter: { cx: number; cy: number }) => {
     e.stopPropagation();
-    useCanvasStore.getState().pushSnapshot();
     const startAngle = Math.atan2(e.clientY - elCenter.cy, e.clientX - elCenter.cx) * 180 / Math.PI;
-    begin({ mode: 'rotate', ids: [id], primaryId: id, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]), cx: elCenter.cx, cy: elCenter.cy, startAngle });
+    begin({ mode: 'rotate', ids: [id], primaryId: id, snapshotted: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]), cx: elCenter.cx, cy: elCenter.cy, startAngle });
   }, [begin, origFor]);
 
   return { guides, onElementPointerDown, onResizePointerDown, onRotatePointerDown };
