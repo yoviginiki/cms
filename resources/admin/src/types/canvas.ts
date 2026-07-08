@@ -93,6 +93,21 @@ export interface CanvasDoc {
   sections: CanvasSection[];
 }
 
+// ── Collaboration ops (Phase 3) ──────────────────────────────────────────────
+// A single mutation, broadcast to peers and applied with per-element
+// Last-Writer-Wins (lamport + client tiebreak). Kept minimal + serializable.
+export type CanvasOp =
+  | { t: 'layout'; id: string; patch: BreakpointLayout; bp: Breakpoint }
+  | { t: 'add'; sectionId: string; element: CanvasElement }
+  | { t: 'del'; ids: string[] }
+  | { t: 'z'; ids: string[]; mode: 'front' | 'back' };
+
+export interface StampedOp {
+  op: CanvasOp;
+  lamport: number;
+  client: string; // per-session client id (tiebreak)
+}
+
 export const DEFAULT_CANVAS_WIDTH = 1200;
 
 export const DEFAULT_SECTION_SETTINGS: CanvasSectionSettings = {

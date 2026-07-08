@@ -24,13 +24,14 @@ interface Props {
   el: El;
   eff: EffectiveLayout;   // position for the active breakpoint
   selected: boolean;
+  peerLocked?: boolean;   // another editor is actively moving this element
   zoom: number;
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   onResizeDown: (e: React.PointerEvent, id: string, handle: ResizeHandle) => void;
   onRotateDown: (e: React.PointerEvent, id: string, center: { cx: number; cy: number }) => void;
 }
 
-export function CanvasElement({ el, eff, selected, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
+export function CanvasElement({ el, eff, selected, peerLocked, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const updateElement = useCanvasStore(s => s.updateElement);
   const reg = blockRegistry.get(el.blockType);
@@ -63,7 +64,9 @@ export function CanvasElement({ el, eff, selected, zoom, onPointerDown, onResize
         transform: eff.rotation ? `rotate(${eff.rotation}deg)` : undefined,
         zIndex: eff.zIndex,
         display: eff.hidden ? 'none' : undefined,
-        outline: selected ? `${outlineW}px solid #2563eb` : `${outlineW}px dashed rgba(37,99,235,0.25)`,
+        opacity: peerLocked ? 0.55 : 1,
+        pointerEvents: peerLocked ? 'none' : undefined,   // soft lock: can't grab while a peer edits
+        outline: peerLocked ? `${outlineW * 1.5}px solid #f59e0b` : (selected ? `${outlineW}px solid #2563eb` : `${outlineW}px dashed rgba(37,99,235,0.25)`),
         cursor: el.locked ? 'default' : 'move',
         boxSizing: 'border-box',
       }}
@@ -81,7 +84,7 @@ export function CanvasElement({ el, eff, selected, zoom, onPointerDown, onResize
         )}
       </div>
 
-      {selected && !el.locked && (
+      {selected && !el.locked && !peerLocked && (
         <>
           {/* rotate handle */}
           <div

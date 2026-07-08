@@ -130,6 +130,39 @@ describe('canvasStore', () => {
     expect(effectiveLayout(el, 'mobile')).toMatchObject({ x: 150, y: 100 });
   });
 
+  it('applyOp applies a remote op without emitting or snapshotting', () => {
+    const st = useCanvasStore.getState();
+    const id = st.addElement('s1', 'heading', 10, 10, 100, 40);
+    const undoBefore = useCanvasStore.getState().undoStack.length;
+    const emitted: unknown[] = [];
+    st.setLocalOpSink((op) => emitted.push(op));
+
+    st.applyOp({ t: 'layout', id, patch: { x: 200, y: 90 }, bp: 'desktop' });
+    const el = useCanvasStore.getState().sections[0].elements[0];
+    expect([el.x, el.y]).toEqual([200, 90]);
+    expect(emitted).toHaveLength(0);                                   // remote op does not re-emit
+    expect(useCanvasStore.getState().undoStack.length).toBe(undoBefore); // no snapshot
+
+    // add + del via applyOp
+    st.applyOp({ t: 'add', sectionId: 's1', element: { id: 'rx', blockType: 'text', data: {}, x: 5, y: 5, width: 50, height: 20, rotation: 0, zIndex: 1, locked: false, style: {} } });
+    expect(useCanvasStore.getState().sections[0].elements.some((e) => e.id === 'rx')).toBe(true);
+    st.applyOp({ t: 'del', ids: ['rx'] });
+    expect(useCanvasStore.getState().sections[0].elements.some((e) => e.id === 'rx')).toBe(false);
+    st.setLocalOpSink(null);
+  });
+
+  it('local mutations emit ops to the sink', () => {
+    const st = useCanvasStore.getState();
+    const emitted: Array<{ t: string }> = [];
+    st.setLocalOpSink((op) => emitted.push(op));
+    const id = st.addElement('s1', 'heading', 0, 0);
+    st.updateElementLayout(id, { x: 10 }, 'desktop');
+    st.bringToFront([id]);
+    st.deleteElements([id]);
+    expect(emitted.map((o) => o.t)).toEqual(['add', 'layout', 'z', 'del']);
+    st.setLocalOpSink(null);
+  });
+
   it('setWidth clamps and recomputes the grid', () => {
     const st = useCanvasStore.getState();
     st.setWidth(60);           // below min

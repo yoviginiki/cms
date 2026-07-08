@@ -21,9 +21,10 @@ interface Props {
   peerCursors?: PeerCursor[];
   members?: PresenceMember[];
   onCursorMove?: (sectionId: string, x: number, y: number) => void;
+  lockedIds?: Set<string>;
 }
 
-export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode, peerCursors = [], members = [], onCursorMove }: Props) {
+export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode, peerCursors = [], members = [], onCursorMove, lockedIds }: Props) {
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const bp = useCanvasStore(s => s.activeBreakpoint);
   const mobileWidth = useCanvasStore(s => s.mobileWidth);
@@ -119,6 +120,7 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
                 el={el}
                 eff={eff}
                 selected={selectedIds.includes(el.id)}
+                peerLocked={lockedIds?.has(el.id)}
                 zoom={zoom}
                 onPointerDown={onElementPointerDown}
                 onResizeDown={onResizePointerDown}

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCanvasStore } from '@/stores/canvasStore';
-import { pages as pagesApi, posts as postsApi, auth } from '@/lib/api';
+import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi } from '@/lib/api';
 import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
 import { useCanvasCollab } from './useCanvasCollab';
@@ -55,7 +55,13 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     queryFn: () => auth.me().then((r) => r.data.user as { id: string; name: string }),
     staleTime: Infinity,
   });
-  const { members: presence, cursors, broadcastCursor } = useCanvasCollab(pageId, contentType, me?.id);
+  // Autosave path used by the collab leader (same lossless sync as manual save).
+  const autosave = useCallback(() => {
+    blocksApi.sync(siteId, contentType, pageId, useCanvasStore.getState().toBlocks())
+      .then(() => useCanvasStore.getState().markClean())
+      .catch(() => { /* soft — manual save still available */ });
+  }, [siteId, contentType, pageId]);
+  const { members: presence, cursors, broadcastCursor, lockedIds } = useCanvasCollab(pageId, contentType, me?.id, autosave);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMobile, setPreviewMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -242,6 +248,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
               peerCursors={Object.values(cursors).filter((c) => c.sectionId === section.id)}
               members={presence}
               onCursorMove={broadcastCursor}
+              lockedIds={lockedIds}
             />
           ))}
         </div>

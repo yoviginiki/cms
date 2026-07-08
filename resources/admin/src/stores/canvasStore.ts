@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BlockData } from '@/types/blocks';
-import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout, PinX, CanvasAnim } from '@/types/canvas';
+import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout, PinX, CanvasAnim, CanvasOp } from '@/types/canvas';
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 
@@ -24,6 +24,12 @@ interface CanvasState {
   isDirty: boolean;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
+  // Collab: local mutations call this sink (so they can be broadcast); remote
+  // ops arrive via applyOp (which never re-emits).
+  _localOp: ((op: CanvasOp) => void) | null;
+
+  setLocalOpSink: (fn: ((op: CanvasOp) => void) | null) => void;
+  applyOp: (op: CanvasOp) => void;
 
   // lifecycle
   loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number }) => void;
@@ -87,6 +93,39 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   isDirty: false,
   undoStack: [],
   redoStack: [],
+  _localOp: null,
+
+  setLocalOpSink: (fn) => set({ _localOp: fn }),
+
+  // Apply a peer op directly (no undo snapshot, no re-emit). LWW ordering is
+  // decided by the caller (useCanvasCollab) before this runs.
+  applyOp: (op) => set(s => {
+    let sections = s.sections;
+    if (op.t === 'layout') {
+      sections = s.sections.map(sec => ({
+        ...sec,
+        elements: sec.elements.map(e => {
+          if (e.id !== op.id) return e;
+          if (op.bp === 'mobile') return { ...e, bp: { ...e.bp, mobile: { ...(e.bp?.mobile ?? {}), ...op.patch } } };
+          return { ...e, ...op.patch };
+        }),
+      }));
+    } else if (op.t === 'add') {
+      sections = s.sections.map(sec => sec.id === op.sectionId
+        ? { ...sec, elements: [...sec.elements.filter(e => e.id !== op.element.id), op.element] }
+        : sec);
+    } else if (op.t === 'del') {
+      const ids = new Set(op.ids);
+      sections = s.sections.map(sec => ({ ...sec, elements: sec.elements.filter(e => !ids.has(e.id)) }));
+    } else if (op.t === 'z') {
+      sections = s.sections.map(sec => {
+        const zs = sec.elements.map(e => e.zIndex);
+        const val = op.mode === 'front' ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
+        return { ...sec, elements: sec.elements.map(e => op.ids.includes(e.id) ? { ...e, zIndex: val } : e) };
+      });
+    }
+    return { sections, isDirty: true };
+  }),
 
   loadFromBlocks: (blocks, meta) => {
     const doc: CanvasDoc = blockToCanvas(blocks, meta);
@@ -160,6 +199,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       activeSectionId: sectionId,
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'add', sectionId, element: el });
     return el.id;
   },
 
@@ -198,6 +238,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'layout', id, patch, bp });
   },
 
   clearMobileOverride: (id) => {
@@ -250,6 +291,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       selectedIds: s.selectedIds.filter(id => !set2.has(id)),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'del', ids });
   },
 
   duplicateElements: (ids) => {
@@ -283,6 +325,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'z', ids, mode: 'front' });
   },
 
   sendToBack: (ids) => {
@@ -294,6 +337,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'z', ids, mode: 'back' });
   },
 
   select: (id, add = false) => set(s => {

@@ -69,7 +69,9 @@ async function joinPresence(page) {
     const ch = p.subscribe('presence-canvas.page.' + pageId);
     window.__ch = ch;                       // for cursor whisper/receive tests
     window.__cursorEvents = [];
+    window.__opEvents = [];
     ch.bind('client-cursor', (d) => window.__cursorEvents.push(d));
+    ch.bind('client-op', (d) => window.__opEvents.push(d));
     window.__members = [];
     const sync = () => { window.__members = []; ch.members.each((m) => window.__members.push(m.id)); };
     ch.bind('pusher:subscription_succeeded', () => { sync(); resolve(window.__members.slice()); });
@@ -111,6 +113,16 @@ try {
   // sender does not receive its own whisper
   const aSelf = await pageA.evaluate(() => window.__cursorEvents.length);
   log('alice does not receive her own whisper', aSelf === 0, `count=${aSelf}`);
+
+  // ── Phase 3: element op delta — alice moves an element, bob receives the op ──
+  await pageA.evaluate(({ id }) => window.__ch.trigger('client-op', {
+    op: { t: 'layout', id: 'el-9', patch: { x: 300, y: 120 }, bp: 'desktop' }, lamport: 7, client: id,
+  }), { id: alice.id });
+  const gotOp = await pageB.waitForFunction(() => (window.__opEvents || []).some((e) => e.op && e.op.id === 'el-9'), null, { timeout: 8000 })
+    .then(() => pageB.evaluate(() => window.__opEvents.find((e) => e.op.id === 'el-9'))).catch(() => null);
+  log('bob receives alice element op (lww-stamped)',
+    !!gotOp && gotOp.op.t === 'layout' && gotOp.op.patch.x === 300 && gotOp.lamport === 7 && gotOp.client === alice.id,
+    `op=${JSON.stringify(gotOp)}`);
 
   // Bob leaves → Alice sees the roster shrink
   await ctxB.close();
