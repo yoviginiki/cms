@@ -170,6 +170,38 @@ the real testing is.
 
 ---
 
+## 8b. Phase 0 — implementation status (this branch)
+
+**Built + tested here (no Reverb process required):**
+- `config/broadcasting.php` — reverb/pusher/log/null connections; default stays
+  env-controlled (`null` in CI, `reverb` in prod).
+- `routes/channels.php` — presence channel `canvas.page.{pageId}`, delegating to…
+- `app/Domain/Collab/CanvasChannelAuthorizer` — tenant-RLS + `update`-policy gate
+  returning a **safe** `{id,name,color}` member payload (no email/role).
+- `bootstrap/app.php` — `withBroadcasting(...)` wiring the `/broadcasting/auth`
+  route through stateful Sanctum + `SetTenantFromAuth` (so the RLS GUC is set
+  before the channel callback runs). Verified: route registered, app boots green.
+- `tests/Feature/Collab/CanvasChannelAuthTest` — owner joins, same-tenant editor
+  joins, **cross-tenant user rejected**, no PII in the payload.
+
+**Remaining Phase 0 (needs network + a process; run at deploy):**
+```
+composer require laravel/reverb
+php artisan reverb:install          # or set the vars below by hand
+# .env:
+BROADCAST_CONNECTION=reverb
+REVERB_APP_ID=...   REVERB_APP_KEY=...   REVERB_APP_SECRET=...
+REVERB_HOST="sys.ensodo.eu"   REVERB_PORT=443   REVERB_SCHEME=https
+# admin frontend:
+cd resources/admin && npm i laravel-echo pusher-js
+#   → Echo bootstrap pointing authEndpoint at /broadcasting/auth (cookie auth)
+# process manager (supervisor/systemd):
+php artisan reverb:start
+# reverse proxy: allow the wss upgrade on the reverb port
+```
+The channel-auth security contract is already proven; the above is transport
+plumbing. Phase 1 (presence roster) builds on the Echo client once installed.
+
 ## 9. Recommendation
 
 Ship **Phase 0–2 first** (infra + presence + cursors): high perceived value,
