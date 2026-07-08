@@ -44,6 +44,24 @@ Fixes implemented and verified against the full test suite (**1153 passing, 1 sk
 | §12 D1 magazine QR overlay | Was a stale-worktree-vendor artifact (`bacon/bacon-qr-code` not installed) — NOT a code bug. `composer install` fixes it. | ✅ **resolved** |
 | ~10 pre-existing stale-test failures | Updated assertions to current correct behavior (hashed runtime, redirect, breakpoint, max:30, deep-nesting depth). | ✅ **fixed** |
 
+---
+
+## CANVAS EDITOR (branch `feature/canvas-editor`, off `fix/audit-remediation`)
+
+A third `editor_mode = 'canvas'` for pages/posts — a vertical stack of Section canvases with freeform-positioned website blocks — alongside the untouched Block and Magazine editors.
+
+| Item | Detail | Status |
+|------|--------|--------|
+| Data model (no new format) | Sections are `section` blocks; elements are child blocks carrying `style.layout {x,y,w,h,rotation,zIndex}`. `canvasAdapter` maps to/from the normal block tree; canvas has NO separate storage. | ✅ **done + tested** |
+| Blade rendering (Phase 1) | `BuildPageService::renderCanvasPage` — theme-width contained / full-bleed sections, absolute children, auto-height, children emitted in y,x source order. Static, no React. | ✅ **done + tested** |
+| Mobile auto-stack | Below the design width, CSS drops absolute positioning → full-width stacked flow in source order. | ✅ **done (Playwright: desktop freeform, 390px stack, Slow-3G)** |
+| Editor (Phase 2) | `canvasStore` (zustand) + `useCanvasSelection` (drag/resize/rotate/multi-select/nudge, reusing the shared `smartGuides`) + block-registry previews + split-pane preview iframe with mobile toggle. | ✅ **built + compiles; interactive feel = manual gate** |
+| Round-trip integrity | save → reload → identical (ids preserved via the audit block-id fix); idempotent. | ✅ **pinned (CanvasRoundTripTest + canvasAdapter.test)** |
+| Safe mode-switching (Phase 3) | Non-section top-level blocks carried as passthrough (never dropped); page-type (website/single) + design-width controls persisted to `seo_meta.canvas`. | ✅ **done + tested** |
+| Regression guarantee (Phase 4) | Additive only (1761+/11−). MagSelectionEngine / MagazineCanvas / magazineStore / smartGuides / BuilderCanvas / DtpRenderService / MagazineRenderer all UNTOUCHED. | ✅ **proven — 1157 PHP + 269 JS tests pass, 0 regressions** |
+
+---
+
 **Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 residual (custom-domain deploy is now delete-stale-correct but still not fully atomic — a true webroot swap needs infra changes; RenameDeployStrategy fallback delete-stale; legacy `cleanUnpublishedPosts` now redundant); §7 residual (auto-generated category/tag/author archive files not rebuilt on delta — archives-as-pages are covered via listing-page staleness); §11 optimistic lock is now backend-ready (opt-in) — the frontend still needs to adopt `expected_version` to benefit; the §11 bulk-replace is now safe (block ids preserved + block-scoped rows restored). Truly non-atomic custom-domain deploys (a real webroot directory swap) and delta rebuild of auto-generated archive files remain infra/edge items; both are content-correct today.
 
 ---
