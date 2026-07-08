@@ -13,7 +13,7 @@ Audit branch: `audit/system-health`. Audit is READ-ONLY — no source fixes land
 
 ## REMEDIATION STATUS (branch `fix/audit-remediation`, 2026-07-07)
 
-Fixes implemented and verified against the full test suite (**1110 passing, 0 failing**; 44 `markTestIncomplete` stubs remain, down from 56). Every fix below has a passing regression test.
+Fixes implemented and verified against the full test suite (**1153 passing, 1 skipped, 0 failing, 0 incomplete**). Every fix below has a passing regression test. All 56 pre-existing `markTestIncomplete` stubs are now resolved (55 implemented; 1 documented skip — CSRF, which Laravel disables in the test runner).
 
 | Finding | Fix | Status |
 |---------|-----|--------|
@@ -44,7 +44,7 @@ Fixes implemented and verified against the full test suite (**1110 passing, 0 fa
 | §12 D1 magazine QR overlay | Was a stale-worktree-vendor artifact (`bacon/bacon-qr-code` not installed) — NOT a code bug. `composer install` fixes it. | ✅ **resolved** |
 | ~10 pre-existing stale-test failures | Updated assertions to current correct behavior (hashed runtime, redirect, breakpoint, max:30, deep-nesting depth). | ✅ **fixed** |
 
-**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 residual (custom-domain deploy is now delete-stale-correct but still not fully atomic — a true webroot swap needs infra changes; RenameDeployStrategy fallback delete-stale; legacy `cleanUnpublishedPosts` now redundant); §7 residual (auto-generated category/tag/author archive files not rebuilt on delta — archives-as-pages are covered via listing-page staleness); §11 optimistic lock is now backend-ready (opt-in) — the frontend can adopt `expected_version`; 44 remaining `markTestIncomplete` stubs (Site/Page/Post CRUD, PublishTest) are lower-value coverage gaps, not defects.
+**Still outstanding** (documented in FIXPLAN.md, not yet implemented): §6 residual (custom-domain deploy is now delete-stale-correct but still not fully atomic — a true webroot swap needs infra changes; RenameDeployStrategy fallback delete-stale; legacy `cleanUnpublishedPosts` now redundant); §7 residual (auto-generated category/tag/author archive files not rebuilt on delta — archives-as-pages are covered via listing-page staleness); §11 optimistic lock is now backend-ready (opt-in) — the frontend still needs to adopt `expected_version` to benefit; the §11 bulk-replace is now safe (block ids preserved + block-scoped rows restored). Truly non-atomic custom-domain deploys (a real webroot directory swap) and delta rebuild of auto-generated archive files remain infra/edge items; both are content-correct today.
 
 ---
 
