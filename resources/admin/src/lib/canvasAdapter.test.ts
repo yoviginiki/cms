@@ -61,6 +61,24 @@ describe('canvasAdapter', () => {
     expect(out.find(b => b.id === 'row1')?.data).toEqual({ foo: 1 });
   });
 
+  it('round-trips per-breakpoint mobile overrides through style.layout.bp', () => {
+    const withBp: CanvasDoc = {
+      pageType: 'website', width: 1200,
+      sections: [{
+        id: 's', settings: { height: 500, bleed: false, background: '' }, data: {}, style: {},
+        elements: [{
+          id: 'e', blockType: 'heading', data: {}, x: 80, y: 40, width: 600, height: 90, rotation: 0, zIndex: 1, locked: false, style: {},
+          bp: { mobile: { x: 10, y: 20, width: 340 } },
+        }],
+      }],
+    };
+    const round = blockToCanvas(canvasToBlocks(withBp), { pageType: 'website', width: 1200 });
+    expect(round).toEqual(withBp);
+    // and it lands under style.layout.bp in the block tree
+    const layout = (canvasToBlocks(withBp)[0].children[0].style as Record<string, Record<string, unknown>>).layout;
+    expect(layout.bp).toEqual({ mobile: { x: 10, y: 20, width: 340 } });
+  });
+
   it('reads an existing block tree into the canvas model', () => {
     const blocks: BlockData[] = [{
       id: 's', type: 'section', data: { canvas: { height: 300, bleed: true, background: '#fff' } }, order: 0,

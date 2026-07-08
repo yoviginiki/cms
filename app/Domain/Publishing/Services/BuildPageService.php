@@ -427,6 +427,10 @@ class BuildPageService
         if ($canvasWidth < 320 || $canvasWidth > 3000) {
             $canvasWidth = 1200;
         }
+        $mobileWidth = (int) ($cfg['mobile_width'] ?? 390);
+        if ($mobileWidth < 240 || $mobileWidth > 767) {
+            $mobileWidth = 390;
+        }
         $isSingle = (($cfg['page_type'] ?? 'website') === 'single');
 
         $sections = $content->blocks()
@@ -435,12 +439,25 @@ class BuildPageService
             ->with(['children' => fn ($q) => $q->orderBy('order')])
             ->get();
 
+        // Per-breakpoint overrides for phone width are collected per section and
+        // emitted in one ≤767px media query AFTER the tablet-stack rule so the
+        // custom mobile layout wins (id/2-class selectors beat the stack rules).
+        $mobileCss = '';
+        $out = '';
+        foreach ($sections as $section) {
+            $out .= $this->renderCanvasSection($section, $site, $mobileWidth, $mobileCss);
+            if ($isSingle) {
+                break; // single: one fixed canvas, no scroll/stack
+            }
+        }
+
         $css = '<style>'
             . '.cv-page{--cv-w:' . $canvasWidth . 'px}'
             . '.cv-section{position:relative;margin-left:auto;margin-right:auto;width:var(--cv-w);max-width:100%}'
             . '.cv-bleed{position:relative;width:100%}'
             . '.cv-el{position:absolute;box-sizing:border-box}'
             . '.cv-el>*{width:100%;height:100%}'
+            // Zone 2 — tablet/below-design-width: auto-stack into source order.
             . '@media(max-width:' . $canvasWidth . 'px){'
             . '.cv-section{width:100%!important;height:auto!important;min-height:0!important}'
             . '.cv-bleed .cv-section{padding-left:1rem;padding-right:1rem}'
@@ -448,20 +465,14 @@ class BuildPageService
             . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
             . '.cv-el>*{height:auto}'
             . '}'
+            // Zone 3 — phone: sections with a custom mobile layout un-stack.
+            . ($mobileCss !== '' ? '@media(max-width:767px){' . $mobileCss . '}' : '')
             . '</style>';
-
-        $out = '';
-        foreach ($sections as $section) {
-            $out .= $this->renderCanvasSection($section, $site);
-            if ($isSingle) {
-                break; // single: one fixed canvas, no scroll/stack
-            }
-        }
 
         return '<div class="cv-page">' . $css . $out . '</div>';
     }
 
-    private function renderCanvasSection(Block $section, Site $site): string
+    private function renderCanvasSection(Block $section, Site $site, int $mobileWidth, string &$mobileCss): string
     {
         $data = is_array($section->data) ? $section->data : [];
         $canvas = $data['canvas'] ?? [];
@@ -469,28 +480,29 @@ class BuildPageService
         $bg = BlockStyle::safeColor($canvas['background'] ?? ($data['bg_color'] ?? ''));
         $bgStyle = $bg ? "background:{$bg};" : '';
 
+        // Desktop markup order = reading order (y, then x).
         $children = $section->children->sortBy(function ($c) {
             $l = $this->childLayout($c);
             return sprintf('%08d-%08d', $l['y'] + 100000, $l['x'] + 100000);
         })->values();
 
-        // Section height: fixed px, or auto-fit to the lowest child (absolute
-        // children don't give a parent height, so compute it at publish).
         $heightSetting = $canvas['height'] ?? 'auto';
-        if (is_numeric($heightSetting)) {
-            $sectionH = max(1, (int) $heightSetting);
-        } else {
-            $maxBottom = 0;
-            foreach ($children as $c) {
-                $l = $this->childLayout($c);
-                $maxBottom = max($maxBottom, $l['y'] + $l['h']);
-            }
-            $sectionH = $maxBottom > 0 ? $maxBottom : 200;
+        $maxBottom = 0;
+        foreach ($children as $c) {
+            $l = $this->childLayout($c);
+            $maxBottom = max($maxBottom, $l['y'] + $l['h']);
         }
+        $sectionH = is_numeric($heightSetting) ? max(1, (int) $heightSetting) : ($maxBottom > 0 ? $maxBottom : 200);
+
+        $sid = 'cvs-' . preg_replace('/[^a-z0-9\-]/i', '', (string) $section->id);
+        $hasMobile = false;
+        $mobRules = '';
+        $mobBottom = 0;
 
         $els = '';
         foreach ($children as $child) {
             $l = $this->childLayout($child);
+            $eid = 'cve-' . preg_replace('/[^a-z0-9\-]/i', '', (string) $child->id);
             try {
                 $inner = $this->renderBlock($child, $site);
             } catch (\Throwable $e) {
@@ -499,18 +511,67 @@ class BuildPageService
             }
             $t = $l['rotation'] !== 0.0 ? "transform:rotate({$l['rotation']}deg);" : '';
             $z = $l['zIndex'] !== 0 ? "z-index:{$l['zIndex']};" : '';
-            $els .= '<div class="cv-el" style="'
+            $els .= '<div class="cv-el" id="' . $eid . '" style="'
                 . "left:{$l['x']}px;top:{$l['y']}px;width:{$l['w']}px;height:{$l['h']}px;{$t}{$z}"
                 . '">' . $inner . '</div>';
+
+            // Mobile override for this element (base merged with layout.bp.mobile).
+            $m = $this->childMobile($child, $l);
+            if ($m !== null) {
+                $hasMobile = true;
+                if ($m['hidden']) {
+                    $mobRules .= "#{$eid}{display:none!important}";
+                } else {
+                    $mt = "transform:rotate({$m['rotation']}deg)!important;";
+                    $mobRules .= "#{$eid}{left:{$m['x']}px!important;top:{$m['y']}px!important;"
+                        . "width:{$m['w']}px!important;height:{$m['h']}px!important;{$mt}z-index:{$m['zIndex']}!important}";
+                    $mobBottom = max($mobBottom, $m['y'] + $m['h']);
+                }
+            }
+        }
+
+        $mobClass = '';
+        if ($hasMobile) {
+            $mobClass = ' cv-mob ' . $sid;
+            $mobH = $mobBottom > 0 ? $mobBottom : 200;
+            $mobileCss .= ".{$sid}{width:{$mobileWidth}px!important;max-width:100%!important;height:{$mobH}px!important;"
+                . 'margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important}'
+                . ".{$sid} .cv-el{position:absolute!important;width:auto;height:auto;margin:0!important}"
+                . $mobRules;
         }
 
         if ($bleed) {
             return '<section class="cv-bleed" style="' . $bgStyle . '">'
-                . '<div class="cv-section" style="height:' . $sectionH . 'px">' . $els . '</div>'
+                . '<div class="cv-section' . $mobClass . '" style="height:' . $sectionH . 'px">' . $els . '</div>'
                 . '</section>';
         }
 
-        return '<section class="cv-section" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
+        return '<section class="cv-section' . $mobClass . '" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
+    }
+
+    /**
+     * Effective phone layout for a child (base merged with style.layout.bp.mobile),
+     * or null when the element has no mobile override.
+     */
+    private function childMobile(Block $child, array $base): ?array
+    {
+        $style = is_array($child->style) ? $child->style : (($child->data['__style'] ?? []) ?: []);
+        $lay = is_array($style['layout'] ?? null) ? $style['layout'] : [];
+        $bp = $lay['bp']['mobile'] ?? null;
+        if (! is_array($bp) || $bp === []) {
+            return null;
+        }
+        $px = fn ($v, $def) => (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
+
+        return [
+            'x' => max(-5000, min(20000, isset($bp['x']) ? $px($bp['x'], $base['x']) : $base['x'])),
+            'y' => max(-5000, min(50000, isset($bp['y']) ? $px($bp['y'], $base['y']) : $base['y'])),
+            'w' => max(1, min(6000, isset($bp['width']) ? $px($bp['width'], $base['w']) : $base['w'])),
+            'h' => max(1, min(20000, isset($bp['height']) ? $px($bp['height'], $base['h']) : $base['h'])),
+            'rotation' => max(-360.0, min(360.0, isset($bp['rotation']) ? (float) $bp['rotation'] : $base['rotation'])),
+            'zIndex' => max(0, min(9999, isset($bp['zIndex']) ? (int) $bp['zIndex'] : $base['zIndex'])),
+            'hidden' => ! empty($bp['hidden']),
+        ];
     }
 
     /** Sanitized freeform layout for a canvas child block (from its style.layout). */

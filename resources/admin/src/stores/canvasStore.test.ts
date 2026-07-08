@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useCanvasStore } from './canvasStore';
+import { effectiveLayout } from '@/types/canvas';
 import type { BlockData } from '@/types/blocks';
 
 const section = (id: string, children: BlockData[] = []): BlockData => ({
@@ -102,6 +103,31 @@ describe('canvasStore', () => {
     const out = st.toBlocks();
     expect(out.map(b => b.type)).toEqual(['section', 'row']);
     expect(out.find(b => b.id === 'r')?.data).toEqual({ keep: true });
+  });
+
+  it('writes to the base on desktop and to the mobile override on mobile', () => {
+    const st = useCanvasStore.getState();
+    const id = st.addElement('s1', 'heading', 100, 100, 300, 80);
+
+    // desktop write → base changes
+    st.updateElementLayout(id, { x: 150 }, 'desktop');
+    let el = useCanvasStore.getState().sections[0].elements[0];
+    expect(el.x).toBe(150);
+    expect(el.bp).toBeUndefined();
+
+    // mobile write → only the override changes; base stays put
+    st.updateElementLayout(id, { x: 10, y: 20 }, 'mobile');
+    el = useCanvasStore.getState().sections[0].elements[0];
+    expect(el.x).toBe(150);                                   // base untouched
+    expect(el.bp?.mobile).toEqual({ x: 10, y: 20 });
+    expect(effectiveLayout(el, 'mobile')).toMatchObject({ x: 10, y: 20, width: 300, height: 80 }); // inherits w/h
+    expect(effectiveLayout(el, 'desktop')).toMatchObject({ x: 150, y: 100 });
+
+    // clear the override → back to inheriting desktop
+    st.clearMobileOverride(id);
+    el = useCanvasStore.getState().sections[0].elements[0];
+    expect(el.bp).toBeUndefined();
+    expect(effectiveLayout(el, 'mobile')).toMatchObject({ x: 150, y: 100 });
   });
 
   it('setWidth clamps and recomputes the grid', () => {

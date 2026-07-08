@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react';
 import type { CanvasSection as Section } from '@/types/canvas';
+import { effectiveLayout } from '@/types/canvas';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { useCanvasSelection } from './useCanvasSelection';
 import { CanvasElement } from './CanvasElement';
@@ -18,14 +19,18 @@ interface Props {
 
 export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode }: Props) {
   const selectedIds = useCanvasStore(s => s.selectedIds);
+  const bp = useCanvasStore(s => s.activeBreakpoint);
+  const mobileWidth = useCanvasStore(s => s.mobileWidth);
   const { updateSectionSettings, deleteSection, moveSection, addElement, clearSelection, setActiveSection } = useCanvasStore();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const maxBottom = section.elements.reduce((m, e) => Math.max(m, e.y + e.height), 0);
+  const effWidth = bp === 'mobile' ? mobileWidth : width;
+  const laid = section.elements.map(el => ({ el, eff: effectiveLayout(el, bp) })).filter(x => !x.eff.hidden);
+  const maxBottom = laid.reduce((m, { eff }) => Math.max(m, eff.y + eff.height), 0);
   const displayHeight = section.settings.height === 'auto' ? Math.max(200, maxBottom) : section.settings.height;
 
   const { guides, onElementPointerDown, onResizePointerDown, onRotatePointerDown } =
-    useCanvasSelection(section.id, width, displayHeight);
+    useCanvasSelection(section.id, effWidth, displayHeight);
 
   const addBlock = (blockType: string) => {
     // drop near the top-left, offset so successive adds don't fully overlap
@@ -33,7 +38,7 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
     addElement(section.id, blockType, 40 + (n % 5) * 24, 40 + (n % 5) * 24, 260, 120);
   };
 
-  const sorted = [...section.elements].sort((a, b) => a.zIndex - b.zIndex);
+  const sorted = [...laid].sort((a, b) => a.eff.zIndex - b.eff.zIndex);
 
   return (
     <div className={`cv-section-wrap border-b border-base-200 ${isActive ? 'ring-1 ring-primary/40' : ''}`}>
@@ -78,22 +83,24 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
 
       {/* the canvas */}
       <div className="flex justify-center bg-base-300/30 py-4 overflow-hidden">
-        <div style={{ width: width * zoom, height: displayHeight * zoom }}>
+        <div style={{ width: effWidth * zoom, height: displayHeight * zoom }}>
           <div
             className="cv-canvas relative shadow-sm"
             onPointerDown={() => { clearSelection(); setActiveSection(section.id); }}
             style={{
-              width, height: displayHeight,
+              width: effWidth, height: displayHeight,
               transform: `scale(${zoom})`, transformOrigin: 'top left',
               background: section.settings.background || '#ffffff',
               backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
-              backgroundSize: `${width / 12}px ${width / 12}px`,
+              backgroundSize: `${effWidth / 12}px ${effWidth / 12}px`,
+              outline: bp === 'mobile' ? '2px solid rgba(37,99,235,0.35)' : undefined,
             }}
           >
-            {sorted.map(el => (
+            {sorted.map(({ el, eff }) => (
               <CanvasElement
                 key={el.id}
                 el={el}
+                eff={eff}
                 selected={selectedIds.includes(el.id)}
                 zoom={zoom}
                 onPointerDown={onElementPointerDown}

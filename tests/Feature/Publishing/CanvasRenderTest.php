@@ -72,7 +72,7 @@ class CanvasRenderTest extends TestCase
         // Desktop: positioning context + absolutely-positioned elements
         $this->assertStringContainsString('class="cv-page"', $html);
         $this->assertStringContainsString('class="cv-section"', $html);
-        $this->assertMatchesRegularExpression('/class="cv-el" style="left:80px;top:40px;width:600px;height:90px;transform:rotate\(-3deg\);/', $html);
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" style="left:80px;top:40px;width:600px;height:90px;transform:rotate\(-3deg\);/', $html);
         $this->assertStringContainsString('height:600px', $html); // fixed section height
 
         // Full-bleed section wraps a content column
@@ -195,7 +195,40 @@ class CanvasRenderTest extends TestCase
         ]);
         $html = app(BuildPageService::class)->build($post->fresh(), $site->theme, $site);
         $this->assertStringContainsString('class="cv-page"', $html);
-        $this->assertMatchesRegularExpression('/class="cv-el" style="left:60px;top:30px;/', $html);
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" style="left:60px;top:30px;/', $html);
+    }
+
+    public function test_mobile_override_emits_a_phone_media_query(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = $this->createSiteWithPages(0);
+        $page = Page::factory()->create([
+            'site_id' => $site->id, 'editor_mode' => 'canvas', 'status' => 'published',
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200, 'mobile_width' => 390]],
+        ]);
+        $s = Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 0,
+            'data' => ['canvas' => ['height' => 600, 'bleed' => false]],
+        ]);
+        $child = Block::create([
+            'id' => '77777777-7777-4777-8777-777777777777',
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'heading', 'order' => 0,
+            'data' => ['text' => 'Hi', 'level' => 'h1'],
+            // desktop base + a phone override (x/y/width; height inherits base)
+            'style' => ['layout' => ['x' => 700, 'y' => 40, 'width' => '500px', 'height' => '90px', 'bp' => ['mobile' => ['x' => 12, 'y' => 24, 'width' => 340]]]],
+        ]);
+        $html = app(BuildPageService::class)->build($page->fresh(), $site->theme, $site);
+
+        // the element carries a stable id and the section is flagged mobile-custom
+        $this->assertStringContainsString('id="cve-77777777-7777-4777-8777-777777777777"', $html);
+        $this->assertMatchesRegularExpression('/class="cv-section cv-mob cvs-[0-9a-f-]+"/', $html);
+        // a ≤767 media query carries the per-element override (width from override, height inherited = 90)
+        $this->assertStringContainsString('@media(max-width:767px)', $html);
+        $this->assertMatchesRegularExpression('/#cve-77777777[0-9a-f-]*\{left:12px!important;top:24px!important;width:340px!important;height:90px!important/', $html);
+        // desktop inline still has the base position
+        $this->assertStringContainsString('left:700px;top:40px;width:500px', $html);
     }
 
     public function test_block_editor_pages_are_unaffected(): void

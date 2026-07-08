@@ -3,6 +3,7 @@ import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, 
 import { useCanvasStore } from '@/stores/canvasStore';
 import { pages as pagesApi, posts as postsApi } from '@/lib/api';
 import { CanvasSection } from './CanvasSection';
+import { effectiveLayout } from '@/types/canvas';
 import type { CanvasPageType } from '@/types/canvas';
 
 interface Props {
@@ -20,11 +21,13 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const zoom = useCanvasStore(s => s.zoom);
   const snapEnabled = useCanvasStore(s => s.snapEnabled);
   const activeSectionId = useCanvasStore(s => s.activeSectionId);
+  const activeBreakpoint = useCanvasStore(s => s.activeBreakpoint);
+  const selectedIds = useCanvasStore(s => s.selectedIds);
   const isDirty = useCanvasStore(s => s.isDirty);
   const {
     addSection, undo, redo, toggleSnap, setZoom, deleteElements, updateElements,
     duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
-    setPageType, setWidth,
+    setPageType, setWidth, setBreakpoint, clearMobileOverride,
   } = useCanvasStore();
 
   // Persist page-type + design width to seo_meta.canvas (merged, non-clobbering).
@@ -79,8 +82,9 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
         if (nudgeTimer.current !== null) clearTimeout(nudgeTimer.current);
         nudgeTimer.current = window.setTimeout(endNudge, 600);
         const [dx, dy] = delta;
+        const bp = st.activeBreakpoint;
         const els = st.sections.flatMap(s => s.elements).filter(el => sel.includes(el.id));
-        updateElements(els.map(el => ({ id: el.id, patch: { x: el.x + dx, y: el.y + dy } })));
+        els.forEach(el => { const L = effectiveLayout(el, bp); st.updateElementLayout(el.id, { x: L.x + dx, y: L.y + dy }, bp); });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -108,6 +112,15 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
           <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom - 0.1)} title="Zoom out"><ZoomOut size={14} /></button>
           <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
           <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom + 0.1)} title="Zoom in"><ZoomIn size={14} /></button>
+          <div className="w-px h-4 bg-base-300 mx-1" />
+          {/* breakpoint switcher — edit desktop base or the mobile override */}
+          <div className="flex bg-base-200 rounded p-0.5">
+            <button className={`btn btn-xs ${activeBreakpoint === 'desktop' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('desktop')} title="Desktop layout"><Monitor size={13} /></button>
+            <button className={`btn btn-xs ${activeBreakpoint === 'mobile' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('mobile')} title="Mobile layout override"><Smartphone size={13} /></button>
+          </div>
+          {activeBreakpoint === 'mobile' && selectedIds.length === 1 && (
+            <button className="btn btn-xs btn-ghost" onClick={() => clearMobileOverride(selectedIds[0])} title="Reset this element to inherit the desktop position">reset</button>
+          )}
           <div className="flex-1" />
           <label className="flex items-center gap-1 text-[10px] text-base-content/50" title="Page type">
             <select

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { MagElement } from '@/types/magazine';
 import { calculateSmartGuides, snapToGrid } from '@/lib/smartGuides';
 import { useCanvasStore } from '@/stores/canvasStore';
+import { effectiveLayout } from '@/types/canvas';
 
 export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 interface Guide { type: 'vertical' | 'horizontal'; position: number; }
@@ -45,6 +46,7 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
     // One undo entry per gesture: snapshot the pre-drag state on the first real
     // move, so a bare click (down + up, no move) leaves the undo stack alone.
     if (!d.snapshotted) { st.pushSnapshot(); d.snapshotted = true; }
+    const bp = st.activeBreakpoint;
     const zoom = st.zoom || 1;
     const dx = (e.clientX - d.startClientX) / zoom;
     const dy = (e.clientY - d.startClientY) / zoom;
@@ -58,17 +60,17 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
       if (st.snapEnabled) {
         nx = snapToGrid(nx, st.gridSize);
         ny = snapToGrid(ny, st.gridSize);
-        const others = elements.filter(el => !d.ids.includes(el.id)) as unknown as MagElement[];
+        const others = elements.filter(el => !d.ids.includes(el.id)).map(el => effectiveLayout(el, bp)) as unknown as MagElement[];
         const snap = calculateSmartGuides({ x: nx, y: ny, width: primary.width, height: primary.height }, others, sectionWidth, sectionHeight, { top: 0, right: 0, bottom: 0, left: 0 });
         nx = snap.x; ny = snap.y;
         active.push(...snap.guides);
       }
       const adx = nx - primary.x;
       const ady = ny - primary.y;
-      st.updateElements(d.ids.map(id => {
+      d.ids.forEach(id => {
         const o = d.orig.get(id)!;
-        return { id, patch: { x: Math.round(o.x + adx), y: Math.round(o.y + ady) } };
-      }));
+        st.updateElementLayout(id, { x: Math.round(o.x + adx), y: Math.round(o.y + ady) }, bp);
+      });
       setGuides(active);
       return;
     }
@@ -100,7 +102,7 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
       const x = (aScreen.x - aNew.x) - width / 2;
       const y = (aScreen.y - aNew.y) - height / 2;
 
-      st.updateElements([{ id: d.primaryId, patch: { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) } }]);
+      st.updateElementLayout(d.primaryId, { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) }, bp);
       return;
     }
 
@@ -108,7 +110,7 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
       const angle = Math.atan2(e.clientY - d.cy, e.clientX - d.cx) * 180 / Math.PI;
       let rot = Math.round(angle - (d.startAngle ?? 0) + primary.rotation);
       if (e.shiftKey) rot = Math.round(rot / 15) * 15;
-      st.updateElements([{ id: d.primaryId, patch: { rotation: rot } }]);
+      st.updateElementLayout(d.primaryId, { rotation: rot }, bp);
     }
   }, [sectionId, sectionWidth, sectionHeight]);
 
@@ -120,9 +122,16 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
   }, [move, stop]);
 
   const origFor = useCallback((ids: string[]): Map<string, Rect> => {
-    const els = (useCanvasStore.getState().sections.find(s => s.id === sectionId)?.elements) ?? [];
+    const st = useCanvasStore.getState();
+    const bp = st.activeBreakpoint;
+    const els = (st.sections.find(s => s.id === sectionId)?.elements) ?? [];
     const m = new Map<string, Rect>();
-    els.forEach(el => { if (ids.includes(el.id)) m.set(el.id, { x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation }); });
+    els.forEach(el => {
+      if (ids.includes(el.id)) {
+        const L = effectiveLayout(el, bp);
+        m.set(el.id, { x: L.x, y: L.y, width: L.width, height: L.height, rotation: L.rotation });
+      }
+    });
     return m;
   }, [sectionId]);
 

@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
 import type { BlockData } from '@/types/blocks';
-import type { CanvasElement as El } from '@/types/canvas';
+import type { CanvasElement as El, EffectiveLayout } from '@/types/canvas';
 import { useCanvasStore } from '@/stores/canvasStore';
 import type { ResizeHandle } from './useCanvasSelection';
 
@@ -22,6 +22,7 @@ const posFor = (o: number): Record<ResizeHandle, React.CSSProperties> => ({
 
 interface Props {
   el: El;
+  eff: EffectiveLayout;   // position for the active breakpoint
   selected: boolean;
   zoom: number;
   onPointerDown: (e: React.PointerEvent, id: string) => void;
@@ -29,7 +30,7 @@ interface Props {
   onRotateDown: (e: React.PointerEvent, id: string, center: { cx: number; cy: number }) => void;
 }
 
-export function CanvasElement({ el, selected, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
+export function CanvasElement({ el, eff, selected, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const updateElement = useCanvasStore(s => s.updateElement);
   const reg = blockRegistry.get(el.blockType);
@@ -58,9 +59,10 @@ export function CanvasElement({ el, selected, zoom, onPointerDown, onResizeDown,
       onPointerDown={(e) => onPointerDown(e, el.id)}
       style={{
         position: 'absolute',
-        left: el.x, top: el.y, width: el.width, height: el.height,
-        transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-        zIndex: el.zIndex,
+        left: eff.x, top: eff.y, width: eff.width, height: eff.height,
+        transform: eff.rotation ? `rotate(${eff.rotation}deg)` : undefined,
+        zIndex: eff.zIndex,
+        display: eff.hidden ? 'none' : undefined,
         outline: selected ? `${outlineW}px solid #2563eb` : `${outlineW}px dashed rgba(37,99,235,0.25)`,
         cursor: el.locked ? 'default' : 'move',
         boxSizing: 'border-box',

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { BlockData } from '@/types/blocks';
-import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType } from '@/types/canvas';
-import { DEFAULT_CANVAS_WIDTH } from '@/types/canvas';
+import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout } from '@/types/canvas';
+import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 
 const MAX_UNDO = 50;
@@ -15,6 +15,8 @@ interface CanvasState {
   passthrough: BlockData[];   // non-section top-level blocks, carried verbatim
   selectedIds: string[];      // selected element ids
   activeSectionId: string | null;
+  activeBreakpoint: Breakpoint;
+  mobileWidth: number;
   snapEnabled: boolean;
   gridSize: number;           // 12-col grid line spacing derived from width
   zoom: number;
@@ -40,6 +42,10 @@ interface CanvasState {
   addElement: (sectionId: string, blockType: string, x: number, y: number, w?: number, h?: number) => string;
   updateElement: (id: string, patch: Partial<CanvasElement>) => void;
   updateElements: (updates: Array<{ id: string; patch: Partial<CanvasElement> }>) => void;
+  // Breakpoint-aware position write: desktop → base, mobile → bp.mobile override.
+  updateElementLayout: (id: string, patch: BreakpointLayout, bp: Breakpoint) => void;
+  clearMobileOverride: (id: string) => void;
+  setBreakpoint: (bp: Breakpoint) => void;
   deleteElements: (ids: string[]) => void;
   duplicateElements: (ids: string[]) => void;
   bringToFront: (ids: string[]) => void;
@@ -70,6 +76,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   passthrough: [],
   selectedIds: [],
   activeSectionId: null,
+  activeBreakpoint: 'desktop',
+  mobileWidth: DEFAULT_MOBILE_WIDTH,
   snapEnabled: true,
   gridSize: DEFAULT_CANVAS_WIDTH / 12,
   zoom: 1,
@@ -88,6 +96,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       gridSize: doc.width / 12,
       selectedIds: [],
       activeSectionId: doc.sections[0]?.id ?? null,
+      activeBreakpoint: 'desktop',
       undoStack: [],
       redoStack: [],
       isDirty: false,
@@ -172,6 +181,42 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       isDirty: true,
     }));
   },
+
+  updateElementLayout: (id, patch, bp) => {
+    set(s => ({
+      sections: s.sections.map(sec => ({
+        ...sec,
+        elements: sec.elements.map(e => {
+          if (e.id !== id) return e;
+          if (bp === 'mobile') {
+            return { ...e, bp: { ...e.bp, mobile: { ...(e.bp?.mobile ?? {}), ...patch } } };
+          }
+          return { ...e, ...patch };
+        }),
+      })),
+      isDirty: true,
+    }));
+  },
+
+  clearMobileOverride: (id) => {
+    get().pushSnapshot();
+    set(s => ({
+      sections: s.sections.map(sec => ({
+        ...sec,
+        elements: sec.elements.map(e => {
+          if (e.id !== id || !e.bp?.mobile) return e;
+          const rest = { ...e.bp };
+          delete rest.mobile;
+          const next = { ...e } as typeof e;
+          if (Object.keys(rest).length) next.bp = rest; else delete next.bp;
+          return next;
+        }),
+      })),
+      isDirty: true,
+    }));
+  },
+
+  setBreakpoint: (bp) => set({ activeBreakpoint: bp, selectedIds: [] }),
 
   deleteElements: (ids) => {
     get().pushSnapshot();
