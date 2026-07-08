@@ -75,12 +75,31 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
 
     if (d.mode === 'resize' && d.handle) {
       const o = primary;
-      let { x, y, width, height } = o;
-      const h = d.handle;
-      if (h.includes('e')) width = Math.max(20, o.width + dx);
-      if (h.includes('s')) height = Math.max(20, o.height + dy);
-      if (h.includes('w')) { width = Math.max(20, o.width - dx); x = o.x + (o.width - width); }
-      if (h.includes('n')) { height = Math.max(20, o.height - dy); y = o.y + (o.height - height); }
+      const rad = (o.rotation || 0) * Math.PI / 180;
+      const cos = Math.cos(rad), sin = Math.sin(rad);
+      const rot = (vx: number, vy: number) => ({ x: vx * cos - vy * sin, y: vx * sin + vy * cos });
+
+      // Project the screen-space drag onto the element's local (unrotated) axes,
+      // so a rotated element resizes along its own edges, not the screen's.
+      const lx = dx * cos + dy * sin;
+      const ly = -dx * sin + dy * cos;
+      const H = d.handle;
+      const sx = H.includes('e') ? 1 : H.includes('w') ? -1 : 0;
+      const sy = H.includes('s') ? 1 : H.includes('n') ? -1 : 0;
+      const width = Math.max(20, o.width + sx * lx);
+      const height = Math.max(20, o.height + sy * ly);
+
+      // Keep the anchor (the corner/edge opposite the dragged handle) fixed in
+      // screen space. Rotation is about the center, so recentre after resizing.
+      const ax = sx > 0 ? 0 : sx < 0 ? 1 : 0.5;
+      const ay = sy > 0 ? 0 : sy < 0 ? 1 : 0.5;
+      const cx0 = o.x + o.width / 2, cy0 = o.y + o.height / 2;
+      const aOld = rot((ax - 0.5) * o.width, (ay - 0.5) * o.height);
+      const aScreen = { x: cx0 + aOld.x, y: cy0 + aOld.y };
+      const aNew = rot((ax - 0.5) * width, (ay - 0.5) * height);
+      const x = (aScreen.x - aNew.x) - width / 2;
+      const y = (aScreen.y - aNew.y) - height / 2;
+
       st.updateElements([{ id: d.primaryId, patch: { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) } }]);
       return;
     }

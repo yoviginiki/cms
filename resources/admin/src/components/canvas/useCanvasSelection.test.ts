@@ -67,6 +67,19 @@ describe('useCanvasSelection', () => {
     act(() => winUp());
   });
 
+  it('resizes along the element local axes when rotated 90°', () => {
+    const id = el().id;
+    useCanvasStore.getState().updateElement(id, { rotation: 90 });
+    const { result } = renderHook(() => useCanvasSelection('s1', 1200, 400));
+    // For a 90°-rotated element the local +x axis points screen-down, so an 'e'
+    // resize grows width when the pointer moves DOWN, and the west edge stays put.
+    act(() => result.current.onResizePointerDown(down(0, 0), id, 'e'));
+    act(() => winMove(0, 40));
+    const e = el();
+    expect([e.x, e.y, e.width, e.height]).toEqual([80, 120, 240, 100]);
+    act(() => winUp());
+  });
+
   it('takes exactly one undo snapshot per drag gesture (and none for a bare click)', () => {
     const id = el().id;
     const before = useCanvasStore.getState().undoStack.length;
