@@ -369,6 +369,10 @@ export default function SliderEditor() {
     origX: number; origY: number; origW: number; origH: number; aspect: number;
   } | null>(null);
 
+  /* ── snap guides: while dragging, magnetize to the canvas center and to
+     sibling layers' edges (Alt bypasses); guide lines render over the canvas ── */
+  const [snapGuides, setSnapGuides] = useState<{ v?: number; h?: number } | null>(null);
+
   /* ── rotate handle: drag rotates around the layer's center (desktop-only —
      rotation lives on base layout, not in responsiveLayout) ── */
   const rotateState = useRef<{
@@ -508,8 +512,28 @@ export default function SliderEditor() {
       d.moved = true;
       d.target.setPointerCapture(d.pointerId);
     }
-    const nx = Math.max(0, Math.min(96, d.origX + ((e.clientX - d.startX) / rect.width) * 100));
-    const ny = Math.max(0, Math.min(96, d.origY + ((e.clientY - d.startY) / rect.height) * 100));
+    let nx = Math.max(0, Math.min(96, d.origX + ((e.clientX - d.startX) / rect.width) * 100));
+    let ny = Math.max(0, Math.min(96, d.origY + ((e.clientY - d.startY) / rect.height) * 100));
+    const g: { v?: number; h?: number } = {};
+    if (!e.altKey) {
+      const TH = 1.2; // snap threshold in canvas %
+      const box = d.target.getBoundingClientRect();
+      const wPct = (box.width / rect.width) * 100;
+      const hPct = (box.height / rect.height) * 100;
+      // canvas center (layer CENTER magnetizes to 50%)
+      if (Math.abs(nx + wPct / 2 - 50) < TH) { nx = 50 - wPct / 2; g.v = 50; }
+      if (Math.abs(ny + hPct / 2 - 50) < TH) { ny = 50 - hPct / 2; g.h = 50; }
+      // edge alignment with sibling layers (left/top edges)
+      for (const other of activeSlide?.children ?? []) {
+        if (other.id === d.id) continue;
+        const ol = effectiveLayout(other);
+        const ox = parseFloat(String(ol.x ?? ''));
+        const oy = parseFloat(String(ol.y ?? ''));
+        if (g.v === undefined && Number.isFinite(ox) && Math.abs(nx - ox) < TH) { nx = ox; g.v = ox; }
+        if (g.h === undefined && Number.isFinite(oy) && Math.abs(ny - oy) < TH) { ny = oy; g.h = oy; }
+      }
+    }
+    setSnapGuides(g.v !== undefined || g.h !== undefined ? g : null);
     writeLayout(d.id, { x: `${nx.toFixed(1)}%`, y: `${ny.toFixed(1)}%` });
   };
   const onPointerUp = () => {
@@ -517,7 +541,85 @@ export default function SliderEditor() {
     resizeState.current = null;
     rotateState.current = null;
     setRotReadout(null);
+    setSnapGuides(null);
   };
+
+  /* ── layer duplication: clone with fresh ids, offset +2% so it's visible ── */
+  const cloneWithNewIds = (b: BlockData): BlockData => ({
+    ...structuredClone(b), id: crypto.randomUUID(),
+    children: (b.children ?? []).map(cloneWithNewIds),
+  });
+  const duplicateLayer = (layer: BlockData) => {
+    if (!activeSlide) return;
+    const copy = cloneWithNewIds(layer);
+    const layout = (((copy.data as any)?.layout ?? {}) as Record<string, any>);
+    copy.data = {
+      ...(copy.data as any),
+      layout: {
+        ...layout,
+        x: `${Math.min(96, pctOf(layout.x, 40) + 2).toFixed(1)}%`,
+        y: `${Math.min(96, pctOf(layout.y, 40) + 2).toFixed(1)}%`,
+      },
+    } as any;
+    const kids = [...(activeSlide.children ?? [])];
+    const idx = kids.findIndex(k => k.id === layer.id);
+    kids.splice(idx + 1, 0, copy);
+    updateBlockChildren(activeSlide.id, kids);
+    selectBlock(copy.id);
+  };
+
+  /* ── keyboard editing: arrows nudge 0.5% (Shift = 2%), Delete removes,
+     Ctrl/Cmd+D duplicates, Escape deselects. Skipped while typing in any
+     input/contenteditable (inspector fields, inline text editing). ── */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement;
+      if (tgt.closest('input, textarea, select')) return;
+      // typing in place (text layers) or in the inspector's rich-text editor:
+      // keys belong to the caret — except Escape, which finishes typing on a
+      // canvas layer so the arrows/Delete/Ctrl+D below become available
+      const editable = tgt.closest('[contenteditable="true"]') as HTMLElement | null;
+      if (editable) {
+        if (e.key === 'Escape' && editable.closest('[data-layer-id]')) {
+          e.preventDefault();
+          editable.blur();
+        }
+        return;
+      }
+      if (editingLayerId) {
+        if (e.key === 'Escape') setEditingLayerId(null);
+        return;
+      }
+      if (!selectedBlockId) return;
+      const layer = (activeSlide?.children ?? []).find((l: BlockData) => l.id === selectedBlockId);
+      if (!layer) return;
+      const step = e.shiftKey ? 2 : 0.5;
+      const layout = effectiveLayout(layer);
+      const cx2 = pctOf(layout.x as string, 40);
+      const cy2 = pctOf(layout.y as string, 40);
+      const move = (dx: number, dy: number) => {
+        e.preventDefault();
+        writeLayout(layer.id, {
+          x: `${Math.max(0, Math.min(96, cx2 + dx)).toFixed(1)}%`,
+          y: `${Math.max(0, Math.min(96, cy2 + dy)).toFixed(1)}%`,
+        });
+      };
+      switch (e.key) {
+        case 'ArrowLeft': move(-step, 0); break;
+        case 'ArrowRight': move(step, 0); break;
+        case 'ArrowUp': move(0, -step); break;
+        case 'ArrowDown': move(0, step); break;
+        case 'Delete': case 'Backspace':
+          e.preventDefault(); removeBlock(layer.id); selectBlock(null); break;
+        case 'Escape': selectBlock(null); break;
+        case 'd': case 'D':
+          if (e.ctrlKey || e.metaKey) { e.preventDefault(); duplicateLayer(layer); }
+          break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   /* ── slide rail drag-reorder (dnd-kit; arrows kept as keyboard fallback) ── */
   const railSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -705,6 +807,14 @@ export default function SliderEditor() {
               {bg.type === 'video' && bgUrl && <video src={bgUrl} muted loop autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />}
               {(!bg.type || bg.type === 'color') && <div className="absolute inset-0" style={{ background: bg.color || '#1A1817' }} />}
               {bg.overlay && <div className="absolute inset-0" style={{ background: bg.overlay }} />}
+
+              {/* snap guide lines (drag only; Alt disables snapping) */}
+              {snapGuides?.v !== undefined && (
+                <div className="absolute top-0 bottom-0 w-px bg-secondary pointer-events-none" style={{ left: `${snapGuides.v}%`, zIndex: 999 }} />
+              )}
+              {snapGuides?.h !== undefined && (
+                <div className="absolute left-0 right-0 h-px bg-secondary pointer-events-none" style={{ top: `${snapGuides.h}%`, zIndex: 999 }} />
+              )}
 
               {/* layers at FINAL state (canvas edits layout; motion previews come from the shared runtime later) */}
               {(activeSlide?.children ?? []).map((layer: BlockData) => {
