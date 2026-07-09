@@ -200,6 +200,33 @@ describe('canvasStore', () => {
     st.setLocalOpSink(null);
   });
 
+  it('an op inverse round-trips element state (per-client undo primitive)', () => {
+    const st = useCanvasStore.getState();
+    const id = st.addElement('s1', 'heading', 100, 100, 200, 80);
+    let inverse: import('@/types/canvas').CanvasOp[] = [];
+    st.setLocalOpSink((op, inv) => { if (op.t === 'layout') inverse = inv; });
+
+    st.updateElementLayout(id, { x: 500, y: 300 }, 'desktop');
+    expect([useCanvasStore.getState().sections[0].elements[0].x, useCanvasStore.getState().sections[0].elements[0].y]).toEqual([500, 300]);
+
+    inverse.forEach((op) => st.applyOp(op));   // undo
+    const el = useCanvasStore.getState().sections[0].elements[0];
+    expect([el.x, el.y]).toEqual([100, 100]);  // restored to prior state
+    st.setLocalOpSink(null);
+  });
+
+  it('delete inverse re-adds the removed elements', () => {
+    const st = useCanvasStore.getState();
+    const id = st.addElement('s1', 'text', 40, 40, 120, 60);
+    let inverse: import('@/types/canvas').CanvasOp[] = [];
+    st.setLocalOpSink((op, inv) => { if (op.t === 'del') inverse = inv; });
+    st.deleteElements([id]);
+    expect(useCanvasStore.getState().sections[0].elements).toHaveLength(0);
+    inverse.forEach((op) => st.applyOp(op));   // undo the delete
+    expect(useCanvasStore.getState().sections[0].elements.some((e) => e.id === id)).toBe(true);
+    st.setLocalOpSink(null);
+  });
+
   it('setWidth clamps and recomputes the grid', () => {
     const st = useCanvasStore.getState();
     st.setWidth(60);           // below min

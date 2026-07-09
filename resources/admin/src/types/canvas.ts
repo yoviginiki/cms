@@ -107,7 +107,10 @@ export type CanvasOp =
   | { t: 'secAdd'; section: CanvasSection; afterId?: string }
   | { t: 'secDel'; id: string }
   | { t: 'secMove'; id: string; dir: 'up' | 'down' }
-  | { t: 'secSettings'; id: string; patch: Partial<CanvasSectionSettings> };
+  | { t: 'secSettings'; id: string; patch: Partial<CanvasSectionSettings> }
+  // Generic inverse primitive: upsert a full element into a section (restores a
+  // prior element state, or re-adds a deleted one). Used only for undo/redo.
+  | { t: 'restoreElement'; sectionId: string; element: CanvasElement };
 
 export interface StampedOp {
   op: CanvasOp;

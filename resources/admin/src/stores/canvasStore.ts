@@ -3,6 +3,7 @@ import type { BlockData } from '@/types/blocks';
 import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout, PinX, CanvasAnim, CanvasOp } from '@/types/canvas';
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
+import { invertOp } from '@/lib/collabOps';
 
 const MAX_UNDO = 50;
 
@@ -24,11 +25,11 @@ interface CanvasState {
   isDirty: boolean;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
-  // Collab: local mutations call this sink (so they can be broadcast); remote
-  // ops arrive via applyOp (which never re-emits).
-  _localOp: ((op: CanvasOp) => void) | null;
+  // Collab: local mutations call this sink with the op AND its inverse (for
+  // per-client undo); remote ops arrive via applyOp (which never re-emits).
+  _localOp: ((op: CanvasOp, inverse: CanvasOp[]) => void) | null;
 
-  setLocalOpSink: (fn: ((op: CanvasOp) => void) | null) => void;
+  setLocalOpSink: (fn: ((op: CanvasOp, inverse: CanvasOp[]) => void) | null) => void;
   applyOp: (op: CanvasOp) => void;
 
   // lifecycle
@@ -151,6 +152,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       if (i >= 0 && j >= 0 && j < s.sections.length) { const arr = [...s.sections]; [arr[i], arr[j]] = [arr[j], arr[i]]; sections = arr; }
     } else if (op.t === 'secSettings') {
       sections = s.sections.map(sec => sec.id === op.id ? { ...sec, settings: { ...sec.settings, ...op.patch } } : sec);
+    } else if (op.t === 'restoreElement') {
+      sections = s.sections.map(sec => {
+        if (sec.id !== op.sectionId) {
+          return { ...sec, elements: sec.elements.filter(e => e.id !== op.element.id) };
+        }
+        const has = sec.elements.some(e => e.id === op.element.id);
+        return { ...sec, elements: has ? sec.elements.map(e => e.id === op.element.id ? op.element : e) : [...sec.elements, op.element] };
+      });
     }
     return { sections, isDirty: true };
   }),
@@ -186,20 +195,25 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       sections.splice(idx + 1, 0, section);
       return { sections, activeSectionId: section.id, isDirty: true };
     });
-    get()._localOp?.({ t: 'secAdd', section, afterId });
+    const secAddOp: CanvasOp = { t: 'secAdd', section, afterId };
+    get()._localOp?.(secAddOp, invertOp(secAddOp, get().sections));
   },
 
   deleteSection: (id) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'secDel', id };
+    const inverse = invertOp(op, get().sections); // capture the section before removal
     set(s => {
       const sections = s.sections.filter(x => x.id !== id);
       return { sections, activeSectionId: sections[0]?.id ?? null, selectedIds: [], isDirty: true };
     });
-    get()._localOp?.({ t: 'secDel', id });
+    get()._localOp?.(op, inverse);
   },
 
   moveSection: (id, dir) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'secMove', id, dir };
+    const inverse = invertOp(op, get().sections);
     set(s => {
       const i = s.sections.findIndex(x => x.id === id);
       const j = dir === 'up' ? i - 1 : i + 1;
@@ -208,15 +222,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       [sections[i], sections[j]] = [sections[j], sections[i]];
       return { sections, isDirty: true };
     });
-    get()._localOp?.({ t: 'secMove', id, dir });
+    get()._localOp?.(op, inverse);
   },
 
   updateSectionSettings: (id, patch) => {
+    const op: CanvasOp = { t: 'secSettings', id, patch };
+    const inverse = invertOp(op, get().sections);
     set(s => ({
       sections: s.sections.map(sec => sec.id === id ? { ...sec, settings: { ...sec.settings, ...patch } } : sec),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'secSettings', id, patch });
+    get()._localOp?.(op, inverse);
   },
 
   addElement: (sectionId, blockType, x, y, w, h) => {
@@ -231,7 +247,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       activeSectionId: sectionId,
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'add', sectionId, element: el });
+    const addOp: CanvasOp = { t: 'add', sectionId, element: el };
+    get()._localOp?.(addOp, invertOp(addOp, get().sections));
     return el.id;
   },
 
@@ -257,6 +274,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   updateElementLayout: (id, patch, bp) => {
+    const op: CanvasOp = { t: 'layout', id, patch, bp };
+    const inverse = invertOp(op, get().sections);
     set(s => ({
       sections: s.sections.map(sec => ({
         ...sec,
@@ -270,11 +289,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'layout', id, patch, bp });
+    get()._localOp?.(op, inverse);
   },
 
   clearMobileOverride: (id) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'mobileClear', id };
+    const inverse = invertOp(op, get().sections);
     set(s => ({
       sections: s.sections.map(sec => ({
         ...sec,
@@ -289,11 +310,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'mobileClear', id });
+    get()._localOp?.(op, inverse);
   },
 
   setElementPin: (id, pinX) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'pin', id, pinX };
+    const inverse = invertOp(op, get().sections);
     set(s => ({
       sections: s.sections.map(sec => ({
         ...sec,
@@ -301,11 +324,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'pin', id, pinX });
+    get()._localOp?.(op, inverse);
   },
 
   setElementAnim: (id, anim) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'anim', id, anim };
+    const inverse = invertOp(op, get().sections);
     set(s => ({
       sections: s.sections.map(sec => ({
         ...sec,
@@ -313,20 +338,22 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'anim', id, anim });
+    get()._localOp?.(op, inverse);
   },
 
   setBreakpoint: (bp) => set({ activeBreakpoint: bp, selectedIds: [] }),
 
   deleteElements: (ids) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'del', ids };
+    const inverse = invertOp(op, get().sections); // capture elements before removal
     const set2 = new Set(ids);
     set(s => ({
       sections: s.sections.map(sec => ({ ...sec, elements: sec.elements.filter(e => !set2.has(e.id)) })),
       selectedIds: s.selectedIds.filter(id => !set2.has(id)),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'del', ids });
+    get()._localOp?.(op, inverse);
   },
 
   duplicateElements: (ids) => {
@@ -352,11 +379,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       isDirty: true,
     }));
     const emit = get()._localOp;
-    if (emit) created.forEach(({ sectionId, element }) => emit({ t: 'add', sectionId, element }));
+    if (emit) created.forEach(({ sectionId, element }) => {
+      const op: CanvasOp = { t: 'add', sectionId, element };
+      emit(op, invertOp(op, get().sections));
+    });
   },
 
   bringToFront: (ids) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'z', ids, mode: 'front' };
+    const inverse = invertOp(op, get().sections);
     set(s => ({
       sections: s.sections.map(sec => {
         const max = Math.max(0, ...sec.elements.map(e => e.zIndex));
@@ -364,11 +396,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'z', ids, mode: 'front' });
+    get()._localOp?.(op, inverse);
   },
 
   sendToBack: (ids) => {
     get().pushSnapshot();
+    const op: CanvasOp = { t: 'z', ids, mode: 'back' };
+    const inverse = invertOp(op, get().sections);
     set(s => ({
       sections: s.sections.map(sec => {
         const min = Math.min(0, ...sec.elements.map(e => e.zIndex));
@@ -376,7 +410,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }),
       isDirty: true,
     }));
-    get()._localOp?.({ t: 'z', ids, mode: 'back' });
+    get()._localOp?.(op, inverse);
   },
 
   select: (id, add = false) => set(s => {

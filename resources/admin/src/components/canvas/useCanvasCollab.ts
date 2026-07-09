@@ -49,6 +49,14 @@ export function useCanvasCollab(
   const lastCursor = useRef(0);
   const opThrottle = useRef<Map<string, number>>(new Map());
 
+  // Per-client undo: my own ops with their inverses; consecutive drag layout ops
+  // for the same element coalesce into one entry.
+  const myUndo = useRef<Array<{ forward: CanvasOp[]; inverse: CanvasOp[] }>>([]);
+  const myRedo = useRef<Array<{ forward: CanvasOp[]; inverse: CanvasOp[] }>>([]);
+  const coalesce = useRef<{ key: string | null; at: number }>({ key: null, at: 0 });
+  const [undoLen, setUndoLen] = useState(0);
+  const [redoLen, setRedoLen] = useState(0);
+
   const isDirty = useCanvasStore(s => s.isDirty);
 
   // Accept an incoming op under LWW for its primary key; delete always wins.
@@ -56,6 +64,56 @@ export function useCanvasCollab(
   const record = useCallback((s: StampedOp) => {
     for (const k of opKeys(s.op)) lww.current.set(k, { lamport: s.lamport, client: s.client });
   }, []);
+
+  // Stamp an op and broadcast it (LWW-recorded). Layout ops throttle per element
+  // during drags; undo/redo ops go out immediately (throttle=false).
+  const emitStamped = useCallback((op: CanvasOp, throttleLayout: boolean) => {
+    lamport.current += 1;
+    const stamped: StampedOp = { op, lamport: lamport.current, client: clientId.current };
+    record(stamped);
+    if (throttleLayout && op.t === 'layout') {
+      const now = Date.now();
+      const last = opThrottle.current.get(op.id) ?? 0;
+      if (now - last < OP_INTERVAL) return;
+      opThrottle.current.set(op.id, now);
+    }
+    channelRef.current?.whisper('op', stamped);
+  }, [record]);
+
+  const pushUndo = useCallback((op: CanvasOp, inverse: CanvasOp[]) => {
+    const now = Date.now();
+    const top = myUndo.current[myUndo.current.length - 1];
+    if (op.t === 'layout' && top && coalesce.current.key === op.id && now - coalesce.current.at < 700) {
+      top.forward = [op];               // coalesce a drag into one entry; keep the pre-drag inverse
+      coalesce.current.at = now;
+    } else {
+      myUndo.current.push({ forward: [op], inverse });
+      myRedo.current = [];
+      coalesce.current = { key: op.t === 'layout' ? op.id : null, at: now };
+      setUndoLen(myUndo.current.length);
+      setRedoLen(0);
+    }
+  }, []);
+
+  const undo = useCallback(() => {
+    const entry = myUndo.current.pop();
+    if (!entry) return;
+    entry.inverse.forEach((op) => { useCanvasStore.getState().applyOp(op); emitStamped(op, false); });
+    myRedo.current.push(entry);
+    coalesce.current = { key: null, at: 0 };
+    setUndoLen(myUndo.current.length);
+    setRedoLen(myRedo.current.length);
+  }, [emitStamped]);
+
+  const redo = useCallback(() => {
+    const entry = myRedo.current.pop();
+    if (!entry) return;
+    entry.forward.forEach((op) => { useCanvasStore.getState().applyOp(op); emitStamped(op, false); });
+    myUndo.current.push(entry);
+    coalesce.current = { key: null, at: 0 };
+    setUndoLen(myUndo.current.length);
+    setRedoLen(myRedo.current.length);
+  }, [emitStamped]);
 
   // ── join channel; wire presence + cursor + op streams ──
   useEffect(() => {
@@ -108,18 +166,10 @@ export function useCanvasCollab(
     };
     conn?.bind('state_change', onStateChange);
 
-    // Local mutations → broadcast (throttle layout ops per element).
-    useCanvasStore.getState().setLocalOpSink((op: CanvasOp) => {
-      lamport.current += 1;
-      const stamped: StampedOp = { op, lamport: lamport.current, client: clientId.current };
-      record(stamped);
-      if (op.t === 'layout') {
-        const now = Date.now();
-        const last = opThrottle.current.get(op.id) ?? 0;
-        if (now - last < OP_INTERVAL) return;   // coalesce rapid drag deltas
-        opThrottle.current.set(op.id, now);
-      }
-      channelRef.current?.whisper('op', stamped);
+    // Local mutations → broadcast (throttled) + record for per-client undo.
+    useCanvasStore.getState().setLocalOpSink((op: CanvasOp, inverse: CanvasOp[]) => {
+      emitStamped(op, true);
+      pushUndo(op, inverse);
     });
 
     return () => {
@@ -129,6 +179,7 @@ export function useCanvasCollab(
       channelRef.current = null;
       setMembers([]); setCursors({}); setLocks({});
       lww.current.clear(); opThrottle.current.clear();
+      myUndo.current = []; myRedo.current = []; setUndoLen(0); setRedoLen(0);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageId, contentType, selfId, lwwAccept, record]);
@@ -171,5 +222,10 @@ export function useCanvasCollab(
 
   const lockedIds = useMemo(() => new Set(Object.keys(locks).filter((k) => locks[k].client !== clientId.current)), [locks]);
 
-  return { members, cursors, broadcastCursor, lockedIds, isLeader, collabActive: members.length > 1 };
+  return {
+    members, cursors, broadcastCursor, lockedIds, isLeader,
+    collabActive: members.length > 1,
+    // Per-client op-inverse undo (converges — the inverse is broadcast).
+    undo, redo, canUndo: undoLen > 0, canRedo: redoLen > 0,
+  };
 }

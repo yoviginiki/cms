@@ -6,6 +6,7 @@ import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi } from 
 import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
 import { useCanvasCollab } from './useCanvasCollab';
+import { isCollabEnabled } from '@/lib/echo';
 import { effectiveLayout } from '@/types/canvas';
 import type { CanvasPageType, CanvasAnim } from '@/types/canvas';
 
@@ -68,7 +69,12 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       useCanvasStore.getState().loadFromBlocks(r.data.data, { pageType: cv.page_type === 'single' ? 'single' : 'website', width: cv.width });
     }).catch(() => { /* soft */ });
   }, [siteId, contentType, pageId, seoMeta]);
-  const { members: presence, cursors, broadcastCursor, lockedIds, collabActive } = useCanvasCollab(pageId, contentType, me?.id, autosave, onReseed);
+  const { members: presence, cursors, broadcastCursor, lockedIds, undo: collabUndo, redo: collabRedo, canUndo, canRedo } = useCanvasCollab(pageId, contentType, me?.id, autosave, onReseed);
+  // Collab-enabled pages use per-client op-inverse undo (converges); otherwise
+  // the local snapshot undo.
+  const collabEnabled = isCollabEnabled();
+  const doUndo = collabEnabled ? collabUndo : undo;
+  const doRedo = collabEnabled ? collabRedo : redo;
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMobile, setPreviewMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -93,10 +99,9 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       const sel = st.selectedIds;
       const meta = e.metaKey || e.ctrlKey;
 
-      // Snapshot undo/redo would clobber peers' concurrent edits — gate it in a
-      // live collab session (per-client op-inverse undo is the follow-up).
-      if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); endNudge(); if (!collabActive) (e.shiftKey ? redo() : undo()); return; }
-      if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); endNudge(); if (!collabActive) redo(); return; }
+      // Per-client op-inverse undo in collab; local snapshot undo otherwise.
+      if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); endNudge(); e.shiftKey ? doRedo() : doUndo(); return; }
+      if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); endNudge(); doRedo(); return; }
       if (!sel.length) { if (e.key === 'Escape') { endNudge(); clearSelection(); } return; }
 
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); endNudge(); deleteElements(sel); return; }
@@ -121,7 +126,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); endNudge(); };
-  }, [undo, redo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements, collabActive]);
+  }, [doUndo, doRedo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements]);
 
   const previewUrl = `/api/v1/sites/${siteId}/${contentType}/${pageId}/preview`;
   const refreshPreview = () => { if (iframeRef.current) iframeRef.current.src = `${previewUrl}?t=${Date.now()}`; };
@@ -137,8 +142,8 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
             </button>
           )}
           <div className="w-px h-4 bg-base-300 mx-1" />
-          <button className="btn btn-xs btn-ghost" onClick={undo} disabled={collabActive} title={collabActive ? 'Undo is disabled while others are editing' : 'Undo (Ctrl+Z)'}><Undo2 size={14} /></button>
-          <button className="btn btn-xs btn-ghost" onClick={redo} disabled={collabActive} title={collabActive ? 'Redo is disabled while others are editing' : 'Redo (Ctrl+Shift+Z)'}><Redo2 size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={doUndo} disabled={collabEnabled && !canUndo} title="Undo (Ctrl+Z)"><Undo2 size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={doRedo} disabled={collabEnabled && !canRedo} title="Redo (Ctrl+Shift+Z)"><Redo2 size={14} /></button>
           <button className={`btn btn-xs ${snapEnabled ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleSnap} title="Snapping"><Magnet size={14} /></button>
           <div className="w-px h-4 bg-base-300 mx-1" />
           <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom - 0.1)} title="Zoom out"><ZoomOut size={14} /></button>

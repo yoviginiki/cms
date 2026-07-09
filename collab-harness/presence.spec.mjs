@@ -42,7 +42,8 @@ async function login(page, user) {
 // Connect pusher-js to Reverb and subscribe the presence channel. Keeps a live
 // member-id set on window.__members; resolves once subscription succeeds.
 async function joinPresence(page) {
-  await page.addScriptTag({ content: pusherSrc });
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.evaluate(pusherSrc);
   return page.evaluate(({ pageId, reverb }) => new Promise((resolve, reject) => {
     const getCookie = (n) => (document.cookie.match('(^|; )' + n + '=([^;]*)') || [])[2];
     const Pusher = window.Pusher;
@@ -82,20 +83,28 @@ async function joinPresence(page) {
   }), { pageId: fx.pageId, reverb: fx.reverb });
 }
 
+// Open a real same-origin app page (needed so the browser will open the WS to
+// Reverb). We let the SPA's initial redirect settle (networkidle) before
+// injecting pusher-js, which avoids the "context destroyed by navigation" error.
+async function openPage(ctx) {
+  const page = await ctx.newPage();
+  await page.goto(`${fx.appOrigin}/admin`, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle').catch(() => {});
+  return page;
+}
+
 const browser = await chromium.launch();
 try {
   const [alice, bob] = fx.users;
 
   const ctxA = await browser.newContext();
-  const pageA = await ctxA.newPage();
-  await pageA.goto(`${fx.appOrigin}/admin`);
+  const pageA = await openPage(ctxA);
   await login(pageA, alice);
   const aFirst = await joinPresence(pageA);
   log('alice joins presence (sees herself)', aFirst.includes(alice.id), `members=${JSON.stringify(aFirst)}`);
 
   const ctxB = await browser.newContext();
-  const pageB = await ctxB.newPage();
-  await pageB.goto(`${fx.appOrigin}/admin`);
+  const pageB = await openPage(ctxB);
   await login(pageB, bob);
   const bFirst = await joinPresence(pageB);
   log('bob joins presence (sees both)', bFirst.length === 2 && bFirst.includes(alice.id) && bFirst.includes(bob.id), `members=${JSON.stringify(bFirst)}`);
@@ -108,8 +117,7 @@ try {
   // ── Phase 4 soak: a third client — presence + op fan-out to N peers ──
   const charlie = fx.users[2];
   const ctxC = await browser.newContext();
-  const pageC = await ctxC.newPage();
-  await pageC.goto(`${fx.appOrigin}/admin`);
+  const pageC = await openPage(ctxC);
   await login(pageC, charlie);
   const cFirst = await joinPresence(pageC);
   log('charlie joins — all three present', cFirst.length === 3 && [alice, bob, charlie].every((u) => cFirst.includes(u.id)), `members=${JSON.stringify(cFirst)}`);
@@ -138,6 +146,15 @@ try {
   const cGotOp = await pageC.waitForFunction(() => (window.__opEvents || []).some((e) => e.op && e.op.id === 'el-9'), null, { timeout: 8000 })
     .then(() => true).catch(() => false);
   log('charlie also receives the op (fan-out to N peers)', cGotOp);
+
+  // ── undo: alice broadcasts the inverse (restoreElement); peers converge ──
+  await pageA.evaluate(({ id }) => window.__ch.trigger('client-op', {
+    op: { t: 'restoreElement', sectionId: 'sec-1', element: { id: 'el-9', blockType: 'text', data: {}, x: 0, y: 0, width: 10, height: 10, rotation: 0, zIndex: 1, locked: false, style: {} } },
+    lamport: 9, client: id,
+  }), { id: alice.id });
+  const gotUndo = await pageB.waitForFunction(() => (window.__opEvents || []).some((e) => e.op && e.op.t === 'restoreElement' && e.op.element.id === 'el-9'), null, { timeout: 8000 })
+    .then(() => true).catch(() => false);
+  log('bob receives alice undo (restoreElement inverse propagates)', gotUndo);
 
   // Peers leave → Alice sees the roster shrink back to just herself
   await ctxC.close();
