@@ -247,6 +247,26 @@ class ThemeEngineTest extends TestCase
         $this->assertSame($this->site->id, $sneaky->site_id);
     }
 
+    public function test_studio_frame_css_matches_published_variable_surface(): void
+    {
+        // The Studio iframe must emit the SAME variable surface as the
+        // published page (was 70 vs 186 — blocks using legacy aliases rendered
+        // unthemed in Studio). Both now flow through DesignTokenGenerator.
+        $gen = app(\App\Domain\Theme\Services\DesignTokenGenerator::class);
+        $published = $gen->generate($this->site);           // site active theme
+        $studio = $gen->generateForTheme($this->theme, $this->site);
+
+        $this->assertSame($published, $studio, 'active-theme studio preview must equal published CSS');
+
+        // and the frame endpoint returns that CSS inside the iframe document
+        $html = $this->actingAsOwner()
+            ->get("/api/v1/sites/{$this->site->id}/theme-engine/studio/frame/hero?theme_id={$this->theme->id}")
+            ->assertStatus(200)
+            ->getContent();
+        $this->assertStringContainsString('--semantic-color-brand', $html);
+        $this->assertStringContainsString('--color-primary', $html, 'legacy alias must be present for real blocks');
+    }
+
     public function test_themeless_site_still_emits_default_tokens(): void
     {
         $bare = Site::factory()->create(['tenant_id' => $this->tenant->id, 'active_theme_id' => null]);

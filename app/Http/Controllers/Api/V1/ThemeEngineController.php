@@ -426,18 +426,16 @@ class ThemeEngineController extends Controller
             $theme = Theme::find($site->active_theme_id);
         }
 
-        // Resolve the theme tokens
-        if ($theme && $theme->document) {
-            $merger = new \App\Services\Theme\TokenMerger();
-            $refs = new \App\Services\Theme\ReferenceResolver();
-            $flat = $refs->flatten($merger->merge([$theme->document]));
-            $resolved = new \App\Services\Theme\ValueObjects\ResolvedTheme($flat, hash('sha256', json_encode($flat)));
-        } else {
-            $resolved = new \App\Services\Theme\ValueObjects\ResolvedTheme([], '');
-        }
+        // Emit the SAME CSS the published page uses (DesignTokenGenerator),
+        // scoped to the theme being previewed — not the semantic-only compiler.
+        // This closes the Studio↔published variable-surface gap (was 70 vs 186
+        // vars): blocks referencing legacy --color-*/--btn-* aliases now render
+        // identically in the Studio iframe and on the live site.
+        $css = app(\App\Domain\Theme\Services\DesignTokenGenerator::class)
+            ->generateForTheme($theme, $site);
 
         $renderer = new \App\Services\Theme\Studio\FrameRenderer($this->compiler);
-        $html = $renderer->render($slug, $resolved, studio: true);
+        $html = $renderer->render($slug, $css, studio: true);
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }

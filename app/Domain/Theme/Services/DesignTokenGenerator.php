@@ -135,8 +135,18 @@ class DesignTokenGenerator
 
     public function generate(Site $site): string
     {
-        $theme = $site->theme;
+        return $this->generateForTheme($site->theme, $site);
+    }
 
+    /**
+     * Generate the published CSS for a SPECIFIC theme in a site's context.
+     * `generate()` uses the site's active theme; the Theme Studio preview
+     * passes the theme being edited so its iframe emits the EXACT same CSS
+     * variable surface (semantic + legacy aliases + defaults + font imports)
+     * that the published page will — no second generator, no fidelity gap.
+     */
+    public function generateForTheme(?Theme $theme, Site $site): string
+    {
         // A themeless site still needs the default token set — every block's
         // var(--…) reference would otherwise fall back to its inline literal,
         // producing an unstyled page. Defaults are the Stillopress house style.
