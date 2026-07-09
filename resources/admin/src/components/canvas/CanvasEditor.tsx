@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi } from '@/lib/api';
 import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
-import { useCanvasCollab } from './useCanvasCollab';
+import { useCanvasCollab, type PeerCursor } from './useCanvasCollab';
 import { isCollabEnabled } from '@/lib/echo';
 import { effectiveLayout } from '@/types/canvas';
 import type { CanvasPageType, CanvasAnim } from '@/types/canvas';
+
+const NO_CURSORS: PeerCursor[] = [];   // stable empty ref so cursorless sections skip re-render
+const NUDGE_IDLE_MS = 600;             // arrow-key nudges within this gap = one undo entry
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 2;
 
 interface Props {
   siteId: string;
@@ -28,11 +33,15 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const activeBreakpoint = useCanvasStore(s => s.activeBreakpoint);
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const isDirty = useCanvasStore(s => s.isDirty);
+  const undoLen = useCanvasStore(s => s.undoStack.length);   // local-mode undo availability
+  const redoLen = useCanvasStore(s => s.redoStack.length);
+  // Actions are stable refs in zustand — read them once (getState) instead of
+  // subscribing to the whole store, which re-rendered the editor on every op.
   const {
-    addSection, undo, redo, toggleSnap, setZoom, deleteElements, updateElements,
+    addSection, undo, redo, toggleSnap, setZoom, deleteElements,
     duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
     setPageType, setWidth, setBreakpoint, clearMobileOverride, setElementPin, setElementAnim,
-  } = useCanvasStore();
+  } = useCanvasStore.getState();
 
   // Pin controls apply to a single selected element in a fluid section.
   const selSection = selectedIds.length === 1
@@ -56,11 +65,12 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     queryFn: () => auth.me().then((r) => r.data.user as { id: string; name: string }),
     staleTime: Infinity,
   });
+  const [saveError, setSaveError] = useState(false);
   // Autosave path used by the collab leader (same lossless sync as manual save).
   const autosave = useCallback(() => {
     blocksApi.sync(siteId, contentType, pageId, useCanvasStore.getState().toBlocks())
-      .then(() => useCanvasStore.getState().markClean())
-      .catch(() => { /* soft — manual save still available */ });
+      .then(() => { useCanvasStore.getState().markClean(); setSaveError(false); })
+      .catch(() => setSaveError(true));   // surface it — collaborators can lose work silently otherwise
   }, [siteId, contentType, pageId]);
   // Reconnect reseed: re-hydrate from the last saved tree after a dropped socket.
   const onReseed = useCallback(() => {
@@ -70,6 +80,13 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     }).catch(() => { /* soft */ });
   }, [siteId, contentType, pageId, seoMeta]);
   const { members: presence, cursors, broadcastCursor, lockedIds, undo: collabUndo, redo: collabRedo, canUndo, canRedo } = useCanvasCollab(pageId, contentType, me?.id, autosave, onReseed);
+  // Group peer cursors by section once per cursor change; each section then gets
+  // a stable array ref (so a local drag doesn't churn every section's props).
+  const cursorsBySection = useMemo(() => {
+    const m: Record<string, PeerCursor[]> = {};
+    for (const c of Object.values(cursors)) (m[c.sectionId] ??= []).push(c);
+    return m;
+  }, [cursors]);
   // Collab-enabled pages use per-client op-inverse undo (converges); otherwise
   // the local snapshot undo.
   const collabEnabled = isCollabEnabled();
@@ -117,7 +134,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
         // Snapshot once per nudge run; keep the run alive on each keypress.
         if (!nudgeActive.current) { pushSnapshot(); nudgeActive.current = true; }
         if (nudgeTimer.current !== null) clearTimeout(nudgeTimer.current);
-        nudgeTimer.current = window.setTimeout(endNudge, 600);
+        nudgeTimer.current = window.setTimeout(endNudge, NUDGE_IDLE_MS);
         const [dx, dy] = delta;
         const bp = st.activeBreakpoint;
         const els = st.sections.flatMap(s => s.elements).filter(el => sel.includes(el.id));
@@ -126,7 +143,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); endNudge(); };
-  }, [doUndo, doRedo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements]);
+  }, [doUndo, doRedo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot]);
 
   const previewUrl = `/api/v1/sites/${siteId}/${contentType}/${pageId}/preview`;
   const refreshPreview = () => { if (iframeRef.current) iframeRef.current.src = `${previewUrl}?t=${Date.now()}`; };
@@ -142,18 +159,18 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
             </button>
           )}
           <div className="w-px h-4 bg-base-300 mx-1" />
-          <button className="btn btn-xs btn-ghost" onClick={doUndo} disabled={collabEnabled && !canUndo} title="Undo (Ctrl+Z)"><Undo2 size={14} /></button>
-          <button className="btn btn-xs btn-ghost" onClick={doRedo} disabled={collabEnabled && !canRedo} title="Redo (Ctrl+Shift+Z)"><Redo2 size={14} /></button>
-          <button className={`btn btn-xs ${snapEnabled ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleSnap} title="Snapping"><Magnet size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={doUndo} disabled={collabEnabled ? !canUndo : undoLen === 0} title="Undo (Ctrl+Z)" aria-label="Undo"><Undo2 size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={doRedo} disabled={collabEnabled ? !canRedo : redoLen === 0} title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><Redo2 size={14} /></button>
+          <button className={`btn btn-xs ${snapEnabled ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleSnap} title="Snapping" aria-label="Toggle snapping" aria-pressed={snapEnabled}><Magnet size={14} /></button>
           <div className="w-px h-4 bg-base-300 mx-1" />
-          <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom - 0.1)} title="Zoom out"><ZoomOut size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= ZOOM_MIN} title="Zoom out" aria-label="Zoom out"><ZoomOut size={14} /></button>
           <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom + 0.1)} title="Zoom in"><ZoomIn size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= ZOOM_MAX} title="Zoom in" aria-label="Zoom in"><ZoomIn size={14} /></button>
           <div className="w-px h-4 bg-base-300 mx-1" />
           {/* breakpoint switcher — edit desktop base or the mobile override */}
           <div className="flex bg-base-200 rounded p-0.5">
-            <button className={`btn btn-xs ${activeBreakpoint === 'desktop' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('desktop')} title="Desktop layout"><Monitor size={13} /></button>
-            <button className={`btn btn-xs ${activeBreakpoint === 'mobile' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('mobile')} title="Mobile layout override"><Smartphone size={13} /></button>
+            <button className={`btn btn-xs ${activeBreakpoint === 'desktop' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('desktop')} title="Desktop layout" aria-label="Edit desktop layout" aria-pressed={activeBreakpoint === 'desktop'}><Monitor size={13} /></button>
+            <button className={`btn btn-xs ${activeBreakpoint === 'mobile' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('mobile')} title="Mobile layout override" aria-label="Edit mobile layout override" aria-pressed={activeBreakpoint === 'mobile'}><Smartphone size={13} /></button>
           </div>
           {activeBreakpoint === 'mobile' && selectedIds.length === 1 && (
             <button className="btn btn-xs btn-ghost" onClick={() => clearMobileOverride(selectedIds[0])} title="Reset this element to inherit the desktop position">reset</button>
@@ -188,16 +205,30 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
                 </select>
               </label>
               {selEl.anim && selEl.anim.type !== 'none' && (
-                <input
-                  type="number"
-                  className="input input-xs input-bordered w-14"
-                  title="Delay (ms)"
-                  min={0}
-                  max={5000}
-                  step={50}
-                  value={selEl.anim.delay ?? 0}
-                  onChange={(e) => setElementAnim(selectedIds[0], { type: selEl.anim!.type, delay: Number(e.target.value) })}
-                />
+                <>
+                  <input
+                    type="number"
+                    className="input input-xs input-bordered w-14"
+                    title="Delay (ms)"
+                    aria-label="Animation delay (ms)"
+                    min={0}
+                    max={5000}
+                    step={50}
+                    value={selEl.anim.delay ?? 0}
+                    onChange={(e) => setElementAnim(selectedIds[0], { ...selEl.anim!, delay: Number(e.target.value) })}
+                  />
+                  <input
+                    type="number"
+                    className="input input-xs input-bordered w-14"
+                    title="Duration (ms)"
+                    aria-label="Animation duration (ms)"
+                    min={50}
+                    max={3000}
+                    step={50}
+                    value={selEl.anim.duration ?? 600}
+                    onChange={(e) => setElementAnim(selectedIds[0], { ...selEl.anim!, duration: Number(e.target.value) })}
+                  />
+                </>
               )}
             </>
           )}
@@ -236,7 +267,14 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
               {presence.length > 5 && <span className="text-[10px] text-base-content/40 pl-2">+{presence.length - 5}</span>}
             </div>
           )}
-          <button className={`btn btn-xs ${previewOpen ? 'btn-primary' : 'btn-ghost'} gap-1`} onClick={() => { setPreviewOpen(v => !v); setTimeout(refreshPreview, 50); }}>
+          {saveError && (
+            <span
+              className="text-[10px] text-error font-medium mr-2 whitespace-nowrap"
+              role="status"
+              title="Autosave failed — your latest changes are not saved. Use manual save."
+            >⚠ autosave failed</span>
+          )}
+          <button className={`btn btn-xs ${previewOpen ? 'btn-primary' : 'btn-ghost'} gap-1`} onClick={() => { setPreviewOpen(v => !v); setTimeout(refreshPreview, 50); }} aria-label="Toggle live preview" aria-pressed={previewOpen}>
             <Eye size={14} /> Preview
           </button>
         </div>
@@ -259,7 +297,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
               canMoveUp={i > 0}
               canMoveDown={i < sections.length - 1}
               singleMode={singleMode}
-              peerCursors={Object.values(cursors).filter((c) => c.sectionId === section.id)}
+              peerCursors={cursorsBySection[section.id] ?? NO_CURSORS}
               members={presence}
               onCursorMove={broadcastCursor}
               lockedIds={lockedIds}
@@ -274,9 +312,9 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
           <div className="flex items-center gap-1 px-2 py-1.5 border-b border-base-300 text-xs">
             <span className="font-medium text-base-content/60">Live preview</span>
             <div className="flex-1" />
-            <button className={`btn btn-xs ${!previewMobile ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPreviewMobile(false)} title="Desktop"><Monitor size={14} /></button>
-            <button className={`btn btn-xs ${previewMobile ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPreviewMobile(true)} title="Mobile"><Smartphone size={14} /></button>
-            <button className="btn btn-xs btn-ghost" onClick={refreshPreview} title="Refresh (shows last saved)"><RefreshCw size={14} /></button>
+            <button className={`btn btn-xs ${!previewMobile ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPreviewMobile(false)} title="Desktop" aria-label="Preview desktop width"><Monitor size={14} /></button>
+            <button className={`btn btn-xs ${previewMobile ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPreviewMobile(true)} title="Mobile" aria-label="Preview mobile width"><Smartphone size={14} /></button>
+            <button className="btn btn-xs btn-ghost" onClick={refreshPreview} title="Refresh (shows last saved)" aria-label="Refresh preview"><RefreshCw size={14} /></button>
           </div>
           <div className="flex-1 overflow-auto flex justify-center p-3">
             <iframe

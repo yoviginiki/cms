@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getEcho } from '@/lib/echo';
 import { useCanvasStore } from '@/stores/canvasStore';
-import { lwwNewer, opKeys } from '@/lib/collabOps';
+import { lwwNewer, opKeys, isStampedOp } from '@/lib/collabOps';
 import type { CanvasOp, StampedOp } from '@/types/canvas';
 
 export interface PresenceMember {
   id: string;
   name: string;
-  color: string;
 }
 
 export interface PeerCursor {
@@ -22,6 +21,7 @@ const CURSOR_INTERVAL = 45;   // ms between cursor whispers
 const CURSOR_TTL = 5000;      // drop a peer cursor after this idle
 const OP_INTERVAL = 50;       // ms throttle for layout ops per element
 const LOCK_TTL = 2500;        // an element counts as "peer-editing" this long after an op
+const COALESCE_MS = 700;      // a run of drag-layout ops within this gap = one undo entry
 
 /**
  * Canvas collaboration: presence (Phase 1), live cursors (Phase 2), and
@@ -83,7 +83,7 @@ export function useCanvasCollab(
   const pushUndo = useCallback((op: CanvasOp, inverse: CanvasOp[]) => {
     const now = Date.now();
     const top = myUndo.current[myUndo.current.length - 1];
-    if (op.t === 'layout' && top && coalesce.current.key === op.id && now - coalesce.current.at < 700) {
+    if (op.t === 'layout' && top && coalesce.current.key === op.id && now - coalesce.current.at < COALESCE_MS) {
       top.forward = [op];               // coalesce a drag into one entry; keep the pre-drag inverse
       coalesce.current.at = now;
     } else {
@@ -132,12 +132,15 @@ export function useCanvasCollab(
       .error(() => setMembers([]));
 
     ch.listenForWhisper('cursor', (d: { id: string; sectionId: string; x: number; y: number }) => {
-      if (!d || d.id === selfId) return;
-      setCursors((c) => ({ ...c, [d.id]: { ...d, at: Date.now() } }));
+      if (!d || typeof d.id !== 'string' || d.id === selfId) return;
+      if (!Number.isFinite(d.x) || !Number.isFinite(d.y)) return;   // reject garbage coords
+      setCursors((c) => ({ ...c, [d.id]: { id: d.id, sectionId: String(d.sectionId ?? ''), x: d.x, y: d.y, at: Date.now() } }));
     });
 
     ch.listenForWhisper('op', (s: StampedOp) => {
-      if (!s || s.client === clientId.current) return;
+      // Reject malformed peer payloads before they reach applyOp/opKeys, and
+      // keep a poisoned (NaN/undefined) lamport from breaking LWW ordering.
+      if (!isStampedOp(s) || s.client === clientId.current) return;
       lamport.current = Math.max(lamport.current, s.lamport);
       if (!lwwAccept(s)) return;             // stale — a newer edit already applied
       record(s);
@@ -224,7 +227,6 @@ export function useCanvasCollab(
 
   return {
     members, cursors, broadcastCursor, lockedIds, isLeader,
-    collabActive: members.length > 1,
     // Per-client op-inverse undo (converges — the inverse is broadcast).
     undo, redo, canUndo: undoLen > 0, canRedo: redoLen > 0,
   };

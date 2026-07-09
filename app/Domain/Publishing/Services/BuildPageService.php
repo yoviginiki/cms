@@ -7,6 +7,7 @@ use App\Domain\Hooks\HookDispatcher;
 use App\Domain\Menus\Services\MenuRenderer;
 use App\Domain\Theme\Services\DesignTokenGenerator;
 use App\Domain\Publishing\Services\AssetPublisher;
+use App\Domain\Publishing\Support\CanvasBounds;
 use App\Support\Blocks\BlockStyle;
 use App\Models\Asset;
 use App\Models\Block;
@@ -423,14 +424,8 @@ class BuildPageService
     {
         $meta = is_array($content->seo_meta) ? $content->seo_meta : [];
         $cfg = $meta['canvas'] ?? [];
-        $canvasWidth = (int) ($cfg['width'] ?? 1200);
-        if ($canvasWidth < 320 || $canvasWidth > 3000) {
-            $canvasWidth = 1200;
-        }
-        $mobileWidth = (int) ($cfg['mobile_width'] ?? 390);
-        if ($mobileWidth < 240 || $mobileWidth > 767) {
-            $mobileWidth = 390;
-        }
+        $canvasWidth = CanvasBounds::canvasWidth((int) ($cfg['width'] ?? CanvasBounds::CANVAS_W_DEFAULT));
+        $mobileWidth = CanvasBounds::mobileWidth((int) ($cfg['mobile_width'] ?? CanvasBounds::MOBILE_W_DEFAULT));
         $isSingle = (($cfg['page_type'] ?? 'website') === 'single');
 
         $sections = $content->blocks()
@@ -619,17 +614,20 @@ class BuildPageService
         if (! is_array($bp) || $bp === []) {
             return null;
         }
-        $px = fn ($v, $def) => (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
 
-        return [
-            'x' => max(-5000, min(20000, isset($bp['x']) ? $px($bp['x'], $base['x']) : $base['x'])),
-            'y' => max(-5000, min(50000, isset($bp['y']) ? $px($bp['y'], $base['y']) : $base['y'])),
-            'w' => max(1, min(6000, isset($bp['width']) ? $px($bp['width'], $base['w']) : $base['w'])),
-            'h' => max(1, min(20000, isset($bp['height']) ? $px($bp['height'], $base['h']) : $base['h'])),
-            'rotation' => max(-360.0, min(360.0, isset($bp['rotation']) ? (float) $bp['rotation'] : $base['rotation'])),
-            'zIndex' => max(0, min(9999, isset($bp['zIndex']) ? (int) $bp['zIndex'] : $base['zIndex'])),
-            'hidden' => ! empty($bp['hidden']),
-        ];
+        // Each axis: the mobile override if present, else inherit the (already
+        // clamped) base — then re-clamp via the shared bounds.
+        $m = CanvasBounds::clampBox(
+            isset($bp['x']) ? $this->layoutPx($bp['x'], $base['x']) : $base['x'],
+            isset($bp['y']) ? $this->layoutPx($bp['y'], $base['y']) : $base['y'],
+            isset($bp['width']) ? $this->layoutPx($bp['width'], $base['w']) : $base['w'],
+            isset($bp['height']) ? $this->layoutPx($bp['height'], $base['h']) : $base['h'],
+            isset($bp['rotation']) ? (float) $bp['rotation'] : $base['rotation'],
+            isset($bp['zIndex']) ? (int) $bp['zIndex'] : $base['zIndex'],
+        );
+        $m['hidden'] = ! empty($bp['hidden']);
+
+        return $m;
     }
 
     /** Sanitized freeform layout for a canvas child block (from its style.layout). */
@@ -638,22 +636,28 @@ class BuildPageService
         $style = is_array($child->style) ? $child->style : (($child->data['__style'] ?? []) ?: []);
         $lay = is_array($style['layout'] ?? null) ? $style['layout'] : [];
 
-        $px = fn ($v, $def) => (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
-
         $pin = $lay['pinX'] ?? 'left';
         if (! in_array($pin, ['left', 'center', 'right', 'stretch'], true)) {
             $pin = 'left';
         }
 
-        return [
-            'x' => max(-5000, min(20000, $px($lay['x'] ?? 0, 0))),
-            'y' => max(-5000, min(50000, $px($lay['y'] ?? 0, 0))),
-            'w' => max(1, min(6000, $px($lay['width'] ?? 200, 200))),
-            'h' => max(1, min(20000, $px($lay['height'] ?? 100, 100))),
-            'rotation' => max(-360.0, min(360.0, (float) ($lay['rotation'] ?? 0))),
-            'zIndex' => max(0, min(9999, (int) ($lay['zIndex'] ?? 0))),
-            'pinX' => $pin,
-        ];
+        $l = CanvasBounds::clampBox(
+            $this->layoutPx($lay['x'] ?? 0, 0),
+            $this->layoutPx($lay['y'] ?? 0, 0),
+            $this->layoutPx($lay['width'] ?? 200, 200),
+            $this->layoutPx($lay['height'] ?? 100, 100),
+            (float) ($lay['rotation'] ?? 0),
+            (int) ($lay['zIndex'] ?? 0),
+        );
+        $l['pinX'] = $pin;
+
+        return $l;
+    }
+
+    /** Parse a raw layout value (strips px/units) to an int; empty → default. */
+    private function layoutPx(mixed $v, int|float $def): int
+    {
+        return (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
     }
 
     /**

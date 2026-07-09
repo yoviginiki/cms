@@ -30,7 +30,7 @@ class CanvasChannelAuthTest extends TestCase
         $this->assertIsArray($member);
         $this->assertSame((string) $this->owner->id, $member['id']);
         $this->assertSame($this->owner->name, $member['name']);
-        $this->assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $member['color']);
+        $this->assertSame(['id', 'name'], array_keys($member)); // exactly id + name
         $this->assertArrayNotHasKey('email', $member); // no PII leaks into presence
         $this->assertArrayNotHasKey('role', $member);
     }

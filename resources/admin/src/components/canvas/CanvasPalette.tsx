@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
 
@@ -13,13 +13,29 @@ interface Props {
 
 export function CanvasPalette({ onPick, onClose }: Props) {
   const [q, setQ] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
   const items = useMemo(() => {
     const all = CANVAS_BLOCKS.filter(t => blockRegistry.get(t));
     return all.filter(t => t.toLowerCase().includes(q.toLowerCase()));
   }, [q]);
 
+  // Dismiss on Escape (captured so it doesn't also clear the canvas selection)
+  // or a pointerdown outside the palette. The document listener is deferred a
+  // tick so the click that opened the palette doesn't immediately close it.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    const onDown = (e: PointerEvent) => { if (!rootRef.current?.contains(e.target as Node)) onClose(); };
+    window.addEventListener('keydown', onKey, true);
+    const id = window.setTimeout(() => document.addEventListener('pointerdown', onDown), 0);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.clearTimeout(id);
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [onClose]);
+
   return (
-    <div className="absolute z-50 mt-1 w-64 rounded-lg border border-base-300 bg-base-100 shadow-xl p-2" onPointerDown={(e) => e.stopPropagation()}>
+    <div ref={rootRef} className="absolute z-50 mt-1 w-64 rounded-lg border border-base-300 bg-base-100 shadow-xl p-2" onPointerDown={(e) => e.stopPropagation()}>
       <input
         autoFocus
         value={q}

@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react';
-import { useRef } from 'react';
 import type { CanvasSection as Section } from '@/types/canvas';
 import { effectiveLayout } from '@/types/canvas';
 import { colorForId } from '@/lib/collabColor';
@@ -24,18 +23,26 @@ interface Props {
   lockedIds?: Set<string>;
 }
 
-export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode, peerCursors = [], members = [], onCursorMove, lockedIds }: Props) {
+function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode, peerCursors = [], members = [], onCursorMove, lockedIds }: Props) {
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const bp = useCanvasStore(s => s.activeBreakpoint);
   const mobileWidth = useCanvasStore(s => s.mobileWidth);
-  const { updateSectionSettings, deleteSection, moveSection, addElement, clearSelection, setActiveSection } = useCanvasStore();
+  // Actions are stable refs — read once (getState) rather than subscribing the
+  // whole store, which re-rendered every section on every op.
+  const { updateSectionSettings, deleteSection, moveSection, addElement, clearSelection, setActiveSection } = useCanvasStore.getState();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const effWidth = bp === 'mobile' ? mobileWidth : width;
-  const laid = section.elements.map(el => ({ el, eff: effectiveLayout(el, bp) })).filter(x => !x.eff.hidden);
-  const maxBottom = laid.reduce((m, { eff }) => Math.max(m, eff.y + eff.height), 0);
-  const displayHeight = section.settings.height === 'auto' ? Math.max(200, maxBottom) : section.settings.height;
+  // Effective layout / height / z-sort recompute only when this section's
+  // elements, height, or the active breakpoint change (not on every parent render).
+  const { displayHeight, sorted } = useMemo(() => {
+    const laid = section.elements.map(el => ({ el, eff: effectiveLayout(el, bp) })).filter(x => !x.eff.hidden);
+    const maxBottom = laid.reduce((m, { eff }) => Math.max(m, eff.y + eff.height), 0);
+    const displayHeight = section.settings.height === 'auto' ? Math.max(200, maxBottom) : section.settings.height;
+    const sorted = [...laid].sort((a, b) => a.eff.zIndex - b.eff.zIndex);
+    return { displayHeight, sorted };
+  }, [section.elements, section.settings.height, bp]);
 
   const { guides, onElementPointerDown, onResizePointerDown, onRotatePointerDown } =
     useCanvasSelection(section.id, effWidth, displayHeight);
@@ -45,8 +52,6 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
     const n = section.elements.length;
     addElement(section.id, blockType, 40 + (n % 5) * 24, 40 + (n % 5) * 24, 260, 120);
   };
-
-  const sorted = [...laid].sort((a, b) => a.eff.zIndex - b.eff.zIndex);
 
   return (
     <div className={`cv-section-wrap border-b border-base-200 ${isActive ? 'ring-1 ring-primary/40' : ''}`}>
@@ -86,9 +91,9 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
         <div className="flex-1" />
         {!singleMode && (
           <>
-            <button className="btn btn-xs btn-ghost" disabled={!canMoveUp} onClick={() => moveSection(section.id, 'up')} title="Move up"><ChevronUp size={14} /></button>
-            <button className="btn btn-xs btn-ghost" disabled={!canMoveDown} onClick={() => moveSection(section.id, 'down')} title="Move down"><ChevronDown size={14} /></button>
-            <button className="btn btn-xs btn-ghost text-error" onClick={() => deleteSection(section.id)} title="Delete section"><Trash2 size={14} /></button>
+            <button className="btn btn-xs btn-ghost" disabled={!canMoveUp} onClick={() => moveSection(section.id, 'up')} title="Move up" aria-label="Move section up"><ChevronUp size={14} /></button>
+            <button className="btn btn-xs btn-ghost" disabled={!canMoveDown} onClick={() => moveSection(section.id, 'down')} title="Move down" aria-label="Move section down"><ChevronDown size={14} /></button>
+            <button className="btn btn-xs btn-ghost text-error" onClick={() => deleteSection(section.id)} title="Delete section" aria-label="Delete section"><Trash2 size={14} /></button>
           </>
         )}
       </div>
@@ -157,3 +162,7 @@ export function CanvasSection({ section, width, zoom, isActive, canMoveUp, canMo
     </div>
   );
 }
+
+// Memoized: with the store's structural sharing (untouched sections keep their
+// ref) + stable peerCursors, a single-element drag re-renders only its section.
+export const CanvasSection = memo(CanvasSectionInner);

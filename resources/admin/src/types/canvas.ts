@@ -18,8 +18,12 @@ export interface CanvasAnim { type: CanvasAnimType; delay?: number; duration?: n
 // `mobile` is an optional per-element override stored under layout.bp.mobile.
 export type Breakpoint = 'desktop' | 'mobile';
 
-export const MOBILE_MAX = 767;              // px — phone media-query threshold
 export const DEFAULT_MOBILE_WIDTH = 390;    // px — mobile design canvas width
+
+// Design-width bounds — must stay in sync with the publish-side clamp in
+// BuildPageService (CanvasBounds::CANVAS_W_MIN/MAX) and MagazineToCanvasConverter.
+export const CANVAS_W_MIN = 320;
+export const CANVAS_W_MAX = 3000;
 
 /** A partial position override for a breakpoint; missing keys inherit the base. */
 export interface BreakpointLayout {
@@ -119,9 +123,3 @@ export interface StampedOp {
 }
 
 export const DEFAULT_CANVAS_WIDTH = 1200;
-
-export const DEFAULT_SECTION_SETTINGS: CanvasSectionSettings = {
-  height: 480,
-  bleed: false,
-  background: '',
-};

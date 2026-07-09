@@ -36,7 +36,12 @@ export function getEcho(): Echo<'reverb'> | null {
         axios
           .post('/broadcasting/auth', { socket_id: socketId, channel_name: channel.name }, { withCredentials: true })
           .then((res) => callback(false, res.data))
-          .catch(() => callback(true, {}));
+          .catch((err) => {
+            // Surface the cause in dev — a silent reject makes a misconfigured
+            // Reverb / CSRF / RLS-denied channel very hard to diagnose.
+            if (env.DEV) console.error('[canvas-collab] channel auth failed for', channel.name, err);
+            callback(true, {});
+          });
       },
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
