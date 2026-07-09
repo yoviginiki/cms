@@ -273,11 +273,15 @@ class ThemeEngineController extends Controller
 
         $scope = $request->input('scope');
         $mode = $request->input('mode', 'light');
+        // overrides customize the theme currently active on the site — stamp it
+        // so they never bleed onto a different theme after a switch
+        $themeId = $site->active_theme_id;
 
         foreach ($request->input('overrides') as $override) {
             ThemeOverride::updateOrCreate(
                 [
                     'tenant_id' => $site->tenant_id,
+                    'theme_id' => $themeId,
                     'site_id' => $scope === 'site' ? $site->id : null,
                     'page_id' => $scope === 'page' ? $request->input('page_id') : null,
                     'block_id' => $scope === 'block' ? $request->input('block_id') : null,

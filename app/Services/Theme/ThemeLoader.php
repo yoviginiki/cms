@@ -47,15 +47,19 @@ class ThemeLoader
             }
         }
 
+        // overrides are scoped to the resolved theme so they never bleed
+        // across a theme switch (legacy NULL-theme rows still apply)
+        $themeId = $activeTheme?->id;
+
         // [4] Tenant-level overrides (site_id IS NULL)
-        $tenantOverrides = $this->loadOverrides($request->tenantId, null, null, null, $request->mode);
+        $tenantOverrides = $this->loadOverrides($request->tenantId, $themeId, null, null, null, $request->mode);
         if (!empty($tenantOverrides)) {
             $layers[] = $tenantOverrides;
         }
 
         // [5] Site-level overrides
         if ($request->siteId) {
-            $siteOverrides = $this->loadOverrides($request->tenantId, $request->siteId, null, null, $request->mode);
+            $siteOverrides = $this->loadOverrides($request->tenantId, $themeId, $request->siteId, null, null, $request->mode);
             if (!empty($siteOverrides)) {
                 $layers[] = $siteOverrides;
             }
@@ -63,7 +67,7 @@ class ThemeLoader
 
         // [6] Page-level overrides
         if ($request->pageId) {
-            $pageOverrides = $this->loadOverrides($request->tenantId, null, $request->pageId, null, $request->mode);
+            $pageOverrides = $this->loadOverrides($request->tenantId, $themeId, null, $request->pageId, null, $request->mode);
             if (!empty($pageOverrides)) {
                 $layers[] = $pageOverrides;
             }
@@ -71,7 +75,7 @@ class ThemeLoader
 
         // [7] Block-level overrides
         if ($request->blockId) {
-            $blockOverrides = $this->loadOverrides($request->tenantId, null, null, $request->blockId, $request->mode);
+            $blockOverrides = $this->loadOverrides($request->tenantId, $themeId, null, null, $request->blockId, $request->mode);
             if (!empty($blockOverrides)) {
                 $layers[] = $blockOverrides;
             }
@@ -121,10 +125,16 @@ class ThemeLoader
     /**
      * Load overrides as a nested W3C-like document fragment.
      */
-    private function loadOverrides(string $tenantId, ?string $siteId, ?string $pageId, ?string $blockId, string $mode): array
+    private function loadOverrides(string $tenantId, ?string $themeId, ?string $siteId, ?string $pageId, ?string $blockId, string $mode): array
     {
         $query = ThemeOverride::where('tenant_id', $tenantId)
-            ->where('mode', $mode);
+            ->where('mode', $mode)
+            // rows for the resolved theme, plus legacy rows written before
+            // theme_id existed (theme_id IS NULL) — never another theme's rows
+            ->where(function ($q) use ($themeId) {
+                $q->whereNull('theme_id');
+                if ($themeId) $q->orWhere('theme_id', $themeId);
+            });
 
         if ($siteId) {
             $query->where('site_id', $siteId)->where('scope', 'site');

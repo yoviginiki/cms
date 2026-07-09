@@ -11,7 +11,7 @@ class ThemeOverride extends Model
     use HasUuids;
 
     protected $fillable = [
-        'tenant_id', 'site_id', 'page_id', 'block_id',
+        'tenant_id', 'theme_id', 'site_id', 'page_id', 'block_id',
         'scope', 'mode', 'token_path', 'value',
     ];
 

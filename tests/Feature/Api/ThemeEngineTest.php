@@ -267,6 +267,38 @@ class ThemeEngineTest extends TestCase
         $this->assertStringContainsString('--color-primary', $html, 'legacy alias must be present for real blocks');
     }
 
+    public function test_overrides_are_scoped_to_the_active_theme(): void
+    {
+        // author a site override while theme A is active
+        $this->actingAsOwner()->postJson("/api/v1/sites/{$this->site->id}/theme-engine/overrides", [
+            'scope' => 'site', 'mode' => 'light',
+            'overrides' => [['token_path' => 'semantic.color.brand', 'value' => ['$type' => 'color', '$value' => '#FF0000']]],
+        ])->assertStatus(200);
+
+        $override = \App\Models\ThemeOverride::first();
+        $this->assertSame($this->theme->id, $override->theme_id, 'override is stamped with the active theme');
+
+        // the resolver loads this override while theme A is active …
+        $reqA = new \App\Services\Theme\ValueObjects\ResolveRequest(
+            tenantId: $this->site->tenant_id, siteId: $this->site->id, mode: 'light',
+        );
+        $resolvedA = app(\App\Services\Theme\ThemeResolver::class)->resolveFresh($reqA);
+        $this->assertSame('#FF0000', $resolvedA->tokens['semantic.color.brand'] ?? null, 'override applies under its own theme');
+
+        // … but NOT after switching to theme B (override belongs to theme A)
+        $b = Theme::create([
+            'site_id' => $this->site->id, 'name' => 'B', 'slug' => 'b',
+            'version' => '1.0.0', 'config' => [], 'manifest_json' => [], 'template_path' => '',
+            'document' => ['$metadata' => ['name' => 'B'], 'semantic' => ['color' => ['brand' => ['$type' => 'color', '$value' => '#0000FF']]]],
+            'modes' => ['light'], 'schema_version' => '1.0.0',
+        ]);
+        $this->site->update(['active_theme_id' => $b->id]);
+        app(\App\Services\Theme\ThemeResolver::class)->invalidateForSite($this->site->tenant_id, $this->site->id);
+
+        $resolvedB = app(\App\Services\Theme\ThemeResolver::class)->resolveFresh($reqA);
+        $this->assertSame('#0000FF', $resolvedB->tokens['semantic.color.brand'] ?? null, 'theme A override must not bleed onto theme B');
+    }
+
     public function test_themeless_site_still_emits_default_tokens(): void
     {
         $bare = Site::factory()->create(['tenant_id' => $this->tenant->id, 'active_theme_id' => null]);
