@@ -163,6 +163,43 @@ describe('canvasStore', () => {
     st.setLocalOpSink(null);
   });
 
+  it('applyOp handles section + property ops (full collab coverage)', () => {
+    const st = useCanvasStore.getState();
+    const id = st.addElement('s1', 'heading', 0, 0);
+
+    st.applyOp({ t: 'pin', id, pinX: 'right' });
+    expect(useCanvasStore.getState().sections[0].elements[0].pinX).toBe('right');
+    st.applyOp({ t: 'anim', id, anim: { type: 'fade', delay: 100 } });
+    expect(useCanvasStore.getState().sections[0].elements[0].anim).toEqual({ type: 'fade', delay: 100 });
+
+    st.applyOp({ t: 'secAdd', section: { id: 'sec-remote', settings: { height: 300, bleed: false, background: '' }, data: {}, style: {}, elements: [] }, afterId: 's1' });
+    expect(useCanvasStore.getState().sections.map((s) => s.id)).toEqual(['s1', 'sec-remote']);
+    st.applyOp({ t: 'secSettings', id: 'sec-remote', patch: { bleed: true } });
+    expect(useCanvasStore.getState().sections[1].settings.bleed).toBe(true);
+    st.applyOp({ t: 'secMove', id: 'sec-remote', dir: 'up' });
+    expect(useCanvasStore.getState().sections.map((s) => s.id)).toEqual(['sec-remote', 's1']);
+    st.applyOp({ t: 'secDel', id: 'sec-remote' });
+    expect(useCanvasStore.getState().sections.map((s) => s.id)).toEqual(['s1']);
+    // secAdd is idempotent (a re-delivered op won't duplicate)
+    st.applyOp({ t: 'secAdd', section: useCanvasStore.getState().sections[0], afterId: undefined });
+    expect(useCanvasStore.getState().sections).toHaveLength(1);
+  });
+
+  it('section + property mutations emit ops', () => {
+    const st = useCanvasStore.getState();
+    const emitted: Array<{ t: string }> = [];
+    st.setLocalOpSink((op) => emitted.push(op));
+    const id = st.addElement('s1', 'heading', 0, 0);
+    st.setElementPin(id, 'center');
+    st.setElementAnim(id, { type: 'zoom' });
+    st.updateSectionSettings('s1', { bleed: true });
+    st.addSection('s1');
+    st.moveSection('s1', 'down');
+    st.duplicateElements([id]);
+    expect(emitted.map((o) => o.t)).toEqual(['add', 'pin', 'anim', 'secSettings', 'secAdd', 'secMove', 'add']);
+    st.setLocalOpSink(null);
+  });
+
   it('setWidth clamps and recomputes the grid', () => {
     const st = useCanvasStore.getState();
     st.setWidth(60);           // below min

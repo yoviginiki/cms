@@ -105,6 +105,17 @@ try {
     .then(() => pageA.evaluate(() => window.__members)).catch(() => []);
   log('alice observes bob join (live member_added)', aAfter.length === 2 && aAfter.includes(bob.id), `members=${JSON.stringify(aAfter)}`);
 
+  // ── Phase 4 soak: a third client — presence + op fan-out to N peers ──
+  const charlie = fx.users[2];
+  const ctxC = await browser.newContext();
+  const pageC = await ctxC.newPage();
+  await pageC.goto(`${fx.appOrigin}/admin`);
+  await login(pageC, charlie);
+  const cFirst = await joinPresence(pageC);
+  log('charlie joins — all three present', cFirst.length === 3 && [alice, bob, charlie].every((u) => cFirst.includes(u.id)), `members=${JSON.stringify(cFirst)}`);
+  const aThree = await pageA.waitForFunction(() => (window.__members || []).length >= 3, null, { timeout: 8000 }).then(() => true).catch(() => false);
+  log('alice sees the roster grow to 3', aThree);
+
   // ── Phase 2: cursor whisper — alice moves, bob must receive it ──
   await pageA.evaluate(({ id }) => window.__ch.trigger('client-cursor', { id, sectionId: 'sec-1', x: 123, y: 45 }), { id: alice.id });
   const gotCursor = await pageB.waitForFunction(() => (window.__cursorEvents || []).some((e) => e.id && e.x === 123 && e.y === 45), null, { timeout: 8000 })
@@ -123,12 +134,17 @@ try {
   log('bob receives alice element op (lww-stamped)',
     !!gotOp && gotOp.op.t === 'layout' && gotOp.op.patch.x === 300 && gotOp.lamport === 7 && gotOp.client === alice.id,
     `op=${JSON.stringify(gotOp)}`);
+  // the same op must also reach the third client (fan-out)
+  const cGotOp = await pageC.waitForFunction(() => (window.__opEvents || []).some((e) => e.op && e.op.id === 'el-9'), null, { timeout: 8000 })
+    .then(() => true).catch(() => false);
+  log('charlie also receives the op (fan-out to N peers)', cGotOp);
 
-  // Bob leaves → Alice sees the roster shrink
+  // Peers leave → Alice sees the roster shrink back to just herself
+  await ctxC.close();
   await ctxB.close();
   const aFinal = await pageA.waitForFunction(() => (window.__members || []).length === 1, null, { timeout: 8000 })
     .then(() => pageA.evaluate(() => window.__members)).catch(() => (['<did-not-shrink>']));
-  log('alice sees bob leave (member_removed)', aFinal.length === 1 && aFinal[0] === alice.id, `members=${JSON.stringify(aFinal)}`);
+  log('alice sees peers leave (member_removed)', aFinal.length === 1 && aFinal[0] === alice.id, `members=${JSON.stringify(aFinal)}`);
 
   await ctxA.close();
 } finally {

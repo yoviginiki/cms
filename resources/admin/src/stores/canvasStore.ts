@@ -123,6 +123,34 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         const val = op.mode === 'front' ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
         return { ...sec, elements: sec.elements.map(e => op.ids.includes(e.id) ? { ...e, zIndex: val } : e) };
       });
+    } else if (op.t === 'pin') {
+      sections = s.sections.map(sec => ({ ...sec, elements: sec.elements.map(e => e.id === op.id ? { ...e, pinX: op.pinX } : e) }));
+    } else if (op.t === 'anim') {
+      sections = s.sections.map(sec => ({ ...sec, elements: sec.elements.map(e => e.id === op.id ? { ...e, anim: op.anim } : e) }));
+    } else if (op.t === 'mobileClear') {
+      sections = s.sections.map(sec => ({
+        ...sec,
+        elements: sec.elements.map(e => {
+          if (e.id !== op.id || !e.bp?.mobile) return e;
+          const rest = { ...e.bp }; delete rest.mobile;
+          const next = { ...e } as typeof e;
+          if (Object.keys(rest).length) next.bp = rest; else delete next.bp;
+          return next;
+        }),
+      }));
+    } else if (op.t === 'secAdd') {
+      if (!s.sections.some(x => x.id === op.section.id)) {
+        const idx = op.afterId ? s.sections.findIndex(x => x.id === op.afterId) : s.sections.length - 1;
+        const arr = [...s.sections]; arr.splice(idx + 1, 0, op.section); sections = arr;
+      }
+    } else if (op.t === 'secDel') {
+      sections = s.sections.filter(x => x.id !== op.id);
+    } else if (op.t === 'secMove') {
+      const i = s.sections.findIndex(x => x.id === op.id);
+      const j = op.dir === 'up' ? i - 1 : i + 1;
+      if (i >= 0 && j >= 0 && j < s.sections.length) { const arr = [...s.sections]; [arr[i], arr[j]] = [arr[j], arr[i]]; sections = arr; }
+    } else if (op.t === 'secSettings') {
+      sections = s.sections.map(sec => sec.id === op.id ? { ...sec, settings: { ...sec.settings, ...op.patch } } : sec);
     }
     return { sections, isDirty: true };
   }),
@@ -151,13 +179,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   addSection: (afterId) => {
     get().pushSnapshot();
+    const section = createSection();
     set(s => {
-      const section = createSection();
       const idx = afterId ? s.sections.findIndex(x => x.id === afterId) : s.sections.length - 1;
       const sections = [...s.sections];
       sections.splice(idx + 1, 0, section);
       return { sections, activeSectionId: section.id, isDirty: true };
     });
+    get()._localOp?.({ t: 'secAdd', section, afterId });
   },
 
   deleteSection: (id) => {
@@ -166,6 +195,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const sections = s.sections.filter(x => x.id !== id);
       return { sections, activeSectionId: sections[0]?.id ?? null, selectedIds: [], isDirty: true };
     });
+    get()._localOp?.({ t: 'secDel', id });
   },
 
   moveSection: (id, dir) => {
@@ -178,6 +208,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       [sections[i], sections[j]] = [sections[j], sections[i]];
       return { sections, isDirty: true };
     });
+    get()._localOp?.({ t: 'secMove', id, dir });
   },
 
   updateSectionSettings: (id, patch) => {
@@ -185,6 +216,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       sections: s.sections.map(sec => sec.id === id ? { ...sec, settings: { ...sec.settings, ...patch } } : sec),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'secSettings', id, patch });
   },
 
   addElement: (sectionId, blockType, x, y, w, h) => {
@@ -257,6 +289,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'mobileClear', id });
   },
 
   setElementPin: (id, pinX) => {
@@ -268,6 +301,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'pin', id, pinX });
   },
 
   setElementAnim: (id, anim) => {
@@ -279,6 +313,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       })),
       isDirty: true,
     }));
+    get()._localOp?.({ t: 'anim', id, anim });
   },
 
   setBreakpoint: (bp) => set({ activeBreakpoint: bp, selectedIds: [] }),
@@ -298,6 +333,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     get().pushSnapshot();
     const set2 = new Set(ids);
     const newIds: string[] = [];
+    const created: Array<{ sectionId: string; element: CanvasElement }> = [];
     set(s => ({
       sections: s.sections.map(sec => {
         const dupes = sec.elements.filter(e => set2.has(e.id)).map(e => {
@@ -307,6 +343,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           clone.rotation = e.rotation;
           clone.zIndex = e.zIndex + 1;
           newIds.push(clone.id);
+          created.push({ sectionId: sec.id, element: clone });
           return clone;
         });
         return dupes.length ? { ...sec, elements: [...sec.elements, ...dupes] } : sec;
@@ -314,6 +351,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       selectedIds: newIds,
       isDirty: true,
     }));
+    const emit = get()._localOp;
+    if (emit) created.forEach(({ sectionId, element }) => emit({ t: 'add', sectionId, element }));
   },
 
   bringToFront: (ids) => {

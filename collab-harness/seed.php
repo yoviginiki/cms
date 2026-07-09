@@ -29,11 +29,15 @@ DB::unprepared("SET app.current_tenant_id = '{$tenant->id}'");
 $run = substr(md5(uniqid('', true)), 0, 6);
 $aliceEmail = "alice+{$run}@harness.test";
 $bobEmail = "bob+{$run}@harness.test";
+$charlieEmail = "charlie+{$run}@harness.test";
 $alice = User::factory()->owner()->create([
     'tenant_id' => $tenant->id, 'name' => 'Alice', 'email' => $aliceEmail, 'password' => Hash::make('password'),
 ]);
 $bob = User::factory()->owner()->create([
     'tenant_id' => $tenant->id, 'name' => 'Bob', 'email' => $bobEmail, 'password' => Hash::make('password'),
+]);
+$charlie = User::factory()->owner()->create([
+    'tenant_id' => $tenant->id, 'name' => 'Charlie', 'email' => $charlieEmail, 'password' => Hash::make('password'),
 ]);
 
 $site = Site::factory()->create(['tenant_id' => $tenant->id]);
@@ -56,6 +60,7 @@ file_put_contents(__DIR__.'/fixture.json', json_encode([
     'users' => [
         ['email' => $aliceEmail, 'password' => 'password', 'id' => (string) $alice->id, 'name' => 'Alice'],
         ['email' => $bobEmail, 'password' => 'password', 'id' => (string) $bob->id, 'name' => 'Bob'],
+        ['email' => $charlieEmail, 'password' => 'password', 'id' => (string) $charlie->id, 'name' => 'Charlie'],
     ],
 ], JSON_PRETTY_PRINT));
 

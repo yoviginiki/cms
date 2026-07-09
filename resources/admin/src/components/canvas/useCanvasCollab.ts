@@ -36,6 +36,7 @@ export function useCanvasCollab(
   contentType: 'pages' | 'posts',
   selfId: string | undefined,
   onAutosave?: () => void,
+  onReseed?: () => void,
 ) {
   const [members, setMembers] = useState<PresenceMember[]>([]);
   const [cursors, setCursors] = useState<Record<string, PeerCursor>>({});
@@ -96,6 +97,17 @@ export function useCanvasCollab(
 
     channelRef.current = ch;
 
+    // Reconnect → reseed from the last saved tree (we may have missed ops while
+    // disconnected). Only fires on a real re-connect, not the initial connect.
+    const conn = (echo as unknown as { connector?: { pusher?: { connection?: { bind: (e: string, cb: (s: { previous: string; current: string }) => void) => void; unbind: (e: string, cb: unknown) => void } } } }).connector?.pusher?.connection;
+    const onStateChange = (s: { previous: string; current: string }) => {
+      if (s.current === 'connected' && (s.previous === 'unavailable' || s.previous === 'disconnected')) {
+        lww.current.clear();
+        onReseed?.();
+      }
+    };
+    conn?.bind('state_change', onStateChange);
+
     // Local mutations → broadcast (throttle layout ops per element).
     useCanvasStore.getState().setLocalOpSink((op: CanvasOp) => {
       lamport.current += 1;
@@ -112,11 +124,13 @@ export function useCanvasCollab(
 
     return () => {
       useCanvasStore.getState().setLocalOpSink(null);
+      conn?.unbind('state_change', onStateChange);
       echo.leave(name);
       channelRef.current = null;
       setMembers([]); setCursors({}); setLocks({});
       lww.current.clear(); opThrottle.current.clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageId, contentType, selfId, lwwAccept, record]);
 
   // prune idle cursors + stale locks
@@ -157,5 +171,5 @@ export function useCanvasCollab(
 
   const lockedIds = useMemo(() => new Set(Object.keys(locks).filter((k) => locks[k].client !== clientId.current)), [locks]);
 
-  return { members, cursors, broadcastCursor, lockedIds, isLeader };
+  return { members, cursors, broadcastCursor, lockedIds, isLeader, collabActive: members.length > 1 };
 }

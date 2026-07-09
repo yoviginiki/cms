@@ -7,6 +7,13 @@ export function opKeys(op: CanvasOp): string[] {
     case 'add': return [op.element.id];
     case 'del': return op.ids;
     case 'z': return op.ids;
+    case 'pin': return [op.id];
+    case 'anim': return [op.id];
+    case 'mobileClear': return [op.id];
+    case 'secAdd': return [op.section.id];
+    case 'secDel': return [op.id];
+    case 'secMove': return [op.id];
+    case 'secSettings': return [op.id];
   }
 }
 

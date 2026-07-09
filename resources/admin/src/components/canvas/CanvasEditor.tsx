@@ -61,7 +61,14 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       .then(() => useCanvasStore.getState().markClean())
       .catch(() => { /* soft — manual save still available */ });
   }, [siteId, contentType, pageId]);
-  const { members: presence, cursors, broadcastCursor, lockedIds } = useCanvasCollab(pageId, contentType, me?.id, autosave);
+  // Reconnect reseed: re-hydrate from the last saved tree after a dropped socket.
+  const onReseed = useCallback(() => {
+    blocksApi.get(siteId, contentType, pageId).then((r) => {
+      const cv = (seoMeta?.canvas ?? {}) as { page_type?: string; width?: number };
+      useCanvasStore.getState().loadFromBlocks(r.data.data, { pageType: cv.page_type === 'single' ? 'single' : 'website', width: cv.width });
+    }).catch(() => { /* soft */ });
+  }, [siteId, contentType, pageId, seoMeta]);
+  const { members: presence, cursors, broadcastCursor, lockedIds, collabActive } = useCanvasCollab(pageId, contentType, me?.id, autosave, onReseed);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMobile, setPreviewMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -86,8 +93,10 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       const sel = st.selectedIds;
       const meta = e.metaKey || e.ctrlKey;
 
-      if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); endNudge(); e.shiftKey ? redo() : undo(); return; }
-      if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); endNudge(); redo(); return; }
+      // Snapshot undo/redo would clobber peers' concurrent edits — gate it in a
+      // live collab session (per-client op-inverse undo is the follow-up).
+      if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); endNudge(); if (!collabActive) (e.shiftKey ? redo() : undo()); return; }
+      if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); endNudge(); if (!collabActive) redo(); return; }
       if (!sel.length) { if (e.key === 'Escape') { endNudge(); clearSelection(); } return; }
 
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); endNudge(); deleteElements(sel); return; }
@@ -112,7 +121,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); endNudge(); };
-  }, [undo, redo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements]);
+  }, [undo, redo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot, updateElements, collabActive]);
 
   const previewUrl = `/api/v1/sites/${siteId}/${contentType}/${pageId}/preview`;
   const refreshPreview = () => { if (iframeRef.current) iframeRef.current.src = `${previewUrl}?t=${Date.now()}`; };
@@ -128,8 +137,8 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
             </button>
           )}
           <div className="w-px h-4 bg-base-300 mx-1" />
-          <button className="btn btn-xs btn-ghost" onClick={undo} title="Undo (Ctrl+Z)"><Undo2 size={14} /></button>
-          <button className="btn btn-xs btn-ghost" onClick={redo} title="Redo (Ctrl+Shift+Z)"><Redo2 size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={undo} disabled={collabActive} title={collabActive ? 'Undo is disabled while others are editing' : 'Undo (Ctrl+Z)'}><Undo2 size={14} /></button>
+          <button className="btn btn-xs btn-ghost" onClick={redo} disabled={collabActive} title={collabActive ? 'Redo is disabled while others are editing' : 'Redo (Ctrl+Shift+Z)'}><Redo2 size={14} /></button>
           <button className={`btn btn-xs ${snapEnabled ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleSnap} title="Snapping"><Magnet size={14} /></button>
           <div className="w-px h-4 bg-base-300 mx-1" />
           <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom - 0.1)} title="Zoom out"><ZoomOut size={14} /></button>

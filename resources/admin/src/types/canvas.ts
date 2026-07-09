@@ -100,7 +100,14 @@ export type CanvasOp =
   | { t: 'layout'; id: string; patch: BreakpointLayout; bp: Breakpoint }
   | { t: 'add'; sectionId: string; element: CanvasElement }
   | { t: 'del'; ids: string[] }
-  | { t: 'z'; ids: string[]; mode: 'front' | 'back' };
+  | { t: 'z'; ids: string[]; mode: 'front' | 'back' }
+  | { t: 'pin'; id: string; pinX: PinX }
+  | { t: 'anim'; id: string; anim: CanvasAnim }
+  | { t: 'mobileClear'; id: string }
+  | { t: 'secAdd'; section: CanvasSection; afterId?: string }
+  | { t: 'secDel'; id: string }
+  | { t: 'secMove'; id: string; dir: 'up' | 'down' }
+  | { t: 'secSettings'; id: string; patch: Partial<CanvasSectionSettings> };
 
 export interface StampedOp {
   op: CanvasOp;
