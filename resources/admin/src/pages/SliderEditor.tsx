@@ -9,6 +9,11 @@ import {
 import { sliders } from '@/lib/api';
 import { AssetField } from '@/components/ui/AssetPicker';
 import { loadMotionRuntime } from '@/lib/motionRuntime';
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 /** minimal surface of a gsap timeline the preview controls need */
 interface PreviewTimeline {
@@ -364,6 +369,31 @@ export default function SliderEditor() {
     origX: number; origY: number; origW: number; origH: number; aspect: number;
   } | null>(null);
 
+  /* ── rotate handle: drag rotates around the layer's center (desktop-only —
+     rotation lives on base layout, not in responsiveLayout) ── */
+  const rotateState = useRef<{
+    id: string; cx: number; cy: number; startAngle: number; origRot: number;
+  } | null>(null);
+  const [rotReadout, setRotReadout] = useState<{ id: string; deg: number } | null>(null);
+
+  const onRotatePointerDown = (e: React.PointerEvent, layer: BlockData) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const wrapper = (e.currentTarget as HTMLElement).closest('[data-layer-id]') as HTMLElement | null;
+    if (!wrapper) return;
+    // rotation is about the center, which the bounding box preserves even
+    // when the wrapper is already rotated
+    const box = wrapper.getBoundingClientRect();
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    rotateState.current = {
+      id: layer.id, cx, cy,
+      startAngle: (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI,
+      origRot: Number(effectiveLayout(layer).rotation ?? 0),
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
   const onLayerPointerDown = (e: React.PointerEvent, layer: BlockData) => {
     if (editingLayerId === layer.id) {
       // editing: keep events inside the layer (bubbling to the canvas would
@@ -413,6 +443,22 @@ export default function SliderEditor() {
   const onPointerMove = (e: React.PointerEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
+
+    const rot = rotateState.current;
+    if (rot) {
+      const angle = (Math.atan2(e.clientY - rot.cy, e.clientX - rot.cx) * 180) / Math.PI;
+      let deg = rot.origRot + (angle - rot.startAngle);
+      deg = ((deg % 360) + 540) % 360 - 180; // normalize to -180..180
+      if (e.shiftKey) {
+        deg = Math.round(deg / 15) * 15; // Shift = 15° steps
+      } else {
+        const near = [-180, -90, 0, 90, 180].find(t => Math.abs(deg - t) <= 3);
+        deg = near !== undefined ? (near === -180 ? 180 : near) : Math.round(deg);
+      }
+      writeLayout(rot.id, { rotation: deg === 0 ? undefined : deg });
+      setRotReadout({ id: rot.id, deg });
+      return;
+    }
 
     const r = resizeState.current;
     if (r) {
@@ -466,7 +512,24 @@ export default function SliderEditor() {
     const ny = Math.max(0, Math.min(96, d.origY + ((e.clientY - d.startY) / rect.height) * 100));
     writeLayout(d.id, { x: `${nx.toFixed(1)}%`, y: `${ny.toFixed(1)}%` });
   };
-  const onPointerUp = () => { dragState.current = null; resizeState.current = null; };
+  const onPointerUp = () => {
+    dragState.current = null;
+    resizeState.current = null;
+    rotateState.current = null;
+    setRotReadout(null);
+  };
+
+  /* ── slide rail drag-reorder (dnd-kit; arrows kept as keyboard fallback) ── */
+  const railSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const onSlideDragEnd = (ev: DragEndEvent) => {
+    const { active, over } = ev;
+    if (!root || !over || active.id === over.id) return;
+    const list = [...(root.children ?? [])];
+    const from = list.findIndex(s => s.id === active.id);
+    const to = list.findIndex(s => s.id === over.id);
+    if (from < 0 || to < 0) return;
+    updateBlockChildren(root.id, arrayMove(list, from, to));
+  };
 
   if (isLoading || !root) {
     return <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-base-content/30" /></div>;
@@ -669,6 +732,21 @@ export default function SliderEditor() {
                     }}>
                     {reg ? <reg.Preview block={layer} isSelected={selected} onSelect={() => selectBlock(layer.id)} onUpdate={d => updateBlock(layer.id, d)} />
                       : <div className="text-xs text-white/60 p-2">{layer.type}</div>}
+                    {selected && !editing && canvasDevice === 'desktop' && (
+                      <div
+                        className="absolute left-1/2 -translate-x-1/2 -top-8 z-10 flex flex-col items-center cursor-grab active:cursor-grabbing"
+                        title="Drag to rotate — Shift = 15° steps · double-click resets to 0°"
+                        onPointerDown={e => onRotatePointerDown(e, layer)}
+                        onDoubleClick={e => { e.stopPropagation(); writeLayout(layer.id, { rotation: undefined }); }}>
+                        <div className="w-3 h-3 rounded-full bg-primary border border-white" />
+                        <div className="w-px h-3.5 bg-primary/70" />
+                      </div>
+                    )}
+                    {rotReadout?.id === layer.id && (
+                      <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-neutral-800 text-white text-[9px] px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap z-10">
+                        {rotReadout.deg}°
+                      </div>
+                    )}
                     {selected && !editing && (
                       <>
                         {handle('nw', 'left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'Resize proportionally (top-left)')}
@@ -814,23 +892,20 @@ export default function SliderEditor() {
             })()}
           </div>
 
-          {/* slide rail */}
+          {/* slide rail (drag a thumbnail to reorder; arrows kept as fallback) */}
           <div className="bg-base-100 border-t border-base-300 px-3 py-2 flex items-center gap-2 overflow-x-auto">
-            {slides.map((s, i) => (
-              <div key={s.id}
-                className={`group relative shrink-0 w-24 h-14 border-2 cursor-pointer flex items-center justify-center text-[10px] ${s.id === activeSlide?.id ? 'border-primary' : 'border-base-300 hover:border-base-content/40'}`}
-                style={{ background: ((s.data as any)?.background?.color) || '#1A1817', color: '#fff' }}
-                onClick={() => { setActiveSlideId(s.id); selectBlock(null); }}>
-                <span className="opacity-70">Slide {i + 1}</span>
-                <span className="opacity-40 absolute bottom-0.5 right-1">{(s.children ?? []).length}</span>
-                <div className="absolute -top-2 right-0 hidden group-hover:flex gap-0.5 bg-base-100 border border-base-300 p-0.5">
-                  <button title="Move left" onClick={e => { e.stopPropagation(); moveSlide(s.id, -1); }} className="p-0.5 hover:text-primary"><ChevronLeft size={10} /></button>
-                  <button title="Move right" onClick={e => { e.stopPropagation(); moveSlide(s.id, 1); }} className="p-0.5 hover:text-primary"><ChevronRight size={10} /></button>
-                  <button title="Duplicate" onClick={e => { e.stopPropagation(); duplicateSlide(s.id); }} className="p-0.5 hover:text-green-600"><Copy size={10} /></button>
-                  <button title="Delete" onClick={e => { e.stopPropagation(); removeSlide(s.id); }} className="p-0.5 hover:text-red-600"><Trash2 size={10} /></button>
-                </div>
-              </div>
-            ))}
+            <DndContext sensors={railSensors} collisionDetection={closestCenter} onDragEnd={onSlideDragEnd}>
+              <SortableContext items={slides.map(s => s.id)} strategy={horizontalListSortingStrategy}>
+                {slides.map((s, i) => (
+                  <SlideThumb key={s.id} slide={s} index={i}
+                    isActive={s.id === activeSlide?.id}
+                    onSelect={() => { setActiveSlideId(s.id); selectBlock(null); }}
+                    onMove={dir => moveSlide(s.id, dir)}
+                    onDuplicate={() => duplicateSlide(s.id)}
+                    onRemove={() => removeSlide(s.id)} />
+                ))}
+              </SortableContext>
+            </DndContext>
             <button onClick={addSlide} className="shrink-0 w-24 h-14 border-2 border-dashed border-base-300 hover:border-primary hover:text-primary flex items-center justify-center">
               <Plus size={16} />
             </button>
@@ -841,6 +916,33 @@ export default function SliderEditor() {
         <div className="w-80 bg-base-100 border-l border-base-300 overflow-y-auto">
           <BlockSettings />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** sortable slide thumbnail — drag anywhere on it to reorder (6px threshold
+    keeps plain clicks working for selection and the hover buttons) */
+function SlideThumb({ slide, index, isActive, onSelect, onMove, onDuplicate, onRemove }: {
+  slide: BlockData; index: number; isActive: boolean;
+  onSelect: () => void; onMove: (dir: -1 | 1) => void; onDuplicate: () => void; onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: slide.id });
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners}
+      className={`group relative shrink-0 w-24 h-14 border-2 flex items-center justify-center text-[10px] ${isDragging ? 'opacity-60 z-10 cursor-grabbing' : 'cursor-grab'} ${isActive ? 'border-primary' : 'border-base-300 hover:border-base-content/40'}`}
+      style={{
+        transform: CSS.Transform.toString(transform), transition,
+        background: ((slide.data as any)?.background?.color) || '#1A1817', color: '#fff',
+      }}
+      onClick={onSelect}>
+      <span className="opacity-70">Slide {index + 1}</span>
+      <span className="opacity-40 absolute bottom-0.5 right-1">{(slide.children ?? []).length}</span>
+      <div className="absolute -top-2 right-0 hidden group-hover:flex gap-0.5 bg-base-100 border border-base-300 p-0.5 text-base-content">
+        <button title="Move left" onClick={e => { e.stopPropagation(); onMove(-1); }} className="p-0.5 hover:text-primary"><ChevronLeft size={10} /></button>
+        <button title="Move right" onClick={e => { e.stopPropagation(); onMove(1); }} className="p-0.5 hover:text-primary"><ChevronRight size={10} /></button>
+        <button title="Duplicate" onClick={e => { e.stopPropagation(); onDuplicate(); }} className="p-0.5 hover:text-green-600"><Copy size={10} /></button>
+        <button title="Delete" onClick={e => { e.stopPropagation(); onRemove(); }} className="p-0.5 hover:text-red-600"><Trash2 size={10} /></button>
       </div>
     </div>
   );
