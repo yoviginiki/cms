@@ -136,17 +136,19 @@ class DesignTokenGenerator
     public function generate(Site $site): string
     {
         $theme = $site->theme;
-        if (!$theme) return '';
 
+        // A themeless site still needs the default token set — every block's
+        // var(--…) reference would otherwise fall back to its inline literal,
+        // producing an unstyled page. Defaults are the Stillopress house style.
         $defaults = $this->getDefaults();
-        $themeTokens = $theme->config['tokens'] ?? [];
-        $customizations = $this->getCustomizations($site, $theme);
+        $themeTokens = $theme ? ($theme->config['tokens'] ?? []) : [];
+        $customizations = $theme ? $this->getCustomizations($site, $theme) : [];
 
         // Merge: defaults → config tokens → customizations
         $tokens = array_merge($defaults, $themeTokens, $customizations);
 
         // Bridge W3C document tokens → CSS variables (studio edits affect published site)
-        if ($theme->document) {
+        if ($theme && $theme->document) {
             $docTokens = $this->resolveDocumentTokens($theme->document);
             $tokens = array_merge($tokens, $docTokens);
         }
@@ -197,7 +199,7 @@ class DesignTokenGenerator
         }
 
         // Site Background from theme document
-        if ($theme->document && isset($theme->document['siteBackground'])) {
+        if ($theme && $theme->document && isset($theme->document['siteBackground'])) {
             $bg = $theme->document['siteBackground'];
             $css .= "body {\n";
             if (!empty($bg['color'])) {

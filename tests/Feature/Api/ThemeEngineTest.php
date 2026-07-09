@@ -64,8 +64,9 @@ class ThemeEngineTest extends TestCase
 
     public function test_cannot_update_system_theme(): void
     {
-        // Mark the site theme as system to test the guard
-        $this->theme->update(['is_system' => true]);
+        // Mark the site theme as system to test the guard. is_system is not
+        // mass-assignable (RLS injection guard), so set it explicitly.
+        $this->theme->forceFill(['is_system' => true])->save();
 
         $this->actingAsOwner()
             ->putJson("/api/v1/sites/{$this->site->id}/theme-engine/themes/{$this->theme->id}", [
@@ -143,5 +144,115 @@ class ThemeEngineTest extends TestCase
             ->getJson("/api/v1/sites/{$this->site->id}/theme-engine/resolve?mode=light")
             ->assertStatus(200)
             ->assertJsonStructure(['data' => ['tokens', 'css', 'hash', 'count']]);
+    }
+
+    // ── T1.2 hardening ──────────────────────────────────────────────
+
+    public function test_site_wide_assign_flags_all_pages_stale(): void
+    {
+        $p1 = \App\Models\Page::factory()->published()->create(['site_id' => $this->site->id]);
+        $p2 = \App\Models\Page::factory()->published()->create(['site_id' => $this->site->id]);
+        $draft = \App\Models\Page::factory()->create(['site_id' => $this->site->id, 'status' => 'draft']);
+        $other = Theme::create([
+            'site_id' => $this->site->id, 'name' => 'Other', 'slug' => 'other',
+            'version' => '1.0.0', 'config' => [], 'manifest_json' => [], 'template_path' => '',
+            'document' => ['$metadata' => ['name' => 'Other']], 'modes' => ['light'], 'schema_version' => '1.0.0',
+        ]);
+
+        $resp = $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-engine/assign", ['theme_id' => $other->id])
+            ->assertStatus(200);
+
+        $resp->assertJsonPath('meta.stale.site_wide', true);
+        $this->assertGreaterThanOrEqual(2, $resp->json('meta.stale.pages'));
+        $this->assertTrue($p1->fresh()->needs_republish);
+        $this->assertTrue($p2->fresh()->needs_republish);
+        $this->assertFalse($draft->fresh()->needs_republish, 'drafts are not published output');
+        $this->assertSame($other->id, $this->site->fresh()->active_theme_id);
+    }
+
+    public function test_fork_does_not_switch_active_theme_by_default(): void
+    {
+        $original = $this->site->active_theme_id;
+        $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-engine/themes/{$this->theme->id}/fork", ['name' => 'Experiment'])
+            ->assertStatus(201);
+        $this->assertSame($original, $this->site->fresh()->active_theme_id, 'fork must not silently re-theme the live site');
+    }
+
+    public function test_fork_with_activate_switches_and_flags_stale(): void
+    {
+        $page = \App\Models\Page::factory()->published()->create(['site_id' => $this->site->id]);
+        $resp = $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-engine/themes/{$this->theme->id}/fork?activate=1", ['name' => 'Live Fork'])
+            ->assertStatus(201);
+        $forkId = $resp->json('data.id');
+        $this->assertSame($forkId, $this->site->fresh()->active_theme_id);
+        $this->assertTrue($page->fresh()->needs_republish);
+        $resp->assertJsonPath('meta.stale.site_wide', true);
+    }
+
+    public function test_export_import_round_trips_identically(): void
+    {
+        // capture the exported bundle
+        $bundle = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/theme-engine/themes/{$this->theme->id}/export")
+            ->assertStatus(200)
+            ->assertJsonPath('stillopress_theme', '1.0')
+            ->json();
+
+        $originalDoc = $this->theme->document;
+
+        // delete the source theme, then re-import the bundle
+        $this->theme->delete();
+        $imported = $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-engine/import", ['bundle' => $bundle])
+            ->assertStatus(201)
+            ->json('data');
+
+        $reimported = Theme::find($imported['id']);
+        // jsonb does not preserve key order, so compare order-independently
+        $this->assertEqualsCanonicalizing($originalDoc, $reimported->document, 'token document must survive the round-trip');
+        $this->assertSame('Test Theme', $reimported->name);
+        $this->assertFalse((bool) $reimported->is_system, 'imported theme is site-owned, never system');
+    }
+
+    public function test_legacy_bare_document_import_still_works(): void
+    {
+        $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-engine/import", [
+                'document' => ['$metadata' => ['name' => 'Legacy', 'modes' => ['light']]],
+                'name' => 'Legacy Import',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('data.name', 'Legacy Import');
+    }
+
+    public function test_is_system_is_not_mass_assignable(): void
+    {
+        // even if a payload smuggles is_system, import must produce a site theme
+        $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-engine/import", [
+                'bundle' => [
+                    'stillopress_theme' => '1.0',
+                    'metadata' => ['name' => 'Sneaky', 'modes' => ['light']],
+                    'document' => ['$metadata' => ['name' => 'Sneaky']],
+                    'is_system' => true,
+                    'site_id' => null,
+                ],
+            ])
+            ->assertStatus(201);
+        $sneaky = Theme::where('name', 'Sneaky')->first();
+        $this->assertFalse((bool) $sneaky->is_system);
+        $this->assertSame($this->site->id, $sneaky->site_id);
+    }
+
+    public function test_themeless_site_still_emits_default_tokens(): void
+    {
+        $bare = Site::factory()->create(['tenant_id' => $this->tenant->id, 'active_theme_id' => null]);
+        $css = app(\App\Domain\Theme\Services\DesignTokenGenerator::class)->generate($bare);
+        $this->assertNotSame('', $css);
+        $this->assertStringContainsString('--color-primary', $css);
+        $this->assertStringContainsString('--space-4', $css);
     }
 }

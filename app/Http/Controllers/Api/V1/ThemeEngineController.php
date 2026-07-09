@@ -11,6 +11,7 @@ use App\Models\Site;
 use App\Services\Theme\ThemeResolver;
 use App\Services\Theme\ThemeCompiler;
 use App\Services\Theme\ValueObjects\ResolveRequest;
+use App\Domain\References\Services\StalenessResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,7 @@ class ThemeEngineController extends Controller
     public function __construct(
         private ThemeResolver $resolver,
         private ThemeCompiler $compiler,
+        private StalenessResolver $staleness,
     ) {}
 
     /**
@@ -104,10 +106,17 @@ class ThemeEngineController extends Controller
             'created_by' => $request->user()?->id,
         ]);
 
-        // Automatically activate the forked theme on the site
-        $site->update(['active_theme_id' => $fork->id]);
+        // Forking creates an editable copy; it does NOT change the live site.
+        // Activation is an explicit, separate action (assign) so "fork to
+        // experiment" never silently re-themes the published site. Opt in with
+        // ?activate=1 to fork-and-activate in one step (flags pages stale).
+        $stale = null;
+        if ($request->boolean('activate')) {
+            $site->update(['active_theme_id' => $fork->id]);
+            $stale = $this->staleness->markAllStale($site, "Active theme switched to '{$fork->name}'");
+        }
 
-        return response()->json(['data' => $fork], 201);
+        return response()->json(['data' => $fork, 'meta' => ['stale' => $stale]], 201);
     }
 
     /**
@@ -202,8 +211,12 @@ class ThemeEngineController extends Controller
                 ->where('page_id', $pageId)
                 ->delete();
 
+            // page reverts to the site theme → its inlined CSS changes
+            \App\Models\Page::where('id', $pageId)->where('status', 'published')
+                ->update(['needs_republish' => true, 'needs_republish_reason' => 'Per-page theme override removed']);
+
             $this->resolver->invalidateForSite($site->tenant_id, $site->id);
-            return response()->json(['data' => ['cleared' => true]]);
+            return response()->json(['data' => ['cleared' => true], 'meta' => ['stale' => ['pages' => 1, 'posts' => 0, 'site_wide' => false]]]);
         }
 
         $theme = $this->findTheme($themeId);
@@ -222,14 +235,24 @@ class ThemeEngineController extends Controller
                 ],
                 ['theme_id' => $theme->id],
             );
+            // only that page's inlined token CSS changed
+            \App\Models\Page::where('id', $pageId)->where('status', 'published')
+                ->update(['needs_republish' => true, 'needs_republish_reason' => "Theme '{$theme->name}' assigned to page"]);
+            $stale = ['pages' => 1, 'posts' => 0, 'site_wide' => false];
         } else {
-            // Site-wide active theme — single source of truth
+            // Site-wide active theme — single source of truth. Token CSS is
+            // inlined per page at publish, so every published page/post now
+            // carries stale CSS: flag them all for republish.
             $site->update(['active_theme_id' => $theme->id]);
+            $stale = $this->staleness->markAllStale($site, "Active theme switched to '{$theme->name}'");
         }
 
         $this->resolver->invalidateForSite($site->tenant_id, $site->id);
 
-        return response()->json(['message' => $pageId ? 'Theme assigned to page' : 'Theme activated']);
+        return response()->json([
+            'message' => $pageId ? 'Theme assigned to page' : 'Theme activated',
+            'meta' => ['stale' => $stale],
+        ]);
     }
 
     /**
@@ -272,48 +295,45 @@ class ThemeEngineController extends Controller
     }
 
     /**
-     * Export theme document as W3C tokens JSON.
+     * Export a theme as a single self-describing bundle (tokens + metadata +
+     * template seeds + preview) — symmetric with import().
      */
     public function export(Site $site, string $themeId): JsonResponse
     {
         $theme = $this->findTheme($themeId);
-        if (!$theme || !$theme->document) {
+        if (!$theme) {
             return response()->json(['message' => 'Theme not found'], 404);
         }
 
-        return response()->json($theme->document)
-            ->header('Content-Disposition', "attachment; filename=\"{$theme->slug}-tokens.json\"");
+        $bundle = app(\App\Services\Theme\ThemePackager::class)->export($theme);
+
+        return response()->json($bundle)
+            ->header('Content-Disposition', "attachment; filename=\"{$theme->slug}.theme.json\"");
     }
 
     /**
-     * Import a W3C tokens JSON document as a new theme.
+     * Import a theme bundle (or a legacy bare W3C document) as a new
+     * site-owned theme.
      */
     public function import(Request $request, Site $site): JsonResponse
     {
         $this->authorize('update', $site);
+        // Accept either the bundle envelope {stillopress_theme, metadata,
+        // document, ...} or a legacy {document: {...}} / bare token document.
         $request->validate([
-            'document' => ['required', 'array'],
+            'bundle' => ['sometimes', 'array'],
+            'document' => ['sometimes', 'array'],
             'name' => ['sometimes', 'string', 'max:255'],
         ]);
+        if (!$request->has('bundle') && !$request->has('document')) {
+            return response()->json(['message' => 'Provide a theme bundle or document'], 422);
+        }
 
-        $doc = $request->input('document');
-        $name = $request->input('name', $doc['$metadata']['name'] ?? 'Imported Theme');
-        $slug = \Illuminate\Support\Str::slug($name);
+        $bundle = $request->input('bundle')
+            ?? ['document' => $request->input('document')];
 
-        $theme = Theme::create([
-            'site_id' => $site->id,
-            'name' => $name,
-            'slug' => $slug,
-            'version' => '1.0.0',
-            'config' => [],
-            'manifest_json' => [],
-            'template_path' => '',
-            'document' => $doc,
-            'modes' => $doc['$metadata']['modes'] ?? ['light'],
-            'schema_version' => '1.0.0',
-            'is_system' => false,
-            'created_by' => $request->user()?->id,
-        ]);
+        $theme = app(\App\Services\Theme\ThemePackager::class)
+            ->import($site, $bundle, $request->input('name'), $request->user()?->id);
 
         return response()->json(['data' => $theme], 201);
     }
