@@ -115,6 +115,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Pages
         Route::post('sites/{site}/pages/reorder', [PageController::class, 'reorder']);
         Route::post('sites/{site}/pages/{page}/duplicate', [PageController::class, 'duplicate']);
+        Route::post('sites/{site}/pages/{page}/duplicate-as-canvas', [PageController::class, 'duplicateAsCanvas']);
         Route::post('sites/{site}/pages/{page}/translate', [PageController::class, 'translate']);
         Route::get('sites/{site}/pages/{page}/translations', [PageController::class, 'translations']);
         Route::apiResource('sites.pages', PageController::class);

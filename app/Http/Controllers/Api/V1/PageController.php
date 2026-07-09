@@ -207,6 +207,34 @@ class PageController extends Controller
         return (new PageResource($newPage))->response()->setStatusCode(201);
     }
 
+    /**
+     * Duplicate a magazine-mode page as a new canvas-mode page: convert its
+     * mag pages/elements into a section-stacked canvas block tree. The original
+     * is untouched; the copy is a draft.
+     */
+    public function duplicateAsCanvas(Site $site, Page $page): JsonResponse
+    {
+        $this->authorize('create', [Page::class, $site]);
+
+        $converter = app(\App\Domain\Magazine\Services\MagazineToCanvasConverter::class);
+        $tree = $converter->convert($page);
+        $width = $converter->designWidth($page);
+
+        $newPage = $page->replicate(['id', 'slug', 'created_at', 'updated_at']);
+        $newPage->title = $page->title . ' (Canvas)';
+        $newPage->slug = $page->slug . '-canvas-' . substr(md5((string) now()->timestamp), 0, 4);
+        $newPage->status = 'draft';
+        $newPage->editor_mode = 'canvas';
+        $newPage->seo_meta = array_merge($page->seo_meta ?? [], [
+            'canvas' => ['page_type' => 'website', 'width' => $width],
+        ]);
+        $newPage->save();
+
+        app(\App\Domain\Blocks\Services\BlockService::class)->syncBlocks($newPage, $tree);
+
+        return (new PageResource($newPage->fresh()))->response()->setStatusCode(201);
+    }
+
     private function duplicateBlocks($source, $target): void
     {
         $blocks = \App\Models\Block::where('blockable_type', $source->getMorphClass())

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, Eye, Globe, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye, Globe, FileText } from 'lucide-react';
 import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
@@ -9,6 +9,8 @@ import { useThemeFonts } from '@/hooks/useThemeFonts';
 import DOMPurify from 'dompurify';
 import { useEditorStore } from '@/stores/editorStore';
 import { useMagazineStore } from '@/stores/magazineStore';
+import { useCanvasStore } from '@/stores/canvasStore';
+import { CanvasEditor } from '@/components/canvas/CanvasEditor';
 import { AssetField } from '@/components/ui/AssetPicker';
 import { SpacingPanel } from '@/components/editor/properties/SpacingPanel';
 import { VisualPanel } from '@/components/editor/properties/VisualPanel';
@@ -41,7 +43,7 @@ import '@/components/blocks';
 const TEXT_FRAME_TYPES = ['text_frame', 'headline_frame', 'pullquote_frame', 'caption_frame', 'footnote_frame', 'marginalia_frame'];
 const IMAGE_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullbleed_image', 'gallery_frame', 'background_image'];
 
-type EditorMode = 'block' | 'magazine';
+type EditorMode = 'block' | 'magazine' | 'canvas';
 // RightTab removed — block mode uses BuilderSidebar, magazine mode uses magRightTab
 
 export default function PageEditor() {
@@ -180,6 +182,14 @@ export default function PageEditor() {
       if (page?.raw_html) {
         useEditorStore.setState({ rawHtml: page.raw_html });
       }
+      // Canvas mode reads the SAME block tree into the canvas store.
+      if (page?.editor_mode === 'canvas') {
+        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+        useCanvasStore.getState().loadFromBlocks(fetchedBlocks || [], {
+          pageType: cv?.page_type === 'single' ? 'single' : 'website',
+          width: cv?.width,
+        });
+      }
       blocksLoadedRef.current = true;
     }
   }, [fetchedBlocks, setBlocks, page]);
@@ -219,8 +229,13 @@ export default function PageEditor() {
         await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current });
       }
 
-      if (editorMode === 'magazine' || page?.editor_mode === 'magazine') {
-        // Save magazine/canvas data
+      if (editorMode === 'canvas' || page?.editor_mode === 'canvas') {
+        // Canvas mode saves the SAME block tree (sections + positioned children).
+        const rawHtml = useEditorStore.getState().rawHtml;
+        await blocksApi.sync(siteId, 'pages', pageId, useCanvasStore.getState().toBlocks(), rawHtml);
+        useCanvasStore.getState().markClean();
+      } else if (editorMode === 'magazine' || page?.editor_mode === 'magazine') {
+        // Save magazine data
         const pages = magStore.pages.map(p => ({
           page_number: p.pageNumber,
           page_size: p.pageSize,
@@ -281,6 +296,16 @@ export default function PageEditor() {
   async function switchEditorMode(mode: EditorMode) {
     setEditorMode(mode);
     setStoreEditorMode(mode);
+    // Hydrate the canvas store from the current block tree when switching INTO
+    // canvas mid-session (load effect only fires on page load). Non-section
+    // blocks are carried as passthrough, so switching never drops content.
+    if (mode === 'canvas') {
+      const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+      useCanvasStore.getState().loadFromBlocks(useEditorStore.getState().blocks, {
+        pageType: cv?.page_type === 'single' ? 'single' : 'website',
+        width: cv?.width,
+      });
+    }
     try {
       await pagesApi.update(siteId, pageId, { editor_mode: mode });
     } catch { /* silently fail */ }
@@ -325,13 +350,37 @@ export default function PageEditor() {
               }`}>
               <LayoutList size={12} /> Blocks
             </button>
+            <button onClick={() => switchEditorMode('canvas')}
+              title="Freeform section canvases — drag & position blocks"
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+                editorMode === 'canvas' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40 hover:text-base-content/60'
+              }`}>
+              <LayoutTemplate size={12} /> Canvas
+            </button>
             <button onClick={() => switchEditorMode('magazine')}
+              title="Page-based magazine layout (legacy)"
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
                 editorMode === 'magazine' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40 hover:text-base-content/60'
               }`}>
-              <Paintbrush size={12} /> Canvas
+              <Paintbrush size={12} /> Magazine
             </button>
           </div>
+
+          {page?.editor_mode === 'magazine' && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await pagesApi.duplicateAsCanvas(siteId, pageId);
+                  const newId = (res as { data?: { data?: { id?: string } } }).data?.data?.id;
+                  if (newId) navigate(`/sites/${siteId}/pages/${newId}/edit`);
+                } catch { /* noop */ }
+              }}
+              title="Create a new canvas-editor page from this magazine layout (original untouched)"
+              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-base-content/50 hover:text-base-content/80"
+            >
+              <LayoutTemplate size={12} /> Duplicate as Canvas
+            </button>
+          )}
 
           <div className="w-px h-5 bg-base-300/30" />
 
@@ -386,7 +435,9 @@ export default function PageEditor() {
 
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
-        {page?.editor_mode !== 'magazine' ? (
+        {page?.editor_mode === 'canvas' ? (
+          <CanvasEditor siteId={siteId} pageId={pageId} seoMeta={page?.seo_meta} onDirty={() => setDirty(true)} />
+        ) : page?.editor_mode !== 'magazine' ? (
           <BuilderDndProvider>
             <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
               <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
@@ -992,7 +1043,8 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
         <select defaultValue={page?.editor_mode || 'block'} className="select select-bordered select-sm w-full text-[12px]"
           onChange={e => saveSetting('editor_mode', e.target.value)}>
           <option value="block">Block Editor</option>
-          <option value="magazine">Magazine (Canvas)</option>
+          <option value="canvas">Canvas Editor</option>
+          <option value="magazine">Magazine (legacy)</option>
         </select>
       </div>
 

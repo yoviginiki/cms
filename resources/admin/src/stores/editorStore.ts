@@ -31,7 +31,7 @@ interface EditorState {
   selectedBlockId: string | null;
   isDirty: boolean;
   isSaving: boolean;
-  editorMode: 'simple' | 'block' | 'magazine';
+  editorMode: 'simple' | 'block' | 'magazine' | 'canvas';
   canvasMode: 'visual' | 'wireframe' | 'html' | 'simple';
   canvasDevice: 'desktop' | 'tablet' | 'mobile';
   rawHtml: string;
@@ -41,7 +41,7 @@ interface EditorState {
 
   setRawHtml: (html: string) => void;
   setBlocks: (blocks: BlockData[]) => void;
-  setEditorMode: (mode: 'simple' | 'block' | 'magazine') => void;
+  setEditorMode: (mode: 'simple' | 'block' | 'magazine' | 'canvas') => void;
   setCanvasMode: (mode: 'visual' | 'wireframe' | 'html' | 'simple') => void;
   setCanvasDevice: (device: 'desktop' | 'tablet' | 'mobile') => void;
   addBlock: (type: string, parentId?: string, index?: number) => void;

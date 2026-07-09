@@ -208,6 +208,11 @@ class BuildPageService
 
             if ($template) {
                 $renderedBlocks = $this->renderTemplatedPost($content, $template, $site);
+            } elseif ($content->editor_mode === 'canvas') {
+                // Canvas editor mode: a vertical stack of Section canvases with
+                // absolutely-positioned block children (theme-width, mobile
+                // auto-stack). Reuses the same header/footer/layout wrapping below.
+                $renderedBlocks = $this->renderCanvasPage($content, $site);
             } else {
                 // Standard: render content's own blocks
                 $blocks = $content->blocks()
@@ -403,6 +408,270 @@ class BuildPageService
         }
 
         return $rendered;
+    }
+
+    /**
+     * Canvas editor render (Phase 1). A canvas page is a vertical stack of
+     * Section canvases; each section is a positioning context whose child
+     * blocks are placed freeform via style.layout {x,y,width,height,rotation,
+     * zIndex}. Width = theme content width (per-page overridable). Below the
+     * design width the whole thing auto-stacks into reading order (children are
+     * already emitted sorted by y,x so the source order is correct for SEO/a11y;
+     * CSS just drops absolute positioning).
+     */
+    private function renderCanvasPage(Page|Post $content, Site $site): string
+    {
+        $meta = is_array($content->seo_meta) ? $content->seo_meta : [];
+        $cfg = $meta['canvas'] ?? [];
+        $canvasWidth = (int) ($cfg['width'] ?? 1200);
+        if ($canvasWidth < 320 || $canvasWidth > 3000) {
+            $canvasWidth = 1200;
+        }
+        $mobileWidth = (int) ($cfg['mobile_width'] ?? 390);
+        if ($mobileWidth < 240 || $mobileWidth > 767) {
+            $mobileWidth = 390;
+        }
+        $isSingle = (($cfg['page_type'] ?? 'website') === 'single');
+
+        $sections = $content->blocks()
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->with(['children' => fn ($q) => $q->orderBy('order')])
+            ->get();
+
+        // Per-breakpoint overrides for phone width are collected per section and
+        // emitted in one ≤767px media query AFTER the tablet-stack rule so the
+        // custom mobile layout wins (id/2-class selectors beat the stack rules).
+        $mobileCss = '';
+        $hasAnim = false;
+        $out = '';
+        foreach ($sections as $section) {
+            $out .= $this->renderCanvasSection($section, $site, $canvasWidth, $mobileWidth, $mobileCss, $hasAnim);
+            if ($isSingle) {
+                break; // single: one fixed canvas, no scroll/stack
+            }
+        }
+
+        $css = '<style>'
+            . '.cv-page{--cv-w:' . $canvasWidth . 'px}'
+            . '.cv-section{position:relative;margin-left:auto;margin-right:auto;width:var(--cv-w);max-width:100%}'
+            // Fluid sections flex with the viewport (capped at the design width);
+            // elements hold their pin anchors instead of stacking.
+            . '.cv-fluid{width:100%!important;max-width:var(--cv-w)!important;margin-left:auto;margin-right:auto}'
+            . '.cv-bleed{position:relative;width:100%}'
+            . '.cv-el{position:absolute;box-sizing:border-box}'
+            . '.cv-anim{display:block;width:100%;height:100%}'
+            . '.cv-el>*,.cv-anim>*{width:100%;height:100%}'
+            // Scroll-reveal: paused until in view (only once JS marks the page
+            // ready — no-JS falls back to an on-load entrance); honor reduced-motion.
+            . '.cv-page.cv-ready .cv-anim{animation-play-state:paused}'
+            . '.cv-page.cv-ready .cv-anim.cv-in{animation-play-state:running}'
+            . '@media(prefers-reduced-motion:reduce){.cv-anim{animation:none!important}}'
+            // Zone 2 — tablet/below-design-width: auto-stack (non-fluid only).
+            . '@media(max-width:' . $canvasWidth . 'px){'
+            . '.cv-section:not(.cv-fluid){width:100%!important;height:auto!important;min-height:0!important}'
+            . '.cv-bleed .cv-section:not(.cv-fluid){padding-left:1rem;padding-right:1rem}'
+            . '.cv-section:not(.cv-fluid) .cv-el{position:static!important;width:100%!important;height:auto!important;'
+            . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
+            . '.cv-section:not(.cv-fluid) .cv-anim{height:auto!important}'
+            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto}'
+            . '}'
+            // Zone 3 — phone: sections with a custom mobile layout un-stack.
+            . ($mobileCss !== '' ? '@media(max-width:767px){' . $mobileCss . '}' : '')
+            . '</style>';
+
+        // ~12-line vanilla reveal observer, emitted only when animations are used.
+        $script = $hasAnim
+            ? '<script>(function(){var p=document.currentScript.closest(".cv-page")||document.querySelector(".cv-page");if(!p)return;p.classList.add("cv-ready");'
+                . 'if(!("IntersectionObserver" in window)){p.querySelectorAll("[data-cv-anim]").forEach(function(e){e.classList.add("cv-in")});return;}'
+                . 'var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("cv-in");o.unobserve(e.target);}});},{threshold:0.12});'
+                . 'p.querySelectorAll("[data-cv-anim]").forEach(function(e){o.observe(e);});})();</script>'
+            : '';
+
+        return '<div class="cv-page">' . $css . $out . $script . '</div>';
+    }
+
+    private function renderCanvasSection(Block $section, Site $site, int $canvasWidth, int $mobileWidth, string &$mobileCss, bool &$hasAnim): string
+    {
+        $data = is_array($section->data) ? $section->data : [];
+        $canvas = $data['canvas'] ?? [];
+        $bleed = ! empty($canvas['bleed']);
+        $fluid = ! empty($canvas['fluid']);
+        $bg = BlockStyle::safeColor($canvas['background'] ?? ($data['bg_color'] ?? ''));
+        $bgStyle = $bg ? "background:{$bg};" : '';
+
+        // Desktop markup order = reading order (y, then x).
+        $children = $section->children->sortBy(function ($c) {
+            $l = $this->childLayout($c);
+            return sprintf('%08d-%08d', $l['y'] + 100000, $l['x'] + 100000);
+        })->values();
+
+        $heightSetting = $canvas['height'] ?? 'auto';
+        $maxBottom = 0;
+        foreach ($children as $c) {
+            $l = $this->childLayout($c);
+            $maxBottom = max($maxBottom, $l['y'] + $l['h']);
+        }
+        $sectionH = is_numeric($heightSetting) ? max(1, (int) $heightSetting) : ($maxBottom > 0 ? $maxBottom : 200);
+
+        $sid = 'cvs-' . preg_replace('/[^a-z0-9\-]/i', '', (string) $section->id);
+        $hasMobile = false;
+        $mobRules = '';
+        $mobBottom = 0;
+
+        $els = '';
+        foreach ($children as $child) {
+            $l = $this->childLayout($child);
+            $eid = 'cve-' . preg_replace('/[^a-z0-9\-]/i', '', (string) $child->id);
+            try {
+                $inner = $this->renderBlock($child, $site);
+            } catch (\Throwable $e) {
+                logger()->warning("Canvas element render failed (type={$child->type}, id={$child->id}): {$e->getMessage()}");
+                $inner = "<!-- canvas element failed: {$child->type} -->";
+            }
+            $t = $l['rotation'] !== 0.0 ? "transform:rotate({$l['rotation']}deg);" : '';
+            $z = $l['zIndex'] !== 0 ? "z-index:{$l['zIndex']};" : '';
+            // Scroll-triggered entrance animation wraps the block (separate from
+            // the cv-el rotate transform so the two never fight).
+            $animCss = $this->childAnimCss($child);
+            if ($animCss !== '') {
+                $hasAnim = true;
+                $inner = '<div class="cv-anim" data-cv-anim style="' . $animCss . '">' . $inner . '</div>';
+            }
+
+            // Fluid sections position by pin anchor; others use plain left/width.
+            $pos = $fluid
+                ? $this->pinHorizontalCss($l, $canvasWidth) . "top:{$l['y']}px;height:{$l['h']}px;"
+                : "left:{$l['x']}px;top:{$l['y']}px;width:{$l['w']}px;height:{$l['h']}px;";
+            $els .= '<div class="cv-el" id="' . $eid . '" style="'
+                . $pos . $t . $z
+                . '">' . $inner . '</div>';
+
+            // Mobile override for this element (base merged with layout.bp.mobile).
+            // Resets pin props (right/margin) so the phone layout is fully absolute.
+            $m = $this->childMobile($child, $l);
+            if ($m !== null) {
+                $hasMobile = true;
+                if ($m['hidden']) {
+                    $mobRules .= "#{$eid}{display:none!important}";
+                } else {
+                    $mt = "transform:rotate({$m['rotation']}deg)!important;";
+                    $mobRules .= "#{$eid}{left:{$m['x']}px!important;top:{$m['y']}px!important;right:auto!important;margin-left:0!important;"
+                        . "width:{$m['w']}px!important;height:{$m['h']}px!important;{$mt}z-index:{$m['zIndex']}!important}";
+                    $mobBottom = max($mobBottom, $m['y'] + $m['h']);
+                }
+            }
+        }
+
+        $fluidClass = $fluid ? ' cv-fluid' : '';
+        $mobClass = '';
+        if ($hasMobile) {
+            $mobClass = ' cv-mob ' . $sid;
+            $mobH = $mobBottom > 0 ? $mobBottom : 200;
+            $mobileCss .= ".{$sid}{width:{$mobileWidth}px!important;max-width:100%!important;height:{$mobH}px!important;"
+                . 'margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important}'
+                . ".{$sid} .cv-el{position:absolute!important;width:auto;height:auto;margin:0!important}"
+                . $mobRules;
+        }
+
+        if ($bleed) {
+            return '<section class="cv-bleed" style="' . $bgStyle . '">'
+                . '<div class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px">' . $els . '</div>'
+                . '</section>';
+        }
+
+        return '<section class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
+    }
+
+    /** Entrance-animation CSS for a canvas element, or '' when none/invalid. */
+    private function childAnimCss(Block $child): string
+    {
+        $style = is_array($child->style) ? $child->style : (($child->data['__style'] ?? []) ?: []);
+        $lay = is_array($style['layout'] ?? null) ? $style['layout'] : [];
+        $anim = $lay['anim'] ?? null;
+        if (! is_array($anim)) {
+            return '';
+        }
+        $map = [
+            'fade' => 'block-fade', 'slide-up' => 'block-slide-up', 'slide-down' => 'block-slide-down',
+            'slide-left' => 'block-slide-left', 'slide-right' => 'block-slide-right',
+            'zoom' => 'block-zoom', 'scale-in' => 'block-scale-in',
+        ];
+        $name = $map[$anim['type'] ?? 'none'] ?? null;
+        if ($name === null) {
+            return '';
+        }
+        $dur = max(50, min(3000, (int) ($anim['duration'] ?? 600)));
+        $del = max(0, min(5000, (int) ($anim['delay'] ?? 0)));
+
+        return "animation-name:{$name};animation-duration:{$dur}ms;animation-delay:{$del}ms;animation-timing-function:ease-out;animation-fill-mode:both;";
+    }
+
+    /**
+     * Effective phone layout for a child (base merged with style.layout.bp.mobile),
+     * or null when the element has no mobile override.
+     */
+    private function childMobile(Block $child, array $base): ?array
+    {
+        $style = is_array($child->style) ? $child->style : (($child->data['__style'] ?? []) ?: []);
+        $lay = is_array($style['layout'] ?? null) ? $style['layout'] : [];
+        $bp = $lay['bp']['mobile'] ?? null;
+        if (! is_array($bp) || $bp === []) {
+            return null;
+        }
+        $px = fn ($v, $def) => (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
+
+        return [
+            'x' => max(-5000, min(20000, isset($bp['x']) ? $px($bp['x'], $base['x']) : $base['x'])),
+            'y' => max(-5000, min(50000, isset($bp['y']) ? $px($bp['y'], $base['y']) : $base['y'])),
+            'w' => max(1, min(6000, isset($bp['width']) ? $px($bp['width'], $base['w']) : $base['w'])),
+            'h' => max(1, min(20000, isset($bp['height']) ? $px($bp['height'], $base['h']) : $base['h'])),
+            'rotation' => max(-360.0, min(360.0, isset($bp['rotation']) ? (float) $bp['rotation'] : $base['rotation'])),
+            'zIndex' => max(0, min(9999, isset($bp['zIndex']) ? (int) $bp['zIndex'] : $base['zIndex'])),
+            'hidden' => ! empty($bp['hidden']),
+        ];
+    }
+
+    /** Sanitized freeform layout for a canvas child block (from its style.layout). */
+    private function childLayout(Block $child): array
+    {
+        $style = is_array($child->style) ? $child->style : (($child->data['__style'] ?? []) ?: []);
+        $lay = is_array($style['layout'] ?? null) ? $style['layout'] : [];
+
+        $px = fn ($v, $def) => (int) round((float) preg_replace('/[^0-9.\-]/', '', (string) ($v ?? $def)) ?: $def);
+
+        $pin = $lay['pinX'] ?? 'left';
+        if (! in_array($pin, ['left', 'center', 'right', 'stretch'], true)) {
+            $pin = 'left';
+        }
+
+        return [
+            'x' => max(-5000, min(20000, $px($lay['x'] ?? 0, 0))),
+            'y' => max(-5000, min(50000, $px($lay['y'] ?? 0, 0))),
+            'w' => max(1, min(6000, $px($lay['width'] ?? 200, 200))),
+            'h' => max(1, min(20000, $px($lay['height'] ?? 100, 100))),
+            'rotation' => max(-360.0, min(360.0, (float) ($lay['rotation'] ?? 0))),
+            'zIndex' => max(0, min(9999, (int) ($lay['zIndex'] ?? 0))),
+            'pinX' => $pin,
+        ];
+    }
+
+    /**
+     * Horizontal CSS for a canvas element by its pin anchor, relative to the
+     * design width — so in a fluid section it holds that edge as the container
+     * flexes. Vertical is always top-anchored by the caller.
+     */
+    private function pinHorizontalCss(array $l, int $canvasWidth): string
+    {
+        $x = $l['x'];
+        $w = $l['w'];
+        $rInset = $canvasWidth - ($x + $w);
+        return match ($l['pinX']) {
+            'right' => "right:{$rInset}px;width:{$w}px;",
+            'center' => 'left:50%;margin-left:' . ($x - intdiv($canvasWidth, 2)) . "px;width:{$w}px;",
+            'stretch' => "left:{$x}px;right:{$rInset}px;",
+            default => "left:{$x}px;width:{$w}px;",
+        };
     }
 
     /**
