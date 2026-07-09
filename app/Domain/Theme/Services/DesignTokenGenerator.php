@@ -497,6 +497,28 @@ class DesignTokenGenerator
             // Content
             'content-max-width' => '800px',
             'prose-max-width' => '65ch',
+
+            // Form inputs — themes can now restyle every field consistently
+            'input-bg' => 'var(--color-bg, #ffffff)',
+            'input-color' => 'var(--color-text, #1e293b)',
+            'input-border' => 'var(--color-border-strong, #94a3b8)',
+            'input-border-focus' => 'var(--color-primary, #3b82f6)',
+            'input-radius' => 'var(--border-radius-sm, 4px)',
+            'input-placeholder' => 'var(--color-text-muted, #64748b)',
+
+            // Code block theme (used by the code block; kept dark by default)
+            'code-bg' => '#1e293b',
+            'code-color' => '#e2e8f0',
+            'code-comment' => '#94a3b8',
+            'code-border' => '#475569',
+
+            // Chart / data-series palette (6-hue rotation)
+            'chart-1' => 'var(--color-primary, #3b82f6)',
+            'chart-2' => '#f59e0b',
+            'chart-3' => '#22c55e',
+            'chart-4' => '#ef4444',
+            'chart-5' => '#8b5cf6',
+            'chart-6' => '#06b6d4',
         ];
     }
 }

@@ -334,21 +334,21 @@
                 // Variant-specific defaults
                 if ($ctaVariant === 'outline') {
                     $ctaStyle .= 'background:' . ($ctaBgColorVal ?: 'transparent') . ';';
-                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
-                    $ctaStyle .= 'border:' . ($ctaBorderWidthVal ?: '2px') . ' solid ' . ($ctaBorderColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
+                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? 'var(--color-text-inverse,#fff)' : 'var(--color-heading,#333)')) . ';';
+                    $ctaStyle .= 'border:' . ($ctaBorderWidthVal ?: '2px') . ' solid ' . ($ctaBorderColorVal ?: ($hasBg ? 'var(--color-text-inverse,#fff)' : 'var(--color-heading,#333)')) . ';';
                 } elseif ($ctaVariant === 'ghost') {
                     $ctaStyle .= 'background:' . ($ctaBgColorVal ?: 'transparent') . ';';
-                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
+                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? 'var(--color-text-inverse,#fff)' : 'var(--color-heading,#333)')) . ';';
                     $ctaStyle .= 'border:none;';
                 } elseif ($ctaVariant === 'link') {
                     $ctaStyle .= 'background:transparent;';
-                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? '#fff' : '#333')) . ';';
+                    $ctaStyle .= 'color:' . ($ctaTextColorVal ?: ($hasBg ? 'var(--color-text-inverse,#fff)' : 'var(--color-heading,#333)')) . ';';
                     $ctaStyle .= 'border:none;text-decoration:underline;padding:0;';
                 } else {
                     // filled (default + backward compatible)
-                    $defaultBg = $hasBg ? 'rgba(255,255,255,0.2)' : '#333';
-                    $defaultColor = '#fff';
-                    $defaultBorder = $hasBg ? '#fff' : '#333';
+                    $defaultBg = $hasBg ? 'rgba(255,255,255,0.2)' : 'var(--color-heading,#333)';
+                    $defaultColor = 'var(--color-text-inverse,#fff)';
+                    $defaultBorder = $hasBg ? 'var(--color-text-inverse,#fff)' : 'var(--color-heading,#333)';
                     $ctaStyle .= 'background:' . ($ctaBgColorVal ?: $defaultBg) . ';';
                     $ctaStyle .= 'color:' . ($ctaTextColorVal ?: $defaultColor) . ';';
                     if ($ctaBorderWidthVal || $ctaBorderColorVal) {

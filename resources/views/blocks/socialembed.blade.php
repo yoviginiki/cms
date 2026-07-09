@@ -52,8 +52,8 @@
             {{ strtoupper(substr($label, 0, 1)) }}
         </div>
         <div style="min-width:0;flex:1;">
-            <div style="font-size:0.75rem;font-weight:500;color:#6b7280;text-transform:uppercase;margin-bottom:0.125rem;">{{ $label }}</div>
-            <a href="{{ $url }}" target="_blank" rel="noopener noreferrer" style="font-size:0.875rem;color:#3b82f6;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $url }}</a>
+            <div style="font-size:0.75rem;font-weight:500;color:var(--color-text-muted,#6b7280);text-transform:uppercase;margin-bottom:0.125rem;">{{ $label }}</div>
+            <a href="{{ $url }}" target="_blank" rel="noopener noreferrer" style="font-size:0.875rem;color:var(--color-primary,#3b82f6);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $url }}</a>
         </div>
     </div>
 @endif

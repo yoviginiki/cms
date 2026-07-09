@@ -84,13 +84,13 @@
 @endphp
 @if($showContent)<style>.latestposts-block .section-block>div{max-width:100%!important}.latestposts-block .section-block{padding:0!important}</style>@endif
 @if($posts->isEmpty())
-    <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed #e5e7eb;border-radius:var(--border-radius-md,0.5rem);">
+    <div style="padding:2rem;text-align:center;color:var(--color-text-muted,#9ca3af);font-size:0.875rem;border:1px dashed var(--color-border-light,#e5e7eb);border-radius:var(--border-radius-md,0.5rem);">
         No posts found{{ $categoryId ? ' in this category' : '' }}.
     </div>
 @elseif($layout === 'compact')
     <ul style="list-style:none;padding:0;margin:0;">
         @foreach($posts as $post)
-            <li style="padding:0.5rem 0;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:0.5rem;">
+            <li style="padding:0.5rem 0;border-bottom:1px solid var(--color-bg-alt,#f3f4f6);display:flex;align-items:center;gap:0.5rem;">
                 <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;font-size:0.875rem;flex:1;">{{ $post->title }}</a>
                 @if($showDate)
                     <span style="font-size:0.75rem;color:var(--color-text-muted,#9ca3af);">{{ $post->published_at?->format('M j') }}</span>
@@ -101,13 +101,13 @@
 @elseif($layout === 'list')
     <div>
         @foreach($posts as $post)
-            <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 0;border-bottom:1px solid #f3f4f6;">
+            <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--color-bg-alt,#f3f4f6);">
                 @if($showImage && $post->featured_image)
                     <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;{{ $__imageFilter }}" />
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
-                        <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $post->category->name }}</span>
+                        <span style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;">{{ $post->category->name }}</span>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:600;font-size:1rem;text-align:{{ $titleAlign }};">
                         <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
@@ -135,7 +135,7 @@
             @endif
             <div style="padding:1.25rem;">
                 @if($showCategory && $first->category)
-                    <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $first->category->name }}</span>
+                    <span style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;">{{ $first->category->name }}</span>
                 @endif
                 <h2 style="margin:0.25rem 0;font-weight:700;font-size:1.5rem;text-align:{{ $titleAlign }};">
                     <a href="/{{ $first->category?->slug ?? 'uncategorized' }}/{{ $first->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
@@ -157,11 +157,11 @@
                 @if($showImage && $post->featured_image)
                     <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
                 @elseif($showImage && !$showContent)
-                    <div style="background:#f3f4f6;height:160px;"></div>
+                    <div style="background:var(--color-bg-alt,#f3f4f6);height:160px;"></div>
                 @endif
                 <div style="{{ $showContent ? 'max-width:var(--prose-max-width,65ch);margin-left:auto;margin-right:auto;' : 'padding:1rem;' }}">
                     @if($showCategory && $post->category)
-                        <span style="font-size:0.7rem;color:var(--color-primary, #3b82f6);font-weight:500;">{{ $post->category->name }}</span>
+                        <span style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;">{{ $post->category->name }}</span>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:var(--heading-weight,600);font-family:var(--font-heading,inherit);letter-spacing:var(--letter-spacing-heading,0);text-align:{{ $titleAlign }};">
                         <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-heading, var(--color-text, #1e293b));text-decoration:none;">{{ $post->title }}</a>

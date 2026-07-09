@@ -19,7 +19,7 @@
     $title = $data['title'] ?? '';
     $showLegend = $data['showLegend'] ?? true;
     $maxVal = max(array_column($items, 'value') ?: [1]);
-    $colors = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899'];
+    $colors = ['var(--chart-1,#3b82f6)','var(--chart-4,#ef4444)','var(--chart-3,#10b981)','var(--chart-2,#f59e0b)','var(--chart-5,#8b5cf6)','var(--chart-6,#ec4899)'];
     $barWidth = 40;
     $gap = 10;
     $svgWidth = count($items) * ($barWidth + $gap);
@@ -38,7 +38,7 @@
                 $color = $colors[$i % count($colors)];
             @endphp
             <rect x="{{ $x }}" y="{{ $y }}" width="{{ $barWidth }}" height="{{ $barHeight }}" fill="{{ $color }}" rx="3" />
-            <text x="{{ $x + $barWidth / 2 }}" y="{{ $svgHeight + 16 }}" text-anchor="middle" font-size="11" fill="#6b7280">{{ $item['label'] ?? '' }}</text>
+            <text x="{{ $x + $barWidth / 2 }}" y="{{ $svgHeight + 16 }}" text-anchor="middle" font-size="11" fill="var(--color-text-muted,#6b7280)">{{ $item['label'] ?? '' }}</text>
         @endforeach
     </svg>
     @if($showLegend)
@@ -46,7 +46,7 @@
             @foreach($items as $i => $item)
                 <div style="display:flex;align-items:center;gap:4px;">
                     <span style="width:8px;height:8px;border-radius:50%;background:{{ $colors[$i % count($colors)] }};display:inline-block;"></span>
-                    <span style="font-size:0.75rem;color:#6b7280;">{{ $item['label'] ?? '' }}: {{ $item['value'] ?? 0 }}</span>
+                    <span style="font-size:0.75rem;color:var(--color-text-muted,#6b7280);">{{ $item['label'] ?? '' }}: {{ $item['value'] ?? 0 }}</span>
                 </div>
             @endforeach
         </div>
