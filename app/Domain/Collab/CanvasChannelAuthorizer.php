@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Gate;
  */
 class CanvasChannelAuthorizer
 {
-    /** @return array{id:string,name:string,color:string}|false */
+    /** @return array{id:string,name:string}|false */
     public function authorize(User $user, string $pageId): array|false
     {
         $page = Page::find($pageId); // tenant-scoped via RLS
@@ -27,11 +27,11 @@ class CanvasChannelAuthorizer
             return false;
         }
 
+        // Cursor/selection colors are derived client-side (colorForId) from the id,
+        // so the presence payload carries no PII beyond the display name.
         return [
             'id' => (string) $user->id,
             'name' => $user->name,
-            // deterministic per-user color for cursors/selection; no PII beyond name
-            'color' => '#'.substr(md5((string) $user->id), 0, 6),
         ];
     }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { opKeys, lwwNewer, invertOp } from './collabOps';
+import { opKeys, lwwNewer, invertOp, isCanvasOp, isStampedOp } from './collabOps';
 import type { CanvasSection, StampedOp } from '@/types/canvas';
 
 const sectionsFixture = (): CanvasSection[] => [
@@ -65,5 +65,44 @@ describe('collabOps invertOp', () => {
     expect(delInv[0]).toMatchObject({ t: 'secAdd', afterId: 's1' });      // re-add after its prior neighbor
     const setInv = invertOp({ t: 'secSettings', id: 's1', patch: { bleed: true } }, s);
     expect(setInv).toEqual([{ t: 'secSettings', id: 's1', patch: { bleed: false } }]); // prior value
+  });
+});
+
+describe('collabOps wire validation (defends applyOp/opKeys from garbage peers)', () => {
+  it('accepts well-formed ops of every variant', () => {
+    const ok: unknown[] = [
+      { t: 'layout', id: 'a', patch: { x: 1 }, bp: 'desktop' },
+      { t: 'del', ids: ['a', 'b'] },
+      { t: 'z', ids: ['a'], mode: 'front' },
+      { t: 'add', sectionId: 's1', element: { id: 'e' } },
+      { t: 'restoreElement', sectionId: 's1', element: { id: 'e' } },
+      { t: 'secAdd', section: { id: 's2' } },
+      { t: 'secMove', id: 's1', dir: 'up' },
+    ];
+    ok.forEach((o) => expect(isCanvasOp(o)).toBe(true));
+  });
+
+  it('rejects unknown t, missing id/ids/element, and non-objects', () => {
+    const bad: unknown[] = [
+      null, undefined, 42, 'layout', {},
+      { t: 'nope' },                          // unknown discriminant
+      { t: 'layout' },                        // missing id
+      { t: 'layout', id: 5 },                 // id not a string
+      { t: 'del' },                           // missing ids
+      { t: 'del', ids: [1, 2] },              // ids not strings
+      { t: 'add', element: {} },              // element without id
+      { t: 'secAdd', section: {} },           // section without id
+    ];
+    bad.forEach((o) => expect(isCanvasOp(o)).toBe(false));
+  });
+
+  it('isStampedOp requires a finite lamport, string client, and valid op', () => {
+    const good: StampedOp = { op: { t: 'layout', id: 'a', patch: {}, bp: 'desktop' }, lamport: 3, client: 'c1' };
+    expect(isStampedOp(good)).toBe(true);
+    expect(isStampedOp({ ...good, lamport: NaN })).toBe(false);        // poisoned clock
+    expect(isStampedOp({ ...good, lamport: undefined as never })).toBe(false);
+    expect(isStampedOp({ ...good, client: 7 as never })).toBe(false);
+    expect(isStampedOp({ ...good, op: { t: 'bogus' } as never })).toBe(false);
+    expect(isStampedOp(null)).toBe(false);
   });
 });

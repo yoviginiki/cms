@@ -2,6 +2,7 @@
 
 namespace App\Domain\Magazine\Services;
 
+use App\Domain\Publishing\Support\CanvasBounds;
 use App\Models\Page;
 use Illuminate\Support\Str;
 
@@ -25,6 +26,7 @@ class MagazineToCanvasConverter
         $elements = collect($doc['elements']);
         $sections = [];
         $sectionOrder = 0;
+        $skipped = 0;
 
         foreach (collect($doc['pages'])->sortBy('page_number') as $mp) {
             $pageEls = $elements
@@ -38,7 +40,8 @@ class MagazineToCanvasConverter
             foreach ($pageEls as $el) {
                 $mapped = $this->mapElement($el);
                 if ($mapped === null) {
-                    continue; // unmappable (ellipse, page_number, unknown) — skipped
+                    $skipped++; // unmappable (ellipse, page_number, unknown) — skipped
+                    continue;
                 }
                 $children[] = [
                     'id' => (string) Str::uuid(),
@@ -76,6 +79,10 @@ class MagazineToCanvasConverter
             ];
         }
 
+        if ($skipped > 0) {
+            logger()->info("MagazineToCanvasConverter: dropped {$skipped} unmappable element(s) converting page {$page->id} to canvas (no static-web equivalent).");
+        }
+
         return $sections;
     }
 
@@ -89,7 +96,9 @@ class MagazineToCanvasConverter
             $max = max($max, (int) round($size['width'] ?? 0));
         }
 
-        return $max > 0 ? min(3000, max(320, $max)) : 1200;
+        return $max > 0
+            ? min(CanvasBounds::CANVAS_W_MAX, max(CanvasBounds::CANVAS_W_MIN, $max))
+            : CanvasBounds::CANVAS_W_DEFAULT;
     }
 
     /** Map a magazine element to a canvas block type + data, or null to skip. */

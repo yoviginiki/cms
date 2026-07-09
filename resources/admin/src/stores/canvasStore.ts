@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { BlockData } from '@/types/blocks';
 import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout, PinX, CanvasAnim, CanvasOp } from '@/types/canvas';
-import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH } from '@/types/canvas';
+import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH, CANVAS_W_MIN, CANVAS_W_MAX, MOBILE_W_MIN, MOBILE_W_MAX } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 import { invertOp } from '@/lib/collabOps';
 
@@ -21,7 +21,6 @@ interface CanvasState {
   snapEnabled: boolean;
   gridSize: number;           // 12-col grid line spacing derived from width
   zoom: number;
-  previewMobile: boolean;
   isDirty: boolean;
   undoStack: Snapshot[];
   redoStack: Snapshot[];
@@ -33,11 +32,12 @@ interface CanvasState {
   applyOp: (op: CanvasOp) => void;
 
   // lifecycle
-  loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number }) => void;
+  loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number; mobileWidth?: number }) => void;
   toBlocks: () => BlockData[];
   markClean: () => void;
   setPageType: (t: CanvasPageType) => void;
   setWidth: (w: number) => void;
+  setMobileWidth: (w: number) => void;
 
   // sections
   addSection: (afterId?: string) => void;
@@ -62,7 +62,6 @@ interface CanvasState {
 
   // selection
   select: (id: string | null, add?: boolean) => void;
-  selectMany: (ids: string[]) => void;
   clearSelection: () => void;
   setActiveSection: (id: string | null) => void;
 
@@ -72,7 +71,6 @@ interface CanvasState {
   redo: () => void;
   toggleSnap: () => void;
   setZoom: (z: number) => void;
-  setPreviewMobile: (v: boolean) => void;
 }
 
 const findSectionOf = (sections: CanvasSection[], elId: string): CanvasSection | undefined =>
@@ -90,7 +88,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   snapEnabled: true,
   gridSize: DEFAULT_CANVAS_WIDTH / 12,
   zoom: 1,
-  previewMobile: false,
   isDirty: false,
   undoStack: [],
   redoStack: [],
@@ -103,14 +100,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   applyOp: (op) => set(s => {
     let sections = s.sections;
     if (op.t === 'layout') {
-      sections = s.sections.map(sec => ({
-        ...sec,
-        elements: sec.elements.map(e => {
-          if (e.id !== op.id) return e;
-          if (op.bp === 'mobile') return { ...e, bp: { ...e.bp, mobile: { ...(e.bp?.mobile ?? {}), ...op.patch } } };
-          return { ...e, ...op.patch };
-        }),
-      }));
+      sections = s.sections.map(sec => {
+        if (!sec.elements.some(e => e.id === op.id)) return sec;   // keep untouched section ref
+        return {
+          ...sec,
+          elements: sec.elements.map(e => {
+            if (e.id !== op.id) return e;
+            if (op.bp === 'mobile') return { ...e, bp: { ...e.bp, mobile: { ...(e.bp?.mobile ?? {}), ...op.patch } } };
+            return { ...e, ...op.patch };
+          }),
+        };
+      });
     } else if (op.t === 'add') {
       sections = s.sections.map(sec => sec.id === op.sectionId
         ? { ...sec, elements: [...sec.elements.filter(e => e.id !== op.element.id), op.element] }
@@ -166,12 +166,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   loadFromBlocks: (blocks, meta) => {
     const doc: CanvasDoc = blockToCanvas(blocks, meta);
+    const mobileWidth = Math.max(MOBILE_W_MIN, Math.min(MOBILE_W_MAX, Math.round(meta.mobileWidth ?? DEFAULT_MOBILE_WIDTH) || DEFAULT_MOBILE_WIDTH));
     set({
       width: doc.width,
       pageType: doc.pageType,
       sections: doc.sections,
       passthrough: extractPassthrough(blocks),
       gridSize: doc.width / 12,
+      mobileWidth,
       selectedIds: [],
       activeSectionId: doc.sections[0]?.id ?? null,
       activeBreakpoint: 'desktop',
@@ -184,7 +186,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   toBlocks: () => canvasToBlocks({ pageType: get().pageType, width: get().width, sections: get().sections }, get().passthrough),
   markClean: () => set({ isDirty: false }),
   setPageType: (t) => set({ pageType: t, isDirty: true }),
-  setWidth: (w) => { const width = Math.max(320, Math.min(3000, Math.round(w))); set({ width, gridSize: width / 12, isDirty: true }); },
+  setWidth: (w) => { const width = Math.max(CANVAS_W_MIN, Math.min(CANVAS_W_MAX, Math.round(w) || DEFAULT_CANVAS_WIDTH)); set({ width, gridSize: width / 12, isDirty: true }); },
+  setMobileWidth: (w) => { const mobileWidth = Math.max(MOBILE_W_MIN, Math.min(MOBILE_W_MAX, Math.round(w) || DEFAULT_MOBILE_WIDTH)); set({ mobileWidth, isDirty: true }); },
 
   addSection: (afterId) => {
     get().pushSnapshot();
@@ -277,16 +280,21 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const op: CanvasOp = { t: 'layout', id, patch, bp };
     const inverse = invertOp(op, get().sections);
     set(s => ({
-      sections: s.sections.map(sec => ({
-        ...sec,
-        elements: sec.elements.map(e => {
-          if (e.id !== id) return e;
-          if (bp === 'mobile') {
-            return { ...e, bp: { ...e.bp, mobile: { ...(e.bp?.mobile ?? {}), ...patch } } };
-          }
-          return { ...e, ...patch };
-        }),
-      })),
+      // Only rebuild the section that owns the element — untouched sections keep
+      // their reference so memoized CanvasSection children skip re-render on drag.
+      sections: s.sections.map(sec => {
+        if (!sec.elements.some(e => e.id === id)) return sec;
+        return {
+          ...sec,
+          elements: sec.elements.map(e => {
+            if (e.id !== id) return e;
+            if (bp === 'mobile') {
+              return { ...e, bp: { ...e.bp, mobile: { ...(e.bp?.mobile ?? {}), ...patch } } };
+            }
+            return { ...e, ...patch };
+          }),
+        };
+      }),
       isDirty: true,
     }));
     get()._localOp?.(op, inverse);
@@ -421,7 +429,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       activeSectionId: sec?.id ?? s.activeSectionId,
     };
   }),
-  selectMany: (ids) => set({ selectedIds: ids }),
   clearSelection: () => set({ selectedIds: [] }),
   setActiveSection: (id) => set({ activeSectionId: id }),
 
@@ -457,5 +464,4 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   toggleSnap: () => set(s => ({ snapEnabled: !s.snapEnabled })),
   setZoom: (z) => set({ zoom: Math.max(0.25, Math.min(2, z)) }),
-  setPreviewMobile: (v) => set({ previewMobile: v }),
 }));

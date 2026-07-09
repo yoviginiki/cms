@@ -110,10 +110,11 @@ export default function PostEditor() {
       }
       // Canvas mode reads the SAME block tree into the canvas store.
       if (post?.editor_mode === 'canvas') {
-        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
         useCanvasStore.getState().loadFromBlocks(fetchedBlocks, {
           pageType: cv?.page_type === 'single' ? 'single' : 'website',
           width: cv?.width,
+          mobileWidth: cv?.mobile_width,
         });
       }
     }
@@ -256,10 +257,11 @@ export default function PostEditor() {
     // Hydrate the canvas store from the live block tree when switching INTO
     // canvas mid-session (non-section blocks carried as passthrough).
     if (mode === 'canvas') {
-      const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+      const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
       useCanvasStore.getState().loadFromBlocks(useEditorStore.getState().blocks, {
         pageType: cv?.page_type === 'single' ? 'single' : 'website',
         width: cv?.width,
+        mobileWidth: cv?.mobile_width,
       });
     }
   }
