@@ -27,6 +27,7 @@ class MagStyleController extends Controller
      */
     public function store(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string|in:paragraph,character,object,table,cell',
@@ -58,6 +59,7 @@ class MagStyleController extends Controller
      */
     public function update(Request $request, Site $site, MagStyle $style): JsonResponse
     {
+        $this->authorize('update', $site);
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'type' => 'sometimes|string|in:paragraph,character,object,table,cell',
@@ -78,6 +80,7 @@ class MagStyleController extends Controller
      */
     public function destroy(Site $site, MagStyle $style): JsonResponse
     {
+        $this->authorize('update', $site);
         $style->delete();
 
         return response()->json(['message' => 'Style deleted']);

@@ -74,6 +74,30 @@ class PublishSiteJob implements ShouldQueue
         $stagingPath = storage_path("app/builds/{$this->deployment->id}");
 
         try {
+            // Rollback (FIX-B6b): re-point the live site to a prior deployment's
+            // build instead of rebuilding current DB content. Previously the job
+            // ignored the target and republished today's content (a silent no-op).
+            if ($this->type === 'rollback' && $this->rollbackTargetId) {
+                $target = Deployment::find($this->rollbackTargetId);
+                $targetBuild = storage_path("app/builds/{$this->rollbackTargetId}");
+                if (!$target || !is_dir($targetBuild)) {
+                    throw new \RuntimeException('Rollback target build no longer exists (pruned); cannot roll back to this deployment.');
+                }
+                $this->updateStatus('deploying', 'Rolling back...');
+                $deployService->deploy($this->deployment, $targetBuild);
+                $this->deployment->update([
+                    'status' => 'rolled_back',
+                    'artifact_path' => $targetBuild,
+                    'completed_at' => now(),
+                    'metadata' => array_merge($this->deployment->metadata ?? [], [
+                        'current_step' => 'rolled_back',
+                        'rolled_back_to' => $this->rollbackTargetId,
+                    ]),
+                ]);
+                $this->broadcast('Rolled back successfully!');
+                return;
+            }
+
             $this->updateStatus('building', 'Starting build...');
             File::ensureDirectoryExists($stagingPath);
 
@@ -476,22 +500,33 @@ class PublishSiteJob implements ShouldQueue
     private function buildRedirectsManifest($site, string $stagingPath): void
     {
         $redirects = \App\Models\Redirect::where('site_id', $site->id)->get();
-        if ($redirects->isEmpty()) return;
 
-        // Generate _redirects file (Netlify/Cloudflare Pages format)
-        $lines = [];
-        foreach ($redirects as $r) {
-            $lines[] = "{$r->source_path} {$r->target_url} {$r->status_code}";
-        }
-        File::put("{$stagingPath}/_redirects", implode("\n", $lines));
+        // Security headers for the published static site (FIX-A4b): the CMS
+        // previously emitted no CSP/HSTS/X-Frame/etc on published output, so
+        // XSS had no backstop. Written on EVERY publish, redirects or not.
+        $htaccess = "# CMS security headers\n";
+        $htaccess .= "<IfModule mod_headers.c>\n";
+        $htaccess .= "  Header always set X-Content-Type-Options \"nosniff\"\n";
+        $htaccess .= "  Header always set X-Frame-Options \"SAMEORIGIN\"\n";
+        $htaccess .= "  Header always set Referrer-Policy \"strict-origin-when-cross-origin\"\n";
+        $htaccess .= "  Header always set Strict-Transport-Security \"max-age=31536000; includeSubDomains\"\n";
+        $htaccess .= "  Header always set Content-Security-Policy \"default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; connect-src 'self' https:\"\n";
+        $htaccess .= "</IfModule>\n";
 
-        // Also generate .htaccess rules for Apache
-        $htaccess = "# CMS Redirects\n";
-        $htaccess .= "RewriteEngine On\n";
-        foreach ($redirects as $r) {
-            $flag = $r->status_code === 301 ? 'R=301,L' : 'R=302,L';
-            $source = preg_quote($r->source_path, '/');
-            $htaccess .= "RewriteRule ^" . ltrim($r->source_path, '/') . "$ {$r->target_url} [{$flag}]\n";
+        if (!$redirects->isEmpty()) {
+            // _redirects file (Netlify/Cloudflare Pages format)
+            $lines = [];
+            foreach ($redirects as $r) {
+                $lines[] = "{$r->source_path} {$r->target_url} {$r->status_code}";
+            }
+            File::put("{$stagingPath}/_redirects", implode("\n", $lines));
+
+            // .htaccess RewriteRules for Apache
+            $htaccess .= "\n# CMS Redirects\nRewriteEngine On\n";
+            foreach ($redirects as $r) {
+                $flag = $r->status_code === 301 ? 'R=301,L' : 'R=302,L';
+                $htaccess .= "RewriteRule ^" . ltrim($r->source_path, '/') . "$ {$r->target_url} [{$flag}]\n";
+            }
         }
 
         // Append to existing .htaccess or create new
@@ -664,16 +699,9 @@ class PublishSiteJob implements ShouldQueue
 
     private function cleanOldBuilds(): void
     {
-        $buildPath = storage_path('app/builds');
-        if (!File::isDirectory($buildPath)) return;
-
-        $dirs = collect(File::directories($buildPath))
-            ->sortByDesc(fn($d) => File::lastModified($d))
-            ->values();
-
-        foreach ($dirs->slice(3) as $old) {
-            File::deleteDirectory($old);
-        }
+        // Live-safe pruning: never delete a build a live site symlink targets
+        // (FIX-B6a). Keeps enough per-tenant history for a rollback window.
+        \App\Domain\Publishing\Services\BuildRetention::prune(10);
     }
 
     /**

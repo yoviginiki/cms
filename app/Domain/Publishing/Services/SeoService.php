@@ -85,14 +85,24 @@ class SeoService
 
     private function autoDescription(Page|Post $content): string
     {
-        $firstText = $content->blocks()
-            ->where('type', 'text')
+        // Fall back across the common text-bearing block types (not just 'text')
+        // so pages built from paragraph/rich-text/hero/heading still get a
+        // meaningful meta description.
+        $textBlocks = $content->blocks()
+            ->whereIn('type', ['text', 'paragraph', 'rich-text', 'heading', 'hero', 'pullquote'])
             ->orderBy('order')
-            ->first();
+            ->get();
 
-        if ($firstText && !empty($firstText->data['content'])) {
-            $text = strip_tags($firstText->data['content']);
-            return mb_substr($text, 0, 160);
+        foreach ($textBlocks as $block) {
+            $raw = $block->data['content']
+                ?? $block->data['text']
+                ?? $block->data['heading']
+                ?? $block->data['subtitle']
+                ?? '';
+            $text = trim(strip_tags((string) $raw));
+            if ($text !== '') {
+                return mb_substr($text, 0, 160);
+            }
         }
 
         return '';

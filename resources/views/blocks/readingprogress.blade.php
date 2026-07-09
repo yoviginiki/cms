@@ -15,7 +15,7 @@
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $style = $data['style'] ?? 'top-bar';
-    $color = $data['color'] ?: '#3b82f6';
+    $color = ($data['color'] ?? '') ?: '#3b82f6';
     $height = $data['height'] ?? '3px';
 @endphp
 @if($style === 'top-bar')

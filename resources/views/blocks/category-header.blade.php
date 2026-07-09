@@ -20,7 +20,8 @@
     $tag = in_array($data['titleTag'] ?? 'h1', ['h1','h2','h3']) ? ($data['titleTag'] ?? 'h1') : 'h1';
     $titleSize = $cssDim($data['titleSize'] ?? '');
     $titleColor = $cssVal($data['titleColor'] ?? '');
-    $textAlign = in_array($data['textAlign'] ?? 'center', ['left','center','right']) ? $data['textAlign'] : 'center';
+    $ta = $data['textAlign'] ?? 'center';
+    $textAlign = in_array($ta, ['left','center','right']) ? $ta : 'center';
     $showDescription = $data['showDescription'] ?? true;
     $showPostCount = $data['showPostCount'] ?? false;
 

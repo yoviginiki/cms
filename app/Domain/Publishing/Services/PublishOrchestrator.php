@@ -17,11 +17,20 @@ class PublishOrchestrator
 
     public function publish(Site $site, User $triggeredBy, string $type = 'partial'): Deployment
     {
-        // Clear stale deployments stuck for more than 5 minutes
+        // Reap deployments that are genuinely stuck (FIX-B6c/D5). The old
+        // 5-minute cutoff could wipe a deployment while its job was still
+        // running (job timeout is 300s × 3 tries ≈ 15 min), clearing the
+        // active-deployment guard and letting a second publish race the live
+        // swap. Use a threshold safely beyond max job runtime, and MARK them
+        // failed instead of deleting so the record (and its build) survives.
         Deployment::where('site_id', $site->id)
             ->whereIn('status', ['queued', 'building', 'deploying'])
-            ->where('created_at', '<', now()->subMinutes(5))
-            ->delete();
+            ->where('created_at', '<', now()->subMinutes(30))
+            ->update([
+                'status' => 'failed',
+                'error_log' => 'Deployment reaped: exceeded maximum runtime without completing.',
+                'completed_at' => now(),
+            ]);
 
         // Check no active deployment
         $active = Deployment::where('site_id', $site->id)

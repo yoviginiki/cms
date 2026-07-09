@@ -95,8 +95,29 @@ class SyncBlocksRequest extends FormRequest
                         }
                     }
                 }
+
+                // FIX-A4 (html-embed hardening): html-embed renders raw HTML/JS
+                // at publish (no sanitization), so it is a trusted-HTML surface —
+                // only admins/owners may author it.
+                if ($this->hasBlockType($blocks, 'html-embed')
+                    && !$this->user()?->hasMinimumRole('admin')) {
+                    $validator->errors()->add('blocks', 'Only an admin can add or edit a raw HTML embed block.');
+                }
             },
         ];
+    }
+
+    private function hasBlockType(array $blocks, string $type): bool
+    {
+        foreach ($blocks as $block) {
+            if (($block['type'] ?? null) === $type) {
+                return true;
+            }
+            if (!empty($block['children']) && $this->hasBlockType($block['children'], $type)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function countBlocks(array $blocks): int

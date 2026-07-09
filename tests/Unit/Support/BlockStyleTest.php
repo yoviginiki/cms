@@ -200,7 +200,7 @@ class BlockStyleTest extends TestCase
 
     public function test_build_classes_with_custom_and_extra(): void
     {
-        $cls = BlockStyle::buildClasses(['customClass' => 'my-hero'], 'hero-section');
+        $cls = BlockStyle::buildClasses(['customClass' => 'my-hero'], [], 'hero-section');
         $this->assertStringContainsString('my-hero', $cls);
         $this->assertStringContainsString('hero-section', $cls);
     }
@@ -211,7 +211,7 @@ class BlockStyleTest extends TestCase
     {
         $result = BlockStyle::buildHideOnCss(['hideOn' => ['mobile', 'tablet']], 'hero-1');
         $this->assertNotEmpty($result['scopeClass']);
-        $this->assertStringContainsString('@media(max-width:768px)', $result['css']);
+        $this->assertStringContainsString('@media(max-width:767px)', $result['css']);
         $this->assertStringContainsString('display:none!important', $result['css']);
     }
 

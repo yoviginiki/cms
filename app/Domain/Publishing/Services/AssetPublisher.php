@@ -24,23 +24,28 @@ class AssetPublisher
     }
 
     /**
-     * Resolve an asset ID or API URL to a static public URL.
-     * Copies the file to public_html if not already there.
+     * Resolve an asset ID (optionally a named variant) or API URL to a static
+     * public URL, publishing the underlying file to the deploy target.
+     *
+     * $variant is a key in $asset->variants (e.g. 'webp_800', 'thumb_200').
+     * When it resolves to a real variant file, THAT file is published (not the
+     * original), so responsive/WebP srcsets point at optimized assets.
      */
-    public static function resolveUrl(?string $assetId = null, ?string $apiUrl = null): ?string
+    public static function resolveUrl(?string $assetId = null, ?string $apiUrl = null, ?string $variant = null): ?string
     {
-        // Extract asset ID from API URL if needed
+        // Extract asset ID (+ optional variant) from API URL if needed
         if (!$assetId && $apiUrl) {
-            if (preg_match('/assets\/([0-9a-f-]{36})\/serve/', $apiUrl, $m)) {
+            if (preg_match('#assets/([0-9a-f-]{36})/serve(?:/([a-z0-9_]+))?#', $apiUrl, $m)) {
                 $assetId = $m[1];
+                $variant = $variant ?? ($m[2] ?? null);
             }
         }
 
         if (!$assetId) return $apiUrl; // Can't resolve, return as-is
 
-        // Check cache
-        if (isset(self::$published[$assetId])) {
-            return self::$published[$assetId];
+        $cacheKey = $variant ? "{$assetId}:{$variant}" : $assetId;
+        if (isset(self::$published[$cacheKey])) {
+            return self::$published[$cacheKey];
         }
 
         $asset = Asset::find($assetId);
@@ -48,15 +53,27 @@ class AssetPublisher
             return $apiUrl;
         }
 
+        // Pick the variant file when requested and available, else the original.
+        $variants = $asset->variants ?? [];
+        $storagePath = ($variant && !empty($variants[$variant])) ? $variants[$variant] : $asset->storage_path;
+
         $disk = Storage::disk('assets');
-        if (!$disk->exists($asset->storage_path)) {
-            return $apiUrl;
+        if (!$disk->exists($storagePath)) {
+            // Requested variant missing (e.g. not generated) — fall back to original.
+            if ($storagePath !== $asset->storage_path && $disk->exists($asset->storage_path)) {
+                $storagePath = $asset->storage_path;
+                $variant = null;
+            } else {
+                return $apiUrl;
+            }
         }
 
-        // Determine public path based on file extension
-        $ext = pathinfo($asset->storage_path, PATHINFO_EXTENSION) ?: 'bin';
+        // Content-hashed public filename; the variant suffix disambiguates the
+        // several derivatives that share one source asset (and its checksum).
+        $ext = pathinfo($storagePath, PATHINFO_EXTENSION) ?: 'bin';
         $hash = $asset->checksum ?: md5($asset->id);
-        $publicPath = "/assets/files/{$hash}.{$ext}";
+        $name = $variant ? "{$hash}_{$variant}.{$ext}" : "{$hash}.{$ext}";
+        $publicPath = "/assets/files/{$name}";
 
         // Copy to deploy target (public_html of the correct domain)
         $targetBase = self::$deployTarget ?: base_path('../../public_html');
@@ -67,24 +84,25 @@ class AssetPublisher
         }
 
         if (!file_exists($fullPath)) {
-            $contents = $disk->get($asset->storage_path);
+            $contents = $disk->get($storagePath);
             file_put_contents($fullPath, $contents);
             @chmod($fullPath, 0664);
         }
 
-        self::$published[$assetId] = $publicPath;
+        self::$published[$cacheKey] = $publicPath;
         return $publicPath;
     }
 
     /**
-     * Rewrite all /api/v1/.../assets/.../serve URLs in an HTML string to static URLs.
+     * Rewrite all /api/v1/.../assets/.../serve[/variant] URLs in an HTML string
+     * to static URLs, preserving and publishing the requested variant.
      */
     public static function rewriteHtml(string $html): string
     {
         return preg_replace_callback(
-            '#/api/v1/sites/[0-9a-f-]+/assets/([0-9a-f-]{36})/serve(?:/[a-z]+)?#',
+            '#/api/v1/sites/[0-9a-f-]+/assets/([0-9a-f-]{36})/serve(?:/([a-z0-9_]+))?#',
             function ($matches) {
-                $url = self::resolveUrl($matches[1]);
+                $url = self::resolveUrl($matches[1], null, $matches[2] ?? null);
                 return $url ?: $matches[0];
             },
             $html

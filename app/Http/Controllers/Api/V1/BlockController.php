@@ -23,18 +23,34 @@ class BlockController extends Controller
     ) {
     }
 
+    /**
+     * Opt-in optimistic concurrency (FIX-C11a). If the client sends the
+     * `expected_version` it captured on load and the blocks changed since,
+     * reject with 409 instead of silently clobbering the other editor. No
+     * version sent → previous last-write-wins behaviour (backwards compatible).
+     */
+    private function guardBlocksVersion(SyncBlocksRequest $request, $blockable): void
+    {
+        $expected = $request->input('expected_version');
+        if ($expected !== null && (string) $expected !== (string) $this->blockService->blocksVersion($blockable)) {
+            abort(409, 'These blocks were modified by someone else since you loaded them. Reload to get the latest version.');
+        }
+    }
+
     public function indexForPage(Site $site, Page $page): JsonResponse
     {
         $this->authorize('view', $page);
 
         return response()->json([
             'data' => $this->blockService->getBlockTree($page),
+            'version' => $this->blockService->blocksVersion($page),
         ]);
     }
 
     public function syncForPage(SyncBlocksRequest $request, Site $site, Page $page): JsonResponse
     {
         $this->authorize('update', $page);
+        $this->guardBlocksVersion($request, $page);
 
         $tree = $this->blockService->syncBlocks($page, $request->validated('blocks'));
 
@@ -62,7 +78,7 @@ class BlockController extends Controller
             $this->autoPublish->triggerIfEnabled($site, $request->user(), 'page_blocks', $page->id);
         }
 
-        return response()->json(['data' => $tree]);
+        return response()->json(['data' => $tree, 'version' => $this->blockService->blocksVersion($page)]);
     }
 
     public function indexForPost(Site $site, Post $post): JsonResponse
@@ -71,12 +87,14 @@ class BlockController extends Controller
 
         return response()->json([
             'data' => $this->blockService->getBlockTree($post),
+            'version' => $this->blockService->blocksVersion($post),
         ]);
     }
 
     public function syncForPost(SyncBlocksRequest $request, Site $site, Post $post): JsonResponse
     {
         $this->authorize('update', $post);
+        $this->guardBlocksVersion($request, $post);
 
         $tree = $this->blockService->syncBlocks($post, $request->validated('blocks'));
 
@@ -85,7 +103,7 @@ class BlockController extends Controller
             $this->autoPublish->triggerIfEnabled($site, $request->user(), 'post_updated', $post->id);
         }
 
-        return response()->json(['data' => $tree]);
+        return response()->json(['data' => $tree, 'version' => $this->blockService->blocksVersion($post)]);
     }
 
     public function indexForTemplate(Site $site, ThemeTemplate $themeTemplate): JsonResponse
@@ -93,18 +111,20 @@ class BlockController extends Controller
         abort_if($themeTemplate->site_id !== $site->id, 404);
         return response()->json([
             'data' => $this->blockService->getBlockTree($themeTemplate),
+            'version' => $this->blockService->blocksVersion($themeTemplate),
         ]);
     }
 
     public function syncForTemplate(SyncBlocksRequest $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
         abort_if($themeTemplate->site_id !== $site->id, 404);
+        $this->guardBlocksVersion($request, $themeTemplate);
         $tree = $this->blockService->syncBlocks($themeTemplate, $request->validated('blocks'));
 
         // Auto-publish — regenerate all pages/posts using this template
         $this->autoPublish->triggerIfEnabled($site, $request->user(), 'template_updated', $themeTemplate->id);
 
-        return response()->json(['data' => $tree]);
+        return response()->json(['data' => $tree, 'version' => $this->blockService->blocksVersion($themeTemplate)]);
     }
 
     public function types(): JsonResponse

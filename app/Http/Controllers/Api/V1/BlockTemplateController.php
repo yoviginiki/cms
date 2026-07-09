@@ -24,6 +24,7 @@ class BlockTemplateController extends Controller
 
     public function store(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'category' => ['sometimes', 'string', 'max:50'],
@@ -45,6 +46,7 @@ class BlockTemplateController extends Controller
 
     public function destroy(Site $site, BlockTemplate $template): JsonResponse
     {
+        $this->authorize('update', $site);
         if ($template->is_system) {
             return response()->json(['message' => 'Cannot delete system templates.'], 403);
         }

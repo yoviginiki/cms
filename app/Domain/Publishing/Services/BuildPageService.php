@@ -218,7 +218,14 @@ class BuildPageService
 
                 $renderedBlocks = '';
                 foreach ($blocks as $block) {
-                    $renderedBlocks .= $this->renderBlock($block, $site);
+                    // Isolate per-block render failures: one fragile block must
+                    // not fail the whole page publish. Emit a placeholder + log.
+                    try {
+                        $renderedBlocks .= $this->renderBlock($block, $site);
+                    } catch (\Throwable $e) {
+                        logger()->warning("Block render failed (type={$block->type}, id={$block->id}): {$e->getMessage()}");
+                        $renderedBlocks .= "<!-- block render failed: {$block->type} -->";
+                    }
                 }
 
                 // Append raw HTML content (preserved verbatim — scripts, embeds, custom HTML)

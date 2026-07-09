@@ -114,6 +114,7 @@ class DynamicSiteTest extends TestCase
         $page = Page::factory()->published()->create([
             'site_id' => $this->site->id,
             'slug' => 'landing',
+            'title' => 'Landing Homepage Marker',
         ]);
 
         $this->site->update([
@@ -127,7 +128,10 @@ class DynamicSiteTest extends TestCase
             ->get('/sites/mysite');
 
         $response->assertStatus(200);
-        $response->assertSee('landing', false);
+        // The configured page is rendered as the homepage (its title appears,
+        // and its canonical/structured-data URL is the site root '/', not
+        // '/landing' — the homepage_id page must not leak its slug into URLs).
+        $response->assertSee('Landing Homepage Marker', false);
     }
 
     public function test_post_without_category_uses_uncategorized(): void

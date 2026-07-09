@@ -41,6 +41,11 @@ class UserController extends Controller
             'role' => ['required', 'in:editor,admin,viewer,author'],
         ]);
 
+        // Only the owner may create another admin (parity with updateRole).
+        if ($request->input('role') === 'admin' && !$request->user()->isOwner()) {
+            return response()->json(['message' => 'Only the owner can invite an admin.'], 403);
+        }
+
         // Check if email already exists in tenant
         $existing = User::where('tenant_id', $request->user()->tenant_id)
             ->where('email', $request->input('email'))
@@ -83,6 +88,12 @@ class UserController extends Controller
 
         if ($user->tenant_id !== $request->user()->tenant_id) {
             return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // The tenant owner's role cannot be changed by anyone via this endpoint
+        // (mirrors destroy()'s owner protection — an admin must not demote the owner).
+        if ($user->isOwner()) {
+            return response()->json(['message' => 'The site owner\'s role cannot be changed.'], 403);
         }
 
         // Only owner can set admin/owner roles

@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Domain\Concerns\PurgesBlocksOnForceDelete;
 
 class ThemeTemplate extends Model
 {
-    use HasUuids, SoftDeletes;
+    use HasUuids, SoftDeletes, PurgesBlocksOnForceDelete;
 
     protected $fillable = [
         'site_id', 'name', 'slug', 'type',

@@ -11,6 +11,10 @@ class SanitizationService
     private HTMLPurifier $purifier;
     private HTMLPurifier $strictPurifier;
     private HTMLPurifier $magazinePurifier;
+    private HTMLPurifier $inlinePurifier;
+
+    /** Nested string keys that may carry safe rich HTML (rendered via {!! !!}). */
+    private const HTML_LEAF_KEYS = ['content', 'contentSecondary', 'html', 'body', 'text', 'caption', 'description', 'answer'];
 
     public function __construct(private BlockRegistry $registry)
     {
@@ -40,6 +44,14 @@ class SanitizationService
         $strictConfig->set('HTML.Allowed', '');
         $strictConfig->set('Cache.DefinitionImpl', null);
         $this->strictPurifier = new HTMLPurifier($strictConfig);
+
+        // Inline purifier — a small set of formatting tags with NO attributes.
+        // Replaces the old strip_tags() path, which left event-handler
+        // attributes (onclick/onmouseover/...) intact on allowed tags.
+        $inlineConfig = HTMLPurifier_Config::createDefault();
+        $inlineConfig->set('HTML.Allowed', 'br,em,strong,b,i,span,sub,sup');
+        $inlineConfig->set('Cache.DefinitionImpl', null);
+        $this->inlinePurifier = new HTMLPurifier($inlineConfig);
 
         // Magazine/DTP purifier — mirrors the editor's DOMPurify allowlist
         // (MagElementRenderer SAFE_HTML_CONFIG) so published slices render the
@@ -116,6 +128,13 @@ class SanitizationService
 
         $sanitized = [];
         foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                // Recurse: nested arrays (accordion/catalog items, columns,
+                // rows, …) previously bypassed sanitization entirely and their
+                // HTML reached {!! !!} raw — a stored-XSS hole.
+                $sanitized[$key] = $this->sanitizeNested($value);
+                continue;
+            }
             if (!is_string($value)) {
                 $sanitized[$key] = $value;
                 continue;
@@ -125,8 +144,8 @@ class SanitizationService
             if ($key === 'content' && $allowedHtml !== '') {
                 $sanitized[$key] = @$this->purifier->purify($value);
             } elseif ($blockAllowHtml && in_array($key, $inlineHtmlFields)) {
-                // Allow safe inline HTML: <br>, <em>, <strong>, <span>
-                $sanitized[$key] = strip_tags($value, '<br><em><strong><span>');
+                // Safe inline HTML with NO attributes (event handlers stripped).
+                $sanitized[$key] = @$this->inlinePurifier->purify($value);
             } else {
                 // Strip all HTML for plain text fields
                 $sanitized[$key] = @$this->strictPurifier->purify($value);
@@ -134,5 +153,29 @@ class SanitizationService
         }
 
         return $sanitized;
+    }
+
+    /**
+     * Recursively sanitize a nested data structure. String leaves whose key is
+     * an HTML-bearing field (content, html, …) are rich-purified (scripts,
+     * event handlers, and javascript: URLs removed but safe formatting kept);
+     * every other string is stripped of all HTML.
+     */
+    private function sanitizeNested(array $data): array
+    {
+        $out = [];
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $out[$key] = $this->sanitizeNested($value);
+            } elseif (is_string($value)) {
+                $out[$key] = in_array($key, self::HTML_LEAF_KEYS, true)
+                    ? @$this->purifier->purify($value)
+                    : @$this->strictPurifier->purify($value);
+            } else {
+                $out[$key] = $value;
+            }
+        }
+
+        return $out;
     }
 }

@@ -33,6 +33,7 @@ class DtpVersionController extends Controller
 
     public function restore(Site $site, MagazineIssue $issue, string $versionId): JsonResponse
     {
+        $this->authorize('update', $site);
         if ($issue->site_id !== $site->id) {
             abort(404);
         }

@@ -4,6 +4,7 @@ namespace App\Domain\Publishing\Services;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
+use App\Domain\Publishing\Services\LocalePaths;
 
 class StructuredDataService
 {
@@ -14,7 +15,7 @@ class StructuredDataService
             '@context' => 'https://schema.org',
             '@type' => 'WebPage',
             'name' => $page->title,
-            'url' => $url . '/' . ($page->slug === 'home' ? '' : $page->slug),
+            'url' => $this->contentUrl($site, $page),
             'isPartOf' => [
                 '@type' => 'WebSite',
                 'name' => $site->name,
@@ -31,7 +32,7 @@ class StructuredDataService
             '@context' => 'https://schema.org',
             '@type' => 'Article',
             'headline' => $post->title,
-            'url' => $url . '/blog/' . $post->slug,
+            'url' => $this->contentUrl($site, $post),
             'datePublished' => $post->published_at?->toIso8601String(),
             'dateModified' => $post->updated_at->toIso8601String(),
             'publisher' => [
@@ -58,7 +59,7 @@ class StructuredDataService
             if ($content->category) {
                 $items[] = ['@type' => 'ListItem', 'position' => 2, 'name' => $content->category->name, 'item' => $url . '/' . $content->category->slug];
             }
-            $items[] = ['@type' => 'ListItem', 'position' => count($items) + 1, 'name' => $content->title, 'item' => $url . '/blog/' . $content->slug];
+            $items[] = ['@type' => 'ListItem', 'position' => count($items) + 1, 'name' => $content->title, 'item' => $this->contentUrl($site, $content)];
         } else {
             // Build page hierarchy
             $chain = [];
@@ -69,7 +70,7 @@ class StructuredDataService
             }
             $chain = array_reverse($chain);
             foreach ($chain as $i => $page) {
-                $items[] = ['@type' => 'ListItem', 'position' => $i + 2, 'name' => $page->title, 'item' => $url . '/' . $page->slug];
+                $items[] = ['@type' => 'ListItem', 'position' => $i + 2, 'name' => $page->title, 'item' => $this->contentUrl($site, $page)];
             }
         }
 
@@ -80,5 +81,14 @@ class StructuredDataService
     private function getSiteUrl(Site $site): string
     {
         return $site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu";
+    }
+
+    /**
+     * Absolute URL for a page/post that matches the canonical + sitemap exactly
+     * (same LocalePaths routing, trailing slash trimmed like the canonical).
+     */
+    private function contentUrl(Site $site, Page|Post $content): string
+    {
+        return rtrim($this->getSiteUrl($site), '/') . rtrim(LocalePaths::urlPath($site, $content), '/');
     }
 }

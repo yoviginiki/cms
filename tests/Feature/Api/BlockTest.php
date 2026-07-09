@@ -123,6 +123,8 @@ class BlockTest extends TestCase
 
     public function test_rejects_too_deep_nesting(): void
     {
+        // 6 levels deep — exceeds the max nesting depth of 4
+        // (Section → Row → Column → Module).
         $blocks = [
             [
                 'type' => 'columns', 'data' => ['column_count' => 2], 'order' => 0,
@@ -133,7 +135,17 @@ class BlockTest extends TestCase
                             [
                                 'type' => 'columns', 'data' => ['column_count' => 2], 'order' => 0,
                                 'children' => [
-                                    ['type' => 'text', 'data' => ['content' => 'Too deep'], 'order' => 0],
+                                    [
+                                        'type' => 'columns', 'data' => ['column_count' => 2], 'order' => 0,
+                                        'children' => [
+                                            [
+                                                'type' => 'columns', 'data' => ['column_count' => 2], 'order' => 0,
+                                                'children' => [
+                                                    ['type' => 'text', 'data' => ['content' => 'Too deep'], 'order' => 0],
+                                                ],
+                                            ],
+                                        ],
+                                    ],
                                 ],
                             ],
                         ],

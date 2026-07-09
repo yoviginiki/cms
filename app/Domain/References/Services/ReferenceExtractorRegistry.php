@@ -110,6 +110,7 @@ class ReferenceExtractorRegistry
             // itself being republished covers it, no stored edge needed)
             'anchormenu' => $null,
             'archive-pagination' => $null,
+            'langswitcher' => $null, // locale switcher — links resolved at build, no stored edges
             'authorbox' => $null,
             'breadcrumbs' => $null,
             'caption' => $null,

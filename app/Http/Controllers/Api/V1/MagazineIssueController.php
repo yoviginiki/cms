@@ -22,6 +22,7 @@ class MagazineIssueController extends Controller
 
     public function store(Request $request, Site $site): JsonResponse
     {
+        $this->authorize('update', $site);
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'status' => 'sometimes|string|in:draft,published,archived',
@@ -40,6 +41,7 @@ class MagazineIssueController extends Controller
 
     public function update(Request $request, Site $site, MagazineIssue $issue): JsonResponse
     {
+        $this->authorize('update', $site);
         if ($issue->site_id !== $site->id) {
             abort(404);
         }
@@ -56,6 +58,7 @@ class MagazineIssueController extends Controller
 
     public function destroy(Site $site, MagazineIssue $issue): JsonResponse
     {
+        $this->authorize('update', $site);
         if ($issue->site_id !== $site->id) {
             abort(404);
         }

@@ -14,6 +14,11 @@ class Block extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
+        // 'id' is fillable so the editor can preserve block ids across saves
+        // (FIX-C11a). Without it Block::create(['id'=>…]) dropped the id and
+        // HasUuids minted a new one every save — breaking theme_overrides,
+        // grid-position links, and page_version snapshots on every edit.
+        'id',
         'blockable_id', 'blockable_type', 'parent_block_id',
         'type', 'level', 'preset_id', 'data', 'style', 'order',
     ];

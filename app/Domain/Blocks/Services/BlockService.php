@@ -12,6 +12,18 @@ class BlockService
     public function syncBlocks(Model $blockable, array $blocksData): array
     {
         return DB::transaction(function () use ($blockable, $blocksData) {
+            $existingBlockIds = Block::where('blockable_type', $blockable->getMorphClass())
+                ->where('blockable_id', $blockable->getKey())
+                ->pluck('id')->all();
+
+            // FIX-C11a: this is a destructive delete-all-then-reinsert. Block
+            // ids are preserved (the client resends them), but the delete
+            // CASCADEs away rows that FK block_id (block-scoped theme overrides,
+            // grid-position block links). Snapshot them and restore the ones
+            // whose block id survives the round trip.
+            $themeOverrides = \App\Models\ThemeOverride::whereIn('block_id', $existingBlockIds)->get();
+            $gridPositionBlocks = \App\Models\GridPositionBlock::whereIn('block_id', $existingBlockIds)->get();
+
             // Delete all existing blocks for this blockable
             Block::where('blockable_type', $blockable->getMorphClass())
                 ->where('blockable_id', $blockable->getKey())
@@ -19,6 +31,21 @@ class BlockService
 
             // Insert new block tree
             $this->insertBlocks($blockable, $blocksData);
+
+            // Restore block-scoped rows whose block still exists post-reinsert.
+            $survivingIds = Block::where('blockable_type', $blockable->getMorphClass())
+                ->where('blockable_id', $blockable->getKey())
+                ->pluck('id')->flip();
+            foreach ($themeOverrides as $ov) {
+                if ($survivingIds->has($ov->block_id) && !\App\Models\ThemeOverride::whereKey($ov->id)->exists()) {
+                    \App\Models\ThemeOverride::create($ov->getAttributes());
+                }
+            }
+            foreach ($gridPositionBlocks as $gpb) {
+                if ($survivingIds->has($gpb->block_id) && !\App\Models\GridPositionBlock::whereKey($gpb->id)->exists()) {
+                    \App\Models\GridPositionBlock::create($gpb->getAttributes());
+                }
+            }
 
             // Recompute this source's entity-reference edges in the same
             // transaction. Synchronous by design: extraction is in-memory JSON
@@ -34,6 +61,20 @@ class BlockService
 
             return $this->getBlockTree($blockable);
         });
+    }
+
+    /**
+     * A version token for a blockable's current block tree (FIX-C11a opt-in
+     * optimistic concurrency). Changes whenever the blocks are re-saved, so a
+     * client that captured it on load can detect a concurrent edit on save.
+     */
+    public function blocksVersion(Model $blockable): ?string
+    {
+        $q = Block::where('blockable_type', $blockable->getMorphClass())
+            ->where('blockable_id', $blockable->getKey());
+        $latest = (clone $q)->max('updated_at');
+
+        return $latest ? $q->count() . ':' . $latest : '0:';
     }
 
     public function getBlockTree(Model $blockable): array
