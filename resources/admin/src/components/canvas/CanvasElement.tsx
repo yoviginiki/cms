@@ -5,6 +5,7 @@ import type { BlockData } from '@/types/blocks';
 import type { CanvasElement as El, EffectiveLayout } from '@/types/canvas';
 import { useCanvasStore } from '@/stores/canvasStore';
 import type { ResizeHandle } from './useCanvasSelection';
+import { CHROME } from './chrome';
 
 const HANDLES: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 const CURSORS: Record<ResizeHandle, string> = {
@@ -66,7 +67,7 @@ export function CanvasElement({ el, eff, selected, peerLocked, zoom, onPointerDo
         display: eff.hidden ? 'none' : undefined,
         opacity: peerLocked ? 0.55 : 1,
         pointerEvents: peerLocked ? 'none' : undefined,   // soft lock: can't grab while a peer edits
-        outline: peerLocked ? `${outlineW * 1.5}px solid #f59e0b` : (selected ? `${outlineW}px solid #2563eb` : `${outlineW}px dashed rgba(37,99,235,0.25)`),
+        outline: peerLocked ? `${outlineW * 1.5}px solid ${CHROME.peerLock}` : (selected ? `${outlineW}px solid ${CHROME.selection}` : `${outlineW}px dashed ${CHROME.idleOutline}`),
         cursor: el.locked ? 'default' : 'move',
         boxSizing: 'border-box',
       }}
@@ -90,14 +91,14 @@ export function CanvasElement({ el, eff, selected, peerLocked, zoom, onPointerDo
           <div
             onPointerDown={rotateDown}
             title="Rotate"
-            style={{ position: 'absolute', left: '50%', top: -26 / z, marginLeft: -(rSize / 2), width: rSize, height: rSize, borderRadius: '50%', background: '#2563eb', cursor: 'grab', border: `${2 / z}px solid #fff` }}
+            style={{ position: 'absolute', left: '50%', top: -26 / z, marginLeft: -(rSize / 2), width: rSize, height: rSize, borderRadius: '50%', background: CHROME.selection, cursor: 'grab', border: `${2 / z}px solid #fff` }}
           />
           {/* resize handles */}
           {HANDLES.map(h => (
             <div
               key={h}
               onPointerDown={(e) => onResizeDown(e, el.id, h)}
-              style={{ position: 'absolute', width: hSize, height: hSize, background: '#fff', border: `${hBorder}px solid #2563eb`, borderRadius: 2 / z, cursor: CURSORS[h], ...posMap[h] }}
+              style={{ position: 'absolute', width: hSize, height: hSize, background: '#fff', border: `${hBorder}px solid ${CHROME.selection}`, borderRadius: 2 / z, cursor: CURSORS[h], ...posMap[h] }}
             />
           ))}
         </>

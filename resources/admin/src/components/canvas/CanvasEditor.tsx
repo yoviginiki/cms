@@ -7,7 +7,7 @@ import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
 import { useCanvasCollab, type PeerCursor } from './useCanvasCollab';
 import { isCollabEnabled } from '@/lib/echo';
-import { effectiveLayout } from '@/types/canvas';
+import { effectiveLayout, MOBILE_W_MIN, MOBILE_W_MAX } from '@/types/canvas';
 import type { CanvasPageType, CanvasAnim } from '@/types/canvas';
 
 const NO_CURSORS: PeerCursor[] = [];   // stable empty ref so cursorless sections skip re-render
@@ -31,6 +31,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const snapEnabled = useCanvasStore(s => s.snapEnabled);
   const activeSectionId = useCanvasStore(s => s.activeSectionId);
   const activeBreakpoint = useCanvasStore(s => s.activeBreakpoint);
+  const mobileWidth = useCanvasStore(s => s.mobileWidth);
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const isDirty = useCanvasStore(s => s.isDirty);
   const undoLen = useCanvasStore(s => s.undoStack.length);   // local-mode undo availability
@@ -40,7 +41,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const {
     addSection, undo, redo, toggleSnap, setZoom, deleteElements,
     duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
-    setPageType, setWidth, setBreakpoint, clearMobileOverride, setElementPin, setElementAnim,
+    setPageType, setWidth, setMobileWidth, setBreakpoint, clearMobileOverride, setElementPin, setElementAnim,
   } = useCanvasStore.getState();
 
   // Pin controls apply to a single selected element in a fluid section.
@@ -52,10 +53,10 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const currentPin = selEl?.pinX ?? 'left';
 
   // Persist page-type + design width to seo_meta.canvas (merged, non-clobbering).
-  const persistCanvasMeta = (patch: { page_type?: CanvasPageType; width?: number }) => {
+  const persistCanvasMeta = (patch: { page_type?: CanvasPageType; width?: number; mobile_width?: number }) => {
     const prev = (seoMeta?.canvas ?? {}) as Record<string, unknown>;
     const st = useCanvasStore.getState();
-    const canvas = { page_type: st.pageType, width: st.width, ...prev, ...patch };
+    const canvas = { page_type: st.pageType, width: st.width, mobile_width: st.mobileWidth, ...prev, ...patch };
     const apiFor = contentType === 'posts' ? postsApi : pagesApi;
     apiFor.update(siteId, pageId, { seo_meta: { ...(seoMeta ?? {}), canvas } }).catch(() => { /* soft */ });
   };
@@ -75,8 +76,8 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   // Reconnect reseed: re-hydrate from the last saved tree after a dropped socket.
   const onReseed = useCallback(() => {
     blocksApi.get(siteId, contentType, pageId).then((r) => {
-      const cv = (seoMeta?.canvas ?? {}) as { page_type?: string; width?: number };
-      useCanvasStore.getState().loadFromBlocks(r.data.data, { pageType: cv.page_type === 'single' ? 'single' : 'website', width: cv.width });
+      const cv = (seoMeta?.canvas ?? {}) as { page_type?: string; width?: number; mobile_width?: number };
+      useCanvasStore.getState().loadFromBlocks(r.data.data, { pageType: cv.page_type === 'single' ? 'single' : 'website', width: cv.width, mobileWidth: cv.mobile_width });
     }).catch(() => { /* soft */ });
   }, [siteId, contentType, pageId, seoMeta]);
   const { members: presence, cursors, broadcastCursor, lockedIds, undo: collabUndo, redo: collabRedo, canUndo, canRedo } = useCanvasCollab(pageId, contentType, me?.id, autosave, onReseed);
@@ -172,6 +173,21 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
             <button className={`btn btn-xs ${activeBreakpoint === 'desktop' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('desktop')} title="Desktop layout" aria-label="Edit desktop layout" aria-pressed={activeBreakpoint === 'desktop'}><Monitor size={13} /></button>
             <button className={`btn btn-xs ${activeBreakpoint === 'mobile' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('mobile')} title="Mobile layout override" aria-label="Edit mobile layout override" aria-pressed={activeBreakpoint === 'mobile'}><Smartphone size={13} /></button>
           </div>
+          {activeBreakpoint === 'mobile' && (
+            <label className="flex items-center gap-1 text-[10px] text-base-content/50" title="Phone canvas width (px) — also the publish phone-layout width">
+              W
+              <input
+                type="number"
+                className="input input-xs input-bordered w-14"
+                value={mobileWidth}
+                min={MOBILE_W_MIN}
+                max={MOBILE_W_MAX}
+                onChange={(e) => setMobileWidth(Number(e.target.value))}
+                onBlur={(e) => persistCanvasMeta({ mobile_width: Number(e.target.value) })}
+                aria-label="Phone canvas width"
+              />
+            </label>
+          )}
           {activeBreakpoint === 'mobile' && selectedIds.length === 1 && (
             <button className="btn btn-xs btn-ghost" onClick={() => clearMobileOverride(selectedIds[0])} title="Reset this element to inherit the desktop position">reset</button>
           )}

@@ -7,6 +7,7 @@ import { useCanvasStore } from '@/stores/canvasStore';
 import { useCanvasSelection } from './useCanvasSelection';
 import { CanvasElement } from './CanvasElement';
 import { CanvasPalette } from './CanvasPalette';
+import { CHROME, CHROME_Z } from './chrome';
 import type { PeerCursor, PresenceMember } from './useCanvasCollab';
 
 interface Props {
@@ -116,7 +117,7 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
               background: section.settings.background || '#ffffff',
               backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
               backgroundSize: `${effWidth / 12}px ${effWidth / 12}px`,
-              outline: bp === 'mobile' ? '2px solid rgba(37,99,235,0.35)' : undefined,
+              outline: bp === 'mobile' ? `2px solid ${CHROME.mobileOutline}` : undefined,
             }}
           >
             {sorted.map(({ el, eff }) => (
@@ -137,8 +138,8 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
               <div
                 key={i}
                 style={g.type === 'vertical'
-                  ? { position: 'absolute', left: g.position, top: 0, bottom: 0, width: 1, background: '#ec4899', pointerEvents: 'none' }
-                  : { position: 'absolute', top: g.position, left: 0, right: 0, height: 1, background: '#ec4899', pointerEvents: 'none' }}
+                  ? { position: 'absolute', left: g.position, top: 0, bottom: 0, width: 1, background: CHROME.guide, pointerEvents: 'none' }
+                  : { position: 'absolute', top: g.position, left: 0, right: 0, height: 1, background: CHROME.guide, pointerEvents: 'none' }}
               />
             ))}
             {/* live peer cursors (Phase 2) — counter-scaled to stay constant size */}
@@ -146,7 +147,7 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
               const color = colorForId(c.id);
               const name = members.find((m) => m.id === c.id)?.name ?? '';
               return (
-                <div key={c.id} style={{ position: 'absolute', left: c.x, top: c.y, transform: `scale(${1 / (zoom || 1)})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: 10000, willChange: 'left, top' }}>
+                <div key={c.id} style={{ position: 'absolute', left: c.x, top: c.y, transform: `scale(${1 / (zoom || 1)})`, transformOrigin: 'top left', pointerEvents: 'none', zIndex: CHROME_Z.peerCursor, willChange: 'left, top' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" style={{ display: 'block', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.35))' }}>
                     <path d="M4 2l7 18 2.5-7.5L21 10z" fill={color} stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" />
                   </svg>

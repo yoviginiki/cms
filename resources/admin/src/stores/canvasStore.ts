@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { BlockData } from '@/types/blocks';
 import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout, PinX, CanvasAnim, CanvasOp } from '@/types/canvas';
-import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH, CANVAS_W_MIN, CANVAS_W_MAX } from '@/types/canvas';
+import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH, CANVAS_W_MIN, CANVAS_W_MAX, MOBILE_W_MIN, MOBILE_W_MAX } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 import { invertOp } from '@/lib/collabOps';
 
@@ -32,11 +32,12 @@ interface CanvasState {
   applyOp: (op: CanvasOp) => void;
 
   // lifecycle
-  loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number }) => void;
+  loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number; mobileWidth?: number }) => void;
   toBlocks: () => BlockData[];
   markClean: () => void;
   setPageType: (t: CanvasPageType) => void;
   setWidth: (w: number) => void;
+  setMobileWidth: (w: number) => void;
 
   // sections
   addSection: (afterId?: string) => void;
@@ -165,12 +166,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   loadFromBlocks: (blocks, meta) => {
     const doc: CanvasDoc = blockToCanvas(blocks, meta);
+    const mobileWidth = Math.max(MOBILE_W_MIN, Math.min(MOBILE_W_MAX, Math.round(meta.mobileWidth ?? DEFAULT_MOBILE_WIDTH) || DEFAULT_MOBILE_WIDTH));
     set({
       width: doc.width,
       pageType: doc.pageType,
       sections: doc.sections,
       passthrough: extractPassthrough(blocks),
       gridSize: doc.width / 12,
+      mobileWidth,
       selectedIds: [],
       activeSectionId: doc.sections[0]?.id ?? null,
       activeBreakpoint: 'desktop',
@@ -184,6 +187,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   markClean: () => set({ isDirty: false }),
   setPageType: (t) => set({ pageType: t, isDirty: true }),
   setWidth: (w) => { const width = Math.max(CANVAS_W_MIN, Math.min(CANVAS_W_MAX, Math.round(w) || DEFAULT_CANVAS_WIDTH)); set({ width, gridSize: width / 12, isDirty: true }); },
+  setMobileWidth: (w) => { const mobileWidth = Math.max(MOBILE_W_MIN, Math.min(MOBILE_W_MAX, Math.round(w) || DEFAULT_MOBILE_WIDTH)); set({ mobileWidth, isDirty: true }); },
 
   addSection: (afterId) => {
     get().pushSnapshot();

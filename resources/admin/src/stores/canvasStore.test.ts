@@ -234,4 +234,20 @@ describe('canvasStore', () => {
     st.setWidth(960);
     expect(useCanvasStore.getState().gridSize).toBe(80);
   });
+
+  it('setMobileWidth clamps to the phone bounds and loadFromBlocks honors meta', () => {
+    const st = useCanvasStore.getState();
+    st.setMobileWidth(100);    // below min
+    expect(useCanvasStore.getState().mobileWidth).toBe(240);
+    st.setMobileWidth(900);    // above max
+    expect(useCanvasStore.getState().mobileWidth).toBe(767);
+    st.setMobileWidth(360);
+    expect(useCanvasStore.getState().mobileWidth).toBe(360);
+
+    // meta.mobileWidth flows in on load (and is clamped)
+    st.loadFromBlocks([section('s1')], { pageType: 'website', width: 1200, mobileWidth: 414 });
+    expect(useCanvasStore.getState().mobileWidth).toBe(414);
+    st.loadFromBlocks([section('s1')], { pageType: 'website', width: 1200 }); // missing → default
+    expect(useCanvasStore.getState().mobileWidth).toBe(390);
+  });
 });

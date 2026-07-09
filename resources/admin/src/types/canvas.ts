@@ -25,6 +25,10 @@ export const DEFAULT_MOBILE_WIDTH = 390;    // px — mobile design canvas width
 export const CANVAS_W_MIN = 320;
 export const CANVAS_W_MAX = 3000;
 
+// Phone canvas-width bounds — mirror CanvasBounds::MOBILE_W_MIN/MAX.
+export const MOBILE_W_MIN = 240;
+export const MOBILE_W_MAX = 767;
+
 /** A partial position override for a breakpoint; missing keys inherit the base. */
 export interface BreakpointLayout {
   x?: number;

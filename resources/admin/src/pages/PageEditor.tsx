@@ -184,10 +184,11 @@ export default function PageEditor() {
       }
       // Canvas mode reads the SAME block tree into the canvas store.
       if (page?.editor_mode === 'canvas') {
-        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
         useCanvasStore.getState().loadFromBlocks(fetchedBlocks || [], {
           pageType: cv?.page_type === 'single' ? 'single' : 'website',
           width: cv?.width,
+          mobileWidth: cv?.mobile_width,
         });
       }
       blocksLoadedRef.current = true;
@@ -300,10 +301,11 @@ export default function PageEditor() {
     // canvas mid-session (load effect only fires on page load). Non-section
     // blocks are carried as passthrough, so switching never drops content.
     if (mode === 'canvas') {
-      const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number } } | undefined)?.canvas;
+      const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
       useCanvasStore.getState().loadFromBlocks(useEditorStore.getState().blocks, {
         pageType: cv?.page_type === 'single' ? 'single' : 'website',
         width: cv?.width,
+        mobileWidth: cv?.mobile_width,
       });
     }
     try {
