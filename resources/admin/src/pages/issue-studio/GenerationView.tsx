@@ -136,6 +136,25 @@ export default function GenerationView() {
       </div>
 
       {active && !generatingSpread && <DecisionBar spread={active} />}
+
+      {/* Between spreads: the last one is kept and the next isn't designed yet.
+          The 'Design spread N' button also sits top-right, but people look here
+          (where Keep was) for the way forward — so make it obvious. */}
+      {!active && nextPending && !generatingSpread && (
+        <div className="border-t border-base-300 px-4 py-3 flex items-center justify-between gap-3 bg-base-100">
+          <div className="text-[13px] text-base-content/60">
+            {approvedCount > 0 ? (
+              <><Check className="inline h-3.5 w-3.5 text-success mr-1" />
+                {approvedCount} of {spreads.length} kept — {spreads.length - approvedCount} to go.</>
+            ) : 'Ready when you are.'}
+          </div>
+          <button onClick={() => void generateNextSpread()} disabled={generatingSpread}
+            className="btn btn-primary btn-sm gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            {nextPending.position === 0 ? 'Design the cover' : `Design spread ${nextPending.position} →`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
