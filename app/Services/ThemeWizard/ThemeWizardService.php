@@ -20,6 +20,7 @@ class ThemeWizardService
         private ReferenceThemeService $reference,
         private ThemeNudgeEngine $nudge,
         private TokenProfileCompiler $compiler,
+        private ThemeConversationEngine $conversation,
     ) {}
 
     public function startFromUrl(Site $site, User $user, string $url, ?string $hint = null): WizardSession
@@ -27,6 +28,15 @@ class ThemeWizardService
         $result = $this->reference->fromUrl($site->tenant_id, $url, $hint);
         $open = $hint ? "Make me a theme with the feel of {$url} — {$hint}" : "Make me a theme with the feel of {$url}";
         return $this->create($site, $user, 'reference', $url, $open, $result);
+    }
+
+    public function startFromConversation(Site $site, User $user, string $description): WizardSession
+    {
+        $r = $this->conversation->design($site->tenant_id, $description);
+        $compiled = $this->compiler->compile($r['profile']);
+        return $this->create($site, $user, 'conversation', null, trim($description), [
+            'profile' => $r['profile'], 'compiled' => $compiled, 'usages' => $r['usages'],
+        ]);
     }
 
     public function startFromUpload(Site $site, User $user, UploadedFile $file, ?string $hint = null): WizardSession

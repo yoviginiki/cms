@@ -30,6 +30,7 @@ export default function ThemeWizardPage() {
   const [session, setSession] = useState<WizardSession | null>(null);
   const [url, setUrl] = useState('');
   const [hint, setHint] = useState('');
+  const [description, setDescription] = useState('');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [previewNonce, setPreviewNonce] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -51,6 +52,11 @@ export default function ThemeWizardPage() {
     onSuccess: (r: any) => { setSession(r.data.data); bump(); },
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
+  const startConversation = useMutation({
+    mutationFn: () => themeWizard.fromConversation(siteId, description.trim()),
+    onSuccess: (r: any) => { setSession(r.data.data); bump(); },
+    onError: (e) => toast({ type: 'error', message: apiErr(e) }),
+  });
   const nudge = useMutation({
     mutationFn: (instruction: string) => themeWizard.nudge(siteId, session!.id, instruction),
     onSuccess: (r: any) => { setSession(r.data.data); bump(); },
@@ -66,7 +72,7 @@ export default function ThemeWizardPage() {
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
 
-  const busy = startUrl.isPending || startUpload.isPending;
+  const busy = startUrl.isPending || startUpload.isPending || startConversation.isPending;
 
   if (!session) {
     return (
@@ -110,6 +116,20 @@ export default function ThemeWizardPage() {
             <label className="text-xs font-medium text-base-content/60 mb-1.5 block">A nudge for the direction (optional)</label>
             <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="e.g. warmer, more editorial, calmer"
               className="input input-bordered input-sm w-full text-[13px]" />
+          </div>
+
+          <div className="border-t border-base-300 pt-4">
+            <label className="text-xs font-medium text-base-content/60 flex items-center gap-1.5 mb-1.5">
+              <Wand2 size={13} /> …or just describe it in words
+            </label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+              rows={2} placeholder="e.g. a warm, calm wellness studio — earthy tones, a gentle serif, lots of air"
+              className="textarea textarea-bordered w-full text-[13px] resize-none leading-snug" />
+            <button onClick={() => startConversation.mutate()} disabled={busy || description.trim().length < 3}
+              className="btn btn-outline btn-sm gap-1.5 w-full mt-2">
+              {startConversation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              Design from a description
+            </button>
           </div>
 
           {busy && (

@@ -62,8 +62,13 @@ class TokenProfileCompiler
         $radius = self::RADIUS[$p['radius']] ?? self::RADIUS['sharp'];
         $shadow = self::SHADOW[$p['shadow']] ?? self::SHADOW['none'];
 
-        // derive neutrals the profile doesn't state
-        $inverse = $this->darker($pal['heading']);
+        // derive neutrals the profile doesn't state. The inverse surface is a
+        // dark ground for footers/cinematic heroes: for a LIGHT theme, darken
+        // the heading; for an already-DARK theme, the canvas itself is the dark
+        // ground (darkening the light heading would only give grey).
+        $inverse = $this->luminance($pal['background']) < 0.25
+            ? $this->darker($pal['background'])
+            : $this->darker($pal['heading']);
         $btnRadius = $p['radius'] === 'rounded' ? '999px' : ($radius['md'] ?? '0');
         $btnTransform = in_array($p['layout'], ['cinematic', 'portfolio'], true) ? 'uppercase' : 'none';
         $btnTracking = $btnTransform === 'uppercase' ? '0.12em' : '0.01em';
@@ -137,6 +142,13 @@ class TokenProfileCompiler
         if (in_array('serif', $char, true)) return ['Georgia', 'serif'];
         if ($cat === 'mono') return ['ui-monospace', 'monospace'];
         return ['system-ui', '-apple-system', 'sans-serif'];
+    }
+
+    /** Perceptual luminance 0..1 of a #RRGGBB color. */
+    private function luminance(string $hex): float
+    {
+        $r = hexdec(substr($hex, 1, 2)); $g = hexdec(substr($hex, 3, 2)); $b = hexdec(substr($hex, 5, 2));
+        return (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
     }
 
     /** Nudge a color darker for inverse surfaces (multiply by 0.4, floor). */
