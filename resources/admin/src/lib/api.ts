@@ -219,6 +219,20 @@ export const themeEngine = {
   studioFrames: (siteId: string) => api.get(`/sites/${siteId}/theme-engine/studio/frames`),
 };
 
+export const themeWizard = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/theme-wizard/sessions`),
+  get: (siteId: string, id: string) => api.get(`/sites/${siteId}/theme-wizard/sessions/${id}`),
+  fromUrl: (siteId: string, url: string, hint?: string) =>
+    api.post(`/sites/${siteId}/theme-wizard/sessions/from-url`, { url, hint }),
+  fromUpload: (siteId: string, form: FormData) =>
+    api.post(`/sites/${siteId}/theme-wizard/sessions/from-upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  nudge: (siteId: string, id: string, instruction: string) =>
+    api.post(`/sites/${siteId}/theme-wizard/sessions/${id}/nudge`, { instruction }),
+  accept: (siteId: string, id: string) => api.post(`/sites/${siteId}/theme-wizard/sessions/${id}/accept`),
+  abandon: (siteId: string, id: string) => api.post(`/sites/${siteId}/theme-wizard/sessions/${id}/abandon`),
+  previewUrl: (siteId: string, id: string) => `/api/v1/sites/${siteId}/theme-wizard/sessions/${id}/preview/showcase`,
+};
+
 export const customFonts = {
   list: (siteId: string) => api.get(`/sites/${siteId}/fonts`),
   upload: (siteId: string, formData: FormData) => api.post(`/sites/${siteId}/fonts`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),

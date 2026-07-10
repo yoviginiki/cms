@@ -19,9 +19,23 @@ use Symfony\Component\Process\Process;
  */
 class ReferenceCaptureService
 {
+    /** Whether server-side URL screenshots can run in this PHP context. */
+    public function urlCaptureAvailable(): bool
+    {
+        if (!function_exists('proc_open')) return false;
+        $disabled = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+        return !in_array('proc_open', $disabled, true);
+    }
+
     /** @return array{data:string, media_type:string} base64 image + media type */
     public function fromUrl(string $url): array
     {
+        // php-fpm often disables proc_open; the node screenshot then can't run
+        // in the web request. Fail cleanly (→ 422) so the UI steers to upload.
+        if (!$this->urlCaptureAvailable()) {
+            throw new RuntimeException('Automatic site capture is not enabled on this server — upload a screenshot of the site instead.');
+        }
+
         $url = $this->assertPublicHttpUrl($url);
 
         $node = trim((string) (config('cms.theme_wizard.node_bin') ?? 'node'));
