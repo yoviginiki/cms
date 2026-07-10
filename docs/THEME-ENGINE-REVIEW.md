@@ -122,3 +122,22 @@ The emitted variable inventory (~186 vars: colors incl. per-heading, fonts, size
 8. Tests for all of the above: switch-flags-stale, export→delete→import→identical, Studio/published CSS parity snapshot, viewer-403s (exist), RLS write probe.
 
 Acceptance per master prompt: switch between two structurally different test themes on a seeded site — pixel-sane staged output both ways; export → delete → import → identical.
+
+---
+
+## T1.2 hardening — COMPLETE (2026-07-09)
+
+All 8 worklist items landed on `feature/theme-engine`:
+
+1. **Switch lifecycle** (`assign()` + `fork()`, `StalenessResolver::markAllStale`) — site-wide switch flags every published page+post stale + returns `meta.stale`; per-page assign/clear flags its page; `fork()` no longer auto-switches (opt-in `?activate=1`). Commit 1.
+2. **Themeless defaults** (`DesignTokenGenerator::generate`) — emits the default token set when `active_theme_id` is NULL (was `''`). Commit 1.
+3. **Packaging** (`ThemePackager`) — single self-describing bundle (document + metadata incl. author/preview in `manifest_json` + template seeds); symmetric export/import; legacy bare-document import still accepted; round-trips identically. Commit 1.
+4. **RLS WITH CHECK + `is_system` un-fillable** (migration `2026_07_09_120000`) — a tenant session can write only its own sites' themes; fake-system injection blocked. Commit 1.
+5. **Single CSS generator** (`generateForTheme`, `FrameRenderer`, `studioFrame`) — Studio iframe emits the published variable surface (186 vars, was 70). Commit 2.
+6. **Token consumption sweep** (~14 blocks + `BlockStyle` shadows + new `--input-*`/`--code-*`/`--chart-*` tokens) — themes can now restyle every block incl. shadows. Commit 3.
+7. **`theme_overrides.theme_id`** (migration `2026_07_09_130000`) — overrides scoped per theme, no cross-theme bleed. Commit 4.
+8. **Tests** — ThemeEngineTest 20, ThemeRlsTest 4; References+Blocks+Publishing 730 pass. Live HTTP 5/5 on sys.ensodo.eu (assign meta.stale, structural switch, bundle export/import, fork-no-switch).
+
+Migrations applied to production (`cms_saas_platform`) via forward `migrate` — both additive/policy-only (`theme_overrides` empty; WITH CHECK gates only new writes); state verified. opcache revalidates on mtime so the edited PHP is already live.
+
+**Deferred (documented, not blocking T2):** legacy flat-`config` path deprecation (migrate the 4 disk themes' tokens into `document`); Studio client instant-patch legacy-alias coverage + real-page preview frame + autosave; JSON Schema validation of `document` on import.
