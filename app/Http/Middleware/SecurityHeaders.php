@@ -21,9 +21,13 @@ class SecurityHeaders
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        // Allow same-origin framing for studio/preview iframes, deny cross-origin
-        $isFrameable = str_contains($request->path(), 'studio/frame')
-            || str_contains($request->path(), '/preview');
+        // Allow same-origin framing for the various preview/render iframes
+        // (theme studio frames, page preview, and the magazine/issue-studio
+        // "dtp-preview" spread render — note the hyphen, so a "/preview" match
+        // alone misses it). SAMEORIGIN still blocks cross-origin clickjacking.
+        $path = $request->path();
+        $isFrameable = str_contains($path, 'studio/frame')
+            || str_contains($path, 'preview'); // /preview, dtp-preview, magazine preview
         $response->headers->set('X-Frame-Options', $isFrameable ? 'SAMEORIGIN' : 'DENY');
 
         return $response;
