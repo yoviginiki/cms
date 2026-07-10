@@ -7,6 +7,7 @@ class FrameRegistry
     public function all(): array
     {
         return [
+            (object) ['slug' => 'showcase', 'title' => 'Full Preview', 'description' => 'A complete sample page — the whole theme at a glance'],
             (object) ['slug' => 'hero', 'title' => 'Hero Sections', 'description' => 'Hero blocks in all variants'],
             (object) ['slug' => 'cards', 'title' => 'Card Grid', 'description' => 'Cards with mixed variants'],
             (object) ['slug' => 'typography', 'title' => 'Typography', 'description' => 'Headings, paragraphs, lists, quotes'],

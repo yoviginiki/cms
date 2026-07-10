@@ -107,7 +107,7 @@ export default function ThemeEngine() {
           <h2 className="text-sm font-semibold text-base-content/50 uppercase tracking-wider mb-3">System Themes</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {systemThemes.map(theme => (
-              <ThemeCard key={theme.id} theme={theme}
+              <ThemeCard key={theme.id} theme={theme} siteId={siteId}
                 onFork={() => handleFork(theme)}
                 onActivate={() => activateMut.mutate(theme.id)}
                 isActivating={activateMut.isPending}
@@ -131,7 +131,7 @@ export default function ThemeEngine() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {customThemes.map(theme => (
-              <ThemeCard key={theme.id} theme={theme}
+              <ThemeCard key={theme.id} theme={theme} siteId={siteId}
                 onFork={() => handleFork(theme)}
                 onActivate={() => activateMut.mutate(theme.id)}
                 isActivating={activateMut.isPending}
@@ -302,71 +302,69 @@ function CustomFontsSection({ siteId }: { siteId: string }) {
   );
 }
 
-function ThemeCard({ theme, onFork, onActivate, isActivating, onEdit }: {
+function ThemeCard({ theme, siteId, onFork, onActivate, isActivating, onEdit }: {
   theme: ThemeItem;
+  siteId: string;
   onFork: () => void;
   onActivate: () => void;
   isActivating: boolean;
   onEdit: () => void;
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
+  // live preview: the studio frame renders THIS theme with its real published
+  // CSS (DesignTokenGenerator), so the picker shows exactly what will ship.
+  const frameUrl = `/api/v1/sites/${siteId}/theme-engine/studio/frame/showcase?theme_id=${theme.id}`;
+  const frameW = device === 'mobile' ? 390 : 1200;
 
   return (
     <div className={`bg-base-100 rounded-xl border p-4 hover:shadow-md transition-shadow ${
       theme.is_assigned ? 'border-primary/40 ring-1 ring-primary/20' : 'border-base-300'
     }`}>
-      {/* Generated visual preview */}
-      <div className="h-28 rounded-lg bg-base-200 mb-3 overflow-hidden relative cursor-pointer"
-        onClick={() => setPreviewOpen(true)}>
-        <div className="absolute inset-0 flex flex-col">
-          <div className="h-3 bg-base-300/50 flex items-center px-1.5 gap-0.5">
-            <div className="w-1 h-1 rounded-full bg-error/60" />
-            <div className="w-1 h-1 rounded-full bg-warning/60" />
-            <div className="w-1 h-1 rounded-full bg-success/60" />
-          </div>
-          <div className="flex-1 p-2 flex flex-col gap-1">
-            <div className="h-2 bg-base-content/15 rounded w-2/3" />
-            <div className="h-1.5 bg-base-content/8 rounded w-full" />
-            <div className="h-1.5 bg-base-content/8 rounded w-4/5" />
-            <div className="flex gap-1 mt-auto">
-              <div className="h-3 bg-primary/30 rounded w-12" />
-              <div className="h-3 bg-base-300/50 rounded w-10" />
-            </div>
-          </div>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 transition-opacity">
-          <Eye className="h-5 w-5 text-white" />
+      {/* Live thumbnail — a real, scaled-down render of the theme */}
+      <div className="h-28 rounded-lg bg-base-200 mb-3 overflow-hidden relative cursor-pointer group/thumb border border-base-300"
+        onClick={() => { setDevice('desktop'); setPreviewOpen(true); }}>
+        <iframe title={`${theme.name} preview`} src={frameUrl} tabIndex={-1} aria-hidden
+          loading="lazy"
+          className="pointer-events-none border-0 origin-top-left"
+          style={{ width: 1200, height: 933, transform: 'scale(0.3)' }} />
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 bg-black/40 transition-opacity">
+          <span className="inline-flex items-center gap-1.5 text-white text-xs font-medium"><Eye className="h-4 w-4" /> Live preview</span>
         </div>
       </div>
 
-      {/* Preview modal */}
+      {/* Full live preview modal */}
       {previewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setPreviewOpen(false)}>
-          <div className="bg-base-100 rounded-2xl shadow-2xl w-[500px] max-w-[90vw] p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-base-content mb-1">{theme.name}</h3>
-            {theme.description && <p className="text-sm text-base-content/50 mb-4">{theme.description}</p>}
-            <div className="space-y-3 mb-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                {theme.modes?.map(m => <span key={m} className="badge badge-ghost badge-sm">{m}</span>)}
-                {theme.is_system && <span className="badge badge-info badge-sm">System</span>}
-                {theme.is_assigned && <span className="badge badge-success badge-sm">Active</span>}
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 p-6" onClick={() => setPreviewOpen(false)}>
+          <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[92vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-base-300">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-base-content flex items-center gap-2">
+                  {theme.name}
+                  {theme.is_assigned && <span className="badge badge-success badge-sm">Active</span>}
+                  {theme.is_system && <span className="badge badge-info badge-sm">System</span>}
+                </h3>
+                {theme.description && <p className="text-xs text-base-content/50 truncate">{theme.description}</p>}
               </div>
-              <div className="bg-base-200 rounded-lg p-4">
-                <div className="text-xs text-base-content/40 mb-2">Sample Layout Preview</div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-base-content/15 rounded w-3/4" />
-                  <div className="h-2 bg-base-content/8 rounded w-full" />
-                  <div className="h-2 bg-base-content/8 rounded w-5/6" />
-                  <div className="flex gap-2 mt-3">
-                    <div className="h-6 bg-primary rounded px-3 flex items-center text-[9px] text-primary-content font-medium">Button</div>
-                    <div className="h-6 border border-base-300 rounded px-3 flex items-center text-[9px] text-base-content/60">Ghost</div>
-                  </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="join">
+                  <button onClick={() => setDevice('desktop')}
+                    className={`btn btn-xs join-item ${device === 'desktop' ? 'btn-primary' : 'btn-ghost'}`}>Desktop</button>
+                  <button onClick={() => setDevice('mobile')}
+                    className={`btn btn-xs join-item ${device === 'mobile' ? 'btn-primary' : 'btn-ghost'}`}>Mobile</button>
                 </div>
+                {!theme.is_assigned && (
+                  <button onClick={() => { onActivate(); setPreviewOpen(false); }} disabled={isActivating}
+                    className="btn btn-primary btn-xs gap-1"><Power className="h-3 w-3" /> Use this theme</button>
+                )}
+                <button onClick={() => setPreviewOpen(false)} className="btn btn-ghost btn-xs">Close</button>
               </div>
             </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setPreviewOpen(false)} className="btn btn-ghost btn-sm">Close</button>
-              <button onClick={() => { setPreviewOpen(false); onEdit(); }} className="btn btn-primary btn-sm gap-1"><Eye className="h-3 w-3" /> Open Editor</button>
+            {/* the actual live render */}
+            <div className="flex-1 overflow-auto bg-base-200 flex justify-center p-4">
+              <iframe key={device} title={`${theme.name} full preview`} src={frameUrl}
+                className="border border-base-300 bg-white shadow-sm"
+                style={{ width: frameW, minHeight: 760, height: '100%', maxWidth: '100%' }} />
             </div>
           </div>
         </div>
