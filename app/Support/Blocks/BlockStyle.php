@@ -67,11 +67,17 @@ class BlockStyle
 
     // ── Shadow allowlist ──
 
-    // Unified shadow preset map — accepts both naming conventions
+    // Unified shadow preset map — accepts both naming conventions. The
+    // canonical sm/md/lg presets resolve through the theme's --shadow-* tokens
+    // (with the house-style literal as fallback), so a theme that defines a
+    // shadow character actually reaches every block using these presets. The
+    // extra named presets stay literal — they are distinct design choices, not
+    // scale steps.
     private const SHADOW_MAP = [
-        'sm' => '0 1px 2px rgba(0,0,0,0.04)',
-        'md' => '0 4px 12px rgba(0,0,0,0.06)',
-        'lg' => '0 12px 32px rgba(0,0,0,0.10)',
+        'sm' => 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04))',
+        'md' => 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.06))',
+        'lg' => 'var(--shadow-lg, 0 12px 32px rgba(0,0,0,0.10))',
+        'xl' => 'var(--shadow-xl, 0 20px 40px rgba(0,0,0,0.16))',
         'subtle' => '0 1px 3px rgba(0,0,0,0.12)',
         'medium' => '0 8px 24px rgba(0,0,0,0.18)',
         'large'  => '0 20px 40px rgba(0,0,0,0.24)',

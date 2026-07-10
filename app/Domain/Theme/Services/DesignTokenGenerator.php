@@ -135,18 +135,30 @@ class DesignTokenGenerator
 
     public function generate(Site $site): string
     {
-        $theme = $site->theme;
-        if (!$theme) return '';
+        return $this->generateForTheme($site->theme, $site);
+    }
 
+    /**
+     * Generate the published CSS for a SPECIFIC theme in a site's context.
+     * `generate()` uses the site's active theme; the Theme Studio preview
+     * passes the theme being edited so its iframe emits the EXACT same CSS
+     * variable surface (semantic + legacy aliases + defaults + font imports)
+     * that the published page will — no second generator, no fidelity gap.
+     */
+    public function generateForTheme(?Theme $theme, Site $site): string
+    {
+        // A themeless site still needs the default token set — every block's
+        // var(--…) reference would otherwise fall back to its inline literal,
+        // producing an unstyled page. Defaults are the Stillopress house style.
         $defaults = $this->getDefaults();
-        $themeTokens = $theme->config['tokens'] ?? [];
-        $customizations = $this->getCustomizations($site, $theme);
+        $themeTokens = $theme ? ($theme->config['tokens'] ?? []) : [];
+        $customizations = $theme ? $this->getCustomizations($site, $theme) : [];
 
         // Merge: defaults → config tokens → customizations
         $tokens = array_merge($defaults, $themeTokens, $customizations);
 
         // Bridge W3C document tokens → CSS variables (studio edits affect published site)
-        if ($theme->document) {
+        if ($theme && $theme->document) {
             $docTokens = $this->resolveDocumentTokens($theme->document);
             $tokens = array_merge($tokens, $docTokens);
         }
@@ -197,7 +209,7 @@ class DesignTokenGenerator
         }
 
         // Site Background from theme document
-        if ($theme->document && isset($theme->document['siteBackground'])) {
+        if ($theme && $theme->document && isset($theme->document['siteBackground'])) {
             $bg = $theme->document['siteBackground'];
             $css .= "body {\n";
             if (!empty($bg['color'])) {
@@ -485,6 +497,28 @@ class DesignTokenGenerator
             // Content
             'content-max-width' => '800px',
             'prose-max-width' => '65ch',
+
+            // Form inputs — themes can now restyle every field consistently
+            'input-bg' => 'var(--color-bg, #ffffff)',
+            'input-color' => 'var(--color-text, #1e293b)',
+            'input-border' => 'var(--color-border-strong, #94a3b8)',
+            'input-border-focus' => 'var(--color-primary, #3b82f6)',
+            'input-radius' => 'var(--border-radius-sm, 4px)',
+            'input-placeholder' => 'var(--color-text-muted, #64748b)',
+
+            // Code block theme (used by the code block; kept dark by default)
+            'code-bg' => '#1e293b',
+            'code-color' => '#e2e8f0',
+            'code-comment' => '#94a3b8',
+            'code-border' => '#475569',
+
+            // Chart / data-series palette (6-hue rotation)
+            'chart-1' => 'var(--color-primary, #3b82f6)',
+            'chart-2' => '#f59e0b',
+            'chart-3' => '#22c55e',
+            'chart-4' => '#ef4444',
+            'chart-5' => '#8b5cf6',
+            'chart-6' => '#06b6d4',
         ];
     }
 }

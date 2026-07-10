@@ -15,15 +15,22 @@ class FrameRenderer
 
     /**
      * Render a frame as a complete HTML document for iframe embedding.
+     *
+     * @param string $css pre-rendered theme CSS. The caller passes the output
+     *   of DesignTokenGenerator so the Studio iframe carries the EXACT same
+     *   variable surface as the published page (fidelity). ResolvedTheme is
+     *   still accepted for callers that only have tokens (compiled locally).
      */
-    public function render(string $frameSlug, ResolvedTheme $resolved, bool $studio = false): string
+    public function render(string $frameSlug, ResolvedTheme|string $cssOrResolved, bool $studio = false): string
     {
         $viewName = "theme-studio.frames.{$frameSlug}";
         if (!View::exists($viewName)) {
             return '<p>Frame not found: ' . e($frameSlug) . '</p>';
         }
 
-        $css = $this->compiler->renderCss($resolved);
+        $css = is_string($cssOrResolved)
+            ? $cssOrResolved
+            : $this->compiler->renderCss($cssOrResolved);
 
         $frameHtml = View::make($viewName, ['themeStudio' => $studio])->render();
 

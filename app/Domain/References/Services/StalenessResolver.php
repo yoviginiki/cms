@@ -214,6 +214,30 @@ class StalenessResolver
         }
     }
 
+    /**
+     * A site-wide change with no entity_references edge to walk — the active
+     * theme switched, so every published page/post carries stale inlined token
+     * CSS and must be rebuilt. Flags all of them plus the site-wide marker.
+     *
+     * @return array{pages: int, posts: int, site_wide: bool}
+     */
+    public function markAllStale(Site $site, string $reason): array
+    {
+        $pages = Page::where('site_id', $site->id)
+            ->where('status', 'published')
+            ->update(['needs_republish' => true, 'needs_republish_reason' => $reason]);
+        $posts = Post::where('site_id', $site->id)
+            ->where('status', 'published')
+            ->update(['needs_republish' => true, 'needs_republish_reason' => $reason]);
+
+        $this->markSiteStale($site, $reason);
+        if ($pages > 0 || $posts > 0) {
+            $this->maybeAutoRepublish($site, $reason);
+        }
+
+        return ['pages' => $pages, 'posts' => $posts, 'site_wide' => true];
+    }
+
     private function flagPages(array $ids, string $reason): void
     {
         if ($ids !== []) {

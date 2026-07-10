@@ -94,10 +94,10 @@ Interactive *feel* acceptance (drag ergonomics, snap thresholds) and opening the
 | 14 | entity_references / dependency graph | — | — | — | — | ⬜ | Session D |
 | 15 | Slider system | — | — | — | — | ⬜ | Session D |
 | 16 | Menus / theme refs / slug staleness | — | — | — | — | ⬜ | Session D |
-| 17 | W3C token engine | — | — | — | — | ⬜ | Session E |
-| 18 | Theme Studio live editing | — | — | — | — | ⬜ | Session E |
-| 19 | Theme switching | — | — | — | — | ⬜ | Session E |
-| 20 | Cinematic layout (wabisabi4) | — | — | — | — | ⬜ | Session E |
+| 17 | W3C token engine | full | yes (ThemeEngineTest 20) | pass | yes (T1 review + hardening) | 🟢 GREEN | W3C `document` engine works; T1.2 closed the token-consumption leaks (~14 blocks + shadows + inputs now tokenized), added themeless defaults, symmetric single-file bundle export/import, RLS WITH CHECK. Legacy flat-`config` path still coexists (documented in docs/THEME-ENGINE-REVIEW.md) — deprecation deferred. |
+| 18 | Theme Studio live editing | full (server) | yes (fidelity test) | pass | yes (T1 review + fix) | 🟡 YELLOW | Studio iframe now emits the SAME CSS surface as published (unified on DesignTokenGenerator — was 70 vs 186 vars). Remaining: client postMessage instant-patch still semantic-only (reloads correct on save); Studio previews stock frames, not real pages; no autosave. |
+| 19 | Theme switching | full | yes (ThemeEngineTest + ThemeRlsTest) | pass | yes (T1 review + fix, live 5/5) | 🟢 GREEN | assign() now flags all published pages+posts stale (was silent no-op → old CSS forever); per-page + clear flag their page; fork() no longer silently switches (opt-in ?activate=1); theme_overrides scoped by theme_id (no cross-theme bleed). Live-verified on sys.ensodo.eu. |
+| 20 | Cinematic layout (wabisabi4) | — | — | — | — | ⬜ | not theme-scoped (per-page experience_mode); deferred to a rendering session |
 | 21 | Playwright audit suite | — | — | — | — | ⬜ | Session F |
 | 22 | PageSpeed on staged output | — | — | — | — | ⬜ | Session F |
 | 23 | Mobile responsiveness | — | — | — | — | ⬜ | Session F |

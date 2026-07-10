@@ -15,7 +15,7 @@
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
     $style = $data['style'] ?? 'top-bar';
-    $color = ($data['color'] ?? '') ?: '#3b82f6';
+    $color = ($data['color'] ?? '') ?: 'var(--color-primary,#3b82f6)';
     $height = $data['height'] ?? '3px';
 @endphp
 @if($style === 'top-bar')
@@ -47,7 +47,7 @@ if (!CSS.supports('animation-timeline', 'scroll()')) {
 @elseif($style === 'circular')
 <div class="reading-progress reading-progress--circular" style="position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; width: 48px; height: 48px;">
     <svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-        <circle cx="18" cy="18" r="16" fill="none" stroke="#e5e7eb" stroke-width="2"/>
+        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--color-border-light,#e5e7eb)" stroke-width="2"/>
         <circle class="reading-progress__circle" cx="18" cy="18" r="16" fill="none" stroke="{{ e($color) }}" stroke-width="2" stroke-dasharray="100.53" stroke-dashoffset="100.53" style="animation: readingCircle linear; animation-timeline: scroll();"/>
     </svg>
 </div>
