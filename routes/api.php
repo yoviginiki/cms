@@ -316,6 +316,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/theme-engine/studio/frames', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'studioFrames']);
         Route::get('sites/{site}/theme-engine/studio/frame/{slug}', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'studioFrame']);
 
+        // Theme Wizard (T3 — conversational, AI-assisted theme creation)
+        Route::prefix('sites/{site}/theme-wizard')->group(function () {
+            $c = \App\Http\Controllers\ThemeWizard\ThemeWizardController::class;
+            Route::get('sessions', [$c, 'index']);
+            Route::post('sessions/from-url', [$c, 'startUrl'])->middleware('throttle:10,1');
+            Route::post('sessions/from-upload', [$c, 'startUpload'])->middleware('throttle:10,1');
+            Route::get('sessions/{wizardSession}', [$c, 'show']);
+            Route::post('sessions/{wizardSession}/nudge', [$c, 'nudge'])->middleware('throttle:20,1');
+            Route::post('sessions/{wizardSession}/accept', [$c, 'accept']);
+            Route::post('sessions/{wizardSession}/abandon', [$c, 'abandon']);
+            Route::get('sessions/{wizardSession}/preview/{slug?}', [$c, 'preview']);
+        });
+
         // Theme Templates (Theme Builder)
         Route::get('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'index']);
         Route::post('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'store']);
