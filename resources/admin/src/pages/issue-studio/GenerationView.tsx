@@ -16,7 +16,7 @@ import type { SpreadRow } from './types';
  */
 export default function GenerationView() {
   const { siteId = '' } = useParams();
-  const { session, generatingSpread, generateNextSpread } = useStudioStore();
+  const { session, generatingSpread, generateNextSpread, load } = useStudioStore();
   const [iframeLoading, setIframeLoading] = useState(true);
 
   const spreads = session?.spreads ?? [];
@@ -25,10 +25,22 @@ export default function GenerationView() {
   const approvedCount = spreads.filter((s) => s.status === 'approved').length;
   const complete = session?.status === 'complete';
 
-  // reload the preview whenever the document changes
+  // Open the preview at the spread under review (its first page index = total
+  // pages in all earlier spreads, since pages are laid out spread-by-spread) —
+  // otherwise the flipbook always shows the cover and you can't see what you're
+  // approving.
+  const focusPage = useMemo(() => {
+    const target = active ?? spreads.slice().reverse().find((s) => s.status === 'approved');
+    if (!target) return 0;
+    return spreads
+      .filter((s) => s.position < target.position)
+      .reduce((n, s) => n + (s.page_ids?.length ?? 0), 0);
+  }, [active, spreads]);
+
+  // reload the preview whenever the document changes OR the focused spread moves
   const previewKey = useMemo(
-    () => `${session?.magazine_issue_id ?? ''}:${session?.updated_at ?? ''}:${spreads.map((s) => s.status).join(',')}`,
-    [session, spreads],
+    () => `${session?.magazine_issue_id ?? ''}:${session?.updated_at ?? ''}:${spreads.map((s) => s.status).join(',')}:${focusPage}`,
+    [session, spreads, focusPage],
   );
 
   if (!session) return null;
@@ -70,6 +82,18 @@ export default function GenerationView() {
                 : `Design spread ${nextPending.position}`}
           </button>
         )}
+        {/* Never-stuck guard: no spread awaiting a decision and none pending,
+            yet the issue isn't marked complete (e.g. a missed status update on
+            the last keep). Give an explicit way forward instead of a dead end. */}
+        {!active && !nextPending && !complete && !generatingSpread && (
+          <button
+            onClick={() => void load(session.id)}
+            className="btn btn-outline btn-sm text-[13px] gap-1.5 shrink-0"
+            title="Reload the wizard state"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 border border-base-300 relative bg-base-200/40">
@@ -85,7 +109,7 @@ export default function GenerationView() {
             )}
             <iframe
               key={previewKey}
-              src={`/api/v1/sites/${siteId}/magazine-issues/${session.magazine_issue_id}/dtp-preview`}
+              src={`/api/v1/sites/${siteId}/magazine-issues/${session.magazine_issue_id}/dtp-preview?page=${focusPage}`}
               title="Issue preview (real Blade render)"
               className="w-full h-full bg-white"
               onLoad={() => setIframeLoading(false)}

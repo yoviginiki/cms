@@ -21,7 +21,7 @@ class FrameRenderer
      *   variable surface as the published page (fidelity). ResolvedTheme is
      *   still accepted for callers that only have tokens (compiled locally).
      */
-    public function render(string $frameSlug, ResolvedTheme|string $cssOrResolved, bool $studio = false): string
+    public function render(string $frameSlug, ResolvedTheme|string $cssOrResolved, bool $studio = false, string $layout = 'standard'): string
     {
         $viewName = "theme-studio.frames.{$frameSlug}";
         if (!View::exists($viewName)) {
@@ -32,7 +32,7 @@ class FrameRenderer
             ? $cssOrResolved
             : $this->compiler->renderCss($cssOrResolved);
 
-        $frameHtml = View::make($viewName, ['themeStudio' => $studio])->render();
+        $frameHtml = View::make($viewName, ['themeStudio' => $studio, 'layout' => $layout])->render();
 
         return View::make('theme-studio.layout', [
             'themeCss' => $css,

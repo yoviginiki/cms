@@ -438,8 +438,13 @@ class ThemeEngineController extends Controller
         $css = app(\App\Domain\Theme\Services\DesignTokenGenerator::class)
             ->generateForTheme($theme, $site);
 
+        // A theme's layout personality (cinematic / magazine / business /
+        // portfolio / lifestyle …) drives a structurally DIFFERENT sample
+        // page in the showcase frame — themes differ in layout, not just color.
+        $layout = $theme->document['layout']['style'] ?? 'standard';
+
         $renderer = new \App\Services\Theme\Studio\FrameRenderer($this->compiler);
-        $html = $renderer->render($slug, $css, studio: true);
+        $html = $renderer->render($slug, $css, studio: true, layout: $layout);
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
