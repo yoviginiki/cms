@@ -72,9 +72,14 @@ ELEMENT TYPES (emit nothing else):
 - caption_frame: small factual caption, one <p>.
 - marginalia_frame: short side note in the outer margin zone.
 - pullquote_frame: the quote html + attribution (may be empty string).
-- image_frame / fullbleed_image / background_image / circular_image: set
-  material_id to an IMAGE material from the inventory. Never invent images.
-  focal_x/focal_y (0-1) place the subject. alt is required, factual.
+- image_frame / fullbleed_image / background_image / circular_image: when the
+  inventory HAS a fitting image, set material_id to it. When it does NOT, still
+  place the image frame as an EMPTY PLACEHOLDER — leave material_id off (or "")
+  and write alt as a short art-direction note describing the picture that
+  belongs there (e.g. "a calm close-up of hands in zazen"). Reserve picture
+  space in most spreads so the magazine has visual rhythm; the user drops their
+  own photos into these placeholders afterwards. Never fabricate a material_id
+  that isn't in the inventory. focal_x/focal_y (0-1) place the subject.
 - rectangle / ellipse / gradient_overlay: fill_color hex + opacity (0-100).
   Use for grounds, tint panels and legibility scrims only.
 - line / decorative_rule: thin rules (1-3pt thick is right); give the rect they occupy.

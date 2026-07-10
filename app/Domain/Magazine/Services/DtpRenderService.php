@@ -514,7 +514,13 @@ class DtpRenderService
         $scheme = is_string($src) ? strtolower((string) parse_url($src, PHP_URL_SCHEME)) : '';
         $isRelative = is_string($src) && str_starts_with($src, '/');
         if (!$src || (!in_array($scheme, ['http', 'https'], true) && !$isRelative)) {
-            return '<div style="width:100%;height:100%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>';
+            // Fillable picture placeholder: a reserved slot the user drops their
+            // own photo into. The alt is the art-direction note for what belongs
+            // here. Rendered as a subtle framed box with a picture glyph.
+            $note = e(mb_substr((string) ($content['alt'] ?? ''), 0, 140));
+            $icon = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="opacity:.5"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg>';
+            $label = $note !== '' ? '<div style="margin-top:8px;font-size:11px;line-height:1.35;max-width:80%;">' . $note . '</div>' : '<div style="margin-top:8px;font-size:11px;">Add a picture</div>';
+            return '<div style="width:100%;height:100%;background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#eceef1 10px,#eceef1 20px);border:1px dashed #c7ccd4;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#9aa2ad;padding:10px;">' . $icon . $label . '</div>';
         }
 
         $alt = e($content['alt'] ?? '');
