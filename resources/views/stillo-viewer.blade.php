@@ -465,7 +465,32 @@ body.sv-idle #sv-audio { opacity: .25; }
     });
 
     window.addEventListener('resize', render);
+
+    // Deep-link: ?page=N opens the viewer at that page index (used by the
+    // Issue Studio review loop to show the spread under review, not the cover).
+    // Additive — no param leaves cur at 0. In scroll mode we jump after layout.
+    (function () {
+        try {
+            var qp = new URLSearchParams(window.location.search);
+            if (qp.has('page')) {
+                var want = Math.max(0, Math.min(total - 1, parseInt(qp.get('page'), 10) || 0));
+                var pr = pairFor(want);
+                cur = pr ? pr[0] : want; // land on the left page of the spread
+            }
+        } catch (e) { /* param is best-effort */ }
+    })();
+
     render();
+
+    // scroll mode stacks pages vertically — scroll the requested one into view
+    (function () {
+        try {
+            var qp = new URLSearchParams(window.location.search);
+            if (mode === 'scroll' && qp.has('page') && pages[cur]) {
+                pages[cur].scrollIntoView({ block: 'start' });
+            }
+        } catch (e) { /* best-effort */ }
+    })();
 })();
 </script>
 </body>
