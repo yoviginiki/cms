@@ -37,6 +37,14 @@ return [
         'model_generate' => env('ISSUE_STUDIO_MODEL_GENERATE', 'claude-opus-4-8'),
     ],
 
+    'theme_wizard' => [
+        // Opus does the vision analysis of a reference; Sonnet routes the chat.
+        'vision_model' => env('THEME_WIZARD_VISION_MODEL', 'claude-opus-4-8'),
+        'chat_model' => env('THEME_WIZARD_CHAT_MODEL', 'claude-sonnet-5'),
+        // node binary used for server-side reference screenshots (capture-url.mjs)
+        'node_bin' => env('THEME_WIZARD_NODE_BIN', 'node'),
+    ],
+
     'database' => [
         'rls_enabled' => env('DB_CONNECTION') === 'pgsql',
         'driver' => env('DB_CONNECTION', 'mysql'),

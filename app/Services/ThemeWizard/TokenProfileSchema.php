@@ -58,7 +58,10 @@ class TokenProfileSchema
                             'description' => 'Character of the body face, e.g. "neutral geometric sans", "warm humanist sans".'],
                         'scale' => ['type' => 'string', 'enum' => self::SCALES,
                             'description' => 'Type-scale drama: compact, balanced, or dramatic (big display).'],
-                        'heading_weight' => ['type' => 'integer', 'minimum' => 300, 'maximum' => 900],
+                        // NOTE: Anthropic structured output rejects integer
+                        // minimum/maximum; the 300–900 range is enforced by
+                        // TokenProfileValidator instead.
+                        'heading_weight' => ['type' => 'integer', 'description' => 'Heading font weight, 300–900.'],
                     ],
                 ],
                 'spacing' => ['type' => 'string', 'enum' => self::DENSITIES, 'description' => 'Whitespace density.'],
