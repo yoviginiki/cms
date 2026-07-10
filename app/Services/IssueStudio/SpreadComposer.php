@@ -243,7 +243,6 @@ class SpreadComposer
                 'textAlign' => in_array($el['text_align'] ?? null, ['left', 'center', 'right', 'justify'], true) ? $el['text_align'] : null,
             ], fn ($v) => $v !== null);
         } elseif (in_array($type, SpreadElementContract::IMAGE_TYPES, true)) {
-            $asset = $this->assetForMaterial($session, (string) $el['material_id']);
             // normalize CSS-style fit modes the model may emit; bleeding
             // image types exist to fill — letterboxing them is never right
             $fitMode = ['cover' => 'fill', 'contain' => 'fit'][$el['fit_mode'] ?? ''] ?? ($el['fit_mode'] ?? 'fill');
@@ -251,7 +250,6 @@ class SpreadComposer
                 $fitMode = 'fill';
             }
             $content = [
-                'src' => "/api/v1/sites/{$session->site_id}/assets/{$asset}/serve",
                 'alt' => mb_substr(strip_tags((string) $el['alt']), 0, 300),
                 'fitMode' => in_array($fitMode, ['fill', 'fit', 'stretch', 'original'], true) ? $fitMode : 'fill',
                 'focalPoint' => [
@@ -260,6 +258,17 @@ class SpreadComposer
                 ],
                 'opacity' => (int) max(0, min(100, (float) ($el['opacity'] ?? 100))),
             ];
+            $materialId = trim((string) ($el['material_id'] ?? ''));
+            if ($materialId !== '') {
+                // real image material → serve URL
+                $asset = $this->assetForMaterial($session, $materialId);
+                $content['src'] = "/api/v1/sites/{$session->site_id}/assets/{$asset}/serve";
+            } else {
+                // empty material_id → a fillable picture placeholder. No src; the
+                // renderer draws a labelled slot and the editor lets the user drop
+                // their own photo in. The alt doubles as the art-direction note.
+                $content['placeholder'] = true;
+            }
             if (!empty($el['caption'])) {
                 $content['caption'] = mb_substr(strip_tags((string) $el['caption']), 0, 500);
             }

@@ -95,12 +95,15 @@ class SpreadValidator
                 }
 
                 if (in_array($type, SpreadElementContract::IMAGE_TYPES, true)) {
-                    $mid = (string) ($el['material_id'] ?? '');
-                    if (!in_array($mid, $imageMaterials, true)) {
-                        $errors[] = "{$label} ({$type}): material_id \"{$mid}\" is not an image material in the inventory. Available: " . (implode(', ', $imageMaterials) ?: '(none — use type-led elements instead)');
+                    $mid = trim((string) ($el['material_id'] ?? ''));
+                    // an empty material_id is a deliberate PLACEHOLDER (a picture
+                    // slot the user fills later) — allowed. A NON-empty id must
+                    // reference a real image material in the inventory.
+                    if ($mid !== '' && !in_array($mid, $imageMaterials, true)) {
+                        $errors[] = "{$label} ({$type}): material_id \"{$mid}\" is not an image material in the inventory. Leave material_id empty to make it a placeholder. Available: " . (implode(', ', $imageMaterials) ?: '(none)');
                     }
                     if (trim((string) ($el['alt'] ?? '')) === '') {
-                        $errors[] = "{$label} ({$type}): alt text is required.";
+                        $errors[] = "{$label} ({$type}): alt text is required (describe the picture that belongs there).";
                     }
                 }
 

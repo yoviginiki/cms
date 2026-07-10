@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, ImageIcon, Quote, Hash, Layers, AlertTriangle } from 'lucide-react';
 import type { DtpDocument, DtpFrame, DtpSpread, FitMode, ImageSettings } from './mockDocument';
-import { MOCK_ASSETS } from './mockDocument';
+import { AssetPicker } from '@/components/ui/AssetPicker';
 
 interface Props {
   document: DtpDocument;
@@ -65,6 +65,9 @@ function NumInput({ label, value, onChange, min, max, suffix = 'px' }: {
 }
 
 export function PropertiesPanel({ document: doc, spread, selectedFrame, selectedCount = 0, onUpdateFrame }: Props) {
+  // real asset picker (choose/upload the user's own images into image frames)
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+
   // Multi-select info
   if (selectedCount > 1) {
     return (
@@ -205,28 +208,37 @@ export function PropertiesPanel({ document: doc, spread, selectedFrame, selected
               {!hasSrc && (
                 <div className="flex items-center gap-1.5 text-amber-400 text-[10px]">
                   <AlertTriangle size={12} />
-                  <span>Missing image</span>
+                  <span>Empty picture slot — add your photo</span>
                 </div>
               )}
 
-              {/* Mock asset picker */}
+              {/* Real asset picker: choose or upload the user's own image */}
               <div>
-                <label className="text-[9px] text-neutral-500 mb-1 block">Choose image</label>
-                <div className="grid grid-cols-3 gap-1">
-                  {MOCK_ASSETS.map(asset => (
-                    <button key={asset.id} onClick={() => updateImage({ src: asset.url })}
-                      className={`rounded overflow-hidden border transition-colors ${img.src === asset.url ? 'border-blue-500' : 'border-neutral-600 hover:border-neutral-400'}`}
-                      title={asset.label}>
-                      <img src={asset.url} alt={asset.label} className="w-full aspect-square object-cover" loading="lazy" draggable={false} />
-                    </button>
-                  ))}
-                </div>
+                <label className="text-[9px] text-neutral-500 mb-1 block">Picture</label>
                 {hasSrc && (
-                  <button onClick={() => updateImage({ src: '' })}
-                    className="mt-1 text-[9px] text-red-400 hover:text-red-300">
-                    Clear image
-                  </button>
+                  <div className="mb-1.5 rounded overflow-hidden border border-neutral-600">
+                    <img src={img.src} alt="" className="w-full aspect-video object-cover"
+                      onError={e => ((e.target as HTMLImageElement).style.opacity = '0.2')} />
+                  </div>
                 )}
+                <div className="flex gap-1">
+                  <button onClick={() => setImagePickerOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] rounded bg-blue-600 text-white hover:bg-blue-500">
+                    <ImageIcon size={11} /> {hasSrc ? 'Replace image' : 'Choose / upload image'}
+                  </button>
+                  {hasSrc && (
+                    <button onClick={() => updateImage({ src: '' })}
+                      className="px-2 py-1.5 text-[10px] rounded bg-neutral-600 text-neutral-200 hover:bg-neutral-500"
+                      title="Remove image (back to placeholder)">Clear</button>
+                  )}
+                </div>
+                <AssetPicker
+                  open={imagePickerOpen}
+                  onClose={() => setImagePickerOpen(false)}
+                  accept="image"
+                  currentUrl={img.src}
+                  onSelect={(asset) => { updateImage({ src: asset.url }); setImagePickerOpen(false); }}
+                />
               </div>
 
               {/* Fit mode */}

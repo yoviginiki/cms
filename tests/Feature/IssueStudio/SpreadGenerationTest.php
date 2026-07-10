@@ -174,6 +174,42 @@ class SpreadGenerationTest extends TestCase
         ]);
     }
 
+    public function test_image_placeholder_without_material_composes_and_renders_a_slot(): void
+    {
+        // a cover that reserves a picture slot (empty material_id) the user fills later
+        $doc = [
+            'editorial_note' => 'A reserved hero picture the user drops their own photo into.',
+            'pages' => [[
+                'side' => 'single',
+                'elements' => [
+                    ['type' => 'fullbleed_image', 'x' => 0, 'y' => 0, 'w' => 595, 'h' => 500, 'material_id' => '', 'alt' => 'a calm close-up of hands in zazen', 'fit_mode' => 'fill', 'z' => 0],
+                    ['type' => 'headline_frame', 'x' => 50, 'y' => 540, 'w' => 420, 'h' => 90, 'html' => '<p>Salt</p>', 'font_size' => 64, 'z' => 10],
+                ],
+            ]],
+        ];
+        Http::fake(['api.anthropic.com/*' => Http::response($this->opusResponse($doc))]);
+        $session = $this->makeGeneratingSession();
+
+        $this->actingAsOwner()->postJson("/api/v1/issue-studio/sessions/{$session->id}/spreads/generate-next")
+            ->assertOk()->assertJsonPath('data.spreads.0.status', 'generated');
+        $session->refresh();
+
+        // the image frame exists as a placeholder — no src, flagged, alt kept
+        $img = DB::table('magazine_frames')->where('issue_id', $session->magazine_issue_id)->where('frame_type', 'image')->first();
+        $this->assertNotNull($img, 'placeholder image frame should be composed, not dropped');
+        $content = json_decode($img->content, true);
+        $this->assertArrayNotHasKey('src', $content);
+        $this->assertTrue($content['placeholder'] ?? false);
+        $this->assertSame('a calm close-up of hands in zazen', $content['alt']);
+
+        // it renders as a fillable slot (dashed box + the art-direction note)
+        $data = app(\App\Domain\Magazine\Services\DtpRenderService::class)
+            ->render(\App\Domain\IssueComposer\Models\MagazineIssue::find($session->magazine_issue_id));
+        $html = json_encode($data['spreads']);
+        $this->assertStringContainsString('a calm close-up of hands in zazen', $html);
+        $this->assertStringContainsString('dashed', $html);
+    }
+
     public function test_generate_next_blocked_until_current_spread_is_decided(): void
     {
         Http::fake(['api.anthropic.com/*' => Http::response($this->opusResponse($this->coverDoc()))]);
