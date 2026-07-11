@@ -9,6 +9,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, buildBackgroundFromData, buildOverlayFromData, safeDim } from '@/lib/blockStyles';
 import type { Breakpoint } from '@/lib/breakpoints';
 import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
+import { spansToGridTemplate, normalizeSpans } from '@/lib/columnLayout';
 import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -105,8 +106,13 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const rowLayout = isRow ? ((blockData.layout as RowLayout) || '1/2+1/2') : undefined;
   const rowGap = isRow ? (safeDim(blockData.gap) || '16px') : undefined;
   const isMobileStack = isRow && canvasDevice === 'mobile';
+  // P5: explicit 12-grid widths override the preset when present.
+  const rowSpans =
+    isRow && Array.isArray(blockData.col_spans) && (blockData.col_spans as unknown[]).length >= 2
+      ? spansToGridTemplate(normalizeSpans(blockData.col_spans, (blockData.col_spans as unknown[]).length))
+      : undefined;
   const childrenStyle: React.CSSProperties = isRow
-    ? { display: 'grid', gridTemplateColumns: isMobileStack ? '1fr' : (LAYOUT_GRID[rowLayout!] || '1fr 1fr'), gap: rowGap }
+    ? { display: 'grid', gridTemplateColumns: isMobileStack ? '1fr' : (rowSpans || LAYOUT_GRID[rowLayout!] || '1fr 1fr'), gap: rowGap }
     : {};
 
   // Determine what the "+" button does for this level

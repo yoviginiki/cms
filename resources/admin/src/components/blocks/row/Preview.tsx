@@ -2,6 +2,7 @@ import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { safeDim } from '@/lib/blockStyles';
 import { LAYOUT_GRID, LAYOUT_COLUMN_COUNT, type RowLayout } from './definition';
+import { spansToGridTemplate, normalizeSpans } from '@/lib/columnLayout';
 import { useEditorStore } from '@/stores/editorStore';
 
 export const RowPreview: React.FC<BlockComponentProps> = ({ block }) => {
@@ -15,10 +16,17 @@ export const RowPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const rawAlign = (data.vertical_align as string) || 'stretch';
   const verticalAlign = VALID_ALIGNS.includes(rawAlign) ? rawAlign : 'stretch';
 
+  // P5: explicit 12-grid widths override the preset when present.
+  const spans = Array.isArray(data.col_spans) && (data.col_spans as unknown[]).length >= 2
+    ? normalizeSpans(data.col_spans, (data.col_spans as unknown[]).length)
+    : null;
+
   // Stack columns on mobile (matches Blade media query)
   const isMobileStack = canvasDevice === 'mobile';
-  const gridTemplate = isMobileStack ? '1fr' : (LAYOUT_GRID[layout] || LAYOUT_GRID['1/2+1/2']);
-  const colCount = LAYOUT_COLUMN_COUNT[layout] || 2;
+  const gridTemplate = isMobileStack
+    ? '1fr'
+    : spans ? spansToGridTemplate(spans) : (LAYOUT_GRID[layout] || LAYOUT_GRID['1/2+1/2']);
+  const colCount = spans ? spans.length : (LAYOUT_COLUMN_COUNT[layout] || 2);
 
   const style: React.CSSProperties = {
     display: 'grid',

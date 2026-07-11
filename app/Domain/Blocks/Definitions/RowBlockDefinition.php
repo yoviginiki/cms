@@ -16,6 +16,12 @@ class RowBlockDefinition implements BlockDefinition
             'gap' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],
             'max_width' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],
             'vertical_align' => ['sometimes', 'nullable', 'in:start,center,end,stretch'],
+            // P5: per-column widths on a 12-unit grid (overrides `layout` when set)
+            'col_spans' => ['sometimes', 'nullable', 'array', 'max:6'],
+            'col_spans.*' => ['integer', 'min:1', 'max:12'],
+            // P5: mobile stack order — a permutation of 0-based column indices
+            'stack_order' => ['sometimes', 'nullable', 'array', 'max:6'],
+            'stack_order.*' => ['integer', 'min:0', 'max:5'],
         ];
     }
 
