@@ -4,6 +4,7 @@ namespace App\Services\ThemeWizard;
 
 use App\Models\Site;
 use App\Models\Theme;
+use App\Jobs\ThemeWizard\CaptureReferenceJob;
 use App\Models\ThemeWizard\WizardSession;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -23,11 +24,68 @@ class ThemeWizardService
         private ThemeConversationEngine $conversation,
     ) {}
 
+    /**
+     * Start a "from URL" session. The screenshot capture needs proc_open (the
+     * web pool disables it), so it runs on the queue worker: this creates the
+     * session in a `capturing` state, dispatches CaptureReferenceJob, and
+     * returns immediately. The wizard UI polls until it becomes `drafting`.
+     */
     public function startFromUrl(Site $site, User $user, string $url, ?string $hint = null): WizardSession
     {
-        $result = $this->reference->fromUrl($site->tenant_id, $url, $hint);
         $open = $hint ? "Make me a theme with the feel of {$url} — {$hint}" : "Make me a theme with the feel of {$url}";
-        return $this->create($site, $user, 'reference', $url, $open, $result);
+
+        $session = WizardSession::create([
+            'tenant_id' => $site->tenant_id,
+            'site_id' => $site->id,
+            'user_id' => $user->id,
+            'title' => 'Reading the site…',
+            'status' => 'capturing',
+            'source' => 'reference',
+            'reference_url' => $url,
+            'transcript' => [
+                ['role' => 'user', 'text' => $open, 'at' => now()->toIso8601String()],
+            ],
+        ]);
+
+        CaptureReferenceJob::dispatch($session->id, $site->tenant_id, $hint);
+
+        return $session;
+    }
+
+    /**
+     * Heavy "from URL" work, run on the queue worker: capture → vision → compile,
+     * then fill the session. Idempotent and self-contained — any failure lands as
+     * a clean `capture_failed` + message the UI shows (never throws to the queue).
+     */
+    public function completeUrlCapture(WizardSession $session, ?string $hint = null): void
+    {
+        if ($session->status !== 'capturing') {
+            return; // already resolved, or abandoned while queued
+        }
+
+        try {
+            $result = $this->reference->fromUrl($session->tenant_id, $session->reference_url, $hint);
+
+            $transcript = $session->transcript ?? [];
+            $transcript[] = ['role' => 'assistant', 'text' => $result['profile']['design_read'] ?? '', 'at' => now()->toIso8601String()];
+
+            $session->update([
+                'title' => $result['profile']['name'] ?? 'New theme',
+                'status' => 'drafting',
+                'profile' => $result['profile'],
+                'candidate' => $result['compiled'],
+                'transcript' => $transcript,
+                'token_usage' => $result['usages'],
+                'error' => null,
+            ]);
+        } catch (\Throwable $e) {
+            $session->update([
+                'status' => 'capture_failed',
+                'error' => $e instanceof RuntimeException
+                    ? $e->getMessage()
+                    : 'Could not read that site — try uploading a screenshot instead.',
+            ]);
+        }
     }
 
     public function startFromConversation(Site $site, User $user, string $description): WizardSession

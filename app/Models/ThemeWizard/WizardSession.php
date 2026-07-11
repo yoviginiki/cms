@@ -16,7 +16,7 @@ class WizardSession extends Model
 
     protected $fillable = [
         'tenant_id', 'site_id', 'user_id', 'title', 'status', 'source',
-        'reference_url', 'transcript', 'profile', 'candidate', 'theme_id', 'token_usage',
+        'reference_url', 'transcript', 'profile', 'candidate', 'theme_id', 'token_usage', 'error',
     ];
 
     protected $casts = [
@@ -26,7 +26,10 @@ class WizardSession extends Model
         'token_usage' => 'array',
     ];
 
-    public const STATUSES = ['drafting', 'accepted', 'abandoned'];
+    // capturing / capture_failed cover the async "from URL" path, where the
+    // Playwright screenshot runs on the queue worker (proc_open is disabled in
+    // the web pool). Upload/conversation start straight in `drafting`.
+    public const STATUSES = ['capturing', 'capture_failed', 'drafting', 'accepted', 'abandoned'];
 
     public function site(): BelongsTo
     {
