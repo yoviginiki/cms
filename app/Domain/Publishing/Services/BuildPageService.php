@@ -33,6 +33,14 @@ class BuildPageService
     /** cycle guard: global-section ids currently being inlined */
     private array $renderingGlobalSections = [];
 
+    /** per-build style-preset resolver (lazy; caches presets for this build) */
+    private ?\App\Domain\Blocks\Services\StylePresetResolver $presetResolver = null;
+
+    private function presetResolver(): \App\Domain\Blocks\Services\StylePresetResolver
+    {
+        return $this->presetResolver ??= new \App\Domain\Blocks\Services\StylePresetResolver();
+    }
+
     public function __construct(
         private SanitizationService $sanitizer,
         private SeoService $seoService,
@@ -385,7 +393,12 @@ class BuildPageService
         }
 
         // Extract shared properties stored in data.__style, __animation, __advanced
-        $blockStyle = $block->style ?? $sanitizedData['__style'] ?? [];
+        $localStyle = $block->style ?? $sanitizedData['__style'] ?? [];
+        // P3: resolve linked style presets (element → option-groups → local overrides).
+        // No-op (returns local unchanged) when the block links no preset.
+        $blockStyle = $this->presetResolver()->resolve(
+            $block, $site, is_array($localStyle) ? $localStyle : [], $sanitizedData,
+        );
         $blockAnimation = $sanitizedData['__animation'] ?? [];
         $blockAdvanced = $sanitizedData['__advanced'] ?? [];
         $blockResponsive = $sanitizedData['__responsive'] ?? [];

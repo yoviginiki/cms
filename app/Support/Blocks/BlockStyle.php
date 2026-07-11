@@ -12,6 +12,7 @@ class BlockStyle
 
     public static function safeDim(mixed $v): string
     {
+        $v = StyleTokens::compile($v); // $token → var(--token) (P3)
         if ($v === null || $v === '') return '';
         $s = trim((string) $v);
         if ($s === '0' || $s === 'auto') return $s;
@@ -22,6 +23,7 @@ class BlockStyle
     /** Validate a CSS color: hex, rgb/rgba, oklch, hsl/hsla, named, or var(--token). */
     public static function safeColor(mixed $v): string
     {
+        $v = StyleTokens::compile($v); // $token → var(--token) (P3)
         if (!$v) return '';
         $s = trim((string) $v);
         if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $s)) return $s;
@@ -34,6 +36,7 @@ class BlockStyle
     /** Sanitize a CSS value: remove dangerous characters. */
     public static function safeCssVal(mixed $v): string
     {
+        $v = StyleTokens::compile($v); // $token → var(--token) (P3)
         if (!$v) return '';
         return preg_replace('/[^a-zA-Z0-9#(),.:\s%\/\-]/', '', (string) $v);
     }

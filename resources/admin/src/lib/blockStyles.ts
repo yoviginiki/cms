@@ -15,19 +15,41 @@ import { buildShadowCss } from '@/lib/shadowStyles';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 import { resolveCornerRadius } from '@/lib/spacingHelpers';
 
+/**
+ * Theme-token reference: var(--token) with optional simple fallback. Mirrors
+ * BlockStyle::CSS_VAR_PATTERN (the PHP publish sanitizer) so preview and
+ * published output agree — Style Presets (P3) emit var(--…) values.
+ */
+const CSS_VAR = /^var\(--[a-zA-Z][a-zA-Z0-9-]{0,60}(,\s*[a-zA-Z0-9#%.\s-]{1,40})?\)$/;
+
+/**
+ * Compile a design-token reference `$a.b.c` → `var(--a-b-c)` (P3). Mirrors
+ * app/Support/Blocks/StyleTokens.php. Non-`$` values pass through unchanged.
+ */
+export function compileToken(v: unknown): unknown {
+  if (typeof v !== 'string' || v === '' || v[0] !== '$') return v;
+  const path = v.slice(1);
+  if (!/^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z0-9-]+)*$/.test(path)) return v;
+  return `var(--${path.replace(/\./g, '-')})`;
+}
+
 /** Sanitize a raw CSS dimension value — keep only safe characters. */
 export function safeDim(v: unknown): string | undefined {
-  if (!v) return undefined;
-  const s = String(v).trim();
+  const c = compileToken(v); // $token → var(--token) (P3)
+  if (!c) return undefined;
+  const s = String(c).trim();
+  if (CSS_VAR.test(s)) return s; // theme tokens
   return /^-?\d+(\.\d+)?(px|rem|em|%|vh|vw|auto|0)$/i.test(s) ? s : undefined;
 }
 
-/** Sanitize a CSS color value — hex, rgb, oklch, named. */
+/** Sanitize a CSS color value — hex, rgb, oklch, named, or var(--token). */
 export function safeColor(v: unknown): string | undefined {
-  if (!v) return undefined;
-  const s = String(v).trim();
+  const c = compileToken(v); // $token → var(--token) (P3)
+  if (!c) return undefined;
+  const s = String(c).trim();
   if (/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;
   if (/^(rgb|rgba|oklch|hsl|hsla)\([\d\s,.\/%]+\)$/i.test(s)) return s;
+  if (CSS_VAR.test(s)) return s; // theme tokens
   if (/^[a-zA-Z]{3,20}$/.test(s)) return s; // named colors
   return undefined;
 }
