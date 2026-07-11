@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             SystemThemeSeeder::class,
             SystemLayoutsSeeder::class,
             StarterSectionSeeder::class,
+            SystemStylePresetSeeder::class,
         ]);
     }
 }
