@@ -2,7 +2,7 @@ import React from 'react';
 import type { BlockEditorProps } from '@/types/blocks';
 import { TextField } from '@/components/editor/fields/TextField';
 import { SelectField } from '@/components/editor/fields/SelectField';
-import { LAYOUT_LABELS } from './definition';
+import { RowLayoutPicker } from './RowLayoutPicker';
 
 export const RowEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
@@ -13,11 +13,9 @@ export const RowEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
 
   return (
     <div className="space-y-3">
-      <SelectField
-        label="Column Layout"
+      <RowLayoutPicker
         value={(data.layout as string) || '1/2+1/2'}
         onChange={(v) => update('layout', v)}
-        options={Object.entries(LAYOUT_LABELS).map(([value, label]) => ({ value, label }))}
       />
       <TextField
         label="Gap"

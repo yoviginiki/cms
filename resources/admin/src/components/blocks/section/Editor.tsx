@@ -12,9 +12,46 @@ export const SectionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) =
     onUpdate({ ...block.data, [field]: value });
   };
 
+  const widthMode = ['contained', 'wide', 'full'].includes(data.width_mode as string)
+    ? (data.width_mode as string)
+    : 'contained';
+
   return (
     <div className="space-y-3">
       <BackgroundEditor data={data} onChange={(updates) => onUpdate(updates)} />
+
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1.5 block">Content Width</label>
+        <div className="grid grid-cols-3 gap-0 border border-base-300/30" role="radiogroup" aria-label="Content width">
+          {([
+            { value: 'contained', label: 'Contained' },
+            { value: 'wide', label: 'Wide' },
+            { value: 'full', label: 'Full-bleed' },
+          ] as const).map((opt, i) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={widthMode === opt.value}
+              onClick={() => update('width_mode', opt.value)}
+              className={`text-[11px] py-1.5 transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary ${i > 0 ? 'border-l border-base-300/30' : ''} ${
+                widthMode === opt.value
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-base-content/50 hover:bg-base-300/10'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-base-content/40 mt-1">
+          {widthMode === 'contained'
+            ? 'Centered to the Max Width below.'
+            : widthMode === 'wide'
+            ? 'Centered to a wide 1440px container.'
+            : 'Content spans the full section, edge to edge.'}
+        </p>
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <TextField
@@ -31,12 +68,14 @@ export const SectionEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) =
         />
       </div>
 
-      <TextField
-        label="Max Width"
-        value={(data.max_width as string) || '1200px'}
-        onChange={(v) => update('max_width', v)}
-        placeholder="1200px"
-      />
+      {widthMode === 'contained' && (
+        <TextField
+          label="Max Width"
+          value={(data.max_width as string) || '1200px'}
+          onChange={(v) => update('max_width', v)}
+          placeholder="1200px"
+        />
+      )}
       <TextField
         label="Anchor ID"
         value={(data.anchor_id as string) || ''}

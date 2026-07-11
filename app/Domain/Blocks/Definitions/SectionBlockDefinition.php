@@ -17,6 +17,7 @@ class SectionBlockDefinition implements BlockDefinition
             'padding' => ['sometimes', 'nullable', 'in:none,sm,md,lg,xl'], // legacy preset
             'padding_top' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],
             'padding_bottom' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],
+            'width_mode' => ['sometimes', 'nullable', 'in:contained,wide,full'],
             'max_width' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],
             'anchor_id' => ['sometimes', 'nullable', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_-]*$/'],
             // Canvas editor: this section is a freeform positioning context.

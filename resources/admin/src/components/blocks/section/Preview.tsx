@@ -53,10 +53,13 @@ export const SectionPreview: React.FC<BlockComponentProps> = ({ block }) => {
     }
   }
 
-  // Inner wrapper: max-width + centered (matches Blade inner div)
+  // Inner wrapper: width mode drives max-width + centering (matches Blade inner div)
+  const widthMode = ['contained', 'wide', 'full'].includes(data.width_mode as string)
+    ? (data.width_mode as string)
+    : '';
   const innerStyle: React.CSSProperties = {
-    maxWidth,
-    margin: '0 auto',
+    maxWidth: widthMode === 'full' ? 'none' : widthMode === 'wide' ? '1440px' : maxWidth,
+    margin: widthMode === 'full' ? '0' : '0 auto',
     position: 'relative',
     zIndex: 1,
   };
