@@ -14,6 +14,7 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BlockContextMenu } from './BlockContextMenu';
+import { resolvePresetStyle, useStylePresets } from '@/lib/presetResolve';
 
 interface SortableBlockProps {
   block: BlockData;
@@ -65,6 +66,12 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const { siteId = '' } = useParams();
+
+  // P3: resolve linked style presets so the canvas matches published output.
+  // Returns block.style unchanged (same ref) when the block links no preset.
+  const presets = useStylePresets(siteId);
+  const effectiveStyle = resolvePresetStyle(block, presets);
+  const effectiveBlock = effectiveStyle === block.style ? block : { ...block, style: effectiveStyle };
 
   const isPrimary = selectedBlockId === block.id;
   const isSelected = isPrimary || selectedBlockIds.includes(block.id);
@@ -161,7 +168,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
       <div
         className={`relative ${buildBlockClasses(block.advanced, block.animation)}`}
         style={{
-          ...buildBlockWrapperStyle(block.style, block.responsive, canvasDevice),
+          ...buildBlockWrapperStyle(effectiveStyle, block.responsive, canvasDevice),
           ...buildBackgroundFromData(block.data),
           ...buildAnimationStyle(block.animation),
         }}
@@ -189,7 +196,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
           {/* Render Preview — for containers, only when empty */}
           {(!allowsChildren || children.length === 0) && (
             <Preview
-              block={block}
+              block={effectiveBlock}
               isSelected={isSelected}
               onUpdate={(data) => updateBlock(block.id, data)}
               onSelect={() => selectBlock(block.id)}
