@@ -212,6 +212,9 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new SliderRefBlockDefinition());
             $registry->register(new ShapeBlockDefinition());
 
+            // Global Sections (P2): page-side embed of a reusable section entity
+            $registry->register(new \App\Domain\Blocks\Definitions\GlobalRefBlockDefinition());
+
             return $registry;
         });
     }
@@ -248,6 +251,7 @@ class AppServiceProvider extends ServiceProvider
             'post' => Post::class,
             'template' => ThemeTemplate::class,
             'slider' => \App\Models\Slider::class,
+            'global_section' => \App\Models\GlobalSection::class,
         ]);
 
         // Explicit route model bindings for non-standard model locations

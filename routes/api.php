@@ -208,6 +208,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/sliders/{slider}/publish', [\App\Http\Controllers\Api\V1\SliderController::class, 'publish']);
         Route::post('sites/{site}/sliders/{slider}/duplicate', [\App\Http\Controllers\Api\V1\SliderController::class, 'duplicate']);
 
+        // Global Sections (Builder Experience P2) — reusable-by-reference sections
+        $gs = \App\Http\Controllers\Api\V1\GlobalSectionController::class;
+        Route::apiResource('sites.global-sections', $gs)->parameters(['global-sections' => 'globalSection']);
+        Route::post('sites/{site}/global-sections/promote', [$gs, 'promote']);
+        Route::put('sites/{site}/global-sections/{globalSection}/blocks', [$gs, 'syncBlocks']);
+        Route::post('sites/{site}/global-sections/{globalSection}/publish', [$gs, 'publish']);
+        Route::post('sites/{site}/global-sections/{globalSection}/unpublish', [$gs, 'unpublish']);
+
         // Stale content: list, staged batch republish, human-confirmed promote
         Route::get('sites/{site}/stale', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'index']);
         Route::post('sites/{site}/stale/republish', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'republish']);

@@ -30,6 +30,9 @@ class BuildPageService
     /** cycle guard: slider ids currently being inlined */
     private array $renderingSliders = [];
 
+    /** cycle guard: global-section ids currently being inlined */
+    private array $renderingGlobalSections = [];
+
     public function __construct(
         private SanitizationService $sanitizer,
         private SeoService $seoService,
@@ -371,6 +374,9 @@ class BuildPageService
         }
         if ($block->type === 'slider_ref') {
             $sanitizedData = $this->enrichSliderRef($sanitizedData, $site);
+        }
+        if ($block->type === 'global_ref') {
+            $sanitizedData = $this->enrichGlobalRef($sanitizedData, $site);
         }
 
         $viewName = "blocks.{$block->type}";
@@ -889,6 +895,50 @@ class BuildPageService
         } finally {
             unset($this->renderingSliders[$sliderId]);
             $this->sliderHeightOverride = [];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Inline a Global Section's PUBLISHED block tree into the page (P2). Unlike
+     * a slider (single 'slider' root), a global section is just a chunk of
+     * blocks — render every top-level block, in order, concatenated. Cycle-
+     * guarded (a global embedding itself/another that loops back). Missing or
+     * unpublished sections render as an HTML comment.
+     */
+    private function enrichGlobalRef(array $data, Site $site): array
+    {
+        $sectionId = $data['sectionId'] ?? null;
+        if (!$sectionId || isset($this->renderingGlobalSections[$sectionId])) {
+            return $data;
+        }
+
+        $section = \App\Models\GlobalSection::where('site_id', $site->id)
+            ->where('status', 'published')
+            ->find($sectionId);
+        if (!$section) {
+            return $data;
+        }
+
+        $roots = Block::where('blockable_type', 'global_section')
+            ->where('blockable_id', $section->id)
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->get();
+        if ($roots->isEmpty()) {
+            return $data;
+        }
+
+        $this->renderingGlobalSections[$sectionId] = true;
+        try {
+            $html = '';
+            foreach ($roots as $root) {
+                $html .= $this->renderBlock($root, $site);
+            }
+            $data['_global_html'] = $html;
+        } finally {
+            unset($this->renderingGlobalSections[$sectionId]);
         }
 
         return $data;

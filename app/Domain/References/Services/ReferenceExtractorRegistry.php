@@ -37,6 +37,13 @@ class ReferenceExtractorRegistry
             'slider' => $null, // root config only (height/swiper) — no references
             'shape' => $null,
 
+            // ── Global Sections (P2) ───────────────────────────────────────
+            // page → global-section embed (drives stale-page republish exactly
+            // like slider_ref; the generic staleness walk handles the cascade)
+            'global_ref' => new FieldMapExtractor(
+                idFields: ['sectionId' => ['global_section', 'embeds']],
+            ),
+
             // ── Entity-ID + URL bearing blocks ─────────────────────────────
             'image' => new FieldMapExtractor(
                 idFields: ['asset_id' => ['asset', 'uses_asset']],
