@@ -22,6 +22,7 @@ import BackgroundEditor from '@/components/editor/BackgroundEditor';
 import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { BlockSettings } from '@/components/editor/BlockSettings';
+import { StructurePanel } from '@/components/editor/StructurePanel';
 import { VersionHistory } from '@/components/editor/VersionHistory';
 import { SeoAnalyzer } from '@/components/editor/SeoAnalyzer';
 import { TranslationsPanel } from '@/components/editor/TranslationsPanel';
@@ -798,10 +799,12 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
   onDirty?: () => void;
 }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
-  const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add' | 'seo' | 'history'>('page');
+  const [activeTab, setActiveTab] = useState<'page' | 'block' | 'add' | 'tree' | 'seo' | 'history'>('page');
 
   useEffect(() => {
-    if (selectedBlockId) setActiveTab('block');
+    // Selecting a block jumps to its settings — unless the user is navigating
+    // the structure tree, where the selection should stay in the tree view.
+    if (selectedBlockId) setActiveTab((t) => (t === 'tree' ? t : 'block'));
   }, [selectedBlockId]);
 
   return (
@@ -811,6 +814,7 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
           { key: 'page' as const, label: 'Page' },
           { key: 'block' as const, label: 'Block' },
           { key: 'add' as const, label: '+ Add' },
+          { key: 'tree' as const, label: 'Tree' },
           { key: 'seo' as const, label: 'SEO' },
           { key: 'history' as const, label: 'History' },
         ]).map(tab => (
@@ -831,6 +835,7 @@ function PageEditorSidebar({ page, siteId, pageId, layouts, publicBase, siteSlug
         )}
         {activeTab === 'block' && <BlockSettings />}
         {activeTab === 'add' && <BlockPicker />}
+        {activeTab === 'tree' && <StructurePanel />}
         {activeTab === 'seo' && (
           <SeoAnalyzer
             pageTitle={page?.title}
