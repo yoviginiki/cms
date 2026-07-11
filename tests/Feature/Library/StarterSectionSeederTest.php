@@ -29,7 +29,7 @@ class StarterSectionSeederTest extends TestCase
         $this->seed(StarterSectionSeeder::class);
 
         $items = $this->systemItems();
-        $this->assertGreaterThanOrEqual(8, $items->count());
+        $this->assertGreaterThanOrEqual(15, $items->count());
         foreach ($items as $it) {
             $this->assertNull($it->site_id);
             $this->assertEquals(1, $it->is_system);

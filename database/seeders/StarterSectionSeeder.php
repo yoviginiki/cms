@@ -79,11 +79,18 @@ class StarterSectionSeeder extends Seeder
             $this->heroCentered(),
             $this->heroSplit(),
             $this->featuresTrio(),
+            $this->featuresQuad(),
             $this->callToAction(),
             $this->statsBand(),
             $this->testimonial(),
+            $this->pricing(),
+            $this->team(),
+            $this->faq(),
             $this->contentImage(),
+            $this->contentTwoCol(),
+            $this->newsletter(),
             $this->logoStrip(),
+            $this->footerCta(),
         ];
     }
 
@@ -149,7 +156,7 @@ HTML;
         // Native, fully editable blocks — an example of the block-built pattern.
         $feature = fn (string $h, string $p) => $this->column([
             $this->block('heading', ['text' => $h, 'level' => 'h3', 'fontSize' => '1.35rem']),
-            $this->block('paragraph', ['content' => "<p>{$p}</p>"], ['typography' => ['color' => 'var(--color-text-muted)']]),
+            $this->block('paragraph', ['content' => "<p>{$p}</p>"], ['typography' => ['textColor' => 'var(--color-text-muted)']]),
         ]);
 
         return [
@@ -160,7 +167,7 @@ HTML;
             'description' => 'An intro plus three editable feature columns.',
             'blocks' => [$this->section([
                 $this->row('1', [$this->column([
-                    $this->block('paragraph', ['content' => '<p>What you get</p>'], ['typography' => ['color' => 'var(--color-text-muted)', 'letterSpacing' => '0.2em', 'textTransform' => 'uppercase', 'fontSize' => '0.78rem']]),
+                    $this->block('paragraph', ['content' => '<p>What you get</p>'], ['typography' => ['textColor' => 'var(--color-text-muted)', 'letterSpacing' => '0.2em', 'textTransform' => 'uppercase', 'fontSize' => '0.78rem']]),
                     $this->block('heading', ['text' => 'Everything you need to ship.', 'level' => 'h2']),
                 ])]),
                 $this->row('1/3+1/3+1/3', [
@@ -290,6 +297,207 @@ HTML;
             'blocks' => [$this->section([
                 $this->row('1', [$this->column([$this->block('html-embed', ['html' => $html])])]),
             ], ['padding_top' => '48px', 'padding_bottom' => '48px'])],
+        ];
+    }
+
+    private function featuresQuad(): array
+    {
+        $muted = ['typography' => ['textColor' => 'var(--color-text-muted)']];
+        $feature = fn (string $h, string $p) => $this->column([
+            $this->block('heading', ['text' => $h, 'level' => 'h3', 'fontSize' => '1.2rem']),
+            $this->block('paragraph', ['content' => "<p>{$p}</p>"], $muted),
+        ]);
+
+        return [
+            'slug' => 'starter-features-quad',
+            'name' => 'Features — Four columns',
+            'category' => 'Features',
+            'tags' => ['features', 'grid'],
+            'description' => 'Four compact, editable feature columns.',
+            'blocks' => [$this->section([
+                $this->row('1', [$this->column([
+                    $this->block('heading', ['text' => 'Why teams choose us', 'level' => 'h2']),
+                ])]),
+                $this->row('1/4+1/4+1/4+1/4', [
+                    $feature('Fast', 'Static output that loads instantly on any host or CDN.'),
+                    $feature('Portable', 'Ordinary files you can export, move, and archive anytime.'),
+                    $feature('Themeable', 'Design tokens re-colour every page from one place.'),
+                    $feature('Durable', 'No plugins to break, no server app to maintain.'),
+                ]),
+            ], ['padding_top' => '80px', 'padding_bottom' => '80px'])],
+        ];
+    }
+
+    private function contentTwoCol(): array
+    {
+        $muted = ['typography' => ['textColor' => 'var(--color-text-muted)', 'lineHeight' => '1.65']];
+        $col = fn (string $h, string $p) => $this->column([
+            $this->block('heading', ['text' => $h, 'level' => 'h3', 'fontSize' => '1.3rem']),
+            $this->block('paragraph', ['content' => "<p>{$p}</p>"], $muted),
+        ]);
+
+        return [
+            'slug' => 'starter-content-two-col',
+            'name' => 'Content — Two columns',
+            'category' => 'Content',
+            'tags' => ['content', 'text'],
+            'description' => 'Two editable columns of body copy under a heading.',
+            'blocks' => [$this->section([
+                $this->row('1', [$this->column([
+                    $this->block('heading', ['text' => 'A calm approach to the web.', 'level' => 'h2']),
+                ])]),
+                $this->row('1/2+1/2', [
+                    $col('Our philosophy', 'We believe your website should be simple to build, fast to load, and yours to keep — no lock-in, no sprawl.'),
+                    $col('How we work', 'Structured content, design tokens, and static output. Everything is data you can move whenever you want.'),
+                ]),
+            ], ['padding_top' => '72px', 'padding_bottom' => '72px', 'max_width' => '960px'])],
+        ];
+    }
+
+    private function faq(): array
+    {
+        $muted = ['typography' => ['textColor' => 'var(--color-text-muted)', 'lineHeight' => '1.6']];
+        $qa = fn (string $q, string $a) => [
+            $this->block('heading', ['text' => $q, 'level' => 'h3', 'fontSize' => '1.15rem']),
+            $this->block('paragraph', ['content' => "<p>{$a}</p>"], $muted),
+            $this->block('spacer', ['height' => '20px']),
+        ];
+
+        return [
+            'slug' => 'starter-faq',
+            'name' => 'FAQ — Questions',
+            'category' => 'FAQ',
+            'tags' => ['faq', 'support'],
+            'description' => 'An editable list of questions and answers.',
+            'blocks' => [$this->section([
+                $this->row('1', [$this->column([
+                    $this->block('heading', ['text' => 'Frequently asked questions', 'level' => 'h2']),
+                    $this->block('spacer', ['height' => '24px']),
+                    ...$qa('Do I need to write code?', 'No. Build visually with blocks; publish clean static pages with one click.'),
+                    ...$qa('Can I export my site?', 'Yes. Everything is portable files you can host anywhere, anytime.'),
+                    ...$qa('Will it be fast?', 'Very. Pages publish as flat static HTML and CSS with no runtime overhead.'),
+                ])]),
+            ], ['padding_top' => '72px', 'padding_bottom' => '72px', 'max_width' => '760px'])],
+        ];
+    }
+
+    private function pricing(): array
+    {
+        $tier = function (string $name, string $price, string $note, array $features, bool $featured) {
+            $items = implode('', array_map(
+                fn ($f) => '<li style="padding:.45rem 0;border-top:1px solid var(--color-border);font-size:.9rem;color:var(--color-text-muted)">' . $f . '</li>',
+                $features
+            ));
+            $ring = $featured ? 'border-color:var(--color-primary);' : '';
+            $btnBg = $featured ? 'var(--color-primary)' : 'var(--color-text)';
+            return <<<HTML
+<div style="border:1px solid var(--color-border);{$ring}padding:2rem 1.5rem;display:flex;flex-direction:column;gap:1rem;background:var(--color-bg)">
+  <div style="font-family:var(--font-heading);text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;color:var(--color-text-muted)">{$name}</div>
+  <div style="font-family:var(--font-heading);font-weight:600;font-size:2.6rem;line-height:1;color:var(--color-heading)">{$price}<span style="font-size:.9rem;font-weight:400;color:var(--color-text-muted)"> {$note}</span></div>
+  <ul style="list-style:none;margin:.5rem 0;padding:0">{$items}</ul>
+  <a href="#" style="margin-top:auto;text-align:center;font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.82rem;padding:.8em 1.2em;background:{$btnBg};color:var(--color-bg);text-decoration:none">Choose {$name}</a>
+</div>
+HTML;
+        };
+        $grid = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem">'
+            . $tier('Starter', 'Free', 'forever', ['1 site', 'Static publishing', 'Community support'], false)
+            . $tier('Studio', '$19', '/ month', ['10 sites', 'Custom domains', 'Priority support'], true)
+            . $tier('Agency', '$49', '/ month', ['Unlimited sites', 'Team seats', 'White-glove onboarding'], false)
+            . '<style>@media(max-width:760px){div[style*="repeat(3"]{grid-template-columns:1fr !important}}</style></div>';
+
+        return [
+            'slug' => 'starter-pricing',
+            'name' => 'Pricing — Three tiers',
+            'category' => 'Pricing',
+            'tags' => ['pricing', 'plans'],
+            'description' => 'Three pricing tiers with a highlighted plan.',
+            'blocks' => [$this->section([
+                $this->row('1', [$this->column([$this->block('html-embed', ['html' => $grid])])]),
+            ], ['padding_top' => '80px', 'padding_bottom' => '80px'])],
+        ];
+    }
+
+    private function team(): array
+    {
+        $member = fn (string $name, string $role) => <<<HTML
+<div style="text-align:center">
+  <div style="width:96px;height:96px;border-radius:50%;margin:0 auto 1rem;background:var(--color-bg-alt);border:1px solid var(--color-border);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);color:var(--color-text-muted);font-size:.7rem">Photo</div>
+  <div style="font-family:var(--font-heading);font-weight:600;color:var(--color-heading)">{$name}</div>
+  <div style="font-size:.82rem;color:var(--color-text-muted);margin-top:.2rem">{$role}</div>
+</div>
+HTML;
+        $grid = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem">'
+            . $member('Alex Rivera', 'Founder')
+            . $member('Sam Chen', 'Design')
+            . $member('Jordan Lee', 'Engineering')
+            . $member('Casey Kim', 'Support')
+            . '<style>@media(max-width:760px){div[style*="repeat(4"]{grid-template-columns:repeat(2,1fr) !important}}</style></div>';
+
+        return [
+            'slug' => 'starter-team',
+            'name' => 'Team — Grid',
+            'category' => 'Team',
+            'tags' => ['team', 'people'],
+            'description' => 'A four-up grid of team members with photo placeholders.',
+            'blocks' => [$this->section([
+                $this->row('1', [$this->column([
+                    $this->block('heading', ['text' => 'Meet the team', 'level' => 'h2', 'textAlign' => 'center']),
+                    $this->block('spacer', ['height' => '32px']),
+                    $this->block('html-embed', ['html' => $grid]),
+                ])]),
+            ], ['padding_top' => '80px', 'padding_bottom' => '80px'])],
+        ];
+    }
+
+    private function newsletter(): array
+    {
+        $html = <<<'HTML'
+<div style="text-align:center;max-width:560px;margin:0 auto;padding:clamp(2rem,5vh,3.5rem) 1.25rem">
+  <h2 style="font-family:var(--font-heading);font-weight:600;font-size:clamp(1.6rem,3vw,2.4rem);color:var(--color-heading);margin:0 0 .8rem">Stay in the loop</h2>
+  <p style="font-size:1.05rem;line-height:1.6;color:var(--color-text-muted);margin:0 0 1.6rem">Occasional updates. No spam, unsubscribe anytime.</p>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center">
+    <input type="email" placeholder="you@example.com" style="flex:1;min-width:220px;padding:.85em 1em;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:.95rem">
+    <button style="font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.84rem;padding:.85em 1.4em;background:var(--color-text);color:var(--color-bg);border:1px solid var(--color-text);cursor:pointer">Subscribe</button>
+  </div>
+</div>
+HTML;
+        return [
+            'slug' => 'starter-newsletter',
+            'name' => 'Newsletter — Signup',
+            'category' => 'Call to action',
+            'tags' => ['newsletter', 'signup'],
+            'description' => 'A centered email signup band. Swap in the Newsletter block to make it live.',
+            'blocks' => [$this->section(
+                [$this->row('1', [$this->column([$this->block('html-embed', ['html' => $html])])])],
+                ['padding_top' => '24px', 'padding_bottom' => '24px', 'max_width' => '100%'],
+                ['visual' => ['backgroundColor' => 'var(--color-bg-alt)']],
+            )],
+        ];
+    }
+
+    private function footerCta(): array
+    {
+        $html = <<<'HTML'
+<div style="text-align:center;padding:clamp(2.5rem,7vh,5rem) 1.25rem">
+  <h2 style="font-family:var(--font-heading);font-weight:600;font-size:clamp(2rem,4vw,3.4rem);line-height:1.05;letter-spacing:-.02em;color:var(--color-heading);margin:0 0 1.4rem">Let's build something durable.</h2>
+  <a href="#" style="display:inline-flex;align-items:center;gap:.5em;font-family:var(--font-heading);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.9rem;padding:1em 2em;background:var(--color-primary);color:var(--color-bg);border:1px solid var(--color-primary);text-decoration:none">Start now →</a>
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;margin-top:2.4rem;font-family:var(--font-heading);font-size:.78rem;text-transform:uppercase;letter-spacing:.1em">
+    <a href="#" style="color:var(--color-text-muted);text-decoration:none">Pricing</a>
+    <a href="#" style="color:var(--color-text-muted);text-decoration:none">Examples</a>
+    <a href="#" style="color:var(--color-text-muted);text-decoration:none">Docs</a>
+    <a href="#" style="color:var(--color-text-muted);text-decoration:none">Contact</a>
+  </div>
+</div>
+HTML;
+        return [
+            'slug' => 'starter-footer-cta',
+            'name' => 'Footer CTA',
+            'category' => 'Call to action',
+            'tags' => ['cta', 'footer'],
+            'description' => 'A large closing call-to-action with quick links.',
+            'blocks' => [$this->section([
+                $this->row('1', [$this->column([$this->block('html-embed', ['html' => $html])])]),
+            ], ['padding_top' => '32px', 'padding_bottom' => '32px', 'max_width' => '100%'])],
         ];
     }
 
