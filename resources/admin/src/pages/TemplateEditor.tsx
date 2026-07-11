@@ -3,19 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Save, Loader2, LayoutList, Eye, Layers,
-  PlusCircle,
+  PlusCircle, ListTree,
 } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { LayersPanel } from '@/components/editor/LayersPanel';
+import { StructurePanel } from '@/components/editor/StructurePanel';
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { blocks as blocksApi, themeTemplates } from '@/lib/api';
 
 import '@/components/blocks';
 
-type RightTab = 'settings' | 'layers' | 'blocks' | 'template';
+type RightTab = 'settings' | 'layers' | 'blocks' | 'template' | 'tree';
 
 export default function TemplateEditor() {
   const { siteId = '', templateId = '' } = useParams();
@@ -66,7 +67,8 @@ export default function TemplateEditor() {
   }, [template, nameDirty]);
 
   useEffect(() => {
-    if (selectedBlockId) setRightTab('settings');
+    // Selecting a block jumps to its settings — unless navigating the Tree.
+    if (selectedBlockId) setRightTab(t => (t === 'tree' ? t : 'settings'));
   }, [selectedBlockId]);
 
   // Warn on unsaved changes
@@ -114,6 +116,7 @@ export default function TemplateEditor() {
     { key: 'template', icon: Eye, label: 'Template' },
     { key: 'settings', icon: LayoutList, label: 'Block' },
     { key: 'blocks', icon: PlusCircle, label: 'Add' },
+    { key: 'tree', icon: ListTree, label: 'Tree' },
     { key: 'layers', icon: Layers, label: 'Layers' },
   ];
 
@@ -173,6 +176,7 @@ export default function TemplateEditor() {
             <div className="flex-1 overflow-y-auto">
               {rightTab === 'settings' && <BlockSettings />}
               {rightTab === 'blocks' && <div className="h-full"><BlockPicker /></div>}
+              {rightTab === 'tree' && <StructurePanel />}
               {rightTab === 'layers' && <LayersPanel />}
               {rightTab === 'template' && (
                 <TemplateSettingsPanel template={template} />

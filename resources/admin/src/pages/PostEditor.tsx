@@ -17,6 +17,7 @@ import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCa
 import { MagazineEditorCanvas } from '@/components/editor/MagazineEditorCanvas';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { LayersPanel } from '@/components/editor/LayersPanel';
+import { StructurePanel } from '@/components/editor/StructurePanel';
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { api, blocks as blocksApi, posts as postsApi, categories as categoriesApi, versions as versionsApi, publishing, sites } from '@/lib/api';
 import { AssetField } from '@/components/ui/AssetPicker';
@@ -26,7 +27,7 @@ import { slugify } from '@/lib/slugify';
 import '@/components/blocks';
 
 type EditorMode = 'simple' | 'block' | 'magazine' | 'canvas';
-type RightTab = 'settings' | 'post' | 'layers' | 'blocks';
+type RightTab = 'settings' | 'post' | 'layers' | 'blocks' | 'tree';
 
 export default function PostEditor() {
   const { siteId = '', postId = '' } = useParams();
@@ -148,7 +149,8 @@ export default function PostEditor() {
   }, [post]);
 
   useEffect(() => {
-    if (selectedBlockId) setRightTab('settings');
+    // Selecting a block jumps to its settings — unless navigating the Tree.
+    if (selectedBlockId) setRightTab(t => (t === 'tree' ? t : 'settings'));
   }, [selectedBlockId]);
 
   useEffect(() => {
@@ -453,6 +455,7 @@ export default function PostEditor() {
                 {([
                   { key: 'post' as RightTab, label: 'Post' },
                   { key: 'settings' as RightTab, label: 'Block' },
+                  { key: 'tree' as RightTab, label: 'Tree' },
                   { key: 'blocks' as RightTab, label: '+ Add' },
                 ]).map(tab => (
                   <button key={tab.key} onClick={() => setRightTab(tab.key)}
@@ -463,6 +466,7 @@ export default function PostEditor() {
               </div>
               <div className="flex-1 overflow-y-auto">
                 {rightTab === 'settings' && <BlockSettings />}
+                {rightTab === 'tree' && <StructurePanel />}
                 {rightTab === 'blocks' && <div className="h-full"><BlockPicker /></div>}
                 {rightTab === 'post' && (
                   <PostMetaPanel
