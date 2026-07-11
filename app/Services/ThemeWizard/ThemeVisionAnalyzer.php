@@ -35,16 +35,17 @@ class ThemeVisionAnalyzer
     private function systemBlocks(): array
     {
         $layouts = implode(', ', TokenProfileSchema::LAYOUTS);
+        $guardrails = Guardrails::block();
         return [[
             'type' => 'text',
             'cache_control' => ['type' => 'ephemeral'],
             'text' => <<<PROMPT
 You are the Stillopress theme designer. You are shown a screenshot of a website whose FEEL a user admires. Produce a design-token PROFILE (JSON, per the enforced schema) for an ORIGINAL theme that clearly feels related but is distinct — never a copy.
 
-Hard rules:
-- INSPIRED, NOT COPIED. Capture the mood, not the pixels. Shift the hues slightly (nudge hero/accent 5–15°, adjust lightness) so the palette reads as a sibling, not a clone. Do not reproduce the site's logo, imagery, wording, or exact brand hexes.
-- DESCRIBE TYPE BY CHARACTER, never by font name (you may not know or license their font). Say e.g. "high-contrast editorial serif" or "neutral geometric sans" — the platform substitutes an open-licensed font of that character.
-- PALETTE ROLES: read the true background/canvas, a subtle surface tone, body text, heading, muted text, hairline border, the primary brand/link color, and a distinct secondary accent. Ensure body text will read clearly on the background (good contrast) and the accent differs from the brand.
+{$guardrails}
+
+Task specifics:
+- PALETTE ROLES: read the true background/canvas, a subtle surface tone, body text, heading, muted text, hairline border, the primary brand/link color, and a distinct secondary accent.
 - CHOOSE THE LAYOUT PERSONALITY that best matches the reference from: {$layouts}. (cinematic = full-bleed image-forward & minimal; magazine = editorial/serif/columns; business = SaaS/marketing/structured; portfolio = image-led gallery; lifestyle = warm/rounded/soft; standard = general.)
 - Pick scale (compact/balanced/dramatic), spacing density (tight/balanced/airy), radius character (sharp/soft/rounded), and shadow (none/subtle/soft) to match what you see.
 - Give the theme a short evocative name and a two–three sentence "design_read" explaining the feel and what makes your version its own.

@@ -29,3 +29,17 @@ The Theme Wizard: a conversational, AI-assisted theme creator. Two entry paths �
 3. Extract `app/Services/AI/AnthropicGateway` + a `SchemaRepairLoop` helper (shared by Issue Studio + wizard; Issue Studio keeps working — re-run its suite to prove it).
 
 Then W2 (reference-analysis pipeline), W3 (chat + preview loop + nudges + compare), W4 (conversation-only path + budgets + logging), W5 (guardrails "inspired not copied" + docs). STOP per phase.
+
+---
+
+## W1–W5 — COMPLETE (2026-07-11)
+
+- **W1** — token-profile schema/validator/compiler, open-font allowlist, shared `AnthropicClient` + `SchemaRepairLoop` (Issue Studio unchanged).
+- **W2** — reference-analysis pipeline: SSRF-guarded URL screenshot (`scripts/capture-url.mjs`) + upload → Opus vision → validated profile → compiled theme. *(URL path needs a CLI queue worker — `proc_open` off in php-fpm; upload/conversation cover it.)*
+- **W3** — interactive wizard: `WizardSession` (RLS) + controller/routes + candidate preview endpoint + `ThemeWizardPage` (chat, live preview, nudge, accept → Theme Studio).
+- **W4** — conversation-only path (`ThemeConversationEngine`), budgets charged + per-session usage logged, dark-theme inverse fix.
+- **W5** — `Guardrails` centralizes the "inspired, not copied" rules across all three engines; two guarantees are STRUCTURAL (fonts always substituted from the open allowlist; schema is tokens-only so imagery/logo/copy can't leak) and covered by `GuardrailsTest`. Docs: `docs/THEME-WIZARD.md`, `docs/THEMES-CHOOSING.md`.
+
+**Acceptance met:** live runs — Stripe screenshot → "Fintech Aurora" (business, warmed, Archivo+Inter); words → "Riot Block" (acid-green streetwear). Nudges land, accept opens in Theme Studio. Wizard test suites green.
+
+**Remaining infra item:** run a dedicated queue worker for this app to enable the URL-screenshot path server-side.
