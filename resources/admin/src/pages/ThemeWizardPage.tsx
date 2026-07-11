@@ -1,21 +1,22 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Wand2, Link2, Upload, Loader2, Sparkles, Check, RotateCcw, Send, Monitor, Smartphone,
+  Wand2, Link2, Upload, Loader2, Sparkles, Check, RotateCcw, Send, Monitor, Smartphone, AlertTriangle,
 } from 'lucide-react';
 import { themeWizard } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 interface WizardSession {
   id: string;
-  status: 'drafting' | 'accepted' | 'abandoned';
+  status: 'capturing' | 'capture_failed' | 'drafting' | 'accepted' | 'abandoned';
   source: string;
   title: string;
   reference_url?: string | null;
   transcript: { role: string; text: string; at?: string }[];
   candidate: { name?: string; description?: string; layout?: string; fonts?: { display_font?: string; body_font?: string } | null };
   theme_id?: string | null;
+  error?: string | null;
   total_tokens: number;
 }
 
@@ -36,6 +37,25 @@ export default function ThemeWizardPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const bump = () => setPreviewNonce((n) => n + 1);
+
+  // URL capture runs on the queue worker (proc_open is disabled in the web
+  // pool), so the session starts as `capturing`. Poll until it resolves.
+  useEffect(() => {
+    if (!session || session.status !== 'capturing') return;
+    const id = session.id;
+    const t = setInterval(async () => {
+      try {
+        const r = await themeWizard.get(siteId, id);
+        const data = r.data.data as WizardSession;
+        setSession(data);
+        if (data.status !== 'capturing') {
+          clearInterval(t);
+          if (data.status === 'drafting') bump();
+        }
+      } catch { /* transient — keep polling */ }
+    }, 2000);
+    return () => clearInterval(t);
+  }, [session?.id, session?.status, siteId]);
 
   const startUrl = useMutation({
     mutationFn: () => themeWizard.fromUrl(siteId, url.trim(), hint.trim() || undefined),
@@ -142,6 +162,39 @@ export default function ThemeWizardPage() {
     );
   }
 
+  const restart = () => { setSession(null); setUrl(''); setHint(''); };
+
+  // Async URL capture is running on the queue worker.
+  if (session.status === 'capturing') {
+    return (
+      <div className="max-w-md mx-auto py-24 text-center">
+        <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-base-content mb-1">Reading the site…</h2>
+        <p className="text-sm text-base-content/50">
+          Capturing {session.reference_url && (
+            <span className="text-base-content/70 break-all">{session.reference_url}</span>
+          )} and reading its design. This usually takes a few seconds.
+        </p>
+      </div>
+    );
+  }
+
+  // Capture failed (unreachable site, timeout, etc.) — offer a clean retry.
+  if (session.status === 'capture_failed') {
+    return (
+      <div className="max-w-md mx-auto py-24 text-center">
+        <AlertTriangle className="h-8 w-8 text-warning mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-base-content mb-1">Couldn’t read that site</h2>
+        <p className="text-sm text-base-content/60 mb-6">
+          {session.error || 'Something went wrong reading that site — try uploading a screenshot instead.'}
+        </p>
+        <button onClick={restart} className="btn btn-primary btn-sm gap-1.5">
+          <RotateCcw className="h-3.5 w-3.5" /> Try another way
+        </button>
+      </div>
+    );
+  }
+
   const cand = session.candidate;
   const previewSrc = `${themeWizard.previewUrl(siteId, session.id)}?v=${previewNonce}`;
   const accepted = session.status === 'accepted';
@@ -189,7 +242,7 @@ export default function ThemeWizardPage() {
                 {accept.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 Keep this theme
               </button>
-              <button onClick={() => { setSession(null); setUrl(''); setHint(''); }}
+              <button onClick={restart}
                 className="btn btn-ghost btn-sm gap-1.5" title="Start over">
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>

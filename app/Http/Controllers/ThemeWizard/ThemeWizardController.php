@@ -157,6 +157,7 @@ class ThemeWizardController extends Controller
                 'fonts' => $cand['document']['wizard'] ?? null,
             ],
             'theme_id' => $s->theme_id,
+            'error' => $s->error,
             'total_tokens' => $s->totalTokens(),
             'updated_at' => optional($s->updated_at)->toIso8601String(),
         ];
