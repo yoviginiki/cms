@@ -82,6 +82,58 @@ describe('editorStore P4 style ops', () => {
   });
 });
 
+describe('editorStore P4 multi-select', () => {
+  beforeEach(() => {
+    useEditorStore.setState({ blocks: [], selectedBlockId: null, selectedBlockIds: [], styleClipboard: null, undoStack: [], redoStack: [] });
+  });
+
+  it('selectBlock resets to single, toggle adds/removes', () => {
+    const s = useEditorStore.getState();
+    s.setBlocks([section('sec', [text('a'), text('b'), text('c')])]);
+    s.selectBlock('a');
+    expect(useEditorStore.getState().selectedBlockIds).toEqual(['a']);
+    s.toggleBlockSelection('b');
+    expect(useEditorStore.getState().selectedBlockIds).toEqual(['a', 'b']);
+    s.toggleBlockSelection('a'); // remove primary
+    expect(useEditorStore.getState().selectedBlockIds).toEqual(['b']);
+    expect(useEditorStore.getState().selectedBlockId).toBe('b'); // primary reassigned
+  });
+
+  it('removeSelected deletes the whole selection', () => {
+    const s = useEditorStore.getState();
+    s.setBlocks([section('sec', [text('a'), text('b'), text('c')])]);
+    s.selectBlock('a');
+    s.toggleBlockSelection('c');
+    s.removeSelected();
+    const sec = findById(useEditorStore.getState().blocks, 'sec')!;
+    expect(sec.children.map((c) => c.id)).toEqual(['b']);
+    expect(useEditorStore.getState().selectedBlockIds).toEqual([]);
+  });
+
+  it('duplicateSelected copies each selected block with fresh ids', () => {
+    const s = useEditorStore.getState();
+    s.setBlocks([section('sec', [text('a'), text('b')])]);
+    s.selectBlock('a');
+    s.toggleBlockSelection('b');
+    s.duplicateSelected();
+    const sec = findById(useEditorStore.getState().blocks, 'sec')!;
+    expect(sec.children.length).toBe(4); // a, a', b, b'
+    const ids = sec.children.map((c) => c.id);
+    expect(new Set(ids).size).toBe(4); // all unique
+  });
+
+  it('pasteStyleToSelected applies to every selected block', () => {
+    const s = useEditorStore.getState();
+    s.setBlocks([section('sec', [text('src', richStyle), text('a'), text('b')])]);
+    s.copyStyle('src');
+    s.selectBlock('a');
+    s.toggleBlockSelection('b');
+    s.pasteStyleToSelected('colors');
+    expect(findById(useEditorStore.getState().blocks, 'a')!.style?.visual?.backgroundColor).toBe('#ff0000');
+    expect(findById(useEditorStore.getState().blocks, 'b')!.style?.visual?.backgroundColor).toBe('#ff0000');
+  });
+});
+
 function findById(blocks: BlockData[], id: string): BlockData | null {
   for (const b of blocks) {
     if (b.id === id) return b;

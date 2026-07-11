@@ -9,13 +9,13 @@ export function useEditorShortcuts(
 ) {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
-  const removeBlock = useEditorStore((s) => s.removeBlock);
-  const duplicateBlock = useEditorStore((s) => s.duplicateBlock);
   const selectBlock = useEditorStore((s) => s.selectBlock);
   const copyBlock = useEditorStore((s) => s.copyBlock);
   const pasteBlock = useEditorStore((s) => s.pasteBlock);
   const copyStyle = useEditorStore((s) => s.copyStyle);
-  const pasteStyle = useEditorStore((s) => s.pasteStyle);
+  const removeSelected = useEditorStore((s) => s.removeSelected);
+  const duplicateSelected = useEditorStore((s) => s.duplicateSelected);
+  const pasteStyleToSelected = useEditorStore((s) => s.pasteStyleToSelected);
 
   useEffect(() => {
     function inEditable(t: HTMLElement) {
@@ -51,7 +51,7 @@ export function useEditorShortcuts(
       if (mod && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
         if (state.selectedBlockId && !inEditable(e.target as HTMLElement)) {
           e.preventDefault();
-          pasteStyle(state.selectedBlockId, 'all');
+          pasteStyleToSelected('all'); // all selected when multi, else the one
         }
         return;
       }
@@ -94,21 +94,21 @@ export function useEditorShortcuts(
         return;
       }
 
-      // Ctrl/⌘+D: duplicate
+      // Ctrl/⌘+D: duplicate (all selected when multi, else the one)
       if (mod && (e.key === 'd' || e.key === 'D')) {
         e.preventDefault();
-        if (state.selectedBlockId) duplicateBlock(state.selectedBlockId);
+        if (state.selectedBlockId) duplicateSelected();
         return;
       }
 
-      // Delete/Backspace: remove selected (only if not in an input or contentEditable)
+      // Delete/Backspace: remove selection (only if not in an input or contentEditable)
       if (
         (e.key === 'Delete' || e.key === 'Backspace') &&
         state.selectedBlockId
       ) {
         if (inEditable(e.target as HTMLElement)) return;
         e.preventDefault();
-        removeBlock(state.selectedBlockId);
+        removeSelected();
         return;
       }
 
@@ -121,5 +121,5 @@ export function useEditorShortcuts(
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [siteId, blockableType, blockableId, undo, redo, removeBlock, duplicateBlock, selectBlock, copyBlock, pasteBlock, copyStyle, pasteStyle]);
+  }, [siteId, blockableType, blockableId, undo, redo, selectBlock, copyBlock, pasteBlock, copyStyle, removeSelected, duplicateSelected, pasteStyleToSelected]);
 }

@@ -115,6 +115,14 @@ interface EditorState {
   moveBlock: (activeId: string, overId: string, position: 'before' | 'after' | 'inside') => void;
   duplicateBlock: (blockId: string) => void;
   selectBlock: (blockId: string | null) => void;
+  // Multi-select (P4). selectedBlockId stays the PRIMARY (settings panel target);
+  // selectedBlockIds is the full set for bulk ops. selectBlock resets to single.
+  selectedBlockIds: string[];
+  toggleBlockSelection: (blockId: string) => void;
+  clearSelection: () => void;
+  removeSelected: () => void;
+  duplicateSelected: () => void;
+  pasteStyleToSelected: (part: StylePart) => void;
   undo: () => void;
   redo: () => void;
   clipboard: BlockData | null;
@@ -535,7 +543,59 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   selectBlock: (blockId) => {
-    set({ selectedBlockId: blockId });
+    set({ selectedBlockId: blockId, selectedBlockIds: blockId ? [blockId] : [] });
+  },
+
+  selectedBlockIds: [],
+
+  toggleBlockSelection: (blockId) => {
+    const state = get();
+    const has = state.selectedBlockIds.includes(blockId);
+    const ids = has ? state.selectedBlockIds.filter((i) => i !== blockId) : [...state.selectedBlockIds, blockId];
+    // primary follows the toggled block (or falls back to another / none)
+    const primary = has ? (state.selectedBlockId === blockId ? (ids[ids.length - 1] ?? null) : state.selectedBlockId) : blockId;
+    set({ selectedBlockIds: ids, selectedBlockId: primary });
+  },
+
+  clearSelection: () => set({ selectedBlockIds: [], selectedBlockId: null }),
+
+  removeSelected: () => {
+    const state = get();
+    const ids = state.selectedBlockIds.length ? state.selectedBlockIds : (state.selectedBlockId ? [state.selectedBlockId] : []);
+    if (!ids.length) return;
+    const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+    let blocks = state.blocks;
+    for (const id of ids) blocks = removeFromTree(blocks, id);
+    set({ blocks: reorder(blocks), undoStack, redoStack: [], isDirty: true, selectedBlockId: null, selectedBlockIds: [] });
+  },
+
+  duplicateSelected: () => {
+    const state = get();
+    const ids = state.selectedBlockIds.length ? state.selectedBlockIds : (state.selectedBlockId ? [state.selectedBlockId] : []);
+    if (!ids.length) return;
+    const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+    const newBlocks = deepClone(state.blocks);
+    for (const id of ids) {
+      const found = findInTree(newBlocks, id); // fresh lookup each time (indices shift as we splice)
+      if (!found) continue;
+      found.parent.splice(found.index + 1, 0, deepCloneWithNewIds(found.block));
+    }
+    set({ blocks: reorder(newBlocks), undoStack, redoStack: [], isDirty: true });
+  },
+
+  pasteStyleToSelected: (part) => {
+    const state = get();
+    if (!state.styleClipboard) return;
+    const ids = state.selectedBlockIds.length ? state.selectedBlockIds : (state.selectedBlockId ? [state.selectedBlockId] : []);
+    if (!ids.length) return;
+    const picked = pickStylePart(state.styleClipboard, part);
+    const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+    const newBlocks = deepClone(state.blocks);
+    for (const id of ids) {
+      const found = findInTree(newBlocks, id);
+      if (found) found.block.style = mergeStyle((found.block.style ?? {}) as BlockStyleProps, picked);
+    }
+    set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
   },
 
   undo: () => {

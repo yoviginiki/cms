@@ -21,6 +21,7 @@ import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import { BlockIcon } from './BlockIcon';
 import { PresetBrowser } from './PresetBrowser';
+import { BulkActionBar } from './BulkActionBar';
 import WysiwygEditor from './WysiwygEditor';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
@@ -328,6 +329,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
 
   return (
     <>
+      <BulkActionBar />
       <div
         className="flex-1 overflow-y-auto bg-base-200/50"
         onClick={() => selectBlock(null)}

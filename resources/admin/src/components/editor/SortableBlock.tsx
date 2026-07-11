@@ -55,7 +55,9 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   });
 
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
+  const selectedBlockIds = useEditorStore((s) => s.selectedBlockIds);
   const selectBlock = useEditorStore((s) => s.selectBlock);
+  const toggleBlockSelection = useEditorStore((s) => s.toggleBlockSelection);
   const updateBlock = useEditorStore((s) => s.updateBlock);
   const addBlock = useEditorStore((s) => s.addBlock);
   const canvasDevice = useEditorStore((s) => s.canvasDevice) as Breakpoint;
@@ -64,7 +66,8 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const { siteId = '' } = useParams();
 
-  const isSelected = selectedBlockId === block.id;
+  const isPrimary = selectedBlockId === block.id;
+  const isSelected = isPrimary || selectedBlockIds.includes(block.id);
   const registration = blockRegistry.get(block.type);
   const hideOn = (block.responsive?.hideOn as string[]) || [];
   const isHiddenAtDevice = hideOn.includes(canvasDevice);
@@ -125,12 +128,13 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         allowsChildren && levelAccent ? `border-l-2 ${levelAccent}` : ''
       } ${
         isSelected
-          ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg'
+          ? (isPrimary ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : 'ring-2 ring-blue-300 ring-offset-1 rounded-lg')
           : 'hover:outline hover:outline-1 hover:outline-blue-200 hover:outline-offset-2 rounded-lg'
       } ${isHiddenAtDevice ? 'opacity-25 outline-dashed outline-1 outline-warning/50' : ''}`}
       onClick={(e) => {
         e.stopPropagation();
-        selectBlock(block.id);
+        if (e.shiftKey || e.metaKey || e.ctrlKey) toggleBlockSelection(block.id);
+        else selectBlock(block.id);
       }}
       onContextMenu={(e) => {
         e.preventDefault();
