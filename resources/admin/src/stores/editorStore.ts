@@ -72,6 +72,11 @@ function mergeStyle(base: BlockStyleProps, over: Partial<BlockStyleProps>): Bloc
   return out;
 }
 
+/** Whether a value looks like a design color (hex / rgb(a) / hsl(a) / oklch / var(--token)). */
+function isDesignColor(v: unknown): boolean {
+  return typeof v === 'string' && /^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|oklch\(|var\(--)/.test(v.trim());
+}
+
 /** Nearest ancestor-or-self section block containing `id` (for Extend Style scope). */
 function findScopeSection(blocks: BlockData[], id: string): BlockData | null {
   const dfs = (list: BlockData[], path: BlockData[]): BlockData[] | null => {
@@ -123,6 +128,10 @@ interface EditorState {
   removeSelected: () => void;
   duplicateSelected: () => void;
   pasteStyleToSelected: (part: StylePart) => void;
+  /** Distinct color-like design values used across the page, most-used first. */
+  findStyleValues: () => { value: string; count: number }[];
+  /** Replace every exact-match design value across the page. Returns the count. */
+  replaceStyleValue: (find: string, replace: string) => number;
   undo: () => void;
   redo: () => void;
   clipboard: BlockData | null;
@@ -596,6 +605,34 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (found) found.block.style = mergeStyle((found.block.style ?? {}) as BlockStyleProps, picked);
     }
     set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
+  },
+
+  findStyleValues: () => {
+    const counts = new Map<string, number>();
+    const collect = (o: any) => {
+      if (Array.isArray(o)) { o.forEach(collect); return; }
+      if (o && typeof o === 'object') { Object.values(o).forEach(collect); return; }
+      if (isDesignColor(o)) counts.set(o as string, (counts.get(o as string) ?? 0) + 1);
+    };
+    const walk = (blocks: BlockData[]) => { for (const b of blocks) { collect(b.style); collect(b.data); walk(b.children ?? []); } };
+    walk(get().blocks);
+    return Array.from(counts.entries()).map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
+  },
+
+  replaceStyleValue: (find, replace) => {
+    if (!find || find === replace) return 0;
+    const state = get();
+    const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+    const newBlocks = deepClone(state.blocks);
+    let count = 0;
+    const rep = (o: any) => {
+      if (Array.isArray(o)) { for (let i = 0; i < o.length; i++) { if (o[i] === find) { o[i] = replace; count++; } else rep(o[i]); } return; }
+      if (o && typeof o === 'object') { for (const k of Object.keys(o)) { if (o[k] === find) { o[k] = replace; count++; } else rep(o[k]); } }
+    };
+    const walk = (blocks: BlockData[]) => { for (const b of blocks) { rep(b.style); rep(b.data); walk(b.children ?? []); } };
+    walk(newBlocks);
+    if (count > 0) set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
+    return count;
   },
 
   undo: () => {

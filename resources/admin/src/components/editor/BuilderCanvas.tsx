@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Monitor, Tablet, Smartphone, LayoutList, Eye, Plus, Code, FileText, Sparkles } from 'lucide-react';
+import { Monitor, Tablet, Smartphone, LayoutList, Eye, Plus, Code, FileText, Sparkles, Replace } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
 import { WireframeBlock } from './WireframeBlock';
@@ -22,6 +22,7 @@ import { DragOverlay } from './DragOverlay';
 import { BlockIcon } from './BlockIcon';
 import { PresetBrowser } from './PresetBrowser';
 import { BulkActionBar } from './BulkActionBar';
+import { FindReplacePanel } from './FindReplacePanel';
 import WysiwygEditor from './WysiwygEditor';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
@@ -209,6 +210,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
   const redo = useEditorStore((s) => s.redo);
   const undoCount = useEditorStore((s) => s.undoStack.length);
   const redoCount = useEditorStore((s) => s.redoStack.length);
+  const [findOpen, setFindOpen] = useState(false);
   const copyBlock = useEditorStore((s) => s.copyBlock);
   const pasteBlock = useEditorStore((s) => s.pasteBlock);
   const clipboard = useEditorStore((s) => s.clipboard);
@@ -330,6 +332,7 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
   return (
     <>
       <BulkActionBar />
+      <FindReplacePanel open={findOpen} onClose={() => setFindOpen(false)} />
       <div
         className="flex-1 overflow-y-auto bg-base-200/50"
         onClick={() => selectBlock(null)}
@@ -401,6 +404,9 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
             <button onClick={redo} disabled={redoCount === 0} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30 disabled:opacity-30" title={`Redo (${redoCount})`}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
               {redoCount > 0 && <span className="text-[9px] text-base-content/30">{redoCount}</span>}
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setFindOpen(true); }} className="flex items-center gap-0.5 px-1.5 py-1.5 rounded-md text-xs text-base-content/40 hover:text-base-content/70 hover:bg-base-300/30" title="Find & Replace colors">
+              <Replace size={14} />
             </button>
           </div>
 

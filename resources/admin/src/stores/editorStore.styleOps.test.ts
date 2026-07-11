@@ -134,6 +134,45 @@ describe('editorStore P4 multi-select', () => {
   });
 });
 
+describe('editorStore P4 find & replace design values', () => {
+  beforeEach(() => {
+    useEditorStore.setState({ blocks: [], undoStack: [], redoStack: [] });
+  });
+
+  it('findStyleValues collects distinct colors with counts, most-used first', () => {
+    const s = useEditorStore.getState();
+    s.setBlocks([section('sec', [
+      text('a', { visual: { backgroundColor: '#ff0000', borderColor: '#00ff00' } }),
+      text('b', { visual: { backgroundColor: '#ff0000' } }),
+      text('c', { typography: { fontWeight: '700' } }), // not a color
+    ])]);
+    const vals = s.findStyleValues();
+    expect(vals[0]).toEqual({ value: '#ff0000', count: 2 }); // most used first
+    expect(vals.find((v) => v.value === '#00ff00')?.count).toBe(1);
+    expect(vals.find((v) => v.value === '700')).toBeUndefined();
+  });
+
+  it('replaceStyleValue swaps every occurrence and reports count', () => {
+    const s = useEditorStore.getState();
+    s.setBlocks([section('sec', [
+      text('a', { visual: { backgroundColor: '#111111' } }),
+      text('b', { visual: { borderColor: '#111111' } }),
+    ])]);
+    const n = s.replaceStyleValue('#111111', '$color.accent');
+    expect(n).toBe(2);
+    expect(findById(useEditorStore.getState().blocks, 'a')!.style?.visual?.backgroundColor).toBe('$color.accent');
+    expect(findById(useEditorStore.getState().blocks, 'b')!.style?.visual?.borderColor).toBe('$color.accent');
+  });
+
+  it('replaceStyleValue also reaches colors stored in block data (backgrounds)', () => {
+    const s = useEditorStore.getState();
+    const b: BlockData = { id: 'x', type: 'section', level: 'section', data: { bg_color: '#222222' }, children: [], order: 0 } as BlockData;
+    s.setBlocks([b]);
+    expect(s.replaceStyleValue('#222222', '#333333')).toBe(1);
+    expect((findById(useEditorStore.getState().blocks, 'x')!.data as any).bg_color).toBe('#333333');
+  });
+});
+
 function findById(blocks: BlockData[], id: string): BlockData | null {
   for (const b of blocks) {
     if (b.id === id) return b;
