@@ -2,7 +2,6 @@
 
 namespace App\Domain\Blocks\Services;
 
-use App\Models\Block;
 use App\Models\Site;
 use App\Models\StylePreset;
 
@@ -12,11 +11,13 @@ use App\Models\StylePreset;
  *
  *   element preset  →  option-group presets (stackable)  →  local overrides
  *
- * The block links (never copies): `block.preset_id` is the element preset, and
- * `data.__presetGroups` is an ordered list of option-group preset ids. Token
- * refs ($color.accent) are left intact here — BlockStyle's safeColor/safeDim/
- * safeCssVal compile them to var(--…) at render, so presets resolve at publish
- * to plain static CSS. Presets are cached for the lifetime of one build/resolver.
+ * The block links (never copies): `data.__stylePreset` is the element preset id,
+ * and `data.__presetGroups` is an ordered list of option-group preset ids. (The
+ * `blocks.preset_id` column is NOT used — it already carries block-template
+ * provenance; see PresetsCopyTest.) Token refs ($color.accent) are left intact
+ * here — BlockStyle's safeColor/safeDim/safeCssVal compile them to var(--…) at
+ * render, so presets resolve at publish to plain static CSS. Presets are cached
+ * for the lifetime of one build/resolver.
  */
 class StylePresetResolver
 {
@@ -25,14 +26,14 @@ class StylePresetResolver
 
     /**
      * @param array $localStyle the block's own style (highest priority)
-     * @param array $data       sanitized block data (holds __presetGroups)
+     * @param array $data       sanitized block data (holds __stylePreset, __presetGroups)
      * @return array the merged style (token refs still as $-strings)
      */
-    public function resolve(Block $block, Site $site, array $localStyle, array $data): array
+    public function resolve(Site $site, array $localStyle, array $data): array
     {
         $presetIds = [];
-        if (!empty($block->preset_id)) {
-            $presetIds[] = $block->preset_id;
+        if (!empty($data['__stylePreset']) && is_string($data['__stylePreset'])) {
+            $presetIds[] = $data['__stylePreset'];
         }
         foreach ($data['__presetGroups'] ?? [] as $gid) {
             if (is_string($gid) && $gid !== '') {

@@ -397,7 +397,7 @@ class BuildPageService
         // P3: resolve linked style presets (element → option-groups → local overrides).
         // No-op (returns local unchanged) when the block links no preset.
         $blockStyle = $this->presetResolver()->resolve(
-            $block, $site, is_array($localStyle) ? $localStyle : [], $sanitizedData,
+            $site, is_array($localStyle) ? $localStyle : [], $sanitizedData,
         );
         $blockAnimation = $sanitizedData['__animation'] ?? [];
         $blockAdvanced = $sanitizedData['__advanced'] ?? [];

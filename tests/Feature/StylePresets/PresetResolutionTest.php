@@ -49,7 +49,7 @@ class PresetResolutionTest extends TestCase
 
         $html = $this->buildWith([
             'type' => 'text', 'level' => 'module', 'order' => 0,
-            'preset_id' => $preset->id, 'data' => ['content' => 'Hi'],
+            'data' => ['content' => 'Hi', '__stylePreset' => $preset->id],
         ]);
 
         $this->assertStringContainsString('background-color:var(--color-accent)', $html);
@@ -62,9 +62,8 @@ class PresetResolutionTest extends TestCase
 
         $html = $this->buildWith([
             'type' => 'text', 'level' => 'module', 'order' => 0,
-            'preset_id' => $preset->id,
             'style' => ['spacing' => ['paddingTop' => '99px']], // local wins
-            'data' => ['content' => 'Hi'],
+            'data' => ['content' => 'Hi', '__stylePreset' => $preset->id],
         ]);
 
         $this->assertStringContainsString('padding-top:99px', $html);

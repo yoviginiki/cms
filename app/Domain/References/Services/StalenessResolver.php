@@ -29,8 +29,9 @@ class StalenessResolver
      * content" — these propagate content changes. `links` is deliberately
      * excluded: a link only goes stale when its target's URL changes
      * (see markStaleForLinkTargets), not when the target's content does.
+     * `uses` = the source's rendered CSS depends on a style preset (P3).
      */
-    private const CONTENT_KINDS = ['embeds', 'uses_asset', 'lists', 'site_scope'];
+    private const CONTENT_KINDS = ['embeds', 'uses_asset', 'lists', 'site_scope', 'uses'];
 
     /**
      * A target entity's CONTENT changed. Returns summary counts.

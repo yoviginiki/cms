@@ -208,6 +208,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/sliders/{slider}/publish', [\App\Http\Controllers\Api\V1\SliderController::class, 'publish']);
         Route::post('sites/{site}/sliders/{slider}/duplicate', [\App\Http\Controllers\Api\V1\SliderController::class, 'duplicate']);
 
+        // Style Presets (Builder Experience P3)
+        $sp = \App\Http\Controllers\Api\V1\StylePresetController::class;
+        Route::get('sites/{site}/style-presets/export', [$sp, 'export']);
+        Route::post('sites/{site}/style-presets/import', [$sp, 'import']);
+        Route::apiResource('sites.style-presets', $sp)->parameters(['style-presets' => 'stylePreset']);
+
         // Global Sections (Builder Experience P2) — reusable-by-reference sections
         $gs = \App\Http\Controllers\Api\V1\GlobalSectionController::class;
         Route::apiResource('sites.global-sections', $gs)->parameters(['global-sections' => 'globalSection']);

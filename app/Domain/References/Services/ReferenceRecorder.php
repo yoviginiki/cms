@@ -42,11 +42,16 @@ class ReferenceRecorder
 
         foreach ($blocks as $block) {
             $extractor = $this->extractors->for($block->type);
-            if (!$extractor) {
-                continue; // unknown type tolerated at runtime; pinned by ExtractorCoverageTest
+            if ($extractor) {
+                foreach ($extractor->extract($block->data ?? [], $context) as $edge) {
+                    // dedupe on the unique-index key
+                    $edges["{$edge['target_type']}|{$edge['target_id']}|{$edge['kind']}"] = $edge;
+                }
             }
-            foreach ($extractor->extract($block->data ?? [], $context) as $edge) {
-                // dedupe on the unique-index key
+            // P3: generic style-preset links (preset_id + data.__presetGroups) are
+            // a column/data concern, not per-type — emit 'uses' edges so editing a
+            // preset cascades staleness to every page/post that links it.
+            foreach ($this->presetEdges($block) as $edge) {
                 $edges["{$edge['target_type']}|{$edge['target_id']}|{$edge['kind']}"] = $edge;
             }
         }
@@ -128,6 +133,32 @@ class ReferenceRecorder
                 'created_at' => $now,
             ], $edges));
         });
+    }
+
+    /**
+     * Style-preset 'uses' edges for a block (element preset + option-group
+     * presets). @return array<int, array{target_type:string,target_id:string,kind:string}>
+     */
+    private function presetEdges(Block $block): array
+    {
+        $data = $block->data ?? [];
+        $ids = [];
+        // Style-preset links live in data (__stylePreset / __presetGroups). The
+        // blocks.preset_id COLUMN is block-template provenance, not a style link,
+        // and deliberately creates no edge (see PresetsCopyTest).
+        if (!empty($data['__stylePreset']) && is_string($data['__stylePreset'])) {
+            $ids[] = $data['__stylePreset'];
+        }
+        foreach (($data['__presetGroups'] ?? []) as $g) {
+            if (is_string($g) && $g !== '') {
+                $ids[] = $g;
+            }
+        }
+
+        return array_map(
+            fn (string $id) => ['target_type' => 'style_preset', 'target_id' => $id, 'kind' => 'uses'],
+            array_values(array_unique($ids)),
+        );
     }
 
     private function resolveSite(Model $blockable): ?Site
