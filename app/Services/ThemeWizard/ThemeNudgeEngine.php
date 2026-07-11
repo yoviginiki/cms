@@ -34,15 +34,17 @@ class ThemeNudgeEngine
     private function systemBlocks(): array
     {
         $layouts = implode(', ', TokenProfileSchema::LAYOUTS);
+        $guardrails = Guardrails::block();
         return [[
             'type' => 'text',
             'cache_control' => ['type' => 'ephemeral'],
             'text' => <<<PROMPT
 You are the Stillopress theme designer, refining an existing theme profile from the user's plain-language feedback. You are given the CURRENT profile (JSON) and a short instruction. Return the FULL updated profile JSON (same schema), changing only what the feedback implies and keeping everything else coherent.
 
-Rules:
+{$guardrails}
+
+Task specifics:
 - Make the smallest change that satisfies the feedback, then re-balance so the result still reads as one design. "Warmer" shifts hues toward reds/ambers and softens neutrals; "more contrast" separates text from background and strengthens the brand; "quieter headings" lowers heading weight and/or scale; "rounder" moves radius toward soft/rounded; "airier" increases spacing density.
-- Keep it READABLE (body text must contrast with the background) and DISTINCT (accent ≠ brand). Keep type described by CHARACTER, never a font name.
 - You may change the layout personality only if the feedback clearly asks for a different structure. Layouts: {$layouts}.
 - Rewrite design_read (2-3 sentences) to describe the theme AS IT NOW IS, noting what your change did.
 

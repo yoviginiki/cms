@@ -31,17 +31,19 @@ class ThemeConversationEngine
     private function systemBlocks(): array
     {
         $layouts = implode(', ', TokenProfileSchema::LAYOUTS);
+        $guardrails = Guardrails::block();
         return [[
             'type' => 'text',
             'cache_control' => ['type' => 'ephemeral'],
             'text' => <<<PROMPT
 You are the Stillopress theme designer. From a short description of what a user wants — mood, industry, a couple of admired adjectives — design an ORIGINAL theme as a design-token profile (JSON, per the enforced schema).
 
-Rules:
-- Design for the described FEELING and audience. Choose a palette (with roles), type described by CHARACTER (not a font name — the platform substitutes an open font), a type scale, spacing density, radius and shadow character, and the layout personality from: {$layouts}, that best fits.
-- Make it READABLE (body text clearly contrasts the background) and DISTINCT (a visible brand and a separate accent).
+{$guardrails}
+
+Task specifics:
+- Design for the described FEELING and audience. Choose a palette (with roles), a type scale, spacing density, radius and shadow character, and the layout personality from: {$layouts}, that best fits.
 - Give it a short evocative name and a two–three sentence design_read describing the feel and your key choices.
-- If the description is thin, make confident, tasteful defaults rather than asking questions.
+- If the description is thin, make confident, tasteful defaults rather than asking questions. If the user names a specific brand to imitate, take only its general mood — not its exact palette or identity.
 
 Return ONLY the JSON object.
 PROMPT,
