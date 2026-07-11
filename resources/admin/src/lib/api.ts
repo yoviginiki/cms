@@ -369,6 +369,31 @@ export const library = {
 
 export const LIBRARY_KINDS = ['section', 'row', 'block-composition', 'module'] as const;
 
+// ── Style Presets (Builder Experience P3) — named style bundles blocks link to ──
+export interface StylePreset {
+  id: string;
+  site_id: string | null;
+  block_type: string;
+  kind: 'element' | 'group';
+  group?: string | null;
+  name: string;
+  slug?: string | null;
+  style: Record<string, any>;
+  is_default: boolean;
+  sort: number;
+  is_system: boolean;
+}
+
+export const stylePresets = {
+  list: (siteId: string, blockType?: string, kind?: string) =>
+    api.get(`/sites/${siteId}/style-presets`, { params: { block_type: blockType, kind } }),
+  create: (siteId: string, body: Partial<StylePreset>) => api.post(`/sites/${siteId}/style-presets`, body),
+  update: (siteId: string, id: string, body: Partial<StylePreset>) => api.patch(`/sites/${siteId}/style-presets/${id}`, body),
+  delete: (siteId: string, id: string) => api.delete(`/sites/${siteId}/style-presets/${id}`),
+  export: (siteId: string) => api.get(`/sites/${siteId}/style-presets/export`),
+  import: (siteId: string, presets: unknown[]) => api.post(`/sites/${siteId}/style-presets/import`, { presets }),
+};
+
 // ── Global Sections (Builder Experience P2) — reused-by-reference across pages ──
 export interface GlobalSectionSummary {
   id: string;

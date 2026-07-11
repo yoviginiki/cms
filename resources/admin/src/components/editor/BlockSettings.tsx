@@ -11,6 +11,7 @@ import { AnimationPanel } from './properties/AnimationPanel';
 import { AdvancedPanel } from './properties/AdvancedPanel';
 import { ResponsivePanel } from './properties/ResponsivePanel';
 import { TypographyPanel } from './properties/TypographyPanel';
+import { PresetPanel } from './properties/PresetPanel';
 import { LayerTransformPanel } from './properties/LayerTransformPanel';
 import { AnimationScenePanel } from './properties/AnimationScenePanel';
 import BackgroundEditor from './BackgroundEditor';
@@ -144,6 +145,11 @@ export function BlockSettings() {
         {/* Typography is handled per-block (Heading, Hero have their own controls).
             The shared TypographyPanel was removed because it stored data but never
             applied it — blocks that need typography implement it directly. */}
+
+        {/* Style Presets (P3): apply a named preset, or save this block's style as one */}
+        <Section title="Style Presets">
+          <PresetPanel block={block} onApply={(id) => handleUpdate({ __stylePreset: id })} />
+        </Section>
 
         {/* Typography */}
         <Section title="Typography" defaultOpen={true}>

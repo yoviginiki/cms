@@ -123,6 +123,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         { to: `/sites/${siteId}/theme-wizard`, icon: Wand2, label: 'Theme Wizard' },
         { to: `/sites/${siteId}/library`, icon: BookMarked, label: 'Library' },
         { to: `/sites/${siteId}/global-sections`, icon: Boxes, label: 'Global Sections' },
+        { to: `/sites/${siteId}/style-presets`, icon: Palette, label: 'Style Presets' },
         { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
         { to: `/sites/${siteId}/settings`, icon: Settings, label: 'Settings' },
       ]
