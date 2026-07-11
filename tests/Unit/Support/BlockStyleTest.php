@@ -96,7 +96,7 @@ class BlockStyleTest extends TestCase
     public function test_safe_shadow_rejects_unknown(): void
     {
         $this->assertSame('', BlockStyle::safeShadow('none'));
-        $this->assertSame('', BlockStyle::safeShadow('xl'));
+        $this->assertSame('', BlockStyle::safeShadow('xxl')); // 'xl' IS a valid preset; 'xxl' is not
         $this->assertSame('', BlockStyle::safeShadow('0 0 10px red; background: url(evil)'));
     }
 
@@ -381,5 +381,43 @@ class BlockStyleTest extends TestCase
     {
         $style = BlockStyle::buildStyle(['layout' => []]);
         $this->assertSame('', $style);
+    }
+
+    // ── responsive per-breakpoint overrides (P4) ──
+
+    public function test_responsive_css_emits_per_breakpoint_media_queries(): void
+    {
+        $r = BlockStyle::buildResponsiveStyleCss([
+            'tablet' => ['spacing' => ['paddingTop' => '10px'], 'typography' => ['fontSize' => '18px']],
+            'mobile' => ['spacing' => ['paddingTop' => '6px']],
+        ], 'blk-abc');
+
+        $this->assertNotSame('', $r['scopeClass']);
+        // tablet: ≤1023px, spacing + typography both emitted (!important, scoped)
+        $this->assertStringContainsString('@media(max-width:1023px)', $r['css']);
+        $this->assertStringContainsString('padding-top:10px!important', $r['css']);
+        $this->assertStringContainsString('font-size:18px!important', $r['css']);
+        // mobile: ≤767px
+        $this->assertStringContainsString('@media(max-width:767px)', $r['css']);
+        $this->assertStringContainsString('padding-top:6px!important', $r['css']);
+        // the rules are scoped to the returned class
+        $this->assertStringContainsString('.' . $r['scopeClass'], $r['css']);
+    }
+
+    public function test_responsive_css_empty_without_overrides(): void
+    {
+        $r = BlockStyle::buildResponsiveStyleCss([], 'blk-abc');
+        $this->assertSame('', $r['css']);
+        $this->assertSame('', $r['scopeClass']);
+    }
+
+    public function test_responsive_css_sanitizes_values(): void
+    {
+        $r = BlockStyle::buildResponsiveStyleCss([
+            'mobile' => ['spacing' => ['paddingTop' => 'javascript:alert(1)', 'paddingBottom' => '8px']],
+        ], 'blk-abc');
+        // the dangerous value is dropped; the valid one survives
+        $this->assertStringNotContainsString('javascript', $r['css']);
+        $this->assertStringContainsString('padding-bottom:8px!important', $r['css']);
     }
 }

@@ -505,7 +505,8 @@ class BlockStyle
     }
 
     /**
-     * Build CSS rules from a responsive override object (spacing + layout sections).
+     * Build CSS rules from a responsive override object (spacing, typography,
+     * and layout/display sections) as !important scoped declarations.
      */
     private static function buildStyleOverrideRules(array $overrides): string
     {
