@@ -14,6 +14,8 @@ interface BlockTemplate {
   id: string;
   name: string;
   category: string;
+  kind?: string | null;
+  tags?: string[] | null;
   description: string | null;
   blocks_data: any[];
   is_system: boolean;
@@ -339,7 +341,8 @@ export function PresetBrowser({ open, onClose, onSelectPreset, onAddBlank, siteI
                         </div>
                         <div className="mt-2">
                           <div className="text-[11px] font-semibold text-base-content/70 group-hover:text-primary truncate">{tpl.name}</div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {tpl.kind && <span className="text-[9px] px-1.5 py-0.5 rounded border border-base-300/40 text-base-content/40">{tpl.kind}</span>}
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-base-200 text-base-content/40">{tpl.category}</span>
                             {tpl.is_system && <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary/60">system</span>}
                           </div>

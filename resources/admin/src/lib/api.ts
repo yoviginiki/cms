@@ -329,4 +329,44 @@ export const dtpDesigner = {
     api.patch(`/sites/${siteId}/magazine-issues/${issueId}`, data),
 };
 
+// ── The Library (Builder Experience P1) — reusable sections/rows/compositions ──
+export interface LibraryItem {
+  id: string;
+  site_id: string | null;
+  name: string;
+  slug?: string | null;
+  category: string;
+  kind?: string | null;
+  tags?: string[] | null;
+  description?: string | null;
+  blocks_data: any[];
+  preview_image?: string | null;
+  is_system: boolean;
+  updated_at?: string;
+}
+
+export type LibrarySavePayload = {
+  name: string;
+  kind?: string | null;
+  category?: string;
+  tags?: string[];
+  description?: string | null;
+  blocks_data: any[];
+};
+
+export const library = {
+  list: (siteId: string, params?: { q?: string; kind?: string; category?: string; tag?: string }) =>
+    api.get(`/sites/${siteId}/block-templates`, { params }),
+  get: (siteId: string, id: string) => api.get(`/sites/${siteId}/block-templates/${id}`),
+  save: (siteId: string, body: LibrarySavePayload) =>
+    api.post(`/sites/${siteId}/block-templates`, body),
+  update: (siteId: string, id: string, body: Partial<Pick<LibraryItem, 'name' | 'category' | 'kind' | 'tags' | 'description'>>) =>
+    api.patch(`/sites/${siteId}/block-templates/${id}`, body),
+  import: (siteId: string, body: LibrarySavePayload) =>
+    api.post(`/sites/${siteId}/block-templates/import`, body),
+  remove: (siteId: string, id: string) => api.delete(`/sites/${siteId}/block-templates/${id}`),
+};
+
+export const LIBRARY_KINDS = ['section', 'row', 'block-composition', 'module'] as const;
+
 export default api;

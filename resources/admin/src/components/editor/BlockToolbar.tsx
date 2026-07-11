@@ -1,11 +1,11 @@
+import { useState } from 'react';
 import { ArrowUp, ArrowDown, Copy, Trash2, GripVertical, Save } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import { api } from '@/lib/api';
 import type { BlockData } from '@/types/blocks';
 import { useEditorStore } from '@/stores/editorStore';
 import { blockRegistry } from '@/components/blocks/registry';
 import { BlockIcon } from './BlockIcon';
-import { useToast } from '@/components/ui/Toast';
+import { SaveToLibraryDialog } from './SaveToLibraryDialog';
 
 interface BlockToolbarProps {
   block: BlockData;
@@ -18,8 +18,8 @@ export function BlockToolbar({ block, dragHandleProps }: BlockToolbarProps) {
   const moveBlock = useEditorStore((s) => s.moveBlock);
   const blocks = useEditorStore((s) => s.blocks);
   const { siteId = '' } = useParams();
+  const [saveOpen, setSaveOpen] = useState(false);
 
-  const { toast } = useToast();
   const reg = blockRegistry.get(block.type);
   const label = reg?.definition.label ?? block.type;
 
@@ -92,19 +92,24 @@ export function BlockToolbar({ block, dragHandleProps }: BlockToolbarProps) {
 
       <button
         className="hover:bg-blue-600 rounded p-0.5"
-        onClick={async (e) => {
+        onClick={(e) => {
           e.stopPropagation();
-          const name = prompt('Template name:');
-          if (!name || !siteId) return;
-          try {
-            await api.post(`/sites/${siteId}/block-templates`, { name, blocks_data: [block], category: block.level || 'module' });
-            toast({ type: 'success', message: 'Saved as template' });
-          } catch { toast({ type: 'error', message: 'Failed to save template' }); }
+          if (siteId) setSaveOpen(true);
         }}
-        title="Save as Template"
+        title="Save to Library"
       >
         <Save size={14} />
       </button>
+
+      {saveOpen && (
+        <SaveToLibraryDialog
+          open={saveOpen}
+          onClose={() => setSaveOpen(false)}
+          siteId={siteId}
+          blocks={[block]}
+          defaultName={label}
+        />
+      )}
 
       <button
         className="hover:bg-red-500 rounded p-0.5"
