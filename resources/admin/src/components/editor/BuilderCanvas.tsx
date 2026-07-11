@@ -23,6 +23,7 @@ import { BlockIcon } from './BlockIcon';
 import { PresetBrowser } from './PresetBrowser';
 import { BulkActionBar } from './BulkActionBar';
 import { FindReplacePanel } from './FindReplacePanel';
+import { useStylePresets } from '@/lib/presetResolve';
 import WysiwygEditor from './WysiwygEditor';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
@@ -211,6 +212,18 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
   const undoCount = useEditorStore((s) => s.undoStack.length);
   const redoCount = useEditorStore((s) => s.redoStack.length);
   const [findOpen, setFindOpen] = useState(false);
+
+  // P3: feed per-block-type default presets into the store so new blocks auto-link them.
+  const { siteId: siteIdForPresets = '' } = useParams();
+  const stylePresetList = useStylePresets(siteIdForPresets);
+  const setDefaultPresets = useEditorStore((s) => s.setDefaultPresets);
+  useEffect(() => {
+    const map: Record<string, string> = {};
+    for (const p of stylePresetList) {
+      if (p.kind === 'element' && p.is_default && p.block_type !== '*') map[p.block_type] = p.id;
+    }
+    setDefaultPresets(map);
+  }, [stylePresetList, setDefaultPresets]);
   const copyBlock = useEditorStore((s) => s.copyBlock);
   const pasteBlock = useEditorStore((s) => s.pasteBlock);
   const clipboard = useEditorStore((s) => s.clipboard);

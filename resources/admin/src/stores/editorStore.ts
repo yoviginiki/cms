@@ -72,6 +72,12 @@ function mergeStyle(base: BlockStyleProps, over: Partial<BlockStyleProps>): Bloc
   return out;
 }
 
+/** Link a new block of `type` to its default style preset, if one is set (P3). */
+function withDefaultPreset(type: string, data: any, defaults: Record<string, string>): any {
+  const pid = defaults[type];
+  return pid ? { ...(data ?? {}), __stylePreset: pid } : data;
+}
+
 /** Whether a value looks like a design color (hex / rgb(a) / hsl(a) / oklch / var(--token)). */
 function isDesignColor(v: unknown): boolean {
   return typeof v === 'string' && /^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|oklch\(|var\(--)/.test(v.trim());
@@ -132,6 +138,9 @@ interface EditorState {
   findStyleValues: () => { value: string; count: number }[];
   /** Replace every exact-match design value across the page. Returns the count. */
   replaceStyleValue: (find: string, replace: string) => number;
+  /** Per-block-type default style preset id — new blocks auto-link it (P3). */
+  defaultPresets: Record<string, string>;
+  setDefaultPresets: (map: Record<string, string>) => void;
   undo: () => void;
   redo: () => void;
   clipboard: BlockData | null;
@@ -287,7 +296,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
         const newBlock: BlockData = {
           id: generateId(), type, level: reg.definition.level,
-          data: deepClone(reg.definition.defaultData), children: [], order: 0,
+          data: withDefaultPreset(type, deepClone(reg.definition.defaultData), state.defaultPresets), children: [], order: 0,
         };
         const column: BlockData = { id: generateId(), type: 'column', level: 'column', data: deepClone(columnReg.definition.defaultData), children: [newBlock], order: 0 };
         const rowData = deepClone(rowReg.definition.defaultData);
@@ -305,7 +314,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       id: generateId(),
       type,
       level: reg.definition.level,
-      data: deepClone(reg.definition.defaultData),
+      data: withDefaultPreset(type, deepClone(reg.definition.defaultData), state.defaultPresets),
       children: [],
       order: 0,
     };
@@ -567,6 +576,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   clearSelection: () => set({ selectedBlockIds: [], selectedBlockId: null }),
+
+  defaultPresets: {},
+  setDefaultPresets: (map) => set({ defaultPresets: map }),
 
   removeSelected: () => {
     const state = get();

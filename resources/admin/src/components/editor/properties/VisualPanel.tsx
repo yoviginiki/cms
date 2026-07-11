@@ -1,6 +1,7 @@
 import type { VisualProps } from '@/types/blocks';
 import { ShadowField } from '@/components/editor/fields/ShadowField';
 import { CornerRadiusField } from '@/components/editor/fields/CornerRadiusField';
+import { TokenColorInput } from '@/components/editor/fields/TokenColorInput';
 import type { ShadowCustom } from '@/lib/shadowStyles';
 
 interface Props {
@@ -17,15 +18,7 @@ export function VisualPanel({ value, onChange, hideBg }: Props) {
       {!hideBg && (
         <>
           {/* ── Background (legacy — use BackgroundEditor section instead) ── */}
-          <div>
-            <label className="text-[10px] text-base-content/40">Background color</label>
-            <div className="flex gap-2">
-              <input type="color" value={value.backgroundColor || '#ffffff'} onChange={e => update('backgroundColor', e.target.value)}
-                className="w-8 h-7 rounded cursor-pointer border border-base-300/30" />
-              <input value={value.backgroundColor || ''} onChange={e => update('backgroundColor', e.target.value)}
-                className="input input-bordered input-xs flex-1 text-[11px]" placeholder="transparent" />
-            </div>
-          </div>
+          <TokenColorInput label="Background color" value={value.backgroundColor || ''} onChange={v => update('backgroundColor', v)} />
           <div>
             <label className="text-[10px] text-base-content/40">Background image</label>
             <input value={value.backgroundImage || ''} onChange={e => update('backgroundImage', e.target.value)}
@@ -40,17 +33,11 @@ export function VisualPanel({ value, onChange, hideBg }: Props) {
       )}
 
       {/* ── Border ── */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-[10px] text-base-content/40">Border width</label>
           <input value={value.borderWidth || ''} onChange={e => update('borderWidth', e.target.value)}
             className="input input-bordered input-xs w-full text-[11px]" placeholder="0" />
-        </div>
-        <div>
-          <label className="text-[10px] text-base-content/40">Color</label>
-          <input value={value.borderColor || ''} onChange={e => update('borderColor', e.target.value)}
-            className="input input-bordered input-xs w-full text-[11px]"
-            placeholder="#e5e7eb or var(--color-border-light)" />
         </div>
         <div>
           <label className="text-[10px] text-base-content/40">Style</label>
@@ -63,6 +50,7 @@ export function VisualPanel({ value, onChange, hideBg }: Props) {
           </select>
         </div>
       </div>
+      <TokenColorInput label="Border color" value={value.borderColor || ''} onChange={v => update('borderColor', v)} />
 
       {/* ── Border Radius (per-corner) ── */}
       <CornerRadiusField

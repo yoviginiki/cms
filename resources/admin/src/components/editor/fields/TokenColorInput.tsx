@@ -6,14 +6,17 @@ import { useId } from 'react';
  * or a literal color. BlockStyle::safeColor accepts the var() pattern
  * end-to-end, so token values survive the publish pipeline.
  */
+// Semantic color tokens actually emitted by DesignTokenGenerator (kept in sync
+// with the theme's :root vars — publish resolves these, so preview + output match).
 const TOKENS: { name: string; label: string }[] = [
   { name: 'var(--color-primary)', label: 'Primary' },
-  { name: 'var(--color-primary-dark)', label: 'Primary dark' },
+  { name: 'var(--color-accent)', label: 'Accent' },
   { name: 'var(--color-text)', label: 'Text' },
+  { name: 'var(--color-heading)', label: 'Heading' },
   { name: 'var(--color-text-muted)', label: 'Muted' },
   { name: 'var(--color-bg)', label: 'Background' },
-  { name: 'var(--color-bg-alt)', label: 'Background alt' },
-  { name: 'var(--color-border-light)', label: 'Border' },
+  { name: 'var(--color-bg-alt)', label: 'Surface' },
+  { name: 'var(--color-border)', label: 'Border' },
 ];
 
 interface TokenColorInputProps {
