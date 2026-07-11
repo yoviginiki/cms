@@ -26,6 +26,52 @@ function loadUndoState(): { blocks: BlockData[]; undoStack: BlockData[][]; redoS
   } catch { return null; }
 }
 
+/** Granularity for Copy/Paste Style (P4 editor ergonomics). */
+export type StylePart = 'all' | 'typography' | 'spacing' | 'colors' | 'borders';
+
+/** Recursively drop undefined leaves + empty objects (for partial style picks). */
+function stripUndefined(o: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const k in o) {
+    const v = o[k];
+    if (v === undefined) continue;
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const c = stripUndefined(v);
+      if (Object.keys(c).length) out[k] = c;
+    } else out[k] = v;
+  }
+  return out;
+}
+
+/** The subset of a block's style to copy for a given granularity. */
+function pickStylePart(style: BlockStyleProps, part: StylePart): Partial<BlockStyleProps> {
+  const s = style as any;
+  switch (part) {
+    case 'all': return style;
+    case 'typography': return stripUndefined({ typography: s.typography });
+    case 'spacing': return stripUndefined({ spacing: s.spacing });
+    case 'colors': return stripUndefined({
+      visual: { backgroundColor: s.visual?.backgroundColor, borderColor: s.visual?.borderColor },
+      typography: { textColor: s.typography?.textColor },
+    });
+    case 'borders': return stripUndefined({
+      visual: {
+        borderWidth: s.visual?.borderWidth, borderColor: s.visual?.borderColor,
+        borderStyle: s.visual?.borderStyle, borderRadius: s.visual?.borderRadius,
+      },
+    });
+  }
+}
+
+/** Merge a partial style over a base, section-by-section (over wins per leaf). */
+function mergeStyle(base: BlockStyleProps, over: Partial<BlockStyleProps>): BlockStyleProps {
+  const out: any = { ...base };
+  for (const k of ['typography', 'spacing', 'visual', 'layout'] as const) {
+    if ((over as any)[k]) out[k] = { ...((base as any)[k] || {}), ...(over as any)[k] };
+  }
+  return out;
+}
+
 interface EditorState {
   blocks: BlockData[];
   selectedBlockId: string | null;
@@ -57,6 +103,9 @@ interface EditorState {
   clipboard: BlockData | null;
   copyBlock: (blockId: string) => void;
   pasteBlock: (parentId?: string) => void;
+  styleClipboard: BlockStyleProps | null;
+  copyStyle: (blockId: string) => void;
+  pasteStyle: (blockId: string, part: StylePart) => void;
   setDirty: (dirty: boolean) => void;
   setSaving: (saving: boolean) => void;
   restoreUndoState: () => void;
@@ -502,6 +551,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const state = get();
     const found = findInTree(deepClone(state.blocks), blockId);
     if (found) set({ clipboard: found.block });
+  },
+
+  styleClipboard: null,
+
+  copyStyle: (blockId) => {
+    const found = findInTree(deepClone(get().blocks), blockId);
+    if (found) set({ styleClipboard: (found.block.style ?? {}) as BlockStyleProps });
+  },
+
+  pasteStyle: (blockId, part) => {
+    const state = get();
+    if (!state.styleClipboard) return;
+    const picked = pickStylePart(state.styleClipboard, part);
+    const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+    const newBlocks = deepClone(state.blocks);
+    const found = findInTree(newBlocks, blockId);
+    if (!found) return;
+    found.block.style = mergeStyle((found.block.style ?? {}) as BlockStyleProps, picked);
+    set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
   },
 
   pasteBlock: (parentId) => {

@@ -12,6 +12,8 @@ import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition'
 import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { BlockContextMenu } from './BlockContextMenu';
 
 interface SortableBlockProps {
   block: BlockData;
@@ -59,6 +61,8 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const canvasDevice = useEditorStore((s) => s.canvasDevice) as Breakpoint;
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const { siteId = '' } = useParams();
 
   const isSelected = selectedBlockId === block.id;
   const registration = blockRegistry.get(block.type);
@@ -128,7 +132,16 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         e.stopPropagation();
         selectBlock(block.id);
       }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectBlock(block.id);
+        setMenu({ x: e.clientX, y: e.clientY });
+      }}
     >
+      {menu && (
+        <BlockContextMenu block={block} x={menu.x} y={menu.y} siteId={siteId} onClose={() => setMenu(null)} />
+      )}
       {isHiddenAtDevice && (
         <div className="absolute top-1 right-1 z-10 text-[8px] bg-warning/20 text-warning px-1.5 py-0.5 rounded font-medium">
           Hidden on {canvasDevice}
