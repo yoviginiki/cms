@@ -44,6 +44,13 @@ Route::get('/media/{siteId}/{assetId}/{variant?}', function (string $siteId, str
     }
 })->name('public.asset.serve');
 
+// ─── Public Library preview thumbnails (streamed from the assets disk) ───
+// No file extension in the URL — nginx serves .png/.jpg statically and would
+// never reach Laravel (same reason the font route below omits extensions).
+Route::get('/library-thumbnails/{id}', [\App\Http\Controllers\Api\V1\LibraryThumbnailController::class, 'serve'])
+    ->where('id', '[0-9a-fA-F-]{36}')
+    ->name('public.library.thumbnail');
+
 // ─── Public font serve (nginx catches .ttf/.woff, so no extension in URL) ───
 Route::get('/serve-font/{siteId}/{fontSlug}', function (string $siteId, string $fontSlug) {
     try {
