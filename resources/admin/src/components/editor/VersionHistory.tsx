@@ -30,7 +30,7 @@ export function VersionHistory({ siteId, pageId, type }: VersionHistoryProps) {
   });
 
   async function handleRestore(version: Version) {
-    if (!confirm(`Restore to version ${version.version_number}? Current unsaved changes will be lost.`)) return;
+    if (!confirm(`Restore to version ${version.version_number}? Your current page is saved as a new version first, so you can undo this by restoring it back. (Unsaved edits since your last save are not kept.)`)) return;
 
     setRestoring(version.id);
     try {

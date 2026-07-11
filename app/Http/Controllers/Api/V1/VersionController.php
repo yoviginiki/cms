@@ -56,6 +56,9 @@ class VersionController extends Controller
     {
         $this->authorize('update', $page);
 
+        // P4: snapshot the CURRENT state first, so a restore is itself undoable.
+        $this->snapshotCurrent($page, 'page_id');
+
         // Restore blocks from snapshot
         if (!empty($version->blocks_snapshot)) {
             $this->blockService->syncBlocks($page, $version->blocks_snapshot);
@@ -73,6 +76,8 @@ class VersionController extends Controller
     {
         $this->authorize('update', $post);
 
+        $this->snapshotCurrent($post, 'post_id');
+
         if (!empty($version->blocks_snapshot)) {
             $this->blockService->syncBlocks($post, $version->blocks_snapshot);
         }
@@ -82,5 +87,19 @@ class VersionController extends Controller
         }
 
         return response()->json(['data' => ['message' => 'Version restored', 'version' => $version->version_number]]);
+    }
+
+    /** Snapshot the content's current blocks + SEO as a new version (undo point). */
+    private function snapshotCurrent(Page|Post $content, string $fkColumn): void
+    {
+        $last = PageVersion::where($fkColumn, $content->id)->orderByDesc('version_number')->first();
+        PageVersion::create([
+            $fkColumn => $content->id,
+            'blocks_snapshot' => $this->blockService->getBlockTree($content),
+            'seo_snapshot' => $content->seo_meta ?? [],
+            'published_by' => auth()->id(),
+            'published_at' => now(),
+            'version_number' => ($last?->version_number ?? 0) + 1,
+        ]);
     }
 }
