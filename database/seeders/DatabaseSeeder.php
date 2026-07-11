@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SystemThemeSeeder::class,
             SystemLayoutsSeeder::class,
+            StarterSectionSeeder::class,
         ]);
     }
 }
