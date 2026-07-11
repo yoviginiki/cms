@@ -111,4 +111,38 @@ class StylePresetApiTest extends TestCase
         $this->actingAsOwner()->patchJson("{$this->base()}/{$sys->id}", ['name' => 'X'])->assertStatus(403);
         $this->actingAsOwner()->deleteJson("{$this->base()}/{$sys->id}")->assertStatus(403);
     }
+
+    public function test_adopt_clones_a_system_preset_into_an_editable_site_default(): void
+    {
+        \Illuminate\Support\Facades\DB::statement('ALTER TABLE style_presets DISABLE ROW LEVEL SECURITY');
+        $sys = new StylePreset();
+        $sys->forceFill([
+            'site_id' => null, 'block_type' => 'button', 'kind' => 'element', 'name' => 'Primary',
+            'style' => ['visual' => ['backgroundColor' => '$color.primary']], 'is_system' => true,
+        ]);
+        $sys->id = \Illuminate\Support\Str::uuid()->toString();
+        $sys->save();
+        \Illuminate\Support\Facades\DB::statement('ALTER TABLE style_presets ENABLE ROW LEVEL SECURITY');
+        \Illuminate\Support\Facades\DB::statement('ALTER TABLE style_presets FORCE ROW LEVEL SECURITY');
+
+        $resp = $this->actingAsOwner()
+            ->postJson("{$this->base()}/{$sys->id}/adopt")
+            ->assertStatus(201);
+
+        // a fresh site-owned, editable copy with the same style
+        $resp->assertJsonPath('data.is_system', false)
+            ->assertJsonPath('data.site_id', $this->site->id)
+            ->assertJsonPath('data.block_type', 'button')
+            ->assertJsonPath('data.style.visual.backgroundColor', '$color.primary');
+        $copyId = $resp->json('data.id');
+        $this->assertNotSame($sys->id, $copyId);
+
+        // the copy (unlike the system original) can be starred as the site default
+        $this->actingAsOwner()
+            ->patchJson("{$this->base()}/{$copyId}", ['is_default' => true])
+            ->assertOk()->assertJsonPath('data.is_default', true);
+
+        // the system original is untouched
+        $this->assertDatabaseHas('style_presets', ['id' => $sys->id, 'is_system' => true]);
+    }
 }

@@ -87,6 +87,30 @@ class StylePresetController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Adopt a visible preset (a shared system preset, or one of the site's own)
+     * into a fresh site-owned copy. System presets are immutable and cannot be
+     * set as a default; adopting yields an editable copy the site can rename,
+     * tweak, and star as its per-block-type default.
+     */
+    public function adopt(Request $request, Site $site, StylePreset $stylePreset): JsonResponse
+    {
+        $this->authorize('update', $site);
+        abort_unless($stylePreset->is_system || $stylePreset->site_id === $site->id, 404);
+
+        $copy = StylePreset::create($this->fill([
+            'block_type' => $stylePreset->block_type,
+            'kind' => $stylePreset->kind,
+            'group' => $stylePreset->group,
+            'name' => $stylePreset->name,
+            'style' => $stylePreset->style,
+            'sort' => $stylePreset->sort,
+        ], $site));
+
+        // refresh so the non-fillable is_system reflects its DB default (false)
+        return response()->json(['data' => $copy->fresh()], 201);
+    }
+
     /** Export the site's presets as one design-system JSON document. */
     public function export(Request $request, Site $site): JsonResponse
     {

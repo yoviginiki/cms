@@ -212,6 +212,7 @@ Route::middleware('auth:sanctum')->group(function () {
         $sp = \App\Http\Controllers\Api\V1\StylePresetController::class;
         Route::get('sites/{site}/style-presets/export', [$sp, 'export']);
         Route::post('sites/{site}/style-presets/import', [$sp, 'import']);
+        Route::post('sites/{site}/style-presets/{stylePreset}/adopt', [$sp, 'adopt']);
         Route::apiResource('sites.style-presets', $sp)->parameters(['style-presets' => 'stylePreset']);
 
         // Global Sections (Builder Experience P2) — reusable-by-reference sections

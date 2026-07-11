@@ -390,6 +390,7 @@ export const stylePresets = {
   create: (siteId: string, body: Partial<StylePreset>) => api.post(`/sites/${siteId}/style-presets`, body),
   update: (siteId: string, id: string, body: Partial<StylePreset>) => api.patch(`/sites/${siteId}/style-presets/${id}`, body),
   delete: (siteId: string, id: string) => api.delete(`/sites/${siteId}/style-presets/${id}`),
+  adopt: (siteId: string, id: string) => api.post(`/sites/${siteId}/style-presets/${id}/adopt`),
   export: (siteId: string) => api.get(`/sites/${siteId}/style-presets/export`),
   import: (siteId: string, presets: unknown[]) => api.post(`/sites/${siteId}/style-presets/import`, { presets }),
 };

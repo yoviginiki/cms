@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Palette, Trash2, Pencil, Download, Upload, Loader2, Star, Lock } from 'lucide-react';
+import { Palette, Trash2, Pencil, Download, Upload, Loader2, Star, Lock, Copy } from 'lucide-react';
 import { stylePresets, type StylePreset } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -38,6 +38,11 @@ export default function StylePresetsList() {
   const remove = useMutation({
     mutationFn: (id: string) => stylePresets.delete(siteId, id),
     onSuccess: () => { invalidate(); toast({ type: 'success', message: 'Deleted.' }); },
+    onError: (e) => toast({ type: 'error', message: apiErr(e) }),
+  });
+  const adopt = useMutation({
+    mutationFn: (id: string) => stylePresets.adopt(siteId, id),
+    onSuccess: () => { invalidate(); toast({ type: 'success', message: 'Copied to your presets — star it to set as default.' }); },
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
   const importItems = useMutation({
@@ -111,7 +116,7 @@ export default function StylePresetsList() {
                   disabled={p.is_system}
                   onClick={() => update.mutate({ id: p.id, body: { is_default: !p.is_default } })}
                   className={`btn btn-ghost btn-xs btn-square ${p.is_default ? 'text-amber-500' : 'text-base-content/25'}`}
-                  title={p.is_default ? 'Default for this block type' : 'Set as default'}>
+                  title={p.is_system ? 'System presets can’t be a default — copy it to your presets first' : p.is_default ? 'Default for this block type' : 'Set as default'}>
                   <Star size={13} fill={p.is_default ? 'currentColor' : 'none'} />
                 </button>
                 <div className="min-w-0 flex-1">
@@ -121,7 +126,10 @@ export default function StylePresetsList() {
                     {p.is_system && <span className="badge badge-ghost badge-xs gap-1"><Lock size={9} /> system</span>}
                   </div>
                 </div>
-                {!p.is_system && (
+                {p.is_system ? (
+                  <button onClick={() => adopt.mutate(p.id)} disabled={adopt.isPending}
+                    className="btn btn-ghost btn-xs btn-square" title="Copy to your presets (so you can edit it or set it as default)"><Copy size={12} /></button>
+                ) : (
                   <>
                     <button onClick={() => { const n = prompt('Rename preset:', p.name); if (n?.trim()) update.mutate({ id: p.id, body: { name: n.trim() } }); }}
                       className="btn btn-ghost btn-xs btn-square" title="Rename"><Pencil size={12} /></button>
