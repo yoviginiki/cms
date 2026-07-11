@@ -2,9 +2,9 @@ import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  BookMarked, Search, Trash2, Pencil, Download, Upload, Loader2, Check, X, Lock, Layers,
+  BookMarked, Search, Trash2, Pencil, Download, Upload, Loader2, Check, X, Lock, Layers, Boxes,
 } from 'lucide-react';
-import { library, LIBRARY_KINDS, type LibraryItem } from '@/lib/api';
+import { library, globalSections, LIBRARY_KINDS, type LibraryItem } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 const apiErr = (e: any) => e?.response?.data?.error || e?.response?.data?.message || 'Something went wrong.';
@@ -41,6 +41,12 @@ export default function LibraryPage() {
   const importItem = useMutation({
     mutationFn: (payload: any) => library.import(siteId, payload),
     onSuccess: () => { invalidate(); toast({ type: 'success', message: 'Imported into the Library.' }); },
+    onError: (e) => toast({ type: 'error', message: apiErr(e) }),
+  });
+
+  const promote = useMutation({
+    mutationFn: (id: string) => globalSections.promote(siteId, id),
+    onSuccess: () => toast({ type: 'success', message: 'Promoted to a global section — manage it under Global Sections.' }),
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
 
@@ -133,7 +139,8 @@ export default function LibraryPage() {
             <LibraryCard key={item.id} item={item}
               onEdit={() => setEditing(item)}
               onDelete={() => { if (confirm(`Delete “${item.name}”?`)) remove.mutate(item.id); }}
-              onExport={() => exportItem(item)} />
+              onExport={() => exportItem(item)}
+              onPromote={() => promote.mutate(item.id)} />
           ))}
         </div>
       )}
@@ -147,8 +154,8 @@ export default function LibraryPage() {
   );
 }
 
-function LibraryCard({ item, onEdit, onDelete, onExport }: {
-  item: LibraryItem; onEdit: () => void; onDelete: () => void; onExport: () => void;
+function LibraryCard({ item, onEdit, onDelete, onExport, onPromote }: {
+  item: LibraryItem; onEdit: () => void; onDelete: () => void; onExport: () => void; onPromote: () => void;
 }) {
   const blockCount = countBlocks(item.blocks_data);
   return (
@@ -170,6 +177,9 @@ function LibraryCard({ item, onEdit, onDelete, onExport }: {
         </div>
         <div className="mt-auto pt-3 flex items-center gap-1">
           <button onClick={onExport} className="btn btn-ghost btn-xs gap-1" title="Export as JSON"><Download size={12} /></button>
+          {(item.kind === 'section' || !item.kind) && (
+            <button onClick={onPromote} className="btn btn-ghost btn-xs gap-1 text-primary" title="Promote to a Global Section"><Boxes size={12} /></button>
+          )}
           {!item.is_system && (
             <>
               <button onClick={onEdit} className="btn btn-ghost btn-xs gap-1" title="Edit details"><Pencil size={12} /></button>

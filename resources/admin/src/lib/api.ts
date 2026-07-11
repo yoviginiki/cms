@@ -369,4 +369,30 @@ export const library = {
 
 export const LIBRARY_KINDS = ['section', 'row', 'block-composition', 'module'] as const;
 
+// ── Global Sections (Builder Experience P2) — reused-by-reference across pages ──
+export interface GlobalSectionSummary {
+  id: string;
+  name: string;
+  status: 'draft' | 'published';
+  published_at: string | null;
+  updated_at?: string;
+  used_on: number;
+}
+
+export const globalSections = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/global-sections`),
+  get: (siteId: string, id: string) => api.get(`/sites/${siteId}/global-sections/${id}`),
+  create: (siteId: string, name: string) => api.post(`/sites/${siteId}/global-sections`, { name }),
+  promote: (siteId: string, blockTemplateId: string, name?: string) =>
+    api.post(`/sites/${siteId}/global-sections/promote`, { block_template_id: blockTemplateId, name }),
+  update: (siteId: string, id: string, data: Record<string, unknown>) =>
+    api.put(`/sites/${siteId}/global-sections/${id}`, data),
+  syncBlocks: (siteId: string, id: string, blocks: unknown[]) =>
+    api.put(`/sites/${siteId}/global-sections/${id}/blocks`, { blocks }),
+  publish: (siteId: string, id: string) => api.post(`/sites/${siteId}/global-sections/${id}/publish`),
+  unpublish: (siteId: string, id: string) => api.post(`/sites/${siteId}/global-sections/${id}/unpublish`),
+  delete: (siteId: string, id: string, force = false) =>
+    api.delete(`/sites/${siteId}/global-sections/${id}`, { params: force ? { force: 1 } : {} }),
+};
+
 export default api;

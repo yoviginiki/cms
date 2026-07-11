@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Sparkles, Users, Archive, Download, X, PanelLeft, Wand2, BookMarked } from 'lucide-react';
+import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Sparkles, Users, Archive, Download, X, PanelLeft, Wand2, BookMarked, Boxes } from 'lucide-react';
 import { publishing, staleContent, api } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -122,6 +122,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
         { to: `/sites/${siteId}/theme-wizard`, icon: Wand2, label: 'Theme Wizard' },
         { to: `/sites/${siteId}/library`, icon: BookMarked, label: 'Library' },
+        { to: `/sites/${siteId}/global-sections`, icon: Boxes, label: 'Global Sections' },
         { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
         { to: `/sites/${siteId}/settings`, icon: Settings, label: 'Settings' },
       ]

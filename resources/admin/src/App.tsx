@@ -46,6 +46,7 @@ const DebugConsole = lazy(() => import('./pages/DebugConsole'));
 const ThemeEngine = lazy(() => import('./pages/ThemeEngine'));
 const ThemeWizardPage = lazy(() => import('./pages/ThemeWizardPage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
+const GlobalSectionsList = lazy(() => import('./pages/GlobalSectionsList'));
 const ThemeEditorPage = lazy(() => import('./pages/ThemeEditor'));
 const ThemeStudio = lazy(() => import('./pages/ThemeStudio'));
 const Templates = lazy(() => import('./pages/Templates'));
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/sites/:siteId/theme-engine" element={<LayoutRoute><ThemeEngine /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-wizard" element={<LayoutRoute><ThemeWizardPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/library" element={<LayoutRoute><LibraryPage /></LayoutRoute>} />
+          <Route path="/sites/:siteId/global-sections" element={<LayoutRoute><GlobalSectionsList /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-engine/:themeId" element={<ThemeEditorPage />} />
           <Route path="/sites/:siteId/theme-engine/:themeId/studio" element={<ThemeStudio />} />
           <Route path="/sites/:siteId/settings" element={<LayoutRoute><SiteSettings /></LayoutRoute>} />
