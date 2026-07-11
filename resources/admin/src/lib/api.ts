@@ -226,6 +226,8 @@ export const themeWizard = {
     api.post(`/sites/${siteId}/theme-wizard/sessions/from-url`, { url, hint }),
   fromUpload: (siteId: string, form: FormData) =>
     api.post(`/sites/${siteId}/theme-wizard/sessions/from-upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  fromConversation: (siteId: string, description: string) =>
+    api.post(`/sites/${siteId}/theme-wizard/sessions/from-conversation`, { description }),
   nudge: (siteId: string, id: string, instruction: string) =>
     api.post(`/sites/${siteId}/theme-wizard/sessions/${id}/nudge`, { instruction }),
   accept: (siteId: string, id: string) => api.post(`/sites/${siteId}/theme-wizard/sessions/${id}/accept`),

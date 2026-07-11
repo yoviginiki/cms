@@ -322,6 +322,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('sessions', [$c, 'index']);
             Route::post('sessions/from-url', [$c, 'startUrl'])->middleware('throttle:10,1');
             Route::post('sessions/from-upload', [$c, 'startUpload'])->middleware('throttle:10,1');
+            Route::post('sessions/from-conversation', [$c, 'startConversation'])->middleware('throttle:15,1');
             Route::get('sessions/{wizardSession}', [$c, 'show']);
             Route::post('sessions/{wizardSession}/nudge', [$c, 'nudge'])->middleware('throttle:20,1');
             Route::post('sessions/{wizardSession}/accept', [$c, 'accept']);

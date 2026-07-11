@@ -65,6 +65,20 @@ class ThemeWizardController extends Controller
         ], 201));
     }
 
+    public function startConversation(Request $request, Site $site): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $data = $request->validate([
+            'description' => ['required', 'string', 'min:3', 'max:800'],
+        ]);
+
+        return $this->guard(fn () => response()->json([
+            'data' => $this->serialize(
+                $this->wizard->startFromConversation($site, $request->user(), $data['description'])
+            ),
+        ], 201));
+    }
+
     public function show(Request $request, Site $site, WizardSession $wizardSession): JsonResponse
     {
         $this->authorizeSession($request, $site, $wizardSession);

@@ -79,6 +79,30 @@ class WizardFlowTest extends TestCase
         $this->assertDatabaseHas('theme_wizard_sessions', ['id' => $sid, 'status' => 'drafting']);
     }
 
+    public function test_start_from_conversation_creates_a_drafting_session(): void
+    {
+        $this->fakeAi([$this->profileJson('Zazen', 'A calm wellness feel.', 'lifestyle')]);
+
+        $resp = $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-wizard/sessions/from-conversation", [
+                'description' => 'a warm, calm wellness studio — earthy tones, gentle serif, lots of air',
+            ])
+            ->assertStatus(201);
+
+        $resp->assertJsonPath('data.status', 'drafting')
+            ->assertJsonPath('data.source', 'conversation')
+            ->assertJsonPath('data.title', 'Zazen')
+            ->assertJsonPath('data.candidate.layout', 'lifestyle');
+        $this->assertGreaterThan(0, $resp->json('data.total_tokens'));
+    }
+
+    public function test_conversation_requires_a_description(): void
+    {
+        $this->actingAsOwner()
+            ->postJson("/api/v1/sites/{$this->site->id}/theme-wizard/sessions/from-conversation", ['description' => 'x'])
+            ->assertStatus(422);
+    }
+
     public function test_nudge_updates_the_candidate_and_appends_transcript(): void
     {
         $this->fakeAi([$this->profileJson(), $this->profileJson('Harbor Warm', 'Warmer now — ambered neutrals.', 'magazine')]);
