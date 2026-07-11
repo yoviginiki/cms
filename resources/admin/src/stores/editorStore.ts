@@ -72,6 +72,23 @@ function mergeStyle(base: BlockStyleProps, over: Partial<BlockStyleProps>): Bloc
   return out;
 }
 
+/** Nearest ancestor-or-self section block containing `id` (for Extend Style scope). */
+function findScopeSection(blocks: BlockData[], id: string): BlockData | null {
+  const dfs = (list: BlockData[], path: BlockData[]): BlockData[] | null => {
+    for (const b of list) {
+      const np = [...path, b];
+      if (b.id === id) return np;
+      const f = dfs(b.children ?? [], np);
+      if (f) return f;
+    }
+    return null;
+  };
+  const path = dfs(blocks, []);
+  if (!path) return null;
+  for (let i = path.length - 1; i >= 0; i--) if (path[i].level === 'section') return path[i];
+  return null;
+}
+
 interface EditorState {
   blocks: BlockData[];
   selectedBlockId: string | null;
@@ -106,6 +123,10 @@ interface EditorState {
   styleClipboard: BlockStyleProps | null;
   copyStyle: (blockId: string) => void;
   pasteStyle: (blockId: string, part: StylePart) => void;
+  /** Count of same-type blocks Extend Style would affect in a scope. */
+  extendStyleCount: (blockId: string, scope: 'section' | 'page') => number;
+  /** Apply a block's style to all same-type blocks in scope. Returns the count. */
+  extendStyle: (blockId: string, scope: 'section' | 'page', part: StylePart) => number;
   setDirty: (dirty: boolean) => void;
   setSaving: (saving: boolean) => void;
   restoreUndoState: () => void;
@@ -570,6 +591,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!found) return;
     found.block.style = mergeStyle((found.block.style ?? {}) as BlockStyleProps, picked);
     set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
+  },
+
+  extendStyleCount: (blockId, scope) => {
+    const state = get();
+    const found = findInTree(state.blocks, blockId);
+    if (!found) return 0;
+    const section = scope === 'section' ? findScopeSection(state.blocks, blockId) : null;
+    const root = scope === 'section' ? (section ? [section] : []) : state.blocks;
+    let n = 0;
+    const walk = (list: BlockData[]) => { for (const b of list) { if (b.type === found.block.type && b.id !== blockId) n++; walk(b.children ?? []); } };
+    walk(root);
+    return n;
+  },
+
+  extendStyle: (blockId, scope, part) => {
+    const state = get();
+    const found = findInTree(state.blocks, blockId);
+    if (!found) return 0;
+    const picked = pickStylePart((found.block.style ?? {}) as BlockStyleProps, part);
+    const type = found.block.type;
+    const undoStack = [...state.undoStack.slice(-(state.maxUndoSteps - 1)), deepClone(state.blocks)];
+    const newBlocks = deepClone(state.blocks);
+    const section = scope === 'section' ? findScopeSection(newBlocks, blockId) : null;
+    const root = scope === 'section' ? (section ? [section] : []) : newBlocks;
+    let count = 0;
+    const walk = (list: BlockData[]) => {
+      for (const b of list) {
+        if (b.type === type && b.id !== blockId) { b.style = mergeStyle((b.style ?? {}) as BlockStyleProps, picked); count++; }
+        walk(b.children ?? []);
+      }
+    };
+    walk(root);
+    if (count > 0) set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
+    return count;
   },
 
   pasteBlock: (parentId) => {

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  Copy, ClipboardPaste, CopyPlus, Paintbrush, Clipboard, BookMarked, Trash2,
+  Copy, ClipboardPaste, CopyPlus, Paintbrush, Clipboard, BookMarked, Trash2, Wand2,
 } from 'lucide-react';
 import { useEditorStore, type StylePart } from '@/stores/editorStore';
 import type { BlockData } from '@/types/blocks';
 import { SaveToLibraryDialog } from './SaveToLibraryDialog';
+import { useToast } from '@/components/ui/Toast';
 
 const STYLE_PARTS: { key: StylePart; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -33,10 +34,22 @@ export function BlockContextMenu({ block, x, y, siteId, onClose }: {
   const pasteBlock = useEditorStore((s) => s.pasteBlock);
   const copyStyle = useEditorStore((s) => s.copyStyle);
   const pasteStyle = useEditorStore((s) => s.pasteStyle);
+  const extendStyle = useEditorStore((s) => s.extendStyle);
+  const extendStyleCount = useEditorStore((s) => s.extendStyleCount);
   const clipboard = useEditorStore((s) => s.clipboard);
   const styleClipboard = useEditorStore((s) => s.styleClipboard);
+  const { toast } = useToast();
 
   const [saveOpen, setSaveOpen] = useState(false);
+  const sectionCount = extendStyleCount(block.id, 'section');
+  const pageCount = extendStyleCount(block.id, 'page');
+
+  const doExtend = (scope: 'section' | 'page') => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const n = extendStyle(block.id, scope, 'all');
+    toast({ type: 'success', message: n > 0 ? `Style applied to ${n} ${block.type} block(s) in the ${scope}.` : `No other ${block.type} blocks in the ${scope}.` });
+    onClose();
+  };
 
   useEffect(() => {
     const close = () => onClose();
@@ -72,6 +85,19 @@ export function BlockContextMenu({ block, x, y, siteId, onClose }: {
                 {p.label}
               </button>
             ))}
+          </div>
+        </div>
+        <div className="px-2 py-1">
+          <div className="flex items-center gap-1.5 text-base-content/50 mb-1"><Wand2 size={12} /> Extend style to</div>
+          <div className="flex flex-wrap gap-1 pl-1">
+            <button disabled={sectionCount === 0} onClick={doExtend('section')}
+              className="text-[10px] px-1.5 py-0.5 border border-base-300 hover:border-primary hover:text-primary disabled:opacity-30 disabled:hover:border-base-300 disabled:hover:text-base-content">
+              Section ({sectionCount})
+            </button>
+            <button disabled={pageCount === 0} onClick={doExtend('page')}
+              className="text-[10px] px-1.5 py-0.5 border border-base-300 hover:border-primary hover:text-primary disabled:opacity-30 disabled:hover:border-base-300 disabled:hover:text-base-content">
+              Page ({pageCount})
+            </button>
           </div>
         </div>
         <Divider />
