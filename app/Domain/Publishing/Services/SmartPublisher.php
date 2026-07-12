@@ -217,7 +217,7 @@ class SmartPublisher
             'hookBodyClose' => '',
             'site' => $site,
             'rssUrl' => $rssUrl,
-            'lang' => $themeConfig['lang'] ?? 'bg',
+            'lang' => $site->settings['default_language'] ?? $themeConfig['lang'] ?? 'en',
         ])->render();
     }
 
@@ -227,7 +227,7 @@ class SmartPublisher
         return [
             'site' => $site,
             'baseUrl' => $site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu",
-            'lang' => $themeConfig['lang'] ?? 'en',
+            'lang' => $site->settings['default_language'] ?? $themeConfig['lang'] ?? 'en',
             'criticalCss' => $themeConfig['critical_css'] ?? '',
             'customCss' => $site->settings['custom_css'] ?? '',
             'designTokensCss' => $this->tokenGenerator->generate($site),

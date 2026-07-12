@@ -3,7 +3,7 @@
     @include('layouts.partials.site-header')
 @endif
 
-<main style="max-width: {{ $layout->supports['maxWidthValue'] ?? '48rem' }}; margin: 0 auto; padding: 0 1.5rem;">
+<main id="main-content" style="max-width: {{ $layout->supports['maxWidthValue'] ?? '48rem' }}; margin: 0 auto; padding: 0 1.5rem;">
     {!! $blocksHtml !!}
 </main>
 

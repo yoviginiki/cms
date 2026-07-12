@@ -7,6 +7,7 @@ export const TablePreview: React.FC<BlockComponentProps> = ({ block }) => {
     rows: string[][];
     striped: boolean;
     compact: boolean;
+    caption?: string;
   };
 
   const headers = data.headers || [];
@@ -16,6 +17,7 @@ export const TablePreview: React.FC<BlockComponentProps> = ({ block }) => {
   return (
     <div className="overflow-x-auto rounded border border-gray-200">
       <table className="w-full border-collapse">
+        {data.caption ? <caption className={`${pad} text-left text-gray-500`} style={{ captionSide: 'top' }}>{data.caption}</caption> : null}
         <thead>
           <tr className="bg-gray-100">
             {(headers || []).map((h, i) => (

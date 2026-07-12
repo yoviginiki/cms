@@ -441,6 +441,15 @@ Verified live on prod (roofing/massage/hotel sites): correct specific business s
 - **Posts:** author picker (`author_id` — feeds Article schema; `/users`-gated, hides below admin role), full SEO field validation in `UpdatePostRequest` (previously unvalidated), `PostService` now merges partial `seo_meta` patches like `PageService` (canvas config can no longer be clobbered).
 - **Tests:** `SeoHeadTest`(7) + `PostSeoTest`(3), all SEO/publishing/API suites + 350 admin vitest green. NOT yet live-verified on sys.ensodo.eu (worktree branch, pending deploy).
 
+### Track F3 addendum (2026-07-12) — semantic HTML hardening
+Recon audit (F0-style, per-block) found 2 blockers + 6 majors; all markup fixes shipped:
+- **`<html lang>` now sources the site's `default_language`** (chain: `seo_meta.locale` → site default → theme → en) at all 3 BuildPageService layouts + SmartPublisher archives (which had a hardcoded `'bg'` fallback).
+- **Posts publish inside `<article>`** (BuildPageService, covers standard + wrapper + canvas + templated paths); **nested-`<main>` defect fixed** (layout skips its `<main>` when a wrapper ships its own); **skip link** + `#main-content` target on every layout/wrapper.
+- **Images:** `fetchpriority="high"` on the LCP image; gallery images enriched at publish from the asset library (intrinsic width/height + alt fallback — image blocks already enriched, alt fallback added); gallery/image emit dimensions (CLS).
+- **Text semantics:** table gains `scope="col"` + `<caption>` (full block contract: PHP def + editor field + preview); pullquote/testimonial attribution in `<cite>`; pagination `<nav aria-label>` + `aria-current="page"` (block + blog-index).
+- **Tests:** `SemanticHtmlTest`(9); publishing/XSS/blocks suites + 350 admin vitest green.
+- **Not done / deferred:** hero CSS-background LCP image (needs `<picture>` refactor, explicitly reserved in hero.blade.php); multi-h1 + heading-skip enforcement stays publish-lint territory (OutputValidator warns on multi-h1 today; full lint = F5); Lighthouse ≥95 acceptance pending live staged run after deploy.
+
 ---
 
 ## §9 — Asset pipeline (WebP variants / content hashing / reference resolution)  🔴 RED  (audited 2026-07-06)

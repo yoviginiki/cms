@@ -62,7 +62,7 @@
                     <img class="img-filtered" src="{{ $item['avatar'] }}" alt="" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover;{{ $__imageFilter }}" />
                 @endif
                 <div>
-                    <div style="font-weight:600;{{ $authorColor ? "color:{$authorColor};" : '' }}{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['author'] ?? '' }}</div>
+                    <cite style="display:block;font-style:normal;font-weight:600;{{ $authorColor ? "color:{$authorColor};" : '' }}{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['author'] ?? '' }}</cite>
                     <div style="color:var(--color-text-muted,#64748b);font-size:0.875rem;">{{ $item['role'] ?? '' }}</div>
                 </div>
             </div>

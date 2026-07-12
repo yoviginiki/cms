@@ -1,7 +1,7 @@
 {{-- Gallery: image-heavy with lightbox --}}
 @include('layouts.partials.site-header')
 
-<main style="padding:1rem;">
+<main id="main-content" style="padding:1rem;">
     {!! $blocksHtml !!}
 </main>
 
