@@ -5,6 +5,7 @@ namespace Tests\Feature\Publishing;
 use App\Domain\Publishing\Services\SeoService;
 use App\Domain\Publishing\Services\StructuredDataService;
 use App\Models\Page;
+use App\Models\Post;
 use App\Models\Site;
 use Tests\TestCase;
 
@@ -36,6 +37,20 @@ class StructuredDataTest extends TestCase
         $this->assertStringContainsString('"@type":"LodgingBusiness"', $svc->generateLocalBusiness($this->siteWith('boutique hotel')));
         // unknown industry → generic LocalBusiness
         $this->assertStringContainsString('"@type":"LocalBusiness"', $svc->generateLocalBusiness($this->siteWith('artisanal widget forge')));
+    }
+
+    public function test_post_schema_is_blogposting_with_author(): void
+    {
+        $site = $this->siteWith(null);
+        $post = Post::factory()->create([
+            'site_id' => $site->id, 'author_id' => $this->owner->id,
+            'title' => 'When to Replace Your Roof', 'excerpt' => 'Signs it is time.', 'status' => 'published',
+        ]);
+
+        $json = app(StructuredDataService::class)->generateForPost($post->fresh(), $site);
+        $this->assertStringContainsString('"@type":"BlogPosting"', $json);
+        $this->assertStringContainsString('"@type":"Person"', $json);
+        $this->assertStringContainsString('"mainEntityOfPage"', $json);
     }
 
     public function test_no_local_business_without_a_business_type(): void

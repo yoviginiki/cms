@@ -89,11 +89,20 @@ class StructuredDataService
     public function generateForPost(Post $post, Site $site): string
     {
         $url = $this->getSiteUrl($site);
+        $contentUrl = $this->contentUrl($site, $post);
+
+        // Article subtype per site setting (Article | NewsArticle | BlogPosting).
+        $articleType = $site->seo_defaults['article_type'] ?? 'BlogPosting';
+        if (!in_array($articleType, ['Article', 'NewsArticle', 'BlogPosting'], true)) {
+            $articleType = 'BlogPosting';
+        }
+
         $data = [
             '@context' => 'https://schema.org',
-            '@type' => 'Article',
+            '@type' => $articleType,
             'headline' => $post->title,
-            'url' => $this->contentUrl($site, $post),
+            'url' => $contentUrl,
+            'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $contentUrl],
             'datePublished' => $post->published_at?->toIso8601String(),
             'dateModified' => $post->updated_at->toIso8601String(),
             'publisher' => [
@@ -102,6 +111,9 @@ class StructuredDataService
                 'url' => $url,
             ],
         ];
+        if ($post->author?->name) {
+            $data['author'] = ['@type' => 'Person', 'name' => $post->author->name];
+        }
         if ($post->featured_image) {
             $data['image'] = $post->featured_image;
         }
