@@ -93,9 +93,9 @@ class StarterTemplateTest extends TestCase
                 'about' => ['heading' => 'About Our Company', 'paragraph1' => 'x', 'paragraph2' => 'y'],
                 'features' => ['heading' => 'Why Choose Us', 'intro' => 'x', 'items' => array_map($feat, ['Licensed', 'Insured', 'Fast', 'Fair', 'Local', 'Guaranteed'])],
                 'blog' => ['heading' => 'HVAC Tips', 'posts' => [
-                    ['title' => 'Save on Heating This Winter', 'excerpt' => 'x'],
-                    ['title' => 'When to Replace Your AC', 'excerpt' => 'y'],
-                    ['title' => 'Signs of a Failing Furnace', 'excerpt' => 'z'],
+                    ['title' => 'Save on Heating This Winter', 'excerpt' => 'x', 'body' => ['Lower your thermostat at night.', 'Seal drafty windows and doors.']],
+                    ['title' => 'When to Replace Your AC', 'excerpt' => 'y', 'body' => ['Units over 15 years cost more to run.']],
+                    ['title' => 'Signs of a Failing Furnace', 'excerpt' => 'z', 'body' => ['Watch for uneven heating and odd noises.']],
                 ]],
             ]);
             $m->shouldReceive('imageUrl')->andReturnUsing(fn ($kw, $lock) => "https://loremflickr.com/1200/800/{$kw}?lock={$lock}");
@@ -121,8 +121,16 @@ class StarterTemplateTest extends TestCase
         $this->assertNotEmpty($gallery->data['images']);
         $this->assertStringContainsString('loremflickr.com/1200/800/hvac,air', $gallery->data['images'][0]);
 
-        // AI-written blog posts
-        $this->assertTrue($site->posts()->where('title', 'Save on Heating This Winter')->exists());
+        // AI-written blog posts, with real body content + SEO meta
+        $post = $site->posts()->where('title', 'Save on Heating This Winter')->first();
+        $this->assertNotNull($post);
+        $postBlocks = Block::where('blockable_type', $post->getMorphClass())->where('blockable_id', $post->id)->get();
+        $this->assertTrue($postBlocks->contains(fn ($b) => str_contains(json_encode($b->data), 'Seal drafty windows')));
+        $this->assertNotEmpty($post->seo_meta['description'] ?? '');
+
+        // pages carry SEO meta descriptions from the AI copy
+        $home = $site->pages()->where('slug', 'home')->firstOrFail();
+        $this->assertStringContainsString('Fast, reliable HVAC service', $home->seo_meta['description'] ?? '');
     }
 
     public function test_apply_is_idempotent(): void

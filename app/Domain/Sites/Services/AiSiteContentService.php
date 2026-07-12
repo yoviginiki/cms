@@ -100,7 +100,7 @@ Rules:
 - Be specific to the industry (name real services, offerings, and value props a customer of THAT business would expect) — not generic filler.
 - Headings are short and punchy; body copy is 1–2 sentences, warm and plain-spoken.
 - No placeholders, no lorem ipsum, no markdown, no emojis. Plain sentences only.
-- Provide EXACTLY: 3 landing highlights, 3 catalog items, 6 features, and 3 blog posts.
+- Provide EXACTLY: 3 landing highlights, 3 catalog items, 6 features, and 3 blog posts. Each blog post gets a 2–4 paragraph body (real, useful article content for that industry).
 - image_keywords: 1–3 lowercase comma-separated photo tags for this industry (e.g. "hvac,air,conditioning").
 Return ONLY the JSON object matching the schema.
 PROMPT,
@@ -145,8 +145,12 @@ PROMPT,
                     'heading' => $str(60),
                     'posts' => ['type' => 'array', 'items' => [
                         'type' => 'object', 'additionalProperties' => false,
-                        'required' => ['title', 'excerpt'],
-                        'properties' => ['title' => $str(80), 'excerpt' => $str(300)],
+                        'required' => ['title', 'excerpt', 'body'],
+                        'properties' => [
+                            'title' => $str(80), 'excerpt' => $str(300),
+                            // 2–4 short body paragraphs (plain sentences)
+                            'body' => ['type' => 'array', 'items' => $str(600)],
+                        ],
                     ]],
                 ]),
             ],

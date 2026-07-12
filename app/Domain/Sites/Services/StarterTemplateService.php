@@ -88,11 +88,15 @@ class StarterTemplateService
                 continue;
             }
 
-            $page = $this->pageService->createPage([
+            $pageData = [
                 'title' => $def['title'],
                 'slug' => $def['slug'],
                 'status' => 'published',
-            ], $site);
+            ];
+            if (!empty($def['description'])) {
+                $pageData['seo_meta'] = ['description' => $def['description']];
+            }
+            $page = $this->pageService->createPage($pageData, $site);
 
             // Create blocks for this page
             if (!empty($def['blocks'])) {
@@ -142,7 +146,7 @@ class StarterTemplateService
             $c = $content ?? [];
             // Industry images only when a topic produced AI content.
             $img = $content ? ($c['_images'] ?? 'business,office') : '';
-            return [
+            $defs = [
                 $this->homePage(
                     $c['home']['heading'] ?? 'Welcome',
                     $c['home']['subtext'] ?? 'Everything you need to launch — already laid out.',
@@ -156,6 +160,23 @@ class StarterTemplateService
                 $this->aboutPage($c['about'] ?? [], $img),
                 $this->featuresPage($c['features'] ?? []),
             ];
+
+            // SEO meta descriptions from the AI copy (best available field per page).
+            $descs = [
+                'home' => $c['home']['subtext'] ?? '', 'landing' => $c['landing']['subtext'] ?? '',
+                'catalog' => $c['catalog']['intro'] ?? '', 'portfolio' => $c['portfolio']['intro'] ?? '',
+                'contact' => $c['contact']['intro'] ?? '', 'about' => $c['about']['paragraph1'] ?? '',
+                'features' => $c['features']['intro'] ?? '',
+                'blog' => trim(($c['blog']['heading'] ?? 'Blog') . ' — news, updates and articles.'),
+            ];
+            foreach ($defs as &$d) {
+                if (!empty($descs[$d['slug']])) {
+                    $d['description'] = mb_substr($descs[$d['slug']], 0, 160);
+                }
+            }
+            unset($d);
+
+            return $defs;
         }
 
         return match ($templateId) {
@@ -478,13 +499,28 @@ class StarterTemplateService
         $created = 0;
 
         foreach ($posts as $def) {
-            $this->postService->createPost([
+            $post = $this->postService->createPost([
                 'title' => $def['title'],
                 'slug' => $def['slug'],
                 'excerpt' => $def['excerpt'],
                 'status' => 'published',
                 'published_at' => now()->subDays($created),
+                'seo_meta' => ['description' => mb_substr((string) $def['excerpt'], 0, 160)],
             ], $site);
+
+            // Real article body — AI paragraphs, or the excerpt as a fallback so
+            // the post is never an empty page.
+            $body = $def['body'] ?? [];
+            if (empty($body) && !empty($def['excerpt'])) {
+                $body = [$def['excerpt']];
+            }
+            if ($body) {
+                $paras = array_map(fn ($t) => $this->block('paragraph', ['content' => '<p>' . $t . '</p>']), $body);
+                $this->blockService->syncBlocks($post, [
+                    $this->section([$this->row('1', [$this->column($paras)])], ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '760px']),
+                ]);
+            }
+
             $created++;
         }
 
@@ -500,6 +536,7 @@ class StarterTemplateService
                 'title' => (string) ($p['title'] ?? 'Post'),
                 'slug' => Str::slug((string) ($p['title'] ?? 'post')) ?: 'post-' . Str::lower(Str::random(4)),
                 'excerpt' => (string) ($p['excerpt'] ?? ''),
+                'body' => is_array($p['body'] ?? null) ? array_values(array_filter($p['body'], 'is_string')) : [],
             ], array_slice(array_values($aiPosts), 0, 3));
         }
 
