@@ -76,6 +76,15 @@ class StarterTemplateService
         // (null → generic placeholder content).
         $content = ($templateId === 'full' && $topic) ? $this->aiContent->generate($topic) : null;
 
+        // Record the business type so the publish pipeline can emit LocalBusiness
+        // structured data (local SEO) for the generated site.
+        if ($content && $topic) {
+            $site->update(['settings' => array_merge($site->settings ?? [], [
+                'business_type' => trim($topic),
+                'business_description' => mb_substr((string) ($content['home']['subtext'] ?? $content['about']['paragraph1'] ?? ''), 0, 300),
+            ])]);
+        }
+
         $created = 0;
         $skipped = 0;
         $pageDefinitions = $this->getPageDefinitions($templateId, $content);

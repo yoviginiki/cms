@@ -137,6 +137,9 @@ class StarterTemplateTest extends TestCase
         // pages carry SEO meta descriptions from the AI copy
         $home = $site->pages()->where('slug', 'home')->firstOrFail();
         $this->assertStringContainsString('Fast, reliable HVAC service', $home->seo_meta['description'] ?? '');
+
+        // business type recorded on the site → drives LocalBusiness structured data
+        $this->assertSame('HVAC company', $site->fresh()->settings['business_type'] ?? null);
     }
 
     public function test_apply_is_idempotent(): void

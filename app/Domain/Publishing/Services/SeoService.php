@@ -77,6 +77,10 @@ class SeoService
             $head .= $this->structuredData->generateForPost($content, $site) . "\n";
         } else {
             $head .= $this->structuredData->generateForPage($content, $site) . "\n";
+            // LocalBusiness identity belongs on the homepage (when the site is a business).
+            if ($isHomepage && ($lb = $this->structuredData->generateLocalBusiness($site))) {
+                $head .= $lb . "\n";
+            }
         }
         $head .= $this->structuredData->generateBreadcrumbs($content, $site) . "\n";
 

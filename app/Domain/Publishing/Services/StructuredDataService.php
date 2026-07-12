@@ -8,6 +8,67 @@ use App\Domain\Publishing\Services\LocalePaths;
 
 class StructuredDataService
 {
+    /**
+     * Business-type keyword → specific schema.org LocalBusiness subtype. More
+     * specific types earn richer local-SEO treatment; unmatched → LocalBusiness.
+     * All values are real schema.org types.
+     */
+    private const BUSINESS_SCHEMA = [
+        'hvac' => 'HVACBusiness', 'plumb' => 'Plumber', 'electric' => 'Electrician',
+        'roof' => 'RoofingContractor', 'paint' => 'HousePainter', 'contractor' => 'GeneralContractor',
+        'dental' => 'Dentist', 'dentist' => 'Dentist', 'clinic' => 'MedicalBusiness', 'doctor' => 'Physician',
+        'hotel' => 'LodgingBusiness', 'motel' => 'LodgingBusiness', 'inn' => 'LodgingBusiness',
+        'restaurant' => 'Restaurant', 'cafe' => 'CafeOrCoffeeShop', 'coffee' => 'CafeOrCoffeeShop', 'bakery' => 'Bakery',
+        'salon' => 'BeautySalon', 'barber' => 'HairSalon', 'hair' => 'HairSalon',
+        'spa' => 'HealthAndBeautyBusiness', 'massage' => 'HealthAndBeautyBusiness', 'nail' => 'NailSalon',
+        'gym' => 'ExerciseGym', 'yoga' => 'ExerciseGym', 'fitness' => 'ExerciseGym',
+        'auto' => 'AutoRepair', 'car repair' => 'AutoRepair', 'mechanic' => 'AutoRepair',
+        'real estate' => 'RealEstateAgent', 'law' => 'Attorney', 'attorney' => 'Attorney',
+        'account' => 'AccountingService', 'florist' => 'Florist', 'flower' => 'Florist',
+        'clean' => 'ProfessionalService', 'photograph' => 'ProfessionalService', 'landscap' => 'GeneralContractor',
+    ];
+
+    /**
+     * LocalBusiness / Organization structured data for the homepage. Emitted only
+     * when the site records a business type (set by the Full-Site generator), so
+     * the generated small-business sites carry proper local-SEO identity.
+     */
+    public function generateLocalBusiness(Site $site): ?string
+    {
+        $type = trim((string) ($site->settings['business_type'] ?? ''));
+        if ($type === '') {
+            return null;
+        }
+
+        $data = [
+            '@context' => 'https://schema.org',
+            '@type' => $this->businessSchemaType($type),
+            'name' => $site->name,
+            'url' => $this->getSiteUrl($site),
+        ];
+        $desc = trim((string) ($site->settings['business_description'] ?? ''));
+        if ($desc !== '') {
+            $data['description'] = $desc;
+        }
+        $image = $site->seo_defaults['og_image'] ?? null;
+        if ($image) {
+            $data['image'] = $image;
+        }
+
+        return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
+    }
+
+    private function businessSchemaType(string $topic): string
+    {
+        $t = mb_strtolower($topic);
+        foreach (self::BUSINESS_SCHEMA as $needle => $schemaType) {
+            if (str_contains($t, $needle)) {
+                return $schemaType;
+            }
+        }
+        return 'LocalBusiness';
+    }
+
     public function generateForPage(Page $page, Site $site): string
     {
         $url = $this->getSiteUrl($site);
