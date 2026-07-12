@@ -24,6 +24,8 @@ class UpdateSiteRequest extends FormRequest
             'seo_defaults.title_template' => ['sometimes', 'nullable', 'string', 'max:255'],
             'seo_defaults.description' => ['sometimes', 'nullable', 'string', 'max:500'],
             'seo_defaults.og_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'seo_defaults.verification_google' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'seo_defaults.verification_bing' => ['sometimes', 'nullable', 'string', 'max:255'],
             'settings' => ['sometimes', 'array'],
             'settings.auto_publish' => ['sometimes', 'boolean'],
             'settings.homepage_type' => ['sometimes', 'in:page,grid,blog'],
