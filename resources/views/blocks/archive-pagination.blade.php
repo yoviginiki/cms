@@ -22,12 +22,12 @@
     $baseUrl = $__archiveBaseUrl ?? '';
 @endphp
 @if($totalPages > 1)
-<nav style="text-align:{{ $align }};margin-top:2rem;">
+<nav aria-label="Pagination" style="text-align:{{ $align }};margin-top:2rem;">
     @if($style === 'numbered')
     <div style="display:inline-flex;gap:0.25rem;">
         @for($p = 1; $p <= $totalPages; $p++)
             @if($p === $currentPage)
-                <span style="padding:0.375rem 0.75rem;background:var(--color-accent,#2ea3f2);color:#fff;border-radius:var(--border-radius-sm,3px);font-size:0.875rem;">{{ $p }}</span>
+                <span aria-current="page" style="padding:0.375rem 0.75rem;background:var(--color-accent,#2ea3f2);color:#fff;border-radius:var(--border-radius-sm,3px);font-size:0.875rem;">{{ $p }}</span>
             @else
                 <a href="{{ $baseUrl }}{{ $p > 1 ? '/page/' . $p : '' }}" style="padding:0.375rem 0.75rem;background:var(--color-bg-alt,#f5f5f5);color:var(--color-text,#666);border-radius:var(--border-radius-sm,3px);font-size:0.875rem;text-decoration:none;">{{ $p }}</a>
             @endif

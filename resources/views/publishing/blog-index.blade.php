@@ -30,10 +30,10 @@
         @endforeach
         </div>
         @if($currentPage < $totalPages)
-        <nav style="padding:var(--space-8,2rem) 0;display:flex;gap:var(--space-2,0.5rem);justify-content:center;">
+        <nav aria-label="Pagination" style="padding:var(--space-8,2rem) 0;display:flex;gap:var(--space-2,0.5rem);justify-content:center;">
             @for($i = 1; $i <= $totalPages; $i++)
                 @if($i === $currentPage)
-                    <span style="padding:var(--space-2,0.5rem) var(--space-4,1rem);background:var(--color-primary,#3b82f6);color:#fff;border-radius:var(--border-radius-md,8px);">{{ $i }}</span>
+                    <span aria-current="page" style="padding:var(--space-2,0.5rem) var(--space-4,1rem);background:var(--color-primary,#3b82f6);color:#fff;border-radius:var(--border-radius-md,8px);">{{ $i }}</span>
                 @else
                     <a href="/blog{{ $i > 1 ? '/page/' . $i : '' }}" style="padding:var(--space-2,0.5rem) var(--space-4,1rem);border:1px solid var(--color-border,#e5e7eb);border-radius:var(--border-radius-md,8px);text-decoration:none;">{{ $i }}</a>
                 @endif

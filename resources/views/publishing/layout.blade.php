@@ -141,21 +141,32 @@
     footer[role="contentinfo"] a{color:var(--footer-color, var(--color-text-muted, #64748b));transition:color 0.2s}
     footer[role="contentinfo"] a:hover{color:var(--color-primary, #3b82f6);opacity:1}
 
+    /* Skip link (F3 accessibility) */
+    .skip-link{position:absolute;left:-9999px;top:auto;z-index:5000;background:var(--color-bg,#fff);color:var(--color-text,#1a1a1a);padding:0.5rem 1rem;border:1px solid var(--color-border,#e2e8f0);text-decoration:none}
+    .skip-link:focus{left:8px;top:8px}
+
     /* Dark mode — nav inherits from theme tokens, no hardcoded overrides */
     </style>
 </head>
 @php
     $__isHome = !empty($content) && !empty($site) && ($site->settings['homepage_id'] ?? null) === ($content->id ?? null);
+    // Layout wrappers ship their own <main> — never nest a second one (F3).
+    $__bodyHasMain = str_contains($renderedBlocks ?? '', '<main');
 @endphp
 <body{!! $__isHome ? ' data-page="home"' : '' !!}>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     @if(!empty($navigation))
     <header role="banner">
         {!! $navigation !!}
     </header>
     @endif
-    <main role="main"@if(!empty($mainStyle)) style="{{ $mainStyle }}"@endif>
+    @if($__bodyHasMain)
+    {!! $renderedBlocks !!}
+    @else
+    <main id="main-content" role="main"@if(!empty($mainStyle)) style="{{ $mainStyle }}"@endif>
         {!! $renderedBlocks !!}
     </main>
+    @endif
     @if(!empty($footerNavigation))
     <footer role="contentinfo">
         {!! $footerNavigation !!}

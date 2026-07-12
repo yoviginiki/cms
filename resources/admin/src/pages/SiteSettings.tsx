@@ -62,6 +62,8 @@ export default function SiteSettings() {
   const [feedFullContent, setFeedFullContent] = useState(false);
   const [llmsTxt, setLlmsTxt] = useState(true);
   const [aiCrawlersDisallowed, setAiCrawlersDisallowed] = useState<string[]>([]);
+  const [verificationGoogle, setVerificationGoogle] = useState('');
+  const [verificationBing, setVerificationBing] = useState('');
 
   // Languages
   const [siteLanguages, setSiteLanguages] = useState<string[]>([]);
@@ -159,6 +161,8 @@ export default function SiteSettings() {
       setFeedFullContent(!!site.seo_defaults?.feed_full_content);
       setLlmsTxt((site.settings?.llms_txt as boolean) ?? true);
       setAiCrawlersDisallowed((site.settings?.ai_crawlers_disallowed as string[]) ?? []);
+      setVerificationGoogle((site.seo_defaults?.verification_google as string) ?? '');
+      setVerificationBing((site.seo_defaults?.verification_bing as string) ?? '');
       setSiteLanguages((site.settings?.languages as string[]) ?? []);
       setDefaultLanguage((site.settings?.default_language as string) ?? 'en');
       setGaId((site.settings?.google_analytics_id as string) ?? '');
@@ -246,6 +250,8 @@ export default function SiteSettings() {
       description: seoDescription,
       og_image: ogImageUrl,
       feed_full_content: feedFullContent,
+      verification_google: verificationGoogle,
+      verification_bing: verificationBing,
     },
     settings: {
       ...(site?.settings || {}),
@@ -674,6 +680,24 @@ export default function SiteSettings() {
                     <span className="text-sm text-gray-700">{bot}</span>
                   </label>
                 ))}
+              </div>
+            </div>
+            <div className="pt-4 border-t border-gray-100">
+              <h4 className="text-sm font-medium text-gray-900 mb-1">Search Engine Verification</h4>
+              <p className="text-xs text-gray-500 mb-3">Paste the content value from the verification meta tag — it is published in the head of every page.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Google Search Console</label>
+                  <input type="text" value={verificationGoogle} onChange={(e) => setVerificationGoogle(e.target.value)}
+                    placeholder="google-site-verification content value"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bing Webmaster Tools</label>
+                  <input type="text" value={verificationBing} onChange={(e) => setVerificationBing(e.target.value)}
+                    placeholder="msvalidate.01 content value"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
               </div>
             </div>
             <div className="pt-4 border-t border-gray-100">

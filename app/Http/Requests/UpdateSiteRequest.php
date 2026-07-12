@@ -25,6 +25,8 @@ class UpdateSiteRequest extends FormRequest
             'seo_defaults.description' => ['sometimes', 'nullable', 'string', 'max:500'],
             'seo_defaults.og_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'seo_defaults.feed_full_content' => ['sometimes', 'boolean'],
+            'seo_defaults.verification_google' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'seo_defaults.verification_bing' => ['sometimes', 'nullable', 'string', 'max:255'],
             'settings' => ['sometimes', 'array'],
             'settings.auto_publish' => ['sometimes', 'boolean'],
             'settings.llms_txt' => ['sometimes', 'boolean'],

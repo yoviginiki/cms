@@ -21,6 +21,7 @@ import { StructurePanel } from '@/components/editor/StructurePanel';
 import { BlockPicker } from '@/components/editor/BlockPicker';
 import { api, blocks as blocksApi, posts as postsApi, categories as categoriesApi, versions as versionsApi, publishing, sites } from '@/lib/api';
 import { AssetField } from '@/components/ui/AssetPicker';
+import { SeoPanel } from '@/components/editor/SeoPanel';
 import WysiwygEditor from '@/components/editor/WysiwygEditor';
 import { slugify } from '@/lib/slugify';
 
@@ -64,6 +65,10 @@ export default function PostEditor() {
   const [layoutId, setLayoutId] = useState('');
   const [metaDirty, setMetaDirty] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
+  const [authorId, setAuthorId] = useState('');
+  // SEO edits accumulate as a partial patch; the backend merges it into
+  // seo_meta so canvas config / custom scripts are never clobbered.
+  const [seoPatch, setSeoPatch] = useState<Record<string, unknown>>({});
 
   // Site domain for View links
   const { data: siteData } = useQuery<any>({
@@ -85,6 +90,13 @@ export default function PostEditor() {
   const { data: categoriesList } = useQuery({
     queryKey: ['categories', siteId],
     queryFn: () => categoriesApi.list(siteId).then((r: any) => r.data.data),
+  });
+
+  // Authors — /users is admin-gated; the picker hides itself when the list 403s
+  const { data: usersList } = useQuery<any[]>({
+    queryKey: ['users'],
+    queryFn: () => api.get('/users').then((r: any) => r.data.data),
+    retry: false,
   });
 
   // Versions
@@ -139,6 +151,7 @@ export default function PostEditor() {
     setVideoUrl(post.video_url || '');
     setThumbnail(post.thumbnail || '');
     setPostFormat(post.post_format || 'standard');
+    setAuthorId(post.author_id || '');
     setPublishedAt(post.published_at ? new Date(post.published_at).toISOString().slice(0, 16) : '');
     setScheduledAt(post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '');
     setSlugManual(!!post.slug);
@@ -170,8 +183,9 @@ export default function PostEditor() {
         title, slug, status, category_id: categoryId || null, layout_id: layoutId || null,
         excerpt: excerpt || null, featured_image: featuredImage || null,
         video_url: videoUrl || null, thumbnail: thumbnail || null, post_format: postFormat,
-        editor_mode: editorMode,
+        editor_mode: editorMode, author_id: authorId || null,
         published_at: publishedAt || null, scheduled_at: scheduledAt || null,
+        ...(Object.keys(seoPatch).length ? { seo_meta: seoPatch } : {}),
       });
       setMetaDirty(false);
       // Save blocks — in simple mode, wrap content in a single text block
@@ -222,8 +236,9 @@ export default function PostEditor() {
       await postsApi.update(siteId, postId, {
         title, slug, status: pubStatus, category_id: categoryId || null, layout_id: layoutId || null,
         excerpt: excerpt || null, featured_image: featuredImage || null,
-        editor_mode: editorMode,
+        editor_mode: editorMode, author_id: authorId || null,
         published_at: pubDate, scheduled_at: scheduledAt || null,
+        ...(Object.keys(seoPatch).length ? { seo_meta: seoPatch } : {}),
       });
       // Save blocks
       if (editorMode === 'canvas') {
@@ -377,7 +392,10 @@ export default function PostEditor() {
                   categories={categoriesList || []}
                   versions={versionsList || []}
                   siteId={siteId} postId={postId}
-                  seoMeta={post?.seo_meta} site={siteData}
+                  seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
+                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
+                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
+                  authors={usersList || []}
                 />
               </div>
             </div>
@@ -436,7 +454,10 @@ export default function PostEditor() {
                           categories={categoriesList || []}
                           versions={versionsList || []}
                           siteId={siteId} postId={postId}
-                          seoMeta={post?.seo_meta} site={siteData}
+                          seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
+                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
+                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
+                  authors={usersList || []}
                         />
                       )}
                     </div>
@@ -487,7 +508,10 @@ export default function PostEditor() {
                     categories={categoriesList || []}
                     versions={versionsList || []}
                     siteId={siteId} postId={postId}
-                    seoMeta={post?.seo_meta} site={siteData}
+                    seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
+                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
+                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
+                  authors={usersList || []}
                   />
                 )}
               </div>
@@ -534,7 +558,10 @@ export default function PostEditor() {
                     categories={categoriesList || []}
                     versions={versionsList || []}
                     siteId={siteId} postId={postId}
-                    seoMeta={post?.seo_meta} site={siteData}
+                    seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
+                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
+                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
+                  authors={usersList || []}
                   />
                 )}
               </div>
@@ -549,7 +576,7 @@ export default function PostEditor() {
 // ═══════════════════════════════════════════
 // Post Metadata Panel
 // ═══════════════════════════════════════════
-function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId, seoMeta, site }: {
+function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId, seoMeta, site, onSeoPatch, authorId, setAuthorId, authors }: {
   slug: string; setSlug: (v: string) => void;
   slugManual: boolean; setSlugManual: (v: boolean) => void;
   title: string;
@@ -568,8 +595,14 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
   versions: Array<{ id: string; created_at: string }>;
   siteId: string; postId: string;
   seoMeta?: Record<string, unknown> | null; site?: any;
+  onSeoPatch?: (patch: Record<string, unknown>) => void;
+  authorId?: string; setAuthorId?: (id: string) => void;
+  authors?: Array<{ id: string; name: string }>;
 }) {
   const [showVersions, setShowVersions] = useState(false);
+  const publicBase = site?.custom_domain ? `https://${site.custom_domain}` : `https://${site?.slug || ''}.ensodo.eu`;
+  const categorySlug = (categories as any[]).find((c: any) => c.id === categoryId)?.slug;
+  const postPath = categorySlug ? `/${categorySlug}/${slug}` : `/${slug}`;
 
   return (
     <div className="p-3 space-y-4">
@@ -609,6 +642,19 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
           {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
+
+      {/* Author */}
+      {!!authors?.length && setAuthorId && (
+        <div>
+          <label className="text-[11px] text-base-content/40 mb-1 block">Author</label>
+          <select value={authorId || ''} onChange={e => setAuthorId(e.target.value)}
+            className="select select-bordered select-sm w-full text-[12px]">
+            <option value="">No author</option>
+            {authors.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          <p className="text-[10px] text-base-content/25 mt-0.5">Shown in article structured data</p>
+        </div>
+      )}
 
       {/* Layout */}
       <div>
@@ -680,6 +726,23 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
           className="input input-bordered input-sm w-full text-[12px]" />
         <p className="text-[10px] text-base-content/25 mt-0.5">Leave empty for manual publishing</p>
       </div>
+
+      {/* SEO */}
+      {onSeoPatch && (
+        <div className="border-t border-base-300/20 pt-3">
+          <label className="text-[11px] text-base-content/40 mb-1 block font-medium">SEO</label>
+          <SeoPanel
+            values={(seoMeta || {}) as any}
+            onPatch={onSeoPatch}
+            fallbackTitle={title}
+            fallbackDescription={excerpt}
+            titleTemplate={site?.seo_defaults?.title_template}
+            siteName={site?.name}
+            urlBase={publicBase}
+            path={postPath}
+          />
+        </div>
+      )}
 
       {/* Revisions */}
       <div className="border-t border-base-300/20 pt-3">

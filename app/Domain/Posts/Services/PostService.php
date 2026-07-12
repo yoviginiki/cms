@@ -46,6 +46,12 @@ class PostService
         $tagIds = $data['tag_ids'] ?? null;
         unset($data['tag_ids']);
 
+        // Merge seo_meta instead of replacing — prevents losing fields
+        // (canvas config, custom scripts) when a partial SEO patch is sent.
+        if (isset($data['seo_meta']) && is_array($data['seo_meta'])) {
+            $data['seo_meta'] = array_merge($post->seo_meta ?? [], $data['seo_meta']);
+        }
+
         // Real content edits stamp content_modified_at (F4 — accurate dateModified)
         if (array_intersect(['title', 'excerpt'], array_keys($data)) !== []) {
             $data['content_modified_at'] = now();

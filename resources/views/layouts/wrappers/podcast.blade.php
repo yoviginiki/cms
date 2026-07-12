@@ -1,7 +1,7 @@
 {{-- Podcast: audio-first with persistent player --}}
 @include('layouts.partials.site-header')
 
-<main style="max-width:{{ $layout->supports['maxWidthValue'] ?? '48rem' }};margin:0 auto;padding:0 1.5rem 5rem;">
+<main id="main-content" style="max-width:{{ $layout->supports['maxWidthValue'] ?? '48rem' }};margin:0 auto;padding:0 1.5rem 5rem;">
     {!! $blocksHtml !!}
 </main>
 
