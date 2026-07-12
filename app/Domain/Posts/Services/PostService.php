@@ -46,6 +46,12 @@ class PostService
         $tagIds = $data['tag_ids'] ?? null;
         unset($data['tag_ids']);
 
+        // Merge seo_meta instead of replacing — prevents losing fields
+        // (canvas config, custom scripts) when a partial SEO patch is sent.
+        if (isset($data['seo_meta']) && is_array($data['seo_meta'])) {
+            $data['seo_meta'] = array_merge($post->seo_meta ?? [], $data['seo_meta']);
+        }
+
         $post->update($data);
 
         if ($tagIds !== null) {

@@ -59,6 +59,8 @@ export default function SiteSettings() {
   const [seoTitleTemplate, setSeoTitleTemplate] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
+  const [verificationGoogle, setVerificationGoogle] = useState('');
+  const [verificationBing, setVerificationBing] = useState('');
 
   // Languages
   const [siteLanguages, setSiteLanguages] = useState<string[]>([]);
@@ -153,6 +155,8 @@ export default function SiteSettings() {
       setSeoTitleTemplate((site.seo_defaults?.title_template as string) ?? '');
       setSeoDescription((site.seo_defaults?.description as string) ?? '');
       setOgImageUrl((site.seo_defaults?.og_image as string) ?? '');
+      setVerificationGoogle((site.seo_defaults?.verification_google as string) ?? '');
+      setVerificationBing((site.seo_defaults?.verification_bing as string) ?? '');
       setSiteLanguages((site.settings?.languages as string[]) ?? []);
       setDefaultLanguage((site.settings?.default_language as string) ?? 'en');
       setGaId((site.settings?.google_analytics_id as string) ?? '');
@@ -239,6 +243,8 @@ export default function SiteSettings() {
       title_template: seoTitleTemplate,
       description: seoDescription,
       og_image: ogImageUrl,
+      verification_google: verificationGoogle,
+      verification_bing: verificationBing,
     },
   });
 
@@ -632,6 +638,24 @@ export default function SiteSettings() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Default OG Image URL</label>
               <input type="url" value={ogImageUrl} onChange={(e) => setOgImageUrl(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div className="pt-4 border-t border-gray-100">
+              <h4 className="text-sm font-medium text-gray-900 mb-1">Search Engine Verification</h4>
+              <p className="text-xs text-gray-500 mb-3">Paste the content value from the verification meta tag — it is published in the head of every page.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Google Search Console</label>
+                  <input type="text" value={verificationGoogle} onChange={(e) => setVerificationGoogle(e.target.value)}
+                    placeholder="google-site-verification content value"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bing Webmaster Tools</label>
+                  <input type="text" value={verificationBing} onChange={(e) => setVerificationBing(e.target.value)}
+                    placeholder="msvalidate.01 content value"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
             </div>
             <div className="pt-4 border-t border-gray-100">
               <button onClick={saveSeo} disabled={updateMutation.isPending}
