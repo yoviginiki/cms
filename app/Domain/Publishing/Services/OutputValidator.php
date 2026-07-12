@@ -28,6 +28,9 @@ class OutputValidator
         // SEO checks
         $this->checkSeo($html, $content, $warnings, $errors);
 
+        // Content-quality checks (F5 SEO lint — warnings only)
+        $this->checkContent($html, $content, $warnings, $errors);
+
         $passed = empty($errors);
 
         return [
@@ -193,6 +196,44 @@ class OutputValidator
             // Check if it's in robots meta (not just body text)
             if (preg_match('/<meta[^>]*name\s*=\s*["\']robots["\'][^>]*noindex/i', $html)) {
                 $warnings[] = "Page has noindex but is not explicitly marked as no_index";
+            }
+        }
+    }
+
+    /** F5 SEO lint — thin content, featured image, JSON-LD validity (warnings only). */
+    private function checkContent(string $html, Page|Post $content, array &$warnings, array &$errors): void
+    {
+        // Thin content — word count of the main content area
+        $mainHtml = preg_match('#<main[^>]*>(.*?)</main>#is', $html, $m) ? $m[1] : $html;
+        $words = str_word_count(strip_tags($mainHtml));
+        if ($words > 0 && $words < 150) {
+            $warnings[] = "Thin content: only {$words} words (aim for 300+ on substantive pages)";
+        }
+
+        // Posts without a featured image lose their social-card and Article-schema image
+        if ($content instanceof Post && !$content->featured_image) {
+            $warnings[] = "Post has no featured image (social shares and Article schema lose their image)";
+        }
+
+        // JSON-LD structural validity — soft-fail with warnings, never blocking
+        if (preg_match_all('#<script type="application/ld\+json">(.*?)</script>#is', $html, $mm)) {
+            foreach ($mm[1] as $i => $jsonLd) {
+                $n = $i + 1;
+                $decoded = json_decode($jsonLd, true);
+                if (!is_array($decoded)) {
+                    $warnings[] = "JSON-LD block {$n} is not valid JSON";
+                    continue;
+                }
+                if (empty($decoded['@context'])) {
+                    $warnings[] = "JSON-LD block {$n} is missing @context";
+                }
+                $nodes = isset($decoded['@graph']) ? (array) $decoded['@graph'] : [$decoded];
+                foreach ($nodes as $node) {
+                    if (is_array($node) && empty($node['@type'])) {
+                        $warnings[] = "JSON-LD block {$n} contains a node without @type";
+                        break;
+                    }
+                }
             }
         }
     }

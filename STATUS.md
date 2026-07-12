@@ -435,6 +435,13 @@ Verified live on prod (roofing/massage/hotel sites): correct specific business s
 
 **Remaining F1 (not yet done):** consolidated `@graph` (currently separate `<script>` tags), `CollectionPage`+`ItemList` on archives, featured images as `ImageObject` w/ dimensions, `WebSite` `SearchAction`.
 
+### Track F5 addendum (2026-07-12) — publish-time SEO lint + docs consolidation
+- **Lint extended** (`OutputValidator::checkContent`, warnings never blocking): thin content (<150 words in `<main>`), post missing featured image, JSON-LD validity (parse / `@context` / per-node `@type`). Pre-existing checks already covered alt, heading skips, h1 count, description, canonical, lang, landmarks, CLS attrs.
+- **New `InternalLinkChecker`**: cross-page broken-internal-link scan of the staged build (capped at 50 findings), reported as `site:internal-links` in validation results.
+- **Deploy log UI defect fixed**: `publishHelpers` read `lighthouse_checks.warnings` but the job stores `total_warnings`+`results` — **warnings never displayed**. Fixed + new per-page "SEO lint" expandable panel in PublishButton deployment history (`extractLintResults`).
+- **Docs**: `SEO-IN-STILLOPRESS.md` (user guide), `STRUCTURED-DATA-REFERENCE.md`; docs/README.md consolidated with a **User Guides** section + explicit how-to backlog (block editor basics, canvas, Library/globals/presets, menus, media, forms, translations, analytics — not yet written).
+- **Tests**: `SeoLintTest`(7) + 4 publishHelpers vitest. **TRACK F COMPLETE** (F0–F5); pending live: Lighthouse ≥95 acceptance (F3), migrate+deploy (F4), Rich Results test on prod URLs.
+
 ---
 
 ## §9 — Asset pipeline (WebP variants / content hashing / reference resolution)  🔴 RED  (audited 2026-07-06)
