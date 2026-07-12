@@ -214,19 +214,42 @@ class StarterTemplateService
             $this->block('button', ['text' => $c['cta'] ?? 'Get Started', 'url' => '/contact', 'style' => 'primary', 'size' => 'lg']),
         ]);
 
-        return [
-            'title' => 'Home', 'slug' => 'home',
-            'blocks' => [
-                $img
-                    ? $this->section([
-                        $this->row('1/2+1/2', [
-                            $intro,
-                            $this->column([$this->imageBlock($img, 1, $heading)]),
-                        ]),
-                    ], ['padding_top' => '70px', 'padding_bottom' => '70px', 'max_width' => '1100px'])
-                    : $this->section([$this->row('1', [$intro])], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '800px']),
-            ],
+        $sections = [
+            $img
+                ? $this->section([
+                    $this->row('1/2+1/2', [
+                        $intro,
+                        $this->column([$this->imageBlock($img, 1, $heading)]),
+                    ]),
+                ], ['padding_top' => '70px', 'padding_bottom' => '70px', 'max_width' => '1100px'])
+                : $this->section([$this->row('1', [$intro])], ['padding_top' => '80px', 'padding_bottom' => '80px', 'max_width' => '800px']),
         ];
+
+        // Trust stats band (AI social proof)
+        $muted = ['typography' => ['textAlign' => 'center', 'textColor' => 'var(--color-text-muted)']];
+        if (!empty($c['stats']) && is_array($c['stats'])) {
+            $cols = [];
+            foreach (array_slice($c['stats'], 0, 4) as $s) {
+                $cols[] = $this->column([
+                    $this->block('heading', ['text' => (string) ($s['value'] ?? ''), 'level' => 'h2', 'fontSize' => '2.4rem', 'textAlign' => 'center']),
+                    $this->block('paragraph', ['content' => '<p>' . (string) ($s['label'] ?? '') . '</p>'], $muted),
+                ]);
+            }
+            if ($cols) {
+                $layout = count($cols) >= 4 ? '1/4+1/4+1/4+1/4' : (count($cols) === 2 ? '1/2+1/2' : '1/3+1/3+1/3');
+                $sections[] = $this->section([$this->row($layout, $cols)], ['padding_top' => '30px', 'padding_bottom' => '40px', 'max_width' => '1000px']);
+            }
+        }
+
+        // Customer testimonial (AI social proof)
+        if (!empty($c['testimonial']['quote'])) {
+            $sections[] = $this->section([$this->row('1', [$this->column([
+                $this->block('heading', ['text' => '“' . $c['testimonial']['quote'] . '”', 'level' => 'h3', 'fontSize' => '1.6rem', 'textAlign' => 'center']),
+                $this->block('paragraph', ['content' => '<p>— ' . (string) ($c['testimonial']['author'] ?? '') . '</p>'], $muted),
+            ])])], ['padding_top' => '40px', 'padding_bottom' => '70px', 'max_width' => '760px']);
+        }
+
+        return ['title' => 'Home', 'slug' => 'home', 'blocks' => $sections];
     }
 
     private function aboutPage(array $c = [], string $img = ''): array

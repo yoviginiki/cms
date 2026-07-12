@@ -101,6 +101,7 @@ Rules:
 - Headings are short and punchy; body copy is 1–2 sentences, warm and plain-spoken.
 - No placeholders, no lorem ipsum, no markdown, no emojis. Plain sentences only.
 - Provide EXACTLY: 3 landing highlights, 3 catalog items, 6 features, and 3 blog posts. Each blog post gets a 2–4 paragraph body (real, useful article content for that industry).
+- home.testimonial: one realistic customer quote + a plausible author name. home.stats: exactly 3 trust stats (short value + label, e.g. value "500+", label "Jobs completed").
 - image_keywords: 1–3 lowercase comma-separated photo tags for this industry (e.g. "hvac,air,conditioning").
 Return ONLY the JSON object matching the schema.
 PROMPT,
@@ -124,7 +125,15 @@ PROMPT,
             'required' => ['image_keywords', 'home', 'landing', 'catalog', 'portfolio', 'contact', 'about', 'features', 'blog'],
             'properties' => [
                 'image_keywords' => $str(60),
-                'home' => $this->obj(['heading' => $str(80), 'subtext' => $str(240), 'cta' => $str(30)]),
+                'home' => $this->obj([
+                    'heading' => $str(80), 'subtext' => $str(240), 'cta' => $str(30),
+                    'testimonial' => ['type' => 'object', 'additionalProperties' => false,
+                        'required' => ['quote', 'author'],
+                        'properties' => ['quote' => $str(240), 'author' => $str(60)]],
+                    'stats' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false,
+                        'required' => ['value', 'label'],
+                        'properties' => ['value' => $str(20), 'label' => $str(40)]]],
+                ]),
                 'landing' => $this->obj([
                     'heading' => $str(80), 'subtext' => $str(240), 'cta' => $str(30),
                     'closing_heading' => $str(80), 'features' => $items(3),

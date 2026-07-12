@@ -81,7 +81,11 @@ class StarterTemplateTest extends TestCase
         $this->mock(AiSiteContentService::class, function ($m) use ($feat) {
             $m->shouldReceive('generate')->once()->andReturn([
                 '_images' => 'hvac,air',
-                'home' => ['heading' => '24/7 Heating & Cooling', 'subtext' => 'Fast, reliable HVAC service.', 'cta' => 'Book Now'],
+                'home' => [
+                    'heading' => '24/7 Heating & Cooling', 'subtext' => 'Fast, reliable HVAC service.', 'cta' => 'Book Now',
+                    'testimonial' => ['quote' => 'They fixed our furnace in an hour on a freezing night.', 'author' => 'Dana P.'],
+                    'stats' => [['value' => '5,000+', 'label' => 'Jobs completed'], ['value' => '4.9★', 'label' => 'Average rating'], ['value' => '24/7', 'label' => 'Emergency service']],
+                ],
                 'landing' => ['heading' => 'Comfort All Year', 'subtext' => 'x', 'cta' => 'Get a Quote', 'closing_heading' => 'Stay comfortable', 'features' => [$feat('AC Repair'), $feat('Furnace'), $feat('Ducts')]],
                 'catalog' => ['heading' => 'Services', 'intro' => 'x', 'items' => [
                     ['title' => 'AC Install', 'subtitle' => 'From $—', 'desc' => 'x'],
@@ -111,8 +115,10 @@ class StarterTemplateTest extends TestCase
         };
         $hasText = fn ($blocks, string $needle) => $blocks->contains(fn ($b) => str_contains(json_encode($b->data), $needle));
 
-        // industry-specific copy landed
+        // industry-specific copy landed, plus AI social proof (stats + testimonial)
         $this->assertTrue($hasText($blocksOf('home'), 'Heating & Cooling'));
+        $this->assertTrue($hasText($blocksOf('home'), 'Jobs completed'));
+        $this->assertTrue($hasText($blocksOf('home'), 'fixed our furnace'));
         $this->assertTrue($hasText($blocksOf('about'), 'About Our Company'));
         $this->assertTrue($hasText($blocksOf('catalog'), 'AC Install'));
 
