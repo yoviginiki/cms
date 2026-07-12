@@ -2,6 +2,21 @@
 
 Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/docs` (requires login) or download as ZIP from the docs sidebar.
 
+## User Guides (how to do things in the CMS)
+
+- [SEO in Stillopress](SEO-IN-STILLOPRESS.md) -- what's automatic, per-page SEO panel, site settings, publish-time lint
+- [Writing Content AI Assistants Love to Cite](GEO-AEO-WRITING.md) -- answer-first pattern, FAQ blocks, llms.txt/feeds/AI-crawler settings
+- [Structured Data Reference](STRUCTURED-DATA-REFERENCE.md) -- every JSON-LD node emitted, when, and from which fields
+- [Choosing a Theme](THEMES-CHOOSING.md) -- the five first-party themes and customization
+- [Theme Wizard](THEME-WIZARD.md) -- creating a theme from a reference site or a conversation
+- [Magazine Editor Guide](magazine-editor-guide.md) -- the freeform DTP editor
+- [Issue Studio](issue-studio.md) -- conversational AI magazine creation
+- [Page Generation Guide](page-generation-guide.md) -- AI full-site generation
+
+### How-to backlog (guides not yet written)
+
+User-facing guides that should exist but don't: **block editor basics** (Section→Row→Column→Module), **canvas editor**, **the Library & global sections**, **style presets**, **menus**, **media library**, **forms**, **languages & translations**, **analytics**, **publishing & deploys for non-admins**. Tracked as the F5 docs backlog.
+
 ## Architecture & Setup
 
 - [Architecture](ARCHITECTURE.md) -- tech stack, folder structure, two Vite contexts, request lifecycle, multi-tenancy model

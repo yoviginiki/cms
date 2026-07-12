@@ -127,3 +127,44 @@ describe('generateVerificationChecklist', () => {
     expect(labels).toContain('RSS feed generated');
   });
 });
+
+describe('extractLintResults (F5)', () => {
+  const meta = {
+    lighthouse_checks: {
+      all_passed: true,
+      total_warnings: 3,
+      results: {
+        'page:home': { passed: true, warnings: ['Thin content: only 40 words'], errors: [] },
+        'page:about': { passed: true, warnings: [], errors: [] },
+        'post:hello': { passed: false, warnings: ['Missing canonical URL'], errors: ['Missing <title> tag'] },
+        'site:internal-links': { passed: true, warnings: ['index.html: broken internal link /gone/'], errors: [] },
+      },
+    },
+  };
+
+  it('returns only pages with findings', async () => {
+    const { extractLintResults } = await import('./publishHelpers');
+    const results = extractLintResults(meta);
+    expect(results.map((r) => r.page)).toEqual(['page:home', 'post:hello', 'site:internal-links']);
+    expect(results[1].errors).toEqual(['Missing <title> tag']);
+  });
+
+  it('returns empty for missing metadata', async () => {
+    const { extractLintResults } = await import('./publishHelpers');
+    expect(extractLintResults(null)).toEqual([]);
+    expect(extractLintResults({})).toEqual([]);
+  });
+
+  it('formatPublishLog reads total_warnings and sums errors from results', () => {
+    const log = formatPublishLog({ id: '1', status: 'live', metadata: meta });
+    expect(log.warningsCount).toBe(3);
+    expect(log.errorsCount).toBe(1);
+  });
+
+  it('verification checklist warns when total_warnings present', () => {
+    const checks = generateVerificationChecklist(meta);
+    const html = checks.find((c) => c.label === 'HTML validation');
+    expect(html?.status).toBe('warn');
+    expect(html?.detail).toBe('3 warnings');
+  });
+});

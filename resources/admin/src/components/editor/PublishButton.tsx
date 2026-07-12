@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, CheckCircle, AlertCircle, Upload, ChevronDown, Clock, RotateCcw, Eye, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Upload, ChevronDown, Clock, RotateCcw, Eye, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
+import { extractLintResults } from '@/lib/publishHelpers';
 import { useDeploymentStatus } from '@/hooks/useDeploymentStatus';
 import { useQuery } from '@tanstack/react-query';
 
@@ -170,25 +171,51 @@ export function PublishButton({ siteId, publicBase }: PublishButtonProps) {
               <div className="text-[10px] text-base-content/20 text-center py-2">No deployments yet</div>
             ) : (
               <div className="space-y-1">
-                {historyData.map((dep) => (
-                  <div key={dep.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-base-200 text-[10px]">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className={`font-medium ${statusColor(dep.status)}`}>{dep.status}</span>
-                        <span className="text-base-content/20">{dep.type}</span>
+                {historyData.map((dep) => {
+                  const lint = extractLintResults(dep.metadata);
+                  const lintWarnings = lint.reduce((n, r) => n + r.warnings.length + r.errors.length, 0);
+                  return (
+                  <div key={dep.id} className="rounded hover:bg-base-200">
+                    <div className="flex items-center gap-2 px-2 py-1.5 text-[10px]">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className={`font-medium ${statusColor(dep.status)}`}>{dep.status}</span>
+                          <span className="text-base-content/20">{dep.type}</span>
+                        </div>
+                        <div className="text-base-content/30 flex items-center gap-1">
+                          <Clock size={9} /> {formatTime(dep.completed_at || dep.started_at || dep.created_at)}
+                          {dep.metadata?.pages_total && <span>· {dep.metadata.pages_total} pages</span>}
+                        </div>
                       </div>
-                      <div className="text-base-content/30 flex items-center gap-1">
-                        <Clock size={9} /> {formatTime(dep.completed_at || dep.started_at || dep.created_at)}
-                        {dep.metadata?.pages_total && <span>· {dep.metadata.pages_total} pages</span>}
-                      </div>
+                      {dep.status === 'live' && (
+                        <button onClick={() => handleRollback(dep.id)} className="btn btn-ghost btn-xs text-[9px] gap-0.5" title="Rollback to this version">
+                          <RotateCcw size={10} />
+                        </button>
+                      )}
                     </div>
-                    {dep.status === 'live' && (
-                      <button onClick={() => handleRollback(dep.id)} className="btn btn-ghost btn-xs text-[9px] gap-0.5" title="Rollback to this version">
-                        <RotateCcw size={10} />
-                      </button>
+                    {lint.length > 0 && (
+                      <details className="px-2 pb-1.5">
+                        <summary className="text-[9px] text-warning cursor-pointer flex items-center gap-1">
+                          <AlertTriangle size={9} /> SEO lint: {lintWarnings} finding{lintWarnings === 1 ? '' : 's'} on {lint.length} page{lint.length === 1 ? '' : 's'}
+                        </summary>
+                        <div className="mt-1 max-h-40 overflow-y-auto space-y-1">
+                          {lint.map((r) => (
+                            <div key={r.page}>
+                              <div className="text-[9px] font-mono text-base-content/60">{r.page}</div>
+                              {r.errors.map((w, i) => (
+                                <div key={`e${i}`} className="text-[9px] text-error pl-2">• {w}</div>
+                              ))}
+                              {r.warnings.map((w, i) => (
+                                <div key={`w${i}`} className="text-[9px] text-base-content/40 pl-2">• {w}</div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

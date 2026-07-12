@@ -48,12 +48,32 @@ export function formatPublishLog(dep: any): PublishLogEntry {
     completedAt: dep.completed_at || null,
     duration,
     message: dep.error_log || (dep.status === 'live' ? 'Published successfully' : ''),
-    warningsCount: meta.lighthouse_checks?.warnings?.length || 0,
-    errorsCount: meta.lighthouse_checks?.errors?.length || 0,
+    // Job stores total_warnings + per-page results (legacy deployments had flat arrays)
+    warningsCount: meta.lighthouse_checks?.total_warnings ?? meta.lighthouse_checks?.warnings?.length ?? 0,
+    errorsCount: extractLintResults(meta).reduce((n, r) => n + r.errors.length, 0),
     pagesTotal: meta.pages_total || 0,
     pagesBuilt: meta.pages_built || 0,
     triggeredBy: dep.triggered_by || null,
   };
+}
+
+export interface LintPageResult {
+  page: string;
+  warnings: string[];
+  errors: string[];
+}
+
+/** Per-page SEO lint findings from deployment metadata (F5) — only pages with findings. */
+export function extractLintResults(meta: any): LintPageResult[] {
+  const results = meta?.lighthouse_checks?.results;
+  if (!results || typeof results !== 'object') return [];
+  return Object.entries(results)
+    .map(([page, r]: [string, any]) => ({
+      page,
+      warnings: Array.isArray(r?.warnings) ? r.warnings : [],
+      errors: Array.isArray(r?.errors) ? r.errors : [],
+    }))
+    .filter((r) => r.warnings.length > 0 || r.errors.length > 0);
 }
 
 /** Format duration in seconds to human-readable */
@@ -95,10 +115,11 @@ export function generateVerificationChecklist(meta: any): { label: string; statu
 
   const lh = meta?.lighthouse_checks;
   if (lh) {
+    const warnCount = lh.total_warnings ?? lh.warnings?.length ?? 0;
     checks.push({
       label: 'HTML validation',
-      status: lh.passed ? 'pass' : 'warn',
-      detail: lh.warnings?.length ? `${lh.warnings.length} warnings` : 'OK',
+      status: (lh.all_passed ?? lh.passed) ? (warnCount ? 'warn' : 'pass') : 'warn',
+      detail: warnCount ? `${warnCount} warnings` : 'OK',
     });
   }
 

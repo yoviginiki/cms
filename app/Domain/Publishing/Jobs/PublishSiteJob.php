@@ -211,6 +211,21 @@ class PublishSiteJob implements ShouldQueue
             // Clean up static files for unpublished/draft posts
             $this->cleanUnpublishedPosts($site, $stagingPath);
 
+            // F5 SEO lint — cross-page broken internal link check (warning-only)
+            try {
+                $linkWarnings = app(\App\Domain\Publishing\Services\InternalLinkChecker::class)->check($stagingPath);
+                if ($linkWarnings !== []) {
+                    $validationResults['site:internal-links'] = [
+                        'passed' => true,
+                        'warnings' => $linkWarnings,
+                        'errors' => [],
+                        'score_estimate' => 100,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                logger()->warning("Internal link check failed for site {$site->id}: {$e->getMessage()}");
+            }
+
             // Deploy
             $this->updateStatus('deploying', 'Deploying files...');
             $deployService->deploy($this->deployment, $stagingPath);
