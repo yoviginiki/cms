@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Library\Services\LibraryItemSanitizer;
+use App\Jobs\Library\GenerateLibraryThumbnailJob;
 use App\Http\Controllers\Controller;
 use App\Models\BlockTemplate;
 use App\Models\Site;
@@ -74,6 +75,8 @@ class BlockTemplateController extends Controller
             // is_system is non-fillable — always a site-owned item.
         ]);
 
+        GenerateLibraryThumbnailJob::dispatch($item->id, $site->id, $site->tenant_id);
+
         return response()->json(['data' => $item], 201);
     }
 
@@ -122,6 +125,8 @@ class BlockTemplateController extends Controller
             'description' => $validated['description'] ?? null,
             'blocks_data' => $blocks,
         ]);
+
+        GenerateLibraryThumbnailJob::dispatch($item->id, $site->id, $site->tenant_id);
 
         return response()->json(['data' => $item], 201);
     }

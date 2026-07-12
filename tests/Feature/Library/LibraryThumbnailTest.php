@@ -3,9 +3,12 @@
 namespace Tests\Feature\Library;
 
 use App\Domain\Library\Services\LibraryThumbnailService;
+use App\Jobs\Library\GenerateLibraryThumbnailJob;
 use App\Models\Block;
+use App\Models\BlockTemplate;
 use App\Models\Page;
 use App\Models\Site;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -62,5 +65,45 @@ class LibraryThumbnailTest extends TestCase
     public function test_bad_id_is_rejected_by_the_route_constraint(): void
     {
         $this->get('/library-thumbnails/not-a-uuid')->assertNotFound();
+    }
+
+    public function test_saving_a_library_item_dispatches_the_thumbnail_job(): void
+    {
+        Queue::fake();
+        $this->setTenantScope($this->owner);
+        $site = Site::factory()->create(['tenant_id' => $this->tenant->id]);
+        $base = "/api/v1/sites/{$site->id}/block-templates";
+
+        $this->actingAsOwner()->postJson($base, [
+            'name' => 'My Hero', 'blocks_data' => [['type' => 'heading', 'data' => ['text' => 'Hi']]],
+        ])->assertStatus(201);
+        Queue::assertPushed(GenerateLibraryThumbnailJob::class);
+
+        Queue::fake(); // reset
+        $this->actingAsOwner()->postJson("{$base}/import", [
+            'name' => 'Imported', 'blocks_data' => [['type' => 'heading', 'data' => ['text' => 'Yo']]],
+        ])->assertStatus(201);
+        Queue::assertPushed(GenerateLibraryThumbnailJob::class);
+    }
+
+    public function test_job_stores_the_url_for_a_site_owned_item(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = Site::factory()->create(['tenant_id' => $this->tenant->id]);
+        $item = BlockTemplate::create([
+            'site_id' => $site->id, 'name' => 'Own', 'category' => 'custom', 'kind' => 'section',
+            'blocks_data' => $this->tree(),
+        ]);
+
+        // stub the render/capture so the job's DB-update path is what's tested
+        $this->mock(LibraryThumbnailService::class, function ($m) {
+            $m->shouldReceive('available')->andReturn(true);
+            $m->shouldReceive('generateFor')->andReturn('/library-thumbnails/stub');
+        });
+
+        (new GenerateLibraryThumbnailJob($item->id, $site->id, $this->tenant->id))
+            ->handle(app(LibraryThumbnailService::class));
+
+        $this->assertSame('/library-thumbnails/stub', $item->fresh()->preview_image);
     }
 }
