@@ -93,6 +93,12 @@ class StarterTemplateTest extends TestCase
                     ['title' => 'Maintenance Plan', 'subtitle' => 'From $—', 'desc' => 'z'],
                 ]],
                 'portfolio' => ['heading' => 'Our Work', 'intro' => 'Recent installs.'],
+                'faq' => [
+                    ['question' => 'Do you offer free estimates?', 'answer' => 'Yes, always free.'],
+                    ['question' => 'Are you licensed and insured?', 'answer' => 'Fully licensed and insured.'],
+                    ['question' => 'How fast can you come out?', 'answer' => 'Usually same day.'],
+                    ['question' => 'What areas do you serve?', 'answer' => 'The whole metro area.'],
+                ],
                 'contact' => ['heading' => 'Contact Us', 'intro' => 'x'],
                 'about' => ['heading' => 'About Our Company', 'paragraph1' => 'x', 'paragraph2' => 'y'],
                 'features' => ['heading' => 'Why Choose Us', 'intro' => 'x', 'items' => array_map($feat, ['Licensed', 'Insured', 'Fast', 'Fair', 'Local', 'Guaranteed'])],
@@ -140,6 +146,11 @@ class StarterTemplateTest extends TestCase
 
         // business type recorded on the site → drives LocalBusiness structured data
         $this->assertSame('HVAC company', $site->fresh()->settings['business_type'] ?? null);
+
+        // contact page carries an AI FAQ accordion (→ FAQPage rich results)
+        $accordion = $blocksOf('contact')->firstWhere('type', 'accordion');
+        $this->assertNotNull($accordion);
+        $this->assertTrue($hasText($blocksOf('contact'), 'free estimates'));
     }
 
     public function test_apply_is_idempotent(): void

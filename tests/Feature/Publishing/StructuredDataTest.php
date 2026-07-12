@@ -4,6 +4,7 @@ namespace Tests\Feature\Publishing;
 
 use App\Domain\Publishing\Services\SeoService;
 use App\Domain\Publishing\Services\StructuredDataService;
+use App\Models\Block;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
@@ -56,6 +57,29 @@ class StructuredDataTest extends TestCase
     public function test_no_local_business_without_a_business_type(): void
     {
         $this->assertNull(app(StructuredDataService::class)->generateLocalBusiness($this->siteWith(null)));
+    }
+
+    public function test_faq_page_schema_from_accordion_blocks(): void
+    {
+        $site = $this->siteWith(null);
+        $page = Page::factory()->create(['site_id' => $site->id, 'slug' => 'faq', 'title' => 'FAQ', 'status' => 'published']);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'accordion', 'level' => 'module', 'order' => 0,
+            'data' => ['items' => [
+                ['title' => 'Do you offer emergency service?', 'content' => '<p>Yes, 24/7.</p>'],
+                ['title' => 'Are you licensed?', 'content' => '<p>Fully licensed and insured.</p>'],
+            ]],
+        ]);
+
+        $json = app(StructuredDataService::class)->generateFaqPage($page->fresh());
+        $this->assertStringContainsString('"@type":"FAQPage"', $json);
+        $this->assertStringContainsString('"@type":"Question"', $json);
+        $this->assertStringContainsString('Do you offer emergency service?', $json);
+
+        // a page without ≥2 Q&A emits no FAQPage
+        $plain = Page::factory()->create(['site_id' => $site->id, 'slug' => 'plain', 'title' => 'Plain', 'status' => 'published']);
+        $this->assertNull(app(StructuredDataService::class)->generateFaqPage($plain->fresh()));
     }
 
     public function test_head_emits_local_business_on_homepage_only(): void

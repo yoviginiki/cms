@@ -123,6 +123,36 @@ class StructuredDataService
         return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
     }
 
+    /**
+     * Block-driven FAQ schema: extracts Q&A pairs from any `accordion` blocks on
+     * the page/post and emits an FAQPage node. Returns null below Google's 2-Q&A
+     * minimum. (First of the per-block schema extractors envisioned in F1.)
+     */
+    public function generateFaqPage(Page|Post $content): ?string
+    {
+        $questions = [];
+        foreach ($content->blocks()->where('type', 'accordion')->orderBy('order')->get() as $block) {
+            foreach (($block->data['items'] ?? []) as $item) {
+                $q = trim(strip_tags((string) ($item['title'] ?? '')));
+                $a = trim(strip_tags((string) ($item['content'] ?? '')));
+                if ($q !== '' && $a !== '') {
+                    $questions[] = [
+                        '@type' => 'Question',
+                        'name' => $q,
+                        'acceptedAnswer' => ['@type' => 'Answer', 'text' => mb_substr($a, 0, 1000)],
+                    ];
+                }
+            }
+        }
+
+        if (count($questions) < 2) {
+            return null;
+        }
+
+        $data = ['@context' => 'https://schema.org', '@type' => 'FAQPage', 'mainEntity' => $questions];
+        return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
+    }
+
     public function generateBreadcrumbs(Page|Post $content, Site $site): string
     {
         $url = $this->getSiteUrl($site);

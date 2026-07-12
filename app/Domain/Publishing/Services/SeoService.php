@@ -84,6 +84,11 @@ class SeoService
         }
         $head .= $this->structuredData->generateBreadcrumbs($content, $site) . "\n";
 
+        // Block-driven FAQ schema (from accordion blocks), when present.
+        if ($faq = $this->structuredData->generateFaqPage($content)) {
+            $head .= $faq . "\n";
+        }
+
         return $head;
     }
 

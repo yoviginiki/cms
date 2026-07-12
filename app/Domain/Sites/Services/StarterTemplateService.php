@@ -164,7 +164,7 @@ class StarterTemplateService
                 $this->landingPage($c['landing'] ?? [], $img),
                 $this->catalogPage($c['catalog'] ?? [], $img),
                 $this->portfolioPage($c['portfolio'] ?? [], $img),
-                $this->contactPage($c['contact'] ?? []),
+                $this->contactPage($c['contact'] ?? [], $c['faq'] ?? []),
                 $this->blogPage($c['blog'] ?? []),
                 $this->aboutPage($c['about'] ?? [], $img),
                 $this->featuresPage($c['features'] ?? []),
@@ -281,16 +281,14 @@ class StarterTemplateService
         ];
     }
 
-    private function contactPage(array $c = []): array
+    private function contactPage(array $c = [], array $faq = []): array
     {
-        return [
-            'title' => 'Contact', 'slug' => 'contact',
-            'blocks' => [
-                $this->section([
-                    $this->row('1/2+1/2', [
-                        $this->column([
-                            $this->block('heading', ['text' => $c['heading'] ?? 'Get in Touch', 'level' => 'h1', 'fontSize' => '2rem']),
-                            $this->block('paragraph', ['content' => '<p>' . ($c['intro'] ?? 'We\'d love to hear from you. Reach out and we\'ll get back to you soon.') . '</p><p><strong>Email:</strong> hello@example.com</p>']),
+        $blocks = [
+            $this->section([
+                $this->row('1/2+1/2', [
+                    $this->column([
+                        $this->block('heading', ['text' => $c['heading'] ?? 'Get in Touch', 'level' => 'h1', 'fontSize' => '2rem']),
+                        $this->block('paragraph', ['content' => '<p>' . ($c['intro'] ?? 'We\'d love to hear from you. Reach out and we\'ll get back to you soon.') . '</p><p><strong>Email:</strong> hello@example.com</p>']),
                         ]),
                         $this->column([
                             $this->block('contact-form', [
@@ -306,8 +304,27 @@ class StarterTemplateService
                         ]),
                     ]),
                 ], ['padding_top' => '60px', 'padding_bottom' => '60px', 'max_width' => '1000px']),
-            ],
         ];
+
+        // FAQ accordion (AI Q&A) — renders semantic <details> + earns FAQPage schema.
+        $items = [];
+        foreach (array_slice($faq, 0, 6) as $qa) {
+            $q = trim((string) ($qa['question'] ?? ''));
+            $a = trim((string) ($qa['answer'] ?? ''));
+            if ($q !== '' && $a !== '') {
+                $items[] = ['title' => $q, 'content' => '<p>' . $a . '</p>'];
+            }
+        }
+        if (count($items) >= 2) {
+            $blocks[] = $this->section([
+                $this->row('1', [$this->column([
+                    $this->block('heading', ['text' => 'Frequently asked questions', 'level' => 'h2', 'fontSize' => '1.8rem', 'textAlign' => 'center']),
+                    $this->block('accordion', ['items' => $items]),
+                ])]),
+            ], ['padding_top' => '30px', 'padding_bottom' => '70px', 'max_width' => '760px']);
+        }
+
+        return ['title' => 'Contact', 'slug' => 'contact', 'blocks' => $blocks];
     }
 
     private function blogPage(array $c = []): array

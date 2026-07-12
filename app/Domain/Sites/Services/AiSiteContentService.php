@@ -102,6 +102,7 @@ Rules:
 - No placeholders, no lorem ipsum, no markdown, no emojis. Plain sentences only.
 - Provide EXACTLY: 3 landing highlights, 3 catalog items, 6 features, and 3 blog posts. Each blog post gets a 2–4 paragraph body (real, useful article content for that industry).
 - home.testimonial: one realistic customer quote + a plausible author name. home.stats: exactly 3 trust stats (short value + label, e.g. value "500+", label "Jobs completed").
+- faq: 4 common customer questions for this industry, each with a concise 1–2 sentence answer.
 - image_keywords: 1–3 lowercase comma-separated photo tags for this industry (e.g. "hvac,air,conditioning").
 Return ONLY the JSON object matching the schema.
 PROMPT,
@@ -122,7 +123,7 @@ PROMPT,
         return [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => ['image_keywords', 'home', 'landing', 'catalog', 'portfolio', 'contact', 'about', 'features', 'blog'],
+            'required' => ['image_keywords', 'home', 'landing', 'catalog', 'portfolio', 'contact', 'about', 'features', 'blog', 'faq'],
             'properties' => [
                 'image_keywords' => $str(60),
                 'home' => $this->obj([
@@ -150,6 +151,11 @@ PROMPT,
                 'contact' => $this->obj(['heading' => $str(60), 'intro' => $str(240)]),
                 'about' => $this->obj(['heading' => $str(60), 'paragraph1' => $str(320), 'paragraph2' => $str(320)]),
                 'features' => $this->obj(['heading' => $str(60), 'intro' => $str(200), 'items' => $items(6)]),
+                'faq' => ['type' => 'array', 'items' => [
+                    'type' => 'object', 'additionalProperties' => false,
+                    'required' => ['question', 'answer'],
+                    'properties' => ['question' => $str(140), 'answer' => $str(400)],
+                ]],
                 'blog' => $this->obj([
                     'heading' => $str(60),
                     'posts' => ['type' => 'array', 'items' => [
