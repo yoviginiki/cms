@@ -94,7 +94,7 @@ class SeoService
             if ($content->published_at) {
                 $head .= '<meta property="article:published_time" content="' . $content->published_at->toIso8601String() . '">' . "\n";
             }
-            $head .= '<meta property="article:modified_time" content="' . $content->updated_at->toIso8601String() . '">' . "\n";
+            $head .= '<meta property="article:modified_time" content="' . ($content->content_modified_at ?? $content->updated_at)->toIso8601String() . '">' . "\n";
             if ($content->category) {
                 $head .= '<meta property="article:section" content="' . e($content->category->name) . '">' . "\n";
             }

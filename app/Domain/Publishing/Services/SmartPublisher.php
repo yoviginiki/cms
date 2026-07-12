@@ -126,6 +126,10 @@ class SmartPublisher
                 $count++;
             } elseif ($feed === 'sitemap') {
                 File::put("{$publishPath}/sitemap.xml", $this->sitemapGenerator->generate($site));
+                // llms.txt lists the same URL set — keep it in step (F4)
+                if ($llmsTxt = app(LlmsTxtGenerator::class)->generate($site)) {
+                    File::put("{$publishPath}/llms.txt", $llmsTxt);
+                }
                 $count++;
             }
         }

@@ -52,6 +52,11 @@ class PostService
             $data['seo_meta'] = array_merge($post->seo_meta ?? [], $data['seo_meta']);
         }
 
+        // Real content edits stamp content_modified_at (F4 — accurate dateModified)
+        if (array_intersect(['title', 'excerpt'], array_keys($data)) !== []) {
+            $data['content_modified_at'] = now();
+        }
+
         $post->update($data);
 
         if ($tagIds !== null) {
