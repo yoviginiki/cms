@@ -25,10 +25,34 @@ class GridRenderer
         $css = $this->cssGenerator->generate($grid);
 
         $positionsHtml = '';
+        $mainEmitted = false;
         foreach ($grid->positions as $position) {
             $posHtml = $this->positionRenderer->render($position, $content, $site);
             $extraClass = $position->css_class ? " {$position->css_class}" : '';
-            $positionsHtml .= "  <div class=\"pos-{$position->area_name}{$extraClass}\">{$posHtml}</div>\n";
+
+            // Landmark elements per area (F3 follow-up — grid path parity with
+            // the standard layout). Grid CSS is class-based (.pos-*, .site-grid
+            // > *), so the wrapper tag is semantically free. Only the first
+            // main/content area becomes <main> — a page allows exactly one.
+            $tag = match ($position->area_name) {
+                'header' => 'header',
+                'footer' => 'footer',
+                'nav' => 'nav',
+                'sidebar' => 'aside',
+                'main', 'content' => $mainEmitted ? 'div' : 'main',
+                default => 'div',
+            };
+            $idAttr = '';
+            if ($tag === 'main') {
+                $mainEmitted = true;
+                $idAttr = ' id="main-content"';
+                // Posts publish inside an <article> landmark (F3)
+                if ($content instanceof Post) {
+                    $posHtml = '<article>' . $posHtml . '</article>';
+                }
+            }
+
+            $positionsHtml .= "  <{$tag} class=\"pos-{$position->area_name}{$extraClass}\"{$idAttr}>{$posHtml}</{$tag}>\n";
         }
 
         // Grid identifier comment for debugging
