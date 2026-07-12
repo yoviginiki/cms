@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Globe, FileText, Newspaper, ExternalLink, Download, ArrowRight, X, Palette, Layout, Check, Eye } from 'lucide-react';
+import { Plus, Globe, FileText, Newspaper, ExternalLink, Download, ArrowRight, X, Palette, Layout, LayoutGrid, Check, Eye } from 'lucide-react';
 import { sites, api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
@@ -134,6 +134,7 @@ const TEMPLATE_OPTIONS = [
   { id: 'blog', icon: Newspaper, label: 'Blog', desc: 'Home, About, Contact + blog with latest posts' },
   { id: 'portfolio', icon: Palette, label: 'Portfolio', desc: 'Home, About, Work gallery + Contact' },
   { id: 'business', icon: Globe, label: 'Business', desc: 'Home, About, Services, Team + Contact' },
+  { id: 'full', icon: LayoutGrid, label: 'Full Site', desc: 'Home, Landing, Catalog, Portfolio, Contact, Blog, About, Features' },
 ];
 
 // Template preview data — mirrors StarterTemplateService page definitions
@@ -161,6 +162,16 @@ const TEMPLATE_PREVIEWS: Record<string, PagePreview[]> = {
     { title: 'Services', slug: 'services', blocks: [[{ type: 'heading' }, { type: 'text' }], [{ type: 'columns', cols: 3 }]] },
     { title: 'Team', slug: 'team', blocks: [[{ type: 'heading' }, { type: 'text' }]] },
     { title: 'Contact', slug: 'contact', blocks: [[{ type: 'heading' }, { type: 'text' }], [{ type: 'form' }]] },
+  ],
+  full: [
+    { title: 'Home', slug: 'home', blocks: [[{ type: 'heading' }, { type: 'text' }, { type: 'button' }]] },
+    { title: 'Landing', slug: 'landing', blocks: [[{ type: 'heading' }, { type: 'text' }, { type: 'button' }], [{ type: 'columns', cols: 3 }], [{ type: 'heading' }, { type: 'button' }]] },
+    { title: 'Catalog', slug: 'catalog', blocks: [[{ type: 'heading' }, { type: 'text' }, { type: 'columns', cols: 3 }]] },
+    { title: 'Portfolio', slug: 'portfolio', blocks: [[{ type: 'heading' }, { type: 'text' }, { type: 'gallery', cols: 3 }]] },
+    { title: 'Contact', slug: 'contact', blocks: [[{ type: 'heading' }, { type: 'text' }], [{ type: 'form' }]] },
+    { title: 'Blog', slug: 'blog', blocks: [[{ type: 'heading' }, { type: 'posts', cols: 3 }]] },
+    { title: 'About', slug: 'about', blocks: [[{ type: 'heading' }, { type: 'text' }, { type: 'text' }]] },
+    { title: 'Features', slug: 'features', blocks: [[{ type: 'heading' }, { type: 'text' }], [{ type: 'columns', cols: 3 }]] },
   ],
 };
 
@@ -241,6 +252,7 @@ function SiteWizard({ onClose }: { onClose: () => void; onCreate?: (id: string) 
   const [slug, setSlug] = useState('');
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [template, setTemplate] = useState('blank');
+  const [topic, setTopic] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [createdSiteId, setCreatedSiteId] = useState<string | null>(null);
@@ -281,7 +293,11 @@ function SiteWizard({ onClose }: { onClose: () => void; onCreate?: (id: string) 
       // Apply starter template
       if (template !== 'blank') {
         try {
-          const tr = await api.post(`/sites/${siteId}/apply-template`, { template });
+          const tr = await api.post(`/sites/${siteId}/apply-template`, {
+            template,
+            // business type → AI-tailored, industry-specific copy + images (Full Site)
+            topic: template === 'full' && topic.trim() ? topic.trim() : undefined,
+          });
           setTemplateResult(tr.data.data.message || 'Template applied');
         } catch {
           setTemplateResult('Template applied partially — you can add content manually.');
@@ -404,6 +420,25 @@ function SiteWizard({ onClose }: { onClose: () => void; onCreate?: (id: string) 
                   </button>
                 ))}
               </div>
+
+              {/* Business type → AI-tailored copy + images (Full Site only) */}
+              {template === 'full' && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1.5">
+                  <label className="text-xs font-medium text-base-content/70">What kind of business is this?</label>
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={e => setTopic(e.target.value)}
+                    placeholder="e.g. HVAC company, day spa, boutique hotel, plumbing…"
+                    className="input input-bordered input-sm w-full text-xs"
+                  />
+                  <p className="text-[10px] text-base-content/45">
+                    {topic.trim()
+                      ? 'Pages will be written for this business, with matching photos. Takes a few extra seconds.'
+                      : 'Optional — leave blank for generic starter copy. Fill it in and AI writes industry-specific pages + images.'}
+                  </p>
+                </div>
+              )}
 
               {/* Template preview */}
               {TEMPLATE_PREVIEWS[template] && (
