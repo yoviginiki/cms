@@ -20,7 +20,7 @@ class Post extends Model
         'site_id', 'category_id', 'author_id', 'title', 'slug', 'excerpt', 'layout_id',
         'featured_image', 'video_url', 'thumbnail', 'post_format',
         'status', 'editor_mode', 'experience_mode', 'seo_meta', 'grid_id', 'published_at', 'scheduled_at',
-        'needs_republish', 'needs_republish_reason',
+        'needs_republish', 'needs_republish_reason', 'content_modified_at',
     ];
 
     protected $attributes = [
@@ -33,6 +33,7 @@ class Post extends Model
             'seo_meta' => 'array',
             'published_at' => 'datetime',
             'scheduled_at' => 'datetime',
+            'content_modified_at' => 'datetime',
         ];
     }
 

@@ -117,7 +117,7 @@ class StructuredDataService
             'url' => $contentUrl,
             'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $contentUrl],
             'datePublished' => $post->published_at?->toIso8601String(),
-            'dateModified' => $post->updated_at->toIso8601String(),
+            'dateModified' => ($post->content_modified_at ?? $post->updated_at)->toIso8601String(),
             'publisher' => ['@type' => 'Organization', 'name' => $site->name, 'url' => $this->getSiteUrl($site)],
         ];
         if ($post->author?->name) $node['author'] = ['@type' => 'Person', 'name' => $post->author->name];

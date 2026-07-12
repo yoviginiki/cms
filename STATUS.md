@@ -435,6 +435,14 @@ Verified live on prod (roofing/massage/hotel sites): correct specific business s
 
 **Remaining F1 (not yet done):** consolidated `@graph` (currently separate `<script>` tags), `CollectionPage`+`ItemList` on archives, featured images as `ImageObject` w/ dimensions, `WebSite` `SearchAction`.
 
+### Track F4 addendum (2026-07-12) — AI-crawler friendliness (GEO/AEO)
+- **llms.txt** generated at every publish (`LlmsTxtGenerator`; llmstxt.org proposal 2024-09-03, spec re-verified live 2026-07-12): H1 + blockquote summary + Pages/Posts link lists + Optional section; toggle `settings.llms_txt` (default on); wired into full, delta, and smart publish paths.
+- **AI-crawler robots toggles**: maintainable `RobotsGenerator::AI_CRAWLERS` list (16 bots); default ALLOW, per-bot opt-out via `settings.ai_crawlers_disallowed` → `User-agent`/`Disallow: /` blocks; custom robots override stays verbatim; UI in Site Settings → SEO.
+- **Feeds**: per-category RSS wired at `/{category}/feed.xml` (generator existed as dead code — now published + parity: atom self link, language, canonical URLs); full-vs-excerpt setting `seo_defaults.feed_full_content` → `content:encoded` CDATA; **feed URLs fixed from legacy `/blog/{slug}` to canonical `LocalePaths::urlPath`**; feed language from site default_language.
+- **Accurate dateModified**: new nullable `content_modified_at` on pages+posts (migration 2026_07_12_000001 — **needs `php artisan migrate` at deploy**), stamped ONLY by real content changes (block sync via event-less update, title/excerpt/raw_html edits) — `updated_at` is polluted by needs_republish flag/clear writes on every publish run. Consumed by sitemap lastmod, Article `dateModified`, `article:modified_time` (fallback: updated_at).
+- **Docs**: `docs/GEO-AEO-WRITING.md` (answer-first pattern, FAQ block, settings reference).
+- **Tests**: `AiReadabilityTest`(11). NOT yet live-verified (worktree branch, pending deploy + migrate).
+
 ---
 
 ## §9 — Asset pipeline (WebP variants / content hashing / reference resolution)  🔴 RED  (audited 2026-07-06)

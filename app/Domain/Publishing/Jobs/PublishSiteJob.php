@@ -182,14 +182,29 @@ class PublishSiteJob implements ShouldQueue
                 // RSS feed
                 $rssGenerator = app(RssFeedGenerator::class);
                 File::put("{$stagingPath}/feed.xml", $rssGenerator->generate($site));
+
+                // Per-category feeds at /{category}/feed.xml (F4)
+                $feedCategories = $site->categories()
+                    ->whereHas('posts', fn ($q) => $q->where('status', 'published'))
+                    ->get();
+                foreach ($feedCategories as $feedCategory) {
+                    File::ensureDirectoryExists("{$stagingPath}/{$feedCategory->slug}");
+                    File::put(
+                        "{$stagingPath}/{$feedCategory->slug}/feed.xml",
+                        $rssGenerator->generateForCategory($site, $feedCategory)
+                    );
+                }
             }
 
             // Build homepage based on homepage_type setting
             $this->buildHomepage($site, $stagingPath);
 
-            // Generate sitemap, robots.txt, 404 page, and redirects
+            // Generate sitemap, robots.txt, llms.txt, 404 page, and redirects
             File::put("{$stagingPath}/sitemap.xml", $sitemapGenerator->generate($site));
             File::put("{$stagingPath}/robots.txt", $robotsGenerator->generate($site));
+            if ($llmsTxt = app(\App\Domain\Publishing\Services\LlmsTxtGenerator::class)->generate($site)) {
+                File::put("{$stagingPath}/llms.txt", $llmsTxt);
+            }
             $this->build404Page($site, $stagingPath);
             $this->buildRedirectsManifest($site, $stagingPath);
 

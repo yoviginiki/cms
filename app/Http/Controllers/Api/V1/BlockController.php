@@ -54,6 +54,10 @@ class BlockController extends Controller
 
         $tree = $this->blockService->syncBlocks($page, $request->validated('blocks'));
 
+        // Real content change — stamp content_modified_at without firing model
+        // events (updated_at stays untouched by design; see F4 migration note).
+        Page::whereKey($page->id)->toBase()->update(['content_modified_at' => now()]);
+
         // Save raw HTML if provided
         if ($request->has('raw_html')) {
             $page->raw_html = $request->input('raw_html');
@@ -97,6 +101,9 @@ class BlockController extends Controller
         $this->guardBlocksVersion($request, $post);
 
         $tree = $this->blockService->syncBlocks($post, $request->validated('blocks'));
+
+        // Real content change — stamp content_modified_at (F4)
+        Post::whereKey($post->id)->toBase()->update(['content_modified_at' => now()]);
 
         // Smart auto-publish — rebuild post + its archives
         if ($post->status === 'published') {

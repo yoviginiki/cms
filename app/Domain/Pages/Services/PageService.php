@@ -29,6 +29,11 @@ class PageService
             $data['seo_meta'] = array_merge($page->seo_meta ?? [], $data['seo_meta']);
         }
 
+        // Real content edits stamp content_modified_at (F4 — accurate dateModified)
+        if (array_intersect(['title', 'raw_html'], array_keys($data)) !== []) {
+            $data['content_modified_at'] = now();
+        }
+
         $page->update($data);
 
         return $page->fresh();

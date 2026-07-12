@@ -46,6 +46,11 @@ class PostService
         $tagIds = $data['tag_ids'] ?? null;
         unset($data['tag_ids']);
 
+        // Real content edits stamp content_modified_at (F4 — accurate dateModified)
+        if (array_intersect(['title', 'excerpt'], array_keys($data)) !== []) {
+            $data['content_modified_at'] = now();
+        }
+
         $post->update($data);
 
         if ($tagIds !== null) {
