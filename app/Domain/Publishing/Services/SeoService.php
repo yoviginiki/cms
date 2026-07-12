@@ -72,22 +72,9 @@ class SeoService
             }
         }
 
-        // Structured data
-        if ($isPost) {
-            $head .= $this->structuredData->generateForPost($content, $site) . "\n";
-        } else {
-            $head .= $this->structuredData->generateForPage($content, $site) . "\n";
-            // LocalBusiness identity belongs on the homepage (when the site is a business).
-            if ($isHomepage && ($lb = $this->structuredData->generateLocalBusiness($site))) {
-                $head .= $lb . "\n";
-            }
-        }
-        $head .= $this->structuredData->generateBreadcrumbs($content, $site) . "\n";
-
-        // Block-driven FAQ schema (from accordion blocks), when present.
-        if ($faq = $this->structuredData->generateFaqPage($content)) {
-            $head .= $faq . "\n";
-        }
+        // Structured data — one consolidated @graph (WebPage/Article + LocalBusiness
+        // + BreadcrumbList + FAQPage).
+        $head .= $this->structuredData->generateGraph($content, $site, $isHomepage) . "\n";
 
         return $head;
     }

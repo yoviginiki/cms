@@ -82,6 +82,22 @@ class StructuredDataTest extends TestCase
         $this->assertNull(app(StructuredDataService::class)->generateFaqPage($plain->fresh()));
     }
 
+    public function test_graph_consolidates_all_nodes_into_one_script(): void
+    {
+        $site = $this->siteWith('day spa');
+        $home = Page::factory()->create(['site_id' => $site->id, 'slug' => 'home', 'title' => 'Home', 'status' => 'published']);
+
+        $graph = app(StructuredDataService::class)->generateGraph($home->fresh(), $site, true);
+
+        // a single ld+json script, a single @context, one @graph with all nodes
+        $this->assertSame(1, substr_count($graph, 'application/ld+json'));
+        $this->assertSame(1, substr_count($graph, '@context'));
+        $this->assertStringContainsString('"@graph"', $graph);
+        $this->assertStringContainsString('"@type":"WebPage"', $graph);
+        $this->assertStringContainsString('"@type":"HealthAndBeautyBusiness"', $graph);
+        $this->assertStringContainsString('"@type":"BreadcrumbList"', $graph);
+    }
+
     public function test_head_emits_local_business_on_homepage_only(): void
     {
         $site = $this->siteWith('day spa');

@@ -33,29 +33,22 @@ class StructuredDataService
      * when the site records a business type (set by the Full-Site generator), so
      * the generated small-business sites carry proper local-SEO identity.
      */
-    public function generateLocalBusiness(Site $site): ?string
+    private function nodeLocalBusiness(Site $site): ?array
     {
         $type = trim((string) ($site->settings['business_type'] ?? ''));
         if ($type === '') {
             return null;
         }
-
-        $data = [
-            '@context' => 'https://schema.org',
+        $node = [
             '@type' => $this->businessSchemaType($type),
             'name' => $site->name,
             'url' => $this->getSiteUrl($site),
         ];
         $desc = trim((string) ($site->settings['business_description'] ?? ''));
-        if ($desc !== '') {
-            $data['description'] = $desc;
-        }
+        if ($desc !== '') $node['description'] = $desc;
         $image = $site->seo_defaults['og_image'] ?? null;
-        if ($image) {
-            $data['image'] = $image;
-        }
-
-        return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
+        if ($image) $node['image'] = $image;
+        return $node;
     }
 
     private function businessSchemaType(string $topic): string
@@ -69,66 +62,72 @@ class StructuredDataService
         return 'LocalBusiness';
     }
 
-    public function generateForPage(Page $page, Site $site): string
+    /**
+     * Single consolidated, deduplicated @graph for the head (F1): WebPage/Article
+     * + LocalBusiness (homepage) + BreadcrumbList + FAQPage in one script tag.
+     */
+    public function generateGraph(Page|Post $content, Site $site, bool $isHomepage = false): string
     {
-        $url = $this->getSiteUrl($site);
-        $data = [
-            '@context' => 'https://schema.org',
+        $nodes = [];
+        if ($content instanceof Post) {
+            $nodes[] = $this->nodeForPost($content, $site);
+        } else {
+            $nodes[] = $this->nodeForPage($content, $site);
+            if ($isHomepage && ($lb = $this->nodeLocalBusiness($site))) {
+                $nodes[] = $lb;
+            }
+        }
+        $nodes[] = $this->nodeBreadcrumbs($content, $site);
+        if ($faq = $this->nodeFaq($content)) {
+            $nodes[] = $faq;
+        }
+
+        return $this->script(['@context' => 'https://schema.org', '@graph' => array_values($nodes)]);
+    }
+
+    // ─── Individual emitters (single-node scripts) — retained for direct use/tests ───
+    public function generateForPage(Page $page, Site $site): string { return $this->wrap($this->nodeForPage($page, $site)); }
+    public function generateForPost(Post $post, Site $site): string { return $this->wrap($this->nodeForPost($post, $site)); }
+    public function generateBreadcrumbs(Page|Post $content, Site $site): string { return $this->wrap($this->nodeBreadcrumbs($content, $site)); }
+    public function generateFaqPage(Page|Post $content): ?string { $n = $this->nodeFaq($content); return $n ? $this->wrap($n) : null; }
+    public function generateLocalBusiness(Site $site): ?string { $n = $this->nodeLocalBusiness($site); return $n ? $this->wrap($n) : null; }
+
+    // ─── Node builders (arrays without @context; assembled into @graph) ───
+
+    private function nodeForPage(Page $page, Site $site): array
+    {
+        return [
             '@type' => 'WebPage',
             'name' => $page->title,
             'url' => $this->contentUrl($site, $page),
-            'isPartOf' => [
-                '@type' => 'WebSite',
-                'name' => $site->name,
-                'url' => $url,
-            ],
+            'isPartOf' => ['@type' => 'WebSite', 'name' => $site->name, 'url' => $this->getSiteUrl($site)],
         ];
-        return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
     }
 
-    public function generateForPost(Post $post, Site $site): string
+    private function nodeForPost(Post $post, Site $site): array
     {
-        $url = $this->getSiteUrl($site);
         $contentUrl = $this->contentUrl($site, $post);
-
-        // Article subtype per site setting (Article | NewsArticle | BlogPosting).
         $articleType = $site->seo_defaults['article_type'] ?? 'BlogPosting';
         if (!in_array($articleType, ['Article', 'NewsArticle', 'BlogPosting'], true)) {
             $articleType = 'BlogPosting';
         }
-
-        $data = [
-            '@context' => 'https://schema.org',
+        $node = [
             '@type' => $articleType,
             'headline' => $post->title,
             'url' => $contentUrl,
             'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $contentUrl],
             'datePublished' => $post->published_at?->toIso8601String(),
             'dateModified' => $post->updated_at->toIso8601String(),
-            'publisher' => [
-                '@type' => 'Organization',
-                'name' => $site->name,
-                'url' => $url,
-            ],
+            'publisher' => ['@type' => 'Organization', 'name' => $site->name, 'url' => $this->getSiteUrl($site)],
         ];
-        if ($post->author?->name) {
-            $data['author'] = ['@type' => 'Person', 'name' => $post->author->name];
-        }
-        if ($post->featured_image) {
-            $data['image'] = $post->featured_image;
-        }
-        if ($post->excerpt) {
-            $data['description'] = $post->excerpt;
-        }
-        return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
+        if ($post->author?->name) $node['author'] = ['@type' => 'Person', 'name' => $post->author->name];
+        if ($post->featured_image) $node['image'] = $post->featured_image;
+        if ($post->excerpt) $node['description'] = $post->excerpt;
+        return $node;
     }
 
-    /**
-     * Block-driven FAQ schema: extracts Q&A pairs from any `accordion` blocks on
-     * the page/post and emits an FAQPage node. Returns null below Google's 2-Q&A
-     * minimum. (First of the per-block schema extractors envisioned in F1.)
-     */
-    public function generateFaqPage(Page|Post $content): ?string
+    /** Block-driven FAQ node from accordion blocks (null below Google's 2-Q&A min). */
+    private function nodeFaq(Page|Post $content): ?array
     {
         $questions = [];
         foreach ($content->blocks()->where('type', 'accordion')->orderBy('order')->get() as $block) {
@@ -136,24 +135,14 @@ class StructuredDataService
                 $q = trim(strip_tags((string) ($item['title'] ?? '')));
                 $a = trim(strip_tags((string) ($item['content'] ?? '')));
                 if ($q !== '' && $a !== '') {
-                    $questions[] = [
-                        '@type' => 'Question',
-                        'name' => $q,
-                        'acceptedAnswer' => ['@type' => 'Answer', 'text' => mb_substr($a, 0, 1000)],
-                    ];
+                    $questions[] = ['@type' => 'Question', 'name' => $q, 'acceptedAnswer' => ['@type' => 'Answer', 'text' => mb_substr($a, 0, 1000)]];
                 }
             }
         }
-
-        if (count($questions) < 2) {
-            return null;
-        }
-
-        $data = ['@context' => 'https://schema.org', '@type' => 'FAQPage', 'mainEntity' => $questions];
-        return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
+        return count($questions) >= 2 ? ['@type' => 'FAQPage', 'mainEntity' => $questions] : null;
     }
 
-    public function generateBreadcrumbs(Page|Post $content, Site $site): string
+    private function nodeBreadcrumbs(Page|Post $content, Site $site): array
     {
         $url = $this->getSiteUrl($site);
         $items = [['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => $url . '/']];
@@ -164,7 +153,6 @@ class StructuredDataService
             }
             $items[] = ['@type' => 'ListItem', 'position' => count($items) + 1, 'name' => $content->title, 'item' => $this->contentUrl($site, $content)];
         } else {
-            // Build page hierarchy
             $chain = [];
             $current = $content;
             while ($current) {
@@ -177,7 +165,16 @@ class StructuredDataService
             }
         }
 
-        $data = ['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => $items];
+        return ['@type' => 'BreadcrumbList', 'itemListElement' => $items];
+    }
+
+    private function wrap(array $node): string
+    {
+        return $this->script(['@context' => 'https://schema.org'] + $node);
+    }
+
+    private function script(array $data): string
+    {
         return '<script type="application/ld+json">' . json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
     }
 
