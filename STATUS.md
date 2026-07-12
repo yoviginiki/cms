@@ -465,6 +465,9 @@ Recon audit (F0-style, per-block) found 2 blockers + 6 majors; all markup fixes 
 - **Docs**: `SEO-IN-STILLOPRESS.md` (user guide), `STRUCTURED-DATA-REFERENCE.md`; docs/README.md consolidated with a **User Guides** section + explicit how-to backlog (block editor basics, canvas, Library/globals/presets, menus, media, forms, translations, analytics — not yet written).
 - **Tests**: `SeoLintTest`(7) + 4 publishHelpers vitest. **TRACK F COMPLETE** (F0–F5); pending live: Lighthouse ≥95 acceptance (F3), migrate+deploy (F4), Rich Results test on prod URLs.
 
+### F3 follow-up (2026-07-12, post-deploy) — grid-layout landmarks
+Live verification exposed a third render path F3 missed: grid-based themes (`grid-layout.blade.php` + `GridRenderer`) had no `<main>`/`<article>`/skip link. Fixed: grid positions now emit landmark elements by area name (header→`<header>`, footer→`<footer>`, nav→`<nav>`, sidebar→`<aside>`, first main/content→`<main id="main-content">` — exactly one per page), posts wrapped in `<article>` inside the main area, skip link added to the grid layout. Grid CSS is class-based (`.pos-*`, `.site-grid > *`) so tag changes are style-neutral. `SemanticHtmlTest` +1 (10). Also noted live: **Cloudflare's managed robots.txt (Content Signals) blocks AI crawlers at the edge**, overriding F4's default-allow — zone-level dashboard/API setting, not fixable in code.
+
 ---
 
 ## §9 — Asset pipeline (WebP variants / content hashing / reference resolution)  🔴 RED  (audited 2026-07-06)

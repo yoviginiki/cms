@@ -2,9 +2,12 @@
 
 namespace Tests\Feature\Publishing;
 
+use App\Domain\Grid\Services\GridRenderer;
 use App\Domain\Publishing\Services\BuildPageService;
 use App\Models\Asset;
 use App\Models\Block;
+use App\Models\Grid;
+use App\Models\GridPosition;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
@@ -151,5 +154,31 @@ class SemanticHtmlTest extends TestCase
 
         $this->assertStringContainsString('aria-label="Pagination"', $html);
         $this->assertStringContainsString('aria-current="page"', $html);
+    }
+
+    public function test_grid_layout_emits_landmarks_and_article_for_posts(): void
+    {
+        $site = $this->makeSite();
+        $post = Post::factory()->create(['site_id' => $site->id, 'category_id' => null, 'status' => 'published']);
+        $this->addBlock($post, 'text', ['content' => 'Grid post body']);
+
+        $grid = Grid::create([
+            'site_id' => $site->id, 'name' => 'G', 'slug' => 'g-landmarks',
+            'col_tracks' => '1fr', 'row_tracks' => 'auto auto auto auto',
+            'areas' => '"header" "content" "main" "footer"', 'is_preset' => false,
+        ]);
+        foreach ([['header', 'static'], ['content', 'canvas'], ['main', 'canvas'], ['footer', 'static']] as [$area, $type]) {
+            GridPosition::create(['grid_id' => $grid->id, 'area_name' => $area, 'label' => $area, 'type' => $type]);
+        }
+
+        $html = app(GridRenderer::class)->render($grid, $post, $site)['html'];
+
+        $this->assertStringContainsString('<header class="pos-header"', $html);
+        $this->assertStringContainsString('<main class="pos-content" id="main-content"', $html);
+        $this->assertStringContainsString('<footer class="pos-footer"', $html);
+        // exactly one <main> even with both content + main areas present
+        $this->assertSame(1, substr_count($html, '<main'));
+        // post content publishes inside <article> within the main landmark
+        $this->assertMatchesRegularExpression('#<main[^>]*><article>#', $html);
     }
 }
