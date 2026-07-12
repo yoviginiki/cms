@@ -20,7 +20,7 @@ class SitemapGenerator
             if ($path === '/') continue; // homepage entry above
             $urls[] = $this->urlEntry(
                 $baseUrl . $path,
-                '0.8', 'weekly', $page->updated_at->toW3cString()
+                '0.8', 'weekly', ($page->content_modified_at ?? $page->updated_at)->toW3cString()
             );
         }
 
@@ -38,7 +38,7 @@ class SitemapGenerator
         foreach ($posts as $post) {
             $urls[] = $this->urlEntry(
                 $baseUrl . LocalePaths::urlPath($site, $post),
-                '0.7', 'monthly', $post->updated_at->toW3cString()
+                '0.7', 'monthly', ($post->content_modified_at ?? $post->updated_at)->toW3cString()
             );
         }
 

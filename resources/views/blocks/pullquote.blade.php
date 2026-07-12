@@ -24,7 +24,7 @@
 <figure class="pullquote pullquote--{{ $style }}">
     <blockquote @if($textShadow) style="text-shadow:{{ $textShadow }}" @endif>{{ $text }}</blockquote>
     @if($attribution)
-        <figcaption>{{ $attribution }}</figcaption>
+        <figcaption><cite style="font-style:normal;">{{ $attribution }}</cite></figcaption>
     @endif
 </figure>
 

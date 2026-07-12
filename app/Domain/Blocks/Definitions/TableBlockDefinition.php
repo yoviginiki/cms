@@ -17,6 +17,7 @@ class TableBlockDefinition implements BlockDefinition
             'rows.*.*'   => ['sometimes', 'nullable', 'string', 'max:1000'],
             'striped'    => ['sometimes', 'boolean'],
             'compact'    => ['sometimes', 'boolean'],
+            'caption'    => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 

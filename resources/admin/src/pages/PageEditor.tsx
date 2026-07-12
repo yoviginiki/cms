@@ -11,7 +11,7 @@ import { useEditorStore } from '@/stores/editorStore';
 import { useMagazineStore } from '@/stores/magazineStore';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { CanvasEditor } from '@/components/canvas/CanvasEditor';
-import { AssetField } from '@/components/ui/AssetPicker';
+import { SeoPanel } from '@/components/editor/SeoPanel';
 import { SpacingPanel } from '@/components/editor/properties/SpacingPanel';
 import { VisualPanel } from '@/components/editor/properties/VisualPanel';
 import { LayoutPanel } from '@/components/editor/properties/LayoutPanel';
@@ -1169,28 +1169,15 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
       {/* SEO */}
       <div className="border-t border-gray-100 pt-3">
         <label className="text-[11px] text-gray-500 mb-1 block font-medium">SEO</label>
-        <div className="space-y-2">
-          <div>
-            <label className="text-[10px] text-gray-400 mb-0.5 block">Meta Title</label>
-            <input type="text" defaultValue={page?.seo_meta?.title || ''} className="input input-bordered input-sm w-full text-[12px]"
-              placeholder={page?.title || 'Page title'}
-              onBlur={e => saveSetting('seo_meta', { ...localMeta, title: e.target.value })} />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-400 mb-0.5 block">Meta Description</label>
-            <textarea defaultValue={page?.seo_meta?.description || ''} className="textarea textarea-bordered textarea-sm w-full text-[12px] min-h-[60px]"
-              placeholder="Brief description for search engines..."
-              onBlur={e => saveSetting('seo_meta', { ...localMeta, description: e.target.value })} />
-          </div>
-          <div>
-            <AssetField
-              label="OG Image"
-              value={page?.seo_meta?.og_image || ''}
-              onChange={(url) => saveSetting('seo_meta', { ...localMeta, og_image: url })}
-              accept="image"
-            />
-          </div>
-        </div>
+        <SeoPanel
+          values={localMeta}
+          onPatch={patch => saveSetting('seo_meta', { ...localMeta, ...patch })}
+          fallbackTitle={page?.title || ''}
+          titleTemplate={site?.seo_defaults?.title_template}
+          siteName={site?.name}
+          urlBase={publicBase}
+          path={`/${page?.slug || ''}`}
+        />
       </div>
 
       {/* Custom Code */}

@@ -20,15 +20,28 @@ class SeoService
         $titleTemplate = $siteDefaults['title_template'] ?? '{title} | {site_name}';
         $fullTitle = str_replace(['{title}', '{site_name}'], [$title, $site->name], $titleTemplate);
 
-        // Description
-        $description = $seoMeta['description'] ?? $this->autoDescription($content);
+        // Description — explicit → (post) excerpt → block scrape → site default
+        $description = trim((string) ($seoMeta['description'] ?? ''));
+        if ($description === '' && $isPost && $content->excerpt) {
+            $description = mb_substr(trim(strip_tags((string) $content->excerpt)), 0, 160);
+        }
+        if ($description === '') {
+            $description = $this->autoDescription($content);
+        }
+        if ($description === '') {
+            $description = trim((string) ($siteDefaults['description'] ?? ''));
+        }
 
-        // Canonical URL
+        // Canonical URL — computed from the site domain + slug, overridable per page
         $baseUrl = $site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu";
         $homepageId = $site->settings['homepage_id'] ?? null;
         $isHomepage = ($homepageId && !$isPost && $content->id === $homepageId) || (!$homepageId && $content->slug === 'home');
         $path = $isPost ? '/' . ($content->category ? $content->category->slug . '/' : '') . $content->slug : "/{$content->slug}";
         $canonicalUrl = rtrim($baseUrl, '/') . ($isHomepage ? '/' : $path);
+        $canonicalOverride = trim((string) ($seoMeta['canonical'] ?? ''));
+        if ($canonicalOverride !== '' && filter_var($canonicalOverride, FILTER_VALIDATE_URL)) {
+            $canonicalUrl = $canonicalOverride;
+        }
 
         // OG Image
         $ogImage = $seoMeta['og_image'] ?? ($isPost ? $content->featured_image : null) ?? $siteDefaults['og_image'] ?? '';
@@ -37,8 +50,23 @@ class SeoService
         $head .= "<title>" . e($fullTitle) . "</title>\n";
         $head .= '<meta name="description" content="' . e($description) . '">' . "\n";
 
+        // Robots — independent index/follow toggles; no tag when both default (index, follow)
+        $robots = [];
         if (!empty($seoMeta['no_index'])) {
-            $head .= '<meta name="robots" content="noindex, nofollow">' . "\n";
+            $robots[] = 'noindex';
+        }
+        if (!empty($seoMeta['no_follow'])) {
+            $robots[] = 'nofollow';
+        }
+        if ($robots) {
+            $head .= '<meta name="robots" content="' . implode(', ', $robots) . '">' . "\n";
+        }
+
+        // Search-engine verification tags (site-level slot)
+        foreach (['verification_google' => 'google-site-verification', 'verification_bing' => 'msvalidate.01'] as $key => $metaName) {
+            if (!empty($siteDefaults[$key])) {
+                $head .= '<meta name="' . $metaName . '" content="' . e($siteDefaults[$key]) . '">' . "\n";
+            }
         }
 
         $head .= '<link rel="canonical" href="' . e($canonicalUrl) . '">' . "\n";
@@ -66,7 +94,7 @@ class SeoService
             if ($content->published_at) {
                 $head .= '<meta property="article:published_time" content="' . $content->published_at->toIso8601String() . '">' . "\n";
             }
-            $head .= '<meta property="article:modified_time" content="' . $content->updated_at->toIso8601String() . '">' . "\n";
+            $head .= '<meta property="article:modified_time" content="' . ($content->content_modified_at ?? $content->updated_at)->toIso8601String() . '">' . "\n";
             if ($content->category) {
                 $head .= '<meta property="article:section" content="' . e($content->category->name) . '">' . "\n";
             }

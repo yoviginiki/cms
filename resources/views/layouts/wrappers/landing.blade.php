@@ -11,7 +11,7 @@
 <div style="height:60px;"></div>
 @endif
 
-<main>
+<main id="main-content">
     {!! $blocksHtml !!}
 </main>
 

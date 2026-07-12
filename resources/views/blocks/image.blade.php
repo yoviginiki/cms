@@ -64,6 +64,7 @@
                     @if($width)width="{{ $width }}"@endif
                     @if($height)height="{{ $height }}"@endif
                     loading="{{ $isFirst ? 'eager' : 'lazy' }}"
+                    @if($isFirst)fetchpriority="high"@endif
                     decoding="async"
                     @if($imgStyle)style="{{ $imgStyle }}"@endif
                 >
@@ -76,6 +77,7 @@
                 @if($width)width="{{ $width }}"@endif
                 @if($height)height="{{ $height }}"@endif
                 loading="{{ $isFirst ? 'eager' : 'lazy' }}"
+                @if($isFirst)fetchpriority="high"@endif
                 decoding="async"
                 @if($imgStyle)style="{{ $imgStyle }}"@endif
             >

@@ -18,7 +18,7 @@ class Page extends Model
     protected $fillable = [
         'site_id', 'parent_id', 'title', 'slug', 'layout_id',
         'status', 'editor_mode', 'experience_mode', 'seo_meta', 'sort_order', 'grid_id', 'published_at', 'scheduled_at',
-        'raw_html', 'needs_republish', 'needs_republish_reason',
+        'raw_html', 'needs_republish', 'needs_republish_reason', 'content_modified_at',
     ];
 
     protected $attributes = [
@@ -31,6 +31,7 @@ class Page extends Model
             'seo_meta' => 'array',
             'published_at' => 'datetime',
             'scheduled_at' => 'datetime',
+            'content_modified_at' => 'datetime',
         ];
     }
 

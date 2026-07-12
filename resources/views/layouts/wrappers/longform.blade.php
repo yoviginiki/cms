@@ -4,7 +4,7 @@
 @include('layouts.partials.site-header')
 
 <div style="display:flex;gap:2rem;max-width:65rem;margin:0 auto;padding:0 1.5rem;">
-    <main style="flex:1;max-width:{{ $layout->supports['maxWidthValue'] ?? '40rem' }};margin:0 auto;min-width:0;">
+    <main id="main-content" style="flex:1;max-width:{{ $layout->supports['maxWidthValue'] ?? '40rem' }};margin:0 auto;min-width:0;">
         <article style="font-size:1.1rem;line-height:1.85;">
             {!! $blocksHtml !!}
         </article>

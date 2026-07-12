@@ -117,13 +117,30 @@ class StructuredDataService
             'url' => $contentUrl,
             'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $contentUrl],
             'datePublished' => $post->published_at?->toIso8601String(),
-            'dateModified' => $post->updated_at->toIso8601String(),
-            'publisher' => ['@type' => 'Organization', 'name' => $site->name, 'url' => $this->getSiteUrl($site)],
+            'dateModified' => ($post->content_modified_at ?? $post->updated_at)->toIso8601String(),
+            'publisher' => $this->nodePublisher($site),
         ];
         if ($post->author?->name) $node['author'] = ['@type' => 'Person', 'name' => $post->author->name];
         if ($post->featured_image) $node['image'] = $post->featured_image;
         if ($post->excerpt) $node['description'] = $post->excerpt;
         return $node;
+    }
+
+    /** Publisher identity from site settings — logo + social profiles when configured (F2). */
+    private function nodePublisher(Site $site): array
+    {
+        $org = ['@type' => 'Organization', 'name' => $site->name, 'url' => $this->getSiteUrl($site)];
+        if (!empty($site->settings['logo_url'])) {
+            $org['logo'] = ['@type' => 'ImageObject', 'url' => $site->settings['logo_url']];
+        }
+        $sameAs = array_values(array_filter(array_map(
+            fn ($url) => trim((string) $url),
+            (array) ($site->settings['social_links'] ?? [])
+        )));
+        if ($sameAs) {
+            $org['sameAs'] = $sameAs;
+        }
+        return $org;
     }
 
     /** Block-driven FAQ node from accordion blocks (null below Google's 2-Q&A min). */
