@@ -45,9 +45,11 @@
         @php
             $src = is_array($img) ? ($img['src'] ?? $img['url'] ?? '') : (string) $img;
             $alt = is_array($img) ? ($img['alt'] ?? '') : '';
+            $imgW = is_array($img) ? ($img['width'] ?? null) : null;
+            $imgH = is_array($img) ? ($img['height'] ?? null) : null;
         @endphp
         @if(!empty($src))
-            <img class="img-filtered" src="{{ e($src) }}" alt="{{ e($alt) }}" loading="lazy" style="width:100%;height:auto;object-fit:cover;border-radius:4px;{{ $__imageFilter }}">
+            <img class="img-filtered" src="{{ e($src) }}" alt="{{ e($alt) }}"@if($imgW) width="{{ (int) $imgW }}"@endif @if($imgH)height="{{ (int) $imgH }}"@endif loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:cover;border-radius:4px;{{ $__imageFilter }}">
         @endif
     @endforeach
 </div>

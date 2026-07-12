@@ -7,6 +7,7 @@ export const TableEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
     rows: string[][];
     striped: boolean;
     compact: boolean;
+    caption?: string;
   };
 
   const update = (field: string, value: unknown) => {
@@ -39,6 +40,15 @@ export const TableEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
               e.target.value.split('\n').map((line) => line.split('\t')),
             )
           }
+        />
+      </div>
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Caption (describes the table for search engines and screen readers)</label>
+        <input
+          type="text"
+          className="input input-bordered input-sm w-full"
+          value={data.caption || ''}
+          onChange={(e) => update('caption', e.target.value)}
         />
       </div>
       <div className="flex gap-4">

@@ -173,7 +173,7 @@ class BuildPageService
                 'rssUrl' => $rssUrl,
                 'content' => $content,
                 'themeConfig' => $themeConfig,
-                'lang' => $content->seo_meta['locale'] ?? $themeConfig['lang'] ?? 'en',
+                'lang' => $content->seo_meta['locale'] ?? $site->settings['default_language'] ?? $themeConfig['lang'] ?? 'en',
             ])->render();
 
             $html = $this->hooks->applyFilter('page_render', $html, $content, $site);
@@ -210,7 +210,7 @@ class BuildPageService
                 'hookBodyClose' => $hookBodyClose,
                 'site' => $site,
                 'rssUrl' => $rssUrl,
-                'lang' => $content->seo_meta['locale'] ?? $themeConfig['lang'] ?? 'en',
+                'lang' => $content->seo_meta['locale'] ?? $site->settings['default_language'] ?? $themeConfig['lang'] ?? 'en',
             ])->render();
         } else {
             // Check for theme template (posts only)
@@ -249,6 +249,12 @@ class BuildPageService
                 if ($content instanceof Page && $content->raw_html) {
                     $renderedBlocks .= $content->raw_html;
                 }
+            }
+
+            // Posts publish inside an <article> landmark (F3 — semantic extraction);
+            // covers both the standard layout and wrapper paths.
+            if ($content instanceof Post) {
+                $renderedBlocks = '<article>' . $renderedBlocks . '</article>';
             }
 
             // Use the already-resolved layout from the grid check above
@@ -298,7 +304,7 @@ class BuildPageService
                 'rssUrl' => $rssUrl,
                 'content' => $content,
                 'themeConfig' => $themeConfig,
-                'lang' => $content->seo_meta['locale'] ?? $themeConfig['lang'] ?? 'en',
+                'lang' => $content->seo_meta['locale'] ?? $site->settings['default_language'] ?? $themeConfig['lang'] ?? 'en',
             ])->render();
         }
 
@@ -362,6 +368,11 @@ class BuildPageService
         // Enrich image blocks with asset data
         if ($block->type === 'image') {
             $sanitizedData = $this->enrichImageData($sanitizedData, $site);
+        }
+
+        // Enrich gallery images — intrinsic dimensions + library alt (F3)
+        if ($block->type === 'gallery') {
+            $sanitizedData = $this->enrichGalleryData($sanitizedData);
         }
 
         // Enrich flipbook blocks — resolve PDF asset to a public URL
@@ -841,6 +852,11 @@ class BuildPageService
                     $data['height'] = $data['height'] ?? ($asset->dimensions['height'] ?? null);
                 }
 
+                // Alt text falls back to the media library's alt (F3)
+                if (empty($data['alt']) && $asset->alt_text) {
+                    $data['alt'] = $asset->alt_text;
+                }
+
                 // Variant URLs
                 $variants = [];
                 foreach ($asset->variants as $variantName => $path) {
@@ -849,6 +865,39 @@ class BuildPageService
                 $data['variants'] = $variants;
             }
         }
+
+        return $data;
+    }
+
+    /**
+     * Resolve gallery image URLs back to their assets for intrinsic
+     * dimensions (CLS) and library alt text (F3). String items whose URL
+     * matches the asset serve route become arrays the Blade already handles;
+     * anything else passes through untouched.
+     */
+    private function enrichGalleryData(array $data): array
+    {
+        $images = $data['images'] ?? [];
+        foreach ($images as $i => $img) {
+            $src = is_array($img) ? ($img['src'] ?? $img['url'] ?? '') : (string) $img;
+            if ($src === '' || !preg_match('#/assets/([0-9a-f-]{36})/serve#i', $src, $m)) {
+                continue;
+            }
+            $asset = Asset::find($m[1]);
+            if (!$asset) {
+                continue;
+            }
+            $item = is_array($img) ? $img : ['src' => $src];
+            if (empty($item['alt']) && $asset->alt_text) {
+                $item['alt'] = $asset->alt_text;
+            }
+            if (empty($item['width']) && !empty($asset->dimensions['width'])) {
+                $item['width'] = $asset->dimensions['width'];
+                $item['height'] = $asset->dimensions['height'] ?? null;
+            }
+            $images[$i] = $item;
+        }
+        $data['images'] = $images;
 
         return $data;
     }

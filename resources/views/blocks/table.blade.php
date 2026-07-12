@@ -18,14 +18,18 @@
     $rows = $data['rows'] ?? [];
     $striped = $data['striped'] ?? true;
     $compact = $data['compact'] ?? false;
+    $caption = trim((string) ($data['caption'] ?? ''));
     $pad = $compact ? 'padding:4px 8px;font-size:0.85em;' : 'padding:8px 12px;';
 @endphp
 <div class="overflow-x-auto">
     <table style="width:100%;border-collapse:collapse">
+        @if($caption !== '')
+            <caption style="{{ $pad }}text-align:left;caption-side:top;color:var(--color-text-muted,#64748b);font-size:0.9em;">{{ $caption }}</caption>
+        @endif
         <thead>
             <tr>
                 @foreach($headers as $header)
-                    <th style="{{ $pad }}text-align:left;border-bottom:2px solid var(--color-border,#e2e8f0);font-weight:600;">{{ $header }}</th>
+                    <th scope="col" style="{{ $pad }}text-align:left;border-bottom:2px solid var(--color-border,#e2e8f0);font-weight:600;">{{ $header }}</th>
                 @endforeach
             </tr>
         </thead>
