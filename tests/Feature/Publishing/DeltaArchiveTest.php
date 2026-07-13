@@ -133,4 +133,35 @@ class DeltaArchiveTest extends TestCase
         File::deleteDirectory($staging);
         File::deleteDirectory($target);
     }
+
+    public function test_delta_ships_asset_files_inside_the_staged_build(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('assets');
+        $site = $this->makeSite();
+        $img = \Illuminate\Http\UploadedFile::fake()->image('feat2.jpg', 640, 480);
+        $path = "sites/{$site->id}/assets/feat2.jpg";
+        \Illuminate\Support\Facades\Storage::disk('assets')->put($path, file_get_contents($img->getRealPath()));
+        $asset = \App\Models\Asset::factory()->create([
+            'site_id' => $site->id, 'storage_path' => $path,
+            'mime_type' => 'image/jpeg', 'checksum' => str_repeat('c', 64), 'variants' => [],
+        ]);
+        $post = Post::factory()->published()->create([
+            'site_id' => $site->id, 'category_id' => null,
+            'featured_image' => "/api/v1/sites/{$site->id}/assets/{$asset->id}/serve",
+        ]);
+        \App\Models\Block::factory()->create([
+            'blockable_id' => $post->id, 'blockable_type' => 'post', 'type' => 'image', 'order' => 0,
+            'data' => ['asset_id' => $asset->id, 'alt' => 'x'],
+        ]);
+
+        $staging = $this->runDelta($site, ['pages' => [], 'posts' => [$post->id]]);
+
+        // Assets must live INSIDE the staged build (they ship with the deploy);
+        // writing them straight to the docroot loses them to prune/symlink swap.
+        $this->assertFileExists("{$staging}/assets/files/" . str_repeat('c', 64) . '.jpg');
+        $postHtml = file_get_contents("{$staging}/" . \App\Domain\Publishing\Services\LocalePaths::postPath($site, $post->fresh()));
+        $this->assertStringContainsString('/assets/files/' . str_repeat('c', 64), $postHtml);
+
+        File::deleteDirectory($staging);
+    }
 }
