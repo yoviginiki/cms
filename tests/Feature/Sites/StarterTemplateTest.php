@@ -4,8 +4,11 @@ namespace Tests\Feature\Sites;
 
 use App\Domain\Sites\Services\AiSiteContentService;
 use App\Domain\Sites\Services\StarterTemplateService;
+use App\Models\Asset;
 use App\Models\Block;
 use App\Models\Site;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -75,8 +78,23 @@ class StarterTemplateTest extends TestCase
         $this->assertTrue($hasBlock('blog', 'latestposts'));
     }
 
+    /** Real JPEG bytes for faked image downloads. */
+    private function fakeJpeg(int $w = 1200, int $h = 800): string
+    {
+        $im = imagecreatetruecolor($w, $h);
+        imagefill($im, 0, 0, imagecolorallocate($im, 120, 140, 160));
+        ob_start();
+        imagejpeg($im, null, 80);
+        imagedestroy($im);
+
+        return ob_get_clean();
+    }
+
     public function test_full_template_with_topic_uses_ai_copy_and_industry_images(): void
     {
+        Storage::fake('assets');
+        Http::fake(['loremflickr.com/*' => Http::response($this->fakeJpeg(), 200, ['Content-Type' => 'image/jpeg'])]);
+
         $feat = fn (string $t) => ['title' => $t, 'desc' => "About {$t}."];
         $this->mock(AiSiteContentService::class, function ($m) use ($feat) {
             $m->shouldReceive('generate')->once()->andReturn([
@@ -128,10 +146,25 @@ class StarterTemplateTest extends TestCase
         $this->assertTrue($hasText($blocksOf('about'), 'About Our Company'));
         $this->assertTrue($hasText($blocksOf('catalog'), 'AC Install'));
 
-        // industry images on the portfolio gallery
+        // industry images are IMPORTED into the media library at generation
+        // time — blocks reference library serve URLs (WebP/dimensions at
+        // publish), never hotlink the external source.
         $gallery = $blocksOf('portfolio')->firstWhere('type', 'gallery');
         $this->assertNotEmpty($gallery->data['images']);
-        $this->assertStringContainsString('loremflickr.com/1200/800/hvac,air', $gallery->data['images'][0]);
+        $this->assertStringContainsString("/api/v1/sites/{$site->id}/assets/", $gallery->data['images'][0]);
+        $this->assertStringContainsString('/serve', $gallery->data['images'][0]);
+        $this->assertStringNotContainsString('loremflickr', json_encode($gallery->data['images']));
+
+        // image blocks carry asset_id → publish-time enrichment path
+        $imageBlock = $blocksOf('home')->firstWhere('type', 'image');
+        $this->assertNotEmpty($imageBlock->data['asset_id'] ?? null);
+
+        // library assets exist with generated variants (all faked downloads
+        // share one JPEG, so checksum dedupe collapses them to a single asset)
+        $assets = Asset::where('site_id', $site->id)->get();
+        $this->assertGreaterThanOrEqual(1, $assets->count());
+        $this->assertNotEmpty($assets->first()->variants);
+        $this->assertNotEmpty($assets->first()->alt_text);
 
         // AI-written blog posts, with real body content + SEO meta
         $post = $site->posts()->where('title', 'Save on Heating This Winter')->first();

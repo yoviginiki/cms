@@ -496,6 +496,8 @@ D1/D2 turned out to be code-fixed in remediation commit f9ba405 (Intervention `d
 - **First empirical tests** — `AssetVariantsTest`(4): real GD upload end-to-end → 5 variants incl. verified-real WebP (RIFF/WEBP magic bytes); legacy backfill; command run; publisher rewrite of `/serve/webp_800` → clean hashed URL + variant file copied to deploy target (the exact D2 mangle case).
 GREEN once the prod backfill has run and a republished page verifiably serves WebP.
 
+2026-07-13 follow-up: prod backfill ran (21/21 assets → variants, real RIFF/WEBP on disk) — but live verification surfaced that **no published content references library assets at all** (AI-generated sites hotlinked loremflickr/Pexels; the 7 asset_id blocks are all drafts). Closed at the source: **generation-time image import** — `AssetService::importFromUrl` (https-only, host-allowlisted against SSRF, real-image byte validation, checksum dedupe, alt from context) + `StarterTemplateService` now imports every generated image into the site's media library and writes serve URLs/`asset_id` into image/gallery/catalog blocks, falling back to the external URL if import fails. Newly generated sites get WebP/dimensions/alt end-to-end. `AssetImportTest`(5) + StarterTemplateTest updated (asserts serve URLs, asset_id, variants, no hotlinks).
+
 ---
 
 ## §10 — Block registry contract compliance  🟡 YELLOW  (audited 2026-07-06)
