@@ -174,9 +174,16 @@ class DeployService
     /** Delete files/dirs under $dir that aren't in $keep (relative to $root); never touch dot-entries. */
     private function pruneStale(string $root, string $dir, array $keep): void
     {
+        $preserve = (array) config('publishing.preserve_paths', ['themes']);
         foreach (scandir($dir) ?: [] as $entry) {
             if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
                 continue; // preserve dotfiles/dot-dirs (SSL, infra, VCS)
+            }
+            // Reserved paths (e.g. /themes demo gallery) live outside the CMS
+            // build and must survive full publishes.
+            $rel = ltrim(str_replace($root, '', $dir . '/' . $entry), '/');
+            if (in_array($rel, $preserve, true)) {
+                continue;
             }
             $path = $dir . '/' . $entry;
             $relative = ltrim(str_replace($root, '', $path), '/');

@@ -136,10 +136,10 @@ class FirstPartyThemeSeeder extends Seeder
                 'name' => 'Ensō', 'layout' => 'cinematic',
                 'font' => ['display' => ['Barlow Condensed', 'sans-serif'], 'body' => ['Barlow', 'sans-serif']],
                 'color' => [
-                    'brand' => '#E34234', 'accent' => '#B12A1C',
+                    'brand' => '#D92D1E', 'accent' => '#B12A1C',
                     'canvas' => '#FBFAF7', 'surface' => '#F4F1EA', 'inverse' => '#1A1817',
-                    'textBody' => '#57534A', 'textHeading' => '#1A1817', 'textMuted' => '#9A9384', 'link' => '#B12A1C', 'textInverse' => '#FBFAF7',
-                    'borderSubtle' => '#F4F1EA', 'borderDefault' => '#E7E2D7', 'borderStrong' => '#9A9384',
+                    'textBody' => '#57534A', 'textHeading' => '#1A1817', 'textMuted' => '#787163', 'link' => '#B12A1C', 'textInverse' => '#FBFAF7',
+                    'borderSubtle' => '#F4F1EA', 'borderDefault' => '#E7E2D7', 'borderStrong' => '#787163',
                     'footerBg' => '#1A1817', 'footerColor' => '#D8D2C4',
                 ],
                 'radius' => self::ZERO_RADIUS, 'shadow' => self::NO_SHADOW, 'scale' => self::SCALE_EDITORIAL,
@@ -158,9 +158,9 @@ class FirstPartyThemeSeeder extends Seeder
                 'color' => [
                     'brand' => '#8B1E2D', 'accent' => '#6E1622',
                     'canvas' => '#FDFBF6', 'surface' => '#F5F0E6', 'inverse' => '#20120F',
-                    'textBody' => '#33261F', 'textHeading' => '#1A0F0C', 'textMuted' => '#8A7A6E', 'link' => '#8B1E2D',
+                    'textBody' => '#33261F', 'textHeading' => '#1A0F0C', 'textMuted' => '#7F7065', 'link' => '#8B1E2D',
                     'borderSubtle' => '#EFE7D9', 'borderDefault' => '#E3D9C7', 'borderStrong' => '#B7A78F',
-                    'footerBg' => '#F5F0E6', 'footerColor' => '#8A7A6E',
+                    'footerBg' => '#F5F0E6', 'footerColor' => '#7F7065',
                 ],
                 'radius' => self::ZERO_RADIUS, 'shadow' => self::NO_SHADOW,
                 'scale' => ['xs' => '0.75rem', 'sm' => '0.9rem', 'base' => '1.125rem', 'lg' => '1.35rem', 'xl' => '1.7rem', '2xl' => '2.2rem', '3xl' => '3rem', '4xl' => '3.8rem', '5xl' => '4.6rem'],
@@ -198,16 +198,16 @@ class FirstPartyThemeSeeder extends Seeder
                 'name' => 'Atelier', 'layout' => 'portfolio',
                 'font' => ['display' => ['Archivo', 'Helvetica Neue', 'sans-serif'], 'body' => ['Inter', 'sans-serif']],
                 'color' => [
-                    'brand' => '#111111', 'accent' => '#E4572E',
+                    'brand' => '#111111', 'accent' => '#D1441B',
                     'canvas' => '#FFFFFF', 'surface' => '#F4F4F4', 'inverse' => '#111111',
-                    'textBody' => '#3A3A3A', 'textHeading' => '#0A0A0A', 'textMuted' => '#8A8A8A', 'link' => '#E4572E',
+                    'textBody' => '#3A3A3A', 'textHeading' => '#0A0A0A', 'textMuted' => '#757575', 'link' => '#D1441B',
                     'borderSubtle' => '#F0F0F0', 'borderDefault' => '#E4E4E4', 'borderStrong' => '#B4B4B4',
-                    'footerBg' => '#FFFFFF', 'footerColor' => '#8A8A8A',
+                    'footerBg' => '#FFFFFF', 'footerColor' => '#757575',
                 ],
                 'radius' => self::ZERO_RADIUS, 'shadow' => self::NO_SHADOW,
                 'scale' => ['xs' => '0.72rem', 'sm' => '0.85rem', 'base' => '1rem', 'lg' => '1.3rem', 'xl' => '1.7rem', '2xl' => '2.3rem', '3xl' => '3.2rem', '4xl' => '4.4rem', '5xl' => '6rem'],
                 'lh' => ['1.6', '0.95'], 'track' => '-0.03em', 'headingWeight' => 800, 'section' => 'clamp(56px,8vw,112px)',
-                'btn' => ['bg' => '#111111', 'hoverBg' => '#E4572E', 'transform' => 'uppercase', 'tracking' => '0.1em', 'weight' => 600, 'radius' => '0'],
+                'btn' => ['bg' => '#111111', 'hoverBg' => '#D1441B', 'transform' => 'uppercase', 'tracking' => '0.1em', 'weight' => 600, 'radius' => '0'],
             ])];
     }
 
@@ -219,9 +219,9 @@ class FirstPartyThemeSeeder extends Seeder
                 'name' => 'Hearth', 'layout' => 'lifestyle',
                 'font' => ['display' => ['Fraunces', 'Georgia', 'serif'], 'body' => ['Nunito Sans', 'system-ui', 'sans-serif']],
                 'color' => [
-                    'brand' => '#C96F4C', 'accent' => '#A85536', 'success' => '#7C8B5A', 'warning' => '#D8A24A',
+                    'brand' => '#AF5735', 'accent' => '#A85536', 'success' => '#7C8B5A', 'warning' => '#D8A24A',
                     'canvas' => '#FAF6F0', 'surface' => '#F3ECE2', 'inverse' => '#3A2F28',
-                    'textBody' => '#6B5D50', 'textHeading' => '#3A2F28', 'textMuted' => '#9A8B7C', 'link' => '#A85536',
+                    'textBody' => '#6B5D50', 'textHeading' => '#3A2F28', 'textMuted' => '#7C6D5F', 'link' => '#A85536',
                     'borderSubtle' => '#F0E7DA', 'borderDefault' => '#E6DACB', 'borderStrong' => '#C9B8A5',
                     'footerBg' => '#3A2F28', 'footerColor' => '#D8CABB',
                 ],
