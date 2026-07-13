@@ -21,9 +21,10 @@ use Illuminate\Support\Facades\File;
  *
  * Per-page failures are collected in metadata and do not abort the batch.
  *
- * Scope note: archives/feeds/sitemap are NOT rebuilt here — content-level
- * staleness covers rendered pages; archive-level changes go through the
- * existing full publish.
+ * Sitemap/robots/llms.txt/feeds regenerate with every non-empty batch
+ * (FIX-B7a); when the batch contains POSTS, the blog index and
+ * category/tag/author archives (+ per-category feeds) rebuild too (§7 D1) —
+ * a post edit changes every archive that lists it.
  */
 class RepublishStaleJob implements ShouldQueue
 {
@@ -117,6 +118,29 @@ class RepublishStaleJob implements ShouldQueue
                     }
                 } catch (\Throwable $e) {
                     logger()->warning("Delta sitemap/feed regeneration failed for site {$site->id}: {$e->getMessage()}");
+                }
+            }
+
+            // §7 D1: a changed post alters every archive that lists it — rebuild
+            // the blog index + category/tag/author archives and per-category
+            // feeds in the same batch (pages don't affect archives; skipped).
+            if (array_filter($built, fn ($b) => $b['type'] === 'post') !== []) {
+                try {
+                    app(\App\Domain\Publishing\Services\ArchiveBuildService::class)->buildAll($site, $stagingPath);
+
+                    $rssGenerator = app(\App\Domain\Publishing\Services\RssFeedGenerator::class);
+                    $feedCategories = $site->categories()
+                        ->whereHas('posts', fn ($q) => $q->where('status', 'published'))
+                        ->get();
+                    foreach ($feedCategories as $feedCategory) {
+                        File::ensureDirectoryExists("{$stagingPath}/{$feedCategory->slug}");
+                        File::put(
+                            "{$stagingPath}/{$feedCategory->slug}/feed.xml",
+                            $rssGenerator->generateForCategory($site, $feedCategory)
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    logger()->warning("Delta archive rebuild failed for site {$site->id}: {$e->getMessage()}");
                 }
             }
 
