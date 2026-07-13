@@ -200,6 +200,7 @@ class PublishSiteJob implements ShouldQueue
             // Generate sitemap, robots.txt, llms.txt, 404 page, and redirects
             File::put("{$stagingPath}/sitemap.xml", $sitemapGenerator->generate($site));
             File::put("{$stagingPath}/robots.txt", $robotsGenerator->generate($site));
+            File::put("{$stagingPath}/favicon.svg", app(\App\Domain\Publishing\Services\FaviconGenerator::class)->generate($site));
             if ($llmsTxt = app(\App\Domain\Publishing\Services\LlmsTxtGenerator::class)->generate($site)) {
                 File::put("{$stagingPath}/llms.txt", $llmsTxt);
             }

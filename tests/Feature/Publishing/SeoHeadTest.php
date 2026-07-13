@@ -117,4 +117,19 @@ class SeoHeadTest extends TestCase
         $this->assertStringContainsString('"logo":{"@type":"ImageObject","url":"https://cdn.example.com/logo.png"}', $json);
         $this->assertStringContainsString('"sameAs":["https://facebook.com/acme","https://x.com/acme"]', $json);
     }
+
+    public function test_every_head_links_the_published_favicon(): void
+    {
+        $site = $this->site();
+        $page = Page::factory()->create(['site_id' => $site->id, 'slug' => 'fav', 'title' => 'Fav']);
+
+        $this->assertStringContainsString(
+            '<link rel="icon" type="image/svg+xml" href="/favicon.svg">',
+            $this->renderHead($page, $site)
+        );
+
+        $svg = app(\App\Domain\Publishing\Services\FaviconGenerator::class)->generate($site);
+        $this->assertStringStartsWith('<svg', $svg);
+        $this->assertStringContainsString(mb_strtoupper(mb_substr($site->name, 0, 1)), $svg);
+    }
 }

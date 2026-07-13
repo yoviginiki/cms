@@ -85,6 +85,7 @@ class PublishThemeDemosCommand extends Command
                 File::put("{$staging}/{$path}", $html);
             }
             $archives->buildAll($site, $staging);
+            File::put("{$staging}/favicon.svg", app(\App\Domain\Publishing\Services\FaviconGenerator::class)->generate($site));
             AssetPublisher::reset();
 
             // Root-absolute URLs → subdirectory URLs, then install
