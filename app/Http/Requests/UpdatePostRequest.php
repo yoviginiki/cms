@@ -44,6 +44,14 @@ class UpdatePostRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // _previous_paths is server-managed (delta stale-file cleanup) —
+        // never accepted from clients regardless of role.
+        $seoMeta = $this->input('seo_meta');
+        if (is_array($seoMeta) && array_key_exists('_previous_paths', $seoMeta)) {
+            unset($seoMeta['_previous_paths']);
+            $this->merge(['seo_meta' => $seoMeta]);
+        }
+
         if ($this->user() && !$this->user()->hasMinimumRole('admin')) {
             $seoMeta = $this->input('seo_meta', []);
             unset($seoMeta['head_scripts'], $seoMeta['body_scripts'], $seoMeta['custom_css']);

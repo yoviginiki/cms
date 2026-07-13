@@ -20,18 +20,24 @@ use Illuminate\Support\Str;
  */
 class ArchiveBuildService
 {
-    /** Rebuild the blog index + all archives for a site into $stagingPath. */
-    public function buildAll(Site $site, string $stagingPath): void
+    /**
+     * Rebuild the blog index + all archives for a site into $stagingPath.
+     * Returns lint warnings (never blocking) — e.g. an archive template that
+     * renders none of its category's posts, which otherwise fails silently.
+     */
+    public function buildAll(Site $site, string $stagingPath): array
     {
         $posts = $site->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
         if ($posts->isEmpty()) {
-            return;
+            return [];
         }
 
         $this->buildBlogIndex($site, $posts, $stagingPath);
-        $this->buildCategoryArchives($site, $stagingPath);
+        $warnings = $this->buildCategoryArchives($site, $stagingPath);
         $this->buildTagArchives($site, $stagingPath);
         $this->buildAuthorArchives($site, $stagingPath);
+
+        return $warnings;
     }
 
 
@@ -88,8 +94,10 @@ class ArchiveBuildService
         }
     }
 
-    public function buildCategoryArchives(Site $site, string $stagingPath): void
+    /** @return string[] lint warnings (archive templates rendering zero posts) */
+    public function buildCategoryArchives(Site $site, string $stagingPath): array
     {
+        $warnings = [];
         $vars = $this->getArchiveVars($site);
         $categories = $site->categories()->withCount('posts')->get();
         $buildService = app(BuildPageService::class);
@@ -102,6 +110,12 @@ class ArchiveBuildService
 
             if ($archiveTemplate) {
                 $html = $this->renderArchiveWithTemplate($archiveTemplate, $category, $posts, $site, $vars, $buildService);
+
+                // An empty/misconfigured archive template fails completely
+                // silently — the archive publishes with no post listing at all.
+                if ($posts->isNotEmpty() && !str_contains($html, rtrim(LocalePaths::urlPath($site, $posts->first()), '/'))) {
+                    $warnings[] = "Category '{$category->slug}': archive template '{$archiveTemplate->name}' renders none of the category's {$posts->count()} published posts (empty template or missing post-loop block?)";
+                }
             } else {
                 // Collect child categories with their posts
                 $children = $categories->where('parent_id', $category->id);
@@ -123,6 +137,8 @@ class ArchiveBuildService
             $path = "{$category->slug}/index.html";
             $this->write($stagingPath, $path, $html);
         }
+
+        return $warnings;
     }
 
     private function renderArchiveWithTemplate(

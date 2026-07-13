@@ -22,6 +22,17 @@ class PageService
     {
         if (isset($data['slug']) && $data['slug'] !== $page->slug) {
             $data['slug'] = $this->generateUniqueSlug($data['slug'], $page->site, $page->id);
+
+            // Remember the OLD published path so a delta promote can remove
+            // the stale file (§7 — full publishes prune it; deltas can't
+            // know it without this). Server-managed key, stripped from input.
+            if ($page->status === 'published') {
+                $seoMeta = $data['seo_meta'] ?? [];
+                $oldPath = \App\Domain\Publishing\Services\LocalePaths::pagePath($page->site, $page);
+                $prev = ($page->seo_meta['_previous_paths'] ?? []);
+                $seoMeta['_previous_paths'] = array_slice(array_values(array_unique(array_merge($prev, [$oldPath]))), -5);
+                $data['seo_meta'] = $seoMeta;
+            }
         }
 
         // Merge seo_meta instead of replacing — prevents losing fields
