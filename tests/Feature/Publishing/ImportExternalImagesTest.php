@@ -88,4 +88,27 @@ class ImportExternalImagesTest extends TestCase
         $this->assertFalse((bool) $post->fresh()->needs_republish);
         Http::assertNothingSent();
     }
+
+    public function test_rewrites_grid_position_configs(): void
+    {
+        Http::fake(['images.pexels.com/*' => Http::response($this->jpeg(), 200, ['Content-Type' => 'image/jpeg'])]);
+
+        $grid = \App\Models\Grid::create([
+            'site_id' => $this->site->id, 'name' => 'G', 'slug' => 'g-' . uniqid(),
+            'col_tracks' => '1fr', 'row_tracks' => 'auto', 'areas' => '"main"', 'is_preset' => false,
+        ]);
+        $pos = \App\Models\GridPosition::create([
+            'grid_id' => $grid->id, 'area_name' => 'main', 'label' => 'Main', 'type' => 'fixed',
+            'config_json' => ['background' => ['image' => 'https://images.pexels.com/photos/9/z.jpeg'], 'title' => 'keep'],
+        ]);
+        Page::factory()->create(['site_id' => $this->site->id, 'status' => 'published', 'needs_republish' => false]);
+
+        $this->artisan('assets:import-external')->assertExitCode(0);
+
+        $config = $pos->fresh()->config_json;
+        $this->assertStringContainsString('/serve', $config['background']['image']);
+        $this->assertSame('keep', $config['title']);
+        // grid change flags the site's published pages for republish
+        $this->assertTrue((bool) Page::where('site_id', $this->site->id)->first()->needs_republish);
+    }
 }

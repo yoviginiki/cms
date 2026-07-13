@@ -105,9 +105,72 @@ class ImportExternalImagesCommand extends Command
                     }
                 }
 
-                if ($this->imported !== [] || $rewrittenFeatured > 0 || $rewrittenBlocks > 0) {
+                // Grid position configs + per-page overrides (grid-based
+                // themes keep their imagery here, not in blocks)
+                $rewrittenGrid = 0;
+                $gridPositions = \App\Models\GridPosition::query()
+                    ->whereIn('grid_id', \App\Models\Grid::where('site_id', $site->id)->select('id'))
+                    ->where(function ($q) {
+                        foreach (AssetService::IMPORT_ALLOWED_HOSTS as $host) {
+                            $q->orWhereRaw('config_json::text LIKE ?', ["%{$host}%"]);
+                        }
+                    });
+                foreach ($gridPositions->cursor() as $position) {
+                    $config = $position->config_json ?? [];
+                    $changed = false;
+                    array_walk_recursive($config, function (&$value) use ($assets, $site, $dry, &$changed) {
+                        if (!is_string($value)) {
+                            return;
+                        }
+                        $new = $this->resolve($assets, $site, $value, null, $dry);
+                        if ($new !== null && $new !== $value) {
+                            $value = $new;
+                            $changed = true;
+                        }
+                    });
+                    if ($changed && !$dry) {
+                        \App\Models\GridPosition::whereKey($position->id)->toBase()->update(['config_json' => json_encode($config)]);
+                    }
+                    if ($changed) {
+                        $rewrittenGrid++;
+                    }
+                }
+                $overrides = \App\Models\PositionOverride::query()
+                    ->whereIn('grid_position_id', \App\Models\GridPosition::whereIn('grid_id', \App\Models\Grid::where('site_id', $site->id)->select('id'))->select('id'))
+                    ->where(function ($q) {
+                        foreach (AssetService::IMPORT_ALLOWED_HOSTS as $host) {
+                            $q->orWhereRaw('content_json::text LIKE ?', ["%{$host}%"]);
+                        }
+                    });
+                foreach ($overrides->cursor() as $override) {
+                    $content = $override->content_json ?? [];
+                    $changed = false;
+                    array_walk_recursive($content, function (&$value) use ($assets, $site, $dry, &$changed) {
+                        if (!is_string($value)) {
+                            return;
+                        }
+                        $new = $this->resolve($assets, $site, $value, null, $dry);
+                        if ($new !== null && $new !== $value) {
+                            $value = $new;
+                            $changed = true;
+                        }
+                    });
+                    if ($changed && !$dry) {
+                        \App\Models\PositionOverride::whereKey($override->id)->toBase()->update(['content_json' => json_encode($content)]);
+                    }
+                    if ($changed) {
+                        $rewrittenGrid++;
+                    }
+                }
+                if ($rewrittenGrid > 0 && !$dry) {
+                    // grid changes affect every page rendered through the grid
+                    \App\Models\Page::where('site_id', $site->id)->where('status', 'published')
+                        ->update(['needs_republish' => true, 'needs_republish_reason' => 'External images imported to library (grid)']);
+                }
+
+                if ($this->imported !== [] || $rewrittenFeatured > 0 || $rewrittenBlocks > 0 || $rewrittenGrid > 0) {
                     $this->info(($dry ? '[dry-run] ' : '') . "{$site->name}: " . count($this->imported)
-                        . " image(s) imported, {$rewrittenFeatured} featured + {$rewrittenBlocks} block(s) rewritten");
+                        . " image(s) imported, {$rewrittenFeatured} featured + {$rewrittenBlocks} block(s) + {$rewrittenGrid} grid config(s) rewritten");
                 }
             }
         }
