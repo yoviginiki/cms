@@ -34,8 +34,10 @@ export default function IssueStudioPage() {
   const interviewing = session.status === 'interviewing';
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-7.5rem)] min-h-[480px]">
-      <div className={`flex-1 min-w-0 flex flex-col ${interviewing ? 'border border-base-300' : 'overflow-y-auto'}`}>
+    // Mobile: stacked column (chat gets the space, brief below, capped);
+    // lg+: original two-pane layout with the fixed 340px brief sidebar.
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-7.5rem)] min-h-[480px]">
+      <div className={`flex-1 min-w-0 min-h-0 flex flex-col ${interviewing ? 'border border-base-300' : 'overflow-y-auto'}`}>
         {interviewing ? (
           <>
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-base-300">
@@ -56,7 +58,7 @@ export default function IssueStudioPage() {
         )}
       </div>
 
-      <div className="w-[340px] shrink-0 overflow-y-auto">
+      <div className="w-full max-h-[32vh] lg:w-[340px] lg:max-h-none shrink-0 overflow-y-auto">
         <BriefCard brief={session.brief} siteId={siteId} />
       </div>
 
