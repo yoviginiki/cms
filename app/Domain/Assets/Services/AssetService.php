@@ -5,6 +5,7 @@ namespace App\Domain\Assets\Services;
 use App\Models\Asset;
 use App\Models\Site;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -12,11 +13,92 @@ use Intervention\Image\ImageManager;
 
 class AssetService
 {
+    /**
+     * Hosts external images may be imported from (site generation, demo
+     * content). Deliberately narrow — importFromUrl fetches server-side, so
+     * an open list would be an SSRF vector.
+     */
+    public const IMPORT_ALLOWED_HOSTS = [
+        'loremflickr.com',
+        'images.pexels.com',
+        'picsum.photos',
+        'fastly.picsum.photos',
+    ];
+
+    private const IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+
     private ImageManager $imageManager;
 
     public function __construct()
     {
         $this->imageManager = new ImageManager(new Driver());
+    }
+
+    /**
+     * Import an external image into the media library (F-pipeline: generated
+     * sites should reference library assets — WebP variants, dimensions, alt —
+     * instead of hotlinking). Returns null on any failure so callers can fall
+     * back to the external URL; checksum dedupe in upload() makes re-imports
+     * (idempotent re-generation) reuse the existing asset.
+     */
+    public function importFromUrl(Site $site, string $url, ?string $altText = null, ?string $name = null): ?Asset
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if (parse_url($url, PHP_URL_SCHEME) !== 'https' || !in_array($host, self::IMPORT_ALLOWED_HOSTS, true)) {
+            return null;
+        }
+
+        $tmp = null;
+        try {
+            $response = Http::timeout(30)
+                ->connectTimeout(10)
+                ->withUserAgent('Stillopress-Importer/1.0')
+                ->get($url);
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $body = $response->body();
+            if ($body === '' || strlen($body) > self::IMPORT_MAX_BYTES) {
+                return null;
+            }
+
+            $tmp = tempnam(sys_get_temp_dir(), 'img_import_');
+            file_put_contents($tmp, $body);
+
+            // Trust the bytes, not the headers: must decode as a real image.
+            $size = @getimagesize($tmp);
+            if (!$size || empty($size['mime']) || !str_starts_with($size['mime'], 'image/')) {
+                return null;
+            }
+            $ext = match ($size['mime']) {
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/gif' => 'gif',
+                'image/webp' => 'webp',
+                default => null,
+            };
+            if (!$ext) {
+                return null;
+            }
+
+            $filename = ($name ? Str::slug($name) : 'imported-' . substr(md5($url), 0, 8)) . ".{$ext}";
+            $asset = $this->upload($site, new UploadedFile($tmp, $filename, $size['mime'], null, true));
+
+            if ($altText && !$asset->alt_text) {
+                $asset->update(['alt_text' => $altText]);
+            }
+
+            return $asset;
+        } catch (\Throwable $e) {
+            logger()->warning("Image import failed for {$url}: {$e->getMessage()}");
+
+            return null;
+        } finally {
+            if ($tmp) {
+                @unlink($tmp);
+            }
+        }
     }
 
     public function upload(Site $site, UploadedFile $file): Asset

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Sites\Services;
 
+use App\Domain\Assets\Services\AssetService;
 use App\Domain\Blocks\Services\BlockService;
 use App\Domain\Pages\Services\PageService;
 use App\Domain\Posts\Services\PostService;
@@ -20,7 +21,41 @@ class StarterTemplateService
         private BlockService $blockService,
         private PostService $postService,
         private AiSiteContentService $aiContent,
+        private AssetService $assetService,
     ) {}
+
+    /** Site whose media library receives imported images during apply(). */
+    private ?Site $importSite = null;
+
+    /**
+     * Resolve a generated image to a media-library asset (serve URL +
+     * asset_id) by importing the external source at generation time; falls
+     * back to the external URL when import isn't possible. Library-backed
+     * images get WebP/responsive variants, intrinsic dimensions, and alt
+     * at publish — hotlinked ones get none of that.
+     */
+    private function importedImage(string $keywords, int $lock, string $alt = ''): array
+    {
+        $external = $this->aiContent->imageUrl($keywords, $lock);
+        if (!$this->importSite) {
+            return ['url' => $external, 'asset_id' => null];
+        }
+
+        $asset = $this->assetService->importFromUrl(
+            $this->importSite,
+            $external,
+            $alt ?: ucwords(str_replace([',', '-'], ' ', $keywords)),
+            trim($keywords . '-' . $lock)
+        );
+        if (!$asset) {
+            return ['url' => $external, 'asset_id' => null];
+        }
+
+        return [
+            'url' => "/api/v1/sites/{$this->importSite->id}/assets/{$asset->id}/serve",
+            'asset_id' => $asset->id,
+        ];
+    }
 
     /**
      * Get all available starter templates.
@@ -71,6 +106,9 @@ class StarterTemplateService
         if (!$template) {
             return ['success' => false, 'message' => 'Unknown template: ' . $templateId, 'pages_created' => 0];
         }
+
+        // Generated images import into this site's media library (WebP/variants)
+        $this->importSite = $site;
 
         // "Full Site" + a named business type → AI-tailored, industry-specific copy
         // (null → generic placeholder content).
@@ -448,7 +486,7 @@ class StarterTemplateService
                 'title' => (string) ($it['title'] ?? 'Item'),
                 'subtitle' => (string) ($it['subtitle'] ?? ''),
                 'content' => '<p>' . (string) ($it['desc'] ?? '') . '</p>',
-                'images' => $img ? [$this->aiContent->imageUrl($img, 20 + $i)] : [],
+                'images' => $img ? [$this->importedImage($img, 20 + $i, (string) ($it['title'] ?? ''))['url']] : [],
             ];
         }
 
@@ -471,7 +509,7 @@ class StarterTemplateService
         $images = [];
         if ($img) {
             for ($i = 0; $i < 6; $i++) {
-                $images[] = $this->aiContent->imageUrl($img, 10 + $i);
+                $images[] = $this->importedImage($img, 10 + $i)['url'];
             }
         }
 
@@ -525,8 +563,11 @@ class StarterTemplateService
 
     private function imageBlock(string $keywords, int $lock, string $alt): array
     {
+        $img = $this->importedImage($keywords, $lock, $alt);
+
         return $this->block('image', [
-            'url' => $this->aiContent->imageUrl($keywords, $lock),
+            'url' => $img['url'],
+            'asset_id' => $img['asset_id'],
             'alt' => $alt, 'size' => 'large',
         ]);
     }
