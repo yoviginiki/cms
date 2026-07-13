@@ -68,6 +68,11 @@ export default function PageEditor() {
     queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
   });
   const publicBase = siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://${siteData?.slug || ''}.ensodo.eu`;
+  // The homepage publishes at the site root, not /{slug} — live links must
+  // check homepage status or they 404 (e.g. /home does not exist).
+  const homepageId = (siteData?.settings?.homepage_id as string) || '';
+  const isHomepage = page ? (homepageId ? page.id === homepageId : page.slug === 'home') : false;
+  const livePath = isHomepage ? '/' : `/${page?.slug || ''}/`;
 
   // Layouts
   const { data: layoutsList } = useQuery<any[]>({
@@ -429,7 +434,7 @@ export default function PageEditor() {
             {(isDirty || magStore.isDirty) && <span className="w-1.5 h-1.5 rounded-full bg-warning-content" />}
           </button>
           <PublishButton siteId={siteId} publicBase={publicBase} />
-          <a href={`${publicBase}/${page?.slug || ''}`} target="_blank" rel="noopener"
+          <a href={`${publicBase}${livePath}`} target="_blank" rel="noopener"
             className="btn btn-sm btn-ghost text-[12px] gap-1" title="View published page">
             <Globe size={13} /> Live
           </a>
@@ -913,6 +918,10 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
     queryKey: ['site', siteId],
     queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
   });
+  // Homepage publishes at the site root — URL hints/links must not show /{slug}
+  const panelHomepageId = (site?.settings?.homepage_id as string) || '';
+  const panelIsHomepage = page ? (panelHomepageId ? page.id === panelHomepageId : page.slug === 'home') : false;
+  const panelLivePath = panelIsHomepage ? '/' : `/${page?.slug || ''}/`;
   const [saving, setSaving] = useState(false);
   const [localMeta, setLocalMeta] = useState<Record<string, any>>(page?.seo_meta || {});
   const metaDirtyRef = useRef(false);
@@ -978,7 +987,7 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
         </label>
         <input type="text" defaultValue={page?.slug || ''} className="input input-bordered input-sm w-full text-[12px] font-mono"
           onBlur={e => { if (e.target.value !== page?.slug) saveSetting('slug', e.target.value); }} />
-        <p className="text-[10px] text-gray-400 mt-0.5">{publicBase}/{page?.slug || ''}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">{publicBase}{panelLivePath}{panelIsHomepage && <span className="text-primary"> (homepage)</span>}</p>
       </div>
 
       {/* Status */}
@@ -1176,7 +1185,7 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
           titleTemplate={site?.seo_defaults?.title_template}
           siteName={site?.name}
           urlBase={publicBase}
-          path={`/${page?.slug || ''}`}
+          path={panelLivePath}
         />
       </div>
 
