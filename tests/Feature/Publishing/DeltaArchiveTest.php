@@ -4,6 +4,7 @@ namespace Tests\Feature\Publishing;
 
 use App\Domain\Publishing\Jobs\RepublishStaleJob;
 use App\Domain\Publishing\Services\ArchiveBuildService;
+use App\Domain\Publishing\Services\AssetPublisher;
 use App\Domain\Publishing\Services\BuildPageService;
 use App\Models\Category;
 use App\Models\Deployment;
@@ -86,5 +87,50 @@ class DeltaArchiveTest extends TestCase
         $this->assertStringContainsString('<html lang="de">', file_get_contents("{$staging}/blog/index.html"));
 
         File::deleteDirectory($staging);
+    }
+
+    public function test_archive_asset_urls_are_rewritten_to_static_paths(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('assets');
+        $site = $this->makeSite();
+        $img = \Illuminate\Http\UploadedFile::fake()->image('feat.jpg', 800, 600);
+        $path = "sites/{$site->id}/assets/feat.jpg";
+        \Illuminate\Support\Facades\Storage::disk('assets')->put($path, file_get_contents($img->getRealPath()));
+        $asset = \App\Models\Asset::factory()->create([
+            'site_id' => $site->id, 'storage_path' => $path,
+            'mime_type' => 'image/jpeg', 'checksum' => str_repeat('b', 64), 'variants' => [],
+        ]);
+        $category = Category::factory()->create(['site_id' => $site->id, 'slug' => 'notes']);
+        Post::factory()->published()->create([
+            'site_id' => $site->id, 'category_id' => $category->id,
+            'featured_image' => "/api/v1/sites/{$site->id}/assets/{$asset->id}/serve",
+        ]);
+        // Mirror the live setup: archive template with a post-loop showing images
+        $tpl = \App\Models\ThemeTemplate::create([
+            'site_id' => $site->id, 'name' => 'Archive', 'slug' => 'archive-test',
+            'type' => 'archive', 'is_default' => true, 'created_by' => $this->owner->id,
+        ]);
+        app(\App\Domain\Blocks\Services\BlockService::class)->syncBlocks($tpl, [[
+            'type' => 'post-loop', 'level' => 'module', 'order' => 0, 'style' => [], 'children' => [],
+            'data' => ['layout' => 'list', 'showImage' => true, 'limit' => 10],
+        ]]);
+
+        $target = storage_path('framework/testing/arch-target-' . uniqid());
+        $staging = storage_path('framework/testing/arch-staging-' . uniqid());
+        File::ensureDirectoryExists($target);
+        AssetPublisher::reset();
+        AssetPublisher::setDeployTarget($target);
+        app(ArchiveBuildService::class)->buildAll($site, $staging);
+        AssetPublisher::reset();
+
+        $html = file_get_contents("{$staging}/notes/index.html");
+        // archives must ship hashed static asset URLs, never API serve URLs
+        // (the analytics beacon legitimately keeps an absolute /api/v1 URL)
+        $this->assertStringNotContainsString("assets/{$asset->id}/serve", $html);
+        $this->assertStringContainsString('/assets/files/' . str_repeat('b', 64) . '.jpg', $html);
+        $this->assertFileExists("{$target}/assets/files/" . str_repeat('b', 64) . '.jpg');
+
+        File::deleteDirectory($staging);
+        File::deleteDirectory($target);
     }
 }

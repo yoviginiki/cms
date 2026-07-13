@@ -34,6 +34,20 @@ class ArchiveBuildService
         $this->buildAuthorArchives($site, $stagingPath);
     }
 
+
+    /**
+     * Write an archive file, first rewriting /api/v1 asset serve URLs to
+     * hashed static paths (and copying the files) — archives render outside
+     * BuildPageService::build(), so they'd otherwise ship API URLs that 404
+     * on static tenant domains (e.g. post-loop featured images).
+     */
+    private function write(string $stagingPath, string $path, string $html): void
+    {
+        $html = AssetPublisher::rewriteHtml($html);
+        File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
+        File::put("{$stagingPath}/{$path}", $html);
+    }
+
     public function getArchiveVars(Site $site): array
     {
         $themeConfig = $site->theme?->config ?? [];
@@ -70,8 +84,7 @@ class ArchiveBuildService
             ]))->render();
 
             $path = $page === 1 ? 'blog/index.html' : "blog/page/{$page}/index.html";
-            File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
-            File::put("{$stagingPath}/{$path}", $html);
+            $this->write($stagingPath, $path, $html);
         }
     }
 
@@ -108,8 +121,7 @@ class ArchiveBuildService
             }
 
             $path = "{$category->slug}/index.html";
-            File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
-            File::put("{$stagingPath}/{$path}", $html);
+            $this->write($stagingPath, $path, $html);
         }
     }
 
@@ -175,8 +187,7 @@ class ArchiveBuildService
             ]))->render();
 
             $path = "tag/{$tag->slug}/index.html";
-            File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
-            File::put("{$stagingPath}/{$path}", $html);
+            $this->write($stagingPath, $path, $html);
         }
     }
 
@@ -203,8 +214,7 @@ class ArchiveBuildService
 
             $slug = Str::slug($author->name);
             $path = "author/{$slug}/index.html";
-            File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
-            File::put("{$stagingPath}/{$path}", $html);
+            $this->write($stagingPath, $path, $html);
         }
     }
 }
