@@ -4,18 +4,29 @@ Ensodo CMS Platform documentation. Available online at `https://sys.ensodo.eu/do
 
 ## User Guides (how to do things in the CMS)
 
+Editing:
+- [The Block Editor](GUIDE-BLOCK-EDITOR.md) -- Section→Row→Column→Module, context menu, presets, responsive controls, revisions
+- [The Canvas Editor](GUIDE-CANVAS-EDITOR.md) -- freeform section canvases, website/single types, mobile auto-stack, mode switching
+- [Magazine Editor Guide](magazine-editor-guide.md) -- the freeform DTP editor
+- [The Library & Global Sections](GUIDE-LIBRARY-GLOBALS.md) -- save/reuse designs, edit-once globals, headers & footers
+- [Style Presets](GUIDE-STYLE-PRESETS.md) -- element + option-group presets, defaults, tokens, design-system export
+- [Menus](GUIDE-MENUS.md) -- navigation, nesting, locations, draft filtering
+- [The Media Library](GUIDE-MEDIA-LIBRARY.md) -- uploads, WebP variants, alt text, dedup, usage
+- [Forms](GUIDE-FORMS.md) -- contact form block, submissions, email delivery
+- [Languages & Translations](GUIDE-TRANSLATIONS.md) -- locales, hreflang, language switcher
+- [Publishing & Deploys](GUIDE-PUBLISHING.md) -- auto-publish, quick vs full, staleness, deploy log & lint, rollback
+- [Analytics](GUIDE-ANALYTICS.md) -- built-in page views/referrers + optional Google Analytics
+
+SEO & AI:
 - [SEO in Stillopress](SEO-IN-STILLOPRESS.md) -- what's automatic, per-page SEO panel, site settings, publish-time lint
 - [Writing Content AI Assistants Love to Cite](GEO-AEO-WRITING.md) -- answer-first pattern, FAQ blocks, llms.txt/feeds/AI-crawler settings
 - [Structured Data Reference](STRUCTURED-DATA-REFERENCE.md) -- every JSON-LD node emitted, when, and from which fields
-- [Choosing a Theme](THEMES-CHOOSING.md) -- the five first-party themes and customization
+
+Themes & AI generation:
+- [Choosing a Theme](THEMES-CHOOSING.md) -- the first-party themes and customization (live demos: stillopress.com/themes)
 - [Theme Wizard](THEME-WIZARD.md) -- creating a theme from a reference site or a conversation
-- [Magazine Editor Guide](magazine-editor-guide.md) -- the freeform DTP editor
 - [Issue Studio](issue-studio.md) -- conversational AI magazine creation
 - [Page Generation Guide](page-generation-guide.md) -- AI full-site generation
-
-### How-to backlog (guides not yet written)
-
-User-facing guides that should exist but don't: **block editor basics** (Section→Row→Column→Module), **canvas editor**, **the Library & global sections**, **style presets**, **menus**, **media library**, **forms**, **languages & translations**, **analytics**, **publishing & deploys for non-admins**. Tracked as the F5 docs backlog.
 
 ## Architecture & Setup
 
