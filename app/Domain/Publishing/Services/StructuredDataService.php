@@ -69,6 +69,9 @@ class StructuredDataService
     public function generateGraph(Page|Post $content, Site $site, bool $isHomepage = false): string
     {
         $nodes = [];
+        // Site-level identity node (F1): WebSite + publisher. SearchAction is
+        // deliberately omitted until static search exists (spec-conditional).
+        $nodes[] = $this->nodeWebSite($site);
         if ($content instanceof Post) {
             $nodes[] = $this->nodeForPost($content, $site);
         } else {
@@ -121,9 +124,65 @@ class StructuredDataService
             'publisher' => $this->nodePublisher($site),
         ];
         if ($post->author?->name) $node['author'] = ['@type' => 'Person', 'name' => $post->author->name];
-        if ($post->featured_image) $node['image'] = $post->featured_image;
+        if ($post->featured_image) $node['image'] = $this->imageNode($site, $post->featured_image);
         if ($post->excerpt) $node['description'] = $post->excerpt;
         return $node;
+    }
+
+    /** Site-level WebSite identity node (F1). */
+    private function nodeWebSite(Site $site): array
+    {
+        return [
+            '@type' => 'WebSite',
+            'name' => $site->name,
+            'url' => $this->getSiteUrl($site),
+            'publisher' => $this->nodePublisher($site),
+        ];
+    }
+
+    /**
+     * Image value for schema: library assets become ImageObject with real
+     * dimensions (F1); external URLs stay plain strings.
+     */
+    private function imageNode(Site $site, string $url): array|string
+    {
+        if (preg_match('#/assets/([0-9a-f-]{36})/serve#i', $url, $m)) {
+            $asset = \App\Models\Asset::find($m[1]);
+            if ($asset && !empty($asset->dimensions['width'])) {
+                return [
+                    '@type' => 'ImageObject',
+                    'url' => $url,
+                    'width' => (int) $asset->dimensions['width'],
+                    'height' => (int) ($asset->dimensions['height'] ?? 0),
+                ];
+            }
+        }
+
+        return $url;
+    }
+
+    /**
+     * Archive graph (F1): CollectionPage + ItemList of the listed posts +
+     * a Home → archive breadcrumb. Injected into archive heads at publish.
+     */
+    public function generateArchiveGraph(Site $site, string $name, string $path, $posts): string
+    {
+        $base = rtrim($this->getSiteUrl($site), '/');
+        $url = $base . $path;
+        $items = [];
+        foreach (array_values($posts instanceof \Illuminate\Support\Collection ? $posts->all() : (array) $posts) as $i => $post) {
+            $items[] = ['@type' => 'ListItem', 'position' => $i + 1, 'url' => $this->contentUrl($site, $post), 'name' => $post->title];
+        }
+
+        return $this->script(['@context' => 'https://schema.org', '@graph' => [
+            $this->nodeWebSite($site),
+            ['@type' => 'CollectionPage', 'name' => $name, 'url' => $url,
+             'mainEntity' => ['@type' => 'ItemList', 'numberOfItems' => count($items), 'itemListElement' => $items]],
+            ['@type' => 'BreadcrumbList', 'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => $base . '/'],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => $name, 'item' => $url],
+            ]],
+        ]]);
     }
 
     /** Publisher identity from site settings — logo + social profiles when configured (F2). */

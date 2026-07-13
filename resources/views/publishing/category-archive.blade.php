@@ -10,6 +10,7 @@
     @if(!empty($designTokensCss))<style>{!! $designTokensCss !!}</style>@endif
     @if(!empty($criticalCss))<style>{!! $criticalCss !!}</style>@endif
     @if(!empty($customCss))<style>{!! $customCss !!}</style>@endif
+    {!! $archiveJsonLd ?? '' !!}
 </head>
 <body>
     <header role="banner">@if(!empty($navigation)){!! $navigation !!}@endif</header>

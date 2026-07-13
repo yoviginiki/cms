@@ -11,6 +11,7 @@
     <link rel="alternate" type="application/rss+xml" title="{{ $site->name }} RSS" href="{{ $baseUrl }}/feed.xml">
     @if(!empty($criticalCss))<style>{!! $criticalCss !!}</style>@endif
     @if(!empty($customCss))<style>{!! $customCss !!}</style>@endif
+    {!! $archiveJsonLd ?? '' !!}
 </head>
 <body>
     <header role="banner">@if(!empty($navigation)){!! $navigation !!}@endif</header>

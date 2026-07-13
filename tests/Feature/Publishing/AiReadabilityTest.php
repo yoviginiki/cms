@@ -192,4 +192,51 @@ class AiReadabilityTest extends TestCase
         app(\App\Domain\Pages\Services\PageService::class)->updatePage($page, ['status' => 'published']);
         $this->assertNull($page->fresh()->content_modified_at);
     }
+
+    // ─── F1 leftovers: WebSite node, ImageObject dims, archive CollectionPage ───
+
+    public function test_graph_includes_website_node(): void
+    {
+        $site = $this->makeSite();
+        $post = $this->postWithBlocks($site);
+
+        $json = app(\App\Domain\Publishing\Services\SeoService::class)->generatePageHead($post, $site);
+        $this->assertStringContainsString('"@type":"WebSite"', $json);
+    }
+
+    public function test_featured_image_becomes_image_object_with_dimensions(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('assets');
+        $site = $this->makeSite();
+        $asset = \App\Models\Asset::factory()->create([
+            'site_id' => $site->id, 'mime_type' => 'image/jpeg',
+            'dimensions' => ['width' => 1280, 'height' => 720],
+        ]);
+        $post = Post::factory()->create([
+            'site_id' => $site->id, 'category_id' => null, 'status' => 'published',
+            'featured_image' => "/api/v1/sites/{$site->id}/assets/{$asset->id}/serve",
+        ]);
+
+        $json = app(StructuredDataService::class)->generateForPost($post->fresh(), $site);
+        $this->assertStringContainsString('"image":{"@type":"ImageObject"', $json);
+        $this->assertStringContainsString('"width":1280', $json);
+        $this->assertStringContainsString('"height":720', $json);
+    }
+
+    public function test_archives_emit_collection_page_and_item_list(): void
+    {
+        $site = $this->makeSite();
+        $category = Category::factory()->create(['site_id' => $site->id, 'name' => 'Guides', 'slug' => 'guides']);
+        $post = $this->postWithBlocks($site, $category);
+
+        $staging = storage_path('framework/testing/schema-' . uniqid());
+        app(\App\Domain\Publishing\Services\ArchiveBuildService::class)->buildAll($site, $staging);
+
+        $html = file_get_contents("{$staging}/guides/index.html");
+        $this->assertStringContainsString('"@type":"CollectionPage"', $html);
+        $this->assertStringContainsString('"@type":"ItemList"', $html);
+        $this->assertStringContainsString($post->title, $html);
+        $this->assertStringContainsString('"@type":"CollectionPage"', file_get_contents("{$staging}/blog/index.html"));
+        \Illuminate\Support\Facades\File::deleteDirectory($staging);
+    }
 }

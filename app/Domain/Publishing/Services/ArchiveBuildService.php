@@ -87,6 +87,7 @@ class ArchiveBuildService
                 'posts' => $pagePosts,
                 'currentPage' => $page,
                 'totalPages' => $totalPages,
+                'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, 'Blog', $page === 1 ? '/blog/' : "/blog/page/{$page}/", $pagePosts),
             ]))->render();
 
             $path = $page === 1 ? 'blog/index.html' : "blog/page/{$page}/index.html";
@@ -109,11 +110,15 @@ class ArchiveBuildService
             $archiveTemplate = ThemeTemplate::resolveForArchive($site->id, $category->id);
 
             if ($archiveTemplate) {
-                $html = $this->renderArchiveWithTemplate($archiveTemplate, $category, $posts, $site, $vars, $buildService);
+                $html = $this->renderArchiveWithTemplate($archiveTemplate, $category, $posts, $site, $vars, $buildService,
+                    app(StructuredDataService::class)->generateArchiveGraph($site, $category->name, "/{$category->slug}/", $posts));
 
                 // An empty/misconfigured archive template fails completely
                 // silently — the archive publishes with no post listing at all.
-                if ($posts->isNotEmpty() && !str_contains($html, rtrim(LocalePaths::urlPath($site, $posts->first()), '/'))) {
+                // Check the BODY only: the head's CollectionPage JSON-LD always
+                // lists the posts and would mask an empty template.
+                $body = substr($html, strpos($html, '</head>') ?: 0);
+                if ($posts->isNotEmpty() && !str_contains($body, rtrim(LocalePaths::urlPath($site, $posts->first()), '/'))) {
                     $warnings[] = "Category '{$category->slug}': archive template '{$archiveTemplate->name}' renders none of the category's {$posts->count()} published posts (empty template or missing post-loop block?)";
                 }
             } else {
@@ -131,6 +136,7 @@ class ArchiveBuildService
                     'category' => $category,
                     'posts' => $posts,
                     'childCategories' => $childData,
+                    'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $category->name, "/{$category->slug}/", $posts),
                 ]))->render();
             }
 
@@ -148,6 +154,7 @@ class ArchiveBuildService
         Site $site,
         array $vars,
         BuildPageService $buildService,
+        string $extraHead = '',
     ): string {
         // Set archive context for dynamic blocks
         $archiveContext = [
@@ -169,7 +176,7 @@ class ArchiveBuildService
         $renderedBlocks = $buildService->renderBlocksWithContext($templateBlocks, $site, $archiveContext);
 
         $themeConfig = $site->theme?->config ?? [];
-        $headContent = '<title>' . e($category->name) . ' | ' . e($site->name) . '</title>';
+        $headContent = '<title>' . e($category->name) . ' | ' . e($site->name) . '</title>' . $extraHead;
 
         return View::make('publishing.layout', array_merge($vars, [
             'headContent' => $headContent,
@@ -200,6 +207,7 @@ class ArchiveBuildService
             $html = View::make('publishing.tag-archive', array_merge($vars, [
                 'tag' => $tag,
                 'posts' => $posts,
+                'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $tag->name, "/tag/{$tag->slug}/", $posts),
             ]))->render();
 
             $path = "tag/{$tag->slug}/index.html";
@@ -226,6 +234,7 @@ class ArchiveBuildService
             $html = View::make('publishing.author-archive', array_merge($vars, [
                 'author' => $author,
                 'posts' => $posts,
+                'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $author->name, '/author/' . Str::slug($author->name) . '/', $posts),
             ]))->render();
 
             $slug = Str::slug($author->name);
