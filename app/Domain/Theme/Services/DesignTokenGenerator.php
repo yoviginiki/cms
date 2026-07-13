@@ -370,16 +370,16 @@ class DesignTokenGenerator
     {
         return [
             // Colors
-            'color-primary' => '#3b82f6',
+            'color-primary' => '#1b6df5', // was #3b82f6 — 3.68:1 on white, WCAG AA fail
             'color-primary-dark' => '#2563eb',
             'color-primary-light' => '#93c5fd',
             'color-secondary' => '#64748b',
-            'color-accent' => '#f59e0b',
+            'color-accent' => '#a26907', // was #f59e0b — 2.15:1 on white, WCAG AA fail
             'color-text' => '#1e293b',
             'color-heading' => '#0f172a',
             'color-text-muted' => '#64748b',
             'color-text-inverse' => '#ffffff',
-            'color-link' => '#3b82f6',
+            'color-link' => '#1b6df5', // was #3b82f6 — 3.68:1 on white, WCAG AA fail
             'color-link-hover' => '#2563eb',
             'text-decoration-link' => 'none',
             'text-decoration-link-hover' => 'underline',
