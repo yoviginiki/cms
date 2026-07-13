@@ -61,10 +61,10 @@ class RepublishStaleJob implements ShouldQueue
             ]);
             File::ensureDirectoryExists($stagingPath);
 
-            // Asset variants publish straight to the deploy target during
-            // rendering (content-hashed, additive — safe), same as full publish
+            // Assets publish into the staging tree (same as full publish) —
+            // deployPartial's per-file merge then carries them to the docroot.
             AssetPublisher::reset();
-            AssetPublisher::setDeployTarget($this->resolveDeployTarget($site));
+            AssetPublisher::setDeployTarget($stagingPath);
 
             $targets = $deployment->metadata['targets'] ?? ['pages' => [], 'posts' => []];
             $built = [];
@@ -209,17 +209,6 @@ class RepublishStaleJob implements ShouldQueue
         ]);
     }
 
-    private function resolveDeployTarget($site): string
-    {
-        if ($site->custom_domain) {
-            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
-
-            return $tenantBase . '/' . $safeDomain . '/public_html';
-        }
-
-        return config('publishing.public_path') . '/' . $site->slug;
-    }
 
     // Same path logic as PublishSiteJob (single source of truth: LocalePaths)
     private function getPagePath($site, Page $page): string

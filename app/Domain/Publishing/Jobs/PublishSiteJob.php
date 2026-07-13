@@ -101,17 +101,12 @@ class PublishSiteJob implements ShouldQueue
             $this->updateStatus('building', 'Starting build...');
             File::ensureDirectoryExists($stagingPath);
 
-            // Set asset deploy target for this site's domain
-            $deployTarget = null;
-            if ($site->custom_domain) {
-                $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-                $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
-                $deployTarget = $tenantBase . '/' . $safeDomain . '/public_html';
-            } else {
-                $deployTarget = config('publishing.public_path') . '/' . $site->slug;
-            }
+            // Assets publish INTO THE STAGING TREE so they ship with the build.
+            // Writing them straight to the docroot (the old behavior) lost them
+            // on every deploy: copyDeploy prunes files absent from staging, and
+            // the symlink strategy swaps the docroot away entirely.
             AssetPublisher::reset();
-            AssetPublisher::setDeployTarget($deployTarget);
+            AssetPublisher::setDeployTarget($stagingPath);
 
             // Compile theme CSS artifacts (before page rendering)
             $this->compileThemeArtifacts($site, $stagingPath);
