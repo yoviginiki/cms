@@ -41,6 +41,15 @@ class PostService
     {
         if (isset($data['slug']) && $data['slug'] !== $post->slug) {
             $data['slug'] = $this->generateUniqueSlug($data['slug'], $post->site, $post->id);
+
+            // Remember the OLD published path for delta stale-file cleanup (§7)
+            if ($post->status === 'published') {
+                $seoMeta = $data['seo_meta'] ?? [];
+                $oldPath = \App\Domain\Publishing\Services\LocalePaths::postPath($post->site, $post);
+                $prev = ($post->seo_meta['_previous_paths'] ?? []);
+                $seoMeta['_previous_paths'] = array_slice(array_values(array_unique(array_merge($prev, [$oldPath]))), -5);
+                $data['seo_meta'] = $seoMeta;
+            }
         }
 
         $tagIds = $data['tag_ids'] ?? null;

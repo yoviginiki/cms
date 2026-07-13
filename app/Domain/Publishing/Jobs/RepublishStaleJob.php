@@ -126,7 +126,10 @@ class RepublishStaleJob implements ShouldQueue
             // feeds in the same batch (pages don't affect archives; skipped).
             if (array_filter($built, fn ($b) => $b['type'] === 'post') !== []) {
                 try {
-                    app(\App\Domain\Publishing\Services\ArchiveBuildService::class)->buildAll($site, $stagingPath);
+                    $archiveWarnings = app(\App\Domain\Publishing\Services\ArchiveBuildService::class)->buildAll($site, $stagingPath);
+                    foreach ($archiveWarnings as $w) {
+                        logger()->warning("Archive lint ({$site->name}): {$w}");
+                    }
 
                     $rssGenerator = app(\App\Domain\Publishing\Services\RssFeedGenerator::class);
                     $feedCategories = $site->categories()
@@ -191,6 +194,17 @@ class RepublishStaleJob implements ShouldQueue
 
         // Clear flags only for items not re-flagged since the build (§7 D2).
         app(\App\Domain\References\Services\StalenessResolver::class)->clearBuiltIfUnchanged($built);
+
+        // Remove files left at OLD paths by slug renames (§7 — a delta merge
+        // can't prune what it doesn't know about; the services recorded it).
+        try {
+            $removed = app(\App\Domain\Publishing\Services\StalePathCleaner::class)->removeFor($site, $built);
+            if ($removed !== []) {
+                logger()->info("Delta promote removed stale renamed files for {$site->name}: " . implode(', ', $removed));
+            }
+        } catch (\Throwable $e) {
+            logger()->warning("Stale path cleanup failed for site {$site->id}: {$e->getMessage()}");
+        }
 
         $log = app(\App\Services\ActivityLogService::class);
         $reason = $deployment->metadata['reason'] ?? 'stale content';

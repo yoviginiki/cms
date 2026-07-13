@@ -170,8 +170,12 @@ class PublishSiteJob implements ShouldQueue
             // Generate blog index, archives, and RSS
             if ($posts->isNotEmpty()) {
                 // Blog index + category/tag/author archives (shared with delta
-                // publish via ArchiveBuildService — §7 D1)
-                app(\App\Domain\Publishing\Services\ArchiveBuildService::class)->buildAll($site, $stagingPath);
+                // publish via ArchiveBuildService — §7 D1). Archive lint
+                // warnings surface in the deploy log like page warnings.
+                $archiveWarnings = app(\App\Domain\Publishing\Services\ArchiveBuildService::class)->buildAll($site, $stagingPath);
+                if ($archiveWarnings !== []) {
+                    $validationResults['site:archives'] = ['passed' => true, 'warnings' => $archiveWarnings, 'errors' => [], 'score_estimate' => 100];
+                }
 
                 // RSS feed
                 $rssGenerator = app(RssFeedGenerator::class);
