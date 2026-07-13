@@ -111,4 +111,26 @@ class ImportExternalImagesTest extends TestCase
         // grid change flags the site's published pages for republish
         $this->assertTrue((bool) Page::where('site_id', $this->site->id)->first()->needs_republish);
     }
+
+    public function test_rewrites_urls_embedded_in_html_strings(): void
+    {
+        Http::fake(['images.pexels.com/*' => Http::response($this->jpeg(), 200, ['Content-Type' => 'image/jpeg'])]);
+
+        $page = Page::factory()->create(['site_id' => $this->site->id, 'status' => 'published']);
+        $block = Block::factory()->create([
+            'blockable_id' => $page->id, 'blockable_type' => 'page', 'type' => 'html-embed', 'order' => 0,
+            'data' => ['html' => '<div style="background:#222 url(https://images.pexels.com/photos/7/bg.jpeg?w=1280) center/cover;">'
+                . '<img src="https://images.pexels.com/photos/8/pic.jpeg?w=600" alt="x">'
+                . '<a href="https://example.com/https-not-image">keep</a></div>'],
+        ]);
+
+        $this->artisan('assets:import-external')->assertExitCode(0);
+
+        $html = $block->fresh()->data['html'];
+        $this->assertStringNotContainsString('images.pexels.com', $html);
+        $this->assertSame(2, substr_count($html, '/serve'));
+        $this->assertStringContainsString('https://example.com/https-not-image', $html);
+        // CSS url() closing paren survives
+        $this->assertMatchesRegularExpression('#url\(/api/v1/[^)]+\) center/cover#', $html);
+    }
 }

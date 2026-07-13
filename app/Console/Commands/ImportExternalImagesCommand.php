@@ -83,7 +83,7 @@ class ImportExternalImagesCommand extends Command
                         if (!is_string($value)) {
                             return;
                         }
-                        $new = $this->resolve($assets, $site, $value, null, $dry);
+                        $new = $this->rewriteValue($assets, $site, $value, null, $dry);
                         if ($new !== null && $new !== $value) {
                             $value = $new;
                             $changed = true;
@@ -122,7 +122,7 @@ class ImportExternalImagesCommand extends Command
                         if (!is_string($value)) {
                             return;
                         }
-                        $new = $this->resolve($assets, $site, $value, null, $dry);
+                        $new = $this->rewriteValue($assets, $site, $value, null, $dry);
                         if ($new !== null && $new !== $value) {
                             $value = $new;
                             $changed = true;
@@ -149,7 +149,7 @@ class ImportExternalImagesCommand extends Command
                         if (!is_string($value)) {
                             return;
                         }
-                        $new = $this->resolve($assets, $site, $value, null, $dry);
+                        $new = $this->rewriteValue($assets, $site, $value, null, $dry);
                         if ($new !== null && $new !== $value) {
                             $value = $new;
                             $changed = true;
@@ -180,6 +180,41 @@ class ImportExternalImagesCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Rewrite a string leaf: whole-value URLs resolve directly; URLs embedded
+     * inside longer strings (html-embed markup, CSS url(...) values) are
+     * imported and replaced in place. Returns the new string or null.
+     */
+    private function rewriteValue(AssetService $assets, Site $site, string $value, ?string $alt, bool $dry): ?string
+    {
+        $direct = $this->resolve($assets, $site, $value, $alt, $dry);
+        if ($direct !== null) {
+            return $direct;
+        }
+        if (!str_contains($value, 'https://')) {
+            return null;
+        }
+
+        $hosts = implode('|', array_map(fn ($h) => preg_quote($h, '#'), AssetService::IMPORT_ALLOWED_HOSTS));
+        $changed = false;
+        $new = preg_replace_callback(
+            "#https://(?:{$hosts})/[^\s\"'()<>\\\\]+#",
+            function ($m) use ($assets, $site, $alt, $dry, &$changed) {
+                $serve = $this->resolve($assets, $site, $m[0], $alt, $dry);
+                if ($serve !== null && $serve !== $m[0]) {
+                    $changed = true;
+
+                    return $serve;
+                }
+
+                return $m[0];
+            },
+            $value
+        );
+
+        return $changed ? $new : null;
     }
 
     /** Returns the serve URL when $value is an importable external image, else null. */
