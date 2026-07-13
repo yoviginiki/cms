@@ -59,7 +59,7 @@ class AssetService
                 $dimensions = ['width' => $imageSize[0], 'height' => $imageSize[1]];
             }
 
-            $variants = $this->generateImageVariants($file, $basePath, $uuid);
+            $variants = $this->generateImageVariants($file->getRealPath(), $basePath, $uuid);
         }
 
         return Asset::create([
@@ -89,13 +89,53 @@ class AssetService
         $asset->delete();
     }
 
-    private function generateImageVariants(UploadedFile $file, string $basePath, string $uuid): array
+    /**
+     * (Re)generate variants for an existing image asset — backfill for assets
+     * uploaded while variant generation was broken (they have none), or after
+     * the variant set changes. Updates the asset row and returns the map.
+     */
+    public function regenerateVariants(Asset $asset): array
+    {
+        if (!str_starts_with((string) $asset->mime_type, 'image/') || $asset->mime_type === 'image/svg+xml') {
+            return $asset->variants ?? [];
+        }
+
+        $disk = Storage::disk('assets');
+        if (!$asset->storage_path || !$disk->exists($asset->storage_path)) {
+            return $asset->variants ?? [];
+        }
+
+        // Work from a local temp copy — storage-driver agnostic
+        $ext = pathinfo($asset->storage_path, PATHINFO_EXTENSION);
+        $tmp = tempnam(sys_get_temp_dir(), 'asset_') . ($ext ? ".{$ext}" : '');
+        file_put_contents($tmp, $disk->get($asset->storage_path));
+
+        try {
+            $variants = $this->generateImageVariants(
+                $tmp,
+                dirname($asset->storage_path),
+                pathinfo($asset->storage_path, PATHINFO_FILENAME)
+            );
+
+            $update = ['variants' => $variants];
+            if (!$asset->dimensions && ($size = @getimagesize($tmp))) {
+                $update['dimensions'] = ['width' => $size[0], 'height' => $size[1]];
+            }
+            $asset->update($update);
+
+            return $variants;
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    private function generateImageVariants(string $sourcePath, string $basePath, string $uuid): array
     {
         $variants = [];
         $disk = Storage::disk('assets');
 
         try {
-            $image = $this->imageManager->decodePath($file->getRealPath());
+            $image = $this->imageManager->decodePath($sourcePath);
 
             // thumb_200: 200px square crop
             $thumb = clone $image;
