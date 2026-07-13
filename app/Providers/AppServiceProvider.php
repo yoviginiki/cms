@@ -252,11 +252,14 @@ class AppServiceProvider extends ServiceProvider
             'template' => ThemeTemplate::class,
             'slider' => \App\Models\Slider::class,
             'global_section' => \App\Models\GlobalSection::class,
+            'collection' => \App\Models\ContentCollection::class,
+            'record' => \App\Models\Record::class,
         ]);
 
         // Explicit route model bindings for non-standard model locations
         Route::model('themeTemplate', ThemeTemplate::class);
         Route::model('issue', \App\Domain\IssueComposer\Models\MagazineIssue::class);
+        Route::model('collection', \App\Models\ContentCollection::class);
 
         Gate::policy(Site::class, SitePolicy::class);
         Gate::policy(Page::class, PagePolicy::class);

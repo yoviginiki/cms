@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Sparkles, Users, Archive, Download, X, PanelLeft, Wand2, BookMarked, Boxes } from 'lucide-react';
+import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Sparkles, Users, Archive, Download, X, PanelLeft, Wand2, BookMarked, Boxes, Database } from 'lucide-react';
 import { publishing, staleContent, api } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -117,6 +117,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         ...(staleCount > 0
           ? [{ to: `/sites/${siteId}/stale-pages`, icon: FileWarning, label: 'Stale pages', badge: staleCount }]
           : []),
+        { to: `/sites/${siteId}/collections`, icon: Database, label: 'Collections' },
         { to: `/sites/${siteId}/assets`, icon: Archive, label: 'Media' },
         { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
         { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },

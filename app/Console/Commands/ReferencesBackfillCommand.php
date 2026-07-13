@@ -2,9 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Collections\Services\RecordService;
 use App\Domain\References\Services\ReferenceRecorder;
 use App\Models\Page;
 use App\Models\Post;
+use App\Models\Record;
 use App\Models\Site;
 use App\Models\Tenant;
 use App\Models\ThemeTemplate;
@@ -22,9 +24,9 @@ class ReferencesBackfillCommand extends Command
     protected $signature = 'references:backfill
         {--dry-run : Compute and print edge counts without writing anything}';
 
-    protected $description = 'Rebuild entity_references edges for all sites (pages, posts, templates, site-scope)';
+    protected $description = 'Rebuild entity_references edges for all sites (pages, posts, templates, records, site-scope)';
 
-    public function handle(ReferenceRecorder $recorder): int
+    public function handle(ReferenceRecorder $recorder, RecordService $recordService): int
     {
         $dryRun = (bool) $this->option('dry-run');
         $this->info($dryRun ? 'DRY RUN — nothing will be written.' : 'LIVE RUN — writing edges.');
@@ -34,7 +36,7 @@ class ReferencesBackfillCommand extends Command
         $tenants = Tenant::all();
 
         $counts = [];        // "target_type/kind" => n
-        $sources = ['page' => 0, 'post' => 0, 'template' => 0, 'site' => 0];
+        $sources = ['page' => 0, 'post' => 0, 'template' => 0, 'record' => 0, 'site' => 0];
         $edgeTotal = 0;
 
         $sites = $tenants->flatMap(function (Tenant $tenant) {
@@ -66,6 +68,22 @@ class ReferencesBackfillCommand extends Command
                 }
             }
 
+            // Records (Track G) — structured-field sources, not block trees
+            Record::withoutGlobalScopes()->where('site_id', $site->id)->with('collection')
+                ->chunkById(200, function ($records) use ($recorder, $recordService, $site, $dryRun, &$counts, &$sources, &$edgeTotal) {
+                    foreach ($records as $record) {
+                        $edges = $recordService->computeEdges($record);
+                        if (!$dryRun) {
+                            $recorder->persistEdges($site->id, 'record', $record->id, $edges);
+                        }
+                        $sources['record']++;
+                        foreach ($edges as $edge) {
+                            $counts["{$edge['target_type']}/{$edge['kind']}"] = ($counts["{$edge['target_type']}/{$edge['kind']}"] ?? 0) + 1;
+                            $edgeTotal++;
+                        }
+                    }
+                });
+
             // Site-scope edges (theme + located menus)
             $siteEdges = $recorder->extractSiteScopeEdges($site);
             if (!$dryRun) {
@@ -84,8 +102,8 @@ class ReferencesBackfillCommand extends Command
             array_map(fn ($k, $v) => [$k, $v], array_keys($counts), $counts),
         );
         $this->info(sprintf(
-            'Sources scanned: %d pages, %d posts, %d templates, %d sites. Total edges: %d.%s',
-            $sources['page'], $sources['post'], $sources['template'], $sources['site'],
+            'Sources scanned: %d pages, %d posts, %d templates, %d records, %d sites. Total edges: %d.%s',
+            $sources['page'], $sources['post'], $sources['template'], $sources['record'], $sources['site'],
             $edgeTotal,
             $dryRun ? ' (dry run — nothing written)' : '',
         ));
