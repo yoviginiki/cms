@@ -59,7 +59,10 @@ class DeployService
             }
         }
 
-        $this->copyDeploy($stagingPath, $targetPath, $deployment);
+        // MERGE ONLY — a partial staging tree holds a few pages; pruning
+        // against it would delete the rest of the live site. Stale files from
+        // slug renames are StalePathCleaner's job, not the deploy's.
+        $this->copyDeploy($stagingPath, $targetPath, $deployment, prune: false);
     }
 
     public function rollback(Deployment $deployment): void
@@ -135,18 +138,24 @@ class DeployService
     /**
      * Direct copy deploy for custom domain sites.
      */
-    private function copyDeploy(string $stagingPath, string $targetPath, Deployment $deployment): void
+    private function copyDeploy(string $stagingPath, string $targetPath, Deployment $deployment, bool $prune = true): void
     {
         File::ensureDirectoryExists($targetPath);
 
         // Copy new content and record every relative path the build defines.
+        // Ordering (§7 atomicity): directories and assets land BEFORE any
+        // .html file, so a page can never go live referencing a hashed asset
+        // that hasn't been copied yet. PHP's sort is stable, so the parent-
+        // before-child order from SELF_FIRST is preserved inside each group.
         $keep = [];
-        $iterator = new \RecursiveIteratorIterator(
+        $items = iterator_to_array(new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($stagingPath, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST
-        );
+        ), false);
+        usort($items, fn ($a, $b) => (int) (!$a->isDir() && str_ends_with($a->getPathname(), '.html'))
+            <=> (int) (!$b->isDir() && str_ends_with($b->getPathname(), '.html')));
 
-        foreach ($iterator as $item) {
+        foreach ($items as $item) {
             $relative = str_replace($stagingPath . '/', '', $item->getPathname());
             $keep[$relative] = true;
             $dest = $targetPath . '/' . $relative;
@@ -158,15 +167,23 @@ class DeployService
                 if (file_exists($dest) && !is_writable($dest)) {
                     @chmod($dest, 0664);
                 }
-                File::copy($item->getPathname(), $dest);
-                @chmod($dest, 0664);
+                // Atomic per-file swap: write beside the target, then rename()
+                // (atomic on the same filesystem) — a visitor mid-deploy sees
+                // the old file or the new one, never a torn half-write.
+                $tmp = $dest . '.tmp-' . getmypid();
+                File::copy($item->getPathname(), $tmp);
+                @chmod($tmp, 0664);
+                rename($tmp, $dest);
             }
         }
 
         // FIX-B6c/D3: remove stale target files the new build no longer
-        // contains (deleted pages) so they don't stay live. Dot-entries
-        // (.well-known for SSL, other infra) are preserved.
-        $this->pruneStale($targetPath, $targetPath, $keep);
+        // contains (deleted pages) so they don't stay live. FULL builds only —
+        // a partial batch's keep-list would condemn the rest of the site.
+        // Dot-entries (.well-known for SSL, other infra) are preserved.
+        if ($prune) {
+            $this->pruneStale($targetPath, $targetPath, $keep);
+        }
 
         $deployment->update(['artifact_path' => $stagingPath]);
     }
