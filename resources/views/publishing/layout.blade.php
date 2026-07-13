@@ -141,6 +141,10 @@
     footer[role="contentinfo"] a{color:var(--footer-color, var(--color-text-muted, #64748b));transition:color 0.2s}
     footer[role="contentinfo"] a:hover{color:var(--color-primary, #3b82f6);opacity:1}
 
+    /* In-text links are underlined — color alone doesn't distinguish them
+       (WCAG 1.4.1 / Lighthouse link-in-text-block). Menus/buttons opt out. */
+    .post-meta a,main p a:not(.btn):not([class*="button"]),main li a:not(.btn){text-decoration:underline;text-underline-offset:0.15em}
+
     /* Skip link (F3 accessibility) */
     .skip-link{position:absolute;left:-9999px;top:auto;z-index:5000;background:var(--color-bg,#fff);color:var(--color-text,#1a1a1a);padding:0.5rem 1rem;border:1px solid var(--color-border,#e2e8f0);text-decoration:none}
     .skip-link:focus{left:8px;top:8px}
