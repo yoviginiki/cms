@@ -181,4 +181,36 @@ class SemanticHtmlTest extends TestCase
         // post content publishes inside <article> within the main landmark
         $this->assertMatchesRegularExpression('#<main[^>]*><article>#', $html);
     }
+
+    public function test_hero_background_publishes_as_lcp_image_element(): void
+    {
+        $site = $this->makeSite();
+        $page = Page::factory()->create(['site_id' => $site->id, 'status' => 'published']);
+        $asset = Asset::factory()->create(['site_id' => $site->id, 'mime_type' => 'image/jpeg']);
+        $serve = "/api/v1/sites/{$site->id}/assets/{$asset->id}/serve";
+        $this->addBlock($page, 'hero', [
+            'headline' => 'Big Hero', 'bg_type' => 'image', 'bg_image' => $serve,
+            'bg_image_size' => 'cover', 'bg_image_repeat' => 'no-repeat',
+        ]);
+
+        $html = $this->build($page, $site);
+        $this->assertStringContainsString('object-fit:cover', $html);
+        $this->assertStringContainsString('fetchpriority="high"', $html);
+        $this->assertStringContainsString('type="image/webp"', $html);
+        $this->assertStringContainsString('/webp_1600 1600w', $html);
+    }
+
+    public function test_hero_fixed_scroll_keeps_css_background(): void
+    {
+        $site = $this->makeSite();
+        $page = Page::factory()->create(['site_id' => $site->id, 'status' => 'published']);
+        $this->addBlock($page, 'hero', [
+            'headline' => 'Parallax', 'bg_type' => 'image',
+            'bg_image' => 'https://cdn.example.com/bg.jpg', 'bg_scroll_effect' => 'fixed',
+        ]);
+
+        $html = $this->build($page, $site);
+        $this->assertStringContainsString('background-attachment:fixed', $html);
+        $this->assertStringNotContainsString('object-fit:cover;object-position', $html);
+    }
 }

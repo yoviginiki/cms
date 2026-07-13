@@ -135,17 +135,27 @@
         $scroll = $data['bg_scroll_effect'] ?? 'none';
         $repeat = in_array($data['bg_image_repeat'] ?? 'no-repeat', ['no-repeat', 'repeat', 'repeat-x', 'repeat-y']) ? ($data['bg_image_repeat'] ?? 'no-repeat') : 'no-repeat';
         if ($imgUrl) {
-            $style .= "background-image:url('{$imgUrl}');background-size:{$size};background-position:{$pos};background-repeat:{$repeat};";
-            // Note: background-attachment:fixed is unreliable on iOS Safari (falls back to scroll)
-            if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
+            // LCP: the common case (cover, no-repeat, normal scroll) renders as
+            // a real <img> — visually identical via object-fit:cover, but
+            // preloadable with fetchpriority + WebP sources. Repeat patterns
+            // and fixed-attachment parallax keep the CSS background (an <img>
+            // can't express them).
+            if ($size === 'cover' && $repeat === 'no-repeat' && $scroll !== 'fixed') {
+                $heroImg = ['url' => $imgUrl, 'pos' => $pos];
+            } else {
+                $style .= "background-image:url('{$imgUrl}');background-size:{$size};background-position:{$pos};background-repeat:{$repeat};";
+                // Note: background-attachment:fixed is unreliable on iOS Safari (falls back to scroll)
+                if ($scroll === 'fixed') $style .= "background-attachment:fixed;";
+            }
         }
     } elseif ($useLegacyFallback) {
         $legacyUrl = $cssUrl($legacyImage);
         if ($legacyUrl) {
-            $style .= "background-image:url('{$legacyUrl}');background-size:cover;background-position:center;";
+            $heroImg = ['url' => $legacyUrl, 'pos' => 'center center'];
         }
     }
 
+    $heroImg = $heroImg ?? null;
     $overlayOpacity = max(0, min(1, (float) ($data['bg_overlay_opacity'] ?? 0)));
     $overlayColor = $cssVal($data['bg_overlay_color'] ?? '#000');
 
@@ -271,10 +281,18 @@
     @if($bgType === 'image' && !empty($data['alt']) && empty($badv['ariaLabel'])) role="img" aria-label="{{ $data['alt'] }}" @endif
     @if(!empty($badv['ariaLabel'])) role="img" aria-label="{{ $badv['ariaLabel'] }}" @endif
 >
+    @if(!empty($heroImg))
+    <picture>
+        @if(preg_match('#^(/api/v1/sites/[0-9a-f\-]+/assets/[0-9a-f\-]{36}/serve)$#', $heroImg['url'], $__heroServe))
+        <source type="image/webp" srcset="{{ $__heroServe[1] }}/webp_800 800w, {{ $__heroServe[1] }}/webp_1600 1600w" sizes="100vw">
+        @endif
+        <img src="{{ $heroImg['url'] }}" alt="" aria-hidden="true" fetchpriority="high" loading="eager" decoding="async"
+            style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:{{ $heroImg['pos'] }};z-index:0;">
+    </picture>
+    @endif
     @if($bgType === 'image' && $overlayOpacity > 0)
     <div style="position:absolute;inset:0;background-color:{{ $overlayColor }};opacity:{{ $overlayOpacity }};pointer-events:none;z-index:0;"></div>
     @endif
-    {{-- Media loading: bg_type=image uses CSS background; loading/fetchpriority attrs reserved for future <picture> element --}}
     @php
         // ── Content box / text readability layer (optional) ──
         $cbEnabled = !empty($data['contentBoxEnabled']);

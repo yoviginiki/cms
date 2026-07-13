@@ -74,4 +74,36 @@ class DeployHardeningTest extends TestCase
         $this->assertNotNull($recent->fresh()); // record preserved, not deleted
         $this->assertNotSame($recent->id, $new->id);
     }
+
+    public function test_partial_deploy_merges_without_pruning_the_rest_of_the_site(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = \App\Models\Site::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dep = Deployment::create([
+            'site_id' => $site->id, 'type' => 'stale_batch', 'status' => 'staged',
+            'triggered_by' => $this->owner->id, 'metadata' => [],
+        ]);
+
+        $target = storage_path('framework/testing/pd-target-' . uniqid());
+        $staging = storage_path('framework/testing/pd-staging-' . uniqid());
+        \Illuminate\Support\Facades\File::ensureDirectoryExists("{$target}/existing-page");
+        \Illuminate\Support\Facades\File::put("{$target}/existing-page/index.html", 'must survive');
+        \Illuminate\Support\Facades\File::ensureDirectoryExists("{$staging}/changed-page");
+        \Illuminate\Support\Facades\File::put("{$staging}/changed-page/index.html", 'new');
+
+        // Reach the merge through the same private path deployPartial uses
+        $svc = app(\App\Domain\Publishing\Services\DeployService::class);
+        $m = new \ReflectionMethod($svc, 'copyDeploy');
+        $m->setAccessible(true);
+        $m->invoke($svc, $staging, $target, $dep, false);
+
+        // the batch landed AND the unrelated live page survived
+        $this->assertFileExists("{$target}/changed-page/index.html");
+        $this->assertStringEqualsFile("{$target}/existing-page/index.html", 'must survive');
+        // atomic swap leaves no temp droppings
+        $this->assertSame([], glob("{$target}/*.tmp-*") ?: []);
+
+        \Illuminate\Support\Facades\File::deleteDirectory($target);
+        \Illuminate\Support\Facades\File::deleteDirectory($staging);
+    }
 }
