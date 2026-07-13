@@ -10,6 +10,7 @@
     @if(!empty($designTokensCss))<style>{!! $designTokensCss !!}</style>@endif
     @if(!empty($criticalCss))<style>{!! $criticalCss !!}</style>@endif
     @if(!empty($customCss))<style>{!! $customCss !!}</style>@endif
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     {!! $archiveJsonLd ?? '' !!}
 </head>
 <body>

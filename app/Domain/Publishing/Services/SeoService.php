@@ -70,6 +70,7 @@ class SeoService
         }
 
         $head .= '<link rel="canonical" href="' . e($canonicalUrl) . '">' . "\n";
+        $head .= app(FaviconGenerator::class)->headLink() . "\n";
 
         // Open Graph
         $head .= '<meta property="og:title" content="' . e($title) . '">' . "\n";

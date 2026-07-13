@@ -179,6 +179,7 @@ class ArchiveBuildService
         $description = trim((string) ($category->description ?: "Posts in {$category->name} — {$site->name}"));
         $headContent = '<title>' . e($category->name) . ' | ' . e($site->name) . '</title>'
             . '<meta name="description" content="' . e(mb_substr($description, 0, 160)) . '">'
+            . app(FaviconGenerator::class)->headLink()
             . $extraHead;
 
         return View::make('publishing.layout', array_merge($vars, [

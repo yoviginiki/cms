@@ -110,6 +110,7 @@ class RepublishStaleJob implements ShouldQueue
                 try {
                     File::put("{$stagingPath}/sitemap.xml", app(\App\Domain\Publishing\Services\SitemapGenerator::class)->generate($site));
                     File::put("{$stagingPath}/robots.txt", app(\App\Domain\Publishing\Services\RobotsGenerator::class)->generate($site));
+                    File::put("{$stagingPath}/favicon.svg", app(\App\Domain\Publishing\Services\FaviconGenerator::class)->generate($site));
                     if ($llmsTxt = app(\App\Domain\Publishing\Services\LlmsTxtGenerator::class)->generate($site)) {
                         File::put("{$stagingPath}/llms.txt", $llmsTxt);
                     }
