@@ -105,6 +105,7 @@ class CollectionPublishTest extends TestCase
         $this->assertSame('/books/book-1/', $row['u']);
         $this->assertStringContainsString('robots', $row['s']);           // searchable rich text, lowercased
         $this->assertStringContainsString('pub-0001', $row['s']);         // searchable SKU
+        $this->assertStringContainsString('isaac asimov', $row['s']);     // searchable relation → related titles
         $this->assertSame($row['f']['genre'], $shard !== [] ? $row['f']['genre'] : null);
         $this->assertContains('Isaac Asimov', $row['f']['author']);       // relation facet
     }

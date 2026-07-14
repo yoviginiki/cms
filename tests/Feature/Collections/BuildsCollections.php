@@ -46,7 +46,7 @@ trait BuildsCollections
                     ['key' => 'contact_phone', 'label' => 'Contact phone', 'type' => 'phone'],
                     ['key' => 'summary', 'label' => 'Summary', 'type' => 'rich_text', 'searchable' => true],
                     ['key' => 'cover', 'label' => 'Cover', 'type' => 'image'],
-                    ['key' => 'author', 'label' => 'Author', 'type' => 'relation', 'facetable' => true, 'relation' => ['collection_id' => $authors->id, 'mode' => 'many']],
+                    ['key' => 'author', 'label' => 'Author', 'type' => 'relation', 'searchable' => true, 'facetable' => true, 'relation' => ['collection_id' => $authors->id, 'mode' => 'many']],
                 ],
                 'title_field' => 'title',
             ],
