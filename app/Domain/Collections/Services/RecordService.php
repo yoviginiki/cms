@@ -146,6 +146,34 @@ class RecordService
     }
 
     /**
+     * Rebuild search_text for every record of a collection (schema flag
+     * changes alter what belongs in the tsvector without touching records).
+     * Returns the number of records reindexed.
+     */
+    public function reindexSearchText(ContentCollection $collection): int
+    {
+        $count = 0;
+        Record::where('collection_id', $collection->id)
+            ->with('relationsOut.toRecord:id,title')
+            ->chunkById(200, function ($records) use ($collection, &$count) {
+                foreach ($records as $record) {
+                    $pivotStrings = [];
+                    foreach ($record->relationsOut as $edge) {
+                        foreach ($edge->pivot ?? [] as $v) {
+                            if (is_string($v) && $v !== '') {
+                                $pivotStrings[] = $v;
+                            }
+                        }
+                    }
+                    $record->updateSearchText($this->searchStrings($collection, $record, $pivotStrings));
+                    $count++;
+                }
+            });
+
+        return $count;
+    }
+
+    /**
      * Pure edge computation for a stored record (references:backfill).
      *
      * @return array<int, array{target_type: string, target_id: ?string, kind: string}>

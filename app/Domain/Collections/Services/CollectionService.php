@@ -33,9 +33,29 @@ class CollectionService
         $attrs = $this->baseAttributes($site, $input, $collection);
         $warnings = $this->schemaChangeWarnings($collection, $attrs['schema']);
 
+        $searchableBefore = $this->searchableKeys($collection->fields());
         $collection->update($attrs);
+        $collection->refresh();
 
-        return ['collection' => $collection->refresh(), 'warnings' => $warnings];
+        // Searchable flags changed → the tsvector contents are stale for
+        // every existing record; rebuild in the background.
+        if ($this->searchableKeys($collection->fields()) !== $searchableBefore) {
+            \App\Domain\Collections\Jobs\ReindexCollectionJob::dispatch($site->id, $collection->id, $site->tenant_id);
+        }
+
+        return ['collection' => $collection, 'warnings' => $warnings];
+    }
+
+    /** @return array<int, string> sorted searchable field keys */
+    private function searchableKeys(array $fields): array
+    {
+        $keys = array_values(array_map(
+            fn ($f) => $f['key'],
+            array_filter($fields, fn ($f) => $f['searchable'] ?? false),
+        ));
+        sort($keys);
+
+        return $keys;
     }
 
     /**
