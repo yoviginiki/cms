@@ -85,6 +85,16 @@ class ReferenceExtractorRegistry
             'post-loop' => new FieldMapExtractor(wildcardLists: ['post']),
             'categorylist' => new FieldMapExtractor(wildcardLists: ['category']),
 
+            // ── Collections (Track G2): loops + search islands list a collection —
+            // RecordService marks the collection stale on any record change, so
+            // pages carrying these blocks republish (fresh counts/options).
+            // Unset collectionId (archive-template context) → no edge; the
+            // archive rebuild is driven by the publish pipeline itself.
+            'record-loop' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
+            'search-box' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
+            'facet-filter' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
+            'results-grid' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
+
             // ── URL-bearing media/CTA blocks ───────────────────────────────
             'gallery' => new FieldMapExtractor(urlFields: ['images.*']),
             'logostrip' => new FieldMapExtractor(urlFields: ['logos.*']),
@@ -150,6 +160,9 @@ class ReferenceExtractorRegistry
             'post-navigation' => $null,
             'post-title' => $null,
             'post-video' => $null,
+            'record-title' => $null,
+            'record-image' => $null,
+            'field-value' => $null,
             'pullquote' => $null,
             'readingprogress' => $null,
             'row' => $null,

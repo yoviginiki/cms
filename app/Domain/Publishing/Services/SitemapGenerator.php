@@ -42,6 +42,11 @@ class SitemapGenerator
             );
         }
 
+        // Collection records + archives (Track G2, static tier)
+        foreach (app(\App\Domain\Collections\Services\CollectionPublishService::class)->sitemapUrls($site) as $entry) {
+            $urls[] = $this->urlEntry($baseUrl . $entry['path'], '0.7', 'weekly', $entry['lastmod']);
+        }
+
         // Published magazines (statically deployed under /magazine/…)
         $issues = \App\Domain\IssueComposer\Models\MagazineIssue::where('site_id', $site->id)
             ->where('status', 'published')->get();

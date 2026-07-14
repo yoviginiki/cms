@@ -59,6 +59,11 @@ const IssueStudioPage = lazy(() => import('./pages/issue-studio/IssueStudioPage'
 const StalePages = lazy(() => import('./pages/StalePages'));
 const SlidersList = lazy(() => import('./pages/SlidersList'));
 const SliderEditor = lazy(() => import('./pages/SliderEditor'));
+const CollectionsList = lazy(() => import('./pages/collections/CollectionsList'));
+const CollectionSchemaEditor = lazy(() => import('./pages/collections/CollectionSchemaEditor'));
+const CollectionRecords = lazy(() => import('./pages/collections/CollectionRecords'));
+const CollectionRecordEditor = lazy(() => import('./pages/collections/CollectionRecordEditor'));
+const CollectionImportPage = lazy(() => import('./pages/collections/CollectionImportPage'));
 
 function LazyFallback() {
   return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-base-content/20" /></div>;
@@ -115,6 +120,12 @@ export default function App() {
           <Route path="/sites/:siteId/style-presets" element={<LayoutRoute><StylePresetsList /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-engine/:themeId" element={<ThemeEditorPage />} />
           <Route path="/sites/:siteId/theme-engine/:themeId/studio" element={<ThemeStudio />} />
+          <Route path="/sites/:siteId/collections" element={<LayoutRoute><CollectionsList /></LayoutRoute>} />
+          <Route path="/sites/:siteId/collections/:collectionId/schema" element={<LayoutRoute><CollectionSchemaEditor /></LayoutRoute>} />
+          <Route path="/sites/:siteId/collections/:collectionId/records" element={<LayoutRoute><CollectionRecords /></LayoutRoute>} />
+          <Route path="/sites/:siteId/collections/:collectionId/records/new" element={<LayoutRoute><CollectionRecordEditor /></LayoutRoute>} />
+          <Route path="/sites/:siteId/collections/:collectionId/records/:recordId/edit" element={<LayoutRoute><CollectionRecordEditor /></LayoutRoute>} />
+          <Route path="/sites/:siteId/collections/:collectionId/import" element={<LayoutRoute><CollectionImportPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/settings" element={<LayoutRoute><SiteSettings /></LayoutRoute>} />
           <Route path="/sites/:siteId/import" element={<LayoutRoute><ImportPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/analytics" element={<LayoutRoute><Analytics /></LayoutRoute>} />

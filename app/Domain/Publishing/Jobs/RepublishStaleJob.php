@@ -103,6 +103,41 @@ class RepublishStaleJob implements ShouldQueue
                 }
             }
 
+            // Collections (Track G2): stale records rebuild their own detail
+            // page; every touched static-tier collection then gets its archive
+            // pages + search index regenerated (a record change alters both).
+            $staleRecords = \App\Models\Record::with('collection')
+                ->whereIn('id', $targets['records'] ?? [])
+                ->where('site_id', $site->id)
+                ->get();
+            if ($staleRecords->isNotEmpty()) {
+                $collectionPublisher = app(\App\Domain\Collections\Services\CollectionPublishService::class);
+                $touchedCollections = [];
+                foreach ($staleRecords as $record) {
+                    try {
+                        $collection = $record->collection;
+                        if ($collection && $collection->tier === 'static' && $record->status === 'published') {
+                            $collectionPublisher->buildRecordPage($site, $collection, $record, $stagingPath);
+                        }
+                        // Unpublished/draft records build no page; the archive +
+                        // index rebuild below removes them from listings.
+                        if ($collection && $collection->tier === 'static') {
+                            $touchedCollections[$collection->id] = $collection;
+                        }
+                        $built[] = ['type' => 'record', 'id' => $record->id, 'title' => $record->title, 'path' => null, 'stamp' => optional($record->updated_at)->toIso8601String()];
+                    } catch (\Throwable $e) {
+                        $failed[] = ['type' => 'record', 'id' => $record->id, 'title' => $record->title, 'error' => $e->getMessage()];
+                    }
+                }
+                foreach ($touchedCollections as $collection) {
+                    try {
+                        $collectionPublisher->rebuildArchiveAndIndex($site, $collection, $stagingPath);
+                    } catch (\Throwable $e) {
+                        logger()->warning("Delta collection rebuild failed ({$collection->slug}, site {$site->id}): {$e->getMessage()}");
+                    }
+                }
+            }
+
             // FIX-B7a: regenerate sitemap.xml / feed.xml / robots.txt so a delta
             // publish doesn't leave them pointing at old/dead URLs until the next
             // full publish. Cheap + deterministic; merged live by deployPartial.

@@ -1,0 +1,415 @@
+<?php
+
+namespace App\Domain\Collections\Services;
+
+use App\Domain\Publishing\Services\ArchiveBuildService;
+use App\Domain\Publishing\Services\AssetPublisher;
+use App\Domain\Publishing\Services\BuildPageService;
+use App\Domain\Publishing\Services\FaviconGenerator;
+use App\Models\ContentCollection;
+use App\Models\Record;
+use App\Models\Site;
+use App\Models\ThemeTemplate;
+use App\Support\Blocks\RecordDisplay;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\View;
+
+/**
+ * Track G2 — Tier-1 static publishing for Collections: one flat HTML detail
+ * page per published record, statically paginated archive pages, and the
+ * client-side search index (manifest + content-hashed shards). Modeled on
+ * ArchiveBuildService; renders through BuildPageService's context seam so
+ * record templates (record-single / record-archive) use the same block
+ * machinery as everything else, with built-in fallback views when no
+ * template exists.
+ */
+class CollectionPublishService
+{
+    /** Raw-JSON size ceiling per shard (~2.5MB raw stays well under 1MB gzipped). */
+    private const SHARD_RAW_BYTES = 2_500_000;
+
+    public function __construct(
+        private BuildPageService $buildService,
+        private ArchiveBuildService $archiveService,
+    ) {
+    }
+
+    /**
+     * Build every static-tier collection into the staging tree.
+     * Returns lint warnings (path collisions, skipped collections).
+     *
+     * @return array<int, string>
+     */
+    public function buildAll(Site $site, string $stagingPath): array
+    {
+        $warnings = [];
+
+        $collections = ContentCollection::where('site_id', $site->id)->where('tier', 'static')->get();
+        foreach ($collections as $collection) {
+            $warnings = array_merge($warnings, $this->buildCollection($site, $collection, $stagingPath));
+        }
+
+        return $warnings;
+    }
+
+    /** @return array<int, string> warnings */
+    public function buildCollection(Site $site, ContentCollection $collection, string $stagingPath): array
+    {
+        $prefix = RecordDisplay::pathPrefix($collection);
+
+        // Collision guard: pages/posts write before collections — if the
+        // prefix path already holds an index.html we'd silently overwrite a
+        // page. Skip with a loud warning instead.
+        if (File::exists("{$stagingPath}/{$prefix}/index.html")) {
+            return ["Collection '{$collection->slug}': path '/{$prefix}/' already used by a page or category — collection skipped. Set a different path_prefix in the collection settings."];
+        }
+
+        $records = Record::where('collection_id', $collection->id)
+            ->where('status', 'published')
+            ->with('relationsOut.toRecord')
+            ->orderByDesc('published_at')
+            ->get();
+
+        foreach ($records as $record) {
+            $this->buildRecordPage($site, $collection, $record, $stagingPath);
+        }
+
+        $this->buildArchivePages($site, $collection, $records, $stagingPath);
+        $this->buildIndex($site, $collection, $records, $stagingPath);
+
+        return [];
+    }
+
+    /**
+     * Delta helper: rebuild a collection's archive pages + search index
+     * (record pages themselves are built per-target by the delta job).
+     */
+    public function rebuildArchiveAndIndex(Site $site, ContentCollection $collection, string $stagingPath): void
+    {
+        $records = Record::where('collection_id', $collection->id)
+            ->where('status', 'published')
+            ->with('relationsOut.toRecord')
+            ->orderByDesc('published_at')
+            ->get();
+
+        $this->buildArchivePages($site, $collection, $records, $stagingPath);
+        $this->buildIndex($site, $collection, $records, $stagingPath);
+    }
+
+    /** Build one record's detail page (used by full and delta publishes). */
+    public function buildRecordPage(Site $site, ContentCollection $collection, Record $record, string $stagingPath): void
+    {
+        $record->loadMissing('relationsOut.toRecord');
+
+        $context = [
+            '__record' => $record,
+            '__collection' => $collection,
+        ];
+
+        $template = ThemeTemplate::resolveForRecord($record);
+
+        if ($template) {
+            $blocks = $template->blocks()->whereNull('parent_block_id')->orderBy('order')->with('children')->get();
+            $body = $this->buildService->renderBlocksWithContext($blocks, $site, $context);
+        } else {
+            $body = View::make('publishing.record-single', [
+                'site' => $site,
+                'collection' => $collection,
+                'record' => $record,
+            ])->render();
+        }
+
+        $description = $this->metaDescription($collection, $record);
+        $head = '<title>' . e($record->title) . ' | ' . e($site->name) . '</title>'
+            . '<meta name="description" content="' . e($description) . '">'
+            . '<meta property="og:title" content="' . e($record->title) . '">';
+        if ($thumb = RecordDisplay::thumbUrl($site, $collection, $record)) {
+            $head .= '<meta property="og:image" content="' . e($thumb) . '">';
+        }
+
+        $html = $this->wrapInLayout($site, $head, $body, $record->title);
+
+        $path = "{$this->prefixFor($collection)}/{$record->slug}/index.html";
+        $this->write($stagingPath, $path, $html);
+    }
+
+    /** Statically paginated archive: /{prefix}/ + /{prefix}/page/{n}/. */
+    private function buildArchivePages(Site $site, ContentCollection $collection, $records, string $stagingPath): void
+    {
+        $prefix = $this->prefixFor($collection);
+        $perPage = max(6, min(100, (int) ($collection->settings['per_page'] ?? 24)));
+        $totalPages = max(1, (int) ceil($records->count() / $perPage));
+        $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
+
+        for ($page = 1; $page <= $totalPages; $page++) {
+            $pageRecords = $records->forPage($page, $perPage)->values();
+
+            $context = [
+                '__collection' => $collection,
+                '__archiveRecords' => $pageRecords,
+                '__archiveRecordCount' => $records->count(),
+                '__archiveCurrentPage' => $page,
+                '__archiveTotalPages' => $totalPages,
+                '__archiveBaseUrl' => "/{$prefix}",
+            ];
+
+            if ($template) {
+                $blocks = $template->blocks()->whereNull('parent_block_id')->orderBy('order')->with('children')->get();
+                $body = $this->buildService->renderBlocksWithContext($blocks, $site, $context);
+            } else {
+                $body = View::make('publishing.record-archive', [
+                    'site' => $site,
+                    'collection' => $collection,
+                    'records' => $pageRecords,
+                    'currentPage' => $page,
+                    'totalPages' => $totalPages,
+                    'baseUrl' => "/{$prefix}",
+                ])->render();
+            }
+
+            $head = '<title>' . e($collection->name) . ($page > 1 ? " — page {$page}" : '') . ' | ' . e($site->name) . '</title>'
+                . '<meta name="description" content="' . e(mb_substr("Browse {$collection->name} — {$site->name}", 0, 160)) . '">';
+
+            $html = $this->wrapInLayout($site, $head, $body, $collection->name, includeSearchRuntime: true);
+
+            $path = $page === 1 ? "{$prefix}/index.html" : "{$prefix}/page/{$page}/index.html";
+            $this->write($stagingPath, $path, $html);
+        }
+    }
+
+    /**
+     * The static search index: manifest at /{prefix}/index.json + content-
+     * hashed shards next to it. Compact row shape shared with
+     * collections-search.js: {u,t,s,f,d,i}.
+     */
+    public function buildIndex(Site $site, ContentCollection $collection, $records, string $stagingPath): void
+    {
+        $prefix = $this->prefixFor($collection);
+        $fields = $collection->fields();
+
+        $searchable = array_values(array_filter($fields, fn ($f) => $f['searchable'] ?? false));
+        $facetable = array_values(array_filter($fields, fn ($f) => $f['facetable'] ?? false));
+        // Display fields: what result cards may show (scalars only, keep the index lean).
+        $display = array_values(array_filter($fields, fn ($f) => in_array($f['type'], ['text', 'price', 'select', 'sku', 'date', 'boolean', 'number'], true)));
+
+        $rows = [];
+        foreach ($records as $record) {
+            $searchStrings = [mb_strtolower($record->title ?? '')];
+            foreach ($searchable as $field) {
+                $plain = RecordDisplay::plain($record, $field);
+                if ($plain !== '') {
+                    $searchStrings[] = mb_strtolower($plain);
+                }
+            }
+            // Pivot text/sku values (supplier part numbers) are searchable too.
+            foreach ($record->relationsOut as $edge) {
+                foreach ($edge->pivot ?? [] as $v) {
+                    if (is_string($v) && $v !== '') {
+                        $searchStrings[] = mb_strtolower($v);
+                    }
+                }
+            }
+
+            $facets = [];
+            foreach ($facetable as $field) {
+                if ($field['type'] === 'relation') {
+                    $titles = $record->relationsOut
+                        ->where('relation_key', $field['key'])
+                        ->map(fn ($e) => $e->toRecord?->title)
+                        ->filter()
+                        ->values()
+                        ->all();
+                    if ($titles !== []) {
+                        $facets[$field['key']] = $titles;
+                    }
+                } else {
+                    $value = $record->data[$field['key']] ?? null;
+                    if ($value !== null && $value !== '' && $value !== []) {
+                        $facets[$field['key']] = $value;
+                    }
+                }
+            }
+
+            $displayValues = [];
+            foreach ($display as $field) {
+                $value = $record->data[$field['key']] ?? null;
+                if ($value !== null && $value !== '') {
+                    $displayValues[$field['key']] = $value;
+                }
+            }
+
+            $row = [
+                'u' => "/{$prefix}/{$record->slug}/",
+                't' => $record->title,
+                's' => implode(' ', array_unique(array_filter($searchStrings))),
+            ];
+            if ($facets !== []) {
+                $row['f'] = $facets;
+            }
+            if ($displayValues !== []) {
+                $row['d'] = $displayValues;
+            }
+            if ($thumb = RecordDisplay::thumbUrl($site, $collection, $record)) {
+                // Publish the asset and reference its static hashed path.
+                $row['i'] = AssetPublisher::rewriteHtml('<img src="' . $thumb . '">');
+                $row['i'] = preg_match('/src="([^"]+)"/', $row['i'], $m) ? $m[1] : null;
+                if ($row['i'] === null) {
+                    unset($row['i']);
+                }
+            }
+
+            $rows[] = $row;
+        }
+
+        // Shard rows by raw JSON size; shard filenames are content-hashed so
+        // browsers cache-bust naturally, the manifest URL stays stable.
+        $shardLimit = (int) config('collections.shard_raw_bytes', self::SHARD_RAW_BYTES);
+        $shards = [];
+        $current = [];
+        $currentBytes = 2;
+        foreach ($rows as $row) {
+            $bytes = strlen(json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) + 1;
+            if ($current !== [] && $currentBytes + $bytes > $shardLimit) {
+                $shards[] = $current;
+                $current = [];
+                $currentBytes = 2;
+            }
+            $current[] = $row;
+            $currentBytes += $bytes;
+        }
+        if ($current !== []) {
+            $shards[] = $current;
+        }
+
+        $shardUrls = [];
+        foreach ($shards as $i => $shardRows) {
+            $json = json_encode($shardRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $hash = substr(md5($json), 0, 8);
+            $filename = 'index-' . ($i + 1) . ".{$hash}.json";
+            File::ensureDirectoryExists("{$stagingPath}/{$prefix}");
+            File::put("{$stagingPath}/{$prefix}/{$filename}", $json);
+            $shardUrls[] = "/{$prefix}/{$filename}";
+        }
+
+        $manifest = [
+            'collection' => $collection->slug,
+            'name' => $collection->name,
+            'count' => count($rows),
+            'currency' => RecordDisplay::currencySymbol($collection, $site),
+            'generated' => now()->toIso8601String(),
+            'fields' => array_values(array_map(fn ($f) => [
+                'key' => $f['key'],
+                'label' => $f['label'],
+                'type' => $f['type'],
+                'facet' => (bool) ($f['facetable'] ?? false),
+            ], array_filter($fields, fn ($f) => ($f['facetable'] ?? false) || in_array($f['type'], ['text', 'price', 'select', 'sku', 'date', 'boolean', 'number'], true)))),
+            'shards' => $shardUrls,
+        ];
+
+        File::ensureDirectoryExists("{$stagingPath}/{$prefix}");
+        File::put("{$stagingPath}/{$prefix}/index.json", json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Publish the search-island runtime and return its script tag. Same
+     * mechanics as SliderRender::publishRuntime — hashed filename, copied to
+     * the tenant docroot AND the CMS public dir (preview iframe loads the
+     * same /assets/… path from the Laravel origin).
+     */
+    public static function publishSearchRuntime(Site $site): string
+    {
+        $source = resource_path('js/collections-search.js');
+        $hash = substr(md5_file($source), 0, 8);
+
+        if ($site->custom_domain) {
+            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
+            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
+            $target = $tenantBase . '/' . $safeDomain . '/public_html';
+        } else {
+            $target = config('publishing.public_path') . '/' . $site->slug;
+        }
+
+        foreach ([$target, public_path()] as $base) {
+            try {
+                File::ensureDirectoryExists("{$base}/assets");
+                if (!file_exists("{$base}/assets/collections-search.{$hash}.js")) {
+                    File::copy($source, "{$base}/assets/collections-search.{$hash}.js");
+                    @chmod("{$base}/assets/collections-search.{$hash}.js", 0664);
+                }
+            } catch (\Throwable $e) {
+                logger()->warning("collections-search publish failed ({$base}) for site {$site->id}: {$e->getMessage()}");
+            }
+        }
+
+        return '<script defer src="/assets/collections-search.' . $hash . '.js"></script>';
+    }
+
+    /** Sitemap entries for every published record + archive page 1. */
+    public function sitemapUrls(Site $site): array
+    {
+        $urls = [];
+        $collections = ContentCollection::where('site_id', $site->id)->where('tier', 'static')->get();
+        foreach ($collections as $collection) {
+            $prefix = $this->prefixFor($collection);
+            $urls[] = ['path' => "/{$prefix}/", 'lastmod' => $collection->updated_at?->toW3cString()];
+            $records = Record::where('collection_id', $collection->id)->where('status', 'published')->get(['slug', 'updated_at']);
+            foreach ($records as $record) {
+                $urls[] = ['path' => "/{$prefix}/{$record->slug}/", 'lastmod' => $record->updated_at?->toW3cString()];
+            }
+        }
+
+        return $urls;
+    }
+
+    private function prefixFor(ContentCollection $collection): string
+    {
+        return RecordDisplay::pathPrefix($collection);
+    }
+
+    private function metaDescription(ContentCollection $collection, Record $record): string
+    {
+        foreach ($collection->fields() as $field) {
+            if (in_array($field['type'], ['rich_text', 'text'], true) && $field['key'] !== $collection->titleField()) {
+                $plain = RecordDisplay::plain($record, $field);
+                if ($plain !== '') {
+                    return mb_substr($plain, 0, 160);
+                }
+            }
+        }
+
+        return mb_substr("{$record->title} — {$collection->name}, {$collection->site?->name}", 0, 160);
+    }
+
+    /** Same full-page wrapping as templated category archives. */
+    private function wrapInLayout(Site $site, string $headContent, string $body, string $title, bool $includeSearchRuntime = false): string
+    {
+        $vars = $this->archiveService->getArchiveVars($site);
+        $themeConfig = $site->theme?->config ?? [];
+
+        $bodyScripts = '';
+        if ($includeSearchRuntime || str_contains($body, 'data-cs-role')) {
+            $bodyScripts = self::publishSearchRuntime($site);
+        }
+
+        return View::make('publishing.layout', array_merge($vars, [
+            'headContent' => $headContent . app(FaviconGenerator::class)->headLink(),
+            'headScripts' => '',
+            'bodyScripts' => $bodyScripts,
+            'fontPreloads' => $vars['fontPreloads'] ?? '',
+            'hookHeadScripts' => '',
+            'hookBodyOpen' => '',
+            'hookBodyClose' => '',
+            'renderedBlocks' => $body,
+            'mainStyle' => 'max-width:var(--container-width,1200px);margin:0 auto;padding:0 var(--container-padding,24px);',
+            'content' => (object) ['title' => $title, 'seo_meta' => []],
+            'themeConfig' => $themeConfig,
+        ]))->render();
+    }
+
+    private function write(string $stagingPath, string $path, string $html): void
+    {
+        $html = AssetPublisher::rewriteHtml($html);
+        File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
+        File::put("{$stagingPath}/{$path}", $html);
+    }
+}

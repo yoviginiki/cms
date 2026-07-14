@@ -31,6 +31,10 @@ class StaleContentController extends Controller
             ->where('needs_republish', true)
             ->get(['id', 'title', 'slug', 'status', 'needs_republish_reason', 'updated_at']);
 
+        $records = \App\Models\Record::where('site_id', $site->id)
+            ->where('needs_republish', true)
+            ->get(['id', 'collection_id', 'title', 'slug', 'status', 'needs_republish_reason', 'updated_at']);
+
         $siteStale = ($site->settings ?? [])['stale'] ?? null;
 
         // Latest staged batch awaiting promotion, if any
@@ -43,8 +47,9 @@ class StaleContentController extends Controller
         return response()->json(['data' => [
             'pages' => $pages,
             'posts' => $posts,
+            'records' => $records,
             'site_stale' => $siteStale,
-            'count' => $pages->count() + $posts->count() + ($siteStale ? 1 : 0),
+            'count' => $pages->count() + $posts->count() + $records->count() + ($siteStale ? 1 : 0),
             'staged_batch' => $staged,
         ]]);
     }
@@ -58,6 +63,8 @@ class StaleContentController extends Controller
             'page_ids.*' => ['uuid'],
             'post_ids' => ['sometimes', 'array'],
             'post_ids.*' => ['uuid'],
+            'record_ids' => ['sometimes', 'array'],
+            'record_ids.*' => ['uuid'],
             'all' => ['sometimes', 'boolean'],
         ]);
 
@@ -71,15 +78,18 @@ class StaleContentController extends Controller
         if ($validated['all'] ?? false) {
             $pageIds = Page::where('site_id', $site->id)->where('needs_republish', true)->pluck('id')->all();
             $postIds = Post::where('site_id', $site->id)->where('needs_republish', true)->pluck('id')->all();
+            $recordIds = \App\Models\Record::where('site_id', $site->id)->where('needs_republish', true)->pluck('id')->all();
         } else {
             // Only accept ids that are actually flagged and belong to this site
             $pageIds = Page::where('site_id', $site->id)->where('needs_republish', true)
                 ->whereIn('id', $validated['page_ids'] ?? [])->pluck('id')->all();
             $postIds = Post::where('site_id', $site->id)->where('needs_republish', true)
                 ->whereIn('id', $validated['post_ids'] ?? [])->pluck('id')->all();
+            $recordIds = \App\Models\Record::where('site_id', $site->id)->where('needs_republish', true)
+                ->whereIn('id', $validated['record_ids'] ?? [])->pluck('id')->all();
         }
 
-        if ($pageIds === [] && $postIds === []) {
+        if ($pageIds === [] && $postIds === [] && $recordIds === []) {
             return response()->json(['message' => 'No stale pages selected.'], 422);
         }
 
@@ -98,8 +108,8 @@ class StaleContentController extends Controller
             'triggered_by' => $request->user()->id,
             'metadata' => [
                 'current_step' => 'queued',
-                'targets' => ['pages' => $pageIds, 'posts' => $postIds],
-                'pages_total' => count($pageIds) + count($postIds),
+                'targets' => ['pages' => $pageIds, 'posts' => $postIds, 'records' => $recordIds],
+                'pages_total' => count($pageIds) + count($postIds) + count($recordIds),
                 'pages_built' => 0,
             ],
         ]);

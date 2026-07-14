@@ -421,4 +421,137 @@ export const globalSections = {
     api.delete(`/sites/${siteId}/global-sections/${id}`, { params: force ? { force: 1 } : {} }),
 };
 
+// ── Collections (Track G) — user-defined structured content types ──
+export type CollectionFieldType =
+  | 'text' | 'rich_text' | 'number' | 'price' | 'boolean' | 'select' | 'multi_select'
+  | 'date' | 'email' | 'url' | 'phone' | 'image' | 'gallery' | 'file' | 'sku' | 'relation';
+
+export type CollectionPivotFieldType = 'text' | 'number' | 'price' | 'boolean' | 'select' | 'date' | 'sku';
+
+export interface CollectionPivotField {
+  key: string;
+  label: string;
+  type: CollectionPivotFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+export interface CollectionRelationConfig {
+  collection_id: string;
+  mode: 'one' | 'many';
+  pivot_fields?: CollectionPivotField[];
+}
+
+export interface CollectionFieldSettings {
+  max_length?: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  placeholder?: string;
+  help?: string;
+  rows?: number;
+}
+
+export interface CollectionField {
+  key: string;
+  label: string;
+  type: CollectionFieldType;
+  required?: boolean;
+  unique?: boolean;
+  searchable?: boolean;
+  facetable?: boolean;
+  show_in_list?: boolean;
+  description?: string;
+  options?: string[];
+  relation?: CollectionRelationConfig;
+  settings?: CollectionFieldSettings;
+}
+
+export interface CollectionSchema {
+  fields: CollectionField[];
+  title_field: string;
+  slug_source?: string;
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string | null;
+  tier: 'static' | 'dynamic';
+  schema: CollectionSchema;
+  settings?: Record<string, unknown> | null;
+  is_system: boolean;
+  records_count: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CollectionRecordRelation {
+  id: string;
+  title: string;
+  slug: string;
+  status: 'draft' | 'published';
+  pivot?: Record<string, unknown> | null;
+  position?: number;
+}
+
+export interface CollectionRecord {
+  id: string;
+  collection_id: string;
+  slug: string;
+  title: string;
+  status: 'draft' | 'published';
+  position: number;
+  data: Record<string, unknown>;
+  relations?: Record<string, CollectionRecordRelation[]>;
+  published_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CollectionRecordPayload {
+  data: Record<string, unknown>;
+  relations?: Record<string, { id: string; pivot?: Record<string, unknown> }[]>;
+  status: 'draft' | 'published';
+  slug?: string;
+}
+
+export const collections = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/collections`),
+  get: (siteId: string, id: string) => api.get(`/sites/${siteId}/collections/${id}`),
+  create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/collections`, data),
+  update: (siteId: string, id: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/collections/${id}`, data),
+  delete: (siteId: string, id: string, force = false) =>
+    api.delete(`/sites/${siteId}/collections/${id}`, { params: force ? { force: 1 } : {} }),
+};
+
+export const collectionRecords = {
+  list: (siteId: string, collectionId: string, params?: Record<string, unknown>) =>
+    api.get(`/sites/${siteId}/collections/${collectionId}/records`, { params }),
+  get: (siteId: string, collectionId: string, recordId: string) =>
+    api.get(`/sites/${siteId}/collections/${collectionId}/records/${recordId}`),
+  create: (siteId: string, collectionId: string, data: CollectionRecordPayload) =>
+    api.post(`/sites/${siteId}/collections/${collectionId}/records`, data),
+  update: (siteId: string, collectionId: string, recordId: string, data: CollectionRecordPayload) =>
+    api.put(`/sites/${siteId}/collections/${collectionId}/records/${recordId}`, data),
+  delete: (siteId: string, collectionId: string, recordId: string, force = false) =>
+    api.delete(`/sites/${siteId}/collections/${collectionId}/records/${recordId}`, { params: force ? { force: 1 } : {} }),
+  bulk: (siteId: string, collectionId: string, body: { action: 'publish' | 'draft' | 'delete'; ids: string[]; force?: boolean }) =>
+    api.post(`/sites/${siteId}/collections/${collectionId}/records/bulk`, body),
+  exportUrl: (siteId: string, collectionId: string) => `/api/v1/sites/${siteId}/collections/${collectionId}/export`,
+};
+
+export const collectionImport = {
+  upload: (siteId: string, collectionId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post(`/sites/${siteId}/collections/${collectionId}/import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  execute: (siteId: string, collectionId: string, importId: string, body: Record<string, unknown>) =>
+    api.post(`/sites/${siteId}/collections/${collectionId}/import/${importId}/execute`, body),
+  status: (siteId: string, collectionId: string, importId: string) =>
+    api.get(`/sites/${siteId}/collections/${collectionId}/import/${importId}/status`),
+};
+
 export default api;

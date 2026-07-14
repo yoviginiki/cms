@@ -167,6 +167,17 @@ class PublishSiteJob implements ShouldQueue
                 $this->updateStatus('building', "Built {$magBuilt} magazine viewer(s)");
             }
 
+            // Collections (Track G2): record detail pages + paginated
+            // archives + static search indexes for static-tier collections —
+            // independent of whether the site has posts.
+            $collectionWarnings = app(\App\Domain\Collections\Services\CollectionPublishService::class)->buildAll($site, $stagingPath);
+            if ($collectionWarnings !== []) {
+                $validationResults['site:collections'] = ['passed' => true, 'warnings' => $collectionWarnings, 'errors' => [], 'score_estimate' => 100];
+            }
+            \App\Models\Record::where('site_id', $site->id)->where('needs_republish', true)
+                ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
+            $this->updateStatus('building', 'Built collections');
+
             // Generate blog index, archives, and RSS
             if ($posts->isNotEmpty()) {
                 // Blog index + category/tag/author archives (shared with delta

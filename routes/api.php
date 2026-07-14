@@ -224,6 +224,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/global-sections/{globalSection}/unpublish', [$gs, 'unpublish']);
 
         // Stale content: list, staged batch republish, human-confirmed promote
+        // Collections (Track G) — user-defined structured data + records + import/export
+        Route::post('sites/{site}/collections/{collection}/records/bulk', [\App\Http\Controllers\Api\V1\RecordController::class, 'bulk']);
+        Route::get('sites/{site}/collections/{collection}/export', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'export']);
+        Route::post('sites/{site}/collections/{collection}/import', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'upload']);
+        Route::post('sites/{site}/collections/{collection}/import/{importId}/execute', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'execute']);
+        Route::get('sites/{site}/collections/{collection}/import/{importId}/status', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'status']);
+        Route::apiResource('sites.collections', \App\Http\Controllers\Api\V1\CollectionController::class);
+        Route::apiResource('sites.collections.records', \App\Http\Controllers\Api\V1\RecordController::class);
+
         Route::get('sites/{site}/stale', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'index']);
         Route::post('sites/{site}/stale/republish', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'republish']);
         Route::post('sites/{site}/stale/{deployment}/promote', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'promote']);
