@@ -322,25 +322,20 @@ class CollectionPublishService
     }
 
     /**
-     * Publish the search-island runtime and return its script tag. Same
-     * mechanics as SliderRender::publishRuntime — hashed filename, copied to
-     * the tenant docroot AND the CMS public dir (preview iframe loads the
-     * same /assets/… path from the Laravel origin).
+     * Publish the search-island runtime and return its script tag. The copy
+     * goes into the STAGING tree (AssetPublisher deploy target) so it ships
+     * atomically with the build — writing to the live docroot mid-build is
+     * lost when the symlink strategy swaps builds. The CMS public dir gets a
+     * copy too (preview iframe loads the same /assets/… path from the
+     * Laravel origin).
      */
     public static function publishSearchRuntime(Site $site): string
     {
         $source = resource_path('js/collections-search.js');
         $hash = substr(md5_file($source), 0, 8);
 
-        if ($site->custom_domain) {
-            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
-            $target = $tenantBase . '/' . $safeDomain . '/public_html';
-        } else {
-            $target = config('publishing.public_path') . '/' . $site->slug;
-        }
-
-        foreach ([$target, public_path()] as $base) {
+        $bases = array_filter([AssetPublisher::deployTarget(), public_path()]);
+        foreach ($bases as $base) {
             try {
                 File::ensureDirectoryExists("{$base}/assets");
                 if (!file_exists("{$base}/assets/collections-search.{$hash}.js")) {

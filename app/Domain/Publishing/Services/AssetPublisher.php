@@ -23,6 +23,12 @@ class AssetPublisher
         self::$deployTarget = $path;
     }
 
+    /** The active deploy target (staging tree during a build), if any. */
+    public static function deployTarget(): ?string
+    {
+        return self::$deployTarget;
+    }
+
     /**
      * Resolve an asset ID (optionally a named variant) or API URL to a static
      * public URL, publishing the underlying file to the deploy target.
