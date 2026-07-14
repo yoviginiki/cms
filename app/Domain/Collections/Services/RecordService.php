@@ -83,7 +83,7 @@ class RecordService
             );
         }
 
-        return DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input) {
+        $saved = DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input) {
             $attrs = [
                 'slug' => $slug,
                 'title' => mb_substr($title, 0, 255),
@@ -124,6 +124,12 @@ class RecordService
 
             return $record->refresh();
         });
+
+        // Tier-2 public API cache: bump the collection's version key — every
+        // cached response embeds it, so one O(1) increment invalidates all.
+        \Illuminate\Support\Facades\Cache::increment("colapi_ver:{$collection->id}");
+
+        return $saved;
     }
 
     public function delete(Record $record, Site $site): void
@@ -135,6 +141,8 @@ class RecordService
             $this->references->persistEdges($site->id, 'record', $record->id, []);
             $record->delete(); // record_relations cascade via FK
         });
+
+        \Illuminate\Support\Facades\Cache::increment("colapi_ver:{$record->collection_id}");
     }
 
     /**

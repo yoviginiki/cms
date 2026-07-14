@@ -483,6 +483,7 @@ export interface Collection {
   settings?: Record<string, unknown> | null;
   is_system: boolean;
   records_count: number;
+  tier_warning?: string | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -77,6 +77,22 @@ class RecordDisplay
         return is_string($value) ? self::assetUrl($site, $value) : null;
     }
 
+    /**
+     * The search island's data source for a collection, resolved at publish
+     * by tier: static → flat JSON index; dynamic → the read-only public API.
+     * The blocks don't know or care which tier feeds them.
+     *
+     * @return array{0: 'static'|'api', 1: string} [mode, url]
+     */
+    public static function searchSource(ContentCollection $collection, Site $site): array
+    {
+        if ($collection->tier === 'dynamic') {
+            return ['api', rtrim((string) config('app.url'), '/') . "/api/v1/public/{$site->id}/collections/{$collection->slug}/records"];
+        }
+
+        return ['static', '/' . self::pathPrefix($collection) . '/index.json'];
+    }
+
     /** HTML-safe rendering of one field value ('' when empty). */
     public static function display(Site $site, ContentCollection $collection, Record $record, string $fieldKey): string
     {
