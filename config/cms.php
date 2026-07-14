@@ -45,6 +45,14 @@ return [
         'node_bin' => env('THEME_WIZARD_NODE_BIN', 'node'),
     ],
 
+    'page_wizard' => [
+        // Opus reads a screenshot into a page layout; Sonnet handles content
+        // extraction, plain-description generation, and refinement nudges.
+        'vision_model' => env('PAGE_WIZARD_VISION_MODEL', 'claude-opus-4-8'),
+        'content_model' => env('PAGE_WIZARD_CONTENT_MODEL', 'claude-sonnet-5'),
+        'max_blocks' => (int) env('PAGE_WIZARD_MAX_BLOCKS', 40),
+    ],
+
     'database' => [
         'rls_enabled' => env('DB_CONNECTION') === 'pgsql',
         'driver' => env('DB_CONNECTION', 'mysql'),

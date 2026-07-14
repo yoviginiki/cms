@@ -45,6 +45,7 @@ const ContentGraph = lazy(() => import('./pages/ContentGraph'));
 const DebugConsole = lazy(() => import('./pages/DebugConsole'));
 const ThemeEngine = lazy(() => import('./pages/ThemeEngine'));
 const ThemeWizardPage = lazy(() => import('./pages/ThemeWizardPage'));
+const PageWizardPage = lazy(() => import('./pages/PageWizardPage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 const GlobalSectionsList = lazy(() => import('./pages/GlobalSectionsList'));
 const StylePresetsList = lazy(() => import('./pages/StylePresetsList'));
@@ -115,6 +116,7 @@ export default function App() {
           <Route path="/sites/:siteId/templates/:templateId/edit" element={<TemplateEditor />} />
           <Route path="/sites/:siteId/theme-engine" element={<LayoutRoute><ThemeEngine /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-wizard" element={<LayoutRoute><ThemeWizardPage /></LayoutRoute>} />
+          <Route path="/sites/:siteId/page-wizard" element={<LayoutRoute><PageWizardPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/library" element={<LayoutRoute><LibraryPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/global-sections" element={<LayoutRoute><GlobalSectionsList /></LayoutRoute>} />
           <Route path="/sites/:siteId/style-presets" element={<LayoutRoute><StylePresetsList /></LayoutRoute>} />

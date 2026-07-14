@@ -235,6 +235,47 @@ export const themeWizard = {
   previewUrl: (siteId: string, id: string) => `/api/v1/sites/${siteId}/theme-wizard/sessions/${id}/preview/showcase`,
 };
 
+// ── Page Wizard (Track G) — conversational AI page builder ──
+export interface PageWizardSession {
+  id: string;
+  status: 'capturing' | 'capture_failed' | 'drafting' | 'accepted' | 'abandoned';
+  source: 'url' | 'upload' | 'describe';
+  mode: 'layout' | 'content' | 'describe';
+  title: string;
+  reference_url?: string | null;
+  transcript: { role: 'user' | 'assistant'; text: string; at?: string }[];
+  manifest?: Record<string, unknown> | null;
+  page?: { id: string; slug: string; status: string } | null;
+  preview_path?: string | null;
+  error?: string | null;
+  total_tokens: number;
+  updated_at?: string;
+}
+
+export interface PageWizardAcceptResult {
+  session: PageWizardSession;
+  page: { id: string; slug: string; title: string; status: string };
+}
+
+export const pageWizard = {
+  list: (siteId: string) =>
+    api.get<{ data: PageWizardSession[] }>(`/sites/${siteId}/page-wizard/sessions`),
+  get: (siteId: string, id: string) =>
+    api.get<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/${id}`),
+  fromUrl: (siteId: string, url: string, mode: 'layout' | 'content', hint?: string) =>
+    api.post<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/from-url`, { url, mode, hint }),
+  fromUpload: (siteId: string, form: FormData) =>
+    api.post<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/from-upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  fromDescribe: (siteId: string, description: string) =>
+    api.post<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/from-describe`, { description }),
+  nudge: (siteId: string, id: string, instruction: string) =>
+    api.post<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/${id}/nudge`, { instruction }),
+  accept: (siteId: string, id: string, publish?: boolean) =>
+    api.post<{ data: PageWizardAcceptResult }>(`/sites/${siteId}/page-wizard/sessions/${id}/accept`, { publish }),
+  abandon: (siteId: string, id: string) =>
+    api.post<{ data: { status: 'abandoned' } }>(`/sites/${siteId}/page-wizard/sessions/${id}/abandon`),
+};
+
 export const customFonts = {
   list: (siteId: string) => api.get(`/sites/${siteId}/fonts`),
   upload: (siteId: string, formData: FormData) => api.post(`/sites/${siteId}/fonts`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
