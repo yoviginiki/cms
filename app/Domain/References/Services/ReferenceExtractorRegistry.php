@@ -90,7 +90,9 @@ class ReferenceExtractorRegistry
             // pages carrying these blocks republish (fresh counts/options).
             // Unset collectionId (archive-template context) → no edge; the
             // archive rebuild is driven by the publish pipeline itself.
-            'record-loop' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
+            'record-loop' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists'], 'queryId' => ['query', 'embeds']]),
+            'query-stat' => new FieldMapExtractor(idFields: ['queryId' => ['query', 'embeds']]),
+            'query-table' => new FieldMapExtractor(idFields: ['queryId' => ['query', 'embeds']]),
             'search-box' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
             'facet-filter' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
             'results-grid' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),

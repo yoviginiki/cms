@@ -17,6 +17,7 @@ class RecordLoopBlockDefinition implements BlockDefinition
     {
         return [
             'collectionId' => ['sometimes', 'nullable', 'uuid'],
+            'queryId' => ['sometimes', 'nullable', 'uuid'],
             'layout' => ['sometimes', 'in:cards,list,grid'],
             'columns' => ['sometimes', 'integer', 'min:1', 'max:6'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:100'],

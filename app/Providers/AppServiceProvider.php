@@ -214,6 +214,8 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new \App\Domain\Blocks\Definitions\SearchBoxBlockDefinition());
             $registry->register(new \App\Domain\Blocks\Definitions\FacetFilterBlockDefinition());
             $registry->register(new \App\Domain\Blocks\Definitions\ResultsGridBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\QueryStatBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\QueryTableBlockDefinition());
 
             // Slider system (library entity root + slide + page-side ref + shape primitive)
             $registry->register(new SliderBlockDefinition());
@@ -263,6 +265,7 @@ class AppServiceProvider extends ServiceProvider
             'global_section' => \App\Models\GlobalSection::class,
             'collection' => \App\Models\ContentCollection::class,
             'record' => \App\Models\Record::class,
+            'query' => \App\Models\SavedQuery::class,
         ]);
 
         // Explicit route model bindings for non-standard model locations
