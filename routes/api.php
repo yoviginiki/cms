@@ -37,6 +37,7 @@ Route::get('/preview/{token}', [PreviewController::class, 'publicPreview']);
 Route::middleware(['public.site', 'public.cors', 'throttle:60,1'])->prefix('public/{site}')->group(function () {
     Route::get('/collections/{collectionSlug}/records', [\App\Http\Controllers\Api\V1\PublicCollectionController::class, 'records']);
     Route::get('/collections/{collectionSlug}/records/{recordSlug}', [\App\Http\Controllers\Api\V1\PublicCollectionController::class, 'record']);
+    Route::get('/queries/{querySlug}', [\App\Http\Controllers\Api\V1\PublicQueryController::class, 'show']);
 });
 
 // Public form submission (rate-limited, no auth)
@@ -239,6 +240,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/collections/{collection}/import/{importId}/status', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'status']);
         Route::apiResource('sites.collections', \App\Http\Controllers\Api\V1\CollectionController::class);
         Route::apiResource('sites.collections.records', \App\Http\Controllers\Api\V1\RecordController::class);
+
+        // Saved queries (Track G-Q) — authoring is admin/owner only
+        Route::middleware('role:admin')->group(function () {
+            Route::post('sites/{site}/saved-queries/preview', [\App\Http\Controllers\Api\V1\SavedQueryController::class, 'preview']);
+            Route::post('sites/{site}/saved-queries/show-sql', [\App\Http\Controllers\Api\V1\SavedQueryController::class, 'showSql']);
+            Route::apiResource('sites.saved-queries', \App\Http\Controllers\Api\V1\SavedQueryController::class)
+                ->parameters(['saved-queries' => 'savedQuery']);
+        });
 
         Route::get('sites/{site}/stale', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'index']);
         Route::post('sites/{site}/stale/republish', [\App\Http\Controllers\Api\V1\StaleContentController::class, 'republish']);

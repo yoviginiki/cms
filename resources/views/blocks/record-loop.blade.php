@@ -22,10 +22,29 @@
 
     $limit = max(1, min(100, (int) ($data['limit'] ?? 12)));
 
+    // G-Q: a saved query as the loop's source beats everything else.
+    $__loopQuery = null;
+    if (!empty($data['queryId'])) {
+        try {
+            $__savedQuery = \App\Models\SavedQuery::find($data['queryId']);
+            if ($__savedQuery) {
+                $__loopResult = app(\App\Domain\Collections\Queries\QueryRunner::class)->run($__savedQuery);
+                if ($__loopResult['type'] === 'records') {
+                    $__loopQuery = $__loopResult['rows']->take($limit);
+                    $collection = $__savedQuery->sourceCollection() ?: $collection;
+                }
+            }
+        } catch (\Throwable $e) {
+            logger()->warning("record-loop query source failed ({$data['queryId']}): {$e->getMessage()}");
+        }
+    }
+
     // Inside a record-archive template the paginated context is authoritative;
     // anywhere else the loop runs its own query.
     $records = collect();
-    if (isset($__archiveRecords) && (!isset($__collection) || !$collection || $__collection?->id === $collection->id)) {
+    if ($__loopQuery !== null) {
+        $records = $__loopQuery;
+    } elseif (isset($__archiveRecords) && (!isset($__collection) || !$collection || $__collection?->id === $collection->id)) {
         $records = collect($__archiveRecords)->take($limit);
         $collection = $collection ?: ($__collection ?? null);
     } elseif ($collection) {

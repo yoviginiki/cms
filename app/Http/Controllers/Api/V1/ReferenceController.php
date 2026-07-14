@@ -23,7 +23,7 @@ class ReferenceController extends Controller
         $this->authorize('view', $site);
 
         $validated = $request->validate([
-            'target_type' => ['required', 'string', 'in:asset,menu,page,post,category,theme,slider,magazine_doc,global_section,style_preset,collection,record'],
+            'target_type' => ['required', 'string', 'in:asset,menu,page,post,category,theme,slider,magazine_doc,global_section,style_preset,collection,record,query'],
             'target_id' => ['required', 'uuid'],
         ]);
 
