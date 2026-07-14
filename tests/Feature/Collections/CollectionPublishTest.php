@@ -187,7 +187,16 @@ class CollectionPublishTest extends TestCase
             ['type' => 'results-grid', 'order' => 2, 'data' => ['collectionId' => $this->books->id, 'cardFields' => ['price', 'genre']]],
         ]);
 
-        $html = app(BuildPageService::class)->build($page, null, $this->site);
+        \App\Domain\Publishing\Services\AssetPublisher::setDeployTarget($this->staging);
+        try {
+            $html = app(BuildPageService::class)->build($page, null, $this->site);
+        } finally {
+            \App\Domain\Publishing\Services\AssetPublisher::reset();
+        }
+
+        // The runtime must ship INSIDE the build (atomic swap loses anything
+        // written to the live docroot mid-build).
+        $this->assertNotEmpty(glob("{$this->staging}/assets/collections-search.*.js"));
 
         $this->assertStringContainsString('data-cs-role="search-box"', $html);
         $this->assertStringContainsString('data-cs-source="/books/index.json"', $html);
