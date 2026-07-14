@@ -244,6 +244,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Saved queries (Track G-Q) — authoring is admin/owner only
         Route::middleware('role:admin')->group(function () {
             Route::post('sites/{site}/saved-queries/preview', [\App\Http\Controllers\Api\V1\SavedQueryController::class, 'preview']);
+            Route::post('sites/{site}/saved-queries/show-sql', [\App\Http\Controllers\Api\V1\SavedQueryController::class, 'showSql']);
             Route::apiResource('sites.saved-queries', \App\Http\Controllers\Api\V1\SavedQueryController::class)
                 ->parameters(['saved-queries' => 'savedQuery']);
         });

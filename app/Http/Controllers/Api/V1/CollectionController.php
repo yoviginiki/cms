@@ -45,6 +45,7 @@ class CollectionController extends Controller
 
         $collection = $this->service->create($site, $request->all());
         $collection->loadCount('records');
+        $this->queueViewRebuild($site);
 
         return response()->json(['data' => $this->serialize($collection)], 201);
     }
@@ -66,6 +67,7 @@ class CollectionController extends Controller
 
         $result = $this->service->update($collection, $site, $request->all());
         $result['collection']->loadCount('records');
+        $this->queueViewRebuild($site);
 
         return response()->json([
             'data' => $this->serialize($result['collection']),
@@ -105,7 +107,15 @@ class CollectionController extends Controller
             $collection->delete(); // records + record_relations cascade
         });
 
+        $this->queueViewRebuild($site);
+
         return response()->json(['message' => 'Collection deleted.']);
+    }
+
+    /** Keep the SQL-mode scoped views in step with the collection schema. */
+    private function queueViewRebuild(Site $site): void
+    {
+        \App\Domain\Collections\Jobs\RebuildScopedViewsJob::dispatch($site->id, $site->tenant_id);
     }
 
     private function serialize(ContentCollection $c): array

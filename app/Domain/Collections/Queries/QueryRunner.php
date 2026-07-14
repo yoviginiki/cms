@@ -13,8 +13,10 @@ use Illuminate\Validation\ValidationException;
  */
 class QueryRunner
 {
-    public function __construct(private SimpleQueryCompiler $compiler)
-    {
+    public function __construct(
+        private SimpleQueryCompiler $compiler,
+        private SqlQueryRunner $sqlRunner,
+    ) {
     }
 
     /**
@@ -26,7 +28,8 @@ class QueryRunner
 
         return match ($query->mode) {
             'simple' => $this->runSimple($query, $params),
-            default => throw ValidationException::withMessages(['mode' => 'SQL-mode execution arrives with G-Q2.']),
+            'sql' => $this->runSql($query),
+            default => throw ValidationException::withMessages(['mode' => "Unknown query mode '{$query->mode}'."]),
         };
     }
 
@@ -38,6 +41,20 @@ class QueryRunner
         }
 
         return $this->compiler->run($collection, $query->definition, $params);
+    }
+
+    /**
+     * SQL mode ignores public params for now — the guarded editor is
+     * admin-authored static SQL (parameterized SQL endpoints land in G-Q3).
+     */
+    private function runSql(SavedQuery $query): array
+    {
+        $site = $query->site;
+        if (!$site || !is_string($query->sql) || trim($query->sql) === '') {
+            throw ValidationException::withMessages(['sql' => 'This query has no SQL.']);
+        }
+
+        return $this->sqlRunner->run($site, $query->sql);
     }
 
     /**

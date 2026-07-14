@@ -109,6 +109,10 @@ class SavedQueryController extends Controller
     {
         $this->authorize('update', $site);
 
+        if ($request->input('mode') === 'sql') {
+            return $this->previewSql($request, $site);
+        }
+
         $definition = $this->validator->validate(
             is_array($request->input('definition')) ? $request->input('definition') : [],
             $site,
@@ -129,7 +133,40 @@ class SavedQueryController extends Controller
 
         return response()->json(['data' => [
             'sentence' => $this->sentence->describe($definition, $collection),
+            'as_sql' => app(\App\Domain\Collections\Queries\SimpleToSql::class)->render($definition, $collection),
             'result' => $this->serializeResult($result),
+        ]]);
+    }
+
+    /** SQL-mode live preview: guard + run the statement under the restricted role. */
+    private function previewSql(Request $request, Site $site): JsonResponse
+    {
+        $sql = trim((string) $request->input('sql', ''));
+        try {
+            $result = app(\App\Domain\Collections\Queries\SqlQueryRunner::class)->run($site, $sql);
+        } catch (\App\Domain\Collections\Queries\SqlGuardException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => ['sql' => [$e->getMessage()]]], 422);
+        }
+
+        return response()->json(['data' => ['result' => $result]]);
+    }
+
+    /**
+     * The mode bridge: the exact SQL a Simple-mode definition compiles to,
+     * copyable into Advanced mode. Deliberately the primary SQL-learning path.
+     */
+    public function showSql(Request $request, Site $site): JsonResponse
+    {
+        $this->authorize('update', $site);
+
+        $definition = $this->validator->validate(
+            is_array($request->input('definition')) ? $request->input('definition') : [],
+            $site,
+        );
+        $collection = ContentCollection::findOrFail($definition['collection_id']);
+
+        return response()->json(['data' => [
+            'sql' => app(\App\Domain\Collections\Queries\SimpleToSql::class)->render($definition, $collection),
         ]]);
     }
 
@@ -141,15 +178,32 @@ class SavedQueryController extends Controller
         }
 
         $mode = $request->input('mode', $existing?->mode ?? 'simple');
-        if ($mode !== 'simple') {
-            throw ValidationException::withMessages(['mode' => 'SQL mode arrives with G-Q2 — simple mode only for now.']);
+        if (!in_array($mode, SavedQuery::MODES, true)) {
+            throw ValidationException::withMessages(['mode' => 'Query mode is simple or sql.']);
         }
 
-        $definition = $this->validator->validate(
-            is_array($request->input('definition')) ? $request->input('definition') : ($existing?->definition ?? []),
-            $site,
-            $existing,
-        );
+        $definition = [];
+        $sql = $existing?->sql;
+        if ($mode === 'simple') {
+            $definition = $this->validator->validate(
+                is_array($request->input('definition')) ? $request->input('definition') : ($existing?->definition ?? []),
+                $site,
+                $existing,
+            );
+        } else {
+            // SQL mode is admin/owner only (enforced by the route) — validate
+            // the statement through the same guard the runner uses.
+            $sql = trim((string) $request->input('sql', $existing?->sql ?? ''));
+            if ($sql === '') {
+                throw ValidationException::withMessages(['sql' => 'Write a SELECT statement.']);
+            }
+            try {
+                app(\App\Domain\Collections\Queries\SqlQueryGuard::class)
+                    ->validate($sql, app(\App\Domain\Collections\Queries\ScopedViewManager::class)->viewNames($site));
+            } catch (\App\Domain\Collections\Queries\SqlGuardException $e) {
+                throw ValidationException::withMessages(['sql' => $e->getMessage()]);
+            }
+        }
 
         $publicParams = [];
         foreach ((array) $request->input('public_params', $existing?->public_params ?? []) as $i => $param) {
@@ -183,21 +237,43 @@ class SavedQueryController extends Controller
         return [
             'name' => $name,
             'slug' => $slug,
-            'mode' => 'simple',
+            'mode' => $mode,
             'definition' => $definition,
+            'sql' => $mode === 'sql' ? $sql : null,
             'public_params' => $publicParams,
             'is_public' => (bool) $request->input('is_public', $existing?->is_public ?? false),
             'settings' => is_array($request->input('settings')) ? $request->input('settings') : ($existing?->settings ?? []),
         ];
     }
 
-    /** query → collection `lists` edge: record changes cascade to embedding pages. */
+    /**
+     * query → collection `lists`/`reads` edges so record changes cascade to
+     * embedding pages. Simple mode reads definition.collection_id; SQL mode
+     * maps its referenced col_/rel_ views back to collections.
+     */
     private function recordEdges(Site $site, SavedQuery $query): void
     {
         $edges = [];
-        if ($collectionId = $query->definition['collection_id'] ?? null) {
-            $edges[] = ['target_type' => 'collection', 'target_id' => $collectionId, 'kind' => 'lists'];
+
+        if ($query->mode === 'simple') {
+            if ($collectionId = $query->definition['collection_id'] ?? null) {
+                $edges[] = ['target_type' => 'collection', 'target_id' => $collectionId, 'kind' => 'lists'];
+            }
+        } else {
+            $views = app(\App\Domain\Collections\Queries\ScopedViewManager::class);
+            foreach (ContentCollection::where('site_id', $site->id)->get() as $collection) {
+                $referenced = str_contains((string) $query->sql, $views->collectionViewName($collection));
+                foreach ($collection->fields() as $field) {
+                    if ($field['type'] === 'relation' && str_contains((string) $query->sql, $views->relationViewName($collection, $field['key']))) {
+                        $referenced = true;
+                    }
+                }
+                if ($referenced) {
+                    $edges[] = ['target_type' => 'collection', 'target_id' => $collection->id, 'kind' => 'lists'];
+                }
+            }
         }
+
         $this->references->persistEdges($site->id, 'query', $query->id, $edges);
     }
 
@@ -209,6 +285,7 @@ class SavedQueryController extends Controller
             'slug' => $q->slug,
             'mode' => $q->mode,
             'definition' => $q->definition,
+            'sql' => $q->sql,
             'public_params' => $q->public_params ?: [],
             'is_public' => $q->is_public,
             'settings' => $q->settings ?: (object) [],
