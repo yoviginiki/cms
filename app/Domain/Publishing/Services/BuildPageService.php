@@ -87,6 +87,13 @@ class BuildPageService
                 . "\n" . '<script defer src="' . $runtime['js'] . '"></script>';
         }
 
+        // Collections search islands (Track G2): pages carrying any search
+        // block load the hashed vanilla-JS island runtime; everything else
+        // loads nothing.
+        if ($content->blocks()->whereIn('type', ['search-box', 'facet-filter', 'results-grid'])->exists()) {
+            $bodyScripts .= "\n" . \App\Domain\Collections\Services\CollectionPublishService::publishSearchRuntime($site);
+        }
+
         // Experience Mode: inject assets for cinematic pages ONLY
         $experienceMode = $content->experience_mode ?? 'standard';
         if ($experienceMode === 'cinematic') {

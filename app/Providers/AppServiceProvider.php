@@ -206,6 +206,15 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new CategoryHeaderBlockDefinition());
             $registry->register(new ArchivePaginationBlockDefinition());
 
+            // Collections (Track G2): record slot blocks + search islands
+            $registry->register(new \App\Domain\Blocks\Definitions\RecordTitleBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\RecordImageBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\FieldValueBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\RecordLoopBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\SearchBoxBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\FacetFilterBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\ResultsGridBlockDefinition());
+
             // Slider system (library entity root + slide + page-side ref + shape primitive)
             $registry->register(new SliderBlockDefinition());
             $registry->register(new SlideBlockDefinition());

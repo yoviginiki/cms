@@ -23,6 +23,7 @@ class Record extends Model
 
     protected $fillable = [
         'collection_id', 'site_id', 'slug', 'title', 'status', 'position', 'data', 'published_at',
+        'needs_republish', 'needs_republish_reason',
     ];
 
     protected function casts(): array

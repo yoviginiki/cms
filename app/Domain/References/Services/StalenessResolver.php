@@ -184,9 +184,11 @@ class StalenessResolver
     public function clearBuiltIfUnchanged(array $built): void
     {
         foreach ($built as $item) {
-            $model = ($item['type'] ?? null) === 'post'
-                ? Post::find($item['id'] ?? null)
-                : Page::find($item['id'] ?? null);
+            $model = match ($item['type'] ?? null) {
+                'post' => Post::find($item['id'] ?? null),
+                'record' => \App\Models\Record::find($item['id'] ?? null),
+                default => Page::find($item['id'] ?? null),
+            };
             if (!$model) {
                 continue;
             }
@@ -205,6 +207,8 @@ class StalenessResolver
         Page::where('site_id', $site->id)->where('needs_republish', true)
             ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
         Post::where('site_id', $site->id)->where('needs_republish', true)
+            ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
+        \App\Models\Record::where('site_id', $site->id)->where('needs_republish', true)
             ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
 
         $settings = $site->settings ?? [];

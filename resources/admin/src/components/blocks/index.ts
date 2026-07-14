@@ -95,5 +95,12 @@ import './post-navigation';
 import './post-loop';
 import './category-header';
 import './archive-pagination';
+import './record-title';
+import './record-image';
+import './field-value';
+import './record-loop';
+import './search-box';
+import './facet-filter';
+import './results-grid';
 
 export { blockRegistry } from './registry';

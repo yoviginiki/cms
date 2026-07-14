@@ -95,6 +95,12 @@ class RecordService
                 $attrs['published_at'] = now();
             }
 
+            // Delta-publish flag: this record's own static page (and its
+            // collection's archive/index) needs rebuilding. Unpublishing
+            // flags too — the page must be removed/refreshed.
+            $attrs['needs_republish'] = true;
+            $attrs['needs_republish_reason'] = $record ? 'record_updated' : 'record_created';
+
             if ($record) {
                 $record->update($attrs);
             } else {

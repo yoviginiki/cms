@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Layout, Plus, Loader2, Trash2, FileText, Globe, FolderTree, Film, Grid3x3, Search, AlertTriangle } from 'lucide-react';
-import { themeTemplates as templatesApi, categories as categoriesApi } from '@/lib/api';
+import { Layout, Plus, Loader2, Trash2, FileText, Globe, FolderTree, Film, Grid3x3, Search, AlertTriangle, Database, LayoutGrid } from 'lucide-react';
+import { themeTemplates as templatesApi, categories as categoriesApi, collections as collectionsApi, type Collection } from '@/lib/api';
 
 interface Template {
   id: string;
@@ -11,6 +11,7 @@ interface Template {
   type: string;
   category_id?: string;
   post_format?: string;
+  collection_id?: string | null;
   is_default: boolean;
   category?: { id: string; name: string; slug: string };
   created_at: string;
@@ -23,6 +24,8 @@ const TYPE_ICONS: Record<string, typeof Layout> = {
   footer: Globe,
   '404': AlertTriangle,
   search: Search,
+  'record-single': Database,
+  'record-archive': LayoutGrid,
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -32,7 +35,11 @@ const TYPE_LABELS: Record<string, string> = {
   footer: 'Global Footer',
   '404': '404 Page',
   search: 'Search Results',
+  'record-single': 'Record Page',
+  'record-archive': 'Records Archive',
 };
+
+const RECORD_TYPES = ['record-single', 'record-archive'];
 
 const FORMAT_LABELS: Record<string, string> = {
   standard: 'Standard',
@@ -51,11 +58,17 @@ export default function Templates() {
   const [newType, setNewType] = useState('post');
   const [newCategoryId, setNewCategoryId] = useState('');
   const [newPostFormat, setNewPostFormat] = useState('');
+  const [newCollectionId, setNewCollectionId] = useState('');
   const [newIsDefault, setNewIsDefault] = useState(false);
 
   const { data: categoriesList } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['categories', siteId],
     queryFn: () => categoriesApi.list(siteId).then((r: any) => r.data?.data || []),
+  });
+
+  const { data: collectionsList } = useQuery<Collection[]>({
+    queryKey: ['collections', siteId],
+    queryFn: () => collectionsApi.list(siteId).then((r) => r.data.data),
   });
 
   const { data: templatesList, isLoading } = useQuery<Template[]>({
@@ -78,12 +91,15 @@ export default function Templates() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates', siteId] }),
   });
 
+  const isRecordType = RECORD_TYPES.includes(newType);
+
   const handleCreate = () => {
     createMut.mutate({
       name: newName,
       type: newType,
       category_id: newCategoryId || null,
       post_format: newPostFormat || null,
+      collection_id: isRecordType ? newCollectionId : null,
       is_default: newIsDefault,
     });
   };
@@ -162,6 +178,12 @@ export default function Templates() {
                             <Film className="h-2.5 w-2.5" /> {FORMAT_LABELS[template.post_format] || template.post_format}
                           </span>
                         )}
+                        {RECORD_TYPES.includes(template.type) && template.collection_id && (
+                          <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            <Database className="h-2.5 w-2.5" />
+                            {(collectionsList || []).find(c => c.id === template.collection_id)?.name || 'Collection'}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button
@@ -202,8 +224,27 @@ export default function Templates() {
                   <option value="footer">Global Footer</option>
                   <option value="404">404 Page</option>
                   <option value="search">Search Results</option>
+                  <option value="record-single">Record Page</option>
+                  <option value="record-archive">Records Archive</option>
                 </select>
               </div>
+              {isRecordType && (
+                <div>
+                  <label className="text-[11px] text-base-content/50 mb-1 block">Collection</label>
+                  <select value={newCollectionId} onChange={e => setNewCollectionId(e.target.value)}
+                    className="select select-bordered select-sm w-full">
+                    <option value="">Choose a collection…</option>
+                    {(collectionsList || []).map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-base-content/30 mt-0.5">
+                    {(collectionsList || []).length === 0
+                      ? 'No collections yet — create one under Collections first'
+                      : 'The template renders records of this collection'}
+                  </p>
+                </div>
+              )}
               {(newType === 'post' || newType === 'archive') && (
                 <div>
                   <label className="text-[11px] text-base-content/50 mb-1 block">Category (optional)</label>
@@ -238,7 +279,7 @@ export default function Templates() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-base-content/80 border rounded-lg">Cancel</button>
-              <button onClick={handleCreate} disabled={!newName.trim() || createMut.isPending}
+              <button onClick={handleCreate} disabled={!newName.trim() || (isRecordType && !newCollectionId) || createMut.isPending}
                 className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
                 {createMut.isPending ? 'Creating...' : 'Create'}
               </button>

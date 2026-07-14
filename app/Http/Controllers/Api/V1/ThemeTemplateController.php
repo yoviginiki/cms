@@ -44,7 +44,8 @@ class ThemeTemplateController extends Controller
         $this->authorize('update', $site);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:post,archive,header,footer,404,search'],
+            'type' => ['required', 'in:post,archive,header,footer,404,search,record-single,record-archive'],
+            'collection_id' => ['sometimes', 'nullable', 'uuid', "exists:collections,id,site_id,{$site->id}"],
             'category_id' => ['sometimes', 'nullable', 'uuid', "exists:categories,id,site_id,{$site->id}"],
             'post_format' => ['sometimes', 'nullable', 'in:standard,video,gallery,audio,link'],
             'is_default' => ['sometimes', 'boolean'],
@@ -82,7 +83,8 @@ class ThemeTemplateController extends Controller
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'type' => ['sometimes', 'in:post,archive,header,footer,404,search'],
+            'type' => ['sometimes', 'in:post,archive,header,footer,404,search,record-single,record-archive'],
+            'collection_id' => ['sometimes', 'nullable', 'uuid', "exists:collections,id,site_id,{$site->id}"],
             'category_id' => ['sometimes', 'nullable', 'uuid', "exists:categories,id,site_id,{$site->id}"],
             'post_format' => ['sometimes', 'nullable', 'in:standard,video,gallery,audio,link'],
             'is_default' => ['sometimes', 'boolean'],

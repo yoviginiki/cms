@@ -15,7 +15,7 @@ class ThemeTemplate extends Model
 
     protected $fillable = [
         'site_id', 'name', 'slug', 'type',
-        'category_id', 'post_format', 'priority',
+        'category_id', 'post_format', 'collection_id', 'priority',
         'is_default', 'settings', 'created_by',
     ];
 
@@ -105,6 +105,32 @@ class ThemeTemplate extends Model
         return static::where('site_id', $siteId)
             ->where('type', 'archive')
             ->where('is_default', true)
+            ->first();
+    }
+
+    /**
+     * Track G2: the record-single template for a record's collection.
+     * Collection-scoped only — no cross-collection default (schemas differ
+     * too much for one template to render any record sensibly).
+     */
+    public static function resolveForRecord(Record $record): ?self
+    {
+        return static::where('site_id', $record->site_id)
+            ->where('type', 'record-single')
+            ->where('collection_id', $record->collection_id)
+            ->orderByDesc('is_default')
+            ->orderByDesc('priority')
+            ->first();
+    }
+
+    /** Track G2: the record-archive template for a collection. */
+    public static function resolveForRecordArchive(string $siteId, string $collectionId): ?self
+    {
+        return static::where('site_id', $siteId)
+            ->where('type', 'record-archive')
+            ->where('collection_id', $collectionId)
+            ->orderByDesc('is_default')
+            ->orderByDesc('priority')
             ->first();
     }
 
