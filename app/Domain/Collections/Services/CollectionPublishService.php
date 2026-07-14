@@ -196,6 +196,17 @@ class CollectionPublishService
         foreach ($records as $record) {
             $searchStrings = [mb_strtolower($record->title ?? '')];
             foreach ($searchable as $field) {
+                if ($field['type'] === 'relation') {
+                    // Related record titles — "search by author" on a book.
+                    $titles = $record->relationsOut
+                        ->where('relation_key', $field['key'])
+                        ->map(fn ($e) => $e->toRecord?->title)
+                        ->filter();
+                    foreach ($titles as $title) {
+                        $searchStrings[] = mb_strtolower($title);
+                    }
+                    continue;
+                }
                 $plain = RecordDisplay::plain($record, $field);
                 if ($plain !== '') {
                     $searchStrings[] = mb_strtolower($plain);

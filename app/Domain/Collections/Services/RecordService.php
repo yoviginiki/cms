@@ -310,6 +310,15 @@ class RecordService
             if (!($field['searchable'] ?? false)) {
                 continue;
             }
+            if ($field['type'] === 'relation') {
+                // Related record titles — "search by author" on a book.
+                foreach ($record->relationsOut()->where('relation_key', $field['key'])->with('toRecord:id,title')->get() as $edge) {
+                    if ($edge->toRecord?->title) {
+                        $strings[] = $edge->toRecord->title;
+                    }
+                }
+                continue;
+            }
             $value = $record->data[$field['key']] ?? null;
             if ($value === null) {
                 continue;

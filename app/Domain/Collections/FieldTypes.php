@@ -41,10 +41,14 @@ final class FieldTypes
     /** Types the `unique` toggle may be set on. */
     public const UNIQUE_TYPES = ['text', 'sku', 'email', 'url', 'phone', 'number'];
 
-    /** Types whose values feed the search index / tsvector when `searchable`. */
+    /**
+     * Types whose values feed the search index / tsvector when `searchable`.
+     * A searchable relation contributes its related records' TITLES — how
+     * "search by author" works on a book.
+     */
     public const SEARCHABLE_TYPES = [
         'text', 'rich_text', 'number', 'price', 'select', 'multi_select',
-        'date', 'email', 'url', 'phone', 'sku',
+        'date', 'email', 'url', 'phone', 'sku', 'relation',
     ];
 
     /** Types that may become facets (filters) when `facetable`. */
