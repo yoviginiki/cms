@@ -170,7 +170,10 @@ class CollectionPublishService
             $head = '<title>' . e($collection->name) . ($page > 1 ? " — page {$page}" : '') . ' | ' . e($site->name) . '</title>'
                 . '<meta name="description" content="' . e(mb_substr("Browse {$collection->name} — {$site->name}", 0, 160)) . '">';
 
-            $html = $this->wrapInLayout($site, $head, $body, $collection->name, includeSearchRuntime: true);
+            // Runtime injection is auto-detected from data-cs-role in the body
+            // (templated archives with search blocks); the fallback archive has
+            // none and must not pay for an unused script.
+            $html = $this->wrapInLayout($site, $head, $body, $collection->name);
 
             $path = $page === 1 ? "{$prefix}/index.html" : "{$prefix}/page/{$page}/index.html";
             $this->write($stagingPath, $path, $html);
