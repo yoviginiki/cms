@@ -29,6 +29,21 @@ class SymlinkDeployStrategy
             ]);
         }
 
+        // A legacy docroot deployed by the copy/rename strategy is a REAL
+        // directory — rename() of a symlink over a non-empty directory always
+        // fails (EISDIR). Move the legacy tree aside into the rollback area
+        // (preserved, never deleted) so the symlink can take its place.
+        if (is_dir($publicPath) && !is_link($publicPath)) {
+            $legacyKeep = rtrim((string) config('publishing.rollback_path'), '/') . "/{$deployment->id}-legacy-docroot";
+            File::ensureDirectoryExists(dirname($legacyKeep));
+            rename($publicPath, $legacyKeep);
+            $deployment->update([
+                'metadata' => array_merge($deployment->metadata ?? [], [
+                    'legacy_docroot_moved_to' => $legacyKeep,
+                ]),
+            ]);
+        }
+
         // Atomic swap
         rename($newLink, $publicPath);
 
