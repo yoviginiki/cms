@@ -35,8 +35,11 @@ class CollectionPublishService
     }
 
     /**
-     * Build every static-tier collection into the staging tree.
-     * Returns lint warnings (path collisions, skipped collections).
+     * Build every collection into the staging tree. Tier decides the
+     * artifacts: static → detail pages + archives + JSON index; dynamic →
+     * archives as static shells + detail pages for SEO (settings
+     * static_details, default ON), NO index — search hits the public API.
+     * Switching tier is therefore just a republish.
      *
      * @return array<int, string>
      */
@@ -44,7 +47,7 @@ class CollectionPublishService
     {
         $warnings = [];
 
-        $collections = ContentCollection::where('site_id', $site->id)->where('tier', 'static')->get();
+        $collections = ContentCollection::where('site_id', $site->id)->get();
         foreach ($collections as $collection) {
             $warnings = array_merge($warnings, $this->buildCollection($site, $collection, $stagingPath));
         }
@@ -70,12 +73,20 @@ class CollectionPublishService
             ->orderByDesc('published_at')
             ->get();
 
-        foreach ($records as $record) {
-            $this->buildRecordPage($site, $collection, $record, $stagingPath);
+        $isDynamic = $collection->tier === 'dynamic';
+        $staticDetails = (bool) ($collection->settings['static_details'] ?? true);
+
+        if (!$isDynamic || $staticDetails) {
+            foreach ($records as $record) {
+                $this->buildRecordPage($site, $collection, $record, $stagingPath);
+            }
         }
 
         $this->buildArchivePages($site, $collection, $records, $stagingPath);
-        $this->buildIndex($site, $collection, $records, $stagingPath);
+
+        if (!$isDynamic) {
+            $this->buildIndex($site, $collection, $records, $stagingPath);
+        }
 
         return [];
     }
@@ -93,7 +104,9 @@ class CollectionPublishService
             ->get();
 
         $this->buildArchivePages($site, $collection, $records, $stagingPath);
-        $this->buildIndex($site, $collection, $records, $stagingPath);
+        if ($collection->tier !== 'dynamic') {
+            $this->buildIndex($site, $collection, $records, $stagingPath);
+        }
     }
 
     /** Build one record's detail page (used by full and delta publishes). */
@@ -353,14 +366,17 @@ class CollectionPublishService
         return '<script defer src="/assets/collections-search.' . $hash . '.js"></script>';
     }
 
-    /** Sitemap entries for every published record + archive page 1. */
+    /** Sitemap entries for every statically-published record page + archive page 1. */
     public function sitemapUrls(Site $site): array
     {
         $urls = [];
-        $collections = ContentCollection::where('site_id', $site->id)->where('tier', 'static')->get();
+        $collections = ContentCollection::where('site_id', $site->id)->get();
         foreach ($collections as $collection) {
             $prefix = $this->prefixFor($collection);
             $urls[] = ['path' => "/{$prefix}/", 'lastmod' => $collection->updated_at?->toW3cString()];
+            if ($collection->tier === 'dynamic' && !($collection->settings['static_details'] ?? true)) {
+                continue; // no static detail pages to list
+            }
             $records = Record::where('collection_id', $collection->id)->where('status', 'published')->get(['slug', 'updated_at']);
             foreach ($records as $record) {
                 $urls[] = ['path' => "/{$prefix}/{$record->slug}/", 'lastmod' => $record->updated_at?->toW3cString()];

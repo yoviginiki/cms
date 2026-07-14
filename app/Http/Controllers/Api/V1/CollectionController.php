@@ -120,6 +120,11 @@ class CollectionController extends Controller
             'settings' => $c->settings ?: (object) [],
             'is_system' => $c->is_system,
             'records_count' => $c->records_count ?? null,
+            // Provisional threshold until G7 measures the real Tier-1 wall.
+            'tier_warning' => $c->tier === 'static'
+                && ($c->records_count ?? 0) > (int) config('collections.tier1_threshold', 2000)
+                ? 'This collection is getting large for the static tier — consider switching to dynamic (needs VPS hosting).'
+                : null,
             'created_at' => $c->created_at?->toISOString(),
             'updated_at' => $c->updated_at?->toISOString(),
         ];

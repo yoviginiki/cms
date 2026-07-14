@@ -11,7 +11,7 @@
     $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
 
     $collection = !empty($data['collectionId']) ? \App\Models\ContentCollection::find($data['collectionId']) : ($__collection ?? null);
-    $source = $collection ? '/' . RecordDisplay::pathPrefix($collection) . '/index.json' : '';
+    [$csMode, $source] = $collection ? RecordDisplay::searchSource($collection, $site) : ['static', ''];
     $columns = max(1, min(6, (int) ($data['columns'] ?? 3)));
     $showImage = $data['showImage'] ?? true;
     $emptyText = trim((string) ($data['emptyText'] ?? '')) ?: 'No results — try a different search.';
@@ -25,7 +25,7 @@
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="results-grid-block cs-island {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}"
      data-cs-role="results"
-     @if($collection) data-cs-collection="{{ $collection->slug }}" data-cs-source="{{ $source }}" @endif
+     @if($collection) data-cs-collection="{{ $collection->slug }}" data-cs-source="{{ $source }}" data-cs-mode="{{ $csMode }}" @endif
      @if($__htmlId) id="{{ $__htmlId }}" @endif>
 @if(!$collection)
     <p style="opacity:.5;padding:1rem;border:1px dashed var(--color-border,#ddd);">Pick a collection for this results grid.</p>

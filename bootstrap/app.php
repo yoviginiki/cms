@@ -21,7 +21,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant.scope' => \App\Http\Middleware\TenantScope::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'public.site' => \App\Http\Middleware\SetTenantFromPublicSite::class,
+            'public.cors' => \App\Http\Middleware\PublicSiteCors::class,
         ]);
+
+        // Public routes resolve {site} without auth: the tenant GUC must be
+        // set BEFORE implicit binding or RLS hides the sites row (404).
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\SetTenantFromPublicSite::class,
+        );
 
         $middleware->statefulApi();
 

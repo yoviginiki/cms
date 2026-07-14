@@ -11,15 +11,14 @@
     $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
 
     $collection = !empty($data['collectionId']) ? \App\Models\ContentCollection::find($data['collectionId']) : ($__collection ?? null);
-    // Tier-agnostic data source, resolved at render: static index manifest for
-    // Tier 1; G3 swaps this to the API endpoint for dynamic collections.
-    $source = $collection ? '/' . RecordDisplay::pathPrefix($collection) . '/index.json' : '';
+    // Data source resolved at publish by tier (static index vs public API).
+    [$csMode, $source] = $collection ? RecordDisplay::searchSource($collection, $site) : ['static', ''];
     $placeholder = trim((string) ($data['placeholder'] ?? '')) ?: ($collection ? "Search {$collection->name}…" : 'Search…');
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="search-box-block cs-island {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}"
      data-cs-role="search-box"
-     @if($collection) data-cs-collection="{{ $collection->slug }}" data-cs-source="{{ $source }}" @endif
+     @if($collection) data-cs-collection="{{ $collection->slug }}" data-cs-source="{{ $source }}" data-cs-mode="{{ $csMode }}" @endif
      @if($__htmlId) id="{{ $__htmlId }}" @endif>
 @if(!$collection)
     <p style="opacity:.5;padding:1rem;border:1px dashed var(--color-border,#ddd);">Pick a collection for this search box.</p>

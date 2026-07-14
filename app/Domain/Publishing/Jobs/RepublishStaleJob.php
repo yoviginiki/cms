@@ -116,12 +116,14 @@ class RepublishStaleJob implements ShouldQueue
                 foreach ($staleRecords as $record) {
                     try {
                         $collection = $record->collection;
-                        if ($collection && $collection->tier === 'static' && $record->status === 'published') {
+                        $buildsPages = $collection
+                            && ($collection->tier !== 'dynamic' || ($collection->settings['static_details'] ?? true));
+                        if ($buildsPages && $record->status === 'published') {
                             $collectionPublisher->buildRecordPage($site, $collection, $record, $stagingPath);
                         }
                         // Unpublished/draft records build no page; the archive +
                         // index rebuild below removes them from listings.
-                        if ($collection && $collection->tier === 'static') {
+                        if ($collection) {
                             $touchedCollections[$collection->id] = $collection;
                         }
                         $built[] = ['type' => 'record', 'id' => $record->id, 'title' => $record->title, 'path' => null, 'stamp' => optional($record->updated_at)->toIso8601String()];

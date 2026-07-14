@@ -185,7 +185,9 @@ export default function CollectionsList() {
                       </div>
                     </Link>
                   </td>
-                  <td><TierBadge tier={c.tier} /></td>
+                  <td className="whitespace-nowrap"><TierBadge tier={c.tier} />{c.tier_warning && (
+                    <span className="ml-1.5 text-warning align-middle" title={c.tier_warning}>⚠</span>
+                  )}</td>
                   <td className="text-[13px] text-base-content/60">{c.schema?.fields?.length ?? 0}</td>
                   <td className="text-[13px] text-base-content/60">{c.records_count}</td>
                   <td className="text-[12px] text-base-content/40">{timeAgo(c.updated_at)}</td>
