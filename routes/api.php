@@ -377,6 +377,19 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('sessions/{wizardSession}/preview/{slug?}', [$c, 'preview']);
         });
 
+        // Page Wizard — AI page creation from a URL, screenshot, or description
+        Route::prefix('sites/{site}/page-wizard')->group(function () {
+            $pw = \App\Http\Controllers\PageWizard\PageWizardController::class;
+            Route::get('sessions', [$pw, 'index']);
+            Route::post('sessions/from-url', [$pw, 'startUrl'])->middleware('throttle:10,1');
+            Route::post('sessions/from-upload', [$pw, 'startUpload'])->middleware('throttle:10,1');
+            Route::post('sessions/from-describe', [$pw, 'startDescribe'])->middleware('throttle:15,1');
+            Route::get('sessions/{pageWizardSession}', [$pw, 'show']);
+            Route::post('sessions/{pageWizardSession}/nudge', [$pw, 'nudge'])->middleware('throttle:20,1');
+            Route::post('sessions/{pageWizardSession}/accept', [$pw, 'accept']);
+            Route::post('sessions/{pageWizardSession}/abandon', [$pw, 'abandon']);
+        });
+
         // Theme Templates (Theme Builder)
         Route::get('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'index']);
         Route::post('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'store']);
