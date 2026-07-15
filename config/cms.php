@@ -27,6 +27,8 @@ return [
     'ai' => [
         'enabled' => env('AI_ENABLED', false),
         'api_key' => env('ANTHROPIC_API_KEY'),
+        // Point at a self-hosted / local Anthropic-compatible endpoint if desired.
+        'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
         'model' => env('AI_MODEL', 'claude-sonnet-4-20250514'),
         'max_tokens' => (int) env('AI_MAX_TOKENS', 2000),
     ],

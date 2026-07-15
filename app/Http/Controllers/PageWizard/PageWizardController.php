@@ -41,13 +41,13 @@ class PageWizardController extends Controller
         $this->authorize('update', $site);
         $data = $request->validate([
             'url' => ['required', 'url', 'max:2048'],
-            'mode' => ['sometimes', 'in:layout,content'],
+            'mode' => ['sometimes', 'in:dom,layout,content'],
             'hint' => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
 
         return $this->guard(fn () => response()->json([
             'data' => $this->serialize($this->wizard->startFromUrl(
-                $site, $request->user(), $data['url'], $data['mode'] ?? 'layout', $data['hint'] ?? null,
+                $site, $request->user(), $data['url'], $data['mode'] ?? 'dom', $data['hint'] ?? null,
             )),
         ], 201));
     }

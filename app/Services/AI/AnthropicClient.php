@@ -110,10 +110,14 @@ class AnthropicClient
 
     protected function post(array $payload): Response
     {
+        // Endpoint is configurable so a self-hosted / local Anthropic-compatible
+        // server can be used instead of the hosted API (set ANTHROPIC_BASE_URL).
+        $base = rtrim((string) (config('cms.ai.base_url') ?: 'https://api.anthropic.com'), '/');
+
         return Http::withHeaders([
             'x-api-key' => $this->apiKey,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
-        ])->timeout(480)->post('https://api.anthropic.com/v1/messages', $payload);
+        ])->timeout(480)->post("{$base}/v1/messages", $payload);
     }
 }

@@ -39,6 +39,32 @@ class PageManifestValidator
         return $errors;
     }
 
+    /**
+     * Coerce a manifest into a valid one by dropping any block that fails
+     * validation (used by the deterministic DOM importer, whose output is
+     * mostly valid but can contain the odd malformed block). Guarantees a
+     * page_title; returns blocks that individually pass.
+     */
+    public function sanitize(mixed $manifest): array
+    {
+        $manifest = is_array($manifest) ? $manifest : [];
+        $title = (is_string($manifest['page_title'] ?? null) && trim($manifest['page_title']) !== '')
+            ? mb_substr(trim($manifest['page_title']), 0, 120) : 'Imported page';
+
+        $blocks = [];
+        foreach ($manifest['blocks'] ?? [] as $block) {
+            if (is_array($block) && $this->validateBlock($block, count($blocks)) === []) {
+                $blocks[] = $block;
+            }
+        }
+
+        return [
+            'page_title' => $title,
+            'design_read' => is_string($manifest['design_read'] ?? null) ? $manifest['design_read'] : '',
+            'blocks' => $blocks,
+        ];
+    }
+
     /** @return array<int, string> */
     private function validateBlock(mixed $block, int $i): array
     {

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import {
   Wand2, Link2, Upload, Loader2, Sparkles, Check, RotateCcw, Send, Monitor, Smartphone,
-  AlertTriangle, Layout, FileText, MessageSquare, Rocket, ImageIcon,
+  AlertTriangle, Layout, FileText, MessageSquare, Rocket, ImageIcon, Download,
 } from 'lucide-react';
 import { pageWizard, type PageWizardSession } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
@@ -20,7 +20,7 @@ export default function PageWizardPage() {
   const [session, setSession] = useState<PageWizardSession | null>(null);
   const [method, setMethod] = useState<StartMethod>('url');
   const [url, setUrl] = useState('');
-  const [urlGoal, setUrlGoal] = useState<'layout' | 'content'>('layout');
+  const [urlGoal, setUrlGoal] = useState<'dom' | 'layout' | 'content'>('dom');
   const [hint, setHint] = useState('');
   const [description, setDescription] = useState('');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -95,7 +95,7 @@ export default function PageWizardPage() {
     setUrl('');
     setHint('');
     setDescription('');
-    setUrlGoal('layout');
+    setUrlGoal('dom');
   };
 
   // ── Input panel (no session yet) ──
@@ -137,21 +137,27 @@ export default function PageWizardPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-base-content/60 mb-1.5 block">What should it do?</label>
+                <label className="text-xs font-medium text-base-content/60 mb-1.5 block">How should it build the page?</label>
                 <div className="join w-full">
+                  <button onClick={() => setUrlGoal('dom')}
+                    className={`btn btn-sm join-item flex-1 gap-1 ${urlGoal === 'dom' ? 'btn-primary' : 'btn-outline'}`}>
+                    <Download size={13} /> Import
+                  </button>
                   <button onClick={() => setUrlGoal('layout')}
-                    className={`btn btn-sm join-item flex-1 gap-1.5 ${urlGoal === 'layout' ? 'btn-primary' : 'btn-outline'}`}>
-                    <Layout size={13} /> Replicate layout
+                    className={`btn btn-sm join-item flex-1 gap-1 ${urlGoal === 'layout' ? 'btn-primary' : 'btn-outline'}`}>
+                    <Layout size={13} /> Layout
                   </button>
                   <button onClick={() => setUrlGoal('content')}
-                    className={`btn btn-sm join-item flex-1 gap-1.5 ${urlGoal === 'content' ? 'btn-primary' : 'btn-outline'}`}>
-                    <FileText size={13} /> Use the content
+                    className={`btn btn-sm join-item flex-1 gap-1 ${urlGoal === 'content' ? 'btn-primary' : 'btn-outline'}`}>
+                    <FileText size={13} /> Content
                   </button>
                 </div>
                 <p className="text-[11px] text-base-content/40 mt-1.5 leading-relaxed">
-                  {urlGoal === 'layout'
-                    ? 'Screenshots the page and redraws its structure with blocks (takes a few seconds).'
-                    : 'Pulls the page’s real text and images into a new page.'}
+                  {urlGoal === 'dom'
+                    ? 'Reads the page’s real structure, text and images and rebuilds it as blocks. Free, fast, no AI — the recommended default.'
+                    : urlGoal === 'layout'
+                      ? 'Screenshots the page and has AI redraw its structure with blocks. Uses AI credits.'
+                      : 'AI pulls the page’s text into a new page laid out with your theme. Uses AI credits.'}
                 </p>
               </div>
 
