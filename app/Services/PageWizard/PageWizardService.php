@@ -64,7 +64,9 @@ class PageWizardService
             return;
         }
         try {
-            $image = $this->capture->fromUrl($session->reference_url);
+            // Full-page capture: layout replication needs the WHOLE page, not
+            // just the top viewport, or the model only reconstructs the header.
+            $image = $this->capture->fromUrl($session->reference_url, fullPage: true);
             $result = $this->engine->fromScreenshot($session->tenant_id, $image, $hint);
             $this->finalize($session, $result['manifest'], $result['usages']);
         } catch (\Throwable $e) {

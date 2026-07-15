@@ -41,9 +41,19 @@ class PageWizardEngine
      */
     public function fromScreenshot(string $tenantId, array $image, ?string $hint = null): array
     {
-        $text = 'Rebuild this page\'s LAYOUT as a Stillopress page manifest — match the section order, hierarchy, and block types you see (hero, headings, text, image, gallery, columns, call-to-action). Use short, representative placeholder copy where you can\'t read exact text; do NOT reproduce logos or copyrighted imagery — leave image urls out unless clearly generic.';
+        $text = <<<TXT
+This is a FULL-PAGE screenshot of a web page. Reconstruct its layout FAITHFULLY as a Stillopress page manifest — this is a structural clone, not a summary.
+
+Work top to bottom and reproduce EVERY distinct section you see, in order — do not skip or condense. A rich landing page typically becomes 12–30 blocks. For each section pick the closest block kind:
+- the top banner → hero (use its real headline/subheading text and its primary button label if visible).
+- a heading + paragraph → heading + text.
+- anything laid out side by side (feature grids, service lists, product cards, team, stats, logos) → a columns block with one cell per item.
+- a band of images → gallery; a single feature image → image.
+- a highlighted "call to action" strip → cta.
+Transcribe the VISIBLE text (headings, labels, button text, prices) as accurately as you can read it. Where the text is too small to read, write a SHORT, plausible line in the SAME LANGUAGE as the rest of the page — never lorem-ipsum or English filler like "NEXT SECTION". Do NOT output image URLs (you can't read them from a picture) and do NOT reproduce logos.
+TXT;
         if ($hint) {
-            $text .= ' The user adds: "' . mb_substr($hint, 0, 300) . '".';
+            $text .= "\nThe user adds: \"" . mb_substr($hint, 0, 300) . '".';
         }
 
         $messages = [[
@@ -122,7 +132,8 @@ TXT;
         // ```json fence or stray prose.
         $out = $this->repair->run(
             function (array $msgs) use ($model, $system) {
-                $res = $this->client->complete($model, $system, $msgs, 4096, null);
+                // 8k output: a faithful full-page reconstruction can run long.
+                $res = $this->client->complete($model, $system, $msgs, 8192, null);
                 $res['text'] = $this->extractJson($res['text'] ?? '');
 
                 return $res;
