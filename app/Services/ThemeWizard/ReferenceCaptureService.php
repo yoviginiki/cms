@@ -28,7 +28,11 @@ class ReferenceCaptureService
     }
 
     /** @return array{data:string, media_type:string} base64 image + media type */
-    public function fromUrl(string $url): array
+    /**
+     * @param bool $fullPage capture the WHOLE page (Page Wizard layout mode),
+     *                       not just the top viewport (Theme Wizard default).
+     */
+    public function fromUrl(string $url, bool $fullPage = false): array
     {
         // php-fpm often disables proc_open; the node screenshot then can't run
         // in the web request. Fail cleanly (→ 422) so the UI steers to upload.
@@ -41,8 +45,12 @@ class ReferenceCaptureService
         $node = trim((string) (config('cms.theme_wizard.node_bin') ?? 'node'));
         $script = base_path('scripts/capture-url.mjs');
 
-        $proc = new Process([$node, $script, $url, '1280x900'], base_path());
-        $proc->setTimeout(45);
+        $args = [$node, $script, $url, '1280x900'];
+        if ($fullPage) {
+            $args[] = 'full';
+        }
+        $proc = new Process($args, base_path());
+        $proc->setTimeout($fullPage ? 90 : 45); // full-page scroll + tall shot needs longer
         $proc->run();
 
         if (!$proc->isSuccessful()) {
