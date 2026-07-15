@@ -176,6 +176,62 @@ class PageWizardTest extends TestCase
         }
     }
 
+    public function test_sanitize_drops_invalid_blocks_and_guarantees_title(): void
+    {
+        $out = app(PageManifestValidator::class)->sanitize(['page_title' => '', 'blocks' => [
+            ['kind' => 'hero', 'title' => 'Real'],                          // valid
+            ['kind' => 'hero'],                                             // no title → dropped
+            ['kind' => 'image', 'url' => 'https://x.test/a.jpg'],           // valid
+            ['kind' => 'image', 'url' => 'javascript:x'],                   // unsafe → dropped
+            ['kind' => 'bogus'],                                            // unknown → dropped
+            ['kind' => 'columns', 'columns' => [['heading' => 'A'], ['heading' => 'B']]], // valid
+        ]]);
+
+        $this->assertSame('Imported page', $out['page_title']);
+        $this->assertSame(['hero', 'image', 'columns'], array_column($out['blocks'], 'kind'));
+    }
+
+    public function test_dom_import_creates_a_free_draft_page(): void
+    {
+        $manifest = [
+            'page_title' => 'Imported Site',
+            'design_read' => 'Imported 3 section(s) from example.com.',
+            'blocks' => [
+                ['kind' => 'hero', 'title' => 'Real Headline From The Site'],
+                ['kind' => 'columns', 'columns' => [
+                    ['heading' => 'Products', 'image' => 'https://x.test/p.jpg'],
+                    ['heading' => 'Locations'],
+                    ['heading' => 'Book'],
+                ]],
+                ['kind' => 'image', 'url' => 'https://x.test/hero.jpg', 'alt' => 'hero'],
+            ],
+        ];
+
+        $mock = Mockery::mock(\App\Services\PageWizard\PageDomImporter::class);
+        $mock->shouldReceive('import')->once()->andReturn($manifest);
+        $this->app->instance(\App\Services\PageWizard\PageDomImporter::class, $mock);
+
+        // mode=dom is queued → returns 'capturing'; the UI polls until 'drafting'.
+        // (Sync test queue has already run the job by now.)
+        $start = $this->actingAsOwner()->postJson("/api/v1/sites/{$this->site->id}/page-wizard/sessions/from-url", [
+            'url' => 'https://example.com', 'mode' => 'dom',
+        ]);
+        $start->assertStatus(201)->assertJsonPath('data.mode', 'dom');
+
+        // Drain the queued CapturePageJob (test env uses the database queue driver).
+        \Illuminate\Support\Facades\Artisan::call('queue:work', ['--stop-when-empty' => true]);
+
+        $poll = $this->actingAsOwner()->getJson("/api/v1/sites/{$this->site->id}/page-wizard/sessions/{$start->json('data.id')}");
+        $poll->assertOk()
+            ->assertJsonPath('data.status', 'drafting')
+            ->assertJsonPath('data.title', 'Imported Site')
+            ->assertJsonPath('data.total_tokens', 0); // FREE — no AI
+
+        $pageId = $poll->json('data.page.id');
+        $this->assertNotNull($pageId);
+        $this->assertGreaterThan(0, Block::where('blockable_id', $pageId)->count());
+    }
+
     private function mockEngine(callable $expect): void
     {
         $mock = Mockery::mock(PageWizardEngine::class);

@@ -41,7 +41,7 @@ class CapturePageJob implements ShouldQueue
             return;
         }
 
-        $wizard->completeUrlCapture($session, $this->hint);
+        $wizard->completeUrl($session, $this->hint);
     }
 
     public function failed(\Throwable $e): void

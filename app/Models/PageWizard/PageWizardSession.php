@@ -19,7 +19,7 @@ class PageWizardSession extends Model
     protected $table = 'page_wizard_sessions';
 
     public const STATUSES = ['capturing', 'capture_failed', 'drafting', 'accepted', 'abandoned'];
-    public const MODES = ['layout', 'content', 'describe'];
+    public const MODES = ['dom', 'layout', 'content', 'describe'];
 
     protected $fillable = [
         'tenant_id', 'site_id', 'user_id', 'title', 'status', 'source', 'mode',

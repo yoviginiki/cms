@@ -25,6 +25,7 @@ class PageWizardService
         private PageWizardEngine $engine,
         private PageManifestCompiler $compiler,
         private PageReferenceFetcher $fetcher,
+        private PageDomImporter $domImporter,
         private ReferenceCaptureService $capture,
         private PageService $pages,
         private BlockService $blocks,
@@ -32,12 +33,16 @@ class PageWizardService
     }
 
     /**
-     * Start from a URL. mode='layout' screenshots the page (needs proc_open →
-     * queued worker); mode='content' fetches + reads its HTML (runs inline).
+     * Start from a URL. Three engines:
+     *  - 'dom'     : deterministic DOM importer, NO AI (default) — free, faithful.
+     *  - 'layout'  : AI vision over a full-page screenshot.
+     *  - 'content' : AI over the page's extracted text.
+     * 'dom' and 'layout' drive a headless browser (proc_open → queued worker);
+     * 'content' fetches HTML inline in the request.
      */
     public function startFromUrl(Site $site, User $user, string $url, string $mode, ?string $hint = null): PageWizardSession
     {
-        $mode = in_array($mode, ['layout', 'content'], true) ? $mode : 'layout';
+        $mode = in_array($mode, ['dom', 'layout', 'content'], true) ? $mode : 'dom';
 
         if ($mode === 'content') {
             $content = $this->fetcher->fetch($url); // SSRF-gated
@@ -50,25 +55,35 @@ class PageWizardService
             );
         }
 
-        // Layout: screenshot on the queue worker, poll from the UI.
-        $session = $this->newSession($site, $user, 'url', 'layout', $url, "Rebuild the layout of {$url}", 'capturing');
+        // dom + layout use the headless browser → run on the queue worker, poll from the UI.
+        $opener = $mode === 'dom' ? "Import the page at {$url}" : "Rebuild the layout of {$url}";
+        $session = $this->newSession($site, $user, 'url', $mode, $url, $opener, 'capturing');
         CapturePageJob::dispatch($session->id, $site->tenant_id, $hint);
 
         return $session;
     }
 
-    /** Queue-worker side of the layout-from-URL path: screenshot → vision → draft. */
-    public function completeUrlCapture(PageWizardSession $session, ?string $hint = null): void
+    /**
+     * Queue-worker side of the URL paths. 'dom' → deterministic importer (no
+     * AI, no tokens); 'layout' → full-page screenshot + vision. Both end in a
+     * draft page. (Kept the completeUrlCapture name too for back-compat.)
+     */
+    public function completeUrl(PageWizardSession $session, ?string $hint = null): void
     {
         if ($session->status !== 'capturing') {
             return;
         }
         try {
-            // Full-page capture: layout replication needs the WHOLE page, not
-            // just the top viewport, or the model only reconstructs the header.
-            $image = $this->capture->fromUrl($session->reference_url, fullPage: true);
-            $result = $this->engine->fromScreenshot($session->tenant_id, $image, $hint);
-            $this->finalize($session, $result['manifest'], $result['usages']);
+            if ($session->mode === 'dom') {
+                $manifest = $this->domImporter->import($session->reference_url);
+                $this->finalize($session, $manifest, []);
+            } else {
+                // Full-page capture: layout replication needs the WHOLE page, not
+                // just the top viewport, or the model only reconstructs the header.
+                $image = $this->capture->fromUrl($session->reference_url, fullPage: true);
+                $result = $this->engine->fromScreenshot($session->tenant_id, $image, $hint);
+                $this->finalize($session, $result['manifest'], $result['usages']);
+            }
         } catch (\Throwable $e) {
             $session->update([
                 'status' => 'capture_failed',
@@ -77,6 +92,12 @@ class PageWizardService
                     : 'Could not read that page — try uploading a screenshot instead.',
             ]);
         }
+    }
+
+    /** @deprecated use completeUrl — retained so any queued job in flight still resolves. */
+    public function completeUrlCapture(PageWizardSession $session, ?string $hint = null): void
+    {
+        $this->completeUrl($session, $hint);
     }
 
     public function startFromUpload(Site $site, User $user, UploadedFile $file, ?string $hint = null): PageWizardSession

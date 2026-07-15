@@ -240,7 +240,7 @@ export interface PageWizardSession {
   id: string;
   status: 'capturing' | 'capture_failed' | 'drafting' | 'accepted' | 'abandoned';
   source: 'url' | 'upload' | 'describe';
-  mode: 'layout' | 'content' | 'describe';
+  mode: 'dom' | 'layout' | 'content' | 'describe';
   title: string;
   reference_url?: string | null;
   transcript: { role: 'user' | 'assistant'; text: string; at?: string }[];
@@ -262,7 +262,7 @@ export const pageWizard = {
     api.get<{ data: PageWizardSession[] }>(`/sites/${siteId}/page-wizard/sessions`),
   get: (siteId: string, id: string) =>
     api.get<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/${id}`),
-  fromUrl: (siteId: string, url: string, mode: 'layout' | 'content', hint?: string) =>
+  fromUrl: (siteId: string, url: string, mode: 'dom' | 'layout' | 'content', hint?: string) =>
     api.post<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/from-url`, { url, mode, hint }),
   fromUpload: (siteId: string, form: FormData) =>
     api.post<{ data: PageWizardSession }>(`/sites/${siteId}/page-wizard/sessions/from-upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
