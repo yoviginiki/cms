@@ -550,11 +550,10 @@ export default function DtpEditorBeta() {
         isSaving={saveMutation.isPending}
         status={issueStatus}
         onStatusChange={(s) => { setIssueStatus(s); statusMutation.mutate(s); }}
-        viewUrl={(() => {
-          const domain = rolloutData?.links?.publicDomain;
-          const path = `/magazine/dtp/${issueId}`;
-          return domain ? `https://${domain}${path}` : path;
-        })()}
+        // The public DTP viewer is a Laravel route served from the app host
+        // (this origin). It is NOT served by the tenant's static custom_domain,
+        // so a relative URL is correct — an absolute custom_domain link 404s.
+        viewUrl={`/magazine/dtp/${issueId}`}
         pdfUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-pdf`}
         zipUrl={`/api/v1/sites/${siteId}/magazine-issues/${issueId}/dtp-zip`}
       />

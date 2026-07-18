@@ -10,7 +10,9 @@ use App\Domain\Magazine\Models\MagazineFrame;
 use App\Models\Magazine;
 use App\Models\Page;
 use App\Models\Site;
+use App\Models\Tenant;
 use App\Support\Blocks\BlockStyle;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class MagazineViewController extends Controller
@@ -214,11 +216,16 @@ class MagazineViewController extends Controller
         if (!preg_match('/^[0-9a-f\-]{36}$/', $issueId)) {
             abort(404);
         }
-        // Set tenant context first (RLS requires it before any query)
-        $site = $this->resolveSite();
+
+        // Resolve tenant context from the ISSUE, not the request host. This
+        // viewer is served from the app host (sys.ensodo.eu), which is not any
+        // site's custom_domain, so the old host-based resolveSite() always 404'd
+        // here — and pointing it at the tenant's custom_domain hits a static
+        // site with no such route. The issue UUID is globally unique, so we
+        // derive its tenant directly (published-only access is enforced below).
+        $this->setTenantContextForIssue($issueId);
 
         $issue = MagazineIssue::where('id', $issueId)
-            ->where('site_id', $site->id)
             ->where('status', 'published')
             ->firstOrFail();
 
@@ -246,6 +253,39 @@ class MagazineViewController extends Controller
             'coverMode' => $data['coverMode'] ?? 'standalone',
             'fontsUrl' => $data['fontsUrl'] ?? null,
         ]);
+    }
+
+    /**
+     * Set the RLS tenant GUC for a viewer addressed by issue id.
+     *
+     * The issue→tenant mapping can't be read under RLS without a GUC already
+     * set (chicken-and-egg), so scan tenants — the `tenants` table has no RLS —
+     * set each candidate's context, and check whether the issue becomes visible.
+     * Cache the resolved mapping forever; an issue never changes tenant. Same
+     * pattern as SetTenantFromPublicSite. Aborts 404 if no tenant owns the id.
+     */
+    private function setTenantContextForIssue(string $issueId): void
+    {
+        $tenantId = Cache::get("issue_tenant:{$issueId}");
+
+        if ($tenantId === null) {
+            foreach (Tenant::pluck('id') as $candidate) {
+                $safe = preg_replace('/[^a-f0-9\-]/', '', $candidate);
+                DB::statement("SET app.current_tenant_id = '{$safe}'");
+                if (MagazineIssue::where('id', $issueId)->exists()) {
+                    $tenantId = $candidate;
+                    Cache::forever("issue_tenant:{$issueId}", $tenantId);
+                    break;
+                }
+            }
+        }
+
+        if (!$tenantId) {
+            abort(404);
+        }
+
+        $safe = preg_replace('/[^a-f0-9\-]/', '', $tenantId);
+        DB::statement("SET app.current_tenant_id = '{$safe}'");
     }
 
     public function index()
