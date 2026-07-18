@@ -37,6 +37,10 @@ return [
         // Sonnet drives the interview; Opus drives flatplan + spread generation.
         'model_interview' => env('ISSUE_STUDIO_MODEL_INTERVIEW', 'claude-sonnet-5'),
         'model_generate' => env('ISSUE_STUDIO_MODEL_GENERATE', 'claude-opus-4-8'),
+        // Auto-source stock photos (Pexels) for image slots the author didn't
+        // fill. Default state for new issues; overridable per-session via the
+        // brief's auto_source_images flag. Needs services.pexels.key set.
+        'auto_source_images' => env('ISSUE_STUDIO_AUTO_SOURCE_IMAGES', true),
     ],
 
     'theme_wizard' => [

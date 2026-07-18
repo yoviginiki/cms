@@ -2,6 +2,7 @@
 
 namespace App\Services\IssueStudio;
 
+use App\Domain\Assets\Services\AssetService;
 use App\Domain\IssueComposer\Models\MagazineIssue;
 use App\Domain\Magazine\Services\DtpDocumentService;
 use App\Domain\Magazine\Services\MagazineReferenceExtractor;
@@ -9,6 +10,7 @@ use App\Domain\Publishing\Services\SanitizationService;
 use App\Domain\References\Services\ReferenceRecorder;
 use App\Models\IssueStudio\StudioSession;
 use App\Models\IssueStudio\StudioSpread;
+use App\Models\Site;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -24,6 +26,8 @@ class SpreadComposer
     public function __construct(
         private DtpDocumentService $documents,
         private SanitizationService $sanitizer,
+        private PexelsImageSearch $imageSearch,
+        private AssetService $assets,
     ) {
     }
 
@@ -263,10 +267,14 @@ class SpreadComposer
                 // real image material → serve URL
                 $asset = $this->assetForMaterial($session, $materialId);
                 $content['src'] = "/api/v1/sites/{$session->site_id}/assets/{$asset}/serve";
+            } elseif (($sourced = $this->autoSourceImage($session, $el, $type)) !== null) {
+                // no user material, but auto-sourcing is on and a matching stock
+                // photo was found + imported into the asset library.
+                $content['src'] = $sourced;
             } else {
                 // empty material_id → a fillable picture placeholder. No src; the
-                // renderer draws a labelled slot and the editor lets the user drop
-                // their own photo in. The alt doubles as the art-direction note.
+                // renderer shows the default image and the editor lets the user
+                // drop their own photo in. The alt doubles as the art-direction note.
                 $content['placeholder'] = true;
             }
             if (!empty($el['caption'])) {
@@ -330,6 +338,79 @@ class SpreadComposer
 
         // validator guarantees resolution; belt-and-braces
         throw new \RuntimeException("Image material {$materialId} has no asset.");
+    }
+
+    /**
+     * When auto-sourcing is on, find a stock photo matching this image slot's
+     * art-direction note (+ the issue's tone/genre) and import it into the site's
+     * asset library. Returns the frame src on success, or null to fall through to
+     * a fillable placeholder (search off, no key, no query, no match, or failure).
+     */
+    private function autoSourceImage(StudioSession $session, array $el, string $type): ?string
+    {
+        if (!$this->autoSourceEnabled($session)) {
+            return null;
+        }
+
+        $note = trim(strip_tags((string) ($el['alt'] ?? '')));
+        if ($note === '') {
+            return null;
+        }
+
+        // Orientation from the slot's aspect so portraits don't get letterboxed.
+        $w = (float) ($el['w'] ?? 0);
+        $h = (float) ($el['h'] ?? 0);
+        $orientation = 'landscape';
+        if ($w > 0 && $h > 0) {
+            $ratio = $w / $h;
+            $orientation = $ratio >= 1.25 ? 'landscape' : ($ratio <= 0.8 ? 'portrait' : 'square');
+        }
+
+        // Bias the query toward the issue's voice so results feel on-brand.
+        $brief = $session->brief ?? [];
+        $styleHint = trim(implode(' ', array_filter([
+            is_string($brief['tone'] ?? null) ? $brief['tone'] : null,
+            is_string($brief['genre'] ?? null) ? $brief['genre'] : null,
+        ])));
+        $query = $styleHint !== '' ? "{$note} {$styleHint}" : $note;
+
+        $hit = $this->imageSearch->search($query, $orientation);
+        if ($hit === null || empty($hit['url'])) {
+            return null;
+        }
+
+        $site = Site::find($session->site_id);
+        if (!$site) {
+            return null;
+        }
+
+        $credit = !empty($hit['photographer'])
+            ? "Photo: {$hit['photographer']} (Pexels)"
+            : 'Pexels';
+
+        $asset = $this->assets->importFromUrl($site, $hit['url'], $note, $credit);
+        if (!$asset) {
+            return null;
+        }
+
+        Log::info("IssueStudio auto-sourced image for slot '{$type}' via Pexels", [
+            'issue' => $session->magazine_issue_id,
+            'asset' => $asset->id,
+            'query' => Str::limit($query, 80),
+        ]);
+
+        return "/api/v1/sites/{$session->site_id}/assets/{$asset->id}/serve";
+    }
+
+    /** Per-session override (brief flag) falling back to the global default. */
+    private function autoSourceEnabled(StudioSession $session): bool
+    {
+        $brief = $session->brief ?? [];
+        if (is_array($brief) && array_key_exists('auto_source_images', $brief)) {
+            return (bool) $brief['auto_source_images'];
+        }
+
+        return (bool) config('cms.issue_studio.auto_source_images', true);
     }
 
     private function recordReferences(StudioSession $session, StudioSpread $spread, MagazineIssue $issue): void

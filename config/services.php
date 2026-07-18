@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // Pexels stock-photo search — used by Issue Studio to auto-source images
+    // for article image slots. Free key: https://www.pexels.com/api/
+    'pexels' => [
+        'key' => env('PEXELS_API_KEY'),
+    ],
+
 ];

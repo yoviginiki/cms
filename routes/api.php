@@ -186,6 +186,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('sessions/{studioSession}/materials', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'addMaterial']);
             Route::delete('sessions/{studioSession}/materials/{materialId}', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'removeMaterial']);
             Route::post('sessions/{studioSession}/complete-interview', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'completeInterview']);
+            Route::post('sessions/{studioSession}/settings', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'updateSettings']);
             Route::post('sessions/{studioSession}/flatplan/generate', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'generateFlatplan'])->middleware('throttle:10,1');
             Route::post('sessions/{studioSession}/flatplan/revise', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'reviseFlatplanSpread'])->middleware('throttle:20,1');
             Route::post('sessions/{studioSession}/flatplan/reorder', [\App\Http\Controllers\IssueStudio\IssueStudioController::class, 'reorderFlatplan']);

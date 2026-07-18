@@ -94,7 +94,10 @@ class DtpPreflightService
             if ($type === 'image') {
                 $src = $content['src'] ?? '';
                 if (!$src) {
-                    $items[] = $this->item('error', 'MISSING_IMAGE', "{$name}: no image selected.", frameId: $frame->id, blocking: true);
+                    // Not blocking: an empty image slot falls back to the default
+                    // image (DtpRenderService::defaultImageSrc), so it publishes
+                    // fine — but flag it so the author knows to add a real photo.
+                    $items[] = $this->item('warning', 'MISSING_IMAGE', "{$name}: no image selected — the default image will be shown.", frameId: $frame->id);
                 } elseif (!in_array(strtolower((string) parse_url($src, PHP_URL_SCHEME)), ['http', 'https'])
                     && !str_starts_with((string) $src, '/')) {
                     // relative /api/v1/.../serve paths are the editor's canonical
