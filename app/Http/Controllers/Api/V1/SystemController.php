@@ -142,7 +142,11 @@ class SystemController extends Controller
         }
 
         $basePath = base_path();
-        $include = ['app', 'config', 'database', 'resources', 'routes', 'docs', 'public/admin-assets', 'tests'];
+        // NOTE: public/admin-assets is intentionally omitted — it is compiled
+        // Vite build output (regenerated from resources/admin via `npm run
+        // build`), not source. It also accumulates months of stale hashed
+        // chunks across deploys, which used to dominate the export size.
+        $include = ['app', 'config', 'database', 'resources', 'routes', 'docs', 'tests'];
         $rootFiles = ['composer.json', 'composer.lock', 'package.json', 'artisan', '.env.example', 'README.md', 'phpunit.xml'];
 
         foreach ($rootFiles as $file) {

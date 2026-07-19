@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "postbuild": "node scripts/prune-stale-assets.mjs",
+    "prune-assets": "node scripts/prune-stale-assets.mjs",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run"
