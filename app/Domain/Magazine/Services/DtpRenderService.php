@@ -508,19 +508,49 @@ class DtpRenderService
         return $html ?: '<p></p>';
     }
 
+    /**
+     * Default image for empty image frames. A site can override it with any URL
+     * or data URI via config('magazine.dtp_default_image'); otherwise a built-in
+     * neutral SVG placeholder (inlined as a data URI so it works identically in
+     * the viewer, static preview, and Playwright-rendered PDF).
+     */
+    private function defaultImageSrc(): string
+    {
+        $configured = config('magazine.dtp_default_image');
+        if (is_string($configured) && trim($configured) !== '') {
+            return trim($configured);
+        }
+
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" '
+            . 'viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">'
+            . '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
+            . '<stop offset="0" stop-color="#edeff2"/><stop offset="1" stop-color="#d7dce2"/>'
+            . '</linearGradient></defs>'
+            . '<rect width="1200" height="900" fill="url(#g)"/>'
+            . '<g fill="#b6bcc6"><circle cx="450" cy="340" r="66"/>'
+            . '<path d="M250 660 L520 420 L680 580 L860 400 L1010 660 Z"/></g>'
+            . '<rect x="210" y="200" width="780" height="500" rx="18" fill="none" '
+            . 'stroke="#b6bcc6" stroke-width="10"/></svg>';
+
+        return 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg);
+    }
+
     private function renderImageFrame(array $content): string
     {
         $src = $content['src'] ?? '';
         $scheme = is_string($src) ? strtolower((string) parse_url($src, PHP_URL_SCHEME)) : '';
         $isRelative = is_string($src) && str_starts_with($src, '/');
         if (!$src || (!in_array($scheme, ['http', 'https'], true) && !$isRelative)) {
-            // Fillable picture placeholder: a reserved slot the user drops their
-            // own photo into. The alt is the art-direction note for what belongs
-            // here. Rendered as a subtle framed box with a picture glyph.
-            $note = e(mb_substr((string) ($content['alt'] ?? ''), 0, 140));
-            $icon = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="opacity:.5"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg>';
-            $label = $note !== '' ? '<div style="margin-top:8px;font-size:11px;line-height:1.35;max-width:80%;">' . $note . '</div>' : '<div style="margin-top:8px;font-size:11px;">Add a picture</div>';
-            return '<div style="width:100%;height:100%;background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#eceef1 10px,#eceef1 20px);border:1px dashed #c7ccd4;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#9aa2ad;padding:10px;">' . $icon . $label . '</div>';
+            // No usable user image: fill the slot with the default image so the
+            // viewer and PDF never show an empty hole. Swappable via
+            // config('magazine.dtp_default_image'); the alt keeps the
+            // art-direction note for accessibility.
+            $alt = e(mb_substr((string) ($content['alt'] ?? ''), 0, 300));
+            $fitMap = ['fill' => 'cover', 'fit' => 'contain', 'stretch' => 'fill', 'original' => 'none'];
+            $objectFit = $fitMap[$content['fitMode'] ?? 'fill'] ?? 'cover';
+
+            return '<img src="' . e($this->defaultImageSrc()) . '" alt="' . $alt . '" data-default-image="1" '
+                . 'style="width:100%;height:100%;object-fit:' . $objectFit . ';object-position:center;display:block;">';
         }
 
         $alt = e($content['alt'] ?? '');

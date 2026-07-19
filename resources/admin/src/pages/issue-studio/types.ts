@@ -21,6 +21,7 @@ export interface Brief {
   page_ambition: number | null;
   notes: string[];
   materials: Material[];
+  auto_source_images?: boolean;
 }
 
 export interface TranscriptEntry {
@@ -88,6 +89,8 @@ export interface StudioSession {
   magazine_issue_id: string | null;
   token_usage: TokenUsageEntry[];
   total_tokens: number;
+  // resolved effective value (per-session override OR the global default)
+  auto_source_images?: boolean;
   spreads?: SpreadRow[] | null;
   created_at: string;
   updated_at: string;

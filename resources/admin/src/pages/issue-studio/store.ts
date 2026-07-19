@@ -16,6 +16,7 @@ interface StudioState {
   addImage: (title: string, assetId: string) => Promise<void>;
   removeMaterial: (materialId: string) => Promise<void>;
   completeInterview: () => Promise<void>;
+  setAutoSourceImages: (enabled: boolean) => Promise<void>;
   generateFlatplan: () => Promise<void>;
   reviseSpread: (position: number, instruction: string) => Promise<void>;
   reorder: (order: number[]) => Promise<void>;
@@ -110,6 +111,16 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (!session) return;
     try {
       set({ session: await studioApi.completeInterview(session.id), error: null });
+    } catch (e) {
+      set({ error: apiError(e) });
+    }
+  },
+
+  setAutoSourceImages: async (enabled) => {
+    const { session } = get();
+    if (!session) return;
+    try {
+      set({ session: await studioApi.setAutoSourceImages(session.id, enabled), error: null });
     } catch (e) {
       set({ error: apiError(e) });
     }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  BookOpen, Check, CheckCircle2, ExternalLink, Loader2, MessageSquare,
+  BookOpen, Check, CheckCircle2, ExternalLink, Image as ImageIcon, Loader2, MessageSquare,
   RefreshCw, Sparkles, Wand2, X,
 } from 'lucide-react';
 import { useStudioStore } from './store';
@@ -16,7 +16,7 @@ import type { SpreadRow } from './types';
  */
 export default function GenerationView() {
   const { siteId = '' } = useParams();
-  const { session, generatingSpread, generateNextSpread, load } = useStudioStore();
+  const { session, generatingSpread, generateNextSpread, load, setAutoSourceImages } = useStudioStore();
   const [iframeLoading, setIframeLoading] = useState(true);
 
   const spreads = session?.spreads ?? [];
@@ -68,6 +68,21 @@ export default function GenerationView() {
             ))}
           </div>
         </div>
+        {session && (
+          <button
+            onClick={() => void setAutoSourceImages(!session.auto_source_images)}
+            disabled={generatingSpread}
+            title={session.auto_source_images
+              ? 'Auto-finding stock photos for image slots is ON — click to turn off (empty slots then use the default image)'
+              : 'Auto image search is OFF — image slots use the default image. Click to turn on'}
+            className={`btn btn-sm text-[13px] gap-1.5 shrink-0 ${
+              session.auto_source_images ? 'btn-primary btn-outline' : 'btn-ghost text-base-content/50'
+            }`}
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            Auto-images {session.auto_source_images ? 'on' : 'off'}
+          </button>
+        )}
         {!active && nextPending && (
           <button
             onClick={() => void generateNextSpread()}

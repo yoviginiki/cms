@@ -35,6 +35,11 @@ export const studioApi = {
   completeInterview: (id: string) =>
     api.post(`${BASE}/${id}/complete-interview`).then(r => r.data.data as StudioSession),
 
+  setAutoSourceImages: (id: string, enabled: boolean) =>
+    api
+      .post(`${BASE}/${id}/settings`, { auto_source_images: enabled })
+      .then(r => r.data.data as StudioSession),
+
   generateFlatplan: (id: string) =>
     api.post(`${BASE}/${id}/flatplan/generate`).then(r => r.data.data as StudioSession),
 
