@@ -677,3 +677,73 @@ Sibling of the Theme Wizard, reusing its whole scaffold (AnthropicClient, Schema
 **AI note:** json_schema structured output TIMED OUT ("Grammar compilation timed out") on the variable-length manifest array — dropped it; use a firm prompt + SchemaRepairLoop (decode+validate+repair) with a fence-stripping wrapper. Live-verified: a coffee-roastery brief → 8-block manifest → 41 synced blocks on a draft page (~4k tokens).
 **Files:** migration `page_wizard_sessions` (RLS), `PageWizardSession`; services `PageWizard\{Engine,ManifestSchema,ManifestValidator,ManifestCompiler,ReferenceFetcher,Service}`, `Support\SsrfGuard`; `Jobs\PageWizard\CapturePageJob`; `PageWizardController` + routes `sites/{site}/page-wizard/*`; `config('cms.page_wizard')`; React `PageWizardPage.tsx` + nav + api client. Tests: PageWizardTest (8, engine mocked) — validator/compiler/lifecycle/role/SSRF. Full regression 1,450 green.
 **Deploy:** migration `page_wizard_sessions` pending; needs `PAGE_WIZARD_*` env only if overriding the opus/sonnet defaults (Theme Wizard already runs these aliases on prod).
+
+---
+
+## Track G AUDIT — full-system re-rating  (2026-07-19, branch `track-g-audit-artshop`, read-only)
+
+**Method.** Five parallel code audits (collections core / output tiers / query system / wizards+import / docs+demos) + test suites re-run this session (`tests/Feature/Collections` **79/79 green, 351 assertions**; `tests/Feature/References` + form-block unit tests **49/49 green**) + read-only live-DB probes (RLS state, `cq_*` schemas, `cms_sql_guest`, sites/collections inventory) + published-output inspection on disk. Ratings use the session vocabulary: **WORKING** (verified this session via tests/live probes), **PARTIAL** (exists, incomplete), **UNTESTED** (exists, no verification), **MISSING_BACKEND** (frontend only), **MISSING** (does not exist; plans count as missing).
+
+**Deploy state verified live:** `saved_queries` table exists on prod; `cms_sql_guest` role provisioned; per-site `cq_*` scoped-view schemas built for all 15 sites (i.e. `collections:rebuild-views` has run). G1+G2+G3+G-Q1+G-Q2 are all merged (PRs #29–#36) **and** live.
+
+### A — Collections core
+
+| Item | Rating | Evidence / gap |
+|---|---|---|
+| Collections CRUD via UI | **WORKING** | Full API (`CollectionController`, `RecordController`, routes `api.php:236+`) + 5 SPA pages (`resources/admin/src/pages/collections/*`); `CollectionCrudTest` 9 + `RecordCrudTest` 9 green this session; UI live-verified 2026-07-14. |
+| Field types | **WORKING** | 16-type closed catalog (`FieldTypes.php` ↔ `collectionFieldTypes.ts`, exact match): text, rich_text, number, price, boolean, select, multi_select, date, email, url, phone, image, gallery, file, sku, relation. No slug type (derived via `slug_source`); no page-reference type. |
+| Relations 1-many / many-many | **WORKING** | `relation` field `mode: one\|many`, `record_relations` pivot w/ typed `pivot_fields` (≤10, scalars); search-picker UI w/ per-edge pivot forms (`RecordFields.tsx:357+`). Tested. |
+| Nested / hierarchical | **PARTIAL** | No `parent_id`/tree support on records; self-referential `relation` is allowed (`CollectionSchemaValidator.php:167`) but there is no tree UI, no ordering, no cycle guard, no breadcrumb affordance. **Art-shop category tree hard-depends on this.** |
+| Tier 1 static output | **WORKING** | `CollectionPublishService` → `/{prefix}/{slug}/` details + statically paginated archives, SEO head, sitemap, collision guard; wired into `PublishSiteJob:170`. `CollectionPublishTest` 9 green this session; theme-demo-bare build on disk verified (5 book + 2 author pages live-served). |
+| Tier 1 JSON search index | **WORKING** | `index.json` manifest + hashed shards (2.5MB cap); vanilla-JS island (`collections-search.js`) static+api modes, URL state, noscript fallbacks, facet options rendered statically pre-JS. Shard/injection/degradation tests green. |
+| Tier 2 cached public API | **WORKING** | `PublicCollectionController` + `PublicQueryController` (dynamic-tier-only gate, tsvector search, facets, cursor caps, O(1) version-key cache invalidation, throttle, CORS, no-write route assertion); 11 tests incl. tier-flip both ways. Tier flip is **manual by design** (advisory `tier_warning` at >2,000 — no auto-promotion). |
+| RLS scoping | **WORKING** | ENABLE+**FORCE** RLS + tenant policies on all 4 tables (`collections`/`records`/`record_relations`/`saved_queries` migrations); live probe confirms forced; naive app-role SELECT returns 0 rows without GUC. |
+| entity_references integration | **WORKING** | Record→asset/record edges (`RecordService::persistEdges`); staleness on save/delete (record + collection); block extractors registered (`ReferenceExtractorRegistry:93-98`, ExtractorCoverageTest enforcing); delete protection 409+force on collections and records (`RecordReferencesTest` 5 green). |
+| Auto-republish of stale records | **PARTIAL** | **Gap found this audit:** `StaleAutoRepublisher.php:45-84` plucks only Page+Post ids — no `records` target, early-returns if pages+posts empty → with `auto_republish_stale` on, a record-only edit never auto-rebuilds its detail/archive/index. Manual stale flow + full publish are complete and tested (`RepublishStaleJob:106-141`). |
+
+### B — Query system
+
+| Item | Rating | Evidence / gap |
+|---|---|---|
+| Simple Mode visual query builder | **PARTIAL** (backend WORKING, UI MISSING) | Engine complete + tested: `SavedQueryValidator` (nested AND/OR ≤3 deep, typed operator matrix), `SimpleQueryCompiler` (bound values, EXISTS relation hops, aggregates), `QuerySentence`, CRUD+preview API (`SavedQueryController`). **Zero SPA UI** — no route/page/nav/api-client method for saved queries anywhere in `resources/admin/src`. |
+| Advanced SQL Mode | **PARTIAL** (backend WORKING, UI MISSING) | Three verified walls: `SqlQueryGuard` (strict allow-list tokenizer — not AST), `ScopedViewManager` (`cq_*`/`col_*`/`rel_*`, FORCE-RLS backstop), `SqlQueryRunner` (rolled-back txn, `SET LOCAL ROLE cms_sql_guest`, timeouts, EXPLAIN cost guard, auto-LIMIT; fails safe). `SqlModeSecurityTest` 14 green. **No SQL editor UI.** |
+| Query results bindable to blocks | **PARTIAL** | 3 blocks render queries statically at publish (`record-loop` w/ `queryId`, `query-table`, `query-stat`) + staleness cascade, tested. But: `record-loop` editor exposes only `collectionId` (never `queryId`), and `query-table`/`query-stat` have **no React components and are not in the SPA palette** — authors cannot place or bind them. |
+| Relation traversal (simple mode) | **WORKING** | One-hop dotted paths (`supplier.lead_time`) validate/compile/group-by; sort-by-relation correctly rejected. Tested incl. SQL-bridge parity. |
+| Cross-collection search | **MISSING** | G-Q3 scope, not built; search blocks are single-collection. |
+
+### C — Wizards & import
+
+| Item | Rating | Evidence / gap |
+|---|---|---|
+| App Wizard | **MISSING** | Zero matches for any naming convention in app/, SPA, routes. Exists only as the Track G plan title. |
+| Database Wizard | **PARTIAL** | The *capability* (create collections + 16 field types + relations + pivots) is WORKING as a plain form/schema-editor UI (`CollectionSchemaEditor.tsx`, 824 lines, drag-reorder, per-type flag gating). No guided/stepped wizard flow exists. |
+| Search Wizard | **MISSING** (pieces WORKING) | No wizard. Constituents exist separately: per-field searchable/facetable flags in the schema editor; index built automatically at publish; search blocks placed by hand in the page builder. |
+| Form capability (Form-Wizard audit) | **PARTIAL** | Contact-form path is ~complete: block (definition+blade+editor) → public `POST /api/v1/sites/{site}/forms/submit` (`public.site` + `throttle:10,1`) → honeypot → storage → optional email → admin viewer in `SiteSettings.tsx:1469`. **Gaps:** storage is flat JSON files (`storage/app/form-submissions/{siteId}.json`, cap 500, no DB table/model); `customform` block POSTs to a user-supplied endpoint with **no server-side receiver** (definition+render only); recipient = first contact-form block on the site; email failure swallowed; **zero feature tests on the submit path** (only block-schema unit tests). No form wizard/builder flow. |
+| CSV import into collections | **WORKING** | Full stack: upload→preview (headers + 20 rows), 3-step mapping UI (`CollectionImportPage.tsx`, 489 lines, auto header pre-match), queued `ExecuteCollectionImportJob` (insert/upsert-by-unique-key w/ SKU normalization, relation resolution by slug/title case-insensitive, optional auto-create-missing-as-draft, skip/halt policy, per-row error report capped 200, progress polling), CSV export. `CollectionImportTest` 6 green this session (incl. 200-row + relation auto-create + upsert price-refresh). |
+| XLSX import | **UNTESTED** | Same pipeline via openspout `^4.30` (`SpreadsheetReader` branches to XLSX reader, date-cell normalization; upload accepts `.xlsx`; UI accept string includes it). Code-complete but **no feature test uses an actual .xlsx fixture** — CSV tests cover the shared pipeline only. License: openspout is MIT (already in THIRD-PARTY-LICENSES.md — verify entry in Phase 2). |
+| Reusable import infra (context) | — | WordPress importer, `SpreadsheetReader`, site-clone/template import, library/theme/preset import endpoints all exist as reusable building blocks. |
+
+### D — Documentation (dogfooded as CMS content)
+
+| Feature area | CMS-content docs | Repo dev-doc |
+|---|---|---|
+| Collections | **MISSING** | MISSING |
+| Query system / SQL mode | **MISSING** | partial (`docs/sql-mode-role-setup.sql` ops script only) |
+| Search | **MISSING** | MISSING |
+| CSV/XLSX import | **MISSING** | MISSING |
+| Forms | **MISSING** | present (`docs/GUIDE-FORMS.md`) |
+| Wizards | **MISSING** | partial (theme-wizard + page-generation docs; nothing for Track G wizards) |
+
+No docs-as-CMS-content mechanism exists at all: `/docs` (DocsController) renders **repo markdown files**, not CMS pages; the stillopress "Documentation"/"Atlas Docs" pages are fictional marketing mockups. Dogfooded documentation is 0% implemented.
+
+### E — Demo apps
+
+| Demo | Rating | Evidence |
+|---|---|---|
+| Book store | **WORKING** (not reproducible) | Books(5)+Authors(2) collections + relations + "Find Books" search page on `theme-demo-bare`; published static output verified on disk this session and live-served via `public_html/theme-demo-bare` symlink; 16/16 browser acceptance + Lighthouse 99–100 (2026-07-14). **No seeder exists** — data was created via services/API by hand; cannot be rebuilt from code. |
+| City directory | **MISSING** | No code, seeder, data, or output anywhere. |
+| HVAC parts catalog | **MISSING** | No collections demo. (The `vioiv` site is a real HVAC *client* site of flat imported pages — not a parts-catalog demo.) |
+
+### Honest summary
+
+Track G's **data layer is genuinely strong**: collections, 16 field types, relations with typed pivots, FORCE-RLS, entity_references staleness/delete-protection, Tier-1 static publish with sharded client-side search, Tier-2 cached public API, CSV/XLSX import with a real mapping UI, and a three-wall SQL mode are all built, live on prod, and covered by 128 green tests re-run this session. What's thin is everything **user-facing above the data layer**: the entire query system has no UI (no builder, no SQL editor, and 2 of 3 query blocks aren't even in the editor palette), hierarchy exists only as an unassisted self-relation, forms work only for the fixed contact-form block with JSON-file storage and an untested submit path, none of the three wizards (App/Database/Search) exists as a wizard, documentation-as-CMS-content is 0%, and 2 of 3 planned demo apps were never built (the one that exists has no seeder). Two concrete bugs surfaced: `StaleAutoRepublisher` silently skips record-only changes, and `customform` renders a form with no backend. The Art-Shop demo will hard-hit the hierarchy gap, the query-UI gap, the form gaps, and (by definition) the missing wizards.
