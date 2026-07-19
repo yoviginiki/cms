@@ -202,12 +202,88 @@ class SpreadGenerationTest extends TestCase
         $this->assertTrue($content['placeholder'] ?? false);
         $this->assertSame('a calm close-up of hands in zazen', $content['alt']);
 
-        // it renders as a fillable slot (dashed box + the art-direction note)
+        // it renders with the default image (never an empty hole), keeping the
+        // art-direction note as the image alt
         $data = app(\App\Domain\Magazine\Services\DtpRenderService::class)
             ->render(\App\Domain\IssueComposer\Models\MagazineIssue::find($session->magazine_issue_id));
         $html = json_encode($data['spreads']);
         $this->assertStringContainsString('a calm close-up of hands in zazen', $html);
-        $this->assertStringContainsString('dashed', $html);
+        $this->assertStringContainsString('data-default-image', $html);
+    }
+
+    public function test_auto_sources_a_stock_image_for_an_empty_slot_when_enabled(): void
+    {
+        // an image slot with no material_id — auto-sourcing (default on) should
+        // find + import a photo and fill the frame src instead of a placeholder
+        $doc = [
+            'editorial_note' => 'A hero the studio should source a photo for.',
+            'pages' => [[
+                'side' => 'single',
+                'elements' => [
+                    ['type' => 'fullbleed_image', 'x' => 0, 'y' => 0, 'w' => 595, 'h' => 500, 'material_id' => '', 'alt' => 'sunrise over calm water', 'fit_mode' => 'fill', 'z' => 0],
+                ],
+            ]],
+        ];
+        Http::fake(['api.anthropic.com/*' => Http::response($this->opusResponse($doc))]);
+        $session = $this->makeGeneratingSession();
+
+        $assetId = '019f0000-0000-7000-8000-0000000000ab';
+        $asset = new \App\Models\Asset();
+        $asset->id = $assetId;
+
+        // mock the two seams: the Pexels client and the URL importer
+        $this->mock(\App\Services\IssueStudio\PexelsImageSearch::class, function ($m) {
+            $m->shouldReceive('search')->once()->andReturn([
+                'url' => 'https://images.pexels.com/photos/1/x.jpg',
+                'photographer' => 'Jane Doe', 'photographer_url' => null, 'alt' => 'x', 'id' => 1,
+            ]);
+        });
+        $this->mock(\App\Domain\Assets\Services\AssetService::class, function ($m) use ($asset) {
+            $m->shouldReceive('importFromUrl')->once()->andReturn($asset);
+        });
+
+        $this->actingAsOwner()->postJson("/api/v1/issue-studio/sessions/{$session->id}/spreads/generate-next")
+            ->assertOk();
+        $session->refresh();
+
+        $img = DB::table('magazine_frames')->where('issue_id', $session->magazine_issue_id)->where('frame_type', 'image')->first();
+        $this->assertNotNull($img);
+        $content = json_decode($img->content, true);
+        $this->assertArrayNotHasKey('placeholder', $content, 'auto-sourced frame should not be a placeholder');
+        $this->assertStringContainsString($assetId, $content['src'] ?? '');
+    }
+
+    public function test_auto_source_off_via_brief_falls_back_to_placeholder(): void
+    {
+        $doc = [
+            'editorial_note' => 'Author disabled auto-sourcing.',
+            'pages' => [[
+                'side' => 'single',
+                'elements' => [
+                    ['type' => 'fullbleed_image', 'x' => 0, 'y' => 0, 'w' => 595, 'h' => 500, 'material_id' => '', 'alt' => 'sunrise over calm water', 'fit_mode' => 'fill', 'z' => 0],
+                ],
+            ]],
+        ];
+        Http::fake(['api.anthropic.com/*' => Http::response($this->opusResponse($doc))]);
+        $session = $this->makeGeneratingSession();
+        // turn the toggle OFF for this session
+        $brief = $session->brief;
+        $brief['auto_source_images'] = false;
+        $session->update(['brief' => $brief]);
+
+        // search must never be called when disabled
+        $this->mock(\App\Services\IssueStudio\PexelsImageSearch::class, function ($m) {
+            $m->shouldReceive('search')->never();
+        });
+
+        $this->actingAsOwner()->postJson("/api/v1/issue-studio/sessions/{$session->id}/spreads/generate-next")
+            ->assertOk();
+        $session->refresh();
+
+        $img = DB::table('magazine_frames')->where('issue_id', $session->magazine_issue_id)->where('frame_type', 'image')->first();
+        $this->assertNotNull($img);
+        $content = json_decode($img->content, true);
+        $this->assertTrue($content['placeholder'] ?? false, 'disabled auto-source should leave a placeholder');
     }
 
     public function test_generate_next_blocked_until_current_spread_is_decided(): void

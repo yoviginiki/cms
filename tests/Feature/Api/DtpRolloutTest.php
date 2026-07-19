@@ -153,11 +153,13 @@ class DtpRolloutTest extends TestCase
 
         config(['features.magazine_dtp_designer_enabled' => true]);
 
-        // Add image frame without src — triggers MISSING_IMAGE blocking error
+        // Add image frame with an unsafe URL — triggers UNSAFE_IMAGE_URL blocking
+        // error. (A merely-empty image is no longer blocking: it falls back to
+        // the default image, so it's a warning, not a promotion blocker.)
         $this->addFrame($issue, $page, [
             'frame_type' => 'image',
-            'name' => 'Missing Image',
-            'content' => ['src' => ''],
+            'name' => 'Unsafe Image',
+            'content' => ['src' => 'javascript:alert(1)'],
         ]);
 
         $response = $this->actingAsOwner()

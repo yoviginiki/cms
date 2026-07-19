@@ -244,6 +244,23 @@ class IssueStudioController extends Controller
         abort_unless($session->tenant_id === $request->user()->tenant_id, 404);
     }
 
+    /** Toggle per-session settings (currently: Pexels auto image sourcing). */
+    public function updateSettings(Request $request, StudioSession $studioSession): JsonResponse
+    {
+        $this->authorizeSession($request, $studioSession);
+
+        $data = $request->validate([
+            'auto_source_images' => 'required|boolean',
+        ]);
+
+        $brief = $studioSession->brief ?? [];
+        $brief['auto_source_images'] = $data['auto_source_images'];
+        $studioSession->brief = $brief;
+        $studioSession->save();
+
+        return response()->json(['data' => $this->serialize($studioSession)]);
+    }
+
     private function serialize(StudioSession $session, bool $full = true, bool $withSpreads = false): array
     {
         if ($withSpreads) {
@@ -269,6 +286,8 @@ class IssueStudioController extends Controller
 
         return $base + [
             'brief' => $session->brief,
+            'auto_source_images' => (bool) ($session->brief['auto_source_images']
+                ?? config('cms.issue_studio.auto_source_images', true)),
             'transcript' => $session->transcript,
             'flatplan' => $session->flatplan,
             'magazine_issue_id' => $session->magazine_issue_id,
