@@ -229,7 +229,18 @@ class AppScaffolder
             $detailModules[] = $this->module('field-value', ['field' => $field['key'], 'showLabel' => true]);
         }
 
-        $this->blocks->syncBlocks($template, [$this->section($detailModules)]);
+        $sections = [$this->section($detailModules)];
+
+        // Hierarchical collections (category trees): the detail page lists its
+        // direct children so visitors can navigate down the tree.
+        if ($collection->hierarchyField()) {
+            $sections[] = $this->section([
+                $this->module('heading', ['text' => 'Browse', 'level' => 'h2']),
+                $this->module('record-loop', ['sourceMode' => 'children', 'layout' => 'list', 'columns' => 1, 'limit' => 100, 'linkToRecord' => true]),
+            ]);
+        }
+
+        $this->blocks->syncBlocks($template, $sections);
 
         return $template;
     }
