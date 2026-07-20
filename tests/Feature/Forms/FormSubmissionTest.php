@@ -116,6 +116,34 @@ class FormSubmissionTest extends TestCase
         $this->assertSame(1, FormSubmission::count());
     }
 
+    public function test_form_block_on_a_record_template_is_found(): void
+    {
+        // A customform on a record-single TEMPLATE (not a page/post) must
+        // still receive submissions — product-detail inquiry forms live here.
+        $collection = \App\Models\ContentCollection::create([
+            'site_id' => $this->site->id, 'name' => 'Products', 'slug' => 'products',
+            'tier' => 'static', 'schema' => ['fields' => [['key' => 'title', 'label' => 'Title', 'type' => 'text']], 'title_field' => 'title'],
+        ]);
+        $template = \App\Models\ThemeTemplate::create([
+            'site_id' => $this->site->id, 'name' => 'Product detail', 'slug' => 'product-detail',
+            'type' => 'record-single', 'collection_id' => $collection->id, 'is_default' => true,
+        ]);
+        app(BlockService::class)->syncBlocks($template, [[
+            'type' => 'customform', 'order' => 0,
+            'data' => ['formKey' => 'artwork-inquiry', 'fields' => [
+                ['label' => 'Name', 'type' => 'text', 'required' => true],
+                ['label' => 'Email', 'type' => 'email', 'required' => true],
+            ]],
+        ]]);
+
+        $this->postJson("/api/v1/sites/{$this->site->id}/forms/artwork-inquiry/submit", [
+            'name' => 'Patron', 'email' => 'patron@example.com',
+        ])->assertOk();
+
+        $row = FormSubmission::where('form_key', 'artwork-inquiry')->firstOrFail();
+        $this->assertSame('Patron', $row->data['Name']);
+    }
+
     public function test_legacy_contact_route_stores_under_contact_key(): void
     {
         app(BlockService::class)->syncBlocks($this->page, [[

@@ -153,7 +153,10 @@ class FormController extends Controller
      */
     private function findFormBlock(Site $site, string $formKey): ?Block
     {
-        $query = Block::whereHasMorph('blockable', ['page', 'post'], function ($q) use ($site) {
+        // Form blocks live on pages, posts, record templates, or sliders — a
+        // form on a product record-single template must resolve too, not just
+        // page/post-hosted forms.
+        $query = Block::whereHasMorph('blockable', ['page', 'post', 'template', 'slider'], function ($q) use ($site) {
             $q->where('site_id', $site->id);
         });
 
