@@ -294,6 +294,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Form Wizard (S5): compose + append a configured form block to a page
         Route::post('sites/{site}/form-wizard', [\App\Http\Controllers\Api\V1\FormWizardController::class, 'create']);
 
+        // App / Database / Search wizards (S6): deterministic scaffolding
+        Route::post('sites/{site}/wizard/database', [\App\Http\Controllers\Api\V1\AppWizardController::class, 'database']);
+        Route::post('sites/{site}/wizard/search', [\App\Http\Controllers\Api\V1\AppWizardController::class, 'search']);
+        Route::post('sites/{site}/wizard/app', [\App\Http\Controllers\Api\V1\AppWizardController::class, 'app']);
+
         // Form submissions (S5: DB-backed, RLS-scoped)
         Route::get('sites/{site}/form-submissions', [\App\Http\Controllers\Api\V1\FormController::class, 'submissions']);
         Route::get('sites/{site}/form-submissions/export', [\App\Http\Controllers\Api\V1\FormController::class, 'export']);

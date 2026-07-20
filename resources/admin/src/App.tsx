@@ -68,6 +68,9 @@ const CollectionImportPage = lazy(() => import('./pages/collections/CollectionIm
 const QueriesList = lazy(() => import('./pages/queries/QueriesList'));
 const QueryEditor = lazy(() => import('./pages/queries/QueryEditor'));
 const FormWizardPage = lazy(() => import('./pages/forms/FormWizardPage'));
+const WizardHub = lazy(() => import('./pages/wizards/WizardHub'));
+const DatabaseWizard = lazy(() => import('./pages/wizards/DatabaseWizard'));
+const SearchWizard = lazy(() => import('./pages/wizards/SearchWizard'));
 
 function LazyFallback() {
   return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-base-content/20" /></div>;
@@ -135,6 +138,10 @@ export default function App() {
           <Route path="/sites/:siteId/queries/new" element={<LayoutRoute><QueryEditor /></LayoutRoute>} />
           <Route path="/sites/:siteId/queries/:queryId/edit" element={<LayoutRoute><QueryEditor /></LayoutRoute>} />
           <Route path="/sites/:siteId/form-wizard" element={<LayoutRoute><FormWizardPage /></LayoutRoute>} />
+          <Route path="/sites/:siteId/wizards" element={<LayoutRoute><WizardHub /></LayoutRoute>} />
+          <Route path="/sites/:siteId/wizards/database" element={<LayoutRoute><DatabaseWizard mode="database" /></LayoutRoute>} />
+          <Route path="/sites/:siteId/wizards/search" element={<LayoutRoute><SearchWizard /></LayoutRoute>} />
+          <Route path="/sites/:siteId/wizards/app" element={<LayoutRoute><DatabaseWizard mode="app" /></LayoutRoute>} />
           <Route path="/sites/:siteId/settings" element={<LayoutRoute><SiteSettings /></LayoutRoute>} />
           <Route path="/sites/:siteId/import" element={<LayoutRoute><ImportPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/analytics" element={<LayoutRoute><Analytics /></LayoutRoute>} />

@@ -90,7 +90,7 @@ class DocsSiteSeeder extends Seeder
             $this->importGuide(),
             $this->queriesGuide(),
             $this->formsGuide(),
-            // Later slices append: search guide, wizards guide.
+            $this->wizardsGuide(),
         ];
     }
 
@@ -114,6 +114,7 @@ class DocsSiteSeeder extends Seeder
                                 'Importing data — CSV and XLSX imports, column mapping, upserts, relation matching. See /importing-data/',
                                 'Queries — saved filters and aggregations, the visual builder and SQL mode. See /queries/',
                                 'Forms — static-site forms with spam protection and stored submissions. See /forms/',
+                                'Wizards — scaffold collections, search pages and whole content apps without code. See /wizards/',
                             ]),
                             $this->para('More guides land as features ship: queries, search, forms, and the app wizards.'),
                         ]),
@@ -338,6 +339,43 @@ class DocsSiteSeeder extends Seeder
                                 'No file-upload fields (a file picker in a form renders as a text input; uploads are not received)',
                                 'Validation errors on a no-JavaScript submit show a plain error response rather than inline field messages',
                                 'The fill-time check only applies to JavaScript visitors; no-JS submissions rely on the honeypot and rate limit',
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ],
+        ];
+    }
+
+    // ─── Wizards guide ──────────────────────────────────────────────────
+
+    private function wizardsGuide(): array
+    {
+        return [
+            'title' => 'Wizards',
+            'slug' => 'wizards',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->heading('Wizards', 'h1'),
+                            $this->para('Wizards scaffold structured content and its pages in one guided flow. They are deterministic — no AI, no surprises: each step maps to collections, fields, templates and pages you can edit afterwards like anything else.'),
+
+                            $this->heading('Database Wizard', 'h2'),
+                            $this->para('Design one or more collections at once. Add fields, mark a collection <strong>hierarchical</strong> to get category-style nesting, and add <strong>relation</strong> fields that point at any other collection you\'re defining — targets are matched by name, so you can wire up "Product → Artist" and "Product → Category" before either exists. Collections are created together in a single transaction; if a relation names a collection you didn\'t define, nothing is created and the wizard tells you which one.'),
+
+                            $this->heading('Search Wizard', 'h2'),
+                            $this->para('Point it at an existing collection, tick which fields are searchable (full-text) and which become facet filters, and it flips those schema flags and builds a draft page wired with a search box, facet filters and a results grid. Publish the page and search works on the static site.'),
+
+                            $this->heading('App Wizard', 'h2'),
+                            $this->para('The full build in one pass: it creates your collections (like the Database Wizard), then for each one builds a detail template (title, image, and a line per field) and an index page that lists the records, plus one search page for the collection you choose. You\'re left with an empty but complete content app — add records, then publish.'),
+
+                            $this->heading('After scaffolding', 'h2'),
+                            $this->list([
+                                'Everything created is ordinary — edit collections under Collections, pages in the page builder, templates under Templates',
+                                'Pages are created as drafts so nothing goes live until you publish',
+                                'To put a form on the scaffolded pages, use the Form Wizard',
+                                'Wizards are available to admins and owners',
                             ]),
                         ]),
                     ]),

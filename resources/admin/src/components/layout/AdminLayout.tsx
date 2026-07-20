@@ -119,6 +119,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           : []),
         { to: `/sites/${siteId}/collections`, icon: Database, label: 'Collections' },
         { to: `/sites/${siteId}/queries`, icon: ListFilter, label: 'Queries' },
+        { to: `/sites/${siteId}/wizards`, icon: Sparkles, label: 'Wizards' },
         { to: `/sites/${siteId}/assets`, icon: Archive, label: 'Media' },
         { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
         { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
