@@ -23,6 +23,7 @@ class SiteController extends Controller
 
         $sites = Site::withCount(['pages', 'posts'])
             ->with('theme')
+            ->orderBy('name')
             ->paginate($request->integer('per_page', 15));
 
         return SiteResource::collection($sites)->response();
