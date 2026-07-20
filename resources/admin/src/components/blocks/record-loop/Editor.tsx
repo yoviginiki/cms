@@ -1,7 +1,7 @@
 import type { BlockEditorProps } from '@/types/blocks';
 import { SelectField, TextField, ToggleField } from '@/components/editor/fields';
 import {
-  CollectionSelect, FieldMultiPick, FilterValueInput, SchemaLoadingHint,
+  CollectionSelect, FieldMultiPick, FilterValueInput, QuerySelect, SchemaLoadingHint,
   isCardField, isFilterableField, isImageField, isSortableField,
   SORT_META_OPTIONS, useCollection,
 } from '../collections-shared';
@@ -41,9 +41,14 @@ export const RecordLoopEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
           { value: 'related', label: 'Records linking to current record' },
         ]} />
       {sourceMode === 'auto' && (
-        <CollectionSelect value={collectionId} onChange={v => update('collectionId', v)}
-          unsetLabel="— inherited from archive —"
-          helperText={!collectionId ? 'Inside a record template the collection is inherited — pick one to use this loop on any page' : undefined} />
+        <>
+          <QuerySelect value={(data.queryId as string | null) || null} onChange={(v) => update('queryId', v)}
+            unsetLabel="— no query (list the collection) —"
+            helperText={data.queryId ? 'The saved query is the source — collection/filter settings below are ignored' : undefined} />
+          <CollectionSelect value={collectionId} onChange={v => update('collectionId', v)}
+            unsetLabel="— inherited from archive —"
+            helperText={!collectionId ? 'Inside a record template the collection is inherited — pick one to use this loop on any page' : undefined} />
+        </>
       )}
       {sourceMode === 'children' && (
         <div className="text-xs text-base-content/50 p-2 border border-base-300/40 rounded">

@@ -597,4 +597,58 @@ export const collectionImport = {
     api.get(`/sites/${siteId}/collections/${collectionId}/import/${importId}/status`),
 };
 
+// ── Saved queries (Track G-Q3 UI) ──
+
+export interface SavedQueryCondition {
+  field: string;               // local key or one-hop "relation.field"
+  operator: string;
+  value?: unknown;
+}
+
+export interface SavedQueryGroup {
+  op: 'and' | 'or';
+  children: (SavedQueryCondition | SavedQueryGroup)[];
+}
+
+export interface SavedQueryDefinition {
+  collection_id: string;
+  filters?: SavedQueryGroup | null;
+  sort?: { field: string; direction: 'asc' | 'desc' }[];
+  limit?: number;
+  aggregate?: { group_by?: string | null; metrics: { fn: 'count' | 'sum' | 'avg' | 'min' | 'max'; field?: string }[] } | null;
+}
+
+export interface SavedQueryParam {
+  key: string;
+  type: 'text' | 'number' | 'boolean';
+  required: boolean;
+  default?: string | number | boolean | null;
+}
+
+export interface SavedQuery {
+  id: string;
+  name: string;
+  slug: string;
+  mode: 'simple' | 'sql';
+  definition: SavedQueryDefinition | Record<string, never>;
+  sql: string | null;
+  public_params: SavedQueryParam[];
+  is_public: boolean;
+  settings?: Record<string, unknown>;
+  collection_name?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const savedQueries = {
+  list: (siteId: string) => api.get(`/sites/${siteId}/saved-queries`),
+  get: (siteId: string, id: string) => api.get(`/sites/${siteId}/saved-queries/${id}`),
+  create: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/saved-queries`, data),
+  update: (siteId: string, id: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/saved-queries/${id}`, data),
+  delete: (siteId: string, id: string, force = false) =>
+    api.delete(`/sites/${siteId}/saved-queries/${id}`, { params: force ? { force: 1 } : {} }),
+  preview: (siteId: string, body: Record<string, unknown>) => api.post(`/sites/${siteId}/saved-queries/preview`, body),
+  showSql: (siteId: string, body: Record<string, unknown>) => api.post(`/sites/${siteId}/saved-queries/show-sql`, body),
+};
+
 export default api;

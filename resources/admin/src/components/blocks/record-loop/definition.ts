@@ -9,6 +9,7 @@ export const recordLoopDefinition: BlockDefinition = {
   level: 'module',
   defaultData: {
     collectionId: null,
+    queryId: null,         // saved query as source (beats collection/filters)
     sourceMode: 'auto',    // auto, children, related (record-template context)
     relatedCollectionId: null,
     relatedFieldKey: null,

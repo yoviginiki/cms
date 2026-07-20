@@ -29,7 +29,7 @@ class DocsSiteSeederTest extends TestCase
         $this->assertSame($this->tenant->id, $site->tenant_id);
 
         $slugs = $site->pages()->pluck('slug')->sort()->values()->all();
-        $this->assertSame(['collections', 'home', 'importing-data'], $slugs);
+        $this->assertSame(['collections', 'home', 'importing-data', 'queries'], $slugs);
         $this->assertSame(0, $site->pages()->where('status', '!=', 'published')->count());
 
         // Homepage wired to the docs index
@@ -75,5 +75,10 @@ class DocsSiteSeederTest extends TestCase
         $this->assertStringContainsString('50 MB', $import);
         $this->assertStringContainsString('Update by key', $import);
         $this->assertStringContainsString('pipe-separated slugs', $import);
+
+        $queries = $builder->build($site->pages()->where('slug', 'queries')->first(), null, $site);
+        $this->assertStringContainsString('SQL constraints', $queries);
+        $this->assertStringContainsString('3-second timeout', $queries);
+        $this->assertStringContainsString('one hop', $queries);
     }
 }

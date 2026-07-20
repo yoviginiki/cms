@@ -88,7 +88,8 @@ class DocsSiteSeeder extends Seeder
             $this->indexPage(),
             $this->collectionsGuide(),
             $this->importGuide(),
-            // Later slices append: query guide, search guide, forms guide, wizards guide.
+            $this->queriesGuide(),
+            // Later slices append: search guide, forms guide, wizards guide.
         ];
     }
 
@@ -110,6 +111,7 @@ class DocsSiteSeeder extends Seeder
                             $this->list([
                                 'Collections — structured content: schemas, field types, relations, publishing tiers. See /collections/',
                                 'Importing data — CSV and XLSX imports, column mapping, upserts, relation matching. See /importing-data/',
+                                'Queries — saved filters and aggregations, the visual builder and SQL mode. See /queries/',
                             ]),
                             $this->para('More guides land as features ship: queries, search, forms, and the app wizards.'),
                         ]),
@@ -233,6 +235,61 @@ class DocsSiteSeeder extends Seeder
 
                             $this->heading('Export', 'h2'),
                             $this->para('Every collection exports back to CSV — all fields plus slug and status, with relations as pipe-separated slugs. An export re-imports cleanly, so export → edit in a spreadsheet → re-import with update-by-key is a supported round trip.'),
+                        ]),
+                    ]),
+                ]),
+            ],
+        ];
+    }
+
+    // ─── Queries guide ──────────────────────────────────────────────────
+
+    private function queriesGuide(): array
+    {
+        return [
+            'title' => 'Queries',
+            'slug' => 'queries',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->heading('Queries', 'h1'),
+                            $this->para('A saved query is a reusable question over a collection — "products under €500", "artists ranked by number of works" — that you build once and render anywhere. Queries run at publish time, so their results are baked into flat HTML like everything else; when the underlying records change, pages using the query republish.'),
+
+                            $this->heading('Building a query (Visual mode)', 'h2'),
+                            $this->para('Under <strong>Queries → New query</strong>, pick a collection and compose filters. Conditions combine with ALL or ANY, groups nest up to 3 levels, and a condition can reach one hop across a relation — "Artist → Country is NL". Add up to 3 sort keys and a limit (1–500). The preview updates as you build and reads the query back in plain language so you can check your logic.'),
+                            $this->para('Turn on <strong>Aggregate</strong> to get numbers instead of records: group by a select, boolean or relation field, and compute up to 4 metrics (count, sum, average, min, max over number/price fields). "Products grouped by category, showing count and average price" is one toggle and two dropdowns.'),
+
+                            $this->heading('Rendering results', 'h2'),
+                            $this->list([
+                                'Query Table block — the result rows as a plain HTML table',
+                                'Query Stat block — one big number (pair with an aggregate query)',
+                                'Record Loop block — pick a saved query as its source to render matching records as cards',
+                            ]),
+                            $this->para('All three are static output. Editing a matching record flags every page that renders the query, so published numbers never silently drift.'),
+
+                            $this->heading('SQL mode', 'h2'),
+                            $this->para('The SQL tab accepts a single SELECT statement over your site\'s query views — every collection appears as <strong>col_&lt;slug&gt;</strong> with typed columns (published records only), and each relation as <strong>rel_&lt;slug&gt;_&lt;field&gt;</strong> including its pivot fields. Start in Visual mode and open "Show as SQL" — the generated statement targets exactly these views and is the fastest way to learn them.'),
+                            $this->para('SQL runs under a locked-down read-only database role, inside a transaction that is always rolled back, with a 3-second timeout, a cost ceiling, and an automatic row cap. Only your own site\'s views are visible.'),
+
+                            $this->heading('SQL constraints (by design)', 'h2'),
+                            $this->list([
+                                'SELECT (or WITH/EXPLAIN) only — one statement, no semicolon chaining',
+                                'Only col_/rel_ views — real tables, system catalogs and other sites\' schemas are rejected up front',
+                                'A conservative function whitelist (aggregates, math, string/date helpers) — exotic functions are rejected',
+                                'No double-quoted identifiers, dollar quoting, or E-string literals',
+                                'Statements time out at 3 seconds and rows are capped — ranking and grouping are fine, table scans of everything are not',
+                            ]),
+
+                            $this->heading('Public API queries', 'h2'),
+                            $this->para('Mark a query <strong>Public</strong> to expose it read-only at /api/v1/public/{site}/queries/{slug}, cached and rate-limited. Declare typed parameters (text, number, boolean) to accept request input — undeclared or wrongly-typed parameters are rejected with a 422, never interpolated.'),
+
+                            $this->heading('Honest limits', 'h2'),
+                            $this->list([
+                                'Relation traversal is one hop; relations-of-relations are rejected',
+                                'Limit caps at 500 rows per query; public API responses cache for up to 60 seconds',
+                                'Query authoring is admin/owner only',
+                            ]),
                         ]),
                     ]),
                 ]),

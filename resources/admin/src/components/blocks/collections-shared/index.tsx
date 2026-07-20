@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { collections as collectionsApi, themeTemplates, type Collection, type CollectionField, type CollectionFieldType } from '@/lib/api';
+import { collections as collectionsApi, savedQueries as savedQueriesApi, themeTemplates, type Collection, type CollectionField, type CollectionFieldType, type SavedQuery } from '@/lib/api';
 import { SelectField, TextField, ToggleField } from '@/components/editor/fields';
 
 /**
@@ -83,6 +83,44 @@ interface CollectionSelectProps {
   onChange: (id: string | null) => void;
   unsetLabel?: string;
   helperText?: string;
+}
+
+/** Saved queries of the current site (Track G-Q3). */
+export function useSiteQueries() {
+  const { siteId = '' } = useParams();
+  const query = useQuery<SavedQuery[]>({
+    queryKey: ['saved-queries', siteId],
+    queryFn: () => savedQueriesApi.list(siteId).then((r) => r.data.data),
+    enabled: !!siteId,
+  });
+  return { siteId, ...query };
+}
+
+/** Saved-query dropdown with loading/empty states (Track G-Q3). */
+export function QuerySelect({ value, onChange, unsetLabel = '— choose a query —', helperText }: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  unsetLabel?: string;
+  helperText?: string;
+}) {
+  const { siteId, data: list, isLoading } = useSiteQueries();
+
+  if (isLoading) {
+    return <div className="text-[11px] text-base-content/40">Loading queries…</div>;
+  }
+  if (!list || list.length === 0) {
+    return (
+      <div className="text-[11px] text-base-content/40">
+        No saved queries on this site yet.{' '}
+        <Link to={`/sites/${siteId}/queries`} className="link link-primary">Build one</Link>
+      </div>
+    );
+  }
+  return (
+    <SelectField label="Saved query" value={value || ''} onChange={(v) => onChange(v || null)}
+      options={[{ value: '', label: unsetLabel }, ...list.map((q) => ({ value: q.id, label: `${q.name}${q.mode === 'sql' ? ' (SQL)' : ''}` }))]}
+      helperText={helperText} />
+  );
 }
 
 /** Site collection dropdown with loading/empty states. */
