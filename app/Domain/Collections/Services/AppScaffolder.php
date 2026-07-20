@@ -151,7 +151,8 @@ class AppScaffolder
             $this->section([
                 $this->module('search-box', ['collectionId' => $collection->id, 'placeholder' => "Search {$collection->name}…"]),
                 $facets !== [] ? $this->module('facet-filter', ['collectionId' => $collection->id, 'fields' => $facets, 'style' => 'checkbox']) : null,
-                $this->module('results-grid', ['collectionId' => $collection->id, 'columns' => 3, 'showImage' => true, 'cardFields' => $cardFields]),
+                // eager: show all records + populated facets on load (search-first page).
+                $this->module('results-grid', ['collectionId' => $collection->id, 'eager' => true, 'columns' => 3, 'showImage' => true, 'cardFields' => $cardFields]),
             ]),
         ]);
         $this->flagStale($page);
