@@ -92,17 +92,20 @@ class AppWizardController extends Controller
 
         $pagesFor = collect($request->input('pages_for', array_keys($created)))
             ->map(fn ($n) => mb_strtolower((string) $n));
-        $result = ['collections' => [], 'templates' => [], 'index_pages' => [], 'search_page' => null];
+        $result = ['collections' => [], 'detail_templates' => [], 'archive_templates' => [], 'search_page' => null];
 
         foreach ($created as $key => $collection) {
             $result['collections'][] = ['id' => $collection->id, 'name' => $collection->name];
             if (!$pagesFor->contains($key)) {
                 continue;
             }
-            $template = $this->scaffolder->buildRecordTemplate($site, $collection, $request->user()?->id);
-            $index = $this->scaffolder->buildIndexPage($site, $collection, $collection->name);
-            $result['templates'][] = ['id' => $template->id, 'collection' => $collection->name];
-            $result['index_pages'][] = ['id' => $index->id, 'slug' => $index->slug, 'collection' => $collection->name];
+            // Detail template (record-single) + archive template (record-archive
+            // customizing the collection's own /{prefix}/ — NOT a standalone
+            // page, which would collide with the collection archive path).
+            $detail = $this->scaffolder->buildRecordTemplate($site, $collection, $request->user()?->id);
+            $archive = $this->scaffolder->buildArchiveTemplate($site, $collection, $request->user()?->id);
+            $result['detail_templates'][] = ['id' => $detail->id, 'collection' => $collection->name];
+            $result['archive_templates'][] = ['id' => $archive->id, 'collection' => $collection->name, 'url' => '/' . \App\Support\Blocks\RecordDisplay::pathPrefix($collection) . '/'];
         }
 
         $searchFor = mb_strtolower((string) $request->input('search_for', ''));
