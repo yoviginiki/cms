@@ -352,11 +352,16 @@
       isApi ? applyApi() : applyStatic();
     });
 
-    // Eager start when the URL already carries state (shared link).
+    // Eager start when the URL already carries state (shared link), OR when a
+    // block opts in via data-cs-eager (a dedicated search page shows all
+    // records + populated facets on load instead of waiting for interaction).
     readUrl();
+    var eager = group.els.some(function (el) { return el.hasAttribute('data-cs-eager'); });
     if (hasFilter()) {
       searchInputs.forEach(function (i) { i.value = state.q; });
       isApi ? applyApi() : applyStatic();
+    } else if (eager) {
+      isApi ? applyApi() : loadIndex().then(applyStatic);
     }
   }
 })();

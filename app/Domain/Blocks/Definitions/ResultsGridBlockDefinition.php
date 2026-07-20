@@ -17,6 +17,7 @@ class ResultsGridBlockDefinition implements BlockDefinition
     {
         return [
             'collectionId' => ['sometimes', 'nullable', 'uuid'],
+            'eager' => ['sometimes', 'boolean'],
             'columns' => ['sometimes', 'integer', 'min:1', 'max:6'],
             'showImage' => ['sometimes', 'boolean'],
             'cardFields' => ['sometimes', 'array', 'max:6'],

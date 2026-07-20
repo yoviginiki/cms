@@ -26,6 +26,7 @@
 <div class="results-grid-block cs-island {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}"
      data-cs-role="results"
      @if($collection) data-cs-collection="{{ $collection->slug }}" data-cs-source="{{ $source }}" data-cs-mode="{{ $csMode }}" @endif
+     @if(!empty($data['eager'])) data-cs-eager @endif
      @if($__htmlId) id="{{ $__htmlId }}" @endif>
 @if(!$collection)
     <p style="opacity:.5;padding:1rem;border:1px dashed var(--color-border,#ddd);">Pick a collection for this results grid.</p>
