@@ -64,6 +64,7 @@ class RecordService
         }
 
         $relations = $this->processRelations($collection, $fields, is_array($input['relations'] ?? null) ? $input['relations'] : []);
+        $this->assertNoHierarchyCycle($collection, $record, $relations);
 
         $status = $input['status'] ?? $record?->status ?? 'draft';
         if (!in_array($status, Record::STATUSES, true)) {
@@ -83,7 +84,20 @@ class RecordService
             );
         }
 
-        $saved = DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input) {
+        // Hierarchy (S3): a slug or parent change moves this record's URL —
+        // and with nested URLs, every descendant's URL too. Detect before the
+        // write so descendants can be flagged inside the same transaction.
+        $hierarchyKey = $collection->hierarchyField();
+        $urlShifted = false;
+        if ($hierarchyKey && $record) {
+            $currentParent = $record->relationsOut()
+                ->where('relation_key', $hierarchyKey)->orderBy('position')->value('to_record_id');
+            $parentChanged = array_key_exists($hierarchyKey, $relations)
+                && ($relations[$hierarchyKey][0]['id'] ?? null) !== $currentParent;
+            $urlShifted = $slug !== $record->slug || $parentChanged;
+        }
+
+        $saved = DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input, $hierarchyKey, $urlShifted) {
             $attrs = [
                 'slug' => $slug,
                 'title' => mb_substr($title, 0, 255),
@@ -118,6 +132,10 @@ class RecordService
             $record->updateSearchText($this->searchStrings($collection, $record, $pivotSearchStrings));
 
             $this->references->persistEdges($site->id, 'record', $record->id, $this->edges($collection, $record));
+
+            if ($urlShifted) {
+                $this->flagDescendantsStale($record, $hierarchyKey);
+            }
 
             $this->staleness->markStale($site, 'record', $record->id, 'record_updated');
             $this->staleness->markStale($site, 'collection', $collection->id, 'collection_records_changed');
@@ -219,6 +237,75 @@ class RecordService
      *
      * @return array<string, array<int, array{id: string, pivot: array}>>
      */
+    /** Max ancestor chain length for hierarchical collections (S3). */
+    public const MAX_TREE_DEPTH = 6;
+
+    /**
+     * Reject a hierarchy parent assignment that would create a cycle
+     * (record inside its own ancestor chain) or exceed MAX_TREE_DEPTH.
+     * Only the configured hierarchy field is walked — ordinary self-relations
+     * stay free-form.
+     */
+    private function assertNoHierarchyCycle(ContentCollection $collection, ?Record $record, array $relations): void
+    {
+        $key = $collection->hierarchyField();
+        if (!$key || !array_key_exists($key, $relations)) {
+            return;
+        }
+        $parentId = $relations[$key][0]['id'] ?? null;
+        if (!$parentId) {
+            return; // becoming a root
+        }
+        $label = $collection->field($key)['label'] ?? $key;
+        if ($record && $parentId === $record->id) {
+            throw ValidationException::withMessages(["relations.{$key}" => "{$label}: a record cannot be its own parent."]);
+        }
+
+        $seen = [];
+        $current = $parentId;
+        $depth = 1;
+        while ($current !== null) {
+            if ($record && $current === $record->id) {
+                throw ValidationException::withMessages(["relations.{$key}" => "{$label}: this would create a loop — the chosen parent is a descendant of this record."]);
+            }
+            if (isset($seen[$current])) {
+                break; // pre-existing loop in stored data; defensive stop
+            }
+            $seen[$current] = true;
+            if ($depth >= self::MAX_TREE_DEPTH) {
+                throw ValidationException::withMessages(["relations.{$key}" => "{$label}: trees are limited to " . self::MAX_TREE_DEPTH . ' levels.']);
+            }
+            $current = RecordRelation::where('from_record_id', $current)
+                ->where('relation_key', $key)
+                ->orderBy('position')
+                ->value('to_record_id');
+            $depth++;
+        }
+    }
+
+    /**
+     * An ancestor's URL moved → every descendant page publishes at a new
+     * path. Flag them directly (no per-descendant staleness walk — the
+     * caller's markStale covers the batch); capped defensively.
+     */
+    private function flagDescendantsStale(Record $record, string $hierarchyKey): void
+    {
+        $level = [$record->id];
+        $flagged = 0;
+        for ($depth = 0; $depth < self::MAX_TREE_DEPTH && $level !== [] && $flagged < 500; $depth++) {
+            $level = RecordRelation::whereIn('to_record_id', $level)
+                ->where('relation_key', $hierarchyKey)
+                ->pluck('from_record_id')
+                ->all();
+            if ($level !== []) {
+                $flagged += Record::whereIn('id', $level)->update([
+                    'needs_republish' => true,
+                    'needs_republish_reason' => 'ancestor_moved',
+                ]);
+            }
+        }
+    }
+
     private function processRelations(ContentCollection $collection, array $fields, array $payload): array
     {
         $out = [];

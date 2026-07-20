@@ -148,6 +148,10 @@ class DocsSiteSeeder extends Seeder
                             $this->heading('Relations', 'h2'),
                             $this->para('A relation field links to records of another (or the same) collection, in <strong>one</strong> mode (a single linked record) or <strong>many</strong> mode (an ordered list). Many-mode relations can carry typed <strong>pivot fields</strong> on the link itself — for example a supplier relation holding that supplier\'s part number and price. Up to 10 pivot fields, scalar types only.'),
 
+                            $this->heading('Hierarchy (category trees)', 'h2'),
+                            $this->para('A collection can be a tree — categories with subcategories, for example. In the schema editor choose <strong>Make hierarchical</strong> (or point Hierarchy at any relation field that links the collection to itself in one mode). Each record then has a Parent picker, the records list shows the tree, and published URLs follow it: /categories/painting/oil/. Loops are rejected on save, trees are capped at 6 levels, and moving or renaming a category automatically republishes everything beneath it.'),
+                            $this->para('On a published category page the built-in layout adds a breadcrumb trail and a list of subcategories. In your own record templates, use the Record Loop block with source <em>Children of current record</em> for subcategories, or <em>Records linking to current record</em> to list, say, all products filed under the category being viewed.'),
+
                             $this->heading('Publishing tiers', 'h2'),
                             $this->para('Each collection has a tier that decides how its data reaches visitors. Both tiers publish flat record pages; the difference is how search and filtering work.'),
                             $this->list([
@@ -173,6 +177,7 @@ class DocsSiteSeeder extends Seeder
                             $this->heading('Honest limits', 'h2'),
                             $this->list([
                                 'Static tier is advisory-capped at ~2,000 records — beyond that, switch to dynamic',
+                                'Hierarchies are capped at 6 levels; a category rename republishes descendants but the old pages linger until the next full publish',
                                 'Unique checks run at save time, not as database constraints — a simultaneous import race can slip a duplicate through',
                                 'Relation traversal in queries is one hop deep (e.g. product → supplier field)',
                                 'Public API reads are capped at 50 records per request and rate-limited per IP',

@@ -545,6 +545,7 @@ export interface CollectionRecord {
   title: string;
   status: 'draft' | 'published';
   position: number;
+  parent_id?: string | null;
   data: Record<string, unknown>;
   relations?: Record<string, CollectionRecordRelation[]>;
   published_at?: string | null;

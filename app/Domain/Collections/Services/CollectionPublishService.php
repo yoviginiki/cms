@@ -114,9 +114,15 @@ class CollectionPublishService
     {
         $record->loadMissing('relationsOut.toRecord');
 
+        // Hierarchy (S3): breadcrumb chain + child listing for tree collections.
+        $ancestors = RecordDisplay::ancestors($collection, $record);
+        $children = RecordDisplay::children($collection, $record);
+
         $context = [
             '__record' => $record,
             '__collection' => $collection,
+            '__ancestors' => $ancestors,
+            '__children' => $children,
         ];
 
         $template = ThemeTemplate::resolveForRecord($record);
@@ -129,6 +135,8 @@ class CollectionPublishService
                 'site' => $site,
                 'collection' => $collection,
                 'record' => $record,
+                'ancestors' => $ancestors,
+                'children' => $children,
             ])->render();
         }
 
@@ -142,7 +150,7 @@ class CollectionPublishService
 
         $html = $this->wrapInLayout($site, $head, $body, $record->title);
 
-        $path = "{$this->prefixFor($collection)}/{$record->slug}/index.html";
+        $path = ltrim(RecordDisplay::recordUrl($collection, $record), '/') . 'index.html';
         $this->write($stagingPath, $path, $html);
     }
 
@@ -266,7 +274,7 @@ class CollectionPublishService
             }
 
             $row = [
-                'u' => "/{$prefix}/{$record->slug}/",
+                'u' => RecordDisplay::recordUrl($collection, $record),
                 't' => $record->title,
                 's' => implode(' ', array_unique(array_filter($searchStrings))),
             ];
@@ -377,9 +385,9 @@ class CollectionPublishService
             if ($collection->tier === 'dynamic' && !($collection->settings['static_details'] ?? true)) {
                 continue; // no static detail pages to list
             }
-            $records = Record::where('collection_id', $collection->id)->where('status', 'published')->get(['slug', 'updated_at']);
+            $records = Record::where('collection_id', $collection->id)->where('status', 'published')->get(['id', 'slug', 'status', 'updated_at']);
             foreach ($records as $record) {
-                $urls[] = ['path' => "/{$prefix}/{$record->slug}/", 'lastmod' => $record->updated_at?->toW3cString()];
+                $urls[] = ['path' => RecordDisplay::recordUrl($collection, $record), 'lastmod' => $record->updated_at?->toW3cString()];
             }
         }
 

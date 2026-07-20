@@ -112,6 +112,13 @@ class CollectionService
                     $settings[$key] = $input['settings'][$key];
                 }
             }
+            if (array_key_exists('hierarchy_field', $input['settings'])) {
+                $settings['hierarchy_field'] = $this->validateHierarchyField(
+                    $input['settings']['hierarchy_field'],
+                    $schema,
+                    $existing,
+                );
+            }
         }
 
         return [
@@ -122,6 +129,41 @@ class CollectionService
             'schema' => $schema,
             'settings' => $settings,
         ];
+    }
+
+    /**
+     * S3 hierarchy: the parent pointer must be a self-relation mode-one
+     * field of this collection (which also means hierarchy can only be
+     * enabled on update — self-relations need an existing collection id).
+     */
+    private function validateHierarchyField(mixed $key, array $schema, ?ContentCollection $existing): ?string
+    {
+        if ($key === null || $key === '') {
+            return null; // explicit disable
+        }
+        if (!is_string($key) || !$existing) {
+            throw ValidationException::withMessages([
+                'settings.hierarchy_field' => 'Hierarchy needs an existing collection with a parent field.',
+            ]);
+        }
+        foreach ($schema['fields'] as $field) {
+            if ($field['key'] === $key) {
+                $ok = $field['type'] === 'relation'
+                    && ($field['relation']['mode'] ?? null) === 'one'
+                    && ($field['relation']['collection_id'] ?? null) === $existing->id;
+                if (!$ok) {
+                    throw ValidationException::withMessages([
+                        'settings.hierarchy_field' => "Field '{$key}' must be a relation to this same collection in 'one' mode.",
+                    ]);
+                }
+
+                return $key;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'settings.hierarchy_field' => "Field '{$key}' does not exist in the schema.",
+        ]);
     }
 
     private function uniqueSlug(Site $site, string $requested, string $name, ?ContentCollection $existing): string

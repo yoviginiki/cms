@@ -36,7 +36,74 @@ class RecordDisplay
 
     public static function recordUrl(ContentCollection $collection, Record $record): string
     {
-        return '/' . self::pathPrefix($collection) . "/{$record->slug}/";
+        $segments = array_map(fn (Record $r) => $r->slug, self::ancestors($collection, $record));
+        $segments[] = $record->slug;
+
+        return '/' . self::pathPrefix($collection) . '/' . implode('/', $segments) . '/';
+    }
+
+    /**
+     * Hierarchy (S3): the published-ancestor chain root→…→parent, empty for
+     * flat collections. Walks the hierarchy field's edges upward with cycle
+     * and depth protection; unpublished ancestors are skipped from URLs so
+     * a draft parent never 404s its children.
+     *
+     * @return array<int, Record>
+     */
+    public static function ancestors(ContentCollection $collection, Record $record): array
+    {
+        $key = $collection->hierarchyField();
+        if (!$key) {
+            return [];
+        }
+
+        $chain = [];
+        $seen = [$record->id => true];
+        $current = $record;
+        for ($depth = 0; $depth < \App\Domain\Collections\Services\RecordService::MAX_TREE_DEPTH; $depth++) {
+            $parentId = \App\Models\RecordRelation::where('from_record_id', $current->id)
+                ->where('relation_key', $key)
+                ->orderBy('position')
+                ->value('to_record_id');
+            if (!$parentId || isset($seen[$parentId])) {
+                break;
+            }
+            $seen[$parentId] = true;
+            $parent = Record::find($parentId);
+            if (!$parent) {
+                break;
+            }
+            if ($parent->status === 'published') {
+                array_unshift($chain, $parent);
+            }
+            $current = $parent;
+        }
+
+        return $chain;
+    }
+
+    /**
+     * Published direct children of a record in its hierarchy, ordered by
+     * position then title. Empty for flat collections.
+     *
+     * @return \Illuminate\Support\Collection<int, Record>
+     */
+    public static function children(ContentCollection $collection, Record $record)
+    {
+        $key = $collection->hierarchyField();
+        if (!$key) {
+            return collect();
+        }
+
+        $childIds = \App\Models\RecordRelation::where('to_record_id', $record->id)
+            ->where('relation_key', $key)
+            ->pluck('from_record_id');
+
+        return Record::whereIn('id', $childIds)
+            ->where('status', 'published')
+            ->orderBy('position')
+            ->orderBy('title')
+            ->get();
     }
 
     public static function currencySymbol(ContentCollection $collection, Site $site): string

@@ -9,6 +9,9 @@ export const recordLoopDefinition: BlockDefinition = {
   level: 'module',
   defaultData: {
     collectionId: null,
+    sourceMode: 'auto',    // auto, children, related (record-template context)
+    relatedCollectionId: null,
+    relatedFieldKey: null,
     layout: 'cards',       // cards, list, grid
     columns: 3,
     limit: 12,
