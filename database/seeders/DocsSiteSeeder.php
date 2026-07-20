@@ -89,7 +89,8 @@ class DocsSiteSeeder extends Seeder
             $this->collectionsGuide(),
             $this->importGuide(),
             $this->queriesGuide(),
-            // Later slices append: search guide, forms guide, wizards guide.
+            $this->formsGuide(),
+            // Later slices append: search guide, wizards guide.
         ];
     }
 
@@ -112,6 +113,7 @@ class DocsSiteSeeder extends Seeder
                                 'Collections — structured content: schemas, field types, relations, publishing tiers. See /collections/',
                                 'Importing data — CSV and XLSX imports, column mapping, upserts, relation matching. See /importing-data/',
                                 'Queries — saved filters and aggregations, the visual builder and SQL mode. See /queries/',
+                                'Forms — static-site forms with spam protection and stored submissions. See /forms/',
                             ]),
                             $this->para('More guides land as features ship: queries, search, forms, and the app wizards.'),
                         ]),
@@ -289,6 +291,53 @@ class DocsSiteSeeder extends Seeder
                                 'Relation traversal is one hop; relations-of-relations are rejected',
                                 'Limit caps at 500 rows per query; public API responses cache for up to 60 seconds',
                                 'Query authoring is admin/owner only',
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ],
+        ];
+    }
+
+    // ─── Forms guide ────────────────────────────────────────────────────
+
+    private function formsGuide(): array
+    {
+        return [
+            'title' => 'Forms',
+            'slug' => 'forms',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->heading('Forms', 'h1'),
+                            $this->para('Your published site is static, but it can still receive form submissions: a form block renders a plain HTML form that posts to the platform, which validates, stores, and optionally emails you. No scripts are required on the visitor\'s side — forms work with JavaScript disabled.'),
+
+                            $this->heading('Creating a form', 'h2'),
+                            $this->para('The fastest way is the <strong>Form Wizard</strong>: name the form, pick the fields (text, email, long text, dropdown, radio, checkbox), choose a notification email, and pick the page — the wizard appends a configured form section to it. You can also add a <strong>Custom Form</strong> block anywhere in the page builder (including record templates, e.g. an inquiry form on every product page) and configure the same things in its settings.'),
+                            $this->para('Every form has a <strong>form key</strong> — a short identifier that ties published submissions to the form. The editor generates one automatically; keep it stable once the page is published.'),
+
+                            $this->heading('What happens on submit', 'h2'),
+                            $this->list([
+                                'The platform looks up the form\'s own field definition server-side and validates against it — required fields, email format, dropdown options. Forged or extra fields are dropped.',
+                                'Valid submissions are stored per site and form, and appear under Site Settings → Forms (with CSV export).',
+                                'If a notification email is set, one is sent per submission; if sending fails, the submission is still stored.',
+                                'Visitors with JavaScript get an inline confirmation; without JavaScript the browser returns to the page and shows the success message.',
+                            ]),
+
+                            $this->heading('Spam protection', 'h2'),
+                            $this->list([
+                                'A honeypot field invisible to humans — anything that fills it is discarded (while being told "thanks")',
+                                'A fill-time check — submissions completed faster than any human types are discarded',
+                                'Rate limiting per visitor address',
+                            ]),
+                            $this->para('There is no CAPTCHA by design — the published page makes no third-party requests.'),
+
+                            $this->heading('Honest limits', 'h2'),
+                            $this->list([
+                                'No file-upload fields (a file picker in a form renders as a text input; uploads are not received)',
+                                'Validation errors on a no-JavaScript submit show a plain error response rather than inline field messages',
+                                'The fill-time check only applies to JavaScript visitors; no-JS submissions rely on the honeypot and rate limit',
                             ]),
                         ]),
                     ]),

@@ -67,6 +67,7 @@ const CollectionRecordEditor = lazy(() => import('./pages/collections/Collection
 const CollectionImportPage = lazy(() => import('./pages/collections/CollectionImportPage'));
 const QueriesList = lazy(() => import('./pages/queries/QueriesList'));
 const QueryEditor = lazy(() => import('./pages/queries/QueryEditor'));
+const FormWizardPage = lazy(() => import('./pages/forms/FormWizardPage'));
 
 function LazyFallback() {
   return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-base-content/20" /></div>;
@@ -133,6 +134,7 @@ export default function App() {
           <Route path="/sites/:siteId/queries" element={<LayoutRoute><QueriesList /></LayoutRoute>} />
           <Route path="/sites/:siteId/queries/new" element={<LayoutRoute><QueryEditor /></LayoutRoute>} />
           <Route path="/sites/:siteId/queries/:queryId/edit" element={<LayoutRoute><QueryEditor /></LayoutRoute>} />
+          <Route path="/sites/:siteId/form-wizard" element={<LayoutRoute><FormWizardPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/settings" element={<LayoutRoute><SiteSettings /></LayoutRoute>} />
           <Route path="/sites/:siteId/import" element={<LayoutRoute><ImportPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/analytics" element={<LayoutRoute><Analytics /></LayoutRoute>} />

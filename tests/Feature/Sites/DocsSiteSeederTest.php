@@ -29,7 +29,7 @@ class DocsSiteSeederTest extends TestCase
         $this->assertSame($this->tenant->id, $site->tenant_id);
 
         $slugs = $site->pages()->pluck('slug')->sort()->values()->all();
-        $this->assertSame(['collections', 'home', 'importing-data', 'queries'], $slugs);
+        $this->assertSame(['collections', 'forms', 'home', 'importing-data', 'queries'], $slugs);
         $this->assertSame(0, $site->pages()->where('status', '!=', 'published')->count());
 
         // Homepage wired to the docs index

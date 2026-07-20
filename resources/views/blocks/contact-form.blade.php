@@ -19,10 +19,13 @@
     $successMsg = $data['success_message'] ?? 'Thank you! Your message has been sent.';
 @endphp
 <div class="contact-form-block" style="margin-bottom: 1.5rem;">
-    <form method="POST" action="/api/v1/sites/{{ $site->id }}/forms/submit"
+    {{-- Absolute action: the published site lives on the tenant domain, the receiver on the platform origin. --}}
+    <form method="POST" action="{{ rtrim((string) config('app.url'), '/') }}/api/v1/sites/{{ $site->id }}/forms/submit"
           style="max-width: 600px;"
-          onsubmit="event.preventDefault();const f=this;const fd=new FormData(f);fetch(f.action,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{f.innerHTML='<p style=\'color:var(--color-success,#16a34a);font-weight:500;\'>{{ e($successMsg) }}</p>'}).catch(e=>{alert('Error sending message')})">
+          onsubmit="event.preventDefault();const f=this;const fd=new FormData(f);fetch(f.action,{method:'POST',body:fd,headers:{'X-Requested-With':'fetch'}}).then(r=>r.json()).then(d=>{f.innerHTML='<p style=\'color:var(--color-success,#16a34a);font-weight:500;\'>{{ e($successMsg) }}</p>'}).catch(e=>{alert('Error sending message')})">
         <input type="text" name="_honeypot" style="display:none" tabindex="-1" autocomplete="off">
+        <input type="hidden" name="_t" value="">
+        <script>document.currentScript.previousElementSibling.value = Date.now();</script>
         @foreach($fields as $field)
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem;">
