@@ -159,26 +159,43 @@ class AppScaffolder
         return $page;
     }
 
-    /** Build an index page listing a collection via record-loop. */
-    public function buildIndexPage(Site $site, ContentCollection $collection, string $title): Page
+    /**
+     * Customize a collection's auto-archive (published at /{prefix}/) with a
+     * record-archive TEMPLATE — a heading + a record-loop that inherits the
+     * paginated archive records + pagination. This must NOT be a standalone
+     * page: a page at the collection's own prefix path collides with the
+     * collection archive and the path-collision guard skips the whole
+     * collection (no detail pages, no search index). The template renders
+     * the same /{prefix}/ URL without occupying it as a page.
+     */
+    public function buildArchiveTemplate(Site $site, ContentCollection $collection, ?string $userId = null): ThemeTemplate
     {
-        $page = $this->pages->createPage(['title' => $title, 'status' => 'draft'], $site);
-        $this->blocks->syncBlocks($page, [
+        $template = ThemeTemplate::create([
+            'site_id' => $site->id,
+            'name' => "{$collection->name} listing",
+            'slug' => Str::slug("{$collection->name}-listing") . '-' . Str::lower(Str::random(4)),
+            'type' => 'record-archive',
+            'collection_id' => $collection->id,
+            'is_default' => true,
+            'created_by' => $userId,
+        ]);
+
+        $this->blocks->syncBlocks($template, [
             $this->section([
                 $this->module('heading', ['text' => $collection->name, 'level' => 'h1']),
+                // No collectionId → inherits the archive's paginated $__archiveRecords.
                 $this->module('record-loop', [
-                    'collectionId' => $collection->id,
                     'layout' => 'cards',
                     'columns' => 3,
-                    'limit' => 24,
+                    'limit' => 48,
                     'showImage' => true,
                     'linkToRecord' => true,
                 ]),
+                $this->module('archive-pagination', []),
             ]),
         ]);
-        $this->flagStale($page);
 
-        return $page;
+        return $template;
     }
 
     /**
