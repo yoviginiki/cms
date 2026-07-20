@@ -102,5 +102,7 @@ import './record-loop';
 import './search-box';
 import './facet-filter';
 import './results-grid';
+import './query-stat';
+import './query-table';
 
 export { blockRegistry } from './registry';

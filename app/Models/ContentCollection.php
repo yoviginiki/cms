@@ -77,4 +77,25 @@ class ContentCollection extends Model
     {
         return $this->schema['slug_source'] ?? $this->titleField();
     }
+
+    /**
+     * Hierarchy (S3): key of the self-relation mode-one field that acts as
+     * the parent pointer, or null when the collection is flat. The setting
+     * is validated on save; this re-checks the field still qualifies so a
+     * later schema edit can't leave a dangling tree config.
+     */
+    public function hierarchyField(): ?string
+    {
+        $key = $this->settings['hierarchy_field'] ?? null;
+        if (!is_string($key) || $key === '') {
+            return null;
+        }
+        $field = $this->field($key);
+        $ok = $field
+            && $field['type'] === 'relation'
+            && ($field['relation']['mode'] ?? null) === 'one'
+            && ($field['relation']['collection_id'] ?? null) === $this->id;
+
+        return $ok ? $key : null;
+    }
 }

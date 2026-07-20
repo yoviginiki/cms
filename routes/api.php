@@ -40,9 +40,14 @@ Route::middleware(['public.site', 'public.cors', 'throttle:60,1'])->prefix('publ
     Route::get('/queries/{querySlug}', [\App\Http\Controllers\Api\V1\PublicQueryController::class, 'show']);
 });
 
-// Public form submission (rate-limited, no auth)
+// Public form submission (rate-limited, no auth). Deliberately OUTSIDE the
+// GET-only public/{site} namespace (a security test pins that invariant).
 Route::post('/sites/{site}/forms/submit', [\App\Http\Controllers\Api\V1\FormController::class, 'submit'])
-    ->middleware(['public.site', 'throttle:10,1']);
+    ->middleware(['public.site', 'public.cors', 'throttle:10,1']);
+// S5 Forms v2 — generic receiver: the block named by formKey is the schema.
+Route::post('/sites/{site}/forms/{formKey}/submit', [\App\Http\Controllers\Api\V1\FormController::class, 'submitPublic'])
+    ->middleware(['public.site', 'public.cors', 'throttle:10,1'])
+    ->where('formKey', '[a-z0-9\-_]{1,80}');
 
 // Public comments (rate-limited)
 Route::get('/sites/{site}/comments/{postSlug}', function (\App\Models\Site $site, string $postSlug) {
@@ -286,9 +291,18 @@ Route::middleware('auth:sanctum')->group(function () {
             return response()->json(['data' => $result], $result['success'] ? 200 : 422);
         });
 
-        // Form submissions
+        // Form Wizard (S5): compose + append a configured form block to a page
+        Route::post('sites/{site}/form-wizard', [\App\Http\Controllers\Api\V1\FormWizardController::class, 'create']);
+
+        // App / Database / Search wizards (S6): deterministic scaffolding
+        Route::post('sites/{site}/wizard/database', [\App\Http\Controllers\Api\V1\AppWizardController::class, 'database']);
+        Route::post('sites/{site}/wizard/search', [\App\Http\Controllers\Api\V1\AppWizardController::class, 'search']);
+        Route::post('sites/{site}/wizard/app', [\App\Http\Controllers\Api\V1\AppWizardController::class, 'app']);
+
+        // Form submissions (S5: DB-backed, RLS-scoped)
         Route::get('sites/{site}/form-submissions', [\App\Http\Controllers\Api\V1\FormController::class, 'submissions']);
-        Route::delete('sites/{site}/form-submissions/{index}', [\App\Http\Controllers\Api\V1\FormController::class, 'deleteSubmission']);
+        Route::get('sites/{site}/form-submissions/export', [\App\Http\Controllers\Api\V1\FormController::class, 'export']);
+        Route::delete('sites/{site}/form-submissions/{submission}', [\App\Http\Controllers\Api\V1\FormController::class, 'deleteSubmission']);
 
         // Block templates / Library (Builder Experience P1)
         Route::get('sites/{site}/block-templates', [\App\Http\Controllers\Api\V1\BlockTemplateController::class, 'index']);

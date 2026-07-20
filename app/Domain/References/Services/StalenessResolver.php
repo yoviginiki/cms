@@ -89,9 +89,10 @@ class StalenessResolver
         if ($siteWide) {
             $this->markSiteStale($site, $reason);
         }
-        if ($pageIds !== [] || $postIds !== []) {
-            $this->maybeAutoRepublish($site, $reason);
-        }
+        // Unconditional: a record/collection change flags the record itself
+        // stale (not a page/post), and the republisher re-checks all three
+        // flag sets before queueing anything.
+        $this->maybeAutoRepublish($site, $reason);
 
         return ['pages' => count($pageIds), 'posts' => count($postIds), 'site_wide' => $siteWide];
     }

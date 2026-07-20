@@ -3,6 +3,7 @@
 namespace Tests\Feature\References;
 
 use App\Domain\Blocks\Services\BlockService;
+use App\Domain\Collections\Services\RecordService;
 use App\Domain\References\Services\StalenessResolver;
 use App\Models\ActivityLog;
 use App\Models\Deployment;
@@ -10,6 +11,7 @@ use App\Models\Menu;
 use App\Models\Page;
 use App\Models\Site;
 use Illuminate\Support\Facades\File;
+use Tests\Feature\Collections\BuildsCollections;
 use Tests\TestCase;
 
 /**
@@ -19,6 +21,8 @@ use Tests\TestCase;
  */
 class AutoRepublishTest extends TestCase
 {
+    use BuildsCollections;
+
     private string $publishRoot;
 
     protected function setUp(): void
@@ -88,6 +92,32 @@ class AutoRepublishTest extends TestCase
         $this->assertSame(1, ActivityLog::where('action', 'page.auto_republished')
             ->where('subject_id', $page->id)->count());
         $this->assertSame(1, ActivityLog::where('action', 'stale.auto_republish_queued')->count());
+    }
+
+    public function test_record_only_staleness_queues_and_builds_record_pages(): void
+    {
+        $site = $this->makeSite(autoRepublish: true);
+        $authors = $this->createAuthorsCollection($site);
+
+        // A record save flags only the record + its collection stale — no page
+        // or post carries a flag. Before the fix, maybeQueue() ignored records
+        // and silently skipped the batch.
+        $record = app(RecordService::class)->save($authors, $site, null, [
+            'data' => ['name' => 'Ursula K. Le Guin'],
+            'status' => 'published',
+        ]);
+
+        $deployment = Deployment::where('site_id', $site->id)->where('type', 'stale_batch')->first();
+        $this->assertNotNull($deployment, 'record-only staleness queued an auto batch');
+        $this->assertSame('live', $deployment->status, 'auto batch promoted');
+        $this->assertContains($record->id, $deployment->metadata['targets']['records'] ?? []);
+
+        $detail = "{$this->publishRoot}/{$site->slug}/authors/{$record->slug}/index.html";
+        $this->assertFileExists($detail);
+        $this->assertStringContainsString('Ursula', file_get_contents($detail));
+        $this->assertFileExists("{$this->publishRoot}/{$site->slug}/authors/index.json");
+
+        $this->assertFalse($record->fresh()->needs_republish, 'record flag cleared by the batch');
     }
 
     public function test_toggle_off_default_flags_only_and_queues_nothing(): void

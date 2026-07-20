@@ -18,6 +18,12 @@ class RecordLoopBlockDefinition implements BlockDefinition
         return [
             'collectionId' => ['sometimes', 'nullable', 'uuid'],
             'queryId' => ['sometimes', 'nullable', 'uuid'],
+            // S3 hierarchy/relation sources (record-template context):
+            // children = current record's subcategories; related = records of
+            // another collection whose relation field targets the current record.
+            'sourceMode' => ['sometimes', 'in:auto,children,related'],
+            'relatedCollectionId' => ['sometimes', 'nullable', 'uuid'],
+            'relatedFieldKey' => ['sometimes', 'nullable', 'string', 'max:40'],
             'layout' => ['sometimes', 'in:cards,list,grid'],
             'columns' => ['sometimes', 'integer', 'min:1', 'max:6'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:100'],

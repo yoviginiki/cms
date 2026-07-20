@@ -63,6 +63,7 @@ export default function CollectionSchemaEditor() {
   const [savedKeys, setSavedKeys] = useState<string[]>([]); // keys persisted server-side → locked
   const [unlockedKeys, setUnlockedKeys] = useState<string[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [hierarchyField, setHierarchyField] = useState('');
   const [dirty, setDirty] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
@@ -78,6 +79,7 @@ export default function CollectionSchemaEditor() {
     setSlugSource(collection.schema?.slug_source ?? '');
     setSavedKeys((collection.schema?.fields ?? []).map((f) => f.key));
     setUnlockedKeys([]);
+    setHierarchyField((collection.settings as any)?.hierarchy_field ?? '');
     setDirty(false);
   }, [collection]);
 
@@ -163,7 +165,7 @@ export default function CollectionSchemaEditor() {
           title_field: titleField,
           slug_source: slugSource || titleField,
         },
-        settings: collection?.settings ?? undefined,
+        settings: { ...(collection?.settings ?? {}), hierarchy_field: hierarchyField || null },
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collection', siteId, collectionId] });
@@ -277,6 +279,60 @@ export default function CollectionSchemaEditor() {
                   Switching to {TIER_GUIDANCE[tier].title.toLowerCase()}: {TIER_GUIDANCE[tier].text}
                 </p>
               )}
+            </div>
+            {/* Hierarchy (S3): pick a self-relation "parent" field to make this a tree */}
+            <div>
+              <label className="text-[11px] text-base-content/50 mb-1.5 block">Hierarchy</label>
+              {(() => {
+                const eligible = fields.filter(
+                  (f) => f.type === 'relation' && f.relation?.mode === 'one' && f.relation?.collection_id === collectionId,
+                );
+                if (eligible.length === 0) {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] text-base-content/40">Flat collection.</p>
+                      {!fields.some((f) => f.key === 'parent') && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs text-[11px] text-primary"
+                          onClick={() => {
+                            setFields((prev) => [...prev, {
+                              key: 'parent', label: 'Parent', type: 'relation' as const, show_in_list: true,
+                              relation: { collection_id: collectionId, mode: 'one' as const },
+                            }]);
+                            setHierarchyField('parent');
+                            touch();
+                          }}
+                        >
+                          Make hierarchical (adds a Parent field)
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    <select
+                      value={hierarchyField}
+                      onChange={(e) => { setHierarchyField(e.target.value); touch(); }}
+                      className="select select-bordered select-sm w-full text-[13px]"
+                    >
+                      <option value="">Flat (no hierarchy)</option>
+                      {eligible.map((f) => (
+                        <option key={f.key} value={f.key}>Tree via “{f.label || f.key}”</option>
+                      ))}
+                    </select>
+                    {serverErrors['settings.hierarchy_field'] && (
+                      <p className="text-[11px] text-error mt-1">{serverErrors['settings.hierarchy_field']}</p>
+                    )}
+                    {hierarchyField && (
+                      <p className="text-[11px] text-base-content/40 mt-1.5">
+                        Records nest under their parent (max 6 levels, loops rejected). Published URLs follow the tree, e.g. /{collection.slug}/painting/oil/.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 

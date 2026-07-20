@@ -7,6 +7,7 @@ use App\Domain\Publishing\Services\AutoPublishService;
 use App\Models\Deployment;
 use App\Models\Page;
 use App\Models\Post;
+use App\Models\Record;
 use App\Models\Site;
 use App\Services\ActivityLogService;
 
@@ -44,7 +45,8 @@ class StaleAutoRepublisher
 
         $pageIds = Page::where('site_id', $site->id)->where('needs_republish', true)->pluck('id')->all();
         $postIds = Post::where('site_id', $site->id)->where('needs_republish', true)->pluck('id')->all();
-        if ($pageIds === [] && $postIds === []) {
+        $recordIds = Record::where('site_id', $site->id)->where('needs_republish', true)->pluck('id')->all();
+        if ($pageIds === [] && $postIds === [] && $recordIds === []) {
             return null;
         }
 
@@ -75,8 +77,8 @@ class StaleAutoRepublisher
             'triggered_by' => $userId,
             'metadata' => [
                 'current_step' => 'queued',
-                'targets' => ['pages' => $pageIds, 'posts' => $postIds],
-                'pages_total' => count($pageIds) + count($postIds),
+                'targets' => ['pages' => $pageIds, 'posts' => $postIds, 'records' => $recordIds],
+                'pages_total' => count($pageIds) + count($postIds) + count($recordIds),
                 'pages_built' => 0,
                 'auto_promote' => true,
                 'reason' => $reason,
@@ -89,6 +91,7 @@ class StaleAutoRepublisher
             'reason' => $reason,
             'pages' => count($pageIds),
             'posts' => count($postIds),
+            'records' => count($recordIds),
         ]);
 
         return $deployment;

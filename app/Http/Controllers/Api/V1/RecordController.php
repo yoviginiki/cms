@@ -58,8 +58,18 @@ class RecordController extends Controller
         $perPage = min(100, max(5, (int) $request->input('per_page', 25)));
         $page = $query->paginate($perPage);
 
+        // Hierarchy (S3): ship each row's parent id so the admin list can
+        // render the tree (one bulk query, not N).
+        $parents = [];
+        if ($hierarchyKey = $collection->hierarchyField()) {
+            $parents = \App\Models\RecordRelation::whereIn('from_record_id', collect($page->items())->pluck('id'))
+                ->where('relation_key', $hierarchyKey)
+                ->pluck('to_record_id', 'from_record_id')
+                ->all();
+        }
+
         return response()->json([
-            'data' => collect($page->items())->map(fn ($r) => $this->serialize($r)),
+            'data' => collect($page->items())->map(fn ($r) => $this->serialize($r) + ['parent_id' => $parents[$r->id] ?? null]),
             'meta' => [
                 'total' => $page->total(),
                 'per_page' => $page->perPage(),

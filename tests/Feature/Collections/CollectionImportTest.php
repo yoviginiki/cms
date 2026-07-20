@@ -190,6 +190,65 @@ class CollectionImportTest extends TestCase
         )->assertStatus(422);
     }
 
+    public function test_xlsx_import_normalizes_date_cells_and_resolves_relations(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'books') . '.xlsx';
+        $writer = new \OpenSpout\Writer\XLSX\Writer();
+        $writer->openToFile($path);
+        $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues(
+            ['Title', 'ISBN', 'Price', 'Genre', 'Author', 'Released'],
+        ));
+        // Date cells carry a date number-format style, as Excel/Sheets write
+        // them — openspout's reader only maps styled cells back to DateTime.
+        $dateStyle = (new \OpenSpout\Common\Entity\Style\Style())->setFormat('yyyy-mm-dd');
+        for ($i = 1; $i <= 25; $i++) {
+            $writer->addRow(new \OpenSpout\Common\Entity\Row([
+                \OpenSpout\Common\Entity\Cell::fromValue("Xlsx Book {$i}"),
+                \OpenSpout\Common\Entity\Cell::fromValue(sprintf('979-%07d', $i)),
+                \OpenSpout\Common\Entity\Cell::fromValue(5 + ($i % 20)),
+                \OpenSpout\Common\Entity\Cell::fromValue(['Sci-Fi', 'Fantasy', 'Mystery'][$i % 3]),
+                \OpenSpout\Common\Entity\Cell::fromValue(['Isaac Asimov', 'Ursula K. Le Guin'][$i % 2]),
+                \OpenSpout\Common\Entity\Cell::fromValue(new \DateTimeImmutable(sprintf('2020-%02d-15', ($i % 12) + 1)), $dateStyle),
+            ]));
+        }
+        $writer->close();
+
+        $upload = new UploadedFile(
+            $path,
+            'books.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true,
+        );
+        $response = $this->actingAsOwner()->post(
+            "/api/v1/sites/{$this->site->id}/collections/{$this->books->id}/import",
+            ['file' => $upload],
+        );
+        $response->assertStatus(201);
+        $this->assertSame(
+            ['Title', 'ISBN', 'Price', 'Genre', 'Author', 'Released'],
+            $response->json('data.headers'),
+        );
+
+        $this->execute($response->json('data.import_id'), [
+            'mapping' => self::MAPPING + ['5' => 'released'],
+            'mode' => 'insert',
+            'status' => 'published',
+            'create_missing_relations' => true,
+        ]);
+
+        $status = $this->importStatus($response->json('data.import_id'));
+        $this->assertSame('completed', $status['status']);
+        $this->assertSame(25, $status['result']['created']);
+        $this->assertSame(0, $status['result']['failed']);
+
+        $book = Record::where('collection_id', $this->books->id)->where('title', 'Xlsx Book 1')->first();
+        $this->assertNotNull($book);
+        $this->assertSame('2020-02-15', $book->data['released'], 'XLSX date cell normalized to Y-m-d');
+        $this->assertSame(1, $book->relationsOut()->count(), 'relation resolved by author name');
+        $this->assertSame(2, Record::where('collection_id', $this->authors->id)->count());
+    }
+
     public function test_export_round_trips_fields_and_relations(): void
     {
         $result = $this->upload(['Title', 'ISBN', 'Price', 'Genre', 'Author'], $this->booksRows(3));

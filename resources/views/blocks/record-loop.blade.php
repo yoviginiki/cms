@@ -42,8 +42,38 @@
     // Inside a record-archive template the paginated context is authoritative;
     // anywhere else the loop runs its own query.
     $records = collect();
+    $sourceMode = in_array($data['sourceMode'] ?? 'auto', ['auto', 'children', 'related'], true)
+        ? ($data['sourceMode'] ?? 'auto') : 'auto';
     if ($__loopQuery !== null) {
         $records = $__loopQuery;
+    } elseif ($sourceMode === 'children' && isset($__record) && isset($__collection)) {
+        // Hierarchy (S3): the current record's direct children (subcategories).
+        $collection = $__collection;
+        $records = RecordDisplay::children($collection, $__record)->take($limit);
+    } elseif ($sourceMode === 'related' && isset($__record)) {
+        // Records of another collection whose relation field points at the
+        // current record — e.g. products in this category, works by this artist.
+        $relatedCollection = !empty($data['relatedCollectionId'])
+            ? \App\Models\ContentCollection::find($data['relatedCollectionId']) : null;
+        $relatedKey = (string) ($data['relatedFieldKey'] ?? '');
+        $relatedField = $relatedCollection?->field($relatedKey);
+        if ($relatedCollection && $relatedField && $relatedField['type'] === 'relation') {
+            $collection = $relatedCollection;
+            $records = \App\Models\Record::where('collection_id', $relatedCollection->id)
+                ->where('status', 'published')
+                ->whereExists(fn ($q) => $q->from('record_relations')
+                    ->whereColumn('record_relations.from_record_id', 'records.id')
+                    ->where('record_relations.relation_key', $relatedKey)
+                    ->where('record_relations.to_record_id', $__record->id))
+                ->with('relationsOut.toRecord')
+                ->orderByDesc('published_at')
+                ->take($limit)
+                ->get();
+        }
+    } elseif ($sourceMode !== 'auto') {
+        // children/related without a record context (or with a bad related
+        // config): render empty rather than silently listing everything.
+        $records = collect();
     } elseif (isset($__archiveRecords) && (!isset($__collection) || !$collection || $__collection?->id === $collection->id)) {
         $records = collect($__archiveRecords)->take($limit);
         $collection = $collection ?: ($__collection ?? null);

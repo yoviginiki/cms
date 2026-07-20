@@ -1,7 +1,7 @@
 import type { BlockEditorProps } from '@/types/blocks';
 import { SelectField, TextField, ToggleField } from '@/components/editor/fields';
 import {
-  CollectionSelect, FieldMultiPick, FilterValueInput, SchemaLoadingHint,
+  CollectionSelect, FieldMultiPick, FilterValueInput, QuerySelect, SchemaLoadingHint,
   isCardField, isFilterableField, isImageField, isSortableField,
   SORT_META_OPTIONS, useCollection,
 } from '../collections-shared';
@@ -13,6 +13,13 @@ export const RecordLoopEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
   const collectionId = (data.collectionId as string | null) || null;
   const { data: collection, isLoading: schemaLoading } = useCollection(collectionId);
   const fields = collection?.schema.fields ?? [];
+
+  // S3 sources: children (subrecords of the current record) / related
+  // (records of another collection whose relation field targets it).
+  const sourceMode = (data.sourceMode as string) || 'auto';
+  const relatedCollectionId = (data.relatedCollectionId as string | null) || null;
+  const { data: relatedCollection } = useCollection(sourceMode === 'related' ? relatedCollectionId : null);
+  const relatedRelationFields = (relatedCollection?.schema.fields ?? []).filter((f) => f.type === 'relation');
 
   const sortOptions = [
     ...SORT_META_OPTIONS,
@@ -27,9 +34,40 @@ export const RecordLoopEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
       <div className="bg-indigo-50 text-indigo-700 text-xs p-2 rounded">
         Lists published records from a collection — usable on any page
       </div>
-      <CollectionSelect value={collectionId} onChange={v => update('collectionId', v)}
-        unsetLabel="— inherited from archive —"
-        helperText={!collectionId ? 'Inside a record template the collection is inherited — pick one to use this loop on any page' : undefined} />
+      <SelectField label="Source" value={sourceMode} onChange={v => update('sourceMode', v)}
+        options={[
+          { value: 'auto', label: 'Collection / archive (default)' },
+          { value: 'children', label: 'Children of current record' },
+          { value: 'related', label: 'Records linking to current record' },
+        ]} />
+      {sourceMode === 'auto' && (
+        <>
+          <QuerySelect value={(data.queryId as string | null) || null} onChange={(v) => update('queryId', v)}
+            unsetLabel="— no query (list the collection) —"
+            helperText={data.queryId ? 'The saved query is the source — collection/filter settings below are ignored' : undefined} />
+          <CollectionSelect value={collectionId} onChange={v => update('collectionId', v)}
+            unsetLabel="— inherited from archive —"
+            helperText={!collectionId ? 'Inside a record template the collection is inherited — pick one to use this loop on any page' : undefined} />
+        </>
+      )}
+      {sourceMode === 'children' && (
+        <div className="text-xs text-base-content/50 p-2 border border-base-300/40 rounded">
+          Lists the current record's direct children (needs a hierarchical collection and a record template).
+        </div>
+      )}
+      {sourceMode === 'related' && (
+        <>
+          <CollectionSelect value={relatedCollectionId} onChange={v => update('relatedCollectionId', v)}
+            unsetLabel="— pick the linking collection —"
+            helperText="The collection whose records link to the current record (e.g. Products on a Category page)" />
+          <SelectField label="Via relation field" value={(data.relatedFieldKey as string) || ''}
+            onChange={v => update('relatedFieldKey', v || null)}
+            options={[
+              { value: '', label: '— pick a field —' },
+              ...relatedRelationFields.map((f) => ({ value: f.key, label: f.label || f.key })),
+            ]} />
+        </>
+      )}
       <SelectField label="Layout" value={(data.layout as string) || 'cards'} onChange={v => update('layout', v)}
         options={[
           { value: 'cards', label: 'Cards (grid)' },

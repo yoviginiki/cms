@@ -6,6 +6,7 @@ interface FormField {
   label: string;
   required: boolean;
   placeholder: string;
+  options?: string[];
 }
 
 export const CustomformEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
@@ -14,6 +15,8 @@ export const CustomformEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
     submitText: string;
     endpoint: string;
     successMessage: string;
+    formKey?: string;
+    notifyEmail?: string;
   };
 
   const fields = data.fields || [];
@@ -22,7 +25,16 @@ export const CustomformEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
     onUpdate({ ...block.data, [key]: value });
   };
 
-  const updateField = (index: number, key: keyof FormField, value: string | boolean) => {
+  // S5: submissions post to the platform receiver identified by formKey.
+  // Auto-generate a stable key the first time the block is edited.
+  React.useEffect(() => {
+    if (!data.formKey) {
+      update('formKey', `form-${Math.random().toString(36).slice(2, 8)}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateField = (index: number, key: keyof FormField, value: unknown) => {
     const updated = fields.map((f, i) =>
       i === index ? { ...f, [key]: value } : f,
     );
@@ -50,13 +62,25 @@ export const CustomformEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
         />
       </div>
       <div>
-        <label className="text-[11px] text-base-content/50 mb-1 block">Endpoint URL</label>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Form key</label>
         <input
           type="text"
+          className="input input-bordered input-sm w-full font-mono"
+          value={data.formKey || ''}
+          onChange={(e) => update('formKey', e.target.value.toLowerCase().replace(/[^a-z0-9\-_]/g, '-'))}
+        />
+        <p className="text-[10px] text-base-content/40 mt-1">
+          Identifies this form to the platform — submissions are stored per key and viewable under Site Settings → Forms.
+        </p>
+      </div>
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Notification email (optional)</label>
+        <input
+          type="email"
           className="input input-bordered input-sm w-full"
-          value={data.endpoint || ''}
-          onChange={(e) => update('endpoint', e.target.value)}
-          placeholder="https://..."
+          value={data.notifyEmail || ''}
+          onChange={(e) => update('notifyEmail', e.target.value)}
+          placeholder="you@example.com"
         />
       </div>
       <div>
@@ -120,6 +144,17 @@ export const CustomformEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
                 onChange={(e) => updateField(index, 'placeholder', e.target.value)}
               />
             </div>
+            {(field.type === 'select' || field.type === 'radio') && (
+              <div>
+                <label className="text-[11px] text-base-content/50 mb-1 block">Options (one per line)</label>
+                <textarea
+                  className="textarea textarea-bordered textarea-sm w-full"
+                  rows={3}
+                  value={(field.options ?? []).join('\n')}
+                  onChange={(e) => updateField(index, 'options', e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))}
+                />
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

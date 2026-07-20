@@ -1466,44 +1466,63 @@ function DangerZone({ siteId, siteName, onDelete }: { siteId: string; siteName: 
 }
 
 function FormSubmissionsPanel({ siteId }: { siteId: string }) {
-  const { data: submissions, isLoading, refetch } = useQuery({
-    queryKey: ['form-submissions', siteId],
-    queryFn: () => api.get(`/sites/${siteId}/form-submissions`).then(r => r.data.data as Array<{ id: string; data: Record<string, string>; submitted_at: string; ip: string }>),
+  const [formKey, setFormKey] = useState('');
+  const { data: result, isLoading, refetch } = useQuery({
+    queryKey: ['form-submissions', siteId, formKey],
+    queryFn: () => api.get(`/sites/${siteId}/form-submissions`, { params: formKey ? { form_key: formKey, per_page: 100 } : { per_page: 100 } })
+      .then(r => r.data as {
+        data: Array<{ id: string; form_key: string; data: Record<string, unknown>; meta: { ip?: string }; created_at: string }>;
+        meta: { total: number; form_keys: string[] };
+      }),
   });
 
   const deleteMut = useMutation({
-    mutationFn: (index: number) => api.delete(`/sites/${siteId}/form-submissions/${index}`),
+    mutationFn: (id: string) => api.delete(`/sites/${siteId}/form-submissions/${id}`),
     onSuccess: () => refetch(),
   });
 
   if (isLoading) return <div className="text-sm text-gray-400 p-4">Loading submissions...</div>;
+  const submissions = result?.data ?? [];
 
   return (
     <div className="max-w-3xl">
       <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-3">
           <h3 className="text-sm font-semibold text-gray-700">Form Submissions</h3>
-          <span className="text-xs text-gray-400">{submissions?.length || 0} submissions</span>
+          <div className="flex items-center gap-2">
+            {(result?.meta.form_keys?.length ?? 0) > 1 && (
+              <select value={formKey} onChange={(e) => setFormKey(e.target.value)}
+                className="text-xs border border-gray-200 rounded px-2 py-1">
+                <option value="">All forms</option>
+                {result!.meta.form_keys.map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            )}
+            <a href={`/api/v1/sites/${siteId}/form-submissions/export${formKey ? `?form_key=${formKey}` : ''}`}
+              className="text-xs text-primary hover:underline">Export CSV</a>
+            <span className="text-xs text-gray-400">{result?.meta.total ?? 0} total</span>
+          </div>
         </div>
 
-        {!submissions || submissions.length === 0 ? (
+        {submissions.length === 0 ? (
           <div className="text-center py-8 text-gray-400 text-sm">No form submissions yet.</div>
         ) : (
           <div className="space-y-3">
-            {submissions.map((sub, idx) => (
+            {submissions.map((sub) => (
               <div key={sub.id} className="border border-gray-100 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] text-gray-400">{new Date(sub.submitted_at).toLocaleString()}</span>
+                  <span className="text-[10px] text-gray-400">
+                    {new Date(sub.created_at).toLocaleString()} · <span className="font-mono">{sub.form_key}</span>
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-gray-300">{sub.ip}</span>
-                    <button onClick={() => deleteMut.mutate(idx)} className="text-[10px] text-red-400 hover:text-red-600">Delete</button>
+                    {sub.meta?.ip && <span className="text-[9px] text-gray-300">{sub.meta.ip}</span>}
+                    <button onClick={() => deleteMut.mutate(sub.id)} className="text-[10px] text-red-400 hover:text-red-600">Delete</button>
                   </div>
                 </div>
                 <div className="space-y-1">
                   {Object.entries(sub.data).map(([key, val]) => (
                     <div key={key} className="flex gap-2 text-xs">
                       <span className="text-gray-500 font-medium w-24 shrink-0">{key}:</span>
-                      <span className="text-gray-700">{String(val)}</span>
+                      <span className="text-gray-700">{typeof val === 'boolean' ? (val ? 'yes' : 'no') : String(val)}</span>
                     </div>
                   ))}
                 </div>

@@ -138,8 +138,35 @@ export default function CollectionRecords() {
     enabled: !!collection,
   });
 
-  const records = result?.data ?? [];
   const meta = result?.meta;
+
+  // Hierarchy (S3): tree-order the page with depth indents when the whole
+  // collection fits on one unfiltered page; any filter/sort/paging falls
+  // back to the flat list (a partial tree would mislead).
+  const hierarchyKey = (collection?.settings as any)?.hierarchy_field ?? null;
+  const treeDepths = useMemo(() => new Map<string, number>(), [result]);
+  const records = useMemo(() => {
+    const rows = result?.data ?? [];
+    const treeable = hierarchyKey && !debouncedSearch.trim() && !statusTab && (meta?.last_page ?? 1) === 1;
+    if (!treeable) return rows;
+    const byParent = new Map<string | null, typeof rows>();
+    const ids = new Set(rows.map((r) => r.id));
+    for (const r of rows) {
+      const parent = (r as any).parent_id && ids.has((r as any).parent_id) ? (r as any).parent_id : null;
+      byParent.set(parent, [...(byParent.get(parent) ?? []), r]);
+    }
+    const ordered: typeof rows = [];
+    const walk = (parent: string | null, depth: number) => {
+      if (depth > 6) return;
+      for (const r of byParent.get(parent) ?? []) {
+        treeDepths.set(r.id, depth);
+        ordered.push(r);
+        walk(r.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return ordered.length === rows.length ? ordered : rows;
+  }, [result, hierarchyKey, debouncedSearch, statusTab, meta, treeDepths]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['collection-records', siteId, collectionId] });
 
@@ -363,10 +390,15 @@ export default function CollectionRecords() {
                     <input type="checkbox" className="checkbox checkbox-xs" checked={selectedIds.includes(r.id)} onChange={() => toggleOne(r.id)} aria-label={`Select ${r.title}`} />
                   </td>
                   <td>
-                    <Link to={`/sites/${siteId}/collections/${collectionId}/records/${r.id}/edit`} className="text-[13px] font-medium text-base-content hover:text-primary transition-colors">
-                      {r.title || <em className="text-base-content/35">untitled</em>}
-                    </Link>
-                    <div className="text-[11px] text-base-content/30 font-mono">{r.slug}</div>
+                    <div style={{ paddingLeft: `${(treeDepths.get(r.id) ?? 0) * 18}px` }} className="flex items-baseline gap-1">
+                      {(treeDepths.get(r.id) ?? 0) > 0 && <span className="text-base-content/25 text-[11px]">└</span>}
+                      <div>
+                        <Link to={`/sites/${siteId}/collections/${collectionId}/records/${r.id}/edit`} className="text-[13px] font-medium text-base-content hover:text-primary transition-colors">
+                          {r.title || <em className="text-base-content/35">untitled</em>}
+                        </Link>
+                        <div className="text-[11px] text-base-content/30 font-mono">{r.slug}</div>
+                      </div>
+                    </div>
                   </td>
                   {listFields.map((f) => (
                     <td key={f.key} className="text-[13px] text-base-content/70"><TypedCell siteId={siteId} field={f} record={r} /></td>

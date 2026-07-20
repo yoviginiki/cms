@@ -14,3 +14,5 @@
 ## Other Libraries (MIT)
 - Swiper — MIT License — image carousels
 - Lottie (lottie-web) — MIT License — animated loaders (optional, future)
+- openspout/openspout ^4.30 — MIT License — streaming CSV/XLSX read/write for
+  collection imports/exports (server-side only, not bundled in published output)
