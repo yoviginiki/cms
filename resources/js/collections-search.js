@@ -48,6 +48,9 @@
       else if (role === 'facets') facetRoots.push(el);
       else if (role === 'results') resultRoots.push(el);
     });
+    // Eager: a dedicated search page shows all records + facets on load,
+    // instead of hiding results until the visitor applies a filter.
+    var eager = group.els.some(function (el) { return el.hasAttribute('data-cs-eager'); });
 
     // ── URL state ────────────────────────────────────────────────────────
     function facetKeys() {
@@ -151,7 +154,7 @@
         if (!state.records) return;
         var rows = filterStatic();
         renderRows(rows.slice(0, 120));
-        setStatus(hasFilter()
+        setStatus((hasFilter() || eager)
           ? rows.length + ' result' + (rows.length === 1 ? '' : 's') + (rows.length > 120 ? ' — showing first 120, refine your search' : '')
           : '');
         var counts = {};
@@ -202,7 +205,7 @@
     }
 
     function renderRows(rows) {
-      var active = hasFilter();
+      var active = hasFilter() || eager;
       resultRoots.forEach(function (root) {
         var grid = root.querySelector('.cs-results');
         var empty = root.querySelector('.cs-empty');
@@ -356,7 +359,6 @@
     // block opts in via data-cs-eager (a dedicated search page shows all
     // records + populated facets on load instead of waiting for interaction).
     readUrl();
-    var eager = group.els.some(function (el) { return el.hasAttribute('data-cs-eager'); });
     if (hasFilter()) {
       searchInputs.forEach(function (i) { i.value = state.q; });
       isApi ? applyApi() : applyStatic();
