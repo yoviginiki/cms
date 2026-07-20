@@ -736,6 +736,8 @@ Sibling of the Theme Wizard, reusing its whole scaffold (AnthropicClient, Schema
 
 No docs-as-CMS-content mechanism exists at all: `/docs` (DocsController) renders **repo markdown files**, not CMS pages; the stillopress "Documentation"/"Atlas Docs" pages are fictional marketing mockups. Dogfooded documentation is 0% implemented.
 
+**S2 update (2026-07-20):** mechanism now EXISTS — `DocsSiteSeeder` (idempotent create-or-update by slug, real PageService/BlockService write path, theme-agnostic heading/paragraph/list blocks) seeds a `docs` site on the first tenant with a docs index + two guides: **Collections** (schema/fields/relations/tiers/search/staleness + honest ceilings: ~2,000-record static advisory, one-hop traversal, 50/req API cap) and **Importing data** (CSV/XLSX mapping, upsert-by-key, relation-by-name, unstyled-date-cell caveat, 200-error cap, export round-trip). `DocsSiteSeederTest` (3): seed shape + homepage wiring, re-seed idempotency, guides render to HTML with limits present. Collections + Import doc rows above → **WORKING** (as CMS content, pending prod seed at deploy). Query/search/forms/wizards docs land with their slices (S3–S6).
+
 ### E — Demo apps
 
 | Demo | Rating | Evidence |
