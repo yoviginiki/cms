@@ -8,6 +8,8 @@ use App\Domain\Import\Data\ImportResult;
 use App\Domain\Pages\Services\PageService;
 use App\Domain\Posts\Services\PostService;
 use App\Models\Category;
+use App\Models\Menu;
+use App\Models\MenuItem;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
@@ -46,6 +48,7 @@ class WordPressImporter
         $importPages = $options['import_pages'] ?? true;
         $importPosts = $options['import_posts'] ?? true;
         $importMedia = $options['import_media'] ?? true;
+        $importMenus = $options['import_menus'] ?? true;
         $progress = $onProgress ?? fn() => null;
 
         $progress('parsing', 'Parsing WordPress export file...', 5);
@@ -115,6 +118,13 @@ class WordPressImporter
             $progress('posts', "Imported {$result->posts} posts", 95, ['posts' => $result->posts]);
         }
 
+        // 5. Import menus (needs pages/posts in place to link items to them)
+        if ($importMenus && !empty($parsed['menu_items'])) {
+            $progress('menus', 'Importing menus...', 96);
+            $this->importMenus($site, $parsed, $result);
+            $progress('menus', "Imported {$result->menus} menus", 98, ['menus' => $result->menus]);
+        }
+
         return $result;
     }
 
@@ -174,6 +184,11 @@ class WordPressImporter
             'pages' => count($parsed['pages'] ?? []),
             'posts' => count($parsed['posts'] ?? []),
             'attachments' => count($parsed['attachments'] ?? []),
+            'menus' => max(
+                count($parsed['menus'] ?? []),
+                count(array_unique(array_column($parsed['menu_items'] ?? [], 'menu_slug'))),
+            ),
+            'menu_items' => count($parsed['menu_items'] ?? []),
             'warnings' => $warnings,
         ];
     }
@@ -191,6 +206,8 @@ class WordPressImporter
             'attachments' => [],
             'pages' => [],
             'posts' => [],
+            'menus' => [],
+            'menu_items' => [],
         ];
 
         $reader = new \XMLReader();
@@ -231,6 +248,16 @@ class WordPressImporter
         // Also parse wp:tag elements as categories for simplicity
         foreach ($channel->children($wp)->tag ?? [] as $tag) {
             // Skip tags, they're not categories
+        }
+
+        // Menus are exported as wp:term entries with taxonomy nav_menu
+        foreach ($channel->children($wp)->term ?? [] as $term) {
+            if ((string) $term->term_taxonomy === 'nav_menu') {
+                $result['menus'][] = [
+                    'slug' => (string) $term->term_slug,
+                    'name' => (string) $term->term_name,
+                ];
+            }
         }
 
         // Parse items
@@ -304,7 +331,37 @@ class WordPressImporter
                     $result['posts'][] = $itemData;
                     break;
 
-                // Skip nav_menu_item, wp_template, wp_navigation, etc.
+                case 'nav_menu_item':
+                    $meta = [];
+                    foreach ($wpData->postmeta ?? [] as $m) {
+                        $meta[(string) $m->meta_key] = (string) $m->meta_value;
+                    }
+
+                    // Which menu the item belongs to: <category domain="nav_menu">
+                    $menuSlug = '';
+                    foreach ($item->category ?? [] as $cat) {
+                        $attrs = $cat->attributes();
+                        if ((string) ($attrs['domain'] ?? '') === 'nav_menu') {
+                            $menuSlug = (string) ($attrs['nicename'] ?? $cat);
+                            break;
+                        }
+                    }
+
+                    $result['menu_items'][] = [
+                        'wp_id' => $wpPostId,
+                        'title' => $itemData['title'],
+                        'menu_slug' => $menuSlug,
+                        'sort_order' => (int) $wpData->menu_order,
+                        'type' => $meta['_menu_item_type'] ?? 'custom',      // post_type | taxonomy | custom
+                        'object' => $meta['_menu_item_object'] ?? '',        // page | post | category | ...
+                        'object_id' => (int) ($meta['_menu_item_object_id'] ?? 0),
+                        'parent_wp_id' => (int) ($meta['_menu_item_menu_item_parent'] ?? 0),
+                        'url' => $meta['_menu_item_url'] ?? '',
+                        'target' => ($meta['_menu_item_target'] ?? '') ?: '_self',
+                    ];
+                    break;
+
+                // Skip wp_template, wp_navigation, etc.
             }
         }
 
@@ -486,6 +543,139 @@ class WordPressImporter
                 ]);
             }
         }
+    }
+
+    /**
+     * Import navigation menus from nav_menu_item entries.
+     *
+     * Items are resolved by slug (not by this run's id maps) so menus link up
+     * even when the pages/posts were imported in an earlier run or the user
+     * re-imports with only menus enabled.
+     */
+    private function importMenus(Site $site, array $parsed, ImportResult $result): void
+    {
+        $pageSlugByWpId = array_column($parsed['pages'] ?? [], 'slug', 'wp_id');
+        $postSlugByWpId = array_column($parsed['posts'] ?? [], 'slug', 'wp_id');
+        $catSlugByWpId = array_column($parsed['categories'] ?? [], 'slug', 'wp_id');
+        $baseHost = parse_url($parsed['base_url'] ?? '', PHP_URL_HOST);
+
+        $menuNames = array_column($parsed['menus'] ?? [], 'name', 'slug');
+
+        // Group items by menu; items without a nav_menu term land in a fallback
+        $byMenu = [];
+        foreach ($parsed['menu_items'] as $item) {
+            $byMenu[$item['menu_slug'] ?: 'imported-menu'][] = $item;
+        }
+
+        foreach ($byMenu as $wpMenuSlug => $items) {
+            $slug = \App\Support\Slugify::slug(urldecode($wpMenuSlug)) ?: 'imported-menu';
+            $name = $menuNames[$wpMenuSlug] ?? Str::headline($slug);
+
+            if (Menu::where('site_id', $site->id)->where('slug', $slug)->exists()) {
+                $result->addSkipped('menu', $name);
+                continue;
+            }
+
+            $menu = Menu::create([
+                'site_id' => $site->id,
+                'name' => $name,
+                'slug' => $slug,
+                // Attach the first imported menu to the header if it is free,
+                // so the navigation actually renders without extra setup.
+                'location' => Menu::where('site_id', $site->id)->where('location', 'header')->exists()
+                    ? null : 'header',
+            ]);
+
+            usort($items, fn ($a, $b) => $a['sort_order'] <=> $b['sort_order']);
+
+            // Parents must exist before children: create in passes until stable,
+            // then anything left (orphaned parent reference) becomes a root item.
+            $createdByWpId = [];
+            $pending = $items;
+            $forceRoot = false;
+            while ($pending) {
+                $next = [];
+                foreach ($pending as $item) {
+                    $parentWpId = $item['parent_wp_id'];
+                    if ($parentWpId && !isset($createdByWpId[$parentWpId]) && !$forceRoot) {
+                        $next[] = $item;
+                        continue;
+                    }
+
+                    $attrs = $this->resolveMenuItem($site, $item, $pageSlugByWpId, $postSlugByWpId, $catSlugByWpId, $baseHost);
+                    if ($attrs === null) {
+                        $result->addWarning("Menu '{$name}': dropped item '{$item['title']}' (its target was not imported)");
+                        $createdByWpId[$item['wp_id']] = null; // children fall back to root
+                        continue;
+                    }
+
+                    $created = MenuItem::create($attrs + [
+                        'menu_id' => $menu->id,
+                        'parent_id' => $createdByWpId[$parentWpId] ?? null,
+                        'sort_order' => $item['sort_order'],
+                        'target' => $item['target'],
+                    ]);
+                    $createdByWpId[$item['wp_id']] = $created->id;
+                }
+
+                if (count($next) === count($pending)) {
+                    $forceRoot = true; // remaining items reference parents outside the export
+                }
+                $pending = $next;
+            }
+
+            $result->menus++;
+        }
+    }
+
+    /**
+     * Resolve a WXR menu item to menu_items attributes, or null if the target
+     * no longer exists and no usable URL remains.
+     */
+    private function resolveMenuItem(
+        Site $site,
+        array $item,
+        array $pageSlugByWpId,
+        array $postSlugByWpId,
+        array $catSlugByWpId,
+        ?string $baseHost,
+    ): ?array {
+        $label = trim($item['title']);
+
+        if ($item['type'] === 'post_type' && $item['object'] === 'page') {
+            $slug = $pageSlugByWpId[$item['object_id']] ?? null;
+            $page = $slug ? Page::where('site_id', $site->id)->where('slug', $slug)->first() : null;
+            if ($page) {
+                return ['page_id' => $page->id, 'label' => $label ?: $page->title];
+            }
+        } elseif ($item['type'] === 'post_type' && $item['object'] === 'post') {
+            $slug = $postSlugByWpId[$item['object_id']] ?? null;
+            $post = $slug ? Post::where('site_id', $site->id)->where('slug', $slug)->first() : null;
+            if ($post) {
+                return ['post_id' => $post->id, 'label' => $label ?: $post->title];
+            }
+        } elseif ($item['type'] === 'taxonomy' && $item['object'] === 'category') {
+            $slug = $catSlugByWpId[$item['object_id']] ?? null;
+            $category = $slug ? Category::where('site_id', $site->id)->where('slug', $slug)->first() : null;
+            if ($category) {
+                return ['category_id' => $category->id, 'label' => $label ?: $category->name];
+            }
+        }
+
+        // Custom link — or fallback for unresolved objects that still carry a URL.
+        $url = trim($item['url']);
+        if ($url === '') {
+            return null;
+        }
+
+        // Internal absolute URLs become relative so they survive the domain move
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host && $baseHost && strcasecmp($host, $baseHost) === 0) {
+            $path = parse_url($url, PHP_URL_PATH) ?: '/';
+            $url = urldecode($path);
+        }
+
+        return ['url' => $url, 'label' => $label ?: $url];
     }
 
     /**

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { Upload, FileText, Loader2, CheckCircle, AlertTriangle, ArrowLeft, ArrowRight, FolderTree, Newspaper, Image } from 'lucide-react';
+import { Upload, FileText, Loader2, CheckCircle, AlertTriangle, ArrowLeft, ArrowRight, FolderTree, Newspaper, Image, Menu as MenuIcon } from 'lucide-react';
 import { wpImport } from '@/lib/api';
 
 interface PreviewData {
@@ -12,6 +12,8 @@ interface PreviewData {
   pages: number;
   posts: number;
   attachments: number;
+  menus?: number;
+  menu_items?: number;
   warnings: string[];
 }
 
@@ -20,6 +22,7 @@ interface ImportResult {
   pages: number;
   posts: number;
   attachments: number;
+  menus?: number;
   warnings: string[];
   errors: string[];
   skipped: { type: string; title: string }[];
@@ -49,6 +52,7 @@ export default function ImportPage() {
     import_pages: true,
     import_posts: true,
     import_media: true,
+    import_menus: true,
   });
 
   const uploadMutation = useMutation({
@@ -233,11 +237,12 @@ export default function ImportPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
                 <StatCard icon={FolderTree} label="Categories" count={preview.categories} />
                 <StatCard icon={FileText} label="Pages" count={preview.pages} />
                 <StatCard icon={Newspaper} label="Posts" count={preview.posts} />
                 <StatCard icon={Image} label="Attachments" count={preview.attachments} />
+                <StatCard icon={MenuIcon} label="Menus" count={preview.menus ?? 0} />
               </div>
 
               {preview.warnings.length > 0 && (
@@ -301,6 +306,13 @@ export default function ImportPage() {
               checked={options.import_media}
               onChange={(v) => setOptions({ ...options, import_media: v })}
               disabled={preview.attachments === 0}
+            />
+            <OptionCheckbox
+              label="Menus"
+              description={`${preview.menus ?? 0} menus (${preview.menu_items ?? 0} items) linked to imported pages, posts and categories`}
+              checked={options.import_menus}
+              onChange={(v) => setOptions({ ...options, import_menus: v })}
+              disabled={(preview.menus ?? 0) === 0}
             />
           </div>
 
@@ -440,11 +452,12 @@ export default function ImportPage() {
 
             {status.result && (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
                   <StatCard icon={FolderTree} label="Categories" count={status.result.categories} />
                   <StatCard icon={FileText} label="Pages" count={status.result.pages} />
                   <StatCard icon={Newspaper} label="Posts" count={status.result.posts} />
                   <StatCard icon={Image} label="Attachments" count={status.result.attachments} />
+                  <StatCard icon={MenuIcon} label="Menus" count={status.result.menus ?? 0} />
                 </div>
 
                 {status.result.warnings.length > 0 && (

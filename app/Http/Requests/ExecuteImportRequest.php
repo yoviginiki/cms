@@ -18,6 +18,7 @@ class ExecuteImportRequest extends FormRequest
             'import_pages' => ['sometimes', 'boolean'],
             'import_posts' => ['sometimes', 'boolean'],
             'import_media' => ['sometimes', 'boolean'],
+            'import_menus' => ['sometimes', 'boolean'],
         ];
     }
 }
