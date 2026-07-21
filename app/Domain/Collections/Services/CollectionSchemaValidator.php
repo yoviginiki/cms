@@ -18,6 +18,16 @@ class CollectionSchemaValidator
     private const MAX_OPTIONS = 100;
     private const MAX_PIVOT_FIELDS = 10;
 
+    /** Types a default value may be defined on (no assets, no relations). */
+    private const DEFAULTABLE_TYPES = [
+        'text', 'rich_text', 'number', 'price', 'boolean', 'select',
+        'multi_select', 'date', 'email', 'url', 'phone', 'sku',
+    ];
+
+    public function __construct(private RecordDataProcessor $processor)
+    {
+    }
+
     public function validate(array $schema, Site $site, ?ContentCollection $existing = null): array
     {
         $fields = $schema['fields'] ?? [];
@@ -130,6 +140,23 @@ class CollectionSchemaValidator
             $out['settings'] = $this->validateSettings($settings, $path);
         }
 
+        // Default value: stored in canonical (processed) form so applying it
+        // at record creation can never fail validation later.
+        $default = $field['default'] ?? null;
+        if ($default !== null && $default !== '' && $default !== []) {
+            if (!in_array($type, self::DEFAULTABLE_TYPES, true)) {
+                $this->fail("{$path}.default", "Defaults aren't available on {$type} fields.");
+            }
+            try {
+                $processed = $this->processor->processFields([$out], [$key => $default]);
+            } catch (ValidationException) {
+                $this->fail("{$path}.default", 'The default value is not valid for this field.');
+            }
+            if (array_key_exists($key, $processed)) {
+                $out['default'] = $processed[$key];
+            }
+        }
+
         return $out;
     }
 
@@ -231,7 +258,7 @@ class CollectionSchemaValidator
     /** Allow-listed, scalar-valued per-type settings. Unknown keys dropped. */
     private function validateSettings(array $settings, string $path): array
     {
-        $allowed = ['max_length', 'min', 'max', 'step', 'placeholder', 'help', 'accept', 'rows'];
+        $allowed = ['max_length', 'min', 'max', 'step', 'placeholder', 'help', 'accept', 'rows', 'pattern', 'pattern_message'];
         $clean = [];
         foreach ($settings as $k => $v) {
             if (!in_array($k, $allowed, true) || (!is_scalar($v) && $v !== null)) {
@@ -241,6 +268,17 @@ class CollectionSchemaValidator
                 $v = mb_substr($v, 0, 200);
             }
             $clean[$k] = $v;
+        }
+
+        // A pattern must compile now — a broken regex must never reach record
+        // validation where it would reject every value with a cryptic error.
+        if (isset($clean['pattern']) && is_string($clean['pattern']) && $clean['pattern'] !== '') {
+            $delimited = '/' . str_replace('/', '\/', $clean['pattern']) . '/u';
+            if (@preg_match($delimited, '') === false) {
+                $this->fail("{$path}.settings.pattern", 'The pattern is not a valid regular expression.');
+            }
+        } else {
+            unset($clean['pattern'], $clean['pattern_message']);
         }
 
         return $clean;

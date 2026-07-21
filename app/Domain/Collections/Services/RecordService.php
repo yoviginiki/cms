@@ -48,6 +48,17 @@ class RecordService
             $hasData = true;
             $input['data'] = [];
         }
+
+        // Schema defaults apply on creation only, and only to keys the caller
+        // left out entirely — an explicit empty value stays empty.
+        if (!$record && $hasData) {
+            foreach ($fields as $field) {
+                if (array_key_exists('default', $field) && !array_key_exists($field['key'], $input['data'])) {
+                    $input['data'][$field['key']] = $field['default'];
+                }
+            }
+        }
+
         $data = $hasData
             ? $this->processor->processFields($fields, $input['data'])
             : ($record->data ?? []);
