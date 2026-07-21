@@ -323,6 +323,7 @@ class BuildPageService
         // Skip during preview — API serve URLs work with auth cookie on the admin domain
         if (!$this->isPreview) {
             $html = AssetPublisher::rewriteHtml($html);
+            $html = self::rewriteBaseForSlugHosting($html, $site);
         }
 
         return $this->minifier->minify($html);
@@ -1171,5 +1172,58 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
         if (!$style) return '';
 
         return "main,.page-content{{$style}}\n";
+    }
+
+    /**
+     * Sites without a custom domain deploy into a subdirectory of the tenant
+     * docroot (ensodo.eu/{slug}/), so every root-absolute URL the build emits
+     * — internal links, /assets/files images, srcsets, og tags, CSS url() —
+     * escapes the site and 404s (or hits another site). Prefix them with the
+     * site slug. Skips /api/ (backend, host-level) and protocol-relative //.
+     * Custom-domain sites deploy to their own docroot and need no prefix.
+     */
+    public static function rewriteBaseForSlugHosting(string $html, Site $site): string
+    {
+        if ($site->custom_domain) {
+            return $html;
+        }
+        $base = '/' . trim($site->slug, '/');
+
+        // href/src/content/action/poster/data-src attributes with root-absolute values
+        $html = preg_replace_callback(
+            '#\b(href|src|content|action|poster|data-src)="(/[^"/][^"]*|/)"#i',
+            function ($m) use ($base) {
+                $url = $m[2];
+                if (str_starts_with($url, '/api/') || str_starts_with($url, $base . '/') || $url === $base) {
+                    return $m[0];
+                }
+                return "{$m[1]}=\"{$base}{$url}\"";
+            },
+            $html
+        );
+
+        // srcset: comma-separated "url descriptor" pairs
+        $html = preg_replace_callback('#\bsrcset="([^"]+)"#i', function ($m) use ($base) {
+            $parts = array_map(function ($entry) use ($base) {
+                $entry = trim($entry);
+                if ($entry !== '' && $entry[0] === '/' && !str_starts_with($entry, '//')
+                    && !str_starts_with($entry, '/api/') && !str_starts_with($entry, $base . '/')) {
+                    return $base . $entry;
+                }
+                return $entry;
+            }, explode(',', $m[1]));
+            return 'srcset="' . implode(', ', $parts) . '"';
+        }, $html);
+
+        // CSS url(/...) in inline styles/style tags
+        $html = preg_replace_callback("#url\\((['\"]?)(/[^'\")]+)\\1\\)#i", function ($m) use ($base) {
+            $url = $m[2];
+            if (str_starts_with($url, '//') || str_starts_with($url, '/api/') || str_starts_with($url, $base . '/')) {
+                return $m[0];
+            }
+            return "url({$m[1]}{$base}{$url}{$m[1]})";
+        }, $html);
+
+        return $html;
     }
 }

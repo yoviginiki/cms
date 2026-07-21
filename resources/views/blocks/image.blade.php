@@ -53,9 +53,17 @@
 @endphp
 <figure class="image-block"@if($size !== 'full') style="max-width: {{ $maxWidth }};"@endif>
     @if(!empty($url))
-        @if(!empty($variants['webp_800']) || !empty($variants['webp_400']))
+        @php
+            // Blade won't compile a directive glued to a word ("400w@if"), so
+            // build the webp srcset in PHP — also guards sizes an asset lacks.
+            $webpSrcset = implode(', ', array_filter([
+                !empty($variants['webp_400']) ? $variants['webp_400'] . ' 400w' : null,
+                !empty($variants['webp_800']) ? $variants['webp_800'] . ' 800w' : null,
+            ]));
+        @endphp
+        @if($webpSrcset !== '')
             <picture>
-                <source srcset="{{ $variants['webp_400'] ?? $variants['webp_800'] ?? '' }} 400w@if(!empty($variants['webp_800'])), {{ $variants['webp_800'] }} 800w@endif" type="image/webp">
+                <source srcset="{{ $webpSrcset }}" type="image/webp">
                 <img
                     class="img-filtered"
                     src="{{ $variants['medium_800'] ?? $url }}"
