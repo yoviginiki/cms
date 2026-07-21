@@ -103,8 +103,10 @@ class CollectionPublishService
 
     /**
      * Cross-collection search (v3): /search/index.json lists every static
-     * collection whose per-collection index was built this publish. The
-     * search island detects `sources` and merges all indexes client-side.
+     * collection whose per-collection index was built this publish, plus a
+     * Pages source built from the site's published pages — so content-only
+     * sites (like the docs site) are searchable too. The search island
+     * detects `sources` and merges all indexes client-side.
      */
     private function buildSiteSearchManifest(Site $site, $collections, string $stagingPath): void
     {
@@ -124,6 +126,10 @@ class CollectionPublishService
             ];
         }
 
+        if ($pagesSource = $this->buildPagesSearchIndex($site, $stagingPath)) {
+            $sources[] = $pagesSource;
+        }
+
         if ($sources === []) {
             return;
         }
@@ -134,6 +140,58 @@ class CollectionPublishService
             'fields' => [['key' => '_type', 'label' => 'Type', 'type' => 'select', 'facet' => true]],
             'sources' => $sources,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Pages source for site search: one compact row per published page, the
+     * search string extracted from the ALREADY-BUILT HTML in staging (pages
+     * build before collections). Returns the manifest source entry, or null
+     * when the site has no published pages.
+     *
+     * @return array{collection: string, name: string, manifest: string}|null
+     */
+    private function buildPagesSearchIndex(Site $site, string $stagingPath): ?array
+    {
+        $pages = \App\Models\Page::where('site_id', $site->id)
+            ->where('status', 'published')
+            ->get(['id', 'slug', 'title']);
+        if ($pages->isEmpty()) {
+            return null;
+        }
+
+        $rows = [];
+        foreach ($pages as $page) {
+            $url = '/' . trim($page->slug, '/') . '/';
+            $search = mb_strtolower($page->title);
+
+            $file = $stagingPath . '/' . trim($page->slug, '/') . '/index.html';
+            if (is_file($file)) {
+                $html = (string) file_get_contents($file);
+                // <main> content only — nav/footer would make every page match
+                // every site-chrome word.
+                if (preg_match('#<main[^>]*>(.*?)</main>#si', $html, $m)) {
+                    $html = $m[1];
+                }
+                $html = preg_replace('#<(script|style)[^>]*>.*?</\1>#si', ' ', $html);
+                $text = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($html))));
+                $search = mb_strtolower(mb_substr($page->title . ' ' . $text, 0, 3000));
+            }
+
+            $rows[] = ['u' => $url, 't' => $page->title, 's' => $search];
+        }
+
+        $json = json_encode($rows, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $shard = 'search/pages-1.' . substr(md5($json), 0, 8) . '.json';
+        $this->write($stagingPath, $shard, $json);
+        $this->write($stagingPath, 'search/pages.json', json_encode([
+            'collection' => '_pages',
+            'name' => 'Pages',
+            'count' => count($rows),
+            'fields' => [],
+            'shards' => ["/{$shard}"],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        return ['collection' => '_pages', 'name' => 'Pages', 'manifest' => '/search/pages.json'];
     }
 
     /** @return array<int, string> warnings */

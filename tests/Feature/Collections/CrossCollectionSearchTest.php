@@ -59,6 +59,40 @@ class CrossCollectionSearchTest extends TestCase
         }
     }
 
+    public function test_pages_source_indexes_published_pages(): void
+    {
+        \App\Models\Page::factory()->published()->create([
+            'site_id' => $this->site->id,
+            'title' => 'Shipping policy',
+            'slug' => 'shipping',
+        ]);
+
+        $staging = storage_path('app/test-builds/' . uniqid());
+        File::ensureDirectoryExists($staging);
+        try {
+            // Simulate the page having been built before collections, with
+            // site chrome outside <main> that must NOT be indexed.
+            File::ensureDirectoryExists("{$staging}/shipping");
+            File::put("{$staging}/shipping/index.html",
+                '<html><body><nav>CHROME-WORD</nav><main><h1>Shipping policy</h1><p>Orders ship worldwide via courier.</p></main></body></html>');
+
+            app(CollectionPublishService::class)->buildAll($this->site, $staging);
+
+            $manifest = json_decode(File::get("{$staging}/search/index.json"), true);
+            $this->assertContains('/search/pages.json', array_column($manifest['sources'], 'manifest'));
+
+            $pagesManifest = json_decode(File::get("{$staging}/search/pages.json"), true);
+            $rows = json_decode(File::get($staging . $pagesManifest['shards'][0]), true);
+            $row = collect($rows)->firstWhere('u', '/shipping/');
+            $this->assertNotNull($row);
+            $this->assertSame('Shipping policy', $row['t']);
+            $this->assertStringContainsString('worldwide via courier', $row['s']);
+            $this->assertStringNotContainsString('chrome-word', $row['s']);
+        } finally {
+            File::deleteDirectory(storage_path('app/test-builds'));
+        }
+    }
+
     public function test_wizard_builds_cross_search_page(): void
     {
         $res = $this->actingAs($this->owner)->postJson("/api/v1/sites/{$this->site->id}/wizard/search", [
