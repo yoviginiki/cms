@@ -50,7 +50,7 @@ export const auth = {
 };
 
 export const sites = {
-  list: () => api.get('/sites'),
+  list: () => api.get('/sites', { params: { per_page: 200 } }),
   get: (id: string) => api.get(`/sites/${id}`),
   create: (data: Record<string, unknown>) => api.post('/sites', data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/sites/${id}`, data),

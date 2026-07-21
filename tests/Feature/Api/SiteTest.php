@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Page;
 use App\Models\Site;
+use App\Models\Tenant;
 use Tests\TestCase;
 
 class SiteTest extends TestCase
@@ -30,6 +31,27 @@ class SiteTest extends TestCase
         ], $this->apiHeaders())
             ->assertStatus(201)
             ->assertJsonPath('data.name', 'My Site');
+    }
+
+    public function test_can_resolve_site_by_slug(): void
+    {
+        $site = Site::factory()->create(['tenant_id' => $this->tenant->id, 'slug' => 'my-slugged-site']);
+
+        $this->actingAsOwner()->getJson('/api/v1/sites/my-slugged-site', $this->apiHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.id', $site->id);
+    }
+
+    public function test_slug_binding_stays_tenant_scoped(): void
+    {
+        $other = Tenant::factory()->create();
+        $otherOwner = \App\Models\User::factory()->owner()->create(['tenant_id' => $other->id]);
+        $this->setTenantScope($otherOwner);
+        Site::factory()->create(['tenant_id' => $other->id, 'slug' => 'foreign-site']);
+        $this->setTenantScope($this->owner);
+
+        $this->actingAsOwner()->getJson('/api/v1/sites/foreign-site', $this->apiHeaders())
+            ->assertNotFound();
     }
 
     public function test_can_update_site(): void

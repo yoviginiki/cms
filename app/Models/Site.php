@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class Site extends Model
 {
@@ -22,6 +23,11 @@ class Site extends Model
     public function resolveRouteBinding($value, $field = null)
     {
         $user = Auth::user();
+
+        // Admin URLs address sites by slug (globally unique); API clients and
+        // older links may still send the UUID — accept both.
+        $field ??= Str::isUuid($value) ? $this->getRouteKeyName() : 'slug';
+
         $query = $this->resolveRouteBindingQuery($this, $value, $field);
 
         if ($user && $user->tenant_id) {

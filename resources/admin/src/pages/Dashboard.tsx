@@ -43,7 +43,7 @@ export default function Dashboard() {
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.map((site) => (
-            <div key={site.id} onClick={() => navigate(`/sites/${site.id}/pages`)}
+            <div key={site.id} onClick={() => navigate(`/sites/${site.slug}/pages`)}
               className="card bg-base-100 border border-base-300/40 hover:border-base-300/70 cursor-pointer transition-all">
               <div className="card-body p-5 gap-3">
                 <div className="flex items-start justify-between">
@@ -71,11 +71,11 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-3 pt-3 border-t border-base-300/20">
-                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/pages`); }}
+                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.slug}/pages`); }}
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Pages</button>
-                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/posts`); }}
+                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.slug}/posts`); }}
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Posts</button>
-                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.id}/settings`); }}
+                  <button onClick={(e) => { e.stopPropagation(); navigate(`/sites/${site.slug}/settings`); }}
                     className="text-[12px] text-primary hover:text-primary/80 font-medium">Settings</button>
                   <button onClick={async (e) => {
                       e.stopPropagation();
@@ -83,7 +83,7 @@ export default function Dashboard() {
                       if (!name) return;
                       try {
                         const r = await sites.clone(site.id, name);
-                        navigate(`/sites/${r.data.data.id}/pages`);
+                        navigate(`/sites/${r.data.data.slug || r.data.data.id}/pages`);
                       } catch { alert('Clone failed'); }
                     }}
                     className="text-[12px] text-base-content/40 hover:text-primary font-medium">Clone</button>
@@ -281,7 +281,7 @@ function SiteWizard({ onClose }: { onClose: () => void; onCreate?: (id: string) 
     try {
       const r = await sites.create({ name: name.trim(), slug: slug || autoSlug(name) });
       const siteId = r.data.data.id;
-      setCreatedSiteId(siteId);
+      setCreatedSiteId(r.data.data.slug || siteId);
 
       // Assign selected theme
       if (selectedThemeId) {
