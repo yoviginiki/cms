@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Upload, X, Search, Loader2, ChevronUp, ChevronDown, File as FileIcon, Plus } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Upload, X, Search, Loader2, ChevronUp, ChevronDown, File as FileIcon, Plus, Calculator } from 'lucide-react';
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent,
 } from '@dnd-kit/core';
@@ -9,9 +9,10 @@ import { CSS } from '@dnd-kit/utilities';
 import WysiwygEditor from '@/components/editor/WysiwygEditor';
 import { AssetPicker } from '@/components/ui/AssetPicker';
 import {
-  collectionRecords,
-  type CollectionField, type CollectionPivotField, type CollectionRecord,
+  collections, collectionRecords,
+  type Collection, type CollectionField, type CollectionPivotField, type CollectionRecord,
 } from '@/lib/api';
+import { Modal, apiErr } from './shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // One polished input per collection field type. Values live in the record's
@@ -246,11 +247,26 @@ export function FieldInput({ siteId, field, value, onChange, error, currency = '
     case 'relation':
       // Rendered by the page via <RelationInput> because relations live outside data{}
       return null;
+
+    case 'computed': {
+      const cfg = field.computed;
+      const what = cfg
+        ? `${cfg.fn === 'sum' ? `sum of “${cfg.sum_field ?? '?'}”` : 'count'} over related records via “${cfg.relation_key ?? '?'}”`
+        : 'rollup';
+      return (
+        <FieldWrap field={field} error={error}>
+          <div className="flex items-center gap-2 text-[12px] text-base-content/40 border border-dashed border-base-300/40 rounded-box px-3 py-2 w-fit">
+            <Calculator size={13} className="shrink-0" />
+            <span>Computed: {what} — resolved at publish.</span>
+          </div>
+        </FieldWrap>
+      );
+    }
   }
 }
 
 // ── Image / file: existing AssetPicker + thumbnail preview + clear ──
-function SingleAssetInput({ siteId, value, onChange, accept }: {
+export function SingleAssetInput({ siteId, value, onChange, accept }: {
   siteId: string;
   value: string; // asset uuid (legacy URL strings tolerated for display)
   onChange: (assetId: string) => void;
@@ -363,9 +379,14 @@ export function RelationInput({ siteId, field, value, onChange, error }: {
   error?: string;
 }) {
   const rel = field.relation;
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [focused, setFocused] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const debounce = useMemo(() => {
     let t: ReturnType<typeof setTimeout>;
@@ -376,6 +397,13 @@ export function RelationInput({ siteId, field, value, onChange, error }: {
     queryKey: ['relation-search', siteId, rel?.collection_id, debounced],
     queryFn: () => collectionRecords.list(siteId, rel!.collection_id, { q: debounced || undefined, per_page: 10 }).then((r) => r.data.data),
     enabled: !!rel?.collection_id && focused,
+  });
+
+  // Target collection schema — needed to know its title field for quick-create
+  const { data: targetCollection } = useQuery<Collection>({
+    queryKey: ['collection', siteId, rel?.collection_id],
+    queryFn: () => collections.get(siteId, rel!.collection_id).then((r) => r.data.data),
+    enabled: !!rel?.collection_id && createOpen,
   });
 
   if (!rel?.collection_id) {
@@ -394,6 +422,28 @@ export function RelationInput({ siteId, field, value, onChange, error }: {
     onChange(rel.mode === 'one' ? [entry] : [...value, entry]);
     setQuery('');
     setDebounced('');
+  };
+
+  const quickCreate = async () => {
+    const titleKey = targetCollection?.schema?.title_field;
+    const v = createTitle.trim();
+    if (!titleKey || !v) return;
+    setCreating(true);
+    setCreateError('');
+    try {
+      const res = await collectionRecords.create(siteId, rel!.collection_id, {
+        data: { [titleKey]: v },
+        status: 'draft',
+      });
+      add(res.data.data as CollectionRecord);
+      queryClient.invalidateQueries({ queryKey: ['relation-search', siteId, rel!.collection_id] });
+      queryClient.invalidateQueries({ queryKey: ['collection-records', siteId, rel!.collection_id] });
+      setCreateOpen(false);
+    } catch (e) {
+      setCreateError(apiErr(e));
+    } finally {
+      setCreating(false);
+    }
   };
 
   const showDropdown = focused && (candidates.length > 0 || isFetching || debounced.length > 0);
@@ -469,10 +519,55 @@ export function RelationInput({ siteId, field, value, onChange, error }: {
               {!isFetching && candidates.length === 0 && (
                 <div className="px-3 py-2 text-[12px] text-base-content/30">No matching records.</div>
               )}
+              {!isFetching && candidates.length === 0 && debounced.trim().length > 0 && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setCreateTitle(debounced.trim());
+                    setCreateError('');
+                    setCreateOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-[13px] text-primary hover:bg-primary/10 flex items-center gap-1.5 border-t border-base-300/20"
+                >
+                  <Plus size={13} /> Create “{debounced.trim()}”
+                </button>
+              )}
             </div>
           )}
         </div>
       )}
+
+      {/* Quick-create a record in the target collection and link it immediately */}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={`New ${targetCollection?.name ?? 'record'}`} maxW="max-w-sm">
+        <div className="space-y-3">
+          <p className="text-[12px] text-base-content/40">Created as a draft with just a title — fill in the rest later.</p>
+          <div>
+            <label className="text-[12px] text-base-content/60 mb-1 block">
+              {targetCollection?.schema?.fields.find((f) => f.key === targetCollection.schema.title_field)?.label ?? 'Title'}
+            </label>
+            <input
+              autoFocus
+              value={createTitle}
+              onChange={(e) => setCreateTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void quickCreate(); } }}
+              className={`input input-bordered input-sm w-full text-[13px] ${createError ? 'input-error' : ''}`}
+            />
+            {createError && <p className="text-[11px] text-error mt-1">{createError}</p>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setCreateOpen(false)} className="btn btn-ghost btn-sm text-[12px]">Cancel</button>
+            <button
+              type="button"
+              onClick={() => void quickCreate()}
+              disabled={creating || !createTitle.trim() || !targetCollection}
+              className="btn btn-primary btn-sm gap-1.5 text-[12px]"
+            >
+              {creating && <Loader2 size={13} className="animate-spin" />} Create &amp; link
+            </button>
+          </div>
+        </div>
+      </Modal>
     </FieldWrap>
   );
 }

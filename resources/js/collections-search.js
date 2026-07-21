@@ -335,6 +335,25 @@
     function apply() {
       writeUrl();
       isApi ? applyApi() : applyStatic();
+      scheduleBeacon();
+    }
+
+    // Search analytics (v3): anonymous aggregate term counts. Fires once per
+    // settled term (2s idle), text/plain so sendBeacon needs no preflight.
+    var beaconUrl = null;
+    group.els.forEach(function (el) { beaconUrl = beaconUrl || el.getAttribute('data-cs-beacon'); });
+    var beaconTimer, lastBeaconed = '';
+    function scheduleBeacon() {
+      if (!beaconUrl || !navigator.sendBeacon) return;
+      clearTimeout(beaconTimer);
+      beaconTimer = setTimeout(function () {
+        var term = state.q.trim();
+        if (term.length < 2 || term === lastBeaconed) return;
+        lastBeaconed = term;
+        try {
+          navigator.sendBeacon(beaconUrl, new Blob([JSON.stringify({ q: term })], { type: 'text/plain' }));
+        } catch (e) { /* analytics must never break search */ }
+      }, 2000);
     }
 
     searchInputs.forEach(function (input) {

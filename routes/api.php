@@ -49,6 +49,11 @@ Route::post('/sites/{site}/forms/{formKey}/submit', [\App\Http\Controllers\Api\V
     ->middleware(['public.site', 'public.cors', 'throttle:10,1'])
     ->where('formKey', '[a-z0-9\-_]{1,80}');
 
+// Search analytics beacon (v3): anonymous aggregate term counts. sendBeacon
+// posts text/plain (no preflight); nothing but the term is stored.
+Route::post('/sites/{site}/search-beacon', [\App\Http\Controllers\Api\V1\SearchBeaconController::class, 'store'])
+    ->middleware(['public.site', 'public.cors', 'throttle:60,1']);
+
 // Public comments (rate-limited)
 Route::get('/sites/{site}/comments/{postSlug}', function (\App\Models\Site $site, string $postSlug) {
     $path = storage_path("app/comments/{$site->id}/" . preg_replace('/[^a-z0-9\-]/', '', $postSlug) . '.json');
@@ -249,6 +254,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/collections/{collection}/import/{importId}/status', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'status']);
         Route::apiResource('sites.collections', \App\Http\Controllers\Api\V1\CollectionController::class);
         Route::apiResource('sites.collections.records', \App\Http\Controllers\Api\V1\RecordController::class);
+
+        // Search analytics (collections v3) — top terms for the admin panel
+        Route::get('sites/{site}/search-terms', [\App\Http\Controllers\Api\V1\SearchBeaconController::class, 'top']);
 
         // Guided schema type conversion (collections v3)
         Route::get('sites/{site}/collections/{collection}/convert-preview', [\App\Http\Controllers\Api\V1\CollectionController::class, 'convertPreview']);

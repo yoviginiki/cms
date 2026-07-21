@@ -30,6 +30,7 @@
      data-cs-role="results"
      @if($csKey) data-cs-collection="{{ $csKey }}" data-cs-source="{{ $source }}" data-cs-mode="{{ $csMode }}" @endif
      @if(!empty($data['eager'])) data-cs-eager @endif
+     @if($csKey && (($site->settings['search_analytics'] ?? true) !== false)) data-cs-beacon="{{ rtrim((string) config('app.url'), '/') }}/api/v1/sites/{{ $site->id }}/search-beacon" @endif
      @if($__htmlId) id="{{ $__htmlId }}" @endif>
 @if(!$csKey)
     <p style="opacity:.5;padding:1rem;border:1px dashed var(--color-border,#ddd);">Pick a collection for this results grid.</p>

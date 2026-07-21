@@ -17,14 +17,17 @@ class RecordDisplay
 {
     private const CURRENCY_SYMBOLS = ['EUR' => '€', 'USD' => '$', 'GBP' => '£', 'BGN' => 'лв', 'CHF' => 'CHF'];
 
-    public static function assetUrl(Site $site, ?string $assetId): ?string
+    public static function assetUrl(Site $site, ?string $assetId, ?string $variant = null): ?string
     {
         if (!$assetId || !preg_match('/^[0-9a-f-]{36}$/i', $assetId)) {
             return null;
         }
 
-        // AssetPublisher::rewriteHtml converts these to hashed static paths at publish.
-        return "/api/v1/sites/{$site->id}/assets/{$assetId}/serve";
+        $suffix = ($variant && preg_match('/^[a-z0-9_]+$/', $variant)) ? "/{$variant}" : '';
+
+        // AssetPublisher::rewriteHtml converts these to hashed static paths at
+        // publish (variant-aware — the variant file itself gets published).
+        return "/api/v1/sites/{$site->id}/assets/{$assetId}/serve{$suffix}";
     }
 
     /** Public URL path prefix for a collection (settings override, else slug). */
