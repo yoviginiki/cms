@@ -91,6 +91,7 @@ class DocsSiteSeeder extends Seeder
             $this->queriesGuide(),
             $this->formsGuide(),
             $this->wizardsGuide(),
+            $this->collectionsV3Guide(),
         ];
     }
 
@@ -377,6 +378,66 @@ class DocsSiteSeeder extends Seeder
                                 'To put a form on the scaffolded pages, use the Form Wizard',
                                 'Wizards are available to admins and owners',
                             ]),
+                        ]),
+                    ]),
+                ]),
+            ],
+        ];
+    }
+
+    // ─── Collections v3 guide ───────────────────────────────────────────
+
+    private function collectionsV3Guide(): array
+    {
+        return [
+            'title' => 'Collections v3',
+            'slug' => 'collections-v3',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->heading('Collections v3', 'h1'),
+                            $this->para('The v3 upgrade turns collections into a full working database: richer validation, history, scheduling, automation and site-wide search. Everything below ships with the platform — no plugins.'),
+
+                            $this->heading('Editing', 'h2'),
+                            $this->list([
+                                'Inline editing — double-click a cell in the records list to edit it in place (Enter saves, Esc cancels)',
+                                'Bulk field edit — select rows, choose Set field…, and write one value to up to 200 records at once',
+                                'Duplicate — copy any record (with its relations) as a new draft',
+                                'History — every save is snapshotted (last 20); open History in the record editor to compare and restore',
+                                'Quick-create — while linking a relation, create a missing target record without leaving the form',
+                            ]),
+
+                            $this->heading('Schema power', 'h2'),
+                            $this->list([
+                                'Validation rules — regex patterns (with custom messages) on text and SKU fields, min/max bounds on numbers and dates',
+                                'Default values — pre-filled on new records for any scalar field',
+                                'Computed rollups — display-only count/sum over related records ("Books per author", "Total pages"), resolved at publish',
+                                'Convert text → select — one guided step turns a free-text field into a select whose options are its existing distinct values',
+                                'Tier advisor — large static collections get a banner with one-click switch to the dynamic tier',
+                            ]),
+
+                            $this->heading('Publishing', 'h2'),
+                            $this->list([
+                                'Scheduling — publish_at/unpublish_at windows per record; the site republishes itself when they fire',
+                                'Per-record SEO — override title, meta description and social image on any record',
+                                'Gallery carousel — records with multiple gallery images get a carousel with thumbnails and a fullscreen lightbox, served with responsive image variants',
+                                'Query feeds — flag any saved query to publish its results as static JSON at /queries/{slug}.json',
+                            ]),
+
+                            $this->heading('Search', 'h2'),
+                            $this->list([
+                                'Cross-collection search — the Search Wizard\'s "All collections" option builds one page that searches every static collection, with a Type filter',
+                                'Search analytics — anonymous counts of what visitors search for, per day; see top terms in the admin (opt out per site)',
+                            ]),
+
+                            $this->heading('Data in & out', 'h2'),
+                            $this->list([
+                                'Scheduled URL imports — point a collection at an https CSV feed (export format) and it refreshes hourly or daily, upserting by a unique field',
+                                'Webhooks — signed HTTP notifications on record create/update/delete and form submissions, with automatic retries; verify with the one-time secret',
+                            ]),
+
+                            $this->para('Full technical reference: <code>docs/COLLECTIONS-V3.md</code> in the repository.'),
                         ]),
                     ]),
                 ]),
