@@ -24,6 +24,7 @@ class RecordService
         private RecordDataProcessor $processor,
         private ReferenceRecorder $references,
         private StalenessResolver $staleness,
+        private RecordRevisionService $revisions,
     ) {
     }
 
@@ -157,6 +158,18 @@ class RecordService
         // Tier-2 public API cache: bump the collection's version key — every
         // cached response embeds it, so one O(1) increment invalidates all.
         \Illuminate\Support\Facades\Cache::increment("colapi_ver:{$collection->id}");
+
+        // History: snapshot the state that was just written. Outside the
+        // transaction — a failed snapshot must never roll back the save.
+        try {
+            $this->revisions->snapshot(
+                $saved,
+                $input['__revision_event'] ?? ($record ? 'updated' : 'created'),
+                \Illuminate\Support\Facades\Auth::id(),
+            );
+        } catch (\Throwable $e) {
+            logger()->warning("record revision snapshot failed for {$saved->id}: {$e->getMessage()}");
+        }
 
         return $saved;
     }

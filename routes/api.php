@@ -240,6 +240,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Stale content: list, staged batch republish, human-confirmed promote
         // Collections (Track G) — user-defined structured data + records + import/export
         Route::post('sites/{site}/collections/{collection}/records/bulk', [\App\Http\Controllers\Api\V1\RecordController::class, 'bulk']);
+        Route::post('sites/{site}/collections/{collection}/records/{record}/duplicate', [\App\Http\Controllers\Api\V1\RecordController::class, 'duplicate']);
+        Route::get('sites/{site}/collections/{collection}/records/{record}/revisions', [\App\Http\Controllers\Api\V1\RecordController::class, 'revisions']);
+        Route::post('sites/{site}/collections/{collection}/records/{record}/revisions/{revisionId}/restore', [\App\Http\Controllers\Api\V1\RecordController::class, 'restoreRevision']);
         Route::get('sites/{site}/collections/{collection}/export', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'export']);
         Route::post('sites/{site}/collections/{collection}/import', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'upload']);
         Route::post('sites/{site}/collections/{collection}/import/{importId}/execute', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'execute']);
