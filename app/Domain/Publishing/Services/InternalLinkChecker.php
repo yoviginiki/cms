@@ -12,7 +12,12 @@ use Illuminate\Support\Facades\File;
  */
 class InternalLinkChecker
 {
-    public function check(string $stagingPath, int $maxWarnings = 50): array
+    /**
+     * @param string|null $basePrefix URL prefix the site is served under
+     *        (slug-hosted sites emit "/{slug}/…" links; the build tree has no
+     *        such directory, so strip it before resolving against staging).
+     */
+    public function check(string $stagingPath, int $maxWarnings = 50, ?string $basePrefix = null): array
     {
         $warnings = [];
         if (!File::isDirectory($stagingPath)) {
@@ -30,6 +35,9 @@ class InternalLinkChecker
                 continue;
             }
             foreach (array_unique($m[1]) as $href) {
+                if ($basePrefix && ($href === $basePrefix || str_starts_with($href, $basePrefix . '/'))) {
+                    $href = substr($href, strlen($basePrefix)) ?: '/';
+                }
                 if ($href === '/' || $href === '' || str_starts_with($href, '/admin') || str_starts_with($href, '//')) {
                     continue;
                 }

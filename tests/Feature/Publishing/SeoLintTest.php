@@ -109,6 +109,25 @@ class SeoLintTest extends TestCase
         $this->assertNotEmpty(array_filter($warnings, fn ($w) => str_contains($w, '/gone.pdf')));
     }
 
+    public function test_internal_link_checker_strips_slug_base_prefix(): void
+    {
+        // Slug-hosted sites emit "/{slug}/…" links; the build tree has no such
+        // directory, so the checker must resolve them with the prefix stripped.
+        $staging = storage_path('framework/testing/lint-' . uniqid());
+        File::ensureDirectoryExists("{$staging}/about");
+        File::put("{$staging}/about/index.html", '<html></html>');
+        File::put(
+            "{$staging}/index.html",
+            '<a href="/my-site/about/">ok</a> <a href="/my-site/">home ok</a> <a href="/my-site/missing/">broken</a>'
+        );
+
+        $warnings = app(InternalLinkChecker::class)->check($staging, 50, '/my-site');
+        File::deleteDirectory($staging);
+
+        $this->assertCount(1, $warnings);
+        $this->assertStringContainsString('/missing/', $warnings[0]);
+    }
+
     public function test_internal_link_checker_caps_findings(): void
     {
         $staging = storage_path('framework/testing/lint-' . uniqid());

@@ -227,7 +227,11 @@ class PublishSiteJob implements ShouldQueue
 
             // F5 SEO lint — cross-page broken internal link check (warning-only)
             try {
-                $linkWarnings = app(\App\Domain\Publishing\Services\InternalLinkChecker::class)->check($stagingPath);
+                $linkWarnings = app(\App\Domain\Publishing\Services\InternalLinkChecker::class)->check(
+                    $stagingPath,
+                    50,
+                    $site->custom_domain ? null : '/' . trim($site->slug, '/'),
+                );
                 if ($linkWarnings !== []) {
                     $validationResults['site:internal-links'] = [
                         'passed' => true,
