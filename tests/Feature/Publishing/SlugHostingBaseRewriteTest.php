@@ -42,6 +42,18 @@ class SlugHostingBaseRewriteTest extends TestCase
         $this->assertStringContainsString('url(/my-site/assets/files/bg.jpg)', $out);
     }
 
+    public function test_prefixes_css_url_with_html_escaped_quotes(): void
+    {
+        // Blade e() escapes quotes inside style attributes
+        $html = '<section style="background-image:url(&#039;/assets/files/bg.jpg&#039;)"></section>'
+            . '<div style="background:url(&quot;/assets/files/x.png&quot;)"></div>';
+
+        $out = BuildPageService::rewriteBaseForSlugHosting($html, $this->site(null));
+
+        $this->assertStringContainsString('url(&#039;/my-site/assets/files/bg.jpg&#039;)', $out);
+        $this->assertStringContainsString('url(&quot;/my-site/assets/files/x.png&quot;)', $out);
+    }
+
     public function test_leaves_api_protocol_relative_and_absolute_urls_alone(): void
     {
         $html = '<form action="/api/v1/sites/x/forms/submit"></form>'

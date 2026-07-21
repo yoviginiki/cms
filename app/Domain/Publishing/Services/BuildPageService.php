@@ -1215,14 +1215,19 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
             return 'srcset="' . implode(', ', $parts) . '"';
         }, $html);
 
-        // CSS url(/...) in inline styles/style tags
-        $html = preg_replace_callback("#url\\((['\"]?)(/[^'\")]+)\\1\\)#i", function ($m) use ($base) {
-            $url = $m[2];
-            if (str_starts_with($url, '//') || str_starts_with($url, '/api/') || str_starts_with($url, $base . '/')) {
-                return $m[0];
-            }
-            return "url({$m[1]}{$base}{$url}{$m[1]})";
-        }, $html);
+        // CSS url(/...) in inline styles/style tags. Style attributes are
+        // HTML-escaped by Blade, so the quote may appear as &#039; / &quot;.
+        $html = preg_replace_callback(
+            "#url\\((&\\#0?39;|&quot;|['\"])?(/[^'\")&]+)(&\\#0?39;|&quot;|['\"])?\\)#i",
+            function ($m) use ($base) {
+                $url = $m[2];
+                if (str_starts_with($url, '//') || str_starts_with($url, '/api/') || str_starts_with($url, $base . '/')) {
+                    return $m[0];
+                }
+                return 'url(' . ($m[1] ?? '') . $base . $url . ($m[3] ?? '') . ')';
+            },
+            $html
+        );
 
         return $html;
     }
