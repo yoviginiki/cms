@@ -107,7 +107,7 @@
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
-                        <span style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;">{{ $post->category->name }}</span>
+                        <a href="/{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:600;font-size:1rem;text-align:{{ $titleAlign }};">
                         <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
@@ -135,7 +135,7 @@
             @endif
             <div style="padding:1.25rem;">
                 @if($showCategory && $first->category)
-                    <span style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;">{{ $first->category->name }}</span>
+                    <a href="/{{ $first->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $first->category->name }}</a>
                 @endif
                 <h2 style="margin:0.25rem 0;font-weight:700;font-size:1.5rem;text-align:{{ $titleAlign }};">
                     <a href="/{{ $first->category?->slug ?? 'uncategorized' }}/{{ $first->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
@@ -161,7 +161,7 @@
                 @endif
                 <div style="{{ $showContent ? 'max-width:var(--prose-max-width,65ch);margin-left:auto;margin-right:auto;' : 'padding:1rem;' }}">
                     @if($showCategory && $post->category)
-                        <span style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;">{{ $post->category->name }}</span>
+                        <a href="/{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:var(--heading-weight,600);font-family:var(--font-heading,inherit);letter-spacing:var(--letter-spacing-heading,0);text-align:{{ $titleAlign }};">
                         <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-heading, var(--color-text, #1e293b));text-decoration:none;">{{ $post->title }}</a>

@@ -68,6 +68,20 @@ class BlockStyle
         return preg_replace('/[^a-zA-Z0-9_\-]/', '', (string) $v);
     }
 
+    /**
+     * Allow a strict inline-markup subset (links, emphasis) in short text
+     * fields like list items: whitelist tags, drop event handlers and
+     * javascript: URLs. Purely-plain strings pass through unchanged.
+     */
+    public static function safeInlineHtml(mixed $v): string
+    {
+        $s = strip_tags((string) $v, '<a><strong><em><b><i>');
+        $s = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|\S+)/i', '', $s);
+        $s = preg_replace('/href\s*=\s*("|\')?\s*javascript:[^"\'\s>]*("|\')?/i', 'href="#"', $s);
+
+        return $s;
+    }
+
     // ── Shadow allowlist ──
 
     // Unified shadow preset map — accepts both naming conventions. The

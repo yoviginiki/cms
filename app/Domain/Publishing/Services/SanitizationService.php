@@ -132,7 +132,7 @@ class SanitizationService
                 // Recurse: nested arrays (accordion/catalog items, columns,
                 // rows, …) previously bypassed sanitization entirely and their
                 // HTML reached {!! !!} raw — a stored-XSS hole.
-                $sanitized[$key] = $this->sanitizeNested($value);
+                $sanitized[$key] = $this->sanitizeNested($value, $key);
                 continue;
             }
             if (!is_string($value)) {
@@ -161,14 +161,17 @@ class SanitizationService
      * event handlers, and javascript: URLs removed but safe formatting kept);
      * every other string is stripped of all HTML.
      */
-    private function sanitizeNested(array $data): array
+    private function sanitizeNested(array $data, string|int|null $parentKey = null): array
     {
         $out = [];
         foreach ($data as $key => $value) {
             if (is_array($value)) {
-                $out[$key] = $this->sanitizeNested($value);
+                $out[$key] = $this->sanitizeNested($value, $key);
             } elseif (is_string($value)) {
-                $out[$key] = in_array($key, self::HTML_LEAF_KEYS, true)
+                // bare-string members of an `items` list (checklist/bullet
+                // entries) may carry inline links — rich-purify, don't strip
+                $isListEntry = is_int($key) && $parentKey === 'items';
+                $out[$key] = ($isListEntry || in_array($key, self::HTML_LEAF_KEYS, true))
                     ? @$this->purifier->purify($value)
                     : @$this->strictPurifier->purify($value);
             } else {

@@ -29,7 +29,7 @@
         @foreach($items as $item)
             <li style="display: flex; align-items: center; gap: 0.5rem;">
                 <input type="checkbox" disabled>
-                <span>{{ $item }}</span>
+                <span>{!! BlockStyle::safeInlineHtml($item) !!}</span>
             </li>
         @endforeach
     </ul>
