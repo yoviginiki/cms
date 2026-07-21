@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Trash2, Loader2, GripVertical, AlertTriangle, X, Lock, Unlock,
-  ChevronUp, ChevronDown, Save, Table2,
+  ChevronUp, ChevronDown, Save, Table2, Zap, RefreshCw,
 } from 'lucide-react';
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent,
@@ -19,7 +19,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Modal, TierPicker, apiErr, validationErrors, TIER_GUIDANCE } from './shared';
 import {
   FIELD_TYPE_META, FIELD_TYPE_GROUPS, PIVOT_FIELD_TYPES,
-  flagDisabledReason, keyFromLabel, fieldKeyError, isTitleCandidate, settingsForType,
+  flagDisabledReason, keyFromLabel, fieldKeyError, isTitleCandidate, settingsForType, supportsDefault,
   type FieldFlag,
 } from '@/lib/collectionFieldTypes';
 
@@ -68,6 +68,12 @@ export default function CollectionSchemaEditor() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [typePickerOpen, setTypePickerOpen] = useState(false);
+  const [convertFieldKey, setConvertFieldKey] = useState<string | null>(null);
+  // Data source (scheduled URL import)
+  const [importUrl, setImportUrl] = useState('');
+  const [importSchedule, setImportSchedule] = useState<'' | 'hourly' | 'daily'>('');
+  const [importKey, setImportKey] = useState('');
+  const [importStatus, setImportStatus] = useState<'draft' | 'published'>('draft');
 
   useEffect(() => {
     if (!collection) return;
@@ -80,6 +86,11 @@ export default function CollectionSchemaEditor() {
     setSavedKeys((collection.schema?.fields ?? []).map((f) => f.key));
     setUnlockedKeys([]);
     setHierarchyField((collection.settings as any)?.hierarchy_field ?? '');
+    const s = (collection.settings ?? {}) as any;
+    setImportUrl(s.import_url ?? '');
+    setImportSchedule(s.import_schedule ?? '');
+    setImportKey(s.import_key ?? '');
+    setImportStatus(s.import_status ?? 'draft');
     setDirty(false);
   }, [collection]);
 
@@ -98,6 +109,7 @@ export default function CollectionSchemaEditor() {
       show_in_list: true,
       ...(type === 'select' || type === 'multi_select' ? { options: [] } : {}),
       ...(type === 'relation' ? { relation: { collection_id: '', mode: 'one' as const } } : {}),
+      ...(type === 'computed' ? { computed: { fn: 'count' as const, collection_id: '', relation_key: '' } } : {}),
     };
     setFields((prev) => [...prev, base]);
     setSelectedIdx(fields.length);
@@ -145,6 +157,8 @@ export default function CollectionSchemaEditor() {
       else if (!f.label.trim()) errs[i] = 'Label is required';
       else if ((f.type === 'select' || f.type === 'multi_select') && (f.options ?? []).length === 0) errs[i] = 'Add at least one option';
       else if (f.type === 'relation' && !f.relation?.collection_id) errs[i] = 'Pick a target collection';
+      else if (f.type === 'computed' && (!f.computed?.collection_id || !f.computed?.relation_key)) errs[i] = 'Pick a source collection and relation';
+      else if (f.type === 'computed' && f.computed?.fn === 'sum' && !f.computed?.sum_field) errs[i] = 'Pick a numeric field to sum';
     });
     return errs;
   }, [fields]);
@@ -153,6 +167,15 @@ export default function CollectionSchemaEditor() {
   const titleMissing = fields.length > 0 && (!titleField || !titleCandidates.some((f) => f.key === titleField));
 
   const canSave = dirty && Object.keys(clientErrors).length === 0 && !titleMissing && name.trim().length > 0;
+
+  const buildSettings = () => ({
+    ...(collection?.settings ?? {}),
+    hierarchy_field: hierarchyField || null,
+    import_url: importUrl.trim() || null,
+    import_schedule: importSchedule || null,
+    import_key: importKey || null,
+    import_status: importStatus,
+  });
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -165,7 +188,7 @@ export default function CollectionSchemaEditor() {
           title_field: titleField,
           slug_source: slugSource || titleField,
         },
-        settings: { ...(collection?.settings ?? {}), hierarchy_field: hierarchyField || null },
+        settings: buildSettings(),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collection', siteId, collectionId] });
@@ -186,6 +209,41 @@ export default function CollectionSchemaEditor() {
       }
     },
   });
+
+  // Tier warning banner: one-click upgrade to the dynamic tier (server payload,
+  // not local edits — the banner may be acted on with unsaved schema changes).
+  const switchTierMutation = useMutation({
+    mutationFn: () =>
+      collections.update(siteId, collectionId, {
+        tier: 'dynamic',
+        name: collection!.name,
+        icon: collection!.icon || undefined,
+        schema: collection!.schema,
+        settings: collection!.settings ?? {},
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection', siteId, collectionId] });
+      queryClient.invalidateQueries({ queryKey: ['collections', siteId] });
+      setTier('dynamic');
+      toast({ type: 'success', message: 'Switched to the dynamic tier.' });
+    },
+    onError: (e) => toast({ type: 'error', message: apiErr(e) }),
+  });
+
+  // Text → select conversion
+  const convertMutation = useMutation({
+    mutationFn: (field: string) => collections.convert(siteId, collectionId, field, 'select'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection', siteId, collectionId] });
+      queryClient.invalidateQueries({ queryKey: ['collections', siteId] });
+      setConvertFieldKey(null);
+      setSelectedIdx(null);
+      toast({ type: 'success', message: 'Field converted to select.' });
+    },
+    onError: (e) => toast({ type: 'error', message: apiErr(e) }),
+  });
+
+  const uniqueFieldKeys = fields.filter((f) => f.unique).map((f) => f.key);
 
   // Map "schema.fields.3.key" style server errors onto field indexes
   const serverErrorForField = (idx: number): string | null => {
@@ -229,6 +287,24 @@ export default function CollectionSchemaEditor() {
           Save schema
         </button>
       </div>
+
+      {/* Tier warning — the collection outgrew the static tier */}
+      {collection.tier_warning && collection.tier !== 'dynamic' && (
+        <div className="border border-warning/40 bg-warning/10 rounded-box p-4 mb-5">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+            <p className="flex-1 text-[13px] text-base-content/80">{collection.tier_warning}</p>
+            <button
+              onClick={() => switchTierMutation.mutate()}
+              disabled={switchTierMutation.isPending}
+              className="btn btn-warning btn-sm gap-1.5 text-[12px]"
+            >
+              {switchTierMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+              Switch to dynamic
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Warnings from the last save — describe data-affecting schema changes */}
       {warnings.length > 0 && (
@@ -407,6 +483,67 @@ export default function CollectionSchemaEditor() {
               </div>
             </div>
           )}
+
+          {/* Data source — scheduled URL import */}
+          <div className="border border-base-300/40 rounded-box bg-base-100">
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-base-300/30">
+              <RefreshCw size={13} className="text-base-content/40" />
+              <h2 className="text-[12px] font-medium text-base-content/70 uppercase tracking-wider">Data source</h2>
+              <span className="text-[11px] text-base-content/30">(optional — re-import records from a URL on a schedule)</span>
+            </div>
+            <div className="p-4 grid grid-cols-12 gap-3">
+              <div className="col-span-12">
+                <label className="text-[11px] text-base-content/50 mb-1 block">Import URL (CSV / Excel / JSON)</label>
+                <input
+                  value={importUrl}
+                  onChange={(e) => { setImportUrl(e.target.value); touch(); }}
+                  placeholder="https://example.com/products.csv"
+                  className={`input input-bordered input-sm w-full text-[13px] font-mono ${serverErrors['settings.import_url'] ? 'input-error' : ''}`}
+                />
+                {serverErrors['settings.import_url'] && <p className="text-[11px] text-error mt-1">{serverErrors['settings.import_url']}</p>}
+              </div>
+              <div className="col-span-4">
+                <label className="text-[11px] text-base-content/50 mb-1 block">Schedule</label>
+                <select
+                  value={importSchedule}
+                  onChange={(e) => { setImportSchedule(e.target.value as '' | 'hourly' | 'daily'); touch(); }}
+                  className="select select-bordered select-sm w-full text-[13px]"
+                >
+                  <option value="">Off (manual only)</option>
+                  <option value="hourly">Hourly</option>
+                  <option value="daily">Daily</option>
+                </select>
+              </div>
+              <div className="col-span-4">
+                <label className="text-[11px] text-base-content/50 mb-1 block">Match on (upsert key)</label>
+                <select
+                  value={importKey}
+                  onChange={(e) => { setImportKey(e.target.value); touch(); }}
+                  className={`select select-bordered select-sm w-full text-[13px] ${serverErrors['settings.import_key'] ? 'select-error' : ''}`}
+                >
+                  <option value="">— always create new —</option>
+                  {uniqueFieldKeys.map((k) => <option key={k} value={k}>{fields.find((f) => f.key === k)?.label || k}</option>)}
+                </select>
+                {serverErrors['settings.import_key'] && <p className="text-[11px] text-error mt-1">{serverErrors['settings.import_key']}</p>}
+              </div>
+              <div className="col-span-4">
+                <label className="text-[11px] text-base-content/50 mb-1 block">Imported records are</label>
+                <select
+                  value={importStatus}
+                  onChange={(e) => { setImportStatus(e.target.value as 'draft' | 'published'); touch(); }}
+                  className="select select-bordered select-sm w-full text-[13px]"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                </select>
+              </div>
+              {uniqueFieldKeys.length === 0 && (
+                <p className="col-span-12 text-[11px] text-base-content/35 -mt-1">
+                  Add a <em>unique</em> field to enable upserts — without one every scheduled run creates new records.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ── Right: settings panel for the selected field ── */}
@@ -428,6 +565,11 @@ export default function CollectionSchemaEditor() {
               clientError={clientErrors[selectedIdx] ?? null}
               onChange={(patch) => updateField(selectedIdx, patch)}
               onClose={() => setSelectedIdx(null)}
+              onRequestConvert={
+                selected.type === 'text' && savedKeys.includes(selected.key)
+                  ? () => setConvertFieldKey(selected.key)
+                  : undefined
+              }
             />
           ) : (
             <div className="border border-dashed border-base-300/40 rounded-box py-16 text-center text-[13px] text-base-content/30 sticky top-4">
@@ -462,18 +604,102 @@ export default function CollectionSchemaEditor() {
           ))}
         </div>
       </Modal>
+
+      {/* Convert text → select */}
+      <ConvertToSelectModal
+        siteId={siteId}
+        collectionId={collectionId}
+        fieldKey={convertFieldKey}
+        fieldLabel={fields.find((f) => f.key === convertFieldKey)?.label ?? convertFieldKey ?? ''}
+        pending={convertMutation.isPending}
+        onApply={(key) => convertMutation.mutate(key)}
+        onClose={() => setConvertFieldKey(null)}
+      />
     </div>
+  );
+}
+
+// ── Convert-to-select modal: preview distinct values, then apply ──
+function ConvertToSelectModal({ siteId, collectionId, fieldKey, fieldLabel, pending, onApply, onClose }: {
+  siteId: string;
+  collectionId: string;
+  fieldKey: string | null;
+  fieldLabel: string;
+  pending: boolean;
+  onApply: (fieldKey: string) => void;
+  onClose: () => void;
+}) {
+  const { data: preview, isLoading, error } = useQuery({
+    queryKey: ['convert-preview', siteId, collectionId, fieldKey],
+    queryFn: () => collections.convertPreview(siteId, collectionId, fieldKey!).then((r) => r.data.data),
+    enabled: !!fieldKey,
+  });
+
+  return (
+    <Modal open={!!fieldKey} onClose={onClose} title={`Convert “${fieldLabel}” to a select`}>
+      {isLoading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-base-content/30" /></div>}
+      {!!error && <div className="border border-error/30 bg-error/10 rounded-box p-3 text-[13px] text-error">{apiErr(error)}</div>}
+      {preview && (
+        <div className="space-y-3">
+          <p className="text-[13px] text-base-content/60">
+            The distinct values below become the select options; every record keeps its current value.
+          </p>
+          <div className="border border-base-300/30 rounded-box max-h-56 overflow-y-auto divide-y divide-base-300/15">
+            {preview.distinct.map(({ value, count }) => (
+              <div key={value} className="flex items-center justify-between px-3 py-1.5 text-[13px]">
+                <span className="truncate text-base-content/80">{value || <em className="text-base-content/35">empty</em>}</span>
+                <span className="text-[11px] text-base-content/40 tabular-nums shrink-0 ml-3">{count} record{count === 1 ? '' : 's'}</span>
+              </div>
+            ))}
+            {preview.distinct.length === 0 && (
+              <p className="px-3 py-4 text-[12px] text-base-content/35">No values yet — the select starts with no options.</p>
+            )}
+          </div>
+          {!preview.convertible && (
+            <div className="border border-warning/40 bg-warning/10 rounded-box p-3 text-[12px] text-base-content/70">
+              This field can’t be converted — it has too many distinct values to make a sensible fixed list. Selects work best with a small, repeating set of values.
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={onClose} className="btn btn-ghost btn-sm text-[12px]">Cancel</button>
+            <button
+              onClick={() => fieldKey && onApply(fieldKey)}
+              disabled={!preview.convertible || pending}
+              className="btn btn-primary btn-sm gap-1.5 text-[12px]"
+            >
+              {pending && <Loader2 size={13} className="animate-spin" />}
+              Convert field
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 
 /** Drop empty optional keys before sending to the API. */
 function cleanField(f: CollectionField): CollectionField {
   const out: CollectionField = { key: f.key, label: f.label.trim(), type: f.type };
-  for (const flag of ['required', 'unique', 'searchable', 'facetable', 'show_in_list'] as const) {
+  const allowedFlags = f.type === 'computed'
+    ? (['show_in_list'] as const)
+    : (['required', 'unique', 'searchable', 'facetable', 'show_in_list'] as const);
+  for (const flag of allowedFlags) {
     if (f[flag]) out[flag] = true;
   }
   if (f.description?.trim()) out.description = f.description.trim();
   if (f.type === 'select' || f.type === 'multi_select') out.options = (f.options ?? []).filter((o) => o.trim());
+  if (f.type === 'computed' && f.computed) {
+    out.computed = {
+      fn: f.computed.fn,
+      collection_id: f.computed.collection_id,
+      relation_key: f.computed.relation_key,
+      ...(f.computed.fn === 'sum' && f.computed.sum_field ? { sum_field: f.computed.sum_field } : {}),
+    };
+  }
+  if (supportsDefault(f.type) && f.default !== undefined && f.default !== null && f.default !== ''
+    && !(Array.isArray(f.default) && f.default.length === 0)) {
+    out.default = f.default;
+  }
   if (f.type === 'relation' && f.relation) {
     out.relation = {
       collection_id: f.relation.collection_id,
@@ -547,7 +773,7 @@ function SortableFieldRow({ id, field, selected, error, isTitle, onSelect, onRem
 }
 
 // ── Settings panel for one field ──
-function FieldSettingsPanel({ field, idx, locked, onUnlock, allFields, collectionsForRelation, currentCollection, serverError, clientError, onChange, onClose }: {
+function FieldSettingsPanel({ field, idx, locked, onUnlock, allFields, collectionsForRelation, currentCollection, serverError, clientError, onChange, onClose, onRequestConvert }: {
   field: CollectionField;
   idx: number;
   locked: boolean;
@@ -559,6 +785,7 @@ function FieldSettingsPanel({ field, idx, locked, onUnlock, allFields, collectio
   clientError: string | null;
   onChange: (patch: Partial<CollectionField>) => void;
   onClose: () => void;
+  onRequestConvert?: () => void;
 }) {
   const meta = FIELD_TYPE_META[field.type];
   // Auto-suggest key from label while the key hasn't diverged (new fields only)
@@ -682,6 +909,79 @@ function FieldSettingsPanel({ field, idx, locked, onUnlock, allFields, collectio
           />
         )}
 
+        {/* Computed rollup config */}
+        {field.type === 'computed' && (
+          <ComputedConfigEditor
+            field={field}
+            sourceCollections={[currentCollection, ...collectionsForRelation]}
+            currentCollection={currentCollection}
+            onChange={onChange}
+          />
+        )}
+
+        {/* Convert text → select */}
+        {onRequestConvert && (
+          <div className="border-t border-base-300/20 pt-3">
+            <label className="text-[11px] text-base-content/50 mb-1.5 block">Type conversion</label>
+            <button onClick={onRequestConvert} className="btn btn-ghost btn-xs gap-1 text-[12px] text-primary border border-base-300/40">
+              Convert to select…
+            </button>
+            <p className="text-[11px] text-base-content/30 mt-1">Turns the values already in records into a fixed option list.</p>
+          </div>
+        )}
+
+        {/* Validation (regex pattern for text/sku) */}
+        {applicable.pattern && (
+          <div className="border-t border-base-300/20 pt-3">
+            <label className="text-[11px] text-base-content/50 mb-1.5 block">Validation <span className="text-base-content/30">(optional)</span></label>
+            <div className="space-y-1.5">
+              <input
+                value={field.settings?.pattern ?? ''}
+                onChange={(e) => setSetting('pattern', e.target.value)}
+                placeholder="Regex pattern, e.g. ^[A-Z]{2}-\d{4}$"
+                className="input input-bordered input-xs w-full text-[12px] font-mono"
+              />
+              <input
+                value={field.settings?.pattern_message ?? ''}
+                onChange={(e) => setSetting('pattern_message', e.target.value)}
+                placeholder="Message shown when the value doesn’t match"
+                className="input input-bordered input-xs w-full text-[12px]"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Date bounds */}
+        {applicable.dateRange && (
+          <div className="border-t border-base-300/20 pt-3">
+            <label className="text-[11px] text-base-content/50 mb-1.5 block">Allowed range <span className="text-base-content/30">(optional)</span></label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                value={(field.settings?.min as string) ?? ''}
+                onChange={(e) => setSetting('min', e.target.value)}
+                title="Earliest allowed date"
+                className="input input-bordered input-xs w-full text-[12px]"
+              />
+              <input
+                type="date"
+                value={(field.settings?.max as string) ?? ''}
+                onChange={(e) => setSetting('max', e.target.value)}
+                title="Latest allowed date"
+                className="input input-bordered input-xs w-full text-[12px]"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Default value */}
+        {supportsDefault(field.type) && (
+          <div className="border-t border-base-300/20 pt-3">
+            <label className="text-[11px] text-base-content/50 mb-1.5 block">Default value <span className="text-base-content/30">(pre-filled on new records)</span></label>
+            <DefaultValueInput field={field} onChange={(v) => onChange({ default: v })} />
+          </div>
+        )}
+
         {/* Optional settings */}
         {(applicable.placeholder || applicable.maxLength || applicable.range || applicable.rows) && (
           <div className="border-t border-base-300/20 pt-3">
@@ -780,6 +1080,167 @@ function OptionsEditor({ options, onChange }: { options: string[]; onChange: (op
       {options.length === 0 && <p className="text-[11px] text-warning mt-1">Add at least one option.</p>}
     </div>
   );
+}
+
+// ── Computed rollup configuration (fn, source collection, relation key, sum field) ──
+function ComputedConfigEditor({ field, sourceCollections, currentCollection, onChange }: {
+  field: CollectionField;
+  sourceCollections: Collection[];
+  currentCollection: Collection;
+  onChange: (patch: Partial<CollectionField>) => void;
+}) {
+  const cfg = field.computed ?? { fn: 'count' as const, collection_id: '', relation_key: '' };
+  const setCfg = (patch: Partial<NonNullable<CollectionField['computed']>>) => {
+    onChange({ computed: { ...cfg, ...patch } });
+  };
+
+  const source = sourceCollections.find((c) => c.id === cfg.collection_id) ?? null;
+  // Relation fields on the source that point back at THIS collection
+  const relationKeys = (source?.schema?.fields ?? []).filter(
+    (f) => f.type === 'relation' && f.relation?.collection_id === currentCollection.id,
+  );
+  const sumFields = (source?.schema?.fields ?? []).filter((f) => f.type === 'number' || f.type === 'price');
+
+  return (
+    <div className="border-t border-base-300/20 pt-3 space-y-3">
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1.5 block">Rollup</label>
+        <div className="flex gap-4">
+          {(['count', 'sum'] as const).map((fn) => (
+            <label key={fn} className="flex items-center gap-1.5 text-[13px] text-base-content/80 cursor-pointer">
+              <input type="radio" className="radio radio-xs radio-primary" checked={cfg.fn === fn}
+                onChange={() => setCfg({ fn, ...(fn === 'count' ? { sum_field: undefined } : {}) })} />
+              {fn === 'count' ? 'Count related records' : 'Sum a field on them'}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Source collection</label>
+        <select
+          value={cfg.collection_id}
+          onChange={(e) => setCfg({ collection_id: e.target.value, relation_key: '', sum_field: undefined })}
+          className="select select-bordered select-sm w-full text-[13px]"
+        >
+          <option value="">— pick a collection —</option>
+          {sourceCollections.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}{c.id === currentCollection.id ? ' (this collection)' : ''}</option>
+          ))}
+        </select>
+      </div>
+      {source && (
+        <div>
+          <label className="text-[11px] text-base-content/50 mb-1 block">Via relation</label>
+          {relationKeys.length === 0 ? (
+            <p className="text-[12px] text-base-content/40">
+              “{source.name}” has no relation field pointing at {currentCollection.name} — add one there first.
+            </p>
+          ) : (
+            <select
+              value={cfg.relation_key}
+              onChange={(e) => setCfg({ relation_key: e.target.value })}
+              className="select select-bordered select-sm w-full text-[13px]"
+            >
+              <option value="">— pick a relation field —</option>
+              {relationKeys.map((f) => <option key={f.key} value={f.key}>{f.label || f.key}</option>)}
+            </select>
+          )}
+        </div>
+      )}
+      {source && cfg.fn === 'sum' && (
+        <div>
+          <label className="text-[11px] text-base-content/50 mb-1 block">Field to sum</label>
+          {sumFields.length === 0 ? (
+            <p className="text-[12px] text-base-content/40">“{source.name}” has no number or price fields to sum.</p>
+          ) : (
+            <select
+              value={cfg.sum_field ?? ''}
+              onChange={(e) => setCfg({ sum_field: e.target.value || undefined })}
+              className="select select-bordered select-sm w-full text-[13px]"
+            >
+              <option value="">— pick a numeric field —</option>
+              {sumFields.map((f) => <option key={f.key} value={f.key}>{f.label || f.key}</option>)}
+            </select>
+          )}
+        </div>
+      )}
+      <p className="text-[11px] text-base-content/30">Display-only — the value is resolved when the site is published.</p>
+    </div>
+  );
+}
+
+// ── Default value input, typed per field type ──
+function DefaultValueInput({ field, onChange }: {
+  field: CollectionField;
+  onChange: (v: unknown) => void;
+}) {
+  const v = field.default;
+  switch (field.type) {
+    case 'boolean':
+      return (
+        <label className="flex items-center gap-2.5 cursor-pointer w-fit">
+          <input type="checkbox" className="toggle toggle-xs toggle-primary" checked={!!v}
+            onChange={(e) => onChange(e.target.checked ? true : undefined)} />
+          <span className="text-[12px] text-base-content/60">{v ? 'Yes' : 'No'}</span>
+        </label>
+      );
+    case 'select':
+      return (
+        <select value={(v as string) ?? ''} onChange={(e) => onChange(e.target.value || undefined)}
+          className="select select-bordered select-xs w-full text-[12px]">
+          <option value="">— no default —</option>
+          {(field.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+    case 'multi_select': {
+      const selected = Array.isArray(v) ? (v as string[]) : [];
+      return (
+        <div className="flex flex-wrap gap-1">
+          {(field.options ?? []).map((o) => {
+            const on = selected.includes(o);
+            return (
+              <button key={o} type="button"
+                onClick={() => {
+                  const next = on ? selected.filter((x) => x !== o) : [...selected, o];
+                  onChange(next.length > 0 ? next : undefined);
+                }}
+                className={`badge badge-sm text-[11px] cursor-pointer ${on ? 'badge-primary' : 'badge-outline text-base-content/50'}`}>
+                {o}
+              </button>
+            );
+          })}
+          {(field.options ?? []).length === 0 && <span className="text-[11px] text-base-content/30">Add options first.</span>}
+        </div>
+      );
+    }
+    case 'number':
+    case 'price':
+      return (
+        <input type="number" step={field.type === 'price' ? 0.01 : undefined}
+          value={v === undefined || v === null || v === '' ? '' : String(v)}
+          onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+          className="input input-bordered input-xs w-full text-[12px] tabular-nums" />
+      );
+    case 'date':
+      return (
+        <input type="date" value={(v as string) ?? ''}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          className="input input-bordered input-xs w-full text-[12px]" />
+      );
+    case 'rich_text':
+      return (
+        <textarea value={(v as string) ?? ''} rows={3}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          placeholder="Default HTML / text"
+          className="textarea textarea-bordered w-full text-[12px] leading-relaxed" />
+      );
+    default: // text, email, url, phone, sku
+      return (
+        <input value={(v as string) ?? ''}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          className={`input input-bordered input-xs w-full text-[12px] ${field.type === 'sku' ? 'font-mono uppercase' : ''}`} />
+      );
+  }
 }
 
 // ── Relation configuration (target, mode, pivot fields) ──

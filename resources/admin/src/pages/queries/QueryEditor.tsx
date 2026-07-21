@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, Plus, Trash2, Code2, Eye, Globe } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, Code2, Eye, Globe, Rss } from 'lucide-react';
 import {
   collections, savedQueries,
   type Collection, type SavedQuery, type SavedQueryCondition, type SavedQueryDefinition,
@@ -49,6 +49,7 @@ export default function QueryEditor() {
   const [metrics, setMetrics] = useState<{ fn: string; field?: string }[]>([{ fn: 'count' }]);
   const [sql, setSql] = useState('');
   const [isPublic, setIsPublic] = useState(false);
+  const [feedEnabled, setFeedEnabled] = useState(false);
   const [params, setParams] = useState<SavedQueryParam[]>([]);
   const [serverError, setServerError] = useState('');
   const [loadedId, setLoadedId] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export default function QueryEditor() {
     setMode(existing.mode);
     setSql(existing.sql ?? '');
     setIsPublic(existing.is_public);
+    setFeedEnabled(!!(existing.settings as any)?.feed_enabled);
     setParams(existing.public_params ?? []);
     const def = existing.definition as SavedQueryDefinition;
     if (def?.collection_id) {
@@ -127,7 +129,10 @@ export default function QueryEditor() {
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const body: Record<string, unknown> = { name, mode, is_public: isPublic, public_params: params };
+      const body: Record<string, unknown> = {
+        name, mode, is_public: isPublic, public_params: params,
+        settings: { ...(existing?.settings ?? {}), feed_enabled: feedEnabled },
+      };
       if (mode === 'simple') body.definition = definition;
       else body.sql = sql;
       return isNew ? savedQueries.create(siteId, body) : savedQueries.update(siteId, queryId!, body);
@@ -168,6 +173,13 @@ export default function QueryEditor() {
             <input type="checkbox" className="toggle toggle-xs" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
             <Globe size={12} /> Public API
           </label>
+          <label
+            className="flex items-center gap-1.5 text-[12px] text-base-content/60 cursor-pointer"
+            title={`Writes a static ${existing?.slug ? `/queries/${existing.slug}.json` : '/queries/{slug}.json'} file on every site publish`}
+          >
+            <input type="checkbox" className="toggle toggle-xs" checked={feedEnabled} onChange={(e) => setFeedEnabled(e.target.checked)} />
+            <Rss size={12} /> JSON feed
+          </label>
           <button onClick={() => saveMutation.mutate()} disabled={!canSave || saveMutation.isPending} className="btn btn-primary btn-sm text-[12px]">
             {saveMutation.isPending && <Loader2 size={13} className="animate-spin" />} Save
           </button>
@@ -175,6 +187,13 @@ export default function QueryEditor() {
       </div>
 
       {serverError && <div className="alert alert-error text-[12px] py-2 mb-4">{serverError}</div>}
+
+      {feedEnabled && (
+        <p className="text-[11px] text-base-content/40 mb-4 flex items-center gap-1.5">
+          <Rss size={11} className="text-base-content/30" />
+          Published as a static JSON feed at <code className="text-[11px]">{existing?.slug ? `/queries/${existing.slug}.json` : '/queries/{slug}.json'}</code> on each site publish.
+        </p>
+      )}
 
       <div className="tabs tabs-boxed w-fit mb-4 bg-base-200/60">
         <button className={`tab tab-sm text-[12px] ${mode === 'simple' ? 'tab-active' : ''}`} onClick={() => setMode('simple')}>

@@ -18,6 +18,16 @@ class CollectionSchemaValidator
     private const MAX_OPTIONS = 100;
     private const MAX_PIVOT_FIELDS = 10;
 
+    /** Types a default value may be defined on (no assets, no relations). */
+    private const DEFAULTABLE_TYPES = [
+        'text', 'rich_text', 'number', 'price', 'boolean', 'select',
+        'multi_select', 'date', 'email', 'url', 'phone', 'sku',
+    ];
+
+    public function __construct(private RecordDataProcessor $processor)
+    {
+    }
+
     public function validate(array $schema, Site $site, ?ContentCollection $existing = null): array
     {
         $fields = $schema['fields'] ?? [];
@@ -125,9 +135,77 @@ class CollectionSchemaValidator
             $out['relation'] = $this->validateRelation($field['relation'] ?? null, $path, $site, $existing);
         }
 
+        if ($type === 'computed') {
+            if ($out['required'] || $out['unique'] || $out['searchable'] || $out['facetable']) {
+                $this->fail("{$path}.type", 'Computed fields are display-only (no required/unique/search/facet).');
+            }
+            $out['computed'] = $this->validateComputed($field['computed'] ?? null, $path, $site);
+        }
+
         $settings = $field['settings'] ?? [];
         if (is_array($settings) && $settings !== []) {
             $out['settings'] = $this->validateSettings($settings, $path);
+        }
+
+        // Default value: stored in canonical (processed) form so applying it
+        // at record creation can never fail validation later.
+        $default = $field['default'] ?? null;
+        if ($default !== null && $default !== '' && $default !== []) {
+            if (!in_array($type, self::DEFAULTABLE_TYPES, true)) {
+                $this->fail("{$path}.default", "Defaults aren't available on {$type} fields.");
+            }
+            try {
+                $processed = $this->processor->processFields([$out], [$key => $default]);
+            } catch (ValidationException) {
+                $this->fail("{$path}.default", 'The default value is not valid for this field.');
+            }
+            if (array_key_exists($key, $processed)) {
+                $out['default'] = $processed[$key];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Computed rollups: {fn: count|sum, collection_id, relation_key,
+     * sum_field?} — "count/sum of records in <collection> whose <relation_key>
+     * points at this record".
+     */
+    private function validateComputed(mixed $config, string $path, Site $site): array
+    {
+        if (!is_array($config)) {
+            $this->fail("{$path}.computed", 'Computed fields need a rollup configuration.');
+        }
+
+        $fn = $config['fn'] ?? null;
+        if (!in_array($fn, ['count', 'sum'], true)) {
+            $this->fail("{$path}.computed.fn", "Rollup is 'count' or 'sum'.");
+        }
+
+        $targetId = $config['collection_id'] ?? null;
+        $target = is_string($targetId)
+            ? ContentCollection::where('site_id', $site->id)->where('id', $targetId)->first()
+            : null;
+        if (!$target) {
+            $this->fail("{$path}.computed.collection_id", 'Source collection not found on this site.');
+        }
+
+        $relationKey = $config['relation_key'] ?? null;
+        $relationField = is_string($relationKey) ? $target->field($relationKey) : null;
+        if (!$relationField || $relationField['type'] !== 'relation') {
+            $this->fail("{$path}.computed.relation_key", "Pick the relation field on '{$target->name}' that points here.");
+        }
+
+        $out = ['fn' => $fn, 'collection_id' => $targetId, 'relation_key' => $relationKey];
+
+        if ($fn === 'sum') {
+            $sumField = $config['sum_field'] ?? null;
+            $sumDef = is_string($sumField) ? $target->field($sumField) : null;
+            if (!$sumDef || !in_array($sumDef['type'], ['number', 'price'], true)) {
+                $this->fail("{$path}.computed.sum_field", 'Sum needs a number or price field on the source collection.');
+            }
+            $out['sum_field'] = $sumField;
         }
 
         return $out;
@@ -231,7 +309,7 @@ class CollectionSchemaValidator
     /** Allow-listed, scalar-valued per-type settings. Unknown keys dropped. */
     private function validateSettings(array $settings, string $path): array
     {
-        $allowed = ['max_length', 'min', 'max', 'step', 'placeholder', 'help', 'accept', 'rows'];
+        $allowed = ['max_length', 'min', 'max', 'step', 'placeholder', 'help', 'accept', 'rows', 'pattern', 'pattern_message'];
         $clean = [];
         foreach ($settings as $k => $v) {
             if (!in_array($k, $allowed, true) || (!is_scalar($v) && $v !== null)) {
@@ -241,6 +319,17 @@ class CollectionSchemaValidator
                 $v = mb_substr($v, 0, 200);
             }
             $clean[$k] = $v;
+        }
+
+        // A pattern must compile now — a broken regex must never reach record
+        // validation where it would reject every value with a cryptic error.
+        if (isset($clean['pattern']) && is_string($clean['pattern']) && $clean['pattern'] !== '') {
+            $delimited = '/' . str_replace('/', '\/', $clean['pattern']) . '/u';
+            if (@preg_match($delimited, '') === false) {
+                $this->fail("{$path}.settings.pattern", 'The pattern is not a valid regular expression.');
+            }
+        } else {
+            unset($clean['pattern'], $clean['pattern_message']);
         }
 
         return $clean;

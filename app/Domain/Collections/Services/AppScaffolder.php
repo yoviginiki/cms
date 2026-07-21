@@ -161,6 +161,26 @@ class AppScaffolder
     }
 
     /**
+     * Cross-collection search page (v3): search-box + Type facet + results
+     * grid all pointed at the site-level /search/index.json manifest via the
+     * '*' collectionId sentinel the blades understand.
+     */
+    public function buildCrossSearchPage(Site $site, string $title): Page
+    {
+        $page = $this->pages->createPage(['title' => $title, 'status' => 'draft'], $site);
+        $this->blocks->syncBlocks($page, [
+            $this->section([
+                $this->module('search-box', ['collectionId' => '*', 'placeholder' => 'Search the whole site…']),
+                $this->module('facet-filter', ['collectionId' => '*', 'style' => 'checkbox']),
+                $this->module('results-grid', ['collectionId' => '*', 'eager' => true, 'columns' => 3, 'showImage' => true]),
+            ]),
+        ]);
+        $this->flagStale($page);
+
+        return $page;
+    }
+
+    /**
      * Customize a collection's auto-archive (published at /{prefix}/) with a
      * record-archive TEMPLATE — a heading + a record-loop that inherits the
      * paginated archive records + pagination. This must NOT be a standalone

@@ -43,6 +43,50 @@ class CollectionPublishService
      *
      * @return array<int, string>
      */
+    /**
+     * Static JSON feeds for saved queries flagged settings.feed_enabled:
+     * /queries/{slug}.json — rows in the public-query shape ({u,t,d} for
+     * record queries, raw rows for SQL), capped at 500. Failures warn and
+     * never break the publish.
+     *
+     * @return array<int, string> warnings
+     */
+    public function buildQueryFeeds(Site $site, string $stagingPath): array
+    {
+        $warnings = [];
+        $queries = \App\Models\SavedQuery::where('site_id', $site->id)->get()
+            ->filter(fn ($q) => (bool) ($q->settings['feed_enabled'] ?? false));
+
+        foreach ($queries as $query) {
+            try {
+                $result = app(\App\Domain\Collections\Queries\QueryRunner::class)->run($query, []);
+
+                if (($result['type'] ?? '') === 'records') {
+                    $collection = $query->sourceCollection();
+                    $rows = collect($result['rows'])->take(500)->map(fn ($r) => array_filter([
+                        'u' => $collection ? RecordDisplay::recordUrl($collection, $r) : null,
+                        't' => $r->title,
+                        'd' => $r->data,
+                    ]))->values()->all();
+                } else {
+                    $rows = collect($result['rows'] ?? [])->take(500)->values()->all();
+                }
+
+                $this->write($stagingPath, "queries/{$query->slug}.json", json_encode([
+                    'query' => $query->slug,
+                    'name' => $query->name,
+                    'generated' => now()->toISOString(),
+                    'count' => count($rows),
+                    'rows' => $rows,
+                ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            } catch (\Throwable $e) {
+                $warnings[] = "Query feed '{$query->slug}' failed: {$e->getMessage()}";
+            }
+        }
+
+        return $warnings;
+    }
+
     public function buildAll(Site $site, string $stagingPath): array
     {
         $warnings = [];
@@ -52,7 +96,44 @@ class CollectionPublishService
             $warnings = array_merge($warnings, $this->buildCollection($site, $collection, $stagingPath));
         }
 
+        $this->buildSiteSearchManifest($site, $collections, $stagingPath);
+
         return $warnings;
+    }
+
+    /**
+     * Cross-collection search (v3): /search/index.json lists every static
+     * collection whose per-collection index was built this publish. The
+     * search island detects `sources` and merges all indexes client-side.
+     */
+    private function buildSiteSearchManifest(Site $site, $collections, string $stagingPath): void
+    {
+        $sources = [];
+        foreach ($collections as $collection) {
+            if ($collection->tier !== 'static') {
+                continue;
+            }
+            $prefix = $this->prefixFor($collection);
+            if (!file_exists("{$stagingPath}/{$prefix}/index.json")) {
+                continue; // no index built (collision-skipped or no records)
+            }
+            $sources[] = [
+                'collection' => $collection->slug,
+                'name' => $collection->name,
+                'manifest' => "/{$prefix}/index.json",
+            ];
+        }
+
+        if ($sources === []) {
+            return;
+        }
+
+        $this->write($stagingPath, 'search/index.json', json_encode([
+            'site' => $site->slug,
+            'generated' => now()->toISOString(),
+            'fields' => [['key' => '_type', 'label' => 'Type', 'type' => 'select', 'facet' => true]],
+            'sources' => $sources,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
     /** @return array<int, string> warnings */
@@ -140,11 +221,19 @@ class CollectionPublishService
             ])->render();
         }
 
-        $description = $this->metaDescription($collection, $record);
-        $head = '<title>' . e($record->title) . ' | ' . e($site->name) . '</title>'
+        // Per-record SEO overrides win over derived values.
+        $seo = $record->seo_meta ?? [];
+        $seoTitle = $seo['title'] ?? $record->title;
+        $description = $seo['description'] ?? $this->metaDescription($collection, $record);
+        $head = '<title>' . e($seoTitle) . ' | ' . e($site->name) . '</title>'
             . '<meta name="description" content="' . e($description) . '">'
-            . '<meta property="og:title" content="' . e($record->title) . '">';
-        if ($thumb = RecordDisplay::thumbUrl($site, $collection, $record)) {
+            . '<meta property="og:title" content="' . e($seoTitle) . '">';
+        $thumb = null;
+        if (!empty($seo['og_image'])) {
+            $thumb = RecordDisplay::assetUrl($site, $seo['og_image']);
+        }
+        $thumb = $thumb ?? RecordDisplay::thumbUrl($site, $collection, $record);
+        if ($thumb) {
             $head .= '<meta property="og:image" content="' . e($thumb) . '">';
         }
 

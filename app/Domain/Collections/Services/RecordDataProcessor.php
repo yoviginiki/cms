@@ -35,7 +35,7 @@ class RecordDataProcessor
         $errors = [];
 
         foreach ($fields as $field) {
-            if ($field['type'] === 'relation') {
+            if ($field['type'] === 'relation' || in_array($field['type'], FieldTypes::VIRTUAL_TYPES, true)) {
                 continue;
             }
 
@@ -77,22 +77,40 @@ class RecordDataProcessor
         $label = $field['label'];
 
         return match ($field['type']) {
-            'text' => $this->text($raw, $label, (int) ($settings['max_length'] ?? 500)),
+            'text' => $this->pattern($this->text($raw, $label, (int) ($settings['max_length'] ?? 500)), $label, $settings),
             'rich_text' => $this->richText($raw, $label),
             'number' => $this->number($raw, $label, $settings),
             'price' => $this->price($raw, $label),
             'boolean' => $this->toBool($raw),
             'select' => $this->select($raw, $label, $field['options'] ?? []),
             'multi_select' => $this->multiSelect($raw, $label, $field['options'] ?? []),
-            'date' => $this->date($raw, $label),
+            'date' => $this->date($raw, $label, $settings),
             'email' => $this->email($raw, $label),
             'url' => $this->url($raw, $label),
             'phone' => $this->phone($raw, $label),
             'image', 'file' => $this->assetId($raw, $label),
             'gallery' => $this->gallery($raw, $label),
-            'sku' => $this->sku($raw, $label),
+            'sku' => $this->pattern($this->sku($raw, $label), $label, $settings),
             default => throw new FieldValueException("Unsupported field type."),
         };
+    }
+
+    /** settings.pattern (validated to compile at schema save) gate for text/sku. */
+    private function pattern(string $value, string $label, array $settings): string
+    {
+        $pattern = $settings['pattern'] ?? null;
+        if (!is_string($pattern) || $pattern === '') {
+            return $value;
+        }
+        $delimited = '/' . str_replace('/', '\/', $pattern) . '/u';
+        if (@preg_match($delimited, $value) !== 1) {
+            $message = $settings['pattern_message'] ?? null;
+            throw new FieldValueException(
+                is_string($message) && $message !== '' ? $message : "{$label} doesn't match the required format."
+            );
+        }
+
+        return $value;
     }
 
     private function text(mixed $raw, string $label, int $maxLength): string
@@ -187,16 +205,35 @@ class RecordDataProcessor
         return $values;
     }
 
-    private function date(mixed $raw, string $label): string
+    private function date(mixed $raw, string $label, array $settings = []): string
     {
         if (!is_string($raw)) {
             throw new FieldValueException("{$label} must be a date.");
         }
         try {
-            return Carbon::parse(trim($raw))->format('Y-m-d');
+            $value = Carbon::parse(trim($raw))->format('Y-m-d');
         } catch (\Throwable) {
             throw new FieldValueException("{$label} must be a valid date.");
         }
+
+        foreach (['min' => '<', 'max' => '>'] as $bound => $op) {
+            $limit = $settings[$bound] ?? null;
+            if (!is_string($limit) || $limit === '') {
+                continue;
+            }
+            try {
+                $limitDate = Carbon::parse($limit)->format('Y-m-d');
+            } catch (\Throwable) {
+                continue; // unparseable bound never blocks entry
+            }
+            if (($op === '<' && $value < $limitDate) || ($op === '>' && $value > $limitDate)) {
+                throw new FieldValueException(
+                    $op === '<' ? "{$label} must be {$limitDate} or later." : "{$label} must be {$limitDate} or earlier."
+                );
+            }
+        }
+
+        return $value;
     }
 
     private function email(mixed $raw, string $label): string

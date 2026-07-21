@@ -127,8 +127,9 @@ class RecordController extends Controller
     }
 
     /**
-     * Bulk publish/draft/delete. Deletes skip in-use records unless force=1;
-     * the response reports what was skipped.
+     * Bulk publish/draft/delete/set_field. Deletes skip in-use records unless
+     * force=1; the response reports what was skipped. set_field writes one
+     * field value onto every selected record (validation errors skip the row).
      */
     public function bulk(Request $request, Site $site, ContentCollection $collection): JsonResponse
     {
@@ -136,11 +137,21 @@ class RecordController extends Controller
         $this->assertOnSite($site, $collection);
 
         $validated = $request->validate([
-            'action' => ['required', 'in:publish,draft,delete'],
+            'action' => ['required', 'in:publish,draft,delete,set_field'],
             'ids' => ['required', 'array', 'min:1', 'max:200'],
             'ids.*' => ['uuid'],
             'force' => ['sometimes', 'boolean'],
+            'field' => ['required_if:action,set_field', 'string', 'max:40'],
+            'value' => ['sometimes', 'nullable'],
         ]);
+
+        $field = null;
+        if ($validated['action'] === 'set_field') {
+            $field = $collection->field($validated['field'] ?? '');
+            if (!$field || in_array($field['type'], ['relation', 'computed'], true)) {
+                return response()->json(['message' => 'Pick a stored (non-relation, non-computed) schema field to bulk-edit.'], 422);
+            }
+        }
 
         $records = Record::where('collection_id', $collection->id)
             ->whereIn('id', $validated['ids'])
@@ -157,6 +168,20 @@ class RecordController extends Controller
                     continue;
                 }
                 $this->service->delete($record, $site);
+            } elseif ($validated['action'] === 'set_field') {
+                $data = $record->data ?? [];
+                $value = $request->input('value');
+                if ($value === null || $value === '') {
+                    unset($data[$field['key']]);
+                } else {
+                    $data[$field['key']] = $value;
+                }
+                try {
+                    $this->service->save($collection, $site, $record, ['data' => $data]);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $skipped[] = ['id' => $record->id, 'title' => $record->title, 'error' => collect($e->errors())->flatten()->first()];
+                    continue;
+                }
             } else {
                 $status = $validated['action'] === 'publish' ? 'published' : 'draft';
                 $this->service->save($collection, $site, $record, ['status' => $status]);
@@ -165,6 +190,75 @@ class RecordController extends Controller
         }
 
         return response()->json(['data' => ['done' => $done, 'skipped' => $skipped]]);
+    }
+
+    /** Copy a record (data + relations) as a new draft with a "(copy)" title. */
+    public function duplicate(Site $site, ContentCollection $collection, Record $record): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $this->assertOnSite($site, $collection, $record);
+
+        $relations = [];
+        foreach ($record->relationsOut()->orderBy('position')->get(['relation_key', 'to_record_id', 'pivot']) as $edge) {
+            $relations[$edge->relation_key][] = array_filter([
+                'id' => $edge->to_record_id,
+                'pivot' => $edge->pivot ?: null,
+            ]);
+        }
+
+        $data = $record->data ?? [];
+        $titleField = $collection->titleField();
+        if ($titleField && is_string($data[$titleField] ?? null)) {
+            $data[$titleField] = mb_substr($data[$titleField] . ' (copy)', 0, 500);
+        }
+
+        $copy = $this->service->save($collection, $site, null, [
+            'data' => $data,
+            'relations' => $relations,
+            'status' => 'draft',
+        ]);
+
+        return response()->json(['data' => $this->serialize($copy, withRelations: true)], 201);
+    }
+
+    /** Revision history, newest first. */
+    public function revisions(Site $site, ContentCollection $collection, Record $record): JsonResponse
+    {
+        $this->authorize('view', $site);
+        $this->assertOnSite($site, $collection, $record);
+
+        $items = \App\Models\RecordRevision::where('record_id', $record->id)
+            ->with('user:id,name')
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->limit(\App\Domain\Collections\Services\RecordRevisionService::KEEP)
+            ->get()
+            ->map(fn ($rev) => [
+                'id' => $rev->id,
+                'event' => $rev->event,
+                'title' => $rev->title,
+                'status' => $rev->status,
+                'data' => $rev->data ?: (object) [],
+                'relations' => $rev->relations ?: (object) [],
+                'user' => $rev->user?->name,
+                'created_at' => $rev->created_at?->toISOString(),
+            ]);
+
+        return response()->json(['data' => $items]);
+    }
+
+    /** Restore a record to a stored revision (writes a 'restored' snapshot). */
+    public function restoreRevision(Site $site, ContentCollection $collection, Record $record, string $revisionId): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $this->assertOnSite($site, $collection, $record);
+
+        $revision = \App\Models\RecordRevision::where('record_id', $record->id)->findOrFail($revisionId);
+
+        $input = app(\App\Domain\Collections\Services\RecordRevisionService::class)->restoreInput($revision);
+        $input['__revision_event'] = 'restored';
+        $record = $this->service->save($collection, $site, $record, $input);
+
+        return response()->json(['data' => $this->serialize($record, withRelations: true)]);
     }
 
     private function sort(Request $request, ContentCollection $collection): array
@@ -181,7 +275,7 @@ class RecordController extends Controller
         // never the request).
         if (str_starts_with($sort, 'data.')) {
             $field = $collection->field(substr($sort, 5));
-            if ($field && !in_array($field['type'], ['relation', 'gallery', 'rich_text'], true)) {
+            if ($field && !in_array($field['type'], ['relation', 'gallery', 'rich_text', 'computed'], true)) {
                 return ["data.{$field['key']}", $direction];
             }
         }
@@ -200,6 +294,9 @@ class RecordController extends Controller
             'position' => $record->position,
             'data' => $record->data ?: (object) [],
             'published_at' => $record->published_at?->toISOString(),
+            'publish_at' => $record->publish_at?->toISOString(),
+            'unpublish_at' => $record->unpublish_at?->toISOString(),
+            'seo_meta' => $record->seo_meta ?: (object) [],
             'created_at' => $record->created_at?->toISOString(),
             'updated_at' => $record->updated_at?->toISOString(),
         ];

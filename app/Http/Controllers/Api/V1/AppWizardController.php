@@ -37,7 +37,7 @@ class AppWizardController extends Controller
     {
         $this->authorize('update', $site);
         $validated = $request->validate([
-            'collection_id' => ['required', 'uuid'],
+            'collection_id' => ['required', 'string', 'max:40'],
             'searchable' => ['sometimes', 'array'],
             'searchable.*' => ['string', 'max:40'],
             'facets' => ['sometimes', 'array', 'max:8'],
@@ -46,7 +46,22 @@ class AppWizardController extends Controller
             'page_title' => ['sometimes', 'nullable', 'string', 'max:120'],
         ]);
 
-        $collection = ContentCollection::where('site_id', $site->id)->find($validated['collection_id']);
+        // '*' = cross-collection search page over the site-level manifest (v3).
+        if ($validated['collection_id'] === '*') {
+            $page = null;
+            if ($request->boolean('build_page', true)) {
+                $page = $this->scaffolder->buildCrossSearchPage($site, $validated['page_title'] ?? 'Search');
+            }
+
+            return response()->json(['data' => [
+                'collection_id' => '*',
+                'page' => $page ? ['id' => $page->id, 'slug' => $page->slug] : null,
+            ]], 201);
+        }
+
+        $collection = \Illuminate\Support\Str::isUuid($validated['collection_id'])
+            ? ContentCollection::where('site_id', $site->id)->find($validated['collection_id'])
+            : null;
         if (!$collection) {
             throw ValidationException::withMessages(['collection_id' => 'Collection not found on this site.']);
         }

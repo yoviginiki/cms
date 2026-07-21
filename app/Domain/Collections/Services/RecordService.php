@@ -24,6 +24,7 @@ class RecordService
         private RecordDataProcessor $processor,
         private ReferenceRecorder $references,
         private StalenessResolver $staleness,
+        private RecordRevisionService $revisions,
     ) {
     }
 
@@ -48,6 +49,17 @@ class RecordService
             $hasData = true;
             $input['data'] = [];
         }
+
+        // Schema defaults apply on creation only, and only to keys the caller
+        // left out entirely — an explicit empty value stays empty.
+        if (!$record && $hasData) {
+            foreach ($fields as $field) {
+                if (array_key_exists('default', $field) && !array_key_exists($field['key'], $input['data'])) {
+                    $input['data'][$field['key']] = $field['default'];
+                }
+            }
+        }
+
         $data = $hasData
             ? $this->processor->processFields($fields, $input['data'])
             : ($record->data ?? []);
@@ -70,6 +82,8 @@ class RecordService
         if (!in_array($status, Record::STATUSES, true)) {
             throw ValidationException::withMessages(['status' => 'Status is draft or published.']);
         }
+
+        $scheduleAttrs = $this->scheduleAndSeoAttrs($input);
 
         // Slugs stay stable on update unless explicitly changed.
         $requestedSlug = (string) ($input['slug'] ?? '');
@@ -97,8 +111,8 @@ class RecordService
             $urlShifted = $slug !== $record->slug || $parentChanged;
         }
 
-        $saved = DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input, $hierarchyKey, $urlShifted) {
-            $attrs = [
+        $saved = DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input, $hierarchyKey, $urlShifted, $scheduleAttrs) {
+            $attrs = $scheduleAttrs + [
                 'slug' => $slug,
                 'title' => mb_substr($title, 0, 255),
                 'status' => $status,
@@ -147,11 +161,77 @@ class RecordService
         // cached response embeds it, so one O(1) increment invalidates all.
         \Illuminate\Support\Facades\Cache::increment("colapi_ver:{$collection->id}");
 
+        // History: snapshot the state that was just written. Outside the
+        // transaction — a failed snapshot must never roll back the save.
+        try {
+            $this->revisions->snapshot(
+                $saved,
+                $input['__revision_event'] ?? ($record ? 'updated' : 'created'),
+                \Illuminate\Support\Facades\Auth::id(),
+            );
+        } catch (\Throwable $e) {
+            logger()->warning("record revision snapshot failed for {$saved->id}: {$e->getMessage()}");
+        }
+
+        app(\App\Domain\Webhooks\WebhookDispatcher::class)->dispatch(
+            $site,
+            $record ? 'record.updated' : 'record.created',
+            \App\Domain\Webhooks\WebhookDispatcher::recordPayload($saved, $collection),
+        );
+
         return $saved;
+    }
+
+    /**
+     * publish_at / unpublish_at / seo_meta from the request — only keys the
+     * caller sent are written (partial updates leave stored values alone).
+     */
+    private function scheduleAndSeoAttrs(array $input): array
+    {
+        $attrs = [];
+
+        foreach (['publish_at', 'unpublish_at'] as $key) {
+            if (!array_key_exists($key, $input)) {
+                continue;
+            }
+            $raw = $input[$key];
+            if ($raw === null || $raw === '') {
+                $attrs[$key] = null;
+                continue;
+            }
+            try {
+                $attrs[$key] = \Illuminate\Support\Carbon::parse($raw);
+            } catch (\Throwable) {
+                throw ValidationException::withMessages([$key => 'Invalid date/time.']);
+            }
+        }
+        if (($attrs['publish_at'] ?? null) && ($attrs['unpublish_at'] ?? null)
+            && $attrs['unpublish_at']->lte($attrs['publish_at'])) {
+            throw ValidationException::withMessages(['unpublish_at' => 'Unpublish must be after publish.']);
+        }
+
+        if (array_key_exists('seo_meta', $input)) {
+            $raw = is_array($input['seo_meta']) ? $input['seo_meta'] : [];
+            $seo = [];
+            if (is_string($raw['title'] ?? null) && trim($raw['title']) !== '') {
+                $seo['title'] = mb_substr(trim(strip_tags($raw['title'])), 0, 200);
+            }
+            if (is_string($raw['description'] ?? null) && trim($raw['description']) !== '') {
+                $seo['description'] = mb_substr(trim(strip_tags($raw['description'])), 0, 300);
+            }
+            if (is_string($raw['og_image'] ?? null) && \Illuminate\Support\Str::isUuid($raw['og_image'])) {
+                $seo['og_image'] = $raw['og_image'];
+            }
+            $attrs['seo_meta'] = $seo;
+        }
+
+        return $attrs;
     }
 
     public function delete(Record $record, Site $site): void
     {
+        $collection = $record->collection;
+
         DB::transaction(function () use ($record, $site) {
             // Flag referrers before the edges/rows disappear.
             $this->staleness->markStale($site, 'record', $record->id, 'record_deleted');
@@ -161,6 +241,14 @@ class RecordService
         });
 
         \Illuminate\Support\Facades\Cache::increment("colapi_ver:{$record->collection_id}");
+
+        if ($collection) {
+            app(\App\Domain\Webhooks\WebhookDispatcher::class)->dispatch(
+                $site,
+                'record.deleted',
+                \App\Domain\Webhooks\WebhookDispatcher::recordPayload($record, $collection),
+            );
+        }
     }
 
     /**

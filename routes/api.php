@@ -49,6 +49,11 @@ Route::post('/sites/{site}/forms/{formKey}/submit', [\App\Http\Controllers\Api\V
     ->middleware(['public.site', 'public.cors', 'throttle:10,1'])
     ->where('formKey', '[a-z0-9\-_]{1,80}');
 
+// Search analytics beacon (v3): anonymous aggregate term counts. sendBeacon
+// posts text/plain (no preflight); nothing but the term is stored.
+Route::post('/sites/{site}/search-beacon', [\App\Http\Controllers\Api\V1\SearchBeaconController::class, 'store'])
+    ->middleware(['public.site', 'public.cors', 'throttle:60,1']);
+
 // Public comments (rate-limited)
 Route::get('/sites/{site}/comments/{postSlug}', function (\App\Models\Site $site, string $postSlug) {
     $path = storage_path("app/comments/{$site->id}/" . preg_replace('/[^a-z0-9\-]/', '', $postSlug) . '.json');
@@ -240,12 +245,27 @@ Route::middleware('auth:sanctum')->group(function () {
         // Stale content: list, staged batch republish, human-confirmed promote
         // Collections (Track G) — user-defined structured data + records + import/export
         Route::post('sites/{site}/collections/{collection}/records/bulk', [\App\Http\Controllers\Api\V1\RecordController::class, 'bulk']);
+        Route::post('sites/{site}/collections/{collection}/records/{record}/duplicate', [\App\Http\Controllers\Api\V1\RecordController::class, 'duplicate']);
+        Route::get('sites/{site}/collections/{collection}/records/{record}/revisions', [\App\Http\Controllers\Api\V1\RecordController::class, 'revisions']);
+        Route::post('sites/{site}/collections/{collection}/records/{record}/revisions/{revisionId}/restore', [\App\Http\Controllers\Api\V1\RecordController::class, 'restoreRevision']);
         Route::get('sites/{site}/collections/{collection}/export', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'export']);
         Route::post('sites/{site}/collections/{collection}/import', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'upload']);
         Route::post('sites/{site}/collections/{collection}/import/{importId}/execute', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'execute']);
         Route::get('sites/{site}/collections/{collection}/import/{importId}/status', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'status']);
         Route::apiResource('sites.collections', \App\Http\Controllers\Api\V1\CollectionController::class);
         Route::apiResource('sites.collections.records', \App\Http\Controllers\Api\V1\RecordController::class);
+
+        // Search analytics (collections v3) — top terms for the admin panel
+        Route::get('sites/{site}/search-terms', [\App\Http\Controllers\Api\V1\SearchBeaconController::class, 'top']);
+
+        // Guided schema type conversion (collections v3)
+        Route::get('sites/{site}/collections/{collection}/convert-preview', [\App\Http\Controllers\Api\V1\CollectionController::class, 'convertPreview']);
+        Route::post('sites/{site}/collections/{collection}/convert', [\App\Http\Controllers\Api\V1\CollectionController::class, 'convert']);
+
+        // Webhooks (collections v3) — outgoing signed event notifications
+        Route::get('sites/{site}/webhooks/{webhook}/deliveries', [\App\Http\Controllers\Api\V1\WebhookController::class, 'deliveries']);
+        Route::post('sites/{site}/webhooks/{webhook}/test', [\App\Http\Controllers\Api\V1\WebhookController::class, 'test']);
+        Route::apiResource('sites.webhooks', \App\Http\Controllers\Api\V1\WebhookController::class)->except(['show']);
 
         // Saved queries (Track G-Q) — authoring is admin/owner only
         Route::middleware('role:admin')->group(function () {

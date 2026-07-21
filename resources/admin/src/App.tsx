@@ -66,6 +66,7 @@ const CollectionRecords = lazy(() => import('./pages/collections/CollectionRecor
 const CollectionRecordEditor = lazy(() => import('./pages/collections/CollectionRecordEditor'));
 const CollectionImportPage = lazy(() => import('./pages/collections/CollectionImportPage'));
 const QueriesList = lazy(() => import('./pages/queries/QueriesList'));
+const WebhooksPage = lazy(() => import('./pages/WebhooksPage'));
 const QueryEditor = lazy(() => import('./pages/queries/QueryEditor'));
 const FormWizardPage = lazy(() => import('./pages/forms/FormWizardPage'));
 const WizardHub = lazy(() => import('./pages/wizards/WizardHub'));
@@ -135,6 +136,7 @@ export default function App() {
           <Route path="/sites/:siteId/collections/:collectionId/records/:recordId/edit" element={<LayoutRoute><CollectionRecordEditor /></LayoutRoute>} />
           <Route path="/sites/:siteId/collections/:collectionId/import" element={<LayoutRoute><CollectionImportPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/queries" element={<LayoutRoute><QueriesList /></LayoutRoute>} />
+          <Route path="/sites/:siteId/webhooks" element={<LayoutRoute><WebhooksPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/queries/new" element={<LayoutRoute><QueryEditor /></LayoutRoute>} />
           <Route path="/sites/:siteId/queries/:queryId/edit" element={<LayoutRoute><QueryEditor /></LayoutRoute>} />
           <Route path="/sites/:siteId/form-wizard" element={<LayoutRoute><FormWizardPage /></LayoutRoute>} />

@@ -16,7 +16,7 @@ class SearchBoxBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'collectionId' => ['sometimes', 'nullable', 'uuid'],
+            'collectionId' => ['sometimes', 'nullable', 'string', 'max:36', 'regex:/^(\*|[0-9a-fA-F-]{36})$/'], // uuid or '*' (cross-collection, v3)
             'placeholder' => ['sometimes', 'nullable', 'string', 'max:100'],
         ] + \App\Support\Blocks\BlockEffects::validationRules();
     }

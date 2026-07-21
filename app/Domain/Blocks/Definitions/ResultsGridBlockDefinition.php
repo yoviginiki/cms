@@ -16,7 +16,7 @@ class ResultsGridBlockDefinition implements BlockDefinition
     public function validationRules(): array
     {
         return [
-            'collectionId' => ['sometimes', 'nullable', 'uuid'],
+            'collectionId' => ['sometimes', 'nullable', 'string', 'max:36', 'regex:/^(\*|[0-9a-fA-F-]{36})$/'], // uuid or '*' (cross-collection, v3)
             'eager' => ['sometimes', 'boolean'],
             'columns' => ['sometimes', 'integer', 'min:1', 'max:6'],
             'showImage' => ['sometimes', 'boolean'],

@@ -23,7 +23,7 @@ class Record extends Model
 
     protected $fillable = [
         'collection_id', 'site_id', 'slug', 'title', 'status', 'position', 'data', 'published_at',
-        'needs_republish', 'needs_republish_reason',
+        'needs_republish', 'needs_republish_reason', 'publish_at', 'unpublish_at', 'seo_meta',
     ];
 
     protected function casts(): array
@@ -31,6 +31,9 @@ class Record extends Model
         return [
             'data' => 'array',
             'published_at' => 'datetime',
+            'publish_at' => 'datetime',
+            'unpublish_at' => 'datetime',
+            'seo_meta' => 'array',
         ];
     }
 

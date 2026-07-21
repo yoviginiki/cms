@@ -66,6 +66,44 @@ class ProcessScheduledContentJob
             Log::info("Scheduled post published: {$post->title}");
         }
 
+        // Collection records: publish_at / unpublish_at windows. Direct status
+        // flips + needs_republish so the partial publish below rebuilds the
+        // record pages, archives and search index.
+        $dueRecords = \App\Models\Record::withoutGlobalScopes()
+            ->where('site_id', $site->id)
+            ->where('status', 'draft')
+            ->whereNotNull('publish_at')
+            ->where('publish_at', '<=', now())
+            ->get();
+        foreach ($dueRecords as $record) {
+            $record->update([
+                'status' => 'published',
+                'published_at' => $record->publish_at,
+                'publish_at' => null,
+                'needs_republish' => true,
+                'needs_republish_reason' => 'record_scheduled_publish',
+            ]);
+            $publishNeeded = true;
+            Log::info("Scheduled record published: {$record->title}");
+        }
+
+        $expiredRecords = \App\Models\Record::withoutGlobalScopes()
+            ->where('site_id', $site->id)
+            ->where('status', 'published')
+            ->whereNotNull('unpublish_at')
+            ->where('unpublish_at', '<=', now())
+            ->get();
+        foreach ($expiredRecords as $record) {
+            $record->update([
+                'status' => 'draft',
+                'unpublish_at' => null,
+                'needs_republish' => true,
+                'needs_republish_reason' => 'record_scheduled_unpublish',
+            ]);
+            $publishNeeded = true;
+            Log::info("Scheduled record unpublished: {$record->title}");
+        }
+
         // Trigger site re-publish if any content was published
         if ($publishNeeded) {
             try {

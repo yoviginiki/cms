@@ -247,7 +247,7 @@ class SavedQueryValidator
                 if ($resolved['relation'] !== null) {
                     $this->fail("sort.{$i}.field", 'Sorting by related fields is not supported.');
                 }
-                if (in_array($resolved['field']['type'], ['relation', 'gallery', 'rich_text', 'image', 'file'], true)) {
+                if (in_array($resolved['field']['type'], ['relation', 'gallery', 'rich_text', 'image', 'file', 'computed'], true)) {
                     $this->fail("sort.{$i}.field", "Can't sort by {$resolved['field']['type']} fields.");
                 }
             }
