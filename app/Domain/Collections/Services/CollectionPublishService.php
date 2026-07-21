@@ -524,7 +524,9 @@ class CollectionPublishService
             }
         }
 
-        return '<script defer src="/assets/collections-search.' . $hash . '.js"></script>';
+        // Slug-hosted sites serve from a docroot subdir — the runtime lives
+        // inside the site's own deploy target, so the src needs the base.
+        return '<script defer src="' . RecordDisplay::sitePathBase($site) . '/assets/collections-search.' . $hash . '.js"></script>';
     }
 
     /** Sitemap entries for every statically-published record page + archive page 1. */
