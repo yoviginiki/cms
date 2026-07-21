@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Type, AlignLeft, Hash, Banknote, ToggleLeft, Calendar, ListFilter, ListChecks,
-  Image, Images, File, Mail, Link as LinkIcon, Phone, Barcode, Share2,
+  Image, Images, File, Mail, Link as LinkIcon, Phone, Barcode, Share2, Sigma,
 } from 'lucide-react';
 import type { CollectionFieldType, CollectionField, CollectionPivotFieldType } from '@/lib/api';
 
@@ -23,6 +23,7 @@ export const FIELD_TYPE_META: Record<CollectionFieldType, { label: string; hint:
   phone:        { label: 'Phone',        hint: 'Phone number',                            icon: Phone },
   sku:          { label: 'SKU',          hint: 'Product code, stored uppercase',          icon: Barcode },
   relation:     { label: 'Relation',     hint: 'Link records from another collection',    icon: Share2 },
+  computed:     { label: 'Computed rollup', hint: 'Count or sum over related records',    icon: Sigma },
 };
 
 /** Type picker groups (schema builder add-field flow). */
@@ -30,7 +31,7 @@ export const FIELD_TYPE_GROUPS: { group: string; types: CollectionFieldType[] }[
   { group: 'Basics',   types: ['text', 'rich_text', 'number', 'price', 'boolean', 'date'] },
   { group: 'Choices',  types: ['select', 'multi_select'] },
   { group: 'Media',    types: ['image', 'gallery', 'file'] },
-  { group: 'Advanced', types: ['email', 'url', 'phone', 'sku', 'relation'] },
+  { group: 'Advanced', types: ['email', 'url', 'phone', 'sku', 'relation', 'computed'] },
 ];
 
 const UNIQUE_TYPES: CollectionFieldType[] = ['text', 'sku', 'email', 'url', 'phone', 'number'];
@@ -41,6 +42,9 @@ export type FieldFlag = 'required' | 'unique' | 'searchable' | 'facetable' | 'sh
 
 /** Returns null when a flag is allowed for the type; otherwise a human reason for the disabled toggle. */
 export function flagDisabledReason(flag: FieldFlag, type: CollectionFieldType): string | null {
+  if (type === 'computed' && flag !== 'show_in_list') {
+    return 'Computed fields are display-only rollups — resolved at publish time';
+  }
   switch (flag) {
     case 'unique':
       return UNIQUE_TYPES.includes(type) ? null : 'Uniqueness is only enforceable for text, SKU, email, URL, phone and number fields';
@@ -86,17 +90,40 @@ export function isTitleCandidate(f: CollectionField): boolean {
 }
 
 /** Which of the optional per-field settings apply to a type. */
-export function settingsForType(type: CollectionFieldType): { maxLength: boolean; range: boolean; rows: boolean; placeholder: boolean } {
+export function settingsForType(type: CollectionFieldType): {
+  maxLength: boolean; range: boolean; rows: boolean; placeholder: boolean; pattern: boolean; dateRange: boolean;
+} {
   const textLike = ['text', 'email', 'url', 'phone', 'sku'].includes(type);
   return {
     maxLength: textLike,
     range: type === 'number' || type === 'price',
     rows: type === 'rich_text',
     placeholder: textLike || type === 'number' || type === 'price' || type === 'rich_text',
+    pattern: type === 'text' || type === 'sku',
+    dateRange: type === 'date',
   };
 }
 
 /** Columns of these types can be sorted server-side via sort=data.{key}. */
 export function isSortableType(type: CollectionFieldType): boolean {
-  return !['image', 'gallery', 'file', 'relation', 'multi_select', 'rich_text'].includes(type);
+  return !['image', 'gallery', 'file', 'relation', 'multi_select', 'rich_text', 'computed'].includes(type);
+}
+
+/** Scalar types that support inline cell editing and bulk "set field". */
+export const EDITABLE_SCALAR_TYPES: CollectionFieldType[] = [
+  'text', 'number', 'price', 'select', 'boolean', 'date', 'email', 'url', 'phone', 'sku',
+];
+
+export function isEditableScalar(type: CollectionFieldType): boolean {
+  return EDITABLE_SCALAR_TYPES.includes(type);
+}
+
+/** Types that may carry a schema-level default value. */
+export const DEFAULTABLE_TYPES: CollectionFieldType[] = [
+  'text', 'rich_text', 'number', 'price', 'boolean', 'select', 'multi_select',
+  'date', 'email', 'url', 'phone', 'sku',
+];
+
+export function supportsDefault(type: CollectionFieldType): boolean {
+  return DEFAULTABLE_TYPES.includes(type);
 }

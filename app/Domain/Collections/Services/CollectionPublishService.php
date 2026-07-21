@@ -96,7 +96,44 @@ class CollectionPublishService
             $warnings = array_merge($warnings, $this->buildCollection($site, $collection, $stagingPath));
         }
 
+        $this->buildSiteSearchManifest($site, $collections, $stagingPath);
+
         return $warnings;
+    }
+
+    /**
+     * Cross-collection search (v3): /search/index.json lists every static
+     * collection whose per-collection index was built this publish. The
+     * search island detects `sources` and merges all indexes client-side.
+     */
+    private function buildSiteSearchManifest(Site $site, $collections, string $stagingPath): void
+    {
+        $sources = [];
+        foreach ($collections as $collection) {
+            if ($collection->tier !== 'static') {
+                continue;
+            }
+            $prefix = $this->prefixFor($collection);
+            if (!file_exists("{$stagingPath}/{$prefix}/index.json")) {
+                continue; // no index built (collision-skipped or no records)
+            }
+            $sources[] = [
+                'collection' => $collection->slug,
+                'name' => $collection->name,
+                'manifest' => "/{$prefix}/index.json",
+            ];
+        }
+
+        if ($sources === []) {
+            return;
+        }
+
+        $this->write($stagingPath, 'search/index.json', json_encode([
+            'site' => $site->slug,
+            'generated' => now()->toISOString(),
+            'fields' => [['key' => '_type', 'label' => 'Type', 'type' => 'select', 'facet' => true]],
+            'sources' => $sources,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
     /** @return array<int, string> warnings */

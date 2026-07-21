@@ -1,19 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Upload, Download, Trash2, Loader2, Search, ArrowUp, ArrowDown, ArrowUpDown,
   Pencil, Database, Check, ArrowLeft, Eye, EyeOff, Image as ImageIcon, File as FileIcon,
+  Copy, CalendarClock, TimerOff, ListPlus,
 } from 'lucide-react';
 import {
   collections, collectionRecords,
-  type Collection, type CollectionField, type CollectionRecord,
+  type Collection, type CollectionField, type CollectionRecord, type CollectionRecordPayload,
 } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { apiErr } from './shared';
-import { isSortableType } from '@/lib/collectionFieldTypes';
+import { Modal, apiErr, validationErrors } from './shared';
+import { isSortableType, isEditableScalar } from '@/lib/collectionFieldTypes';
 
 interface RecordsMeta {
   total: number;
@@ -88,9 +89,178 @@ function TypedCell({ siteId, field, record }: { siteId: string; field: Collectio
   }
 }
 
+/** Full save payload for a list row with one data key replaced — keeps relations/status intact. */
+function rowPayloadWith(r: CollectionRecord, key: string, value: unknown): CollectionRecordPayload {
+  return {
+    data: { ...(r.data ?? {}), [key]: value },
+    relations: Object.fromEntries(
+      Object.entries(r.relations ?? {}).map(([k, items]) => [
+        k,
+        [...items]
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map((it) => ({
+            id: it.id,
+            ...(it.pivot && Object.keys(it.pivot).length > 0 ? { pivot: it.pivot as Record<string, unknown> } : {}),
+          })),
+      ]),
+    ),
+    status: r.status,
+  };
+}
+
+/** Typed input used by inline cell editing and the bulk "Set field" modal. */
+function ScalarValueInput({ field, value, onChange, onCommit, onCancel, autoFocus, invalid, size = 'xs' }: {
+  field: CollectionField;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  onCommit?: () => void;
+  onCancel?: () => void;
+  autoFocus?: boolean;
+  invalid?: boolean;
+  size?: 'xs' | 'sm';
+}) {
+  const keyHandler = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); onCommit?.(); }
+    if (e.key === 'Escape') { e.preventDefault(); onCancel?.(); }
+  };
+  const inputCls = `input input-bordered input-${size} text-[12px] w-full ${invalid ? 'input-error outline outline-1 outline-error' : ''}`;
+
+  switch (field.type) {
+    case 'boolean':
+      return (
+        <input
+          type="checkbox"
+          className="toggle toggle-xs toggle-primary"
+          autoFocus={autoFocus}
+          checked={!!value}
+          onKeyDown={keyHandler}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+      );
+    case 'select':
+      return (
+        <select
+          autoFocus={autoFocus}
+          value={(value as string) ?? ''}
+          onKeyDown={keyHandler}
+          onChange={(e) => onChange(e.target.value || null)}
+          className={`select select-bordered select-${size} text-[12px] w-full ${invalid ? 'select-error outline outline-1 outline-error' : ''}`}
+        >
+          <option value="">—</option>
+          {(field.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+    case 'number':
+    case 'price':
+      return (
+        <input
+          type="number"
+          autoFocus={autoFocus}
+          step={field.type === 'price' ? 0.01 : field.settings?.step as number | undefined}
+          value={value === undefined || value === null || value === '' ? '' : String(value)}
+          onKeyDown={keyHandler}
+          onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+          className={`${inputCls} tabular-nums`}
+        />
+      );
+    case 'date':
+      return (
+        <input
+          type="date"
+          autoFocus={autoFocus}
+          value={(value as string) ?? ''}
+          onKeyDown={keyHandler}
+          onChange={(e) => onChange(e.target.value || null)}
+          className={inputCls}
+        />
+      );
+    default: // text, email, url, phone, sku
+      return (
+        <input
+          autoFocus={autoFocus}
+          type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : 'text'}
+          value={(value as string) ?? ''}
+          onKeyDown={keyHandler}
+          onChange={(e) => onChange(e.target.value)}
+          className={`${inputCls} ${field.type === 'sku' ? 'font-mono uppercase' : ''}`}
+        />
+      );
+  }
+}
+
+/** Cell that turns into an inline editor on double-click (editable scalar columns only). */
+function EditableCell({ siteId, field, record, onSave }: {
+  siteId: string;
+  field: CollectionField;
+  record: CollectionRecord;
+  onSave: (value: unknown) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<unknown>(undefined);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click while editing (without saving)
+  useEffect(() => {
+    if (!editing) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setEditing(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [editing]);
+
+  if (!isEditableScalar(field.type)) return <TypedCell siteId={siteId} field={field} record={record} />;
+
+  const start = () => {
+    setDraft(record.data?.[field.key] ?? (field.type === 'boolean' ? false : ''));
+    setErr(null);
+    setEditing(true);
+  };
+
+  const commit = async (value?: unknown) => {
+    const v = value !== undefined ? value : draft;
+    setSaving(true);
+    setErr(null);
+    try {
+      await onSave(v === '' ? null : v);
+      setEditing(false);
+    } catch (e: any) {
+      setErr(validationErrors(e)[`data.${field.key}`] ?? apiErr(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div onDoubleClick={start} title="Double-click to edit" className="cursor-cell min-h-[1.25rem]">
+        <TypedCell siteId={siteId} field={field} record={record} />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={wrapRef} className="flex items-center gap-1.5 min-w-[8rem]" title={err ?? undefined}>
+      <ScalarValueInput
+        field={field}
+        value={draft}
+        onChange={field.type === 'boolean' ? (v) => { setDraft(v); void commit(v); } : setDraft}
+        onCommit={() => void commit()}
+        onCancel={() => setEditing(false)}
+        autoFocus
+        invalid={!!err}
+      />
+      {saving && <Loader2 size={12} className="animate-spin text-base-content/40 shrink-0" />}
+    </div>
+  );
+}
+
 export default function CollectionRecords() {
   const { siteId = '', collectionId = '' } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [statusTab, setStatusTab] = useState<StatusTab>('');
@@ -105,6 +275,9 @@ export default function CollectionRecords() {
   const [forceDelete, setForceDelete] = useState<{ record: CollectionRecord; count: number } | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [forceBulk, setForceBulk] = useState<{ ids: string[]; titles: string[] } | null>(null);
+  const [setFieldOpen, setSetFieldOpen] = useState(false);
+  const [setFieldKey, setSetFieldKey] = useState('');
+  const [setFieldValue, setSetFieldValue] = useState<unknown>('');
 
   // Debounce search
   const searchTimeout = useMemo(() => {
@@ -191,12 +364,30 @@ export default function CollectionRecords() {
   });
 
   const bulkMutation = useMutation({
-    mutationFn: (body: { action: 'publish' | 'draft' | 'delete'; ids: string[]; force?: boolean }) =>
+    mutationFn: (body:
+      | { action: 'publish' | 'draft' | 'delete'; ids: string[]; force?: boolean }
+      | { action: 'set_field'; ids: string[]; field: string; value: unknown }) =>
       collectionRecords.bulk(siteId, collectionId, body),
     onSuccess: (res, vars) => {
       invalidate();
       const { done = 0, skipped = [] } = res.data.data ?? {};
-      const verb = vars.action === 'publish' ? 'Published' : vars.action === 'draft' ? 'Set to draft' : 'Deleted';
+      const verb = vars.action === 'publish' ? 'Published' : vars.action === 'draft' ? 'Set to draft'
+        : vars.action === 'set_field' ? 'Updated' : 'Deleted';
+      if (vars.action === 'set_field') {
+        setSetFieldOpen(false);
+        if (skipped.length > 0) {
+          toast({
+            type: 'info',
+            message: `${verb} ${done} record(s); ${skipped.length} skipped: ${skipped
+              .map((s: { title: string; error?: string }) => s.error ? `${s.title} (${s.error})` : s.title)
+              .slice(0, 5).join(', ')}${skipped.length > 5 ? '…' : ''}`,
+          });
+        } else {
+          toast({ type: 'success', message: `${verb} ${done} record(s).` });
+        }
+        setSelectedIds([]);
+        return;
+      }
       if (skipped.length > 0 && vars.action === 'delete' && !vars.force) {
         // Records in use were skipped — offer an explicit force pass on just those.
         toast({ type: 'info', message: `${verb} ${done} record(s); ${skipped.length} skipped (in use).` });
@@ -214,6 +405,34 @@ export default function CollectionRecords() {
     },
     onError: (e) => { toast({ type: 'error', message: apiErr(e) }); setBulkDeleteOpen(false); },
   });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => collectionRecords.duplicate(siteId, collectionId, id),
+    onSuccess: (res) => {
+      invalidate();
+      toast({ type: 'success', message: 'Record duplicated as draft.' });
+      navigate(`/sites/${siteId}/collections/${collectionId}/records/${res.data.data.id}/edit`);
+    },
+    onError: (e) => toast({ type: 'error', message: apiErr(e) }),
+  });
+
+  /** Inline cell save — full data object with one key replaced; rejects with the axios error. */
+  const saveCell = async (r: CollectionRecord, field: CollectionField, value: unknown) => {
+    await collectionRecords.update(siteId, collectionId, r.id, rowPayloadWith(r, field.key, value));
+    invalidate();
+  };
+
+  const editableFields = useMemo(
+    () => (collection?.schema?.fields ?? []).filter((f) => isEditableScalar(f.type)),
+    [collection],
+  );
+
+  const openSetField = () => {
+    const first = editableFields[0];
+    setSetFieldKey(first?.key ?? '');
+    setSetFieldValue(first?.type === 'boolean' ? false : '');
+    setSetFieldOpen(true);
+  };
 
   const toggleSort = (key: string) => {
     if (sort === key) setDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -314,6 +533,12 @@ export default function CollectionRecords() {
             disabled={bulkMutation.isPending} className="btn btn-ghost btn-xs gap-1 text-[12px]">
             <EyeOff size={12} /> Draft
           </button>
+          {editableFields.length > 0 && (
+            <button onClick={openSetField}
+              disabled={bulkMutation.isPending} className="btn btn-ghost btn-xs gap-1 text-[12px]">
+              <ListPlus size={12} /> Set field…
+            </button>
+          )}
           <button onClick={() => setBulkDeleteOpen(true)}
             disabled={bulkMutation.isPending} className="btn btn-ghost btn-xs gap-1 text-[12px] text-error">
             <Trash2 size={12} /> Delete
@@ -401,9 +626,27 @@ export default function CollectionRecords() {
                     </div>
                   </td>
                   {listFields.map((f) => (
-                    <td key={f.key} className="text-[13px] text-base-content/70"><TypedCell siteId={siteId} field={f} record={r} /></td>
+                    <td key={f.key} className="text-[13px] text-base-content/70">
+                      <EditableCell siteId={siteId} field={f} record={r} onSave={(v) => saveCell(r, f, v)} />
+                    </td>
                   ))}
-                  <td><StatusBadge status={r.status} /></td>
+                  <td>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <StatusBadge status={r.status} />
+                      {r.publish_at && (
+                        <span className="badge badge-outline badge-xs gap-0.5 text-[10px] text-info"
+                          title={`Scheduled to publish ${new Date(r.publish_at).toLocaleString()}`}>
+                          <CalendarClock size={9} /> scheduled
+                        </span>
+                      )}
+                      {r.unpublish_at && (
+                        <span className="badge badge-outline badge-xs gap-0.5 text-[10px] text-warning"
+                          title={`Unpublishes ${new Date(r.unpublish_at).toLocaleString()}`}>
+                          <TimerOff size={9} /> expires
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="text-[12px] text-base-content/40 whitespace-nowrap">
                     {r.updated_at ? new Date(r.updated_at).toLocaleDateString() : '—'}
                   </td>
@@ -411,6 +654,11 @@ export default function CollectionRecords() {
                     <div className="flex items-center justify-end gap-0.5">
                       <Link to={`/sites/${siteId}/collections/${collectionId}/records/${r.id}/edit`}
                         className="btn btn-ghost btn-xs btn-square" title="Edit"><Pencil size={13} /></Link>
+                      <button onClick={() => duplicateMutation.mutate(r.id)} disabled={duplicateMutation.isPending}
+                        className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-primary" title="Duplicate">
+                        {duplicateMutation.isPending && duplicateMutation.variables === r.id
+                          ? <Loader2 size={13} className="animate-spin" /> : <Copy size={13} />}
+                      </button>
                       <button onClick={() => setDeleteTarget(r)}
                         className="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-error" title="Delete"><Trash2 size={13} /></button>
                     </div>
@@ -466,6 +714,49 @@ export default function CollectionRecords() {
         onConfirm={() => bulkMutation.mutate({ action: 'delete', ids: selectedIds })}
         onClose={() => setBulkDeleteOpen(false)}
       />
+      {/* Bulk set field */}
+      <Modal open={setFieldOpen} onClose={() => setSetFieldOpen(false)} title={`Set a field on ${selectedIds.length} record${selectedIds.length === 1 ? '' : 's'}`}>
+        {(() => {
+          const field = editableFields.find((f) => f.key === setFieldKey) ?? null;
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] text-base-content/50 mb-1 block">Field</label>
+                <select
+                  value={setFieldKey}
+                  onChange={(e) => {
+                    const next = editableFields.find((f) => f.key === e.target.value);
+                    setSetFieldKey(e.target.value);
+                    setSetFieldValue(next?.type === 'boolean' ? false : '');
+                  }}
+                  className="select select-bordered select-sm w-full text-[13px]"
+                >
+                  {editableFields.map((f) => <option key={f.key} value={f.key}>{f.label || f.key}</option>)}
+                </select>
+              </div>
+              {field && (
+                <div>
+                  <label className="text-[11px] text-base-content/50 mb-1 block">New value</label>
+                  <ScalarValueInput field={field} value={setFieldValue} onChange={setSetFieldValue} size="sm" />
+                  <p className="text-[11px] text-base-content/30 mt-1">Applied to every selected record; unique conflicts are skipped.</p>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button onClick={() => setSetFieldOpen(false)} className="btn btn-ghost btn-sm text-[12px]">Cancel</button>
+                <button
+                  onClick={() => field && bulkMutation.mutate({ action: 'set_field', ids: selectedIds, field: field.key, value: setFieldValue === '' ? null : setFieldValue })}
+                  disabled={!field || bulkMutation.isPending}
+                  className="btn btn-primary btn-sm gap-1.5 text-[12px]"
+                >
+                  {bulkMutation.isPending && <Loader2 size={13} className="animate-spin" />}
+                  Apply
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
       <ConfirmDialog
         open={!!forceBulk}
         title="Some records are in use"

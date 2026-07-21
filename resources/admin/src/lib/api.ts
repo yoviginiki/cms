@@ -465,7 +465,8 @@ export const globalSections = {
 // ── Collections (Track G) — user-defined structured content types ──
 export type CollectionFieldType =
   | 'text' | 'rich_text' | 'number' | 'price' | 'boolean' | 'select' | 'multi_select'
-  | 'date' | 'email' | 'url' | 'phone' | 'image' | 'gallery' | 'file' | 'sku' | 'relation';
+  | 'date' | 'email' | 'url' | 'phone' | 'image' | 'gallery' | 'file' | 'sku' | 'relation'
+  | 'computed';
 
 export type CollectionPivotFieldType = 'text' | 'number' | 'price' | 'boolean' | 'select' | 'date' | 'sku';
 
@@ -485,12 +486,23 @@ export interface CollectionRelationConfig {
 
 export interface CollectionFieldSettings {
   max_length?: number;
-  min?: number;
-  max?: number;
+  /** number/price bounds; on date fields these are Y-m-d strings */
+  min?: number | string;
+  max?: number | string;
   step?: number;
   placeholder?: string;
   help?: string;
   rows?: number;
+  /** regex validation for text/sku fields */
+  pattern?: string;
+  pattern_message?: string;
+}
+
+export interface CollectionComputedConfig {
+  fn: 'count' | 'sum';
+  collection_id: string;
+  relation_key: string;
+  sum_field?: string;
 }
 
 export interface CollectionField {
@@ -505,6 +517,9 @@ export interface CollectionField {
   description?: string;
   options?: string[];
   relation?: CollectionRelationConfig;
+  computed?: CollectionComputedConfig;
+  /** Default value applied to new records (not for asset/relation/computed types). */
+  default?: unknown;
   settings?: CollectionFieldSettings;
 }
 
@@ -538,6 +553,12 @@ export interface CollectionRecordRelation {
   position?: number;
 }
 
+export interface CollectionRecordSeoMeta {
+  title?: string;
+  description?: string;
+  og_image?: string;
+}
+
 export interface CollectionRecord {
   id: string;
   collection_id: string;
@@ -549,6 +570,9 @@ export interface CollectionRecord {
   data: Record<string, unknown>;
   relations?: Record<string, CollectionRecordRelation[]>;
   published_at?: string | null;
+  publish_at?: string | null;
+  unpublish_at?: string | null;
+  seo_meta?: CollectionRecordSeoMeta | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -558,6 +582,26 @@ export interface CollectionRecordPayload {
   relations?: Record<string, { id: string; pivot?: Record<string, unknown> }[]>;
   status: 'draft' | 'published';
   slug?: string;
+  publish_at?: string | null;
+  unpublish_at?: string | null;
+  seo_meta?: CollectionRecordSeoMeta;
+}
+
+export interface CollectionRecordRevision {
+  id: string;
+  event: 'created' | 'updated' | 'restored';
+  title: string;
+  status: 'draft' | 'published';
+  data: Record<string, unknown>;
+  relations?: Record<string, unknown>;
+  user?: string | null;
+  created_at: string;
+}
+
+export interface CollectionConvertPreview {
+  field: string;
+  distinct: { value: string; count: number }[];
+  convertible: boolean;
 }
 
 export const collections = {
@@ -567,6 +611,10 @@ export const collections = {
   update: (siteId: string, id: string, data: Record<string, unknown>) => api.put(`/sites/${siteId}/collections/${id}`, data),
   delete: (siteId: string, id: string, force = false) =>
     api.delete(`/sites/${siteId}/collections/${id}`, { params: force ? { force: 1 } : {} }),
+  convertPreview: (siteId: string, id: string, field: string) =>
+    api.get<{ data: CollectionConvertPreview }>(`/sites/${siteId}/collections/${id}/convert-preview`, { params: { field } }),
+  convert: (siteId: string, id: string, field: string, to: 'select') =>
+    api.post(`/sites/${siteId}/collections/${id}/convert`, { field, to }),
 };
 
 export const collectionRecords = {
@@ -580,7 +628,15 @@ export const collectionRecords = {
     api.put(`/sites/${siteId}/collections/${collectionId}/records/${recordId}`, data),
   delete: (siteId: string, collectionId: string, recordId: string, force = false) =>
     api.delete(`/sites/${siteId}/collections/${collectionId}/records/${recordId}`, { params: force ? { force: 1 } : {} }),
-  bulk: (siteId: string, collectionId: string, body: { action: 'publish' | 'draft' | 'delete'; ids: string[]; force?: boolean }) =>
+  duplicate: (siteId: string, collectionId: string, recordId: string) =>
+    api.post<{ data: CollectionRecord }>(`/sites/${siteId}/collections/${collectionId}/records/${recordId}/duplicate`),
+  revisions: (siteId: string, collectionId: string, recordId: string) =>
+    api.get<{ data: CollectionRecordRevision[] }>(`/sites/${siteId}/collections/${collectionId}/records/${recordId}/revisions`),
+  restoreRevision: (siteId: string, collectionId: string, recordId: string, revisionId: string) =>
+    api.post<{ data: CollectionRecord }>(`/sites/${siteId}/collections/${collectionId}/records/${recordId}/revisions/${revisionId}/restore`),
+  bulk: (siteId: string, collectionId: string, body:
+    | { action: 'publish' | 'draft' | 'delete'; ids: string[]; force?: boolean }
+    | { action: 'set_field'; ids: string[]; field: string; value: unknown }) =>
     api.post(`/sites/${siteId}/collections/${collectionId}/records/bulk`, body),
   exportUrl: (siteId: string, collectionId: string) => `/api/v1/sites/${siteId}/collections/${collectionId}/export`,
 };
@@ -649,6 +705,43 @@ export const savedQueries = {
     api.delete(`/sites/${siteId}/saved-queries/${id}`, { params: force ? { force: 1 } : {} }),
   preview: (siteId: string, body: Record<string, unknown>) => api.post(`/sites/${siteId}/saved-queries/preview`, body),
   showSql: (siteId: string, body: Record<string, unknown>) => api.post(`/sites/${siteId}/saved-queries/show-sql`, body),
+};
+
+// ── Webhooks (Collections v3) — notify external systems on content events ──
+
+export type WebhookEvent = 'record.created' | 'record.updated' | 'record.deleted' | 'form.submitted';
+
+export interface Webhook {
+  id: string;
+  url: string;
+  events: WebhookEvent[];
+  active: boolean;
+  last_delivered_at: string | null;
+  last_status: number | null;
+  created_at?: string;
+  /** Only present on the create response — shown once, never again. */
+  secret?: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  event: string;
+  status: string;
+  attempts: number;
+  response_code: number | null;
+  created_at: string;
+}
+
+export const webhooks = {
+  list: (siteId: string) => api.get<{ data: Webhook[] }>(`/sites/${siteId}/webhooks`),
+  create: (siteId: string, body: { url: string; events: WebhookEvent[]; active?: boolean }) =>
+    api.post<{ data: Webhook }>(`/sites/${siteId}/webhooks`, body),
+  update: (siteId: string, id: string, body: Partial<{ url: string; events: WebhookEvent[]; active: boolean }>) =>
+    api.put<{ data: Webhook }>(`/sites/${siteId}/webhooks/${id}`, body),
+  delete: (siteId: string, id: string) => api.delete(`/sites/${siteId}/webhooks/${id}`),
+  test: (siteId: string, id: string) => api.post(`/sites/${siteId}/webhooks/${id}/test`),
+  deliveries: (siteId: string, id: string) =>
+    api.get<{ data: WebhookDelivery[] }>(`/sites/${siteId}/webhooks/${id}/deliveries`),
 };
 
 export default api;

@@ -87,21 +87,40 @@
     }
 
     // ── Static mode: lazy full-index load + in-memory filter ────────────
+    function fetchJson(u) {
+      return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); });
+    }
+
+    function loadShards(manifest) {
+      return Promise.all((manifest.shards || []).map(fetchJson))
+        .then(function (shards) { return [].concat.apply([], shards); });
+    }
+
     function loadIndex() {
       if (state.records || state.loading || !group.source) return Promise.resolve();
       state.loading = true;
       setStatus('Loading…');
-      return fetch(group.source)
-        .then(function (r) { if (!r.ok) throw new Error('index ' + r.status); return r.json(); })
+      return fetchJson(group.source)
         .then(function (manifest) {
           state.manifest = manifest;
           state.currency = manifest.currency || '€';
           (manifest.fields || []).forEach(function (f) { state.fieldMeta[f.key] = f; });
-          return Promise.all((manifest.shards || []).map(function (u) {
-            return fetch(u).then(function (r) { if (!r.ok) throw new Error('shard ' + r.status); return r.json(); });
-          }));
+
+          // Cross-collection manifest (v3): { sources:[{name, manifest}] } —
+          // load every per-collection index and tag rows with a synthetic
+          // _type facet so one page searches the whole site.
+          if (manifest.sources && manifest.sources.length) {
+            return Promise.all(manifest.sources.map(function (src) {
+              return fetchJson(src.manifest).then(loadShards).then(function (rows) {
+                rows.forEach(function (row) { (row.f = row.f || {})._type = src.name; });
+                return rows;
+              });
+            })).then(function (all) { return [].concat.apply([], all); });
+          }
+
+          return loadShards(manifest);
         })
-        .then(function (shards) { state.records = [].concat.apply([], shards); state.loading = false; })
+        .then(function (rows) { state.records = rows; state.loading = false; })
         .catch(function () { state.loading = false; showError(applyStatic); });
     }
 
