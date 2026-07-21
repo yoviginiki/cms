@@ -119,6 +119,7 @@ class CollectionService
                     $existing,
                 );
             }
+            $this->applyImportSettings($settings, $input['settings'], $schema);
         }
 
         return [
@@ -129,6 +130,58 @@ class CollectionService
             'schema' => $schema,
             'settings' => $settings,
         ];
+    }
+
+    /**
+     * Scheduled URL imports (v3): import_url (https CSV in export format),
+     * import_schedule (hourly|daily), import_key (unique field → upsert),
+     * import_status (default status for created rows).
+     */
+    private function applyImportSettings(array &$settings, array $input, array $schema): void
+    {
+        if (array_key_exists('import_url', $input)) {
+            $url = $input['import_url'];
+            if ($url === null || $url === '') {
+                unset($settings['import_url'], $settings['import_schedule'], $settings['import_key'], $settings['import_status']);
+
+                return;
+            }
+            if (!is_string($url) || mb_strlen($url) > 2000
+                || mb_strtolower((string) parse_url($url, PHP_URL_SCHEME)) !== 'https'
+                || !filter_var($url, FILTER_VALIDATE_URL)) {
+                throw ValidationException::withMessages(['settings.import_url' => 'Import URL must be a valid https URL.']);
+            }
+            $settings['import_url'] = $url;
+        }
+
+        if (array_key_exists('import_schedule', $input)) {
+            $schedule = $input['import_schedule'];
+            if ($schedule !== null && !in_array($schedule, ['hourly', 'daily'], true)) {
+                throw ValidationException::withMessages(['settings.import_schedule' => "Schedule is 'hourly' or 'daily'."]);
+            }
+            $settings['import_schedule'] = $schedule;
+        }
+
+        if (array_key_exists('import_key', $input)) {
+            $key = $input['import_key'];
+            if ($key !== null && $key !== '') {
+                $match = collect($schema['fields'] ?? [])->firstWhere('key', $key);
+                if (!$match || !($match['unique'] ?? false)) {
+                    throw ValidationException::withMessages(['settings.import_key' => 'The upsert key must be a unique schema field.']);
+                }
+                $settings['import_key'] = $key;
+            } else {
+                unset($settings['import_key']);
+            }
+        }
+
+        if (array_key_exists('import_status', $input)) {
+            $status = $input['import_status'];
+            if ($status !== null && !in_array($status, ['draft', 'published'], true)) {
+                throw ValidationException::withMessages(['settings.import_status' => 'Status is draft or published.']);
+            }
+            $settings['import_status'] = $status ?? 'draft';
+        }
     }
 
     /**

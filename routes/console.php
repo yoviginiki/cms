@@ -25,3 +25,14 @@ Schedule::call(function () {
     app(\App\Domain\Blocks\Services\EditorPresenceService::class)->cleanup();
 })->name('editor-presence-cleanup')
   ->everyMinute();
+
+// Scheduled URL imports (collections v3) — the command itself gates each
+// collection on its hourly/daily cadence via settings.import_last_run.
+Schedule::command('collections:fetch-imports')
+    ->hourly()
+    ->withoutOverlapping();
+
+// Webhook delivery retries (collections v3)
+Schedule::command('webhooks:retry')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
