@@ -294,6 +294,9 @@ class RecordController extends Controller
             'position' => $record->position,
             'data' => $record->data ?: (object) [],
             'published_at' => $record->published_at?->toISOString(),
+            'publish_at' => $record->publish_at?->toISOString(),
+            'unpublish_at' => $record->unpublish_at?->toISOString(),
+            'seo_meta' => $record->seo_meta ?: (object) [],
             'created_at' => $record->created_at?->toISOString(),
             'updated_at' => $record->updated_at?->toISOString(),
         ];

@@ -140,11 +140,19 @@ class CollectionPublishService
             ])->render();
         }
 
-        $description = $this->metaDescription($collection, $record);
-        $head = '<title>' . e($record->title) . ' | ' . e($site->name) . '</title>'
+        // Per-record SEO overrides win over derived values.
+        $seo = $record->seo_meta ?? [];
+        $seoTitle = $seo['title'] ?? $record->title;
+        $description = $seo['description'] ?? $this->metaDescription($collection, $record);
+        $head = '<title>' . e($seoTitle) . ' | ' . e($site->name) . '</title>'
             . '<meta name="description" content="' . e($description) . '">'
-            . '<meta property="og:title" content="' . e($record->title) . '">';
-        if ($thumb = RecordDisplay::thumbUrl($site, $collection, $record)) {
+            . '<meta property="og:title" content="' . e($seoTitle) . '">';
+        $thumb = null;
+        if (!empty($seo['og_image'])) {
+            $thumb = RecordDisplay::assetUrl($site, $seo['og_image']);
+        }
+        $thumb = $thumb ?? RecordDisplay::thumbUrl($site, $collection, $record);
+        if ($thumb) {
             $head .= '<meta property="og:image" content="' . e($thumb) . '">';
         }
 
