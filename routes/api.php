@@ -250,6 +250,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sites.collections', \App\Http\Controllers\Api\V1\CollectionController::class);
         Route::apiResource('sites.collections.records', \App\Http\Controllers\Api\V1\RecordController::class);
 
+        // Guided schema type conversion (collections v3)
+        Route::get('sites/{site}/collections/{collection}/convert-preview', [\App\Http\Controllers\Api\V1\CollectionController::class, 'convertPreview']);
+        Route::post('sites/{site}/collections/{collection}/convert', [\App\Http\Controllers\Api\V1\CollectionController::class, 'convert']);
+
         // Webhooks (collections v3) — outgoing signed event notifications
         Route::get('sites/{site}/webhooks/{webhook}/deliveries', [\App\Http\Controllers\Api\V1\WebhookController::class, 'deliveries']);
         Route::post('sites/{site}/webhooks/{webhook}/test', [\App\Http\Controllers\Api\V1\WebhookController::class, 'test']);

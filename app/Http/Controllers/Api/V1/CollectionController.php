@@ -75,6 +75,94 @@ class CollectionController extends Controller
         ]);
     }
 
+    /**
+     * Guided type conversion (v3), preview step: distinct stored values for a
+     * text field so the admin can see exactly what the select options become.
+     */
+    public function convertPreview(Request $request, Site $site, ContentCollection $collection): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $this->assertOnSite($site, $collection);
+
+        $key = (string) $request->query('field');
+        $field = $collection->field($key);
+        if (!$field || $field['type'] !== 'text') {
+            return response()->json(['message' => 'Conversion currently supports text → select only.'], 422);
+        }
+
+        $values = Record::where('collection_id', $collection->id)
+            ->whereRaw("data->>'{$this->safeKey($key)}' IS NOT NULL")
+            ->selectRaw("data->>'{$this->safeKey($key)}' AS v, count(*) AS n")
+            ->groupBy('v')->orderByDesc('n')->limit(150)
+            ->get()
+            ->map(fn ($row) => ['value' => $row->v, 'count' => (int) $row->n]);
+
+        return response()->json(['data' => [
+            'field' => $key,
+            'distinct' => $values,
+            'convertible' => $values->count() > 0 && $values->count() <= 100,
+        ]]);
+    }
+
+    /**
+     * Apply text → select conversion: the field's distinct stored values
+     * become the options list (≤100). Stored data already matches, so no
+     * record rewrite is needed.
+     */
+    public function convert(Request $request, Site $site, ContentCollection $collection): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $this->assertOnSite($site, $collection);
+
+        $validated = $request->validate([
+            'field' => ['required', 'string', 'max:40'],
+            'to' => ['required', 'in:select'],
+        ]);
+
+        $key = $validated['field'];
+        $field = $collection->field($key);
+        if (!$field || $field['type'] !== 'text') {
+            return response()->json(['message' => 'Conversion currently supports text → select only.'], 422);
+        }
+
+        $values = Record::where('collection_id', $collection->id)
+            ->whereRaw("data->>'{$this->safeKey($key)}' IS NOT NULL")
+            ->selectRaw("DISTINCT data->>'{$this->safeKey($key)}' AS v")
+            ->pluck('v')
+            ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+            ->map(fn ($v) => mb_substr(trim($v), 0, 80))
+            ->unique()->values();
+
+        if ($values->isEmpty() || $values->count() > 100) {
+            return response()->json(['message' => 'Convertible fields need 1–100 distinct values.'], 422);
+        }
+
+        $schema = $collection->schema;
+        foreach ($schema['fields'] as &$f) {
+            if ($f['key'] === $key) {
+                $f['type'] = 'select';
+                $f['options'] = $values->all();
+                unset($f['settings']['pattern'], $f['settings']['pattern_message']);
+            }
+        }
+        unset($f);
+
+        $result = $this->service->update($collection, $site, ['name' => $collection->name, 'schema' => $schema]);
+        $result['collection']->loadCount('records');
+        $this->queueViewRebuild($site);
+
+        return response()->json([
+            'data' => $this->serialize($result['collection']),
+            'warnings' => $result['warnings'],
+        ]);
+    }
+
+    /** Schema keys are validator-constrained, but never interpolate unchecked. */
+    private function safeKey(string $key): string
+    {
+        return preg_replace('/[^a-z0-9_]/', '', $key);
+    }
+
     public function destroy(Request $request, Site $site, ContentCollection $collection): JsonResponse
     {
         $this->authorize('update', $site);
