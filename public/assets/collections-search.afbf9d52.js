@@ -226,7 +226,7 @@
             var img = card.querySelector('[data-cs-slot="image"]');
             if (img) {
               if (row.i) { img.src = row.i; img.alt = row.t; }
-              else (img.closest('a') || img).style.display = 'none';
+              else if (img.closest('a')) img.closest('a').style.display = 'none';
             }
             card.querySelectorAll('[data-cs-slot-field]').forEach(function (el) {
               var key = el.getAttribute('data-cs-slot-field');

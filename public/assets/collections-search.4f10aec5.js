@@ -48,9 +48,6 @@
       else if (role === 'facets') facetRoots.push(el);
       else if (role === 'results') resultRoots.push(el);
     });
-    // Eager: a dedicated search page shows all records + facets on load,
-    // instead of hiding results until the visitor applies a filter.
-    var eager = group.els.some(function (el) { return el.hasAttribute('data-cs-eager'); });
 
     // ── URL state ────────────────────────────────────────────────────────
     function facetKeys() {
@@ -154,7 +151,7 @@
         if (!state.records) return;
         var rows = filterStatic();
         renderRows(rows.slice(0, 120));
-        setStatus((hasFilter() || eager)
+        setStatus(hasFilter()
           ? rows.length + ' result' + (rows.length === 1 ? '' : 's') + (rows.length > 120 ? ' — showing first 120, refine your search' : '')
           : '');
         var counts = {};
@@ -205,7 +202,7 @@
     }
 
     function renderRows(rows) {
-      var active = hasFilter() || eager;
+      var active = hasFilter();
       resultRoots.forEach(function (root) {
         var grid = root.querySelector('.cs-results');
         var empty = root.querySelector('.cs-empty');
@@ -226,7 +223,7 @@
             var img = card.querySelector('[data-cs-slot="image"]');
             if (img) {
               if (row.i) { img.src = row.i; img.alt = row.t; }
-              else (img.closest('a') || img).style.display = 'none';
+              else if (img.closest('a')) img.closest('a').style.display = 'none';
             }
             card.querySelectorAll('[data-cs-slot-field]').forEach(function (el) {
               var key = el.getAttribute('data-cs-slot-field');
@@ -359,6 +356,7 @@
     // block opts in via data-cs-eager (a dedicated search page shows all
     // records + populated facets on load instead of waiting for interaction).
     readUrl();
+    var eager = group.els.some(function (el) { return el.hasAttribute('data-cs-eager'); });
     if (hasFilter()) {
       searchInputs.forEach(function (i) { i.value = state.q; });
       isApi ? applyApi() : applyStatic();
