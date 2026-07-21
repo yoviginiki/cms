@@ -135,6 +135,13 @@ class CollectionSchemaValidator
             $out['relation'] = $this->validateRelation($field['relation'] ?? null, $path, $site, $existing);
         }
 
+        if ($type === 'computed') {
+            if ($out['required'] || $out['unique'] || $out['searchable'] || $out['facetable']) {
+                $this->fail("{$path}.type", 'Computed fields are display-only (no required/unique/search/facet).');
+            }
+            $out['computed'] = $this->validateComputed($field['computed'] ?? null, $path, $site);
+        }
+
         $settings = $field['settings'] ?? [];
         if (is_array($settings) && $settings !== []) {
             $out['settings'] = $this->validateSettings($settings, $path);
@@ -155,6 +162,50 @@ class CollectionSchemaValidator
             if (array_key_exists($key, $processed)) {
                 $out['default'] = $processed[$key];
             }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Computed rollups: {fn: count|sum, collection_id, relation_key,
+     * sum_field?} — "count/sum of records in <collection> whose <relation_key>
+     * points at this record".
+     */
+    private function validateComputed(mixed $config, string $path, Site $site): array
+    {
+        if (!is_array($config)) {
+            $this->fail("{$path}.computed", 'Computed fields need a rollup configuration.');
+        }
+
+        $fn = $config['fn'] ?? null;
+        if (!in_array($fn, ['count', 'sum'], true)) {
+            $this->fail("{$path}.computed.fn", "Rollup is 'count' or 'sum'.");
+        }
+
+        $targetId = $config['collection_id'] ?? null;
+        $target = is_string($targetId)
+            ? ContentCollection::where('site_id', $site->id)->where('id', $targetId)->first()
+            : null;
+        if (!$target) {
+            $this->fail("{$path}.computed.collection_id", 'Source collection not found on this site.');
+        }
+
+        $relationKey = $config['relation_key'] ?? null;
+        $relationField = is_string($relationKey) ? $target->field($relationKey) : null;
+        if (!$relationField || $relationField['type'] !== 'relation') {
+            $this->fail("{$path}.computed.relation_key", "Pick the relation field on '{$target->name}' that points here.");
+        }
+
+        $out = ['fn' => $fn, 'collection_id' => $targetId, 'relation_key' => $relationKey];
+
+        if ($fn === 'sum') {
+            $sumField = $config['sum_field'] ?? null;
+            $sumDef = is_string($sumField) ? $target->field($sumField) : null;
+            if (!$sumDef || !in_array($sumDef['type'], ['number', 'price'], true)) {
+                $this->fail("{$path}.computed.sum_field", 'Sum needs a number or price field on the source collection.');
+            }
+            $out['sum_field'] = $sumField;
         }
 
         return $out;

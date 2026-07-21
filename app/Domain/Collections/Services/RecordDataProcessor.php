@@ -35,7 +35,7 @@ class RecordDataProcessor
         $errors = [];
 
         foreach ($fields as $field) {
-            if ($field['type'] === 'relation') {
+            if ($field['type'] === 'relation' || in_array($field['type'], FieldTypes::VIRTUAL_TYPES, true)) {
                 continue;
             }
 

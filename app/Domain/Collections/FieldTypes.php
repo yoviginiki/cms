@@ -27,7 +27,11 @@ final class FieldTypes
         'file',         // asset ref (uuid)
         'sku',          // part number: normalized string, unique-toggleable
         'relation',     // edge(s) to another collection, optional pivot fields
+        'computed',     // v3: display-only rollup (count/sum over incoming relations)
     ];
+
+    /** Types with no stored value — resolved at render/publish, never in data. */
+    public const VIRTUAL_TYPES = ['computed'];
 
     /** Types whose value is an asset id (or array of ids for gallery). */
     public const ASSET_TYPES = ['image', 'gallery', 'file'];

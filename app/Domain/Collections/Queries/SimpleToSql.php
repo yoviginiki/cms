@@ -48,7 +48,7 @@ class SimpleToSql
     {
         $cols = ['record_title'];
         foreach ($collection->fields() as $field) {
-            if (in_array($field['type'], ['relation', 'gallery', 'rich_text'], true)) {
+            if (in_array($field['type'], ['relation', 'gallery', 'rich_text', 'computed'], true)) {
                 continue;
             }
             $cols[] = $field['key'];

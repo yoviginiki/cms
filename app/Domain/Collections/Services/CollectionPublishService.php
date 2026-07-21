@@ -43,6 +43,50 @@ class CollectionPublishService
      *
      * @return array<int, string>
      */
+    /**
+     * Static JSON feeds for saved queries flagged settings.feed_enabled:
+     * /queries/{slug}.json — rows in the public-query shape ({u,t,d} for
+     * record queries, raw rows for SQL), capped at 500. Failures warn and
+     * never break the publish.
+     *
+     * @return array<int, string> warnings
+     */
+    public function buildQueryFeeds(Site $site, string $stagingPath): array
+    {
+        $warnings = [];
+        $queries = \App\Models\SavedQuery::where('site_id', $site->id)->get()
+            ->filter(fn ($q) => (bool) ($q->settings['feed_enabled'] ?? false));
+
+        foreach ($queries as $query) {
+            try {
+                $result = app(\App\Domain\Collections\Queries\QueryRunner::class)->run($query, []);
+
+                if (($result['type'] ?? '') === 'records') {
+                    $collection = $query->sourceCollection();
+                    $rows = collect($result['rows'])->take(500)->map(fn ($r) => array_filter([
+                        'u' => $collection ? RecordDisplay::recordUrl($collection, $r) : null,
+                        't' => $r->title,
+                        'd' => $r->data,
+                    ]))->values()->all();
+                } else {
+                    $rows = collect($result['rows'] ?? [])->take(500)->values()->all();
+                }
+
+                $this->write($stagingPath, "queries/{$query->slug}.json", json_encode([
+                    'query' => $query->slug,
+                    'name' => $query->name,
+                    'generated' => now()->toISOString(),
+                    'count' => count($rows),
+                    'rows' => $rows,
+                ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            } catch (\Throwable $e) {
+                $warnings[] = "Query feed '{$query->slug}' failed: {$e->getMessage()}";
+            }
+        }
+
+        return $warnings;
+    }
+
     public function buildAll(Site $site, string $stagingPath): array
     {
         $warnings = [];

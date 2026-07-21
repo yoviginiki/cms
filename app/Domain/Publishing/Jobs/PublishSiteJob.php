@@ -170,7 +170,11 @@ class PublishSiteJob implements ShouldQueue
             // Collections (Track G2): record detail pages + paginated
             // archives + static search indexes for static-tier collections —
             // independent of whether the site has posts.
-            $collectionWarnings = app(\App\Domain\Collections\Services\CollectionPublishService::class)->buildAll($site, $stagingPath);
+            $publisher = app(\App\Domain\Collections\Services\CollectionPublishService::class);
+            $collectionWarnings = array_merge(
+                $publisher->buildAll($site, $stagingPath),
+                $publisher->buildQueryFeeds($site, $stagingPath),
+            );
             if ($collectionWarnings !== []) {
                 $validationResults['site:collections'] = ['passed' => true, 'warnings' => $collectionWarnings, 'errors' => [], 'score_estimate' => 100];
             }

@@ -148,8 +148,8 @@ class RecordController extends Controller
         $field = null;
         if ($validated['action'] === 'set_field') {
             $field = $collection->field($validated['field'] ?? '');
-            if (!$field || in_array($field['type'], ['relation'], true)) {
-                return response()->json(['message' => 'Pick a non-relation schema field to bulk-edit.'], 422);
+            if (!$field || in_array($field['type'], ['relation', 'computed'], true)) {
+                return response()->json(['message' => 'Pick a stored (non-relation, non-computed) schema field to bulk-edit.'], 422);
             }
         }
 
@@ -275,7 +275,7 @@ class RecordController extends Controller
         // never the request).
         if (str_starts_with($sort, 'data.')) {
             $field = $collection->field(substr($sort, 5));
-            if ($field && !in_array($field['type'], ['relation', 'gallery', 'rich_text'], true)) {
+            if ($field && !in_array($field['type'], ['relation', 'gallery', 'rich_text', 'computed'], true)) {
                 return ["data.{$field['key']}", $direction];
             }
         }

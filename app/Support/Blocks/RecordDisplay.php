@@ -5,6 +5,7 @@ namespace App\Support\Blocks;
 use App\Models\ContentCollection;
 use App\Models\Record;
 use App\Models\Site;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Type-aware, escape-safe display rendering for record field values — shared
@@ -171,6 +172,41 @@ class RecordDisplay
     }
 
     /** HTML-safe rendering of one field value ('' when empty). */
+    /**
+     * Computed rollup (v3): count/sum over PUBLISHED records in a target
+     * collection whose relation field points at this record. Resolved at
+     * render/publish time — never stored in data.
+     */
+    public static function computedValue(ContentCollection $collection, Record $record, array $field): string
+    {
+        $cfg = $field['computed'] ?? [];
+        $fn = $cfg['fn'] ?? 'count';
+        $relationKey = $cfg['relation_key'] ?? '';
+        $targetId = $cfg['collection_id'] ?? '';
+        if ($relationKey === '' || $targetId === '') {
+            return '';
+        }
+
+        $base = \App\Models\Record::query()
+            ->where('records.collection_id', $targetId)
+            ->where('records.status', 'published')
+            ->join('record_relations', 'record_relations.from_record_id', '=', 'records.id')
+            ->where('record_relations.relation_key', $relationKey)
+            ->where('record_relations.to_record_id', $record->id);
+
+        if ($fn === 'sum') {
+            $sumField = preg_replace('/[^a-z0-9_]/', '', (string) ($cfg['sum_field'] ?? ''));
+            if ($sumField === '') {
+                return '';
+            }
+            $sum = (float) $base->sum(DB::raw("(records.data->>'{$sumField}')::numeric"));
+
+            return rtrim(rtrim(number_format($sum, 2, '.', ''), '0'), '.');
+        }
+
+        return (string) $base->count();
+    }
+
     public static function display(Site $site, ContentCollection $collection, Record $record, string $fieldKey): string
     {
         $field = $collection->field($fieldKey);
@@ -178,6 +214,10 @@ class RecordDisplay
 
         if (!$field) {
             return '';
+        }
+
+        if ($field['type'] === 'computed') {
+            return e(self::computedValue($collection, $record, $field));
         }
 
         if ($field['type'] === 'relation') {

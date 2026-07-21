@@ -133,7 +133,7 @@ class RecordQueryService
 
         if (in_array($sort, ['published_at', 'created_at', 'updated_at', 'title', 'position'], true)) {
             $query->orderBy($sort, $direction);
-        } elseif ($sort !== '' && ($field = $collection->field($sort)) && !in_array($field['type'], ['relation', 'gallery', 'rich_text', 'image', 'file'], true)) {
+        } elseif ($sort !== '' && ($field = $collection->field($sort)) && !in_array($field['type'], ['relation', 'gallery', 'rich_text', 'image', 'file', 'computed'], true)) {
             $accessor = in_array($field['type'], ['number', 'price'], true) ? "data->'{$field['key']}'" : "data->>'{$field['key']}'";
             $query->orderByRaw("{$accessor} {$direction} NULLS LAST");
         } else {
