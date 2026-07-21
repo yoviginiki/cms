@@ -89,7 +89,7 @@ class BlockService
 
     private function insertBlocks(Model $blockable, array $blocksData, ?string $parentId = null): void
     {
-        foreach ($blocksData as $blockData) {
+        foreach (array_values($blocksData) as $index => $blockData) {
             $children = $blockData['children'] ?? [];
 
             // Merge style/animation/responsive/advanced into data if present
@@ -118,7 +118,12 @@ class BlockService
                 'preset_id' => $blockData['preset_id'] ?? null,
                 'data' => $data,
                 'style' => $style,
-                'order' => $blockData['order'],
+                // Array position is the source of truth for sibling order: the
+                // editor sends blocks in visual order, and programmatic callers
+                // routinely pass a constant 'order' (all 0) — which left the
+                // final ordering to the database's whim and pages could render
+                // with sections shuffled after a republish.
+                'order' => $index,
             ]);
 
             if (!empty($children)) {
