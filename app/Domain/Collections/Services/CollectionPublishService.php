@@ -110,6 +110,10 @@ class CollectionPublishService
      */
     private function buildSiteSearchManifest(Site $site, $collections, string $stagingPath): void
     {
+        // Slug-hosted sites live in a docroot subdir — every published URL
+        // needs the base or the island fetches another site's files.
+        $base = RecordDisplay::sitePathBase($site);
+
         $sources = [];
         foreach ($collections as $collection) {
             if ($collection->tier !== 'static') {
@@ -122,7 +126,7 @@ class CollectionPublishService
             $sources[] = [
                 'collection' => $collection->slug,
                 'name' => $collection->name,
-                'manifest' => "/{$prefix}/index.json",
+                'manifest' => "{$base}/{$prefix}/index.json",
             ];
         }
 
@@ -159,9 +163,11 @@ class CollectionPublishService
             return null;
         }
 
+        $base = RecordDisplay::sitePathBase($site);
+
         $rows = [];
         foreach ($pages as $page) {
-            $url = '/' . trim($page->slug, '/') . '/';
+            $url = "{$base}/" . trim($page->slug, '/') . '/';
             $search = mb_strtolower($page->title);
 
             $file = $stagingPath . '/' . trim($page->slug, '/') . '/index.html';
@@ -188,10 +194,10 @@ class CollectionPublishService
             'name' => 'Pages',
             'count' => count($rows),
             'fields' => [],
-            'shards' => ["/{$shard}"],
+            'shards' => ["{$base}/{$shard}"],
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
-        return ['collection' => '_pages', 'name' => 'Pages', 'manifest' => '/search/pages.json'];
+        return ['collection' => '_pages', 'name' => 'Pages', 'manifest' => "{$base}/search/pages.json"];
     }
 
     /** @return array<int, string> warnings */

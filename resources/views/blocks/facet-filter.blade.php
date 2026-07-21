@@ -13,7 +13,7 @@
     // A star = cross-collection search: one synthetic Type facet, filled by JS.
     $isCross = ($data['collectionId'] ?? null) === '*';
     $collection = (!$isCross && !empty($data['collectionId'])) ? \App\Models\ContentCollection::find($data['collectionId']) : ($isCross ? null : ($__collection ?? null));
-    [$csMode, $source] = $isCross ? ['static', '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);
+    [$csMode, $source] = $isCross ? ['static', RecordDisplay::sitePathBase($site) . '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);
     $csKey = $isCross ? '_site' : $collection?->slug;
     $style = in_array($data['style'] ?? 'checkbox', ['checkbox','dropdown']) ? ($data['style'] ?? 'checkbox') : 'checkbox';
 

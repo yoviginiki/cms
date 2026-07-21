@@ -30,6 +30,16 @@ class RecordDisplay
         return "/api/v1/sites/{$site->id}/assets/{$assetId}/serve{$suffix}";
     }
 
+    /**
+     * URL base of the published site: '' for custom-domain (root-hosted)
+     * sites, '/{slug}' for slug sites deployed into the tenant docroot
+     * subdirectory (e.g. the docs site at ensodo.eu/docs/).
+     */
+    public static function sitePathBase(Site $site): string
+    {
+        return $site->custom_domain ? '' : '/' . trim($site->slug, '/');
+    }
+
     /** Public URL path prefix for a collection (settings override, else slug). */
     public static function pathPrefix(ContentCollection $collection): string
     {

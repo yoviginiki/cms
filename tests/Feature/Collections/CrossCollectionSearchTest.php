@@ -47,10 +47,11 @@ class CrossCollectionSearchTest extends TestCase
         try {
             app(CollectionPublishService::class)->buildAll($this->site, $staging);
 
+            $base = \App\Support\Blocks\RecordDisplay::sitePathBase($this->site);
             $manifest = json_decode(File::get("{$staging}/search/index.json"), true);
             $this->assertCount(2, $manifest['sources']);
             $this->assertEqualsCanonicalizing(
-                ['/cats/index.json', '/dogs/index.json'],
+                ["{$base}/cats/index.json", "{$base}/dogs/index.json"],
                 array_column($manifest['sources'], 'manifest')
             );
             $this->assertSame('_type', $manifest['fields'][0]['key']);
@@ -78,12 +79,14 @@ class CrossCollectionSearchTest extends TestCase
 
             app(CollectionPublishService::class)->buildAll($this->site, $staging);
 
+            $base = \App\Support\Blocks\RecordDisplay::sitePathBase($this->site);
             $manifest = json_decode(File::get("{$staging}/search/index.json"), true);
-            $this->assertContains('/search/pages.json', array_column($manifest['sources'], 'manifest'));
+            $this->assertContains("{$base}/search/pages.json", array_column($manifest['sources'], 'manifest'));
 
             $pagesManifest = json_decode(File::get("{$staging}/search/pages.json"), true);
-            $rows = json_decode(File::get($staging . $pagesManifest['shards'][0]), true);
-            $row = collect($rows)->firstWhere('u', '/shipping/');
+            $shardPath = substr($pagesManifest['shards'][0], strlen($base));
+            $rows = json_decode(File::get($staging . $shardPath), true);
+            $row = collect($rows)->firstWhere('u', "{$base}/shipping/");
             $this->assertNotNull($row);
             $this->assertSame('Shipping policy', $row['t']);
             $this->assertStringContainsString('worldwide via courier', $row['s']);

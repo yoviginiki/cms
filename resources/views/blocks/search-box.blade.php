@@ -14,7 +14,7 @@
     $isCross = ($data['collectionId'] ?? null) === '*';
     $collection = (!$isCross && !empty($data['collectionId'])) ? \App\Models\ContentCollection::find($data['collectionId']) : ($isCross ? null : ($__collection ?? null));
     // Data source resolved at publish by tier (static index vs public API).
-    [$csMode, $source] = $isCross ? ['static', '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);
+    [$csMode, $source] = $isCross ? ['static', RecordDisplay::sitePathBase($site) . '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);
     $csKey = $isCross ? '_site' : $collection?->slug;
     $placeholder = trim((string) ($data['placeholder'] ?? '')) ?: ($collection ? "Search {$collection->name}…" : 'Search…');
 @endphp
