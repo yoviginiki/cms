@@ -104,6 +104,19 @@ class ArchiveBuildService
         $buildService = app(BuildPageService::class);
 
         foreach ($categories as $category) {
+            // A real page owns its slug: category archives write to /{slug}/
+            // AFTER pages build, so a same-slug category (common after a WP
+            // import, e.g. a "Статии" category next to the Статии page) would
+            // silently overwrite the page. The page wins; skip the archive.
+            $pageOwnsSlug = \App\Models\Page::where('site_id', $site->id)
+                ->where('slug', $category->slug)
+                ->where('status', 'published')
+                ->exists();
+            if ($pageOwnsSlug) {
+                $warnings[] = "Category '{$category->slug}': archive skipped — a published page owns this slug.";
+                continue;
+            }
+
             $posts = $category->posts()->with(['category', 'author'])->where('status', 'published')->orderByDesc('published_at')->get();
 
             // Check for archive template
