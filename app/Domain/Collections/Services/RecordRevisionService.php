@@ -49,16 +49,15 @@ class RecordRevisionService
 
     private function prune(string $recordId): void
     {
-        $cutoff = RecordRevision::where('record_id', $recordId)
-            ->orderByDesc('created_at')
-            ->skip(self::KEEP)
-            ->value('created_at');
+        // HasUuids ids are ordered — the stable tiebreaker for same-second writes.
+        $keepIds = RecordRevision::where('record_id', $recordId)
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->limit(self::KEEP)
+            ->pluck('id');
 
-        if ($cutoff) {
-            RecordRevision::where('record_id', $recordId)
-                ->where('created_at', '<=', $cutoff)
-                ->delete();
-        }
+        RecordRevision::where('record_id', $recordId)
+            ->whereNotIn('id', $keepIds)
+            ->delete();
     }
 
     /** Restore input for RecordService::save from a stored revision. */

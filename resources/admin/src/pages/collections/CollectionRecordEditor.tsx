@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, Save, Rocket, History, CalendarClock, Search as SearchIcon, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Rocket, History, CalendarClock, Search as SearchIcon, X, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   collections, collectionRecords,
   type Collection, type CollectionRecord, type CollectionRecordPayload, type CollectionRecordRevision,
@@ -43,6 +43,32 @@ const REVISION_BADGE: Record<CollectionRecordRevision['event'], string> = {
   updated: 'badge-ghost',
   restored: 'badge-warning',
 };
+
+/** Collapsible side-panel section; defaultOpen is read once on mount (post-hydration). */
+function CollapseSection({ title, icon, badge, defaultOpen, children }: {
+  title: string;
+  icon: React.ReactNode;
+  badge?: React.ReactNode;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-base-300/30 rounded-box bg-base-200/20">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium text-base-content/70 uppercase tracking-wider"
+      >
+        {open ? <ChevronDown size={13} className="text-base-content/40" /> : <ChevronRight size={13} className="text-base-content/40" />}
+        {icon}
+        {title}
+        {badge}
+      </button>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auto-generated entry form: one typed input per schema field. Validation
@@ -351,12 +377,12 @@ export default function CollectionRecordEditor() {
           </div>
 
           {/* Scheduling */}
-          <details className="collapse collapse-arrow border border-base-300/30 rounded-box bg-base-200/20" open={!!(publishAt || unpublishAt)}>
-            <summary className="collapse-title min-h-0 py-2.5 px-4 text-[12px] font-medium text-base-content/70 uppercase tracking-wider flex items-center gap-2">
-              <CalendarClock size={13} className="text-base-content/40" /> Scheduling
-              {(publishAt || unpublishAt) && <span className="badge badge-info badge-outline badge-xs text-[10px] normal-case">active</span>}
-            </summary>
-            <div className="collapse-content px-4">
+          <CollapseSection
+            title="Scheduling"
+            icon={<CalendarClock size={13} className="text-base-content/40" />}
+            badge={(publishAt || unpublishAt) ? <span className="badge badge-info badge-outline badge-xs text-[10px] normal-case">active</span> : null}
+            defaultOpen={!!(publishAt || unpublishAt)}
+          >
               <div className="grid grid-cols-12 gap-4 pt-1">
                 <div className="col-span-12 sm:col-span-6">
                   <label className="text-[12px] text-base-content/60 mb-1 block">Publish at</label>
@@ -383,15 +409,14 @@ export default function CollectionRecordEditor() {
                     : <p className="text-[11px] text-base-content/30 mt-1">Reverts to draft at this time. Empty = never expires.</p>}
                 </div>
               </div>
-            </div>
-          </details>
+          </CollapseSection>
 
           {/* SEO */}
-          <details className="collapse collapse-arrow border border-base-300/30 rounded-box bg-base-200/20" open={!!(seoTitle || seoDescription || seoOgImage)}>
-            <summary className="collapse-title min-h-0 py-2.5 px-4 text-[12px] font-medium text-base-content/70 uppercase tracking-wider flex items-center gap-2">
-              <SearchIcon size={13} className="text-base-content/40" /> SEO
-            </summary>
-            <div className="collapse-content px-4">
+          <CollapseSection
+            title="SEO"
+            icon={<SearchIcon size={13} className="text-base-content/40" />}
+            defaultOpen={!!(seoTitle || seoDescription || seoOgImage)}
+          >
               <div className="space-y-4 pt-1">
                 <div>
                   <label className="text-[12px] text-base-content/60 mb-1 block">Meta title</label>
@@ -428,8 +453,7 @@ export default function CollectionRecordEditor() {
                   />
                 </div>
               </div>
-            </div>
-          </details>
+          </CollapseSection>
 
           {/* Footer save (long forms) */}
           <div className="flex justify-end gap-2 border-t border-base-300/20 pt-4">

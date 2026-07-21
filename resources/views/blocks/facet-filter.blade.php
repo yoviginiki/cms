@@ -10,7 +10,7 @@
     $__htmlId = BlockStyle::safeId($__adv['htmlId'] ?? '');
     $__hideOn = BlockStyle::buildHideOnCss($__resp, $__htmlId);
 
-    {{-- '*' = cross-collection search: one synthetic "Type" facet, filled by JS. --}}
+    // A star = cross-collection search: one synthetic Type facet, filled by JS.
     $isCross = ($data['collectionId'] ?? null) === '*';
     $collection = (!$isCross && !empty($data['collectionId'])) ? \App\Models\ContentCollection::find($data['collectionId']) : ($isCross ? null : ($__collection ?? null));
     [$csMode, $source] = $isCross ? ['static', '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);

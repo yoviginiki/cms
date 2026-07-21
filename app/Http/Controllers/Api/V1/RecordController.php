@@ -229,7 +229,7 @@ class RecordController extends Controller
 
         $items = \App\Models\RecordRevision::where('record_id', $record->id)
             ->with('user:id,name')
-            ->orderByDesc('created_at')
+            ->orderByDesc('created_at')->orderByDesc('id')
             ->limit(\App\Domain\Collections\Services\RecordRevisionService::KEEP)
             ->get()
             ->map(fn ($rev) => [

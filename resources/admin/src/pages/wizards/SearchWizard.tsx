@@ -16,7 +16,10 @@ export default function SearchWizard() {
   const [collectionId, setCollectionId] = useState('');
   const [searchable, setSearchable] = useState<string[]>([]);
   const [facets, setFacets] = useState<string[]>([]);
+  const [pageTitle, setPageTitle] = useState('Search');
   const [done, setDone] = useState<any>(null);
+
+  const isAll = collectionId === '*';
 
   const { data: allCollections = [] } = useQuery<Collection[]>({
     queryKey: ['collections', siteId],
@@ -32,18 +35,25 @@ export default function SearchWizard() {
     set(list.includes(key) ? list.filter((k) => k !== key) : [...list, key]);
 
   const submit = useMutation({
-    mutationFn: () => api.post(`/sites/${siteId}/wizard/search`, {
-      collection_id: collectionId,
-      searchable,
-      facets: facets.slice(0, 8),
-      build_page: true,
-    }),
+    mutationFn: () => api.post(`/sites/${siteId}/wizard/search`, isAll
+      ? {
+        collection_id: '*',
+        build_page: true,
+        page_title: pageTitle.trim() || 'Search',
+      }
+      : {
+        collection_id: collectionId,
+        searchable,
+        facets: facets.slice(0, 8),
+        build_page: true,
+      }),
     onSuccess: (res) => setDone(res.data.data),
     onError: (e: any) => toast({ type: 'error', message: e?.response?.data?.message ?? 'Could not build the search page.' }),
   });
 
   const selectCollection = (id: string) => {
     setCollectionId(id);
+    if (id === '*') { setSearchable([]); setFacets([]); return; }
     const c = allCollections.find((x) => x.id === id);
     const f = c?.schema?.fields ?? [];
     setSearchable(f.filter((x) => x.searchable || SEARCHABLE_TYPES.includes(x.type)).slice(0, 5).map((x) => x.key));
@@ -55,7 +65,11 @@ export default function SearchWizard() {
       <div className="max-w-xl mx-auto text-center py-16">
         <div className="w-12 h-12 rounded-full bg-success/10 text-success flex items-center justify-center mx-auto mb-4"><Check /></div>
         <h1 className="text-lg font-semibold mb-2">Search page created</h1>
-        <p className="text-[13px] text-base-content/60 mb-6">Search box, facets and a results grid are wired to “{collection?.name}”. Publish the page to make search live.</p>
+        <p className="text-[13px] text-base-content/60 mb-6">
+          {isAll
+            ? 'Search box and a results grid are wired to every static collection on this site at once. Publish the page to make search live.'
+            : `Search box, facets and a results grid are wired to “${collection?.name}”. Publish the page to make search live.`}
+        </p>
         <div className="flex justify-center gap-3">
           {done.page && <Link to={`/sites/${siteId}/pages/${done.page.id}/edit`} className="btn btn-primary btn-sm text-[12px]">Open the page</Link>}
           <button onClick={() => { setDone(null); setCollectionId(''); }} className="btn btn-ghost btn-sm text-[12px]">Another</button>
@@ -77,9 +91,28 @@ export default function SearchWizard() {
           <label className="text-[11px] text-base-content/50 mb-1 block">Collection</label>
           <select value={collectionId} onChange={(e) => selectCollection(e.target.value)} className="select select-bordered select-sm w-full text-[13px]">
             <option value="">— pick a collection —</option>
+            <option value="*">All collections — one search across everything</option>
             {allCollections.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
+
+        {isAll && (
+          <>
+            <p className="text-[12px] text-base-content/45 leading-relaxed">
+              A cross-collection search page searches every static collection at once — one search box over all your records, with results grouped by collection.
+            </p>
+            <div>
+              <label className="text-[11px] text-base-content/50 mb-1 block">Page title</label>
+              <input value={pageTitle} onChange={(e) => setPageTitle(e.target.value)}
+                className="input input-bordered input-sm w-full max-w-xs text-[13px]" />
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => submit.mutate()} disabled={submit.isPending} className="btn btn-primary btn-sm text-[12px]">
+                {submit.isPending && <Loader2 size={13} className="animate-spin" />} Build search page
+              </button>
+            </div>
+          </>
+        )}
 
         {collection && (
           <>

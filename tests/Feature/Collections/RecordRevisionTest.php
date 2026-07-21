@@ -46,7 +46,7 @@ class RecordRevisionTest extends TestCase
             'data' => ['title' => 'Second edition', 'pages' => 150],
         ]);
 
-        $revisions = RecordRevision::where('record_id', $record->id)->orderBy('created_at')->get();
+        $revisions = RecordRevision::where('record_id', $record->id)->orderBy('created_at')->orderBy('id')->get();
         $this->assertCount(2, $revisions);
         $this->assertSame(['created', 'updated'], $revisions->pluck('event')->all());
         $this->assertSame('First edition', $revisions[0]->data['title']);
@@ -61,7 +61,7 @@ class RecordRevisionTest extends TestCase
 
         $this->assertSame(
             'restored',
-            RecordRevision::where('record_id', $record->id)->orderByDesc('created_at')->value('event')
+            RecordRevision::where('record_id', $record->id)->orderByDesc('created_at')->orderByDesc('id')->value('event')
         );
     }
 
