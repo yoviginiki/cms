@@ -122,6 +122,13 @@ class RecordDisplay
             }
         }
 
+        // No plain image field — fall back to the first gallery (uuid[]).
+        foreach ($collection->fields() as $field) {
+            if ($field['type'] === 'gallery') {
+                return $field['key'];
+            }
+        }
+
         return null;
     }
 
@@ -129,6 +136,9 @@ class RecordDisplay
     {
         $key = self::firstImageField($collection);
         $value = $key ? ($record->data[$key] ?? null) : null;
+        if (is_array($value)) { // firstImageField may resolve to a gallery (uuid[])
+            $value = $value[0] ?? null;
+        }
 
         if (!$value) {
             // Fall back to the first gallery image.

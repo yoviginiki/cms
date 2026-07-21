@@ -16,6 +16,7 @@
     $fieldKey = $data['field'] ?? '';
     if (!$fieldKey && $collection) { $fieldKey = RecordDisplay::firstImageField($collection); }
     $assetId = ($record && $fieldKey) ? ($record->data[$fieldKey] ?? null) : null;
+    if (is_array($assetId)) { $assetId = $assetId[0] ?? null; } // gallery fields hold uuid[]
     $src = ($assetId && $site) ? RecordDisplay::assetUrl($site, is_string($assetId) ? $assetId : null) : null;
 
     $ratioMap = ['16:9' => '56.25%', '4:3' => '75%', '1:1' => '100%', '3:2' => '66.67%'];
