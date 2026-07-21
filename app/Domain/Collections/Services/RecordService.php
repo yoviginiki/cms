@@ -173,6 +173,12 @@ class RecordService
             logger()->warning("record revision snapshot failed for {$saved->id}: {$e->getMessage()}");
         }
 
+        app(\App\Domain\Webhooks\WebhookDispatcher::class)->dispatch(
+            $site,
+            $record ? 'record.updated' : 'record.created',
+            \App\Domain\Webhooks\WebhookDispatcher::recordPayload($saved, $collection),
+        );
+
         return $saved;
     }
 
@@ -224,6 +230,8 @@ class RecordService
 
     public function delete(Record $record, Site $site): void
     {
+        $collection = $record->collection;
+
         DB::transaction(function () use ($record, $site) {
             // Flag referrers before the edges/rows disappear.
             $this->staleness->markStale($site, 'record', $record->id, 'record_deleted');
@@ -233,6 +241,14 @@ class RecordService
         });
 
         \Illuminate\Support\Facades\Cache::increment("colapi_ver:{$record->collection_id}");
+
+        if ($collection) {
+            app(\App\Domain\Webhooks\WebhookDispatcher::class)->dispatch(
+                $site,
+                'record.deleted',
+                \App\Domain\Webhooks\WebhookDispatcher::recordPayload($record, $collection),
+            );
+        }
     }
 
     /**

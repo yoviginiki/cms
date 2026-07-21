@@ -250,6 +250,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sites.collections', \App\Http\Controllers\Api\V1\CollectionController::class);
         Route::apiResource('sites.collections.records', \App\Http\Controllers\Api\V1\RecordController::class);
 
+        // Webhooks (collections v3) — outgoing signed event notifications
+        Route::get('sites/{site}/webhooks/{webhook}/deliveries', [\App\Http\Controllers\Api\V1\WebhookController::class, 'deliveries']);
+        Route::post('sites/{site}/webhooks/{webhook}/test', [\App\Http\Controllers\Api\V1\WebhookController::class, 'test']);
+        Route::apiResource('sites.webhooks', \App\Http\Controllers\Api\V1\WebhookController::class)->except(['show']);
+
         // Saved queries (Track G-Q) — authoring is admin/owner only
         Route::middleware('role:admin')->group(function () {
             Route::post('sites/{site}/saved-queries/preview', [\App\Http\Controllers\Api\V1\SavedQueryController::class, 'preview']);

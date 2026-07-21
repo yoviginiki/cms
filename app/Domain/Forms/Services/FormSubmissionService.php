@@ -61,6 +61,12 @@ class FormSubmissionService
             }
         }
 
+        app(\App\Domain\Webhooks\WebhookDispatcher::class)->dispatch($site, 'form.submitted', [
+            'form_key' => $formKey,
+            'submission_id' => $submission->id,
+            'values' => $data,
+        ]);
+
         return ['stored' => true, 'submission' => $submission];
     }
 
