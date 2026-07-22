@@ -195,8 +195,11 @@ class BuildPageService
         $explicitLayout = $content->layout_id ? \App\Models\Layout::find($content->layout_id) : null;
         $useLayout = $explicitLayout && $explicitLayout->slug !== 'standard';
 
-        // Try grid-based rendering (only if no explicit layout override)
-        $grid = !$useLayout ? $this->gridResolver->resolve($content, $site) : null;
+        // Try grid-based rendering (only if no explicit layout override).
+        // A page carrying raw_html is an explicit document (imported apps,
+        // custom HTML) — a site-default grid must not swallow it.
+        $hasRawHtml = $content instanceof Page && $content->raw_html;
+        $grid = (!$useLayout && !$hasRawHtml) ? $this->gridResolver->resolve($content, $site) : null;
 
         if ($grid) {
             $gridResult = $this->gridRenderer->render($grid, $content, $site);
