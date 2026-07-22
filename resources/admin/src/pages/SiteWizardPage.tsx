@@ -28,6 +28,7 @@ export default function SiteWizardPage() {
   const [maxPages, setMaxPages] = useState(15);
   const [targetSiteId, setTargetSiteId] = useState('');
   const [menuLabel, setMenuLabel] = useState('');
+  const [fidelity, setFidelity] = useState<'exact' | 'blocks'>('exact');
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Existing sites for the "add to an existing site" destination.
@@ -78,7 +79,7 @@ export default function SiteWizardPage() {
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
   const startZip = useMutation({
-    mutationFn: (file: File) => siteWizard.fromZip(file, startOpts()),
+    mutationFn: (file: File) => siteWizard.fromZip(file, { ...startOpts(), fidelity }),
     onSuccess: (r) => start(r.data.data),
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
@@ -207,6 +208,39 @@ export default function SiteWizardPage() {
           </>
         ) : (
           <>
+            {/* Fidelity: pixel-perfect copy vs editable block rebuild */}
+            <div className="mb-4 space-y-2">
+              {([
+                {
+                  k: 'exact' as const,
+                  title: 'Exact copy — looks identical to the design',
+                  hint: 'Pages, styles and scripts are kept as-is (including built-in language switchers). Pages are edited as HTML.',
+                },
+                {
+                  k: 'blocks' as const,
+                  title: 'Rebuild with editable blocks',
+                  hint: 'Pages are reconstructed with the block editor — fully editable, but complex custom designs will look different.',
+                },
+              ]).map((o) => (
+                <label
+                  key={o.k}
+                  className={`flex items-start gap-3 rounded-box border p-3 cursor-pointer transition-colors ${
+                    fidelity === o.k ? 'border-primary bg-primary/5' : 'border-base-300/60 hover:border-base-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    className="radio radio-primary radio-sm mt-0.5"
+                    checked={fidelity === o.k}
+                    onChange={() => setFidelity(o.k)}
+                  />
+                  <span>
+                    <span className="block text-sm text-base-content">{o.title}</span>
+                    <span className="block text-xs text-base-content/50 mt-0.5">{o.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
             <button
               className="border-2 border-dashed border-base-300 rounded-box w-full py-10 flex flex-col items-center gap-2 text-base-content/50 hover:border-primary/50 hover:text-base-content/80 transition-colors mb-2"
               onClick={() => fileRef.current?.click()}
@@ -230,7 +264,9 @@ export default function SiteWizardPage() {
               }}
             />
             <p className="text-xs text-base-content/40">
-              Web fonts referenced from the internet are substituted with matching open fonts.
+              {fidelity === 'exact'
+                ? 'The design ships exactly as exported — fonts, colors, scripts and layout are preserved.'
+                : 'Web fonts referenced from the internet are substituted with matching open fonts.'}
             </p>
           </>
         )}

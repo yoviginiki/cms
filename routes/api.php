@@ -218,6 +218,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sites.assets', AssetController::class);
         Route::get('sites/{site}/assets/{asset}/serve/{variant?}', [AssetServeController::class, 'serve']);
 
+        // Verbatim design files kept by exact-copy site imports (admin preview;
+        // published pages use the static /site-files/ copy instead)
+        Route::get('sites/{site}/files/{path}', [\App\Http\Controllers\Api\V1\SiteFilesController::class, 'serve'])
+            ->where('path', '.*');
+
         // Entity references ("used on N pages")
         Route::get('sites/{site}/references/usage', [\App\Http\Controllers\Api\V1\ReferenceController::class, 'usage']);
 

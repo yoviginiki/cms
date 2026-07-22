@@ -60,6 +60,21 @@ class BuildPageService
         $this->isPreview = $isPreview;
         $this->templateContext = [];
 
+        // A page whose raw_html is a COMPLETE document (exact-copy site
+        // import) publishes verbatim: it ships its own <head>, styles, nav,
+        // and scripts, so the theme wrapper, menus, and token CSS must not
+        // touch it. Body-fragment raw_html keeps the normal path below.
+        if ($content instanceof Page && self::isDocumentPage($content)) {
+            $html = $this->hooks->applyFilter('page_render', $content->raw_html, $content, $site);
+            if (!$this->isPreview) {
+                $html = SiteFilesPublisher::rewriteHtml($html, $site);
+                $html = AssetPublisher::rewriteHtml($html);
+                $html = self::rewriteBaseForSlugHosting($html, $site);
+            }
+
+            return $this->minifier->minify($html);
+        }
+
         $headContent = $this->seoService->generatePageHead($content, $site);
         $themeConfig = $theme?->config ?? [];
 
@@ -1185,6 +1200,12 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
      * site slug. Skips /api/ (backend, host-level) and protocol-relative //.
      * Custom-domain sites deploy to their own docroot and need no prefix.
      */
+    /** True when the page's raw_html is a full standalone HTML document. */
+    public static function isDocumentPage(Page $page): bool
+    {
+        return $page->raw_html && preg_match('/^\s*(?:<!doctype\b|<html\b)/i', $page->raw_html) === 1;
+    }
+
     public static function rewriteBaseForSlugHosting(string $html, Site $site): string
     {
         if ($site->custom_domain) {

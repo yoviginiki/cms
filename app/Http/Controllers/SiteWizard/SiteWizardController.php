@@ -64,6 +64,7 @@ class SiteWizardController extends Controller
             'name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'site_id' => ['sometimes', 'nullable', 'uuid'],
             'menu_label' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'fidelity' => ['sometimes', 'nullable', 'in:exact,blocks'],
         ]);
         $this->authorizeTarget($request, $data['site_id'] ?? null);
 
@@ -72,6 +73,7 @@ class SiteWizardController extends Controller
                 'name' => $data['name'] ?? null,
                 'site_id' => $data['site_id'] ?? null,
                 'menu_label' => $data['menu_label'] ?? null,
+                'fidelity' => $data['fidelity'] ?? null,
             ])),
         ], 201));
     }

@@ -98,6 +98,11 @@ class SiteService
         // custom-domain docroots are Hestia-managed and stay.
         $this->removeLiveOutput($site);
 
+        // Verbatim design files (exact-copy imports) go with the site.
+        \Illuminate\Support\Facades\File::deleteDirectory(
+            \App\Domain\Publishing\Services\SiteFilesPublisher::storageRoot($site)
+        );
+
         $site->delete();
     }
 

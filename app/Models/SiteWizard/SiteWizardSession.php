@@ -50,6 +50,17 @@ class SiteWizardSession extends Model
         return ($this->options['mode'] ?? 'new') === 'into' ? 'into' : 'new';
     }
 
+    /**
+     * 'exact' keeps each ZIP page as a verbatim raw-HTML document (published
+     * as-is, design files shipped alongside); 'blocks' rebuilds pages as
+     * native editable block trees. URL imports are always 'blocks'.
+     */
+    public function fidelity(): string
+    {
+        return ($this->options['fidelity'] ?? 'blocks') === 'exact' && $this->source === 'zip'
+            ? 'exact' : 'blocks';
+    }
+
     /** Slug prefix for imported pages in 'into' mode (keeps them grouped, avoids collisions). */
     public function slugPrefix(): string
     {

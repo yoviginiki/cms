@@ -60,6 +60,11 @@ return [
         'workspace_path' => env('SITE_WIZARD_WORKSPACE_PATH', ''),
     ],
 
+    // Verbatim design files kept by exact-copy site imports (empty =
+    // storage/app/site-files). Sandboxed by the test suite like the wizard
+    // workspace above.
+    'site_files_path' => env('SITE_FILES_PATH', ''),
+
     'theme_wizard' => [
         // Opus does the vision analysis of a reference; Sonnet routes the chat.
         'vision_model' => env('THEME_WIZARD_VISION_MODEL', 'claude-opus-4-8'),

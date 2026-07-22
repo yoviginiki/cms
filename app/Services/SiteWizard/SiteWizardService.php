@@ -46,6 +46,7 @@ class SiteWizardService
         private SiteCrawler $crawler,
         private ZipSiteIngestor $zip,
         private SitePageBuilder $pageBuilder,
+        private SiteDocumentPageBuilder $documentBuilder,
         private SiteMenuBuilder $menuBuilder,
         private StyleProfileMapper $styleMapper,
         private TokenProfileCompiler $themeCompiler,
@@ -355,7 +356,11 @@ class SiteWizardService
 
             $session->updateSource($pending['ref'], ['status' => 'building']);
             try {
-                $result = $this->pageBuilder->build($session, $site, $pending);
+                // Exact fidelity (ZIP only): keep the original document verbatim
+                // instead of rebuilding it as blocks.
+                $result = $session->fidelity() === 'exact'
+                    ? $this->documentBuilder->build($session, $site, $pending)
+                    : $this->pageBuilder->build($session, $site, $pending);
                 $session->updateSource($pending['ref'], [
                     'status' => 'done',
                     'page_id' => $result['page']->id,
@@ -387,7 +392,13 @@ class SiteWizardService
         if ($done === 0) {
             throw new RuntimeException('None of the pages could be built.');
         }
-        $session->markStep('pages', 'done', "{$done} of " . count($session->sources) . ' pages built');
+        if ($session->fidelity() === 'exact') {
+            // Every page (and thus its final slug) now exists — resolve the
+            // cross-page link tokens the documents carry.
+            $this->documentBuilder->finalizeLinks($session);
+        }
+        $session->markStep('pages', 'done', "{$done} of " . count($session->sources) . ' pages built'
+            . ($session->fidelity() === 'exact' ? ' (exact copy)' : ''));
 
         return true;
     }
@@ -467,6 +478,11 @@ class SiteWizardService
                 'max_pages' => (int) ($options['max_pages'] ?? config('cms.site_wizard.max_pages', 15)),
                 'name' => $options['name'] ?? null,
                 'menu_label' => isset($options['menu_label']) ? mb_substr(trim((string) $options['menu_label']), 0, 60) : null,
+                // ZIP design packages default to a pixel-perfect copy; 'blocks'
+                // rebuilds them as native editable pages instead.
+                'fidelity' => in_array($options['fidelity'] ?? null, ['exact', 'blocks'], true)
+                    ? $options['fidelity']
+                    : ($source === 'zip' ? 'exact' : 'blocks'),
             ],
             'steps' => SiteWizardSession::seedSteps(),
         ]);

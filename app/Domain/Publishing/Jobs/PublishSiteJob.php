@@ -117,6 +117,12 @@ class PublishSiteJob implements ShouldQueue
             // Copy custom fonts to staging
             $this->copyCustomFonts($site, $stagingPath);
 
+            // Verbatim design files (exact-copy imports) ship with the build.
+            $siteFiles = \App\Domain\Publishing\Services\SiteFilesPublisher::publish($site, $stagingPath);
+            if ($siteFiles > 0) {
+                $this->broadcast("Copied {$siteFiles} design file(s)");
+            }
+
             // Get publishable content
             $pages = $site->pages()->where('status', 'published')->orderBy('sort_order')->get();
             $posts = $site->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
@@ -408,7 +414,7 @@ class PublishSiteJob implements ShouldQueue
         $htaccess .= "  Header always set X-Frame-Options \"SAMEORIGIN\"\n";
         $htaccess .= "  Header always set Referrer-Policy \"strict-origin-when-cross-origin\"\n";
         $htaccess .= "  Header always set Strict-Transport-Security \"max-age=31536000; includeSubDomains\"\n";
-        $htaccess .= "  Header always set Content-Security-Policy \"default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; connect-src 'self' https:\"\n";
+        $htaccess .= "  Header always set Content-Security-Policy \"default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; connect-src 'self' https:\"\n";
         $htaccess .= "</IfModule>\n";
 
         if (!$redirects->isEmpty()) {

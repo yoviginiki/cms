@@ -323,6 +323,8 @@ export interface SiteWizardStartOptions {
   /** Import into this existing site (pages + submenu) instead of creating a new one. */
   siteId?: string;
   menuLabel?: string;
+  /** ZIP imports: 'exact' keeps the original documents verbatim; 'blocks' rebuilds them as editable blocks. */
+  fidelity?: 'exact' | 'blocks';
 }
 
 export const siteWizard = {
@@ -342,6 +344,7 @@ export const siteWizard = {
     if (opts.name) fd.append('name', opts.name);
     if (opts.siteId) fd.append('site_id', opts.siteId);
     if (opts.menuLabel) fd.append('menu_label', opts.menuLabel);
+    if (opts.fidelity) fd.append('fidelity', opts.fidelity);
     return api.post<{ data: SiteWizardSession }>('/site-wizard/sessions/from-zip', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
