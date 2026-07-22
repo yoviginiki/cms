@@ -106,8 +106,10 @@ class SiteCrawler
             return null;
         }
 
-        $path = (string) (parse_url($url, PHP_URL_PATH) ?: '/');
-        $slug = $path === '/' ? 'home' : (Str::slug(str_replace('/', '-', trim($path, '/'))) ?: 'page');
+        $path = rawurldecode((string) (parse_url($url, PHP_URL_PATH) ?: '/'));
+        // Str::slug transliterates non-Latin (e.g. Cyrillic) paths; without the
+        // decode, percent-encoded paths slug into hex runs.
+        $slug = $path === '' || $path === '/' ? 'home' : (Str::slug(str_replace('/', '-', trim($path, '/'))) ?: 'page');
         $base = $slug;
         $n = 2;
         while (in_array($slug, $takenSlugs, true)) {
