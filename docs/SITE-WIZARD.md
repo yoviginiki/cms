@@ -20,6 +20,20 @@ already exists — a live website URL, or an uploaded ZIP of exported HTML/CSS
 Review the result, then **Create website** (publishes all pages) or
 **Discard** (deletes the whole site again).
 
+## Importing INTO an existing site
+
+Pick a destination site in the wizard (or pass `site_id` + `menu_label` to
+the start endpoints) and the same build lands **inside that site** instead:
+
+- the target keeps its **theme, menu, and homepage** untouched
+  (create_site/theme/polish steps are skipped),
+- imported pages get a **slug prefix** derived from the menu label
+  (home → `retreat-2026`, others → `retreat-2026-…`) so nothing collides,
+- the pages hang as a **submenu under one new parent item** in the site's
+  existing header menu (parent links to the imported home page),
+- **Discard removes exactly what the import added** — the pages and the
+  submenu — never the site.
+
 ## Where
 
 - SPA: **Dashboard → "Import a website"**, or `/site-wizard`.

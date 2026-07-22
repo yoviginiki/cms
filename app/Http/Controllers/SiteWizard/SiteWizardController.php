@@ -38,34 +38,53 @@ class SiteWizardController extends Controller
 
     public function startUrl(Request $request): JsonResponse
     {
-        $this->authorize('create', Site::class);
         $data = $request->validate([
             'url' => ['required', 'url', 'max:2048'],
             'name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'max_pages' => ['sometimes', 'integer', 'min:1', 'max:20'],
+            'site_id' => ['sometimes', 'nullable', 'uuid'],
+            'menu_label' => ['sometimes', 'nullable', 'string', 'max:60'],
         ]);
+        $this->authorizeTarget($request, $data['site_id'] ?? null);
 
         return $this->guard(fn () => response()->json([
             'data' => $this->serialize($this->wizard->startFromUrl($request->user(), $data['url'], [
                 'name' => $data['name'] ?? null,
                 'max_pages' => $data['max_pages'] ?? null,
+                'site_id' => $data['site_id'] ?? null,
+                'menu_label' => $data['menu_label'] ?? null,
             ])),
         ], 201));
     }
 
     public function startZip(Request $request): JsonResponse
     {
-        $this->authorize('create', Site::class);
         $data = $request->validate([
             'file' => ['required', 'file', 'mimes:zip', 'max:' . ((int) config('cms.site_wizard.zip_max_mb', 100) * 1024)],
             'name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'site_id' => ['sometimes', 'nullable', 'uuid'],
+            'menu_label' => ['sometimes', 'nullable', 'string', 'max:60'],
         ]);
+        $this->authorizeTarget($request, $data['site_id'] ?? null);
 
         return $this->guard(fn () => response()->json([
             'data' => $this->serialize($this->wizard->startFromZip($request->user(), $data['file'], [
                 'name' => $data['name'] ?? null,
+                'site_id' => $data['site_id'] ?? null,
+                'menu_label' => $data['menu_label'] ?? null,
             ])),
         ], 201));
+    }
+
+    /** New site → may the user create sites; into a target → may they edit THAT site. */
+    private function authorizeTarget(Request $request, ?string $siteId): void
+    {
+        if ($siteId) {
+            $site = Site::where('tenant_id', $request->user()->tenant_id)->findOrFail($siteId);
+            $this->authorize('update', $site);
+        } else {
+            $this->authorize('create', Site::class);
+        }
     }
 
     public function show(Request $request, SiteWizardSession $siteWizardSession): JsonResponse
@@ -146,6 +165,7 @@ class SiteWizardController extends Controller
             'id' => $s->id,
             'status' => $s->status,
             'source' => $s->source,
+            'mode' => $s->mode(),
             'title' => $s->title,
             'reference_url' => $s->reference_url,
             'steps' => $s->steps ?? [],
@@ -156,12 +176,43 @@ class SiteWizardController extends Controller
                 'id' => $p->id, 'title' => $p->title, 'slug' => $p->slug, 'status' => $p->status,
             ])->values(),
             'theme' => $this->themeSwatches($s),
-            'menu' => $s->menu_id ? $s->menu?->items()->orderBy('sort_order')->get(['label', 'page_id', 'url'])
-                ->map(fn ($i) => ['label' => $i->label, 'is_page' => $i->page_id !== null])->values() : null,
+            'menu' => $this->menuPreview($s),
             'error' => $s->error,
             'total_tokens' => $s->totalTokens(),
             'updated_at' => optional($s->updated_at)->toIso8601String(),
         ];
+    }
+
+    /**
+     * Menu preview for the review screen. 'new' mode: the created menu's
+     * items. 'into' mode: the parent item's label + its submenu children.
+     */
+    private function menuPreview(SiteWizardSession $s): ?array
+    {
+        if ($s->mode() === 'into') {
+            if (!$s->menu_item_id) {
+                return null;
+            }
+            $parent = \App\Models\MenuItem::find($s->menu_item_id);
+            if (!$parent) {
+                return null;
+            }
+            $children = \App\Models\MenuItem::where('parent_id', $parent->id)
+                ->orderBy('sort_order')
+                ->get(['label', 'page_id'])
+                ->map(fn ($i) => ['label' => $i->label, 'is_page' => $i->page_id !== null])
+                ->values()
+                ->all();
+
+            return array_merge([['label' => $parent->label . ' ▾', 'is_page' => $parent->page_id !== null]], $children);
+        }
+
+        if (!$s->menu_id) {
+            return null;
+        }
+
+        return $s->menu?->items()->orderBy('sort_order')->get(['label', 'page_id', 'url'])
+            ->map(fn ($i) => ['label' => $i->label, 'is_page' => $i->page_id !== null])->values()->all();
     }
 
     /** Swatches + type for the review screen, straight from the token profile. */

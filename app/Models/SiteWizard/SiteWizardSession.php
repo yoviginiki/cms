@@ -41,8 +41,25 @@ class SiteWizardSession extends Model
         'tenant_id', 'user_id', 'site_id', 'title', 'status', 'source',
         'reference_url', 'workspace_path', 'options', 'steps', 'sources',
         'style_signals', 'profile', 'nav', 'asset_map', 'theme_id', 'menu_id',
-        'page_ids', 'token_usage', 'error',
+        'menu_item_id', 'page_ids', 'token_usage', 'error',
     ];
+
+    /** 'new' builds a whole site; 'into' imports pages + a submenu into an existing one. */
+    public function mode(): string
+    {
+        return ($this->options['mode'] ?? 'new') === 'into' ? 'into' : 'new';
+    }
+
+    /** Slug prefix for imported pages in 'into' mode (keeps them grouped, avoids collisions). */
+    public function slugPrefix(): string
+    {
+        $raw = $this->options['slug_prefix']
+            ?? $this->options['menu_label']
+            ?? $this->title
+            ?? 'imported';
+
+        return \Illuminate\Support\Str::slug((string) $raw) ?: 'imported';
+    }
 
     protected function casts(): array
     {

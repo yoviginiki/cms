@@ -58,9 +58,17 @@ class SitePageBuilder
 
         $title = trim((string) ($manifest['page_title'] ?? '')) ?: ucwords(str_replace('-', ' ', $source['slug']));
 
+        // 'into' mode prefixes slugs so the import stays grouped and can't
+        // collide with the target site's own pages (home → the prefix itself).
+        $slug = $source['slug'];
+        if ($session->mode() === 'into') {
+            $prefix = $session->slugPrefix();
+            $slug = $slug === 'home' ? $prefix : "{$prefix}-{$slug}";
+        }
+
         $page = $this->pages->createPage([
             'title' => mb_substr($title, 0, 255),
-            'slug' => $source['slug'],
+            'slug' => $slug,
             'status' => 'draft',
         ], $site);
 

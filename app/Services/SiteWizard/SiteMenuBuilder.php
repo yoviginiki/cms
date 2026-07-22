@@ -44,6 +44,53 @@ class SiteMenuBuilder
         return $menu;
     }
 
+    /**
+     * 'into' mode: hang the imported pages as a SUBMENU under one new parent
+     * item in the target site's existing header menu (created if the site has
+     * none). The parent links to the imported home page so the label itself
+     * is clickable.
+     *
+     * @return array{menu: Menu, parent: MenuItem}|null
+     */
+    public function buildInto(SiteWizardSession $session, Site $site): ?array
+    {
+        $items = $this->itemsFromNav($session, $site);
+        if ($items === []) {
+            $items = $this->itemsFromPages($session);
+        }
+        if ($items === []) {
+            return null;
+        }
+
+        $menu = Menu::where('site_id', $site->id)->where('location', 'header')->first()
+            ?? Menu::firstOrCreate(
+                ['site_id' => $site->id, 'slug' => 'main'],
+                ['name' => 'Main menu', 'location' => 'header'],
+            );
+
+        $label = trim((string) ($session->options['menu_label'] ?? '')) ?: ($session->title ?: 'Imported');
+        $home = collect($session->sources ?? [])->first(fn ($s) => ($s['is_home'] ?? false) && !empty($s['page_id']));
+        $nextOrder = (int) MenuItem::where('menu_id', $menu->id)->whereNull('parent_id')->max('sort_order') + 1;
+
+        $parent = MenuItem::create([
+            'menu_id' => $menu->id,
+            'label' => mb_substr($label, 0, 60),
+            'page_id' => $home['page_id'] ?? null,
+            'target' => '_self',
+            'sort_order' => $nextOrder,
+        ]);
+
+        foreach ($items as $order => $item) {
+            // The parent already IS the home link — don't repeat it as a child.
+            if (($item['page_id'] ?? null) !== null && $item['page_id'] === ($home['page_id'] ?? null)) {
+                continue;
+            }
+            MenuItem::create($item + ['menu_id' => $menu->id, 'parent_id' => $parent->id, 'sort_order' => $order]);
+        }
+
+        return ['menu' => $menu, 'parent' => $parent];
+    }
+
     /** @return array<int, array> menu item attribute sets, in nav order */
     private function itemsFromNav(SiteWizardSession $session, Site $site): array
     {

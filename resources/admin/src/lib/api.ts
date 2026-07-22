@@ -298,6 +298,7 @@ export interface SiteWizardSession {
   id: string;
   status: 'running' | 'failed' | 'review' | 'accepted' | 'abandoned';
   source: 'url' | 'zip';
+  mode: 'new' | 'into';
   title?: string | null;
   reference_url?: string | null;
   steps: SiteWizardStep[];
@@ -316,17 +317,31 @@ export interface SiteWizardSession {
   updated_at?: string;
 }
 
+export interface SiteWizardStartOptions {
+  name?: string;
+  maxPages?: number;
+  /** Import into this existing site (pages + submenu) instead of creating a new one. */
+  siteId?: string;
+  menuLabel?: string;
+}
+
 export const siteWizard = {
   list: () => api.get<{ data: SiteWizardSession[] }>('/site-wizard/sessions'),
   get: (id: string) => api.get<{ data: SiteWizardSession }>(`/site-wizard/sessions/${id}`),
-  fromUrl: (url: string, name?: string, maxPages?: number) =>
+  fromUrl: (url: string, opts: SiteWizardStartOptions = {}) =>
     api.post<{ data: SiteWizardSession }>('/site-wizard/sessions/from-url', {
-      url, name: name || undefined, max_pages: maxPages || undefined,
+      url,
+      name: opts.name || undefined,
+      max_pages: opts.maxPages || undefined,
+      site_id: opts.siteId || undefined,
+      menu_label: opts.menuLabel || undefined,
     }),
-  fromZip: (file: File, name?: string) => {
+  fromZip: (file: File, opts: SiteWizardStartOptions = {}) => {
     const fd = new FormData();
     fd.append('file', file);
-    if (name) fd.append('name', name);
+    if (opts.name) fd.append('name', opts.name);
+    if (opts.siteId) fd.append('site_id', opts.siteId);
+    if (opts.menuLabel) fd.append('menu_label', opts.menuLabel);
     return api.post<{ data: SiteWizardSession }>('/site-wizard/sessions/from-zip', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

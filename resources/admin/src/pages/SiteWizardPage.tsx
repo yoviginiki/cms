@@ -5,7 +5,7 @@ import {
   Globe, Loader2, Check, X, RotateCcw, Rocket, Trash2, Upload, Link2,
   AlertTriangle, FileText, Palette, List, SkipForward, Circle,
 } from 'lucide-react';
-import { siteWizard, type SiteWizardSession, type SiteWizardStep } from '@/lib/api';
+import { siteWizard, sites as sitesApi, type SiteWizardSession, type SiteWizardStep } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 const apiErr = (e: any) => e?.response?.data?.error || e?.response?.data?.message || 'Something went wrong.';
@@ -26,7 +26,15 @@ export default function SiteWizardPage() {
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
   const [maxPages, setMaxPages] = useState(15);
+  const [targetSiteId, setTargetSiteId] = useState('');
+  const [menuLabel, setMenuLabel] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Existing sites for the "add to an existing site" destination.
+  const { data: siteList } = useQuery({
+    queryKey: ['sites-for-wizard'],
+    queryFn: async () => (await sitesApi.list()).data?.data ?? [],
+  });
 
   // Resume an in-flight session by URL (/site-wizard/:sessionId).
   useQuery({
@@ -58,13 +66,19 @@ export default function SiteWizardPage() {
     navigate(`/site-wizard/${s.id}`, { replace: true });
   };
 
+  const startOpts = () => ({
+    name: name.trim() || undefined,
+    maxPages,
+    siteId: targetSiteId || undefined,
+    menuLabel: menuLabel.trim() || undefined,
+  });
   const startUrl = useMutation({
-    mutationFn: () => siteWizard.fromUrl(url.trim(), name.trim() || undefined, maxPages),
+    mutationFn: () => siteWizard.fromUrl(url.trim(), startOpts()),
     onSuccess: (r) => start(r.data.data),
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
   const startZip = useMutation({
-    mutationFn: (file: File) => siteWizard.fromZip(file, name.trim() || undefined),
+    mutationFn: (file: File) => siteWizard.fromZip(file, startOpts()),
     onSuccess: (r) => start(r.data.data),
     onError: (e) => toast({ type: 'error', message: apiErr(e) }),
   });
@@ -121,15 +135,45 @@ export default function SiteWizardPage() {
           ))}
         </div>
 
+        {/* Destination: brand-new site, or pages + submenu inside an existing one */}
         <label className="form-control w-full mb-4">
-          <span className="label-text text-xs mb-1">Site name (optional — detected from the design if empty)</span>
-          <input
-            className="input input-bordered input-sm w-full"
-            placeholder="My new website"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+          <span className="label-text text-xs mb-1">Destination</span>
+          <select
+            className="select select-bordered select-sm w-full"
+            value={targetSiteId}
+            onChange={(e) => setTargetSiteId(e.target.value)}
+          >
+            <option value="">Create a new website</option>
+            {(siteList ?? []).map((s: any) => (
+              <option key={s.id} value={s.id}>Add to “{s.name}” as pages + submenu</option>
+            ))}
+          </select>
         </label>
+
+        {targetSiteId ? (
+          <label className="form-control w-full mb-4">
+            <span className="label-text text-xs mb-1">Menu label — the imported pages appear under this item in the site&apos;s navigation</span>
+            <input
+              className="input input-bordered input-sm w-full"
+              placeholder="e.g. Retreat 2026"
+              value={menuLabel}
+              onChange={(e) => setMenuLabel(e.target.value)}
+            />
+            <span className="text-[11px] text-base-content/40 mt-1">
+              The site keeps its current theme, menu and homepage — this only adds pages and one submenu. Discard removes exactly those again.
+            </span>
+          </label>
+        ) : (
+          <label className="form-control w-full mb-4">
+            <span className="label-text text-xs mb-1">Site name (optional — detected from the design if empty)</span>
+            <input
+              className="input input-bordered input-sm w-full"
+              placeholder="My new website"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+        )}
 
         {method === 'url' ? (
           <>
@@ -311,12 +355,14 @@ export default function SiteWizardPage() {
           <>
             <button className="btn btn-primary flex-1" disabled={accept.isPending} onClick={() => accept.mutate()}>
               {accept.isPending ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />}
-              Create website
+              {session.mode === 'into' ? 'Add to site' : 'Create website'}
             </button>
             <button
               className="btn btn-ghost text-error"
               disabled={abandon.isPending}
-              onClick={() => window.confirm('Discard this build? The whole site — pages, theme and menu — will be deleted.') && abandon.mutate()}
+              onClick={() => window.confirm(session.mode === 'into'
+                ? 'Discard this import? The imported pages and the submenu will be removed — the site itself stays untouched.'
+                : 'Discard this build? The whole site — pages, theme and menu — will be deleted.') && abandon.mutate()}
             >
               <Trash2 size={16} /> Discard
             </button>
@@ -331,7 +377,9 @@ export default function SiteWizardPage() {
             <button
               className="btn btn-ghost text-error"
               disabled={abandon.isPending}
-              onClick={() => window.confirm('Discard this build? Anything already created will be deleted.') && abandon.mutate()}
+              onClick={() => window.confirm(session.mode === 'into'
+                ? 'Discard this import? Anything it added to the site will be removed.'
+                : 'Discard this build? Anything already created will be deleted.') && abandon.mutate()}
             >
               <Trash2 size={16} /> Discard
             </button>

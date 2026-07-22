@@ -133,15 +133,31 @@ class SiteWizardService
         return Site::findOrFail($session->site_id);
     }
 
-    /** Discard everything the build created — the whole site included. */
+    /**
+     * Discard everything the build created. 'new' mode: the whole site.
+     * 'into' mode: only the imported pages and the submenu — the target site,
+     * its theme, menu, and homepage were never the wizard's to delete.
+     */
     public function abandon(SiteWizardSession $session): void
     {
         if ($session->status === 'accepted') {
             throw new RuntimeException('This build was already accepted — delete the site from the sites list instead.');
         }
-        if ($session->site_id && ($site = Site::find($session->site_id))) {
+
+        if ($session->mode() === 'into') {
+            if (($session->page_ids ?? []) !== []) {
+                Page::whereIn('id', $session->page_ids)->delete();
+            }
+            if ($session->menu_item_id) {
+                // parent_id FK is null-on-delete, so remove children explicitly
+                // or they'd surface as root menu items.
+                \App\Models\MenuItem::where('parent_id', $session->menu_item_id)->delete();
+                \App\Models\MenuItem::whereKey($session->menu_item_id)->delete();
+            }
+        } elseif ($session->site_id && ($site = Site::find($session->site_id))) {
             $this->sites->deleteSite($site);
         }
+
         $this->zip->cleanup($session);
         $session->update(['status' => 'abandoned', 'error' => null]);
     }
@@ -219,6 +235,12 @@ class SiteWizardService
 
     private function stepCreateSite(SiteWizardSession $session): bool
     {
+        if ($session->mode() === 'into') {
+            $session->markStep('create_site', 'skipped', 'Importing into ' . ($session->site?->name ?? 'the existing site'));
+
+            return true;
+        }
+
         $session->markStep('create_site', 'running');
 
         $tenant = Tenant::findOrFail($session->tenant_id);
@@ -232,6 +254,12 @@ class SiteWizardService
 
     private function stepTheme(SiteWizardSession $session): bool
     {
+        if ($session->mode() === 'into') {
+            $session->markStep('theme', 'skipped', 'The site keeps its current theme');
+
+            return true;
+        }
+
         $session->markStep('theme', 'running');
         $site = Site::findOrFail($session->site_id);
 
@@ -258,7 +286,8 @@ class SiteWizardService
      */
     private function stepPolish(SiteWizardSession $session): bool
     {
-        $enabled = (bool) config('cms.site_wizard.ai_polish') && (string) config('cms.ai.api_key') !== '';
+        $enabled = (bool) config('cms.site_wizard.ai_polish') && (string) config('cms.ai.api_key') !== ''
+            && $session->mode() === 'new';
         if (!$enabled || $session->source !== 'url' || !$session->theme_id) {
             $session->markStep('polish', 'skipped', $enabled ? 'Only available for URL imports' : 'AI polish is off');
 
@@ -355,6 +384,19 @@ class SiteWizardService
         $session->markStep('menu', 'running');
         $site = Site::findOrFail($session->site_id);
 
+        if ($session->mode() === 'into') {
+            $result = $this->menuBuilder->buildInto($session, $site);
+            if ($result) {
+                $session->update(['menu_id' => $result['menu']->id, 'menu_item_id' => $result['parent']->id]);
+                $count = \App\Models\MenuItem::where('parent_id', $result['parent']->id)->count();
+                $session->markStep('menu', 'done', "“{$result['parent']->label}” submenu with {$count} item(s)");
+            } else {
+                $session->markStep('menu', 'skipped', 'No navigation could be built');
+            }
+
+            return true;
+        }
+
         $menu = $this->menuBuilder->build($session, $site);
         if ($menu) {
             $session->update(['menu_id' => $menu->id]);
@@ -371,13 +413,16 @@ class SiteWizardService
         $session->markStep('finalize', 'running');
         $site = Site::findOrFail($session->site_id);
 
-        $home = collect($session->sources ?? [])->first(fn ($s) => ($s['is_home'] ?? false) && !empty($s['page_id']))
-            ?? collect($session->sources ?? [])->first(fn ($s) => !empty($s['page_id']));
-        if ($home) {
-            $site->update(['settings' => array_merge($site->settings ?? [], [
-                'homepage_id' => $home['page_id'],
-                'homepage_type' => 'page',
-            ])]);
+        // 'into' mode never touches the target site's homepage.
+        if ($session->mode() === 'new') {
+            $home = collect($session->sources ?? [])->first(fn ($s) => ($s['is_home'] ?? false) && !empty($s['page_id']))
+                ?? collect($session->sources ?? [])->first(fn ($s) => !empty($s['page_id']));
+            if ($home) {
+                $site->update(['settings' => array_merge($site->settings ?? [], [
+                    'homepage_id' => $home['page_id'],
+                    'homepage_type' => 'page',
+                ])]);
+            }
         }
 
         $session->markStep('finalize', 'done');
@@ -390,15 +435,25 @@ class SiteWizardService
 
     private function newSession(User $user, string $source, ?string $url, array $options): SiteWizardSession
     {
+        // A target site switches the wizard to 'into' mode: pages + a submenu
+        // are added to that site; its theme/menu/homepage stay untouched.
+        $targetSite = null;
+        if (!empty($options['site_id'])) {
+            $targetSite = Site::where('tenant_id', $user->tenant_id)->findOrFail($options['site_id']);
+        }
+
         return SiteWizardSession::create([
             'tenant_id' => $user->tenant_id,
             'user_id' => $user->id,
+            'site_id' => $targetSite?->id,
             'status' => 'running',
             'source' => $source,
             'reference_url' => $url,
             'options' => [
+                'mode' => $targetSite ? 'into' : 'new',
                 'max_pages' => (int) ($options['max_pages'] ?? config('cms.site_wizard.max_pages', 15)),
                 'name' => $options['name'] ?? null,
+                'menu_label' => isset($options['menu_label']) ? mb_substr(trim((string) $options['menu_label']), 0, 60) : null,
             ],
             'steps' => SiteWizardSession::seedSteps(),
         ]);
