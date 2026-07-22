@@ -151,7 +151,8 @@
             </div>
         </article>
     @endif
-    <div style="display:grid;grid-template-columns:repeat({{ $columns }}, 1fr);gap:1.5rem;">
+    @if($columns > 1)<style>@media(max-width:640px){.lp-grid{grid-template-columns:1fr!important}}@media(min-width:641px) and (max-width:900px){.lp-grid{grid-template-columns:repeat(2,1fr)!important}}</style>@endif
+    <div class="lp-grid" style="display:grid;grid-template-columns:repeat({{ $columns }}, 1fr);gap:1.5rem;">
         @foreach($posts as $post)
             <article style="{{ $showContent ? '' : 'border:var(--card-border,1px solid var(--color-border,#e2e8f0));border-radius:var(--border-radius-md,0.5rem);' }}overflow:hidden;">
                 @if($showImage && $post->featured_image)

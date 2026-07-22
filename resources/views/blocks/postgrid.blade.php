@@ -111,7 +111,8 @@
         No posts found{{ $categoryId ? ' in this category' : '' }}.
     </div>
 @else
-<div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
+@if($columns > 1)<style>@media(max-width:640px){.pg-grid{grid-template-columns:1fr!important}}@media(min-width:641px) and (max-width:900px){.pg-grid{grid-template-columns:repeat(2,1fr)!important}}</style>@endif
+<div class="pg-grid" style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
         <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius !== null ? $cardBorderRadius . 'px' : 'var(--border-radius-md,0.5rem)' }};overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
             {{-- Heading ABOVE image --}}

@@ -20,7 +20,8 @@ class MigrationDiffCommand extends Command
         {origin : Origin base URL}
         {--new-base= : Base URL of the migrated site (default: its public URL)}
         {--limit=0 : Compare at most N pages (0 = all)}
-        {--include-home : Also compare the two homepages}';
+        {--include-home : Also compare the two homepages}
+        {--mobile : Also audit each migrated page at a phone viewport (overflow, squeezed grids, edge-flush text)}';
 
     protected $description = 'Forensic element-by-element diff of origin pages vs their migrated counterparts (text coverage, headings, images, internal links, meta)';
 
@@ -80,6 +81,24 @@ class MigrationDiffCommand extends Command
 
         $report = $checker->comparePairs($site, $originHost, $pairs);
 
+        // A content diff is viewport-blind — bad mobile layouts (overflow,
+        // squeezed grids, text flush against the screen edge) sail through it.
+        if ($this->option('mobile')) {
+            $this->info('running mobile audits…');
+            foreach ($report['pages'] as &$p) {
+                $pair = collect($pairs)->firstWhere('label', $p['label']);
+                if (!$pair) {
+                    continue;
+                }
+                $p['mobile'] = $this->mobileAudit($pair['new']);
+            }
+            unset($p);
+            $flagged = array_filter($report['pages'], fn ($p) => !empty($p['mobile']['horizontalOverflow'])
+                || !empty($p['mobile']['squeezedGrids'])
+                || ($p['mobile']['edgeFlushTextBlocks'] ?? 0) > 3);
+            $report['summary']['pages_with_mobile_issues'] = count($flagged);
+        }
+
         $dir = storage_path("app/migration/{$site->slug}");
         File::ensureDirectoryExists($dir);
         File::put("{$dir}/diff-report.json", json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
@@ -88,9 +107,21 @@ class MigrationDiffCommand extends Command
         $s = $report['summary'];
         $this->info("avg text coverage: {$s['avg_text_coverage']}%");
         $this->info("pages with missing headings: {$s['pages_with_missing_headings']}, images: {$s['pages_with_missing_images']}, links: {$s['pages_with_missing_links']}");
+        if (isset($report['summary']['pages_with_mobile_issues'])) {
+            $this->info("pages with mobile issues: {$report['summary']['pages_with_mobile_issues']}");
+        }
         $this->info("report: {$dir}/diff-report.md");
 
         return self::SUCCESS;
+    }
+
+    private function mobileAudit(string $url): array
+    {
+        $script = base_path('scripts/mobile-audit.mjs');
+        $out = shell_exec('node ' . escapeshellarg($script) . ' ' . escapeshellarg($url) . ' 2>/dev/null');
+        $data = json_decode((string) $out, true);
+
+        return is_array($data) ? $data : ['error' => 'audit failed'];
     }
 
     private function markdown(array $report): string
@@ -136,6 +167,18 @@ class MigrationDiffCommand extends Command
             }
             foreach ($p['missing_text_samples'] ?? [] as $t) {
                 $md .= "- missing text: “{$t}…”\n";
+            }
+            $m = $p['mobile'] ?? null;
+            if ($m && empty($m['error'])) {
+                if (!empty($m['horizontalOverflow'])) {
+                    $md .= "- 📱 horizontal overflow: page scrolls sideways ({$m['scrollWidth']}px on {$m['viewport']}px)\n";
+                }
+                foreach ($m['squeezedGrids'] ?? [] as $g) {
+                    $md .= "- 📱 squeezed grid: {$g['el']} has {$g['columns']} columns of {$g['colWidth']}px\n";
+                }
+                if (($m['edgeFlushTextBlocks'] ?? 0) > 3) {
+                    $md .= "- 📱 {$m['edgeFlushTextBlocks']} text blocks flush against the screen edge (missing side padding)\n";
+                }
             }
             $md .= "\n";
         }
