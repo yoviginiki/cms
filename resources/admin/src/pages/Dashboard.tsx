@@ -113,6 +113,15 @@ export default function Dashboard() {
             </div>
           </div>
 
+          <div onClick={() => navigate('/site-wizard')}
+            className="card border-2 border-dashed border-base-300/40 hover:border-primary/40 cursor-pointer transition-all min-h-[180px] flex items-center justify-center group">
+            <div className="card-body items-center justify-center text-center p-5">
+              <Download className="h-8 w-8 text-base-content/15 group-hover:text-primary/40 mb-2 transition-colors" strokeWidth={1.5} />
+              <span className="text-[13px] font-medium text-base-content/40 group-hover:text-primary/60">Import a website</span>
+              <span className="text-[11px] text-base-content/30">from a URL or a design export</span>
+            </div>
+          </div>
+
           {wizardOpen && <SiteWizard onClose={() => setWizardOpen(false)} />}
         </div>
       )}

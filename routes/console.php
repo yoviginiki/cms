@@ -36,3 +36,8 @@ Schedule::command('collections:fetch-imports')
 Schedule::command('webhooks:retry')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+// Site Wizard workspace housekeeping (stale builds + leftover ZIP extracts)
+Schedule::command('site-wizard:prune')
+    ->daily()
+    ->withoutOverlapping();

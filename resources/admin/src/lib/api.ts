@@ -276,6 +276,69 @@ export const pageWizard = {
     api.post<{ data: { status: 'abandoned' } }>(`/sites/${siteId}/page-wizard/sessions/${id}/abandon`),
 };
 
+export interface SiteWizardStep {
+  key: string;
+  label: string;
+  status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+  detail?: string | null;
+  at?: string | null;
+}
+
+export interface SiteWizardSource {
+  ref: string;
+  slug: string;
+  title?: string | null;
+  is_home: boolean;
+  status: 'pending' | 'building' | 'done' | 'failed';
+  page_id?: string | null;
+  error?: string | null;
+}
+
+export interface SiteWizardSession {
+  id: string;
+  status: 'running' | 'failed' | 'review' | 'accepted' | 'abandoned';
+  source: 'url' | 'zip';
+  title?: string | null;
+  reference_url?: string | null;
+  steps: SiteWizardStep[];
+  sources: SiteWizardSource[];
+  site?: { id: string; slug: string; name: string } | null;
+  pages: { id: string; title: string; slug: string; status: string }[];
+  theme?: {
+    name?: string | null;
+    palette: Record<string, string>;
+    typography: { display?: string | null; body?: string | null };
+    design_read?: string | null;
+  } | null;
+  menu?: { label: string; is_page: boolean }[] | null;
+  error?: string | null;
+  total_tokens: number;
+  updated_at?: string;
+}
+
+export const siteWizard = {
+  list: () => api.get<{ data: SiteWizardSession[] }>('/site-wizard/sessions'),
+  get: (id: string) => api.get<{ data: SiteWizardSession }>(`/site-wizard/sessions/${id}`),
+  fromUrl: (url: string, name?: string, maxPages?: number) =>
+    api.post<{ data: SiteWizardSession }>('/site-wizard/sessions/from-url', {
+      url, name: name || undefined, max_pages: maxPages || undefined,
+    }),
+  fromZip: (file: File, name?: string) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (name) fd.append('name', name);
+    return api.post<{ data: SiteWizardSession }>('/site-wizard/sessions/from-zip', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  accept: (id: string) =>
+    api.post<{ data: { session: SiteWizardSession; site: { id: string; slug: string; name: string } } }>(`/site-wizard/sessions/${id}/accept`),
+  abandon: (id: string) =>
+    api.post<{ data: { status: 'abandoned' } }>(`/site-wizard/sessions/${id}/abandon`),
+  retry: (id: string) =>
+    api.post<{ data: SiteWizardSession }>(`/site-wizard/sessions/${id}/retry`),
+};
+
 export const customFonts = {
   list: (siteId: string) => api.get(`/sites/${siteId}/fonts`),
   upload: (siteId: string, formData: FormData) => api.post(`/sites/${siteId}/fonts`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),

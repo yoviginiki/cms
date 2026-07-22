@@ -43,6 +43,19 @@ return [
         'auto_source_images' => env('ISSUE_STUDIO_AUTO_SOURCE_IMAGES', true),
     ],
 
+    'site_wizard' => [
+        // Whole-site builds from a crawled URL / uploaded design ZIP. The
+        // pipeline is deterministic (DOM extraction + computed-style theme);
+        // ai_polish adds an OPTIONAL vision pass over the reference when the
+        // Anthropic key has credits — its failure never breaks a build.
+        'max_pages' => (int) env('SITE_WIZARD_MAX_PAGES', 15),
+        'zip_max_mb' => (int) env('SITE_WIZARD_ZIP_MAX_MB', 100),
+        'zip_max_files' => (int) env('SITE_WIZARD_ZIP_MAX_FILES', 5000),
+        'zip_max_uncompressed_mb' => (int) env('SITE_WIZARD_ZIP_MAX_UNCOMPRESSED_MB', 250),
+        'max_images' => (int) env('SITE_WIZARD_MAX_IMAGES', 60),
+        'ai_polish' => (bool) env('SITE_WIZARD_AI_POLISH', false),
+    ],
+
     'theme_wizard' => [
         // Opus does the vision analysis of a reference; Sonnet routes the chat.
         'vision_model' => env('THEME_WIZARD_VISION_MODEL', 'claude-opus-4-8'),

@@ -46,6 +46,7 @@ const DebugConsole = lazy(() => import('./pages/DebugConsole'));
 const ThemeEngine = lazy(() => import('./pages/ThemeEngine'));
 const ThemeWizardPage = lazy(() => import('./pages/ThemeWizardPage'));
 const PageWizardPage = lazy(() => import('./pages/PageWizardPage'));
+const SiteWizardPage = lazy(() => import('./pages/SiteWizardPage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 const GlobalSectionsList = lazy(() => import('./pages/GlobalSectionsList'));
 const StylePresetsList = lazy(() => import('./pages/StylePresetsList'));
@@ -102,6 +103,8 @@ export default function App() {
 
           {/* Pages with sidebar layout */}
           <Route path="/dashboard" element={<LayoutRoute><Dashboard /></LayoutRoute>} />
+          <Route path="/site-wizard" element={<LayoutRoute><SiteWizardPage /></LayoutRoute>} />
+          <Route path="/site-wizard/:sessionId" element={<LayoutRoute><SiteWizardPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/pages" element={<LayoutRoute><PagesList /></LayoutRoute>} />
           <Route path="/sites/:siteId/stale-pages" element={<LayoutRoute><StalePages /></LayoutRoute>} />
           <Route path="/sites/:siteId/sliders" element={<LayoutRoute><SlidersList /></LayoutRoute>} />

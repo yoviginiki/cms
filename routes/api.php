@@ -425,6 +425,20 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('sessions/{pageWizardSession}/abandon', [$pw, 'abandon']);
         });
 
+        // Site Wizard — build a COMPLETE site (theme + pages + menu + media)
+        // from a crawled URL or an uploaded design ZIP. Tenant-level: it
+        // creates the site itself, so it is not nested under sites/{site}.
+        Route::prefix('site-wizard')->group(function () {
+            $sw = \App\Http\Controllers\SiteWizard\SiteWizardController::class;
+            Route::get('sessions', [$sw, 'index']);
+            Route::post('sessions/from-url', [$sw, 'startUrl'])->middleware('throttle:6,1');
+            Route::post('sessions/from-zip', [$sw, 'startZip'])->middleware('throttle:6,1');
+            Route::get('sessions/{siteWizardSession}', [$sw, 'show']);
+            Route::post('sessions/{siteWizardSession}/accept', [$sw, 'accept']);
+            Route::post('sessions/{siteWizardSession}/abandon', [$sw, 'abandon']);
+            Route::post('sessions/{siteWizardSession}/retry', [$sw, 'retry']);
+        });
+
         // Theme Templates (Theme Builder)
         Route::get('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'index']);
         Route::post('sites/{site}/templates', [\App\Http\Controllers\Api\V1\ThemeTemplateController::class, 'store']);
