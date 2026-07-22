@@ -156,9 +156,24 @@ class SiteMenuBuilder
     private function matchPage(SiteWizardSession $session, array $pagesByRef, string $href): ?string
     {
         $key = $this->normalizeRef($session, $href);
-        $pageId = $pagesByRef[$key] ?? null;
+        $candidates = [$key];
+        if ($session->source === 'zip') {
+            // Exports often link extensionless or directory-style paths
+            // ("/about", "/en/") while the sources are file paths — try the
+            // common file-name variants before giving up.
+            $bare = rtrim($key, '/');
+            $candidates[] = $bare . '.html';
+            $candidates[] = ($bare === '' ? 'index.html' : $bare . '/index.html');
+        }
 
-        return $pageId !== null && Page::whereKey($pageId)->exists() ? $pageId : null;
+        foreach ($candidates as $candidate) {
+            $pageId = $pagesByRef[$candidate] ?? null;
+            if ($pageId !== null && Page::whereKey($pageId)->exists()) {
+                return $pageId;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -196,6 +211,28 @@ class SiteMenuBuilder
             return strcasecmp($host, $entryHost) !== 0;
         }
 
-        return true; // zip mode: any real host is external
+        // ZIP mode: the export's OWN domain (the most common host across its
+        // nav) is internal — an unmatched link there must not survive as an
+        // external item pointing at the old site. Other hosts are external.
+        $dominant = $this->dominantNavHost($session);
+
+        return $dominant === null || strcasecmp($host, $dominant) !== 0;
+    }
+
+    private function dominantNavHost(SiteWizardSession $session): ?string
+    {
+        $counts = [];
+        foreach ($session->nav ?? [] as $nav) {
+            $host = strtolower((string) parse_url((string) ($nav['href'] ?? ''), PHP_URL_HOST));
+            if ($host !== '' && !in_array($host, ['127.0.0.1', 'localhost'], true)) {
+                $counts[$host] = ($counts[$host] ?? 0) + 1;
+            }
+        }
+        if ($counts === []) {
+            return null;
+        }
+        arsort($counts);
+
+        return array_key_first($counts);
     }
 }

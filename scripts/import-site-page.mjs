@@ -88,10 +88,26 @@ try {
     reducedMotion: 'reduce',
   });
   if (dir) {
-    // A ZIP is untrusted input: never let its markup pull the network.
+    // A ZIP is untrusted input: never let its markup pull the network. BUT
+    // many exports reference their own CSS/JS/images by ABSOLUTE original-
+    // domain URLs — blocking those renders the page unstyled and menu-less.
+    // So: try to serve any external request from the extracted files by its
+    // URL path; only abort when no local file matches.
+    const { readFileSync, existsSync, statSync } = await import('node:fs');
     await ctx.route('**', (route) => {
       const u = new URL(route.request().url());
-      return u.hostname === '127.0.0.1' ? route.continue() : route.abort();
+      if (u.hostname === '127.0.0.1') return route.continue();
+      let pathname;
+      try { pathname = decodeURIComponent(u.pathname); } catch { return route.abort(); }
+      const resolved = normalize(join(dir, pathname));
+      if (!resolved.startsWith(normalize(dir) + sep)) return route.abort();
+      let file = resolved;
+      if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
+      const type = MIME[extname(file).toLowerCase()];
+      if (!type || !existsSync(file)) return route.abort();
+      try {
+        return route.fulfill({ status: 200, contentType: type, body: readFileSync(file) });
+      } catch { return route.abort(); }
     });
   }
   const page = await ctx.newPage();

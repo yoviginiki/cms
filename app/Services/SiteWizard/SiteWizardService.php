@@ -127,7 +127,9 @@ class SiteWizardService
             ->where('status', '!=', 'published')
             ->update(['status' => 'published', 'published_at' => now()]);
 
-        $this->zip->cleanup($session);
+        // The workspace (uploaded ZIP + extracted files) is deliberately KEPT
+        // after accept so an import that turned out wrong can be diagnosed —
+        // the daily site-wizard:prune sweep removes it.
         $session->update(['status' => 'accepted']);
 
         return Site::findOrFail($session->site_id);
@@ -228,7 +230,18 @@ class SiteWizardService
             ]);
         }
 
-        $session->markStep('ingest', 'done', count($session->refresh()->sources) . ' page(s) found');
+        $detail = count($session->refresh()->sources) . ' page(s) found';
+        if ($session->source === 'zip' && isset($extracted['stats'])) {
+            $detail .= ' in ' . $extracted['stats']['files'] . ' archive file(s)';
+            if (($extracted['stats']['skipped_ext'] ?? []) !== []) {
+                $detail .= ' (skipped: ' . implode(', ', array_map(
+                    fn ($ext, $n) => "{$n} .{$ext}",
+                    array_keys($extracted['stats']['skipped_ext']),
+                    $extracted['stats']['skipped_ext'],
+                )) . ')';
+            }
+        }
+        $session->markStep('ingest', 'done', $detail);
 
         return true;
     }

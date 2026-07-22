@@ -40,7 +40,7 @@ class ZipSiteIngestor
     /**
      * Extract + discover pages.
      *
-     * @return array{root: string, pages: array<int, array{path: string, slug: string, is_home: bool}>}
+     * @return array{root: string, pages: array<int, array{path: string, slug: string, is_home: bool}>, stats: array}
      */
     public function extract(SiteWizardSession $session): array
     {
@@ -78,6 +78,7 @@ class ZipSiteIngestor
         File::ensureDirectoryExists($root);
 
         // Pass 2 — entry-by-entry sanitized extraction.
+        $stats = ['files' => 0, 'skipped_ext' => [], 'by_ext' => []];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $stat = $zip->statIndex($i);
             $name = (string) ($stat['name'] ?? '');
@@ -97,11 +98,14 @@ class ZipSiteIngestor
             }
             $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
             if (!in_array($ext, self::ALLOWED_EXTENSIONS, true)) {
+                $stats['skipped_ext'][$ext] = ($stats['skipped_ext'][$ext] ?? 0) + 1;
                 continue;
             }
             if ((int) ($stat['size'] ?? 0) > $maxFileBytes) {
                 continue;
             }
+            $stats['files']++;
+            $stats['by_ext'][$ext] = ($stats['by_ext'][$ext] ?? 0) + 1;
 
             $stream = $zip->getStream($name);
             if ($stream === false) {
@@ -122,10 +126,13 @@ class ZipSiteIngestor
 
         $pages = $this->discoverPages($root);
         if ($pages === []) {
-            throw new RuntimeException('No HTML pages were found in the archive — export your design as HTML and try again.');
+            $seen = $stats['by_ext'] === [] ? 'nothing usable' : implode(', ', array_map(
+                fn ($ext, $n) => "{$n} {$ext}", array_keys($stats['by_ext']), $stats['by_ext'],
+            ));
+            throw new RuntimeException("No HTML pages were found in the archive (it contains {$seen}) — export your design as HTML and try again.");
         }
 
-        return ['root' => $root, 'pages' => $pages];
+        return ['root' => $root, 'pages' => $pages, 'stats' => $stats];
     }
 
     /** Extracted files root, re-applying the single-root-folder unwrap deterministically. */
@@ -166,8 +173,9 @@ class ZipSiteIngestor
     }
 
     /**
-     * Find the site's pages: *.html up to 3 levels deep, shallow first; the
-     * shallowest index.html is the homepage. Capped at 20.
+     * Find the site's pages: *.html up to 5 levels deep, shallow first; the
+     * shallowest index.html is the homepage. Capped at 20 — language trees
+     * (en/…, bg/…) count as normal pages.
      *
      * @return array<int, array{path: string, slug: string, is_home: bool}>
      */
@@ -184,7 +192,7 @@ class ZipSiteIngestor
             }
             $rel = ltrim(substr($file->getPathname(), strlen($root)), '/');
             $depth = substr_count($rel, '/');
-            if ($depth > 3) {
+            if ($depth > 5) {
                 continue;
             }
             $files[] = ['path' => $rel, 'depth' => $depth];
