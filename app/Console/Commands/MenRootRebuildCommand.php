@@ -35,7 +35,7 @@ use Illuminate\Support\Str;
  */
 class MenRootRebuildCommand extends Command
 {
-    protected $signature = 'men-root:rebuild {--dry-run} {--only=} {--site=men-root}';
+    protected $signature = 'men-root:rebuild {--dry-run} {--only=} {--site=men-root} {--verbatim-tools}';
     protected $description = 'Rebuild men-root exact-copy pages into editable block trees (content embeds + native app-blocks)';
 
     private const TOOL_MAP = [
@@ -109,6 +109,10 @@ class MenRootRebuildCommand extends Command
             $head .= "\n" . $cssLink;
         }
         $neutralize = '<style>/* men-root: keep bespoke design under the theme wrapper */'
+            // The theme critical CSS sets h1..h6{color:var(--color-heading)} which
+            // breaks the design's inherited section colouring (cream heads on the
+            // dark heroes). Restore inheritance so headings match the original.
+            . 'main h1,main h2,main h3,main h4,main h5,main h6{color:inherit}'
             . 'main p a:not(.btn):not([class*="button"]){text-decoration:none}'
             . '@media(max-width:767px){main h1,main h2{font-size:revert !important}}'
             . '@media(max-width:480px){body{font-size:revert}}</style>';
@@ -180,6 +184,14 @@ class MenRootRebuildCommand extends Command
      */
     private function sectionToNodes(DOMDocument $doc, DOMElement $section): array
     {
+        // Verbatim mode: keep the original tool markup (styled by the site's own
+        // styles.css and driven by its own site.js, both loaded globally) so the
+        // page is pixel-identical to the uploaded design. Native app-blocks are
+        // reserved for new sites built in the builder.
+        if ($this->option('verbatim-tools')) {
+            return [$this->embed($this->rewriteUrls($doc->saveHTML($section)))];
+        }
+
         $xp = new DOMXPath($doc);
         foreach (self::TOOL_MAP as $cls => $type) {
             $q = ".//*[contains(concat(' ', normalize-space(@class), ' '), ' {$cls} ')]";
