@@ -29,6 +29,31 @@ class UpdateSiteRequest extends FormRequest
             'seo_defaults.verification_bing' => ['sometimes', 'nullable', 'string', 'max:255'],
             'settings' => ['sometimes', 'array'],
             'settings.auto_publish' => ['sometimes', 'boolean'],
+            // Live folder under the shared docroot (ensodo.eu/{folder}).
+            // The filesystem is the collision authority: public_path is shared
+            // across ALL tenants, so a DB uniqueness check (RLS-scoped) can't
+            // see other tenants' folders — but the disk can.
+            'settings.deploy_slug' => ['sometimes', 'nullable', 'string', 'max:64',
+                'regex:/^[a-z0-9][a-z0-9-]*$/',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $site = $this->route('site');
+                    if (!$value || !$site instanceof \App\Models\Site || $value === $site->slug) {
+                        return;
+                    }
+                    $path = rtrim((string) config('publishing.public_path'), '/') . '/' . $value;
+                    if (!file_exists($path) && !is_link($path)) {
+                        return; // free folder
+                    }
+                    if (is_link($path)) {
+                        $deploymentId = basename((string) readlink($path));
+                        $owner = \App\Models\Deployment::whereKey($deploymentId)->value('site_id');
+                        if ($owner === $site->id) {
+                            return; // it's already OUR live folder
+                        }
+                    }
+                    $fail("The folder \"{$value}\" is already in use — choose another publish folder.");
+                },
+            ],
             'settings.llms_txt' => ['sometimes', 'boolean'],
             'settings.ai_crawlers_disallowed' => ['sometimes', 'array'],
             'settings.ai_crawlers_disallowed.*' => ['sometimes', 'string', 'max:50'],

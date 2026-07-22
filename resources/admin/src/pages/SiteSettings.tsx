@@ -40,6 +40,7 @@ export default function SiteSettings() {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('');
   const [autoPublish, setAutoPublish] = useState(true);
+  const [deploySlug, setDeploySlug] = useState('');
   const [autoRepublishStale, setAutoRepublishStale] = useState(false);
 
   // Branding
@@ -146,6 +147,7 @@ export default function SiteSettings() {
       setName(site.name);
       setStatus(site.status);
       setAutoPublish((site.settings?.auto_publish as boolean) ?? true);
+      setDeploySlug((site.settings?.deploy_slug as string) ?? '');
       setAutoRepublishStale((site.settings?.auto_republish_stale as boolean) ?? false);
       setLogoUrl((site.settings?.logo_url as string) ?? '');
       setLogoShowName(Boolean(site.settings?.logo_show_name));
@@ -221,7 +223,7 @@ export default function SiteSettings() {
   const saveGeneral = () => updateMutation.mutate({
     name,
     status,
-    settings: { ...(site?.settings || {}), auto_publish: autoPublish, auto_republish_stale: autoRepublishStale },
+    settings: { ...(site?.settings || {}), auto_publish: autoPublish, auto_republish_stale: autoRepublishStale, deploy_slug: deploySlug.trim() || null },
   });
 
   const saveBranding = () => updateMutation.mutate({
@@ -422,6 +424,18 @@ export default function SiteSettings() {
                 <option value="draft">Draft</option>
               </select>
             </div>
+            {!site?.custom_domain && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Publish folder</label>
+                <input type="text" value={deploySlug} onChange={(e) => setDeploySlug(e.target.value.toLowerCase())}
+                  placeholder={site?.slug || 'my-site'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <p className="text-xs text-gray-500 mt-1">
+                  The site goes live at <span className="font-mono">ensodo.eu/{deploySlug.trim() || site?.slug}</span>.
+                  Lowercase letters, numbers and dashes. Changing it moves the site on the next publish — the old folder is removed automatically.
+                </p>
+              </div>
+            )}
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div>
                 <p className="text-sm font-medium text-gray-900">Auto-publish</p>

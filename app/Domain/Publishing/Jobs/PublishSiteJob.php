@@ -233,7 +233,7 @@ class PublishSiteJob implements ShouldQueue
                 $linkWarnings = app(\App\Domain\Publishing\Services\InternalLinkChecker::class)->check(
                     $stagingPath,
                     50,
-                    $site->custom_domain ? null : '/' . trim($site->slug, '/'),
+                    $site->custom_domain ? null : '/' . trim($site->deploySlug(), '/'),
                 );
                 if ($linkWarnings !== []) {
                     $validationResults['site:internal-links'] = [
@@ -640,7 +640,7 @@ class PublishSiteJob implements ShouldQueue
 
         $base = $site->custom_domain
             ? "https://{$site->custom_domain}"
-            : 'https://ensodo.eu/' . trim($site->slug, '/');
+            : 'https://ensodo.eu/' . trim($site->deploySlug(), '/');
 
         // homepage + a recent page + a recent post — cheap but representative
         $urls = [$base . '/'];

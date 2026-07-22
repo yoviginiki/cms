@@ -76,6 +76,6 @@ class StalePathCleaner
             return "{$tenantBase}/{$safeDomain}/public_html";
         }
 
-        return config('publishing.public_path') . '/' . $site->slug;
+        return config('publishing.public_path') . '/' . $site->deploySlug();
     }
 }

@@ -58,7 +58,7 @@ class RenameDeployStrategy
         }
 
         $site = $deployment->site;
-        $publicPath = config('publishing.public_path') . '/' . $site->slug;
+        $publicPath = config('publishing.public_path') . '/' . $site->deploySlug();
         $files = $this->getFileList($rollbackPath);
 
         foreach ($files as $relativePath) {

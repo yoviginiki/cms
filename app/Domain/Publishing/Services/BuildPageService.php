@@ -1187,7 +1187,7 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
         if ($site->custom_domain) {
             return $html;
         }
-        $base = '/' . trim($site->slug, '/');
+        $base = '/' . trim($site->deploySlug(), '/');
 
         // href/src/content/action/poster/data-src attributes with root-absolute values
         $html = preg_replace_callback(

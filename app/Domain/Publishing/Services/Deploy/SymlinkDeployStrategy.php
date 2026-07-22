@@ -61,7 +61,7 @@ class SymlinkDeployStrategy
         }
 
         $site = $deployment->site;
-        $publicPath = config('publishing.public_path') . '/' . $site->slug;
+        $publicPath = config('publishing.public_path') . '/' . $site->deploySlug();
 
         if (is_link($publicPath)) {
             unlink($publicPath);

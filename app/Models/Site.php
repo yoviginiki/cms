@@ -55,6 +55,22 @@ class Site extends Model
         return $this->belongsTo(Tenant::class);
     }
 
+    /**
+     * The public folder this site deploys to under the shared docroot
+     * (ensodo.eu/{deploySlug}/). Defaults to the site slug; overridable via
+     * settings.deploy_slug so the live URL can differ from the internal slug.
+     * Malformed overrides fall back to the slug — the deploy path must never
+     * contain separators or traversal.
+     */
+    public function deploySlug(): string
+    {
+        $custom = trim((string) ($this->settings['deploy_slug'] ?? ''));
+
+        return $custom !== '' && preg_match('/^[a-z0-9][a-z0-9-]{0,63}$/', $custom)
+            ? $custom
+            : $this->slug;
+    }
+
     public function pages(): HasMany
     {
         return $this->hasMany(Page::class);

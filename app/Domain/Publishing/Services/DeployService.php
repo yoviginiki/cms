@@ -50,7 +50,7 @@ class DeployService
                 throw new \RuntimeException("Deploy target does not exist: {$targetPath}.");
             }
         } else {
-            $targetPath = config('publishing.public_path') . '/' . $site->slug;
+            $targetPath = config('publishing.public_path') . '/' . $site->deploySlug();
             // If the docroot is currently a symlink to a full build, per-file
             // writes would mutate that build's directory — still correct
             // content-wise, but resolve it so paths land where they're served
@@ -98,9 +98,43 @@ class DeployService
             $this->copyDeploy($stagingPath, $domainPath, $deployment);
         } else {
             $basePath = config('publishing.public_path');
-            $publicPath = $basePath . '/' . $site->slug;
+            $publicPath = $basePath . '/' . $site->deploySlug();
             $strategy = $this->resolveLocalStrategy();
             $strategy->deploy($stagingPath, $publicPath, $deployment);
+
+            // A changed deploy folder (settings.deploy_slug) must not leave the
+            // previous folder serving stale content — remove any OTHER symlink
+            // that still points at one of this site's builds.
+            $this->removeStaleDeployLinks($site);
+        }
+    }
+
+    /**
+     * Unlink every symlink in the public path that (a) is not this site's
+     * current deploy folder and (b) targets a build belonging to this site.
+     * Only symlinks are ever touched — real directories are never deleted.
+     */
+    private function removeStaleDeployLinks(\App\Models\Site $site): void
+    {
+        $publicPath = config('publishing.public_path');
+        $current = $site->deploySlug();
+        if (!is_dir($publicPath)) {
+            return;
+        }
+
+        foreach (scandir($publicPath) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..' || $entry === $current) {
+                continue;
+            }
+            $link = $publicPath . '/' . $entry;
+            if (!is_link($link)) {
+                continue;
+            }
+            $deploymentId = basename((string) readlink($link));
+            $owner = \App\Models\Deployment::whereKey($deploymentId)->value('site_id');
+            if ($owner === $site->id) {
+                unlink($link);
+            }
         }
     }
 

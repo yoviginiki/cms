@@ -23,7 +23,7 @@ class StaticCleaner
             if (!$safeDomain || str_contains($safeDomain, '..')) return null;
             $path = $tenantBase . '/' . $safeDomain . '/public_html';
         } else {
-            $path = config('publishing.public_path') . '/' . $site->slug;
+            $path = config('publishing.public_path') . '/' . $site->deploySlug();
         }
 
         return is_dir($path) ? $path : null;
