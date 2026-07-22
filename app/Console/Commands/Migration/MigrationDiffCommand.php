@@ -96,6 +96,7 @@ class MigrationDiffCommand extends Command
             $flagged = array_filter($report['pages'], fn ($p) => !empty($p['mobile']['horizontalOverflow'])
                 || !empty($p['mobile']['squeezedGrids'])
                 || !empty($p['mobile']['sectionSeams'])
+                || !empty($p['mobile']['narrowBanners'])
                 || ($p['mobile']['edgeFlushTextBlocks'] ?? 0) > 3);
             $report['summary']['pages_with_mobile_issues'] = count($flagged);
         }
@@ -179,6 +180,9 @@ class MigrationDiffCommand extends Command
                 }
                 foreach ($m['sectionSeams'] ?? [] as $g) {
                     $md .= "- 📱 background seam: {$g['el']} shows {$g['gap']}px of raw background below its content\n";
+                }
+                foreach ($m['narrowBanners'] ?? [] as $g) {
+                    $md .= "- 📱 divider image not full width: {$g['el']} is {$g['width']}px on a {$g['viewport']}px viewport\n";
                 }
                 if (($m['edgeFlushTextBlocks'] ?? 0) > 3) {
                     $md .= "- 📱 {$m['edgeFlushTextBlocks']} text blocks flush against the screen edge (missing side padding)\n";

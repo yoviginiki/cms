@@ -89,6 +89,21 @@ try {
       }
     }
 
+    // banner/divider images (very wide aspect) inside a colored section that
+    // don't span the full viewport — side stripes of raw background show
+    const narrowBanners = [];
+    for (const img of document.querySelectorAll('.section-block img')) {
+      if (!img.naturalWidth || img.naturalWidth / Math.max(1, img.naturalHeight) < 3.5) continue;
+      const sec = img.closest('.section-block');
+      const cs = sec ? getComputedStyle(sec) : null;
+      if (!cs || (cs.backgroundColor === 'rgba(0, 0, 0, 0)' && !cs.backgroundImage.includes('url'))) continue;
+      const r = img.getBoundingClientRect();
+      if (r.width > 100 && r.width < vw - 4) {
+        narrowBanners.push({ el: describe(img), width: Math.round(r.width), viewport: vw });
+        if (narrowBanners.length >= 4) break;
+      }
+    }
+
     // text blocks flush against the screen edge (no breathing room)
     let edgeFlushText = 0;
     for (const el of document.querySelectorAll('p, h1, h2, h3, li')) {
@@ -105,6 +120,7 @@ try {
       offenders,
       squeezedGrids: squeezed,
       sectionSeams: seams,
+      narrowBanners,
       edgeFlushTextBlocks: edgeFlushText,
     };
   });
