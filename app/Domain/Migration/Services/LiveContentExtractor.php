@@ -87,13 +87,30 @@ class LiveContentExtractor
             return [];
         }
 
-        $blocks = [];
         $seen = [];
+
+        return $this->walk($doc, $xp, $root, $pageTitle, $assetSite, $seen, allowColumns: true);
+    }
+
+    /**
+     * Walk a subtree into blocks. Multi-column builder rows (Divi et_pb_row
+     * with ≥2 et_pb_column) are preserved as a '_columns' pseudo-block —
+     * flattening them was the biggest structural infidelity of the spider.
+     */
+    private function walk(\DOMDocument $doc, \DOMXPath $xp, \DOMElement $root, string $pageTitle, ?Site $assetSite, array &$seen, bool $allowColumns): array
+    {
+        $blocks = [];
+        $multiColRows = new \SplObjectStorage();
         // standalone builder buttons (et_pb_button, wp-block-button__link, …)
-        // are anchors OUTSIDE any text node — capture them as button blocks
+        // are anchors OUTSIDE any text node — capture them as button blocks.
+        // Builder accordions (Divi et_pb_accordion, native <details>) are
+        // captured whole as accordion blocks — walking their text nodes would
+        // flatten an interactive widget into static headings + paragraphs.
         $nodes = $xp->query(
             './/h1|.//h2|.//h3|.//h4|.//h5|.//h6|.//p|.//ul|.//ol|.//img|.//blockquote'
-            . "|.//a[contains(@class,'button') or contains(@class,'btn')]",
+            . "|.//a[contains(@class,'button') or contains(@class,'btn')]"
+            . "|.//div[contains(concat(' ',normalize-space(@class),' '),' et_pb_accordion ')]"
+            . ($allowColumns ? "|.//div[contains(concat(' ',normalize-space(@class),' '),' et_pb_row ')]" : ''),
             $root
         );
 
@@ -105,12 +122,51 @@ class LiveContentExtractor
                 }
             }
             for ($anc = $node->parentNode; $anc instanceof \DOMElement; $anc = $anc->parentNode) {
-                if (preg_match(self::SKIP_ANCESTOR_CLASSES, ' ' . $anc->getAttribute('class') . ' ')) {
+                $ancClass = ' ' . $anc->getAttribute('class') . ' ';
+                if (preg_match(self::SKIP_ANCESTOR_CLASSES, $ancClass)) {
+                    continue 2;
+                }
+                // members of an accordion are captured with the widget itself
+                if (str_contains($ancClass, ' et_pb_accordion ')) {
+                    continue 2;
+                }
+                // members of a captured multi-column row are extracted per column
+                if ($anc instanceof \DOMElement && $multiColRows->contains($anc)) {
                     continue 2;
                 }
             }
 
             $tag = strtolower($node->nodeName);
+
+            if ($tag === 'div') { // matched only for accordion/row containers
+                $class = ' ' . $node->getAttribute('class') . ' ';
+                if (str_contains($class, ' et_pb_accordion ')) {
+                    $accordion = $this->extractAccordion($doc, $xp, $node);
+                    if ($accordion !== null) {
+                        $blocks[] = $accordion;
+                    }
+                } elseif ($allowColumns && str_contains($class, ' et_pb_row ')) {
+                    // trial-extract per column on a COPY of the dedup set — a
+                    // row that doesn't qualify must leave its content for the
+                    // normal walk, not have it swallowed as "already seen"
+                    $trialSeen = $seen;
+                    $columns = [];
+                    foreach ($xp->query("./div[contains(concat(' ',normalize-space(@class),' '),' et_pb_column ')]", $node) as $col) {
+                        // nested rows inside a column are flattened (depth 1)
+                        $colBlocks = $this->walk($doc, $xp, $col, $pageTitle, $assetSite, $trialSeen, allowColumns: false);
+                        if ($colBlocks !== []) {
+                            $columns[] = $colBlocks;
+                        }
+                    }
+                    if (count($columns) >= 2) {
+                        $seen = $trialSeen;
+                        $multiColRows->attach($node);
+                        $blocks[] = $this->block('_columns', []) + ['columns' => $columns];
+                    }
+                    // single/empty columns: fall through — children get walked normally
+                }
+                continue;
+            }
 
             if ($tag === 'a') {
                 // inline links inside a paragraph are captured with the <p>
@@ -185,6 +241,42 @@ class LiveContentExtractor
         }
 
         return $blocks;
+    }
+
+    /**
+     * Divi accordion → native accordion block. Item title lives in
+     * .et_pb_toggle_title, body in .et_pb_toggle_content; an initially-open
+     * first item carries et_pb_toggle_open.
+     */
+    private function extractAccordion(\DOMDocument $doc, \DOMXPath $xp, \DOMElement $container): ?array
+    {
+        $items = [];
+        $openFirst = false;
+        $toggles = $xp->query(".//div[contains(concat(' ',normalize-space(@class),' '),' et_pb_toggle ')]", $container);
+
+        foreach ($toggles as $i => $toggle) {
+            $titleNode = $xp->query(".//*[contains(@class,'et_pb_toggle_title')]", $toggle)->item(0);
+            $contentNode = $xp->query(".//div[contains(@class,'et_pb_toggle_content')]", $toggle)->item(0);
+            $title = $titleNode ? trim($titleNode->textContent) : '';
+            if ($title === '' || !$contentNode) {
+                continue;
+            }
+            $inner = '';
+            foreach ($contentNode->childNodes as $c) {
+                $inner .= $doc->saveHTML($c);
+            }
+            $items[] = [
+                'title' => $title,
+                'content' => strip_tags($inner, '<a><strong><em><b><i><br><p><ul><ol><li>'),
+            ];
+            if ($i === 0 && str_contains($toggle->getAttribute('class'), 'et_pb_toggle_open')) {
+                $openFirst = true;
+            }
+        }
+
+        return $items === []
+            ? null
+            : $this->block('accordion', ['items' => $items, 'openFirst' => $openFirst]);
     }
 
     private function extractMeta(\DOMXPath $xp): array

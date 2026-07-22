@@ -142,14 +142,41 @@ class SpiderRebuildService
             }
         }
 
-        $content = array_map(function ($b, $i) {
+        // Build the content section's row tree: consecutive flat blocks share a
+        // single-column row; a '_columns' pseudo-block (multi-column builder
+        // row the extractor preserved) becomes a real multi-column row.
+        $rows = [];
+        $buffer = [];
+        $flush = function () use (&$rows, &$buffer) {
+            if ($buffer !== []) {
+                $rows[] = $this->row([$this->column($buffer)]);
+                $buffer = [];
+            }
+        };
+        foreach ($content as $b) {
             unset($b['_imgname']);
-            $b['order'] = $i;
+            if (($b['type'] ?? '') === '_columns') {
+                $flush();
+                $cols = array_map(fn ($colBlocks) => $this->column(array_map(
+                    function ($cb) {
+                        unset($cb['_imgname']);
 
-            return $b;
-        }, $content, array_keys($content));
-        $sections[] = $this->section([$this->row([$this->column($content)])], [
-            'max_width' => '800px', 'padding_top' => '48px', 'padding_bottom' => '48px',
+                        return $cb;
+                    },
+                    $colBlocks
+                )), $b['columns']);
+                $rows[] = $this->row($cols, $this->layoutFor(count($cols)));
+            } else {
+                $buffer[] = $b;
+            }
+        }
+        $flush();
+
+        $hasColumns = count($rows) > 1 || ($rows !== [] && count($rows[0]['children']) > 1);
+        $sections[] = $this->section($rows, [
+            // multi-column layouts need the wider canvas the origin used
+            'max_width' => $hasColumns ? '1100px' : '800px',
+            'padding_top' => '48px', 'padding_bottom' => '48px',
         ]);
 
         $this->blocks->syncBlocks($model, $sections);
@@ -184,14 +211,24 @@ class SpiderRebuildService
         ];
     }
 
-    private function row(array $children): array
+    private function row(array $children, string $layout = '1'): array
     {
         static $order = 0;
 
         return [
             'id' => Str::uuid()->toString(), 'type' => 'row', 'level' => 'row', 'order' => $order++,
-            'data' => ['layout' => '1', 'gap' => '24px'], 'children' => $children,
+            'data' => ['layout' => $layout, 'gap' => '24px'], 'children' => $children,
         ];
+    }
+
+    private function layoutFor(int $columns): string
+    {
+        return match ($columns) {
+            2 => '1/2+1/2',
+            3 => '1/3+1/3+1/3',
+            4 => '1/4+1/4+1/4+1/4',
+            default => '1',
+        };
     }
 
     private function column(array $children): array

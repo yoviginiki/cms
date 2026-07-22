@@ -74,6 +74,59 @@ HTML;
         $this->assertSame('https://origin.tld/up/2020/12/photo-300x200.jpg', $result['meta']['og_image']);
     }
 
+    public function test_extractor_preserves_accordions_and_column_structure(): void
+    {
+        // the exact Divi shape that was being flattened: one row, two columns —
+        // left: heading + accordion (first toggle open) + button; right: image + text
+        $html = <<<'HTML'
+<html><body><div class="entry-content">
+<div class="et_pb_section et_pb_section_1">
+  <div class="et_pb_row et_pb_row_2">
+    <div class="et_pb_column et_pb_column_1_2 et_pb_column_3">
+      <div class="et_pb_module et_pb_text"><div class="et_pb_text_inner"><h2>За метода</h2></div></div>
+      <div class="et_pb_module et_pb_accordion et_pb_accordion_0">
+        <div class="et_pb_toggle et_pb_accordion_item et_pb_toggle_open">
+          <h5 class="et_pb_toggle_title">Какво означава "Хейко"</h5>
+          <div class="et_pb_toggle_content clearfix"><p>Първо съдържание за баланса.</p></div>
+        </div>
+        <div class="et_pb_toggle et_pb_accordion_item et_pb_toggle_close">
+          <h5 class="et_pb_toggle_title">Защо да избера тази дзен терапия?</h5>
+          <div class="et_pb_toggle_content clearfix"><p>Второ съдържание с <a href="https://origin.tld/kakvo-e-zen/">линк</a>.</p></div>
+        </div>
+      </div>
+      <div class="et_pb_button_module_wrapper"><a class="et_pb_button" href="https://origin.tld/za-terapiata/">Прочети повече</a></div>
+    </div>
+    <div class="et_pb_column et_pb_column_1_2 et_pb_column_4">
+      <div class="et_pb_module et_pb_image"><span class="et_pb_image_wrap"><img src="https://origin.tld/up/photo.jpg" alt=""></span></div>
+      <div class="et_pb_module et_pb_text"><div class="et_pb_text_inner"><p>Казвам се Николай Петров и това е достатъчно дълъг текст.</p></div></div>
+    </div>
+  </div>
+</div>
+</div></body></html>
+HTML;
+
+        $result = app(LiveContentExtractor::class)->extract($html, 'Начало', null);
+
+        $this->assertCount(1, $result['blocks']);
+        $row = $result['blocks'][0];
+        $this->assertSame('_columns', $row['type']);
+        $this->assertCount(2, $row['columns']);
+
+        [$left, $right] = $row['columns'];
+        $this->assertSame(['heading', 'accordion', 'button'], array_column($left, 'type'));
+
+        $accordion = $left[1];
+        $this->assertTrue($accordion['data']['openFirst']);
+        $this->assertCount(2, $accordion['data']['items']);
+        $this->assertSame('Какво означава "Хейко"', $accordion['data']['items'][0]['title']);
+        $this->assertStringContainsString('Първо съдържание', $accordion['data']['items'][0]['content']);
+        // links inside accordion bodies survive
+        $this->assertStringContainsString('href="https://origin.tld/kakvo-e-zen/"', $accordion['data']['items'][1]['content']);
+
+        $this->assertSame('Прочети повече', $left[2]['data']['text']);
+        $this->assertSame(['image', 'paragraph'], array_column($right, 'type'));
+    }
+
     public function test_link_rewriter_recreates_internal_links(): void
     {
         $this->makeContent();
