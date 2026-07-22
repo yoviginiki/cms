@@ -44,6 +44,7 @@ export default function SiteSettings() {
 
   // Branding
   const [logoUrl, setLogoUrl] = useState('');
+  const [logoShowName, setLogoShowName] = useState(false);
   const [tagline, setTagline] = useState('');
   const [footerText, setFooterText] = useState('');
   const [footerCopyright, setFooterCopyright] = useState('');
@@ -147,6 +148,7 @@ export default function SiteSettings() {
       setAutoPublish((site.settings?.auto_publish as boolean) ?? true);
       setAutoRepublishStale((site.settings?.auto_republish_stale as boolean) ?? false);
       setLogoUrl((site.settings?.logo_url as string) ?? '');
+      setLogoShowName(Boolean(site.settings?.logo_show_name));
       setTagline((site.settings?.tagline as string) ?? '');
       setFooterText((site.settings?.footer_text as string) ?? '');
       setFooterCopyright((site.settings?.footer_copyright as string) ?? '');
@@ -226,6 +228,7 @@ export default function SiteSettings() {
     settings: {
       ...(site?.settings || {}),
       logo_url: logoUrl || null,
+      logo_show_name: logoShowName,
       tagline: tagline || null,
       footer_text: footerText || null,
       footer_copyright: footerCopyright || null,
@@ -469,6 +472,12 @@ export default function SiteSettings() {
               </div>
               <p className="text-[10px] text-gray-400 mt-1">Upload via File Manager, then paste the URL here</p>
             </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={logoShowName} onChange={e => setLogoShowName(e.target.checked)}
+                className="checkbox checkbox-sm" />
+              <span className="text-[12px] text-gray-700">Show site name next to the logo</span>
+            </label>
 
             <div>
               <label className="text-[11px] text-gray-500 mb-1 block">Tagline</label>

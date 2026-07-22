@@ -1,11 +1,17 @@
 import { Link, useParams } from 'react-router-dom';
-import { Database, Search, LayoutGrid, ArrowRight } from 'lucide-react';
+import { Database, Search, LayoutGrid, ArrowRight, Globe } from 'lucide-react';
 
 /** S6 — entry point for the deterministic scaffolding wizards. */
 export default function WizardHub() {
   const { siteId = '' } = useParams();
 
   const cards = [
+    {
+      to: '/site-wizard',
+      icon: Globe,
+      title: 'Site Wizard — import a website',
+      body: 'Upload an HTML/CSS export (e.g. from Canva) or point at a live URL. Builds a complete site — theme, pages as real blocks, navigation, images — or imports it into an existing site as pages + a submenu.',
+    },
     {
       to: `/sites/${siteId}/wizards/database`,
       icon: Database,

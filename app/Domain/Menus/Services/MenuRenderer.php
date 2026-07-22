@@ -150,9 +150,13 @@ class MenuRenderer
         $html .= "<nav class=\"site-nav{$overlayClass} {$scopeClass}\" style=\"{$navStyle}\" aria-label=\"" . e($ariaLabel) . "\">\n";
         $html .= "  <div style=\"{$innerStyle}\">\n";
 
-        // Logo
+        // Logo (optionally followed by the site name, WordPress-style branding)
         if ($logoUrl) {
-            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"flex-shrink:0;\"><img src=\"" . e($logoUrl) . "\" alt=\"" . $siteName . "\" style=\"height:" . ($height ? 'calc(' . $height . ' - 16px)' : '40px') . ";max-height:48px;width:auto;\" /></a>\n";
+            $nameSpan = '';
+            if (!empty($settings['logo_show_name'])) {
+                $nameSpan = "<span style=\"font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);\">" . $siteName . '</span>';
+            }
+            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"flex-shrink:0;display:flex;align-items:center;gap:10px;text-decoration:none;\"><img src=\"" . e($logoUrl) . "\" alt=\"" . $siteName . "\" style=\"height:" . ($height ? 'calc(' . $height . ' - 16px)' : '40px') . ";max-height:48px;width:auto;\" />{$nameSpan}</a>\n";
         } else {
             $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";text-decoration:none;letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);flex-shrink:0;\">" . $siteName . "</a>\n";
         }
