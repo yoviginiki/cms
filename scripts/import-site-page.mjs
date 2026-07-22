@@ -28,10 +28,19 @@ const args = process.argv.slice(2);
 const fail = (msg) => { process.stderr.write('ERROR: ' + msg.slice(0, 200) + '\n'); process.exit(1); };
 
 let url = null, dir = null, relPath = null;
+const localStorageSeed = {};
 if (args[0] === '--dir') {
   dir = args[1];
   if (args[2] !== '--path' || !args[3]) fail('local mode needs --dir <root> --path <relative.html>');
   relPath = args[3];
+  // --local-storage key=value (repeatable): seed localStorage BEFORE page
+  // scripts run — lets client-side language switchers render a chosen locale.
+  for (let i = 4; i < args.length - 1; i++) {
+    if (args[i] === '--local-storage') {
+      const eq = args[i + 1].indexOf('=');
+      if (eq > 0) localStorageSeed[args[i + 1].slice(0, eq)] = args[i + 1].slice(eq + 1);
+    }
+  }
 } else {
   url = args[0];
   if (!url || !/^https?:\/\//i.test(url)) fail('a http(s) URL or --dir/--path is required');
@@ -110,12 +119,29 @@ try {
       } catch { return route.abort(); }
     });
   }
+  if (Object.keys(localStorageSeed).length) {
+    await ctx.addInitScript((seed) => {
+      for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v);
+    }, localStorageSeed);
+  }
   const page = await ctx.newPage();
   await page.goto(target, { waitUntil: 'networkidle', timeout: 20000 }).catch(async () => {
     await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15000 });
   });
   await page.waitForTimeout(dir ? 400 : 1000);
   await autoScroll(page);
+
+  // Content parity: collapsed accordions hide real content from the DOM walk,
+  // and scroll-reveal animations can leave late sections at opacity 0. Open
+  // and settle everything before reading.
+  await page.evaluate(() => {
+    document.querySelectorAll('details').forEach((d) => { d.open = true; });
+    document.querySelectorAll('.reveal, [data-aos], .aos-init, .fade-in, .animate-on-scroll').forEach((el) => {
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+    });
+  });
+  await page.waitForTimeout(300);
 
   const manifest = await page.evaluate(PAGE_EXTRACTOR);
   const signals = await page.evaluate(SITE_SIGNALS_EXTRACTOR);

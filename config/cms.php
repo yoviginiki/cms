@@ -54,6 +54,10 @@ return [
         'zip_max_uncompressed_mb' => (int) env('SITE_WIZARD_ZIP_MAX_UNCOMPRESSED_MB', 250),
         'max_images' => (int) env('SITE_WIZARD_MAX_IMAGES', 60),
         'ai_polish' => (bool) env('SITE_WIZARD_AI_POLISH', false),
+        // Workspace base for uploaded ZIPs (empty = storage/app/site-wizard).
+        // The test suite overrides this so teardown can never touch
+        // production workspaces.
+        'workspace_path' => env('SITE_WIZARD_WORKSPACE_PATH', ''),
     ],
 
     'theme_wizard' => [

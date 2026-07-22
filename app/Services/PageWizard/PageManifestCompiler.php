@@ -27,22 +27,54 @@ class PageManifestCompiler
         $this->order = 0;
         $sections = [];
 
-        foreach ($manifest['blocks'] ?? [] as $block) {
-            $section = $this->compileBlock($block);
-            if ($section !== null) {
-                $sections[] = $section;
+        // Design fidelity: manifest blocks may carry the ORIGINAL page's
+        // effective background (_bg) and text color (_fg), read off the real
+        // DOM by the deterministic importer. Consecutive blocks sharing a
+        // background merge into ONE section painted that color — rebuilding
+        // the source's light/dark section rhythm. Blocks without _bg keep the
+        // legacy one-section-per-block behavior (AI manifests, older runs).
+        $runRows = [];
+        $runBg = null;
+
+        $flush = function () use (&$sections, &$runRows, &$runBg) {
+            if ($runRows !== []) {
+                $sections[] = $this->section($runRows, $runBg);
             }
+            $runRows = [];
+            $runBg = null;
+        };
+
+        foreach ($manifest['blocks'] ?? [] as $block) {
+            $rows = $this->rowsFor($block);
+            if ($rows === []) {
+                continue;
+            }
+            $bg = $this->safeHex($block['_bg'] ?? '');
+
+            if ($bg === null) {
+                $flush();
+                $sections[] = $this->section($rows, null);
+                continue;
+            }
+            if ($runRows !== [] && $bg !== $runBg) {
+                $flush();
+            }
+            $runBg = $bg;
+            $runRows = array_merge($runRows, $rows);
         }
+        $flush();
 
         return $sections;
     }
 
-    private function compileBlock(array $block): ?array
+    /** @return array<int, array> the row nodes one manifest block contributes */
+    private function rowsFor(array $block): array
     {
         $kind = $block['kind'] ?? '';
         $align = in_array($block['align'] ?? '', ['left', 'center', 'right'], true) ? $block['align'] : null;
+        $fg = $this->safeHex($block['_fg'] ?? '');
 
-        // kind=columns → one section, one N-col row, N columns.
+        // kind=columns → one N-col row, N columns.
         if ($kind === 'columns') {
             $cells = array_slice($block['columns'] ?? [], 0, 3);
             $layout = count($cells) >= 3 ? '1/3+1/3+1/3' : '1/2+1/2';
@@ -53,28 +85,29 @@ class PageManifestCompiler
                     $modules[] = $this->module('image', ['url' => $cell['image'], 'size' => 'large', 'alt' => $cell['heading'] ?? '']);
                 }
                 if (($cell['heading'] ?? '') !== '') {
-                    $modules[] = $this->module('heading', ['text' => $this->clean($cell['heading'], 255), 'level' => 'h3'] + ($align ? ['textAlign' => $align] : []));
+                    $modules[] = $this->module('heading', ['text' => $this->clean($cell['heading'], 255), 'level' => 'h3']
+                        + ($align ? ['textAlign' => $align] : []) + ($fg ? ['color' => $fg] : []));
                 }
                 if (($cell['body'] ?? '') !== '') {
-                    $modules[] = $this->module('text', ['content' => $this->html($cell['body'])] + ($align ? ['textAlign' => $align] : []));
+                    $modules[] = $this->module('text', ['content' => $this->html($cell['body'])]
+                        + ($align ? ['textAlign' => $align] : []) + ($fg ? ['color' => $fg] : []));
                 }
                 $columns[] = $this->column(array_filter($modules));
             }
 
-            return $this->section($this->row($layout, $columns));
+            return [$this->row($layout, $columns)];
         }
 
-        // Everything else → one module inside a single-column section.
-        $modules = $this->modulesFor($kind, $block, $align);
+        $modules = $this->modulesFor($kind, $block, $align, $fg);
         if ($modules === []) {
-            return null;
+            return [];
         }
 
-        return $this->section($this->row('1', [$this->column($modules)]));
+        return [$this->row('1', [$this->column($modules)])];
     }
 
     /** @return array<int, array> */
-    private function modulesFor(string $kind, array $block, ?string $align): array
+    private function modulesFor(string $kind, array $block, ?string $align, ?string $fg = null): array
     {
         switch ($kind) {
             case 'hero':
@@ -86,10 +119,12 @@ class PageManifestCompiler
 
             case 'heading':
                 $level = in_array($block['level'] ?? '', ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'], true) ? $block['level'] : 'h2';
-                return [$this->module('heading', ['text' => $this->clean($block['text'] ?? '', 255), 'level' => $level] + ($align ? ['textAlign' => $align] : []))];
+                return [$this->module('heading', ['text' => $this->clean($block['text'] ?? '', 255), 'level' => $level]
+                    + ($align ? ['textAlign' => $align] : []) + ($fg ? ['color' => $fg] : []))];
 
             case 'text':
-                return [$this->module('text', ['content' => $this->html($block['body'] ?? '')] + ($align ? ['textAlign' => $align] : []))];
+                return [$this->module('text', ['content' => $this->html($block['body'] ?? '')]
+                    + ($align ? ['textAlign' => $align] : []) + ($fg ? ['color' => $fg] : []))];
 
             case 'image':
                 return $this->safe($block['url'] ?? '')
@@ -130,12 +165,19 @@ class PageManifestCompiler
 
     // ── node builders ──
 
-    private function section(array $row): array
+    /** @param array<int, array> $rows  @param ?string $bg validated #rrggbb section background */
+    private function section(array $rows, ?string $bg = null): array
     {
+        $data = ['padding_top' => '48px', 'padding_bottom' => '48px', 'max_width' => '1200px'];
+        if ($bg !== null) {
+            $data['bg_type'] = 'color';
+            $data['bg_color'] = $bg;
+        }
+
         return [
             'id' => (string) Str::uuid(), 'type' => 'section', 'level' => 'section', 'order' => $this->order++,
-            'data' => ['padding_top' => '48px', 'padding_bottom' => '48px', 'max_width' => '1200px'],
-            'children' => [$this->reorder([$row])[0]],
+            'data' => $data,
+            'children' => $this->reorder($rows),
         ];
     }
 
@@ -196,6 +238,14 @@ class PageManifestCompiler
         $paras = preg_split('/\n{2,}/', $s) ?: [$s];
 
         return implode('', array_map(fn ($p) => '<p>' . e(trim(preg_replace('/\s+/', ' ', $p))) . '</p>', array_filter($paras)));
+    }
+
+    /** Validate an extractor-supplied color; anything but #rrggbb is discarded. */
+    private function safeHex(mixed $value): ?string
+    {
+        return is_string($value) && preg_match('/^#[0-9a-fA-F]{6}$/', $value) === 1
+            ? strtolower($value)
+            : null;
     }
 
     private function safe(mixed $url): bool

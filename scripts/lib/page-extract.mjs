@@ -36,6 +36,34 @@ export const PAGE_EXTRACTOR = () => {
   };
   const consume = (el) => { consumed.add(el); el.querySelectorAll('*').forEach((n) => consumed.add(n)); };
 
+  // Design fidelity: every block carries the EFFECTIVE background of its
+  // section and its own text color, so the compiler can rebuild the page's
+  // light/dark section rhythm instead of flattening everything onto the
+  // theme default.
+  const toHex = (c) => {
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(c || '');
+    if (!m) return null;
+    if (m[4] !== undefined && parseFloat(m[4]) < 0.5) return null;
+    const h = (n) => (+n).toString(16).padStart(2, '0');
+    return '#' + h(m[1]) + h(m[2]) + h(m[3]);
+  };
+  const effBg = (el) => {
+    let n = el;
+    while (n && n.nodeType === 1) {
+      const b = toHex(styl(n).backgroundColor);
+      if (b) return b;
+      n = n.parentElement;
+    }
+    return toHex(styl(document.body).backgroundColor);
+  };
+  const deco = (el, block) => {
+    const b = effBg(el);
+    const f = toHex(styl(el).color);
+    if (b) block._bg = b;
+    if (f) block._fg = f;
+    return block;
+  };
+
   const firstImg = (el) => {
     const img = Array.from(el.querySelectorAll('img')).find((i) => visible(i) && (i.naturalWidth > 80 || rect(i).width > 80));
     if (img) { const u = absUrl(img.currentSrc || img.src); if (u) return u; }
@@ -87,7 +115,7 @@ export const PAGE_EXTRACTOR = () => {
   };
 
   const emitHero = (el) => {
-    const block = { kind: 'hero', title: clean(txt(el), 200) };
+    const block = deco(el, { kind: 'hero', title: clean(txt(el), 200) });
     let sib = el.nextElementSibling;
     while (sib && !visible(sib)) sib = sib.nextElementSibling;
     if (sib && (sib.tagName === 'P' || sib.matches('[class*="sub"],[class*="lead"]'))) {
@@ -106,26 +134,26 @@ export const PAGE_EXTRACTOR = () => {
 
     if (isRow(el)) {
       const cells = Array.from(el.children).filter(visible).map(cellOf).filter(Boolean).slice(0, 3);
-      if (cells.length >= 2) { blocks.push({ kind: 'columns', columns: cells }); consume(el); return; }
+      if (cells.length >= 2) { blocks.push(deco(el, { kind: 'columns', columns: cells })); consume(el); return; }
     }
 
     if (/^h[1-6]$/.test(tag)) {
       const t = clean(txt(el), 200);
       if (t) {
         if (!heroDone && (tag === 'h1' || rect(el).top < 900)) { blocks.push(emitHero(el)); heroDone = true; }
-        else blocks.push({ kind: 'heading', text: t, level: tag });
+        else blocks.push(deco(el, { kind: 'heading', text: t, level: tag }));
       }
       consume(el); return;
     }
     if (tag === 'p') {
       const t = clean(txt(el), 1500);
-      if (t.length > 20) blocks.push({ kind: 'text', body: t });
+      if (t.length > 20) blocks.push(deco(el, { kind: 'text', body: t }));
       consume(el); return;
     }
     if (tag === 'img') {
       if (el.naturalWidth > 120 || rect(el).width > 120) {
         const u = absUrl(el.currentSrc || el.src);
-        if (u) blocks.push({ kind: 'image', url: u, alt: clean(el.alt, 200) });
+        if (u) blocks.push(deco(el, { kind: 'image', url: u, alt: clean(el.alt, 200) }));
       }
       consume(el); return;
     }
@@ -150,7 +178,11 @@ export const PAGE_EXTRACTOR = () => {
     if (blocks[i].kind === 'image') {
       let j = i; const imgs = [];
       while (j < blocks.length && blocks[j].kind === 'image') { imgs.push(blocks[j].url); j++; }
-      if (imgs.length >= 3) { merged.push({ kind: 'gallery', images: imgs }); i = j - 1; continue; }
+      if (imgs.length >= 3) {
+        const g = { kind: 'gallery', images: imgs };
+        if (blocks[i]._bg) g._bg = blocks[i]._bg;
+        merged.push(g); i = j - 1; continue;
+      }
     }
     merged.push(blocks[i]);
   }

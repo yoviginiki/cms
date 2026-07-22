@@ -33,14 +33,14 @@ class SitePageBuilder
      *
      * @return array{page: Page, links: array, title: string}
      */
-    public function build(SiteWizardSession $session, Site $site, array $source): array
+    public function build(SiteWizardSession $session, Site $site, array $source, array $localStorage = []): array
     {
         if (!empty($source['manifest'])) {
             // The ingest step already extracted this page (the entry) — reuse it.
             $extracted = ['manifest' => $source['manifest'], 'nav' => [], 'links' => [], 'style' => []];
         } else {
             $extracted = $session->source === 'zip'
-                ? $this->extractor->fromLocalFile($this->zip->filesRoot($session), $source['ref'])
+                ? $this->extractor->fromLocalFile($this->zip->filesRoot($session), $source['ref'], $localStorage)
                 : $this->extractor->fromUrl($source['ref']);
         }
 

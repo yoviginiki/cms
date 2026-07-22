@@ -33,7 +33,7 @@ class SiteWizardPruneCommand extends Command
             ->update(['status' => 'failed', 'error' => 'The build stalled and was cleaned up — start again.']);
 
         // Workspaces whose session is finished or missing.
-        $root = storage_path('app/site-wizard');
+        $root = \App\Services\SiteWizard\ZipSiteIngestor::workspaceBase();
         $swept = 0;
         if (File::isDirectory($root)) {
             $active = DB::table('site_wizard_sessions')

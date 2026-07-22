@@ -42,6 +42,7 @@
              builds live sites were serving (2026-07-22 outage). -->
         <env name="PUBLISH_STAGING_PATH" value="storage/framework/testing/builds"/>
         <env name="PUBLISH_ROLLBACK_PATH" value="storage/framework/testing/rollback"/>
+        <env name="SITE_WIZARD_WORKSPACE_PATH" value="storage/framework/testing/site-wizard"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

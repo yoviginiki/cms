@@ -26,7 +26,8 @@ class ZipIngestTest extends TestCase
 
     protected function tearDown(): void
     {
-        File::deleteDirectory(storage_path('app/site-wizard'));
+        // The SANDBOXED base only — never the production workspace dir.
+        File::deleteDirectory(ZipSiteIngestor::workspaceBase());
         parent::tearDown();
     }
 
@@ -44,7 +45,7 @@ class ZipIngestTest extends TestCase
     /** @param array<string,string> $entries name => content */
     private function makeZip(SiteWizardSession $session, array $entries): void
     {
-        $dir = storage_path("app/site-wizard/{$session->id}");
+        $dir = ZipSiteIngestor::workspaceBase() . "/{$session->id}";
         File::ensureDirectoryExists($dir);
         $zip = new ZipArchive();
         $zip->open("{$dir}/upload.zip", ZipArchive::CREATE | ZipArchive::OVERWRITE);

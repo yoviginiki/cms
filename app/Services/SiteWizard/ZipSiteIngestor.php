@@ -150,13 +150,28 @@ class ZipSiteIngestor
     public function cleanup(SiteWizardSession $session): void
     {
         if ($session->workspace_path) {
-            File::deleteDirectory(storage_path("app/{$session->workspace_path}"));
+            File::deleteDirectory($this->workspaceBase() . '/' . basename($session->workspace_path));
         }
     }
 
     public function workspacePath(SiteWizardSession $session): string
     {
-        return storage_path("app/site-wizard/{$session->id}");
+        return $this->workspaceBase() . "/{$session->id}";
+    }
+
+    /**
+     * Config-overridable base so the TEST SUITE works in its own sandbox — a
+     * shared base let test teardown delete PRODUCTION workspaces (kept
+     * uploads for diagnosing imports were lost that way on 2026-07-22).
+     */
+    public static function workspaceBase(): string
+    {
+        $base = (string) config('cms.site_wizard.workspace_path', '');
+        if ($base !== '') {
+            return str_starts_with($base, '/') ? $base : base_path($base);
+        }
+
+        return storage_path('app/site-wizard');
     }
 
     /** Reject absolute paths, drive letters, traversal segments, and control chars. */

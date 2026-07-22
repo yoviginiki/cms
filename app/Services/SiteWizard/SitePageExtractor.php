@@ -42,10 +42,20 @@ class SitePageExtractor
         return $this->run([$url], $url);
     }
 
-    /** @return array{manifest:array, nav:array, links:array, style:array} */
-    public function fromLocalFile(string $rootDir, string $relativePath): array
+    /**
+     * @param array<string,string> $localStorage seeded before page scripts run
+     *        (renders client-side language switchers in a chosen locale)
+     * @return array{manifest:array, nav:array, links:array, style:array}
+     */
+    public function fromLocalFile(string $rootDir, string $relativePath, array $localStorage = []): array
     {
-        return $this->run(['--dir', $rootDir, '--path', $relativePath], $relativePath);
+        $args = ['--dir', $rootDir, '--path', $relativePath];
+        foreach ($localStorage as $key => $value) {
+            $args[] = '--local-storage';
+            $args[] = "{$key}={$value}";
+        }
+
+        return $this->run($args, $relativePath);
     }
 
     private function run(array $args, string $label): array
