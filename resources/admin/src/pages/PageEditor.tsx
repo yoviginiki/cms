@@ -67,7 +67,7 @@ export default function PageEditor() {
     queryKey: ['site', siteId],
     queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
   });
-  const publicBase = siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://${siteData?.slug || ''}.ensodo.eu`;
+  const publicBase = siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://ensodo.eu/${(siteData?.settings?.deploy_slug as string) || siteData?.slug || ''}`;
   // The homepage publishes at the site root, not /{slug} — live links must
   // check homepage status or they 404 (e.g. /home does not exist).
   const homepageId = (siteData?.settings?.homepage_id as string) || '';

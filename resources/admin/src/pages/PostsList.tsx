@@ -72,11 +72,11 @@ export default function PostsList() {
     queryFn: () => categoriesApi.list(siteId).then(r => r.data.data),
   });
 
-  const { data: siteData } = useQuery<{ custom_domain?: string; slug?: string }>({
+  const { data: siteData } = useQuery<{ custom_domain?: string; slug?: string; settings?: Record<string, unknown> }>({
     queryKey: ['site', siteId],
     queryFn: () => sites.get(siteId).then(r => r.data.data),
   });
-  const publicBase = siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://${siteData?.slug || ''}.ensodo.eu`;
+  const publicBase = siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://ensodo.eu/${(siteData?.settings?.deploy_slug as string) || siteData?.slug || ''}`;
 
   const deleteMutation = useMutation({
     mutationFn: (postId: string) => posts.delete(siteId, postId),

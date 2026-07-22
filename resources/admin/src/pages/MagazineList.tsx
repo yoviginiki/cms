@@ -50,7 +50,7 @@ export default function MagazineList() {
     queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
     enabled: !!siteId,
   });
-  const publicDomain = siteData?.custom_domain || siteData?.slug + '.ensodo.eu';
+  const publicDomain = siteData?.custom_domain || 'ensodo.eu/' + ((siteData?.settings?.deploy_slug as string) || siteData?.slug);
   const publicBase = publicDomain ? `https://${publicDomain}` : '';
 
   // Also load pages with editor_mode=magazine (legacy composer handoffs)

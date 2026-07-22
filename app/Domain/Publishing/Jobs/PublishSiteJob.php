@@ -461,7 +461,7 @@ class PublishSiteJob implements ShouldQueue
 
             $tokenGenerator = app(DesignTokenGenerator::class);
             $themeConfig = $site->theme?->config ?? [];
-            $rssUrl = ($site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu") . '/feed.xml';
+            $rssUrl = $site->publicBaseUrl() . '/feed.xml';
 
             $html = View::make('publishing.grid-layout', [
                 'headContent' => '<title>' . e($site->name) . '</title>',

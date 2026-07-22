@@ -75,7 +75,7 @@ export default function PostEditor() {
     queryKey: ['site', siteId],
     queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
   });
-  const publicBase = siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://${siteData?.slug || ''}.ensodo.eu`;
+  const publicBase = siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://ensodo.eu/${(siteData?.settings?.deploy_slug as string) || siteData?.slug || ''}`;
 
   // Layouts
   const { data: layoutsList } = useQuery<any[]>({
@@ -600,7 +600,7 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
   authors?: Array<{ id: string; name: string }>;
 }) {
   const [showVersions, setShowVersions] = useState(false);
-  const publicBase = site?.custom_domain ? `https://${site.custom_domain}` : `https://${site?.slug || ''}.ensodo.eu`;
+  const publicBase = site?.custom_domain ? `https://${site.custom_domain}` : `https://ensodo.eu/${(site?.settings?.deploy_slug as string) || site?.slug || ''}`;
   const categorySlug = (categories as any[]).find((c: any) => c.id === categoryId)?.slug;
   const postPath = categorySlug ? `/${categorySlug}/${slug}` : `/${slug}`;
 

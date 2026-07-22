@@ -128,7 +128,7 @@ class BuildPageService
 
         $criticalCss = $this->buildCriticalCss($themeConfig);
         $fontPreloads = $this->buildFontPreloads($themeConfig);
-        $rssUrl = ($site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu") . '/feed.xml';
+        $rssUrl = $site->publicBaseUrl() . '/feed.xml';
 
         // Design tokens CSS
         $designTokensCss = $this->tokenGenerator->generate($site);

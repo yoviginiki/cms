@@ -381,7 +381,7 @@ function SiteWizard({ onClose }: { onClose: () => void; onCreate?: (id: string) 
                 <label className="text-xs font-medium text-base-content/60 mb-1.5 block">URL Slug</label>
                 <input type="text" value={slug || autoSlug(name)} onChange={e => setSlug(e.target.value)}
                   className="input input-bordered w-full font-mono text-sm" placeholder="my-awesome-website" />
-                <p className="text-[10px] text-base-content/30 mt-1">Used for the default URL: {slug || autoSlug(name) || 'slug'}.ensodo.eu</p>
+                <p className="text-[10px] text-base-content/30 mt-1">Used for the default URL: ensodo.eu/{slug || autoSlug(name) || 'slug'}</p>
               </div>
             </div>
           )}

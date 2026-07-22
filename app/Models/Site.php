@@ -71,6 +71,14 @@ class Site extends Model
             : $this->slug;
     }
 
+    /** Public base URL of the LIVE site (custom domain, or the shared-docroot folder). */
+    public function publicBaseUrl(): string
+    {
+        return $this->custom_domain
+            ? "https://{$this->custom_domain}"
+            : 'https://ensodo.eu/' . $this->deploySlug();
+    }
+
     public function pages(): HasMany
     {
         return $this->hasMany(Page::class);
