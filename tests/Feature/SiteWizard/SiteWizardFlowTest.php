@@ -24,6 +24,9 @@ class SiteWizardFlowTest extends TestCase
     {
         parent::setUp();
         $this->setTenantScope($this->owner);
+        // Run the BuildSiteJob chain inline: the suite's queue driver points at
+        // shared infrastructure, which makes drain-based tests order-dependent.
+        config(['queue.default' => 'sync']);
     }
 
     private function extraction(string $title, array $blocks, array $nav = [], array $links = [], array $style = []): array
@@ -62,7 +65,7 @@ class SiteWizardFlowTest extends TestCase
         $this->app->instance(SitePageExtractor::class, $mock);
     }
 
-    /** Drain the queued BuildSiteJob chain (test env runs the database queue driver). */
+    /** No-op with the sync driver; kept so a future driver change still drains. */
     private function drainQueue(): void
     {
         \Illuminate\Support\Facades\Artisan::call('queue:work', ['--stop-when-empty' => true]);
