@@ -65,6 +65,30 @@ try {
       }
     }
 
+    // background seams: a section with zero bottom padding whose last visible
+    // child ends short of the section edge shows a stripe of raw background
+    // (e.g. a decorative divider image with leftover module margin)
+    const seams = [];
+    for (const sec of document.querySelectorAll('.section-block')) {
+      const cs = getComputedStyle(sec);
+      if (parseFloat(cs.paddingBottom) > 2) continue;
+      if (cs.backgroundColor === 'rgba(0, 0, 0, 0)' && !cs.backgroundImage.includes('url')) continue;
+      const sr = sec.getBoundingClientRect();
+      if (sr.height < 40) continue;
+      // leaf content only — stretched wrapper divs reach the section edge
+      // and would mask the seam
+      let lastBottom = 0;
+      for (const child of sec.querySelectorAll('img, p, h1, h2, h3, h4, ul, ol, a, blockquote, span')) {
+        const r = child.getBoundingClientRect();
+        if (r.height > 0 && r.bottom > lastBottom) lastBottom = r.bottom;
+      }
+      const gap = Math.round(sr.bottom - lastBottom);
+      if (lastBottom > 0 && gap > 6) {
+        seams.push({ el: describe(sec), gap });
+        if (seams.length >= 5) break;
+      }
+    }
+
     // text blocks flush against the screen edge (no breathing room)
     let edgeFlushText = 0;
     for (const el of document.querySelectorAll('p, h1, h2, h3, li')) {
@@ -80,6 +104,7 @@ try {
       horizontalOverflow: doc.scrollWidth > vw + 2,
       offenders,
       squeezedGrids: squeezed,
+      sectionSeams: seams,
       edgeFlushTextBlocks: edgeFlushText,
     };
   });
