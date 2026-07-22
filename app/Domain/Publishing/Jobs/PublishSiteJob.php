@@ -248,6 +248,25 @@ class PublishSiteJob implements ShouldQueue
             $this->updateStatus('deploying', 'Deploying files...');
             $deployService->deploy($this->deployment, $stagingPath);
 
+            // Post-deploy layout audit (regression gate): sample pages at
+            // phone + desktop widths — overflow, squeezed grids, background
+            // seams, non-full-width dividers, edge-flush text. Fixes verified
+            // only against one complaint kept silently breaking earlier fixes;
+            // this surfaces any layout regression on the deploy that ships it.
+            try {
+                $layoutWarnings = $this->runLayoutAudit($site);
+                if ($layoutWarnings !== []) {
+                    $validationResults['site:layout-audit'] = [
+                        'passed' => true,
+                        'warnings' => $layoutWarnings,
+                        'errors' => [],
+                        'score_estimate' => 90,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                logger()->warning("Layout audit failed for site {$site->id}: {$e->getMessage()}");
+            }
+
             // Mark live with validation results
             $allPassed = collect($validationResults)->every(fn($v) => $v['passed']);
             $totalWarnings = collect($validationResults)->sum(fn($v) => count($v['warnings']));
@@ -600,5 +619,66 @@ class PublishSiteJob implements ShouldQueue
             $dest = $fontsDir . '/' . preg_replace('/[^a-zA-Z0-9.\-_]/', '', $filename);
             file_put_contents($dest, $disk->get($path));
         }
+    }
+
+    /**
+     * Audit a sample of just-deployed pages for layout regressions at phone
+     * and desktop widths (scripts/mobile-audit.mjs). Returns human-readable
+     * warnings; empty when clean or when the audit tooling is unavailable.
+     *
+     * @return string[]
+     */
+    private function runLayoutAudit(Site $site): array
+    {
+        $script = base_path('scripts/mobile-audit.mjs');
+        if (!file_exists($script)) {
+            return [];
+        }
+
+        $base = $site->custom_domain
+            ? "https://{$site->custom_domain}"
+            : 'https://ensodo.eu/' . trim($site->slug, '/');
+
+        // homepage + a recent page + a recent post — cheap but representative
+        $urls = [$base . '/'];
+        $page = Page::where('site_id', $site->id)->where('status', 'published')
+            ->whereRaw("slug != ''")->orderByDesc('updated_at')->first();
+        if ($page) {
+            $urls[] = rtrim($base . \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $page), '/') . '/';
+        }
+        $post = \App\Models\Post::where('site_id', $site->id)->where('status', 'published')
+            ->orderByDesc('updated_at')->first();
+        if ($post) {
+            $urls[] = rtrim($base . \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post), '/') . '/';
+        }
+
+        $warnings = [];
+        foreach (array_unique($urls) as $url) {
+            foreach (['390x844' => '📱', '1280x900' => '🖥'] as $size => $icon) {
+                $out = shell_exec('node ' . escapeshellarg($script) . ' ' . escapeshellarg($url) . ' ' . $size . ' 2>/dev/null');
+                $r = json_decode((string) $out, true);
+                if (!is_array($r) || !empty($r['error'])) {
+                    continue;
+                }
+                $label = parse_url($url, PHP_URL_PATH) ?: '/';
+                if (!empty($r['horizontalOverflow'])) {
+                    $warnings[] = "{$icon} {$label}: horizontal overflow ({$r['scrollWidth']}px on {$r['viewport']}px)";
+                }
+                foreach ($r['squeezedGrids'] ?? [] as $g) {
+                    $warnings[] = "{$icon} {$label}: squeezed grid {$g['el']} ({$g['columns']}×{$g['colWidth']}px)";
+                }
+                foreach ($r['sectionSeams'] ?? [] as $g) {
+                    $warnings[] = "{$icon} {$label}: background seam {$g['gap']}px below content in {$g['el']}";
+                }
+                foreach ($r['narrowBanners'] ?? [] as $g) {
+                    $warnings[] = "{$icon} {$label}: divider image {$g['width']}px on {$g['viewport']}px viewport";
+                }
+                if (($r['edgeFlushTextBlocks'] ?? 0) > 3) {
+                    $warnings[] = "{$icon} {$label}: {$r['edgeFlushTextBlocks']} text blocks flush against the screen edge";
+                }
+            }
+        }
+
+        return $warnings;
     }
 }
