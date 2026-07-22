@@ -26,7 +26,7 @@ class CategoryArchivePageCollisionTest extends TestCase
         Post::factory()->published()->create(['site_id' => $site->id, 'category_id' => $category->id]);
         Page::factory()->published()->create(['site_id' => $site->id, 'slug' => 'stories', 'title' => 'Статии']);
 
-        $staging = storage_path('app/builds/test-archive-collision');
+        $staging = rtrim(config('publishing.staging_path'), '/') . '/test-archive-collision';
         File::deleteDirectory($staging);
         File::makeDirectory($staging, 0775, true);
 
@@ -50,7 +50,7 @@ class CategoryArchivePageCollisionTest extends TestCase
         $category = Category::factory()->create(['site_id' => $site->id, 'name' => 'Guides', 'slug' => 'guides']);
         Post::factory()->published()->create(['site_id' => $site->id, 'category_id' => $category->id]);
 
-        $staging = storage_path('app/builds/test-archive-no-collision');
+        $staging = rtrim(config('publishing.staging_path'), '/') . '/test-archive-no-collision';
         File::deleteDirectory($staging);
         File::makeDirectory($staging, 0775, true);
 

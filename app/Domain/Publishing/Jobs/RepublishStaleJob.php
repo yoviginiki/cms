@@ -51,7 +51,8 @@ class RepublishStaleJob implements ShouldQueue
         $deployment = Deployment::findOrFail($this->deploymentId);
         $site = $deployment->site;
         $site->load('theme');
-        $stagingPath = storage_path("app/builds/{$deployment->id}");
+        // Via config so the test suite's sandboxed staging path applies here too.
+        $stagingPath = rtrim(config('publishing.staging_path'), '/') . "/{$deployment->id}";
 
         try {
             $deployment->update([

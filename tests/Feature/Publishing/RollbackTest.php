@@ -45,6 +45,6 @@ class RollbackTest extends TestCase
         $this->assertStringContainsString('VERSION ONE MARKER', file_get_contents("{$docroot}/index.html"));
         $this->assertStringNotContainsString('VERSION TWO MARKER', file_get_contents("{$docroot}/index.html"));
         // v1's build survived pruning
-        $this->assertDirectoryExists(storage_path("app/builds/{$v1->id}"));
+        $this->assertDirectoryExists(rtrim(config('publishing.staging_path'), '/') . "/{$v1->id}");
     }
 }

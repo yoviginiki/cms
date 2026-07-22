@@ -71,7 +71,10 @@ class PublishSiteJob implements ShouldQueue
         $this->deployment = Deployment::findOrFail($this->deploymentId);
         $site = $this->deployment->site;
         $site->load('theme');
-        $stagingPath = storage_path("app/builds/{$this->deployment->id}");
+        // Via config, NOT a hardcoded storage_path: the test suite sandboxes
+        // publishing.staging_path — hardcoding it made tests stage into the
+        // production builds dir (and retention then pruned live builds).
+        $stagingPath = rtrim(config('publishing.staging_path'), '/') . "/{$this->deployment->id}";
 
         try {
             // Rollback (FIX-B6b): re-point the live site to a prior deployment's
@@ -79,7 +82,7 @@ class PublishSiteJob implements ShouldQueue
             // ignored the target and republished today's content (a silent no-op).
             if ($this->type === 'rollback' && $this->rollbackTargetId) {
                 $target = Deployment::find($this->rollbackTargetId);
-                $targetBuild = storage_path("app/builds/{$this->rollbackTargetId}");
+                $targetBuild = rtrim(config('publishing.staging_path'), '/') . "/{$this->rollbackTargetId}";
                 if (!$target || !is_dir($targetBuild)) {
                     throw new \RuntimeException('Rollback target build no longer exists (pruned); cannot roll back to this deployment.');
                 }

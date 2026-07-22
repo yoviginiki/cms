@@ -36,6 +36,12 @@
              web roots (observed: factory-slug dirs under public_html). -->
         <env name="PUBLISH_PATH" value="storage/framework/testing/publish"/>
         <env name="TENANT_BASE_PATH" value="storage/framework/testing/tenants"/>
+        <!-- Staging isolation too: the staging dir is SHARED with production
+             (same checkout). Test publishes flooded it and BuildRetention -
+             seeing no live symlinks in the sandboxed PUBLISH_PATH - pruned
+             builds live sites were serving (2026-07-22 outage). -->
+        <env name="PUBLISH_STAGING_PATH" value="storage/framework/testing/builds"/>
+        <env name="PUBLISH_ROLLBACK_PATH" value="storage/framework/testing/rollback"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

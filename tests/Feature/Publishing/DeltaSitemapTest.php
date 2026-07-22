@@ -34,7 +34,7 @@ class DeltaSitemapTest extends TestCase
 
         (new RepublishStaleJob($deployment))->handle(app(BuildPageService::class));
 
-        $staging = storage_path("app/builds/{$deployment->id}");
+        $staging = rtrim(config('publishing.staging_path'), '/') . "/{$deployment->id}";
         $this->assertFileExists("{$staging}/sitemap.xml");
         $this->assertFileExists("{$staging}/feed.xml");
         $this->assertStringContainsString('<urlset', file_get_contents("{$staging}/sitemap.xml"));

@@ -39,7 +39,7 @@ class DeltaArchiveTest extends TestCase
 
         (new RepublishStaleJob($deployment))->handle(app(BuildPageService::class));
 
-        return storage_path("app/builds/{$deployment->id}");
+        return rtrim(config('publishing.staging_path'), '/') . "/{$deployment->id}";
     }
 
     public function test_post_delta_rebuilds_blog_index_archives_and_category_feed(): void
