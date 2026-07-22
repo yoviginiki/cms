@@ -105,4 +105,10 @@ import './results-grid';
 import './query-stat';
 import './query-table';
 
+// Interactive app-blocks (self-hosted runtime via AppToolRender)
+import './breathing-pacer';
+import './meditation-timer';
+import './pelvic-trainer';
+import './partner-deck';
+
 export { blockRegistry } from './registry';

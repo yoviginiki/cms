@@ -109,6 +109,15 @@ class BuildPageService
             $bodyScripts .= "\n" . \App\Domain\Collections\Services\CollectionPublishService::publishSearchRuntime($site);
         }
 
+        // Interactive app-blocks (breathing pacer, meditation timer, pelvic
+        // trainer, partner deck) ship a shared self-hosted JS+CSS runtime —
+        // published only on pages that actually contain one of them.
+        if ($content->blocks()->whereIn('type', \App\Support\Blocks\AppToolRender::TYPES)->exists()) {
+            $appTools = \App\Support\Blocks\AppToolRender::publishRuntime($site);
+            $headScripts .= "\n" . '<link rel="stylesheet" href="' . $appTools['css'] . '">';
+            $bodyScripts .= "\n" . '<script defer src="' . $appTools['js'] . '"></script>';
+        }
+
         // Experience Mode: inject assets for cinematic pages ONLY
         $experienceMode = $content->experience_mode ?? 'standard';
         if ($experienceMode === 'cinematic') {

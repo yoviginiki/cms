@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             SystemLayoutsSeeder::class,
             StarterSectionSeeder::class,
             SystemStylePresetSeeder::class,
+            AppToolSectionSeeder::class,
         ]);
     }
 }

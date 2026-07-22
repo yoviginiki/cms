@@ -226,6 +226,12 @@ class AppServiceProvider extends ServiceProvider
             // Global Sections (P2): page-side embed of a reusable section entity
             $registry->register(new \App\Domain\Blocks\Definitions\GlobalRefBlockDefinition());
 
+            // Interactive app-blocks (self-hosted runtime via AppToolRender)
+            $registry->register(new \App\Domain\Blocks\Definitions\BreathingPacerBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\MeditationTimerBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\PelvicTrainerBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\PartnerDeckBlockDefinition());
+
             return $registry;
         });
     }

@@ -15,7 +15,7 @@ import {
   Search, Share2, Smile, SplitSquareHorizontal, Square, Subtitles,
   Table, Table2, TrendingUp, Type,
   UserCircle, Video,
-  Box,
+  Box, Wind, Timer, Activity,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -34,6 +34,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Search, Share2, Smile, SplitSquareHorizontal, Square, Subtitles,
   Table, Table2, TrendingUp, Type,
   UserCircle, Video,
+  Wind, Timer, Activity,
 };
 
 interface BlockIconProps {
