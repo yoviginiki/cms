@@ -92,7 +92,43 @@ class SiteService
 
     public function deleteSite(Site $site): void
     {
+        // Take the live static output down WITH the site — a soft-deleted site
+        // must not keep serving forever from the shared docroot. Slug-hosted
+        // deploys are ours to remove (symlink, or a legacy copied dir);
+        // custom-domain docroots are Hestia-managed and stay.
+        $this->removeLiveOutput($site);
+
         $site->delete();
+    }
+
+    private function removeLiveOutput(Site $site): void
+    {
+        if ($site->custom_domain) {
+            return;
+        }
+        $publicPath = rtrim((string) config('publishing.public_path'), '/');
+        if ($publicPath === '' || !is_dir($publicPath)) {
+            return;
+        }
+
+        // Current folder + any older folder still symlinked to this site's
+        // builds (e.g. after a publish-folder move that never republished).
+        foreach (scandir($publicPath) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $path = $publicPath . '/' . $entry;
+            if (is_link($path)) {
+                $deploymentId = basename((string) readlink($path));
+                $owner = \App\Models\Deployment::whereKey($deploymentId)->value('site_id');
+                if ($owner === $site->id) {
+                    unlink($path);
+                }
+            } elseif ($entry === $site->deploySlug() && is_dir($path)) {
+                // Legacy copy-strategy docroot — a real directory of OUR output.
+                \Illuminate\Support\Facades\File::deleteDirectory($path);
+            }
+        }
     }
 
     private function generateUniqueSlug(string $name): string

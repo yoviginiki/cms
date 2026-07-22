@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Globe, FileText, Newspaper, ExternalLink, Download, ArrowRight, X, Palette, Layout, LayoutGrid, Check, Eye } from 'lucide-react';
+import { Plus, Globe, FileText, Newspaper, ExternalLink, Download, ArrowRight, X, Palette, Layout, LayoutGrid, Check, Eye, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { sites, api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
@@ -18,7 +18,8 @@ interface Site {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
-  const { data, isLoading, error } = useQuery<Site[]>({
+  const [deleteTarget, setDeleteTarget] = useState<Site | null>(null);
+  const { data, isLoading, error, refetch } = useQuery<Site[]>({
     queryKey: ['sites'],
     queryFn: () => sites.list().then(r => r.data.data),
   });
@@ -100,6 +101,11 @@ export default function Dashboard() {
                     <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
                     View Site
                   </a>
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(site); }}
+                    title="Delete site"
+                    className="flex items-center text-base-content/25 hover:text-error font-medium">
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -123,6 +129,13 @@ export default function Dashboard() {
           </div>
 
           {wizardOpen && <SiteWizard onClose={() => setWizardOpen(false)} />}
+          {deleteTarget && (
+            <DeleteSiteDialog
+              site={deleteTarget}
+              onClose={() => setDeleteTarget(null)}
+              onDeleted={() => { setDeleteTarget(null); refetch(); }}
+            />
+          )}
         </div>
       )}
     </div>
@@ -526,6 +539,69 @@ function SiteWizard({ onClose }: { onClose: () => void; onCreate?: (id: string) 
             <button onClick={onClose} className="btn btn-ghost btn-sm">Close</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Deleting a site takes down its pages, content, AND its live published
+ * folder — so the confirmation requires typing the site name exactly.
+ */
+function DeleteSiteDialog({ site, onClose, onDeleted }: { site: Site; onClose: () => void; onDeleted: () => void }) {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const match = typed.trim() === site.name;
+
+  const doDelete = async () => {
+    if (!match || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await sites.delete(site.id);
+      onDeleted();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Delete failed — try again.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-base-100 rounded-2xl shadow-2xl w-[440px] max-w-[95vw] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-base-300/20 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-error" />
+          <h2 className="text-base font-semibold text-base-content">Delete “{site.name}”?</h2>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-[13px] text-base-content/60">
+            This removes the site with all its pages, posts and menus, and takes the
+            published website offline{site.custom_domain ? '' : <> (<span className="font-mono">ensodo.eu/…</span> folder included)</>}.
+            This cannot be undone from the dashboard.
+          </p>
+          <div>
+            <label className="text-[11px] text-base-content/50 mb-1 block">
+              Type <span className="font-mono font-semibold select-all">{site.name}</span> to confirm
+            </label>
+            <input
+              autoFocus
+              className="input input-bordered input-sm w-full"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && doDelete()}
+              placeholder={site.name}
+            />
+          </div>
+          {error && <p className="text-[12px] text-error">{error}</p>}
+        </div>
+        <div className="px-6 py-3 border-t border-base-300/20 bg-base-200/30 flex justify-end gap-2">
+          <button onClick={onClose} className="btn btn-ghost btn-sm" disabled={busy}>Cancel</button>
+          <button onClick={doDelete} disabled={!match || busy} className="btn btn-error btn-sm">
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Delete site
+          </button>
+        </div>
       </div>
     </div>
   );
