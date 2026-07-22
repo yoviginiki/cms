@@ -55,7 +55,7 @@ timeout and the SPA gets granular progress. A failed build is **resumable**
 the build — it is marked failed and the site continues.
 
 - **URL mode** crawls same-origin pages breadth-first (entry → nav links →
-  body links, depth ≤ 2, capped at `max_pages`, default 15 / max 20). Every
+  body links, depth ≤ 2, capped at `max_pages`, default 15 / max 100). Every
   fetched URL passes the SSRF guard.
 - **ZIP mode** extracts entry-by-entry with zip-slip/symlink/extension/size
   guards, then renders each HTML file through a throwaway loopback static
@@ -77,7 +77,7 @@ the build — it is marked failed and the site continues.
 
 | key | env | default |
 |---|---|---|
-| max_pages | SITE_WIZARD_MAX_PAGES | 15 (hard max 20) |
+| max_pages | SITE_WIZARD_MAX_PAGES | 15 (hard max 100) |
 | zip_max_mb | SITE_WIZARD_ZIP_MAX_MB | 100 |
 | zip_max_files | SITE_WIZARD_ZIP_MAX_FILES | 5000 |
 | zip_max_uncompressed_mb | SITE_WIZARD_ZIP_MAX_UNCOMPRESSED_MB | 250 |

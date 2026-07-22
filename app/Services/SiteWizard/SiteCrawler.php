@@ -91,7 +91,7 @@ class SiteCrawler
     {
         $cap = (int) config('cms.site_wizard.max_pages', 15);
 
-        return max(1, min((int) ($session->options['max_pages'] ?? $cap), 20));
+        return max(1, min((int) ($session->options['max_pages'] ?? $cap), 100));
     }
 
     private function toSource(string $href, string $entryUrl, int $depth, array $takenSlugs): ?array

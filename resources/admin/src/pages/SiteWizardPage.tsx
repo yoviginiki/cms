@@ -188,12 +188,12 @@ export default function SiteWizardPage() {
               />
             </label>
             <label className="form-control w-full mb-6">
-              <span className="label-text text-xs mb-1">Pages to import (max 20)</span>
+              <span className="label-text text-xs mb-1">Pages to import (max 100)</span>
               <input
-                type="number" min={1} max={20}
+                type="number" min={1} max={100}
                 className="input input-bordered input-sm w-28"
                 value={maxPages}
-                onChange={(e) => setMaxPages(Math.max(1, Math.min(20, Number(e.target.value) || 15)))}
+                onChange={(e) => setMaxPages(Math.max(1, Math.min(100, Number(e.target.value) || 15)))}
               />
             </label>
             <button

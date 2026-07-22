@@ -174,7 +174,7 @@ class ZipSiteIngestor
 
     /**
      * Find the site's pages: *.html up to 5 levels deep, shallow first; the
-     * shallowest index.html is the homepage. Capped at 20 — language trees
+     * shallowest index.html is the homepage. Capped at 100 — language trees
      * (en/…, bg/…) count as normal pages.
      *
      * @return array<int, array{path: string, slug: string, is_home: bool}>
@@ -199,7 +199,7 @@ class ZipSiteIngestor
         }
 
         usort($files, fn ($a, $b) => [$a['depth'], $a['path']] <=> [$b['depth'], $b['path']]);
-        $files = array_slice($files, 0, 20);
+        $files = array_slice($files, 0, 100);
 
         $homeIndex = null;
         foreach ($files as $i => $f) {

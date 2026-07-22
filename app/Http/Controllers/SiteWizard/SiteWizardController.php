@@ -41,7 +41,7 @@ class SiteWizardController extends Controller
         $data = $request->validate([
             'url' => ['required', 'url', 'max:2048'],
             'name' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'max_pages' => ['sometimes', 'integer', 'min:1', 'max:20'],
+            'max_pages' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'site_id' => ['sometimes', 'nullable', 'uuid'],
             'menu_label' => ['sometimes', 'nullable', 'string', 'max:60'],
         ]);
