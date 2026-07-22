@@ -34,8 +34,13 @@ use RuntimeException;
  */
 class SiteWizardService
 {
-    /** Pages built per job invocation — keeps a run under the queue timeout. */
-    private const PAGE_BATCH = 3;
+    /**
+     * Pages built per job invocation. ONE page keeps every invocation far
+     * inside the queue's retry_after window (a single extraction is capped at
+     * 90s) so a slow page can never trigger a duplicate redis delivery, and
+     * it gives the UI page-by-page progress.
+     */
+    private const PAGE_BATCH = 1;
 
     public function __construct(
         private SiteCrawler $crawler,
