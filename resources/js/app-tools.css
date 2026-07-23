@@ -21,18 +21,18 @@
   color: var(--rr-ink);
   border: 1px solid var(--rr-line);
   border-radius: 18px;
-  padding: clamp(1.25rem, 3vw, 2.25rem);
-  max-width: 640px;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  max-width: 720px;
   margin: 0 auto;
   font-family: var(--font-body, system-ui, -apple-system, sans-serif);
-  line-height: 1.55;
+  line-height: 1.5;
 }
 .rr-app-tool *, .rr-app-tool *::before, .rr-app-tool *::after { box-sizing: border-box; }
 .rr-app-tool h2 {
   font-family: var(--font-heading, inherit);
-  font-size: clamp(1.25rem, 2.6vw, 1.7rem);
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
   line-height: 1.15;
-  margin: 0.1em 0 0.35em;
+  margin: 0.1em 0 0.3em;
   color: var(--rr-ink);
 }
 .rr-app-tool .eyebrow {
@@ -50,7 +50,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.4em;
-  padding: 0.7em 1.4em;
+  padding: 0.55em 1.25em;
   border-radius: 999px;
   border: 1px solid transparent;
   font: inherit;
@@ -65,9 +65,9 @@
 .rr-app-tool .button-ink:not(:disabled):hover { background: #21463a; }
 .rr-app-tool .button-quiet { background: transparent; color: var(--rr-ink); border-color: var(--rr-line); }
 .rr-app-tool .button-quiet:not(:disabled):hover { background: #ffffff66; }
-.rr-app-tool .tool-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+.rr-app-tool .tool-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.75rem; }
 .rr-app-tool .tool-actions span { color: var(--rr-muted); font-variant-numeric: tabular-nums; }
-.rr-app-tool .tool-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.rr-app-tool .tool-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
 
 /* ── Breathing pacer ───────────────────────────────────────────────────── */
 .rr-breath-tool .sound-toggle {
@@ -75,12 +75,12 @@
   font-size: 0.8rem; color: var(--rr-muted); white-space: nowrap;
 }
 .rr-breath-tool .pacer-stage {
-  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
-  padding: 1rem 0 1.5rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+  padding: 0.75rem 0 0.9rem;
 }
 .rr-breath-tool .breath-orb {
   position: relative;
-  width: clamp(150px, 44vw, 210px);
+  width: clamp(120px, 30vw, 160px);
   aspect-ratio: 1;
   border-radius: 50%;
   display: grid; place-items: center;
@@ -99,18 +99,18 @@
   opacity: 0.9;
 }
 .rr-breath-tool .orb-copy { text-align: center; }
-.rr-breath-tool .orb-copy strong { display: block; font-size: 1.2rem; color: var(--rr-ink); }
-.rr-breath-tool .orb-copy span { font-size: 2rem; font-variant-numeric: tabular-nums; color: var(--rr-deep); }
+.rr-breath-tool .orb-copy strong { display: block; font-size: 1.05rem; color: var(--rr-ink); }
+.rr-breath-tool .orb-copy span { font-size: 1.6rem; font-variant-numeric: tabular-nums; color: var(--rr-deep); }
 .rr-breath-tool .round-readout { display: flex; gap: 1.25rem; font-size: 0.8rem; color: var(--rr-muted); }
 .rr-breath-tool .phase-settings {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem;
 }
 .rr-breath-tool .phase-settings > label {
   display: block; background: #ffffffaa; border: 1px solid var(--rr-line);
-  border-radius: 12px; padding: 0.75rem 0.85rem;
+  border-radius: 12px; padding: 0.55rem 0.65rem;
 }
 .rr-breath-tool .phase-settings > label > span {
-  display: block; font-size: 0.78rem; letter-spacing: 0.04em; color: var(--rr-muted); margin-bottom: 0.4rem;
+  display: block; font-size: 0.78rem; letter-spacing: 0.04em; color: var(--rr-muted); margin-bottom: 0.3rem;
 }
 .rr-breath-tool .stepper { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .rr-breath-tool .stepper button {
@@ -119,9 +119,9 @@
 }
 .rr-breath-tool .stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
 .rr-breath-tool .stepper output { font-variant-numeric: tabular-nums; font-weight: 600; }
-.rr-breath-tool input[type="range"] { width: 100%; margin-top: 0.6rem; accent-color: var(--rr-accent); }
+.rr-breath-tool input[type="range"] { width: 100%; margin-top: 0.4rem; accent-color: var(--rr-accent); }
 .rr-breath-tool input[type="range"]:disabled { opacity: 0.5; }
-.rr-breath-tool .round-settings { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 1rem; }
+.rr-breath-tool .round-settings { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.75rem; }
 .rr-breath-tool .round-settings span { font-size: 0.8rem; color: var(--rr-muted); margin-right: 0.25rem; }
 .rr-breath-tool .round-settings button {
   min-width: 2.2rem; padding: 0.35rem 0.6rem; border-radius: 999px;
@@ -129,22 +129,32 @@
 }
 .rr-breath-tool .round-settings button.selected { background: var(--rr-deep); color: #f4f0e7; border-color: var(--rr-deep); }
 .rr-breath-tool .expert-warning {
-  margin: 1rem 0; padding: 0.9rem 1rem; border-radius: 12px;
+  margin: 0.75rem 0; padding: 0.7rem 0.9rem; border-radius: 12px;
   background: #b4532a14; border: 1px solid #b4532a55; color: var(--rr-ink);
 }
 .rr-breath-tool .expert-warning strong { display: block; margin-bottom: 0.3rem; }
 .rr-breath-tool .expert-warning label { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.85rem; margin-top: 0.5rem; }
 
+/* Desktop: stage on the left, settings on the right — the whole tool fits a
+   15" laptop viewport (browser chrome + taskbar included) without scrolling. */
+@media (min-width: 700px) {
+  .rr-breath-tool { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); grid-auto-rows: min-content; column-gap: 1.5rem; align-items: start; }
+  .rr-breath-tool .tool-heading { grid-column: 1 / -1; }
+  .rr-breath-tool .pacer-stage { grid-row: span 3; align-self: center; padding: 0; }
+  .rr-breath-tool .phase-settings { grid-template-columns: 1fr 1fr; }
+  .rr-breath-tool .expert-warning { grid-column: 1 / -1; margin: 0.75rem 0 0; }
+}
+
 /* ── Meditation timer ──────────────────────────────────────────────────── */
-.rr-meditation-tool .meditation-timer-panel { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.rr-meditation-tool .meditation-timer-panel { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
 .rr-meditation-tool .zen-ring {
-  position: relative; width: clamp(160px, 46vw, 220px); aspect-ratio: 1; border-radius: 50%;
+  position: relative; width: clamp(130px, 34vw, 170px); aspect-ratio: 1; border-radius: 50%;
   display: grid; place-items: center; text-align: center;
   background:
     radial-gradient(farthest-side, var(--rr-paper) calc(100% - 14px), transparent calc(100% - 13px)),
     conic-gradient(var(--rr-deep) var(--timer-progress, 0deg), var(--rr-line) 0deg);
 }
-.rr-meditation-tool .zen-ring strong { font-size: 2.1rem; font-variant-numeric: tabular-nums; color: var(--rr-deep); }
+.rr-meditation-tool .zen-ring strong { font-size: 1.7rem; font-variant-numeric: tabular-nums; color: var(--rr-deep); }
 .rr-meditation-tool .zen-ring span { display: block; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rr-muted); }
 .rr-meditation-tool .time-presets { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; }
 .rr-meditation-tool .time-presets button {
@@ -152,16 +162,16 @@
   border: 1px solid var(--rr-line); background: transparent; color: var(--rr-ink); cursor: pointer;
 }
 .rr-meditation-tool .time-presets button.selected { background: var(--rr-deep); color: #f4f0e7; border-color: var(--rr-deep); }
-.rr-meditation-tool .journey-panel { width: 100%; margin-top: 1.5rem; border-top: 1px solid var(--rr-line); padding-top: 1.25rem; }
+.rr-meditation-tool .journey-panel { width: 100%; margin-top: 1rem; border-top: 1px solid var(--rr-line); padding-top: 0.85rem; }
 .rr-meditation-tool .journey-panel select {
-  width: 100%; padding: 0.55rem 0.7rem; border-radius: 10px; border: 1px solid var(--rr-line);
-  background: #fff; color: var(--rr-ink); font: inherit; margin-bottom: 0.85rem;
+  width: 100%; padding: 0.45rem 0.6rem; border-radius: 10px; border: 1px solid var(--rr-line);
+  background: #fff; color: var(--rr-ink); font: inherit; margin-bottom: 0.6rem;
 }
-.rr-meditation-tool .journey-days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-.rr-meditation-tool .journey-days li { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.7rem; border: 1px solid var(--rr-line); border-radius: 12px; background: #ffffffaa; }
+.rr-meditation-tool .journey-days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.rr-meditation-tool .journey-days li { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.6rem; border: 1px solid var(--rr-line); border-radius: 12px; background: #ffffffaa; }
 .rr-meditation-tool .journey-days li.done { background: #18312912; border-color: #18312955; }
 .rr-meditation-tool .day-check {
-  flex: 0 0 auto; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+  flex: 0 0 auto; width: 1.8rem; height: 1.8rem; border-radius: 50%;
   border: 1px solid var(--rr-line); background: var(--rr-paper); color: var(--rr-deep);
   cursor: pointer; display: grid; place-items: center; font-weight: 600;
 }
@@ -172,6 +182,16 @@
 .rr-meditation-tool .journey-start {
   flex: 0 0 auto; padding: 0.4rem 0.8rem; border-radius: 999px;
   border: 1px solid var(--rr-line); background: transparent; color: var(--rr-ink); cursor: pointer; font-size: 0.8rem;
+}
+
+/* Desktop: timer left, journeys right — one-screen tall on a 15" laptop. */
+@media (min-width: 700px) {
+  .rr-meditation-tool { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-auto-rows: min-content; column-gap: 1.5rem; align-items: start; }
+  .rr-meditation-tool .tool-heading { grid-column: 1 / -1; }
+  .rr-meditation-tool .meditation-timer-panel { align-self: center; }
+  .rr-meditation-tool .journey-panel { margin-top: 0; border-top: none; padding-top: 0; border-left: 1px solid var(--rr-line); padding-left: 1.25rem; }
+  /* Without journeys the timer takes the full width again. */
+  .rr-meditation-tool .meditation-timer-panel:last-child { grid-column: 1 / -1; }
 }
 
 /* ── Pelvic coordination ───────────────────────────────────────────────── */

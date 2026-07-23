@@ -97,7 +97,7 @@ class MenRootRebuildCommand extends Command
         return self::SUCCESS;
     }
 
-    /** Load styles.css globally (head) + site.js and wrapper-neutralizers (body). */
+    /** Load styles.css globally (head) + site.js (body); publish bare. */
     private function configureGlobalAssets(Site $site): void
     {
         $settings = $site->settings ?? [];
@@ -108,27 +108,21 @@ class MenRootRebuildCommand extends Command
         if (!str_contains($head, '/site-files/assets/css/styles.css')) {
             $head .= "\n" . $cssLink;
         }
-        $neutralize = '<style>/* men-root: keep bespoke design under the theme wrapper */'
-            // The theme critical CSS sets h1..h6{color:var(--color-heading)} which
-            // breaks the design's inherited section colouring (cream heads on the
-            // dark heroes). Restore inheritance so headings match the original.
-            . 'main h1,main h2,main h3,main h4,main h5,main h6{color:inherit}'
-            // The theme design-tokens bump body{font-size} to 17px; the design is
-            // authored at 16px. Restore it so text wraps exactly like the original.
-            . 'body{font-size:16px !important}'
-            . 'main p a:not(.btn):not([class*="button"]){text-decoration:none}'
-            . '@media(max-width:767px){main h1,main h2{font-size:revert !important}}</style>';
         $siteJs = '<script defer src="/site-files/assets/js/site.js"></script>';
-        foreach ([$neutralize, $siteJs] as $frag) {
-            $key = str_contains($frag, 'site.js') ? '/site-files/assets/js/site.js' : 'men-root: keep bespoke';
-            if (!str_contains($body, $key)) { $body .= "\n" . $frag; }
+        if (!str_contains($body, '/site-files/assets/js/site.js')) {
+            $body .= "\n" . $siteJs;
         }
+        // design_fidelity=exact publishes with the BARE wrapper — no theme
+        // token/critical/override CSS at all — so the old per-rule neutralizer
+        // <style> is obsolete; strip it if a previous run added one.
+        $body = trim((string) preg_replace('/<style>\/\* men-root: keep bespoke.*?<\/style>/s', '', $body));
 
         $settings['head_scripts'] = $head;
         $settings['body_scripts'] = $body;
+        $settings['design_fidelity'] = 'exact';
         $site->settings = $settings;
         $site->save();
-        $this->line('  Configured global styles.css + site.js + neutralizers.');
+        $this->line('  Configured global styles.css + site.js + bare-wrapper (design_fidelity=exact).');
     }
 
     /**

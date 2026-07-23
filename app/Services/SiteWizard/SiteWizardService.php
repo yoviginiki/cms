@@ -260,6 +260,14 @@ class SiteWizardService
         $tenant = Tenant::findOrFail($session->tenant_id);
         $site = $this->sites->createSite(['name' => $session->title ?: 'Imported site'], $tenant);
 
+        // Exact-copy sites publish BARE: the package's own CSS/JS is the only
+        // styling — the theme wrapper (token CSS, critical CSS, mobile
+        // overrides, container width) is suppressed on every publish path,
+        // including pages later rebuilt as editable block trees.
+        if ($session->fidelity() === 'exact') {
+            $site->update(['settings' => array_merge($site->settings ?? [], ['design_fidelity' => 'exact'])]);
+        }
+
         $session->update(['site_id' => $site->id]);
         $session->markStep('create_site', 'done', $site->name);
 
@@ -417,6 +425,14 @@ class SiteWizardService
             } else {
                 $session->markStep('menu', 'skipped', 'No navigation could be built');
             }
+
+            return true;
+        }
+
+        // Exact-copy designs ship their own <header> nav inside every page —
+        // a CMS menu would render a SECOND header on top of it.
+        if ($session->fidelity() === 'exact') {
+            $session->markStep('menu', 'skipped', 'The design ships its own navigation');
 
             return true;
         }

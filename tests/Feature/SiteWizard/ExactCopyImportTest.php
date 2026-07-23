@@ -131,6 +131,44 @@ HTML;
 
         // External links untouched.
         $this->assertStringContainsString('https://example.org/x', $home->raw_html);
+
+        // The site is marked exact-fidelity (bare-wrapper publishing) and got
+        // NO CMS header menu — the design ships its own navigation.
+        $this->assertSame('exact', $site->settings['design_fidelity'] ?? null);
+        $this->assertSame(0, \App\Models\Menu::where('site_id', $site->id)->count());
+    }
+
+    public function test_block_pages_on_exact_sites_publish_bare(): void
+    {
+        $session = $this->runZipBuild();
+        $site = Site::findOrFail($session->site_id);
+        $home = Page::where('site_id', $site->id)->where('slug', 'home')->firstOrFail();
+
+        // Rebuild the document page as an editable block tree (the men-root
+        // pattern): an html-embed section referencing a design file.
+        $home->blocks()->create([
+            'type' => 'html-embed',
+            'order' => 0,
+            'level' => 'module',
+            'data' => ['html' => '<section class="hero"><img src="/api/v1/sites/' . $site->id . '/files/assets/hero.webp"><h1>Zen</h1></section>'],
+        ]);
+        $home->update(['raw_html' => null, 'editor_mode' => 'block']);
+
+        $html = app(BuildPageService::class)->build($home->refresh(), $site->theme, $site);
+
+        // Wrapped in the publishing layout — but BARE: no token CSS, no
+        // critical CSS, no hardcoded override styles, no skip link. The
+        // design package CSS (a compiled @layer sheet) must stay the only CSS.
+        $this->assertSame(1, substr_count(strtolower($html), '<html'));
+        $this->assertStringNotContainsString('skip-link', $html);
+        $this->assertStringNotContainsString('--color-link', $html);
+        $this->assertStringNotContainsString('Responsive Navigation', $html);
+
+        // Design-file references rewritten for the static copy on block pages
+        // too (the analytics beacon legitimately keeps its API URL).
+        $base = '/' . trim($site->deploySlug(), '/');
+        $this->assertStringContainsString("{$base}/site-files/assets/hero.webp", $html);
+        $this->assertStringNotContainsString("/api/v1/sites/{$site->id}/files/", $html);
     }
 
     public function test_document_pages_publish_verbatim_without_the_theme_wrapper(): void

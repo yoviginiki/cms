@@ -28,6 +28,7 @@
         <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','{{ $site->settings['google_analytics_id'] }}');</script>
     @endif
     {!! $headScripts ?? '' !!}
+    @if(empty($bareWrapper))
     <style>
     /* ─── Block overlay z-index fix ─── */
     .block-bg-overlay ~ * { position: relative; z-index: 1; }
@@ -151,6 +152,7 @@
 
     /* Dark mode — nav inherits from theme tokens, no hardcoded overrides */
     </style>
+    @endif
 </head>
 @php
     $__isHome = !empty($content) && !empty($site) && ($site->settings['homepage_id'] ?? null) === ($content->id ?? null);
@@ -158,7 +160,9 @@
     $__bodyHasMain = str_contains($renderedBlocks ?? '', '<main');
 @endphp
 <body{!! $__isHome ? ' data-page="home"' : '' !!}>
+    @if(empty($bareWrapper))
     <a class="skip-link" href="#main-content">Skip to content</a>
+    @endif
     @if(!empty($navigation))
     <header role="banner">
         {!! $navigation !!}

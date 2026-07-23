@@ -80,6 +80,13 @@ class BuildPageService
 
         // Script injection
         $settings = $site->settings ?? [];
+
+        // Exact-copy design sites publish BARE: the imported package's own
+        // CSS/JS is the ONLY styling. The design CSS is typically a compiled
+        // Tailwind sheet living inside @layer blocks — ANY un-layered wrapper
+        // CSS (tokens, critical CSS, mobile overrides) would beat it in the
+        // cascade regardless of specificity, so it must not be emitted at all.
+        $bareDesign = ($settings['design_fidelity'] ?? null) === 'exact';
         $headScripts = ($settings['head_scripts'] ?? '') . ($content->seo_meta['head_scripts'] ?? '');
         $bodyScripts = ($settings['body_scripts'] ?? '') . ($content->seo_meta['body_scripts'] ?? '');
         $customCss = ($settings['custom_css'] ?? '') . ($content->seo_meta['custom_css'] ?? '');
@@ -150,12 +157,12 @@ class BuildPageService
             $bodyScripts .= "\n" . '<script defer src="/assets/site-cursor.' . $cursorHash . '.js"></script>';
         }
 
-        $criticalCss = $this->buildCriticalCss($themeConfig);
-        $fontPreloads = $this->buildFontPreloads($themeConfig);
+        $criticalCss = $bareDesign ? '' : $this->buildCriticalCss($themeConfig);
+        $fontPreloads = $bareDesign ? '' : $this->buildFontPreloads($themeConfig);
         $rssUrl = $site->publicBaseUrl() . '/feed.xml';
 
         // Design tokens CSS
-        $designTokensCss = $this->tokenGenerator->generate($site);
+        $designTokensCss = $bareDesign ? '' : $this->tokenGenerator->generate($site);
 
         // Hook outputs
         $hookHeadScripts = $this->hooks->collectAction('head_scripts', $content, $site);
@@ -192,10 +199,11 @@ class BuildPageService
                 'customCss' => $customCss,
                 'criticalCss' => $criticalCss,
                 'fontPreloads' => $fontPreloads,
-                'cssFile' => $themeConfig['css_file'] ?? null,
+                'cssFile' => $bareDesign ? null : ($themeConfig['css_file'] ?? null),
                 'navigation' => '',
                 'footerNavigation' => '',
                 'renderedBlocks' => $bodyContent,
+                'bareWrapper' => $bareDesign,
                 'designTokensCss' => $designTokensCss ?? '',
                 'hookHeadScripts' => $hookHeadScripts,
                 'hookBodyOpen' => $hookBodyOpen,
@@ -221,9 +229,11 @@ class BuildPageService
 
         // Try grid-based rendering (only if no explicit layout override).
         // A page carrying raw_html is an explicit document (imported apps,
-        // custom HTML) — a site-default grid must not swallow it.
+        // custom HTML) — a site-default grid must not swallow it. Same for
+        // exact-fidelity design sites: every page is self-contained, so the
+        // theme's grid scaffolding must not wrap it.
         $hasRawHtml = $content instanceof Page && $content->raw_html;
-        $grid = (!$useLayout && !$hasRawHtml) ? $this->gridResolver->resolve($content, $site) : null;
+        $grid = (!$useLayout && !$hasRawHtml && !$bareDesign) ? $this->gridResolver->resolve($content, $site) : null;
 
         if ($grid) {
             $gridResult = $this->gridRenderer->render($grid, $content, $site);
@@ -235,7 +245,7 @@ class BuildPageService
                 'customCss' => $customCss,
                 'criticalCss' => $criticalCss,
                 'fontPreloads' => $fontPreloads,
-                'cssFile' => $themeConfig['css_file'] ?? null,
+                'cssFile' => $bareDesign ? null : ($themeConfig['css_file'] ?? null),
                 'gridCss' => $gridResult['css'],
                 'gridHtml' => $gridResult['html'],
                 'designTokensCss' => $designTokensCss,
@@ -325,11 +335,12 @@ class BuildPageService
                 'customCss' => $customCss,
                 'criticalCss' => $criticalCss,
                 'fontPreloads' => $fontPreloads,
-                'cssFile' => $themeConfig['css_file'] ?? null,
-                'navigation' => ($layoutSlug === 'standard') ? ($headerHtml ?? '') : '',
-                'footerNavigation' => ($layoutSlug === 'standard') ? ($footerHtml ?? '') : '',
+                'cssFile' => $bareDesign ? null : ($themeConfig['css_file'] ?? null),
+                'navigation' => ($layoutSlug === 'standard' && !$bareDesign) ? ($headerHtml ?? '') : '',
+                'footerNavigation' => ($layoutSlug === 'standard' && !$bareDesign) ? ($footerHtml ?? '') : '',
                 'renderedBlocks' => $bodyContent,
-                'mainStyle' => ($layoutSlug === 'standard') ? 'max-width:var(--container-width, 1200px);margin:0 auto;padding:0 var(--container-padding, 24px);' : '',
+                'bareWrapper' => $bareDesign,
+                'mainStyle' => ($layoutSlug === 'standard' && !$bareDesign) ? 'max-width:var(--container-width, 1200px);margin:0 auto;padding:0 var(--container-padding, 24px);' : '',
                 'designTokensCss' => $designTokensCss ?? '',
                 'hookHeadScripts' => $hookHeadScripts,
                 'hookBodyOpen' => $hookBodyOpen,
@@ -349,6 +360,9 @@ class BuildPageService
         // This ensures images and files work on the static site without the backend running
         // Skip during preview — API serve URLs work with auth cookie on the admin domain
         if (!$this->isPreview) {
+            // Block pages can carry design-package file references too (e.g.
+            // exact-copy pages rebuilt as html-embed block trees).
+            $html = SiteFilesPublisher::rewriteHtml($html, $site);
             $html = AssetPublisher::rewriteHtml($html);
             $html = self::rewriteBaseForSlugHosting($html, $site);
         }
