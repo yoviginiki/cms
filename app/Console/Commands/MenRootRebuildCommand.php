@@ -113,9 +113,11 @@ class MenRootRebuildCommand extends Command
             // breaks the design's inherited section colouring (cream heads on the
             // dark heroes). Restore inheritance so headings match the original.
             . 'main h1,main h2,main h3,main h4,main h5,main h6{color:inherit}'
+            // The theme design-tokens bump body{font-size} to 17px; the design is
+            // authored at 16px. Restore it so text wraps exactly like the original.
+            . 'body{font-size:16px !important}'
             . 'main p a:not(.btn):not([class*="button"]){text-decoration:none}'
-            . '@media(max-width:767px){main h1,main h2{font-size:revert !important}}'
-            . '@media(max-width:480px){body{font-size:revert}}</style>';
+            . '@media(max-width:767px){main h1,main h2{font-size:revert !important}}</style>';
         $siteJs = '<script defer src="/site-files/assets/js/site.js"></script>';
         foreach ([$neutralize, $siteJs] as $frag) {
             $key = str_contains($frag, 'site.js') ? '/site-files/assets/js/site.js' : 'men-root: keep bespoke';
