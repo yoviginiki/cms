@@ -61,14 +61,20 @@ class ArchiveBuildService
         $tokenGenerator = app(DesignTokenGenerator::class);
         $baseUrl = $site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu";
 
+        // Exact-copy design sites publish bare (see BuildPageService) — the
+        // archive blades fall back to their inline styles, and no theme CSS
+        // is emitted to fight the design package's @layer sheet.
+        $bareDesign = ($site->settings['design_fidelity'] ?? null) === 'exact';
+
         return [
             'site' => $site,
             'baseUrl' => $baseUrl,
             // F3 chain: site language beats theme default (was theme ?? 'en')
             'lang' => $site->settings['default_language'] ?? $themeConfig['lang'] ?? 'en',
-            'criticalCss' => $themeConfig['critical_css'] ?? '',
+            'criticalCss' => $bareDesign ? '' : ($themeConfig['critical_css'] ?? ''),
             'customCss' => $site->settings['custom_css'] ?? '',
-            'designTokensCss' => $tokenGenerator->generate($site),
+            'designTokensCss' => $bareDesign ? '' : $tokenGenerator->generate($site),
+            'bareWrapper' => $bareDesign,
             'navigation' => $menuRenderer->renderByLocation($site, 'header'),
             'footerNavigation' => $menuRenderer->renderByLocation($site, 'footer'),
             'rssUrl' => "{$baseUrl}/feed.xml",
