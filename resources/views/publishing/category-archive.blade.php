@@ -11,6 +11,7 @@
     @if(!empty($criticalCss))<style>{!! $criticalCss !!}</style>@endif
     @if(!empty($customCss))<style>{!! $customCss !!}</style>@endif
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    @if(!empty($headScripts)){!! $headScripts !!}@endif
     {!! $archiveJsonLd ?? '' !!}
 </head>
 <body>

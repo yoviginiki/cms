@@ -47,9 +47,16 @@ class ArchiveBuildService
      * BuildPageService::build(), so they'd otherwise ship API URLs that 404
      * on static tenant domains (e.g. post-loop featured images).
      */
-    private function write(string $stagingPath, string $path, string $html): void
+    private function write(string $stagingPath, string $path, string $html, ?Site $site = null): void
     {
         $html = AssetPublisher::rewriteHtml($html);
+        if ($site !== null) {
+            // Slug-hosted sites serve under /{slug}/ — root-absolute links in
+            // archive chrome/head (e.g. /site-files/...) need the base prefix,
+            // exactly as BuildPageService applies it to pages.
+            $html = SiteFilesPublisher::rewriteHtml($html, $site);
+            $html = BuildPageService::rewriteBaseForSlugHosting($html, $site);
+        }
         File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
         File::put("{$stagingPath}/{$path}", $html);
     }
@@ -61,9 +68,12 @@ class ArchiveBuildService
         $tokenGenerator = app(DesignTokenGenerator::class);
         $baseUrl = $site->custom_domain ? "https://{$site->custom_domain}" : "https://{$site->slug}.ensodo.eu";
 
-        // Exact-copy design sites publish bare (see BuildPageService) — the
-        // archive blades fall back to their inline styles, and no theme CSS
-        // is emitted to fight the design package's @layer sheet.
+        // Exact-copy design sites publish bare (see BuildPageService): no
+        // theme CSS fights the design package's @layer sheet. Instead the
+        // archive loads the site's global head assets (the design stylesheet)
+        // and its stored chrome (settings.chrome_header_html/footer — the
+        // design's own header/footer markup), so archives read as pages of
+        // the same site rather than a generic listing.
         $bareDesign = ($site->settings['design_fidelity'] ?? null) === 'exact';
 
         return [
@@ -75,8 +85,13 @@ class ArchiveBuildService
             'customCss' => $site->settings['custom_css'] ?? '',
             'designTokensCss' => $bareDesign ? '' : $tokenGenerator->generate($site),
             'bareWrapper' => $bareDesign,
-            'navigation' => $menuRenderer->renderByLocation($site, 'header'),
-            'footerNavigation' => $menuRenderer->renderByLocation($site, 'footer'),
+            'headScripts' => $bareDesign ? ($site->settings['head_scripts'] ?? '') : '',
+            'navigation' => $bareDesign
+                ? ($site->settings['chrome_header_html'] ?? '')
+                : $menuRenderer->renderByLocation($site, 'header'),
+            'footerNavigation' => $bareDesign
+                ? ($site->settings['chrome_footer_html'] ?? '')
+                : $menuRenderer->renderByLocation($site, 'footer'),
             'rssUrl' => "{$baseUrl}/feed.xml",
         ];
     }
@@ -97,7 +112,7 @@ class ArchiveBuildService
             ]))->render();
 
             $path = $page === 1 ? 'blog/index.html' : "blog/page/{$page}/index.html";
-            $this->write($stagingPath, $path, $html);
+            $this->write($stagingPath, $path, $html, $site);
         }
     }
 
@@ -160,7 +175,7 @@ class ArchiveBuildService
             }
 
             $path = "{$category->slug}/index.html";
-            $this->write($stagingPath, $path, $html);
+            $this->write($stagingPath, $path, $html, $site);
         }
 
         return $warnings;
@@ -234,7 +249,7 @@ class ArchiveBuildService
             ]))->render();
 
             $path = "tag/{$tag->slug}/index.html";
-            $this->write($stagingPath, $path, $html);
+            $this->write($stagingPath, $path, $html, $site);
         }
     }
 
@@ -262,7 +277,7 @@ class ArchiveBuildService
 
             $slug = Str::slug($author->name);
             $path = "author/{$slug}/index.html";
-            $this->write($stagingPath, $path, $html);
+            $this->write($stagingPath, $path, $html, $site);
         }
     }
 }

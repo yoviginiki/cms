@@ -35,6 +35,7 @@ class MigrationController extends Controller
             'options.limit' => 'sometimes|integer|min:0|max:500',
             'options.include_home' => 'sometimes|boolean',
             'options.screenshots' => 'sometimes|boolean',
+            'options.mobile' => 'sometimes|boolean',
         ]);
 
         // SSRF guard: origin must be a public http(s) host, never internal.

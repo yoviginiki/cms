@@ -39,6 +39,7 @@ interface DiffPage {
   missing_images: string[];
   missing_links: string[];
   visual?: { mismatchPct: number | null; originShot: string | null; newShot: string | null; error: string | null };
+  mobile?: { horizontalOverflow?: boolean; squeezedGrids?: unknown[]; sectionSeams?: unknown[]; narrowBanners?: unknown[]; edgeFlushTextBlocks?: number; error?: string };
 }
 
 const TOOLS = [
@@ -76,6 +77,7 @@ export default function MigrationPage() {
   const [limit, setLimit] = useState(0);
   const [includeHome, setIncludeHome] = useState(true);
   const [screenshots, setScreenshots] = useState(true);
+  const [mobile, setMobile] = useState(true);
 
   const runsQuery = useQuery({
     queryKey: ['migration-runs', siteId],
@@ -105,7 +107,7 @@ export default function MigrationPage() {
           ? { dry, skip: skip.split(',').map((s) => s.trim()).filter(Boolean) }
           : tool === 'redirects'
             ? { deploy }
-            : { limit, include_home: includeHome, screenshots };
+            : { limit, include_home: includeHome, screenshots, mobile };
       return (await migration.start(siteId, tool, origin, options)).data.data as RunDetail;
     },
     onSuccess: (run) => {
@@ -191,6 +193,10 @@ export default function MigrationPage() {
                 Screenshots + visual mismatch score
               </label>
               <label className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={mobile} onChange={(e) => setMobile(e.target.checked)} />
+                Mobile audit (390px)
+              </label>
+              <label className="inline-flex items-center gap-2">
                 Page limit
                 <input
                   type="number"
@@ -262,6 +268,7 @@ export default function MigrationPage() {
                     <th className="py-2 pr-3">Page</th>
                     <th className="py-2 pr-3">Text</th>
                     <th className="py-2 pr-3">Visual</th>
+                    <th className="py-2 pr-3">Mobile</th>
                     <th className="py-2 pr-3">Missing</th>
                     <th className="py-2">Shots</th>
                   </tr>
@@ -275,6 +282,21 @@ export default function MigrationPage() {
                         {p.visual?.mismatchPct != null
                           ? <span className={p.visual.mismatchPct > 15 ? 'text-amber-600 font-medium' : 'text-gray-700'}>{p.visual.mismatchPct}%</span>
                           : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="py-2 pr-3 text-xs">
+                        {p.mobile ? (() => {
+                          const issues = [
+                            p.mobile.horizontalOverflow ? 'overflow' : null,
+                            (p.mobile.squeezedGrids?.length ?? 0) > 0 ? `grids:${p.mobile.squeezedGrids!.length}` : null,
+                            (p.mobile.sectionSeams?.length ?? 0) > 0 ? `seams:${p.mobile.sectionSeams!.length}` : null,
+                            (p.mobile.narrowBanners?.length ?? 0) > 0 ? `banners:${p.mobile.narrowBanners!.length}` : null,
+                            (p.mobile.edgeFlushTextBlocks ?? 0) > 3 ? 'edge-flush' : null,
+                          ].filter(Boolean);
+                          if (p.mobile.error) return <span className="text-gray-400">{p.mobile.error}</span>;
+                          return issues.length
+                            ? <span className="text-amber-600 font-medium">{issues.join(', ')}</span>
+                            : <span className="text-green-700">clean</span>;
+                        })() : <span className="text-gray-300">—</span>}
                       </td>
                       <td className="py-2 pr-3 text-xs text-gray-500">
                         {p.missing_headings.length > 0 && <div>headings: {p.missing_headings.length}</div>}

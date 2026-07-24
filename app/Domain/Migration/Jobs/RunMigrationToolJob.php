@@ -196,6 +196,31 @@ class RunMigrationToolJob implements ShouldQueue
 
         $report = app(MigrationDiffChecker::class)->comparePairs($site, $originHost, $pairs);
 
+        // Mobile layer: 390px audit of each migrated page (overflow, squeezed
+        // grids, seams, narrow banners, edge-flush text) — the content diff is
+        // viewport-blind, so these break silently without it.
+        if (!empty($run['options']['mobile']) && $pairs !== []) {
+            $log('running mobile audits…');
+            $byLabel = collect($pairs)->keyBy('label');
+            foreach ($report['pages'] as &$p) {
+                $pair = $byLabel[$p['label']] ?? null;
+                if (!$pair) {
+                    continue;
+                }
+                $out = shell_exec('node ' . escapeshellarg(base_path('scripts/mobile-audit.mjs'))
+                    . ' ' . escapeshellarg($pair['new']) . ' 2>/dev/null');
+                $data = json_decode((string) $out, true);
+                $p['mobile'] = is_array($data) ? $data : ['error' => 'audit failed'];
+            }
+            unset($p);
+            $flagged = array_filter($report['pages'], fn ($p) => !empty($p['mobile']['horizontalOverflow'])
+                || !empty($p['mobile']['squeezedGrids'])
+                || !empty($p['mobile']['sectionSeams'])
+                || !empty($p['mobile']['narrowBanners'])
+                || ($p['mobile']['edgeFlushTextBlocks'] ?? 0) > 3);
+            $report['summary']['pages_with_mobile_issues'] = count($flagged);
+        }
+
         // Visual layer: screenshot each pair and score the pixel mismatch.
         if (!empty($run['options']['screenshots']) && $pairs !== []) {
             $log('capturing screenshots…');
