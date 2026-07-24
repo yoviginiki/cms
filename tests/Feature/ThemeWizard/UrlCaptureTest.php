@@ -65,7 +65,7 @@ class UrlCaptureTest extends TestCase
     {
         $svc = new class($onUrl) extends ReferenceCaptureService {
             public function __construct(private $onUrl) {}
-            public function fromUrl(string $url, bool $fullPage = false): array
+            public function fromUrl(string $url, bool $fullPage = false, string $viewport = '1280x900'): array
             {
                 if ($this->onUrl) ($this->onUrl)($url);
                 // 1×1 transparent PNG
@@ -123,7 +123,7 @@ class UrlCaptureTest extends TestCase
     public function test_worker_records_a_clean_failure_when_capture_throws(): void
     {
         $svc = new class extends ReferenceCaptureService {
-            public function fromUrl(string $url, bool $fullPage = false): array
+            public function fromUrl(string $url, bool $fullPage = false, string $viewport = '1280x900'): array
             {
                 throw new RuntimeException('Could not capture that site — check the URL is reachable and public.');
             }

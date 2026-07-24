@@ -56,6 +56,10 @@ class TokenProfileSchema
                             'description' => 'Character of the heading face, e.g. "high-contrast serif", "condensed grotesque". NOT a font name.'],
                         'body_character' => ['type' => 'string', 'maxLength' => 80,
                             'description' => 'Character of the body face, e.g. "neutral geometric sans", "warm humanist sans".'],
+                        'display_family' => ['type' => 'string', 'maxLength' => 60,
+                            'description' => 'EXACT heading font family name if identifiable (e.g. "Spectral"). Used verbatim when freely available on Google Fonts; otherwise the character guides an open substitute.'],
+                        'body_family' => ['type' => 'string', 'maxLength' => 60,
+                            'description' => 'EXACT body font family name if identifiable.'],
                         'scale' => ['type' => 'string', 'enum' => self::SCALES,
                             'description' => 'Type-scale drama: compact, balanced, or dramatic (big display).'],
                         // NOTE: Anthropic structured output rejects integer

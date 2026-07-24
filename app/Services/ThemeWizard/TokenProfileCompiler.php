@@ -51,10 +51,10 @@ class TokenProfileCompiler
         $num = fn ($v) => ['$type' => 'number', '$value' => (string) $v];
         $fam = fn (array $v) => ['$type' => 'fontFamily', '$value' => $v];
 
-        $display = FontAllowlist::suggest('display', $typ['display_character']);
-        $body = FontAllowlist::suggest('body', $typ['body_character']);
-        $displayStack = [$display, ...$this->genericFallback($display)];
-        $bodyStack = [$body, ...$this->genericFallback($body)];
+        $display = $this->resolveFont('display', (string) ($typ['display_family'] ?? ''), $typ['display_character']);
+        $body = $this->resolveFont('body', (string) ($typ['body_family'] ?? ''), $typ['body_character']);
+        $displayStack = [$display, ...$this->fallbackFor($display, $typ['display_character'])];
+        $bodyStack = [$body, ...$this->fallbackFor($body, $typ['body_character'])];
 
         $scaleKey = $typ['scale'] ?? 'balanced';
         $scale = self::SCALES[$scaleKey] ?? self::SCALES['balanced'];
@@ -134,12 +134,55 @@ class TokenProfileCompiler
         ];
     }
 
-    /** Generic CSS fallbacks after the chosen family, by its category. */
-    private function genericFallback(string $font): array
+    /**
+     * The reference's EXACT family when it is freely available on Google Fonts
+     * (the fidelity gap that made imported sites read "off": Spectral became
+     * Playfair, Manrope became Inter). Unknown, licensed, or unverifiable
+     * families fall back to the character-matched open substitute — the
+     * allowlist stays the licensing guardrail, not a straitjacket.
+     */
+    private function resolveFont(string $role, string $family, string|array $character): string
     {
-        $cat = FontAllowlist::get($font)['category'] ?? 'body';
-        $char = FontAllowlist::get($font)['character'] ?? [];
-        if (in_array('serif', $char, true)) return ['Georgia', 'serif'];
+        if ($family !== '' && self::googleFontAvailable($family)) {
+            return $family;
+        }
+
+        return FontAllowlist::suggest($role, $character);
+    }
+
+    /** Cached css2 probe — Google returns 400 for families it does not host. */
+    public static function googleFontAvailable(string $family): bool
+    {
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9 \-]{0,50}$/', $family)) {
+            return false;
+        }
+
+        return (bool) \Illuminate\Support\Facades\Cache::remember(
+            'gfont:' . strtolower($family),
+            now()->addDays(7),
+            function () use ($family) {
+                try {
+                    return \Illuminate\Support\Facades\Http::timeout(6)
+                        ->withHeaders(['User-Agent' => 'Mozilla/5.0'])
+                        ->get('https://fonts.googleapis.com/css2?family=' . str_replace(' ', '+', $family))
+                        ->successful();
+                } catch (\Throwable) {
+                    return false; // offline/flaky network → open substitute
+                }
+            }
+        );
+    }
+
+    /** Generic CSS fallbacks after the chosen family, by its category. */
+    private function fallbackFor(string $font, string|array $character): array
+    {
+        $known = FontAllowlist::get($font);
+        $char = $known['character'] ?? [];
+        $cat = $known['category'] ?? 'body';
+        $phrase = is_array($character) ? implode(' ', $character) : $character;
+        $isSerif = in_array('serif', $char, true)
+            || ($known === null && str_contains(strtolower($phrase), 'serif') && !str_contains(strtolower($phrase), 'sans'));
+        if ($isSerif) return ['Georgia', 'serif'];
         if ($cat === 'mono') return ['ui-monospace', 'monospace'];
         return ['system-ui', '-apple-system', 'sans-serif'];
     }

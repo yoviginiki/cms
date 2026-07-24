@@ -3,6 +3,7 @@
 namespace App\Services\ThemeWizard;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Orchestrates the "from reference" path (W2): capture → vision analysis →
@@ -24,7 +25,18 @@ class ReferenceThemeService
     public function fromUrl(string $tenantId, string $url, ?string $hint = null): array
     {
         $image = $this->capture->fromUrl($url);
-        return $this->analyzeAndCompile($tenantId, $image, $hint);
+
+        // A phone-viewport capture makes the responsive read (type scale,
+        // density) far more reliable — but its absence must never sink the
+        // wizard, so failures degrade to the desktop-only analysis.
+        $extraImages = [];
+        try {
+            $extraImages[] = $this->capture->fromUrl($url, false, '390x844');
+        } catch (\Throwable $e) {
+            Log::info('ThemeWizard: mobile capture skipped', ['url' => $url, 'err' => mb_substr($e->getMessage(), 0, 120)]);
+        }
+
+        return $this->analyzeAndCompile($tenantId, $image, $hint, $extraImages);
     }
 
     /**
@@ -40,9 +52,9 @@ class ReferenceThemeService
      * @param array{data:string, media_type:string} $image
      * @return array{profile:array, compiled:array, usages:array<int,array>}
      */
-    private function analyzeAndCompile(string $tenantId, array $image, ?string $hint): array
+    private function analyzeAndCompile(string $tenantId, array $image, ?string $hint, array $extraImages = []): array
     {
-        $result = $this->analyzer->analyze($tenantId, $image['data'], $image['media_type'], $hint);
+        $result = $this->analyzer->analyze($tenantId, $image['data'], $image['media_type'], $hint, $extraImages);
         $compiled = $this->compiler->compile($result['profile']);
 
         return [

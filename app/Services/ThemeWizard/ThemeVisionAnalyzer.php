@@ -58,22 +58,28 @@ PROMPT,
     /**
      * @return array{profile: array, usages: array<int,array>}
      */
-    public function analyze(string $tenantId, string $imageBase64, string $mediaType, ?string $hint = null): array
+    /** @param array<int, array{data:string, media_type:string}> $extraImages e.g. a phone-viewport capture */
+    public function analyze(string $tenantId, string $imageBase64, string $mediaType, ?string $hint = null, array $extraImages = []): array
     {
         $this->budget->assertAvailable($tenantId);
 
         $text = 'Analyze this reference and produce the token profile.';
+        if ($extraImages !== []) {
+            $text .= ' The first image is the desktop viewport; the following image(s) show the SAME page at a phone viewport — use them to judge responsive type scale and spacing density.';
+        }
         if ($hint) {
             $text .= ' The user adds: "' . mb_substr($hint, 0, 300) . '". Honor it while keeping the design original.';
         }
 
-        $messages = [[
-            'role' => 'user',
-            'content' => [
-                ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mediaType, 'data' => $imageBase64]],
-                ['type' => 'text', 'text' => $text],
-            ],
-        ]];
+        $content = [
+            ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mediaType, 'data' => $imageBase64]],
+        ];
+        foreach ($extraImages as $extra) {
+            $content[] = ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $extra['media_type'], 'data' => $extra['data']]];
+        }
+        $content[] = ['type' => 'text', 'text' => $text];
+
+        $messages = [['role' => 'user', 'content' => $content]];
 
         $system = $this->systemBlocks();
         $model = $this->model();

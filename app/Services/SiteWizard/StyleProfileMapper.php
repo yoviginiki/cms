@@ -51,6 +51,8 @@ class StyleProfileMapper
             'typography' => [
                 'display_character' => $this->fontCharacter($signals['h1']['fontFamily'] ?? '', true),
                 'body_character' => $this->fontCharacter($signals['body']['fontFamily'] ?? '', false),
+                'display_family' => $this->verbatimFamily($signals['h1']['fontFamily'] ?? ''),
+                'body_family' => $this->verbatimFamily($signals['body']['fontFamily'] ?? ''),
                 'scale' => $this->scale($signals),
                 'heading_weight' => $this->headingWeight($signals),
             ],
@@ -183,6 +185,29 @@ class StyleProfileMapper
     }
 
     // ── typography / enums ──
+
+    /**
+     * The origin's first concrete family name, for verbatim use when it turns
+     * out to be freely available (TokenProfileCompiler checks Google Fonts).
+     * Generic keywords and OS stacks return '' — nothing to use verbatim.
+     */
+    private function verbatimFamily(string $family): string
+    {
+        $first = trim(explode(',', $family)[0] ?? '', " \t\"'");
+        if ($first === '' || mb_strlen($first) > 40 || !preg_match('/^[a-z0-9][a-z0-9 \-]*$/i', $first)) {
+            return '';
+        }
+        $generic = ['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui',
+            'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded', '-apple-system',
+            'blinkmacsystemfont', 'segoe ui', 'arial', 'helvetica', 'helvetica neue',
+            'times', 'times new roman', 'georgia', 'verdana', 'tahoma', 'trebuchet ms',
+            'courier', 'courier new', 'iowan old style', 'palatino', 'palatino linotype', 'baskerville'];
+        if (in_array(strtolower($first), $generic, true)) {
+            return '';
+        }
+
+        return ucwords(strtolower($first));
+    }
 
     /** Character string for FontAllowlist::suggest — derived from the REAL font-family. */
     private function fontCharacter(string $family, bool $display): string
