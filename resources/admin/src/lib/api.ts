@@ -383,6 +383,14 @@ export const wpImport = {
   status: (siteId: string, importId: string) => api.get(`/sites/${siteId}/import/${importId}/status`),
 };
 
+export const migration = {
+  start: (siteId: string, tool: string, origin: string, options: Record<string, unknown>) =>
+    api.post(`/sites/${siteId}/migration/runs`, { tool, origin, options }),
+  runs: (siteId: string) => api.get(`/sites/${siteId}/migration/runs`),
+  run: (siteId: string, runId: string) => api.get(`/sites/${siteId}/migration/runs/${runId}`),
+  artifactUrl: (siteId: string, path: string) => `/api/v1/sites/${siteId}/migration/artifacts/${path}`,
+};
+
 export const ai = {
   generate: (prompt: string, context?: unknown[]) => api.post('/ai/generate', { prompt, context }),
   rewrite: (content: string, instruction: string) => api.post('/ai/rewrite', { content, instruction }),

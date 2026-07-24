@@ -33,6 +33,7 @@ const FrozenLegacyEditor = () => (
 const Assets = lazy(() => import('./pages/Assets'));
 const SiteSettings = lazy(() => import('./pages/SiteSettings'));
 const ImportPage = lazy(() => import('./pages/ImportPage'));
+const MigrationPage = lazy(() => import('./pages/MigrationPage'));
 const Tags = lazy(() => import('./pages/Tags'));
 const Menus = lazy(() => import('./pages/Menus'));
 const MenuEditor = lazy(() => import('./pages/MenuEditor'));
@@ -149,6 +150,7 @@ export default function App() {
           <Route path="/sites/:siteId/wizards/app" element={<LayoutRoute><DatabaseWizard mode="app" /></LayoutRoute>} />
           <Route path="/sites/:siteId/settings" element={<LayoutRoute><SiteSettings /></LayoutRoute>} />
           <Route path="/sites/:siteId/import" element={<LayoutRoute><ImportPage /></LayoutRoute>} />
+          <Route path="/sites/:siteId/migration" element={<LayoutRoute><MigrationPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/analytics" element={<LayoutRoute><Analytics /></LayoutRoute>} />
           <Route path="/sites/:siteId/graph" element={<LayoutRoute><ContentGraph /></LayoutRoute>} />
           <Route path="/users" element={<LayoutRoute><Users /></LayoutRoute>} />

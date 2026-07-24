@@ -499,6 +499,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/import/{importId}/execute', [ImportController::class, 'execute']);
         Route::get('sites/{site}/import/{importId}/status', [ImportController::class, 'status']);
 
+        // Migration toolchain (spider rebuild / redirect maps / verification diff)
+        Route::post('sites/{site}/migration/runs', [\App\Http\Controllers\Api\V1\MigrationController::class, 'start']);
+        Route::get('sites/{site}/migration/runs', [\App\Http\Controllers\Api\V1\MigrationController::class, 'index']);
+        Route::get('sites/{site}/migration/runs/{runId}', [\App\Http\Controllers\Api\V1\MigrationController::class, 'show']);
+        Route::get('sites/{site}/migration/artifacts/{path}', [\App\Http\Controllers\Api\V1\MigrationController::class, 'artifact'])
+            ->where('path', '[A-Za-z0-9._\/-]+');
+
 
         // AI Content Assistant
         Route::post('ai/generate', [AiController::class, 'generate'])->middleware('throttle:20,1');

@@ -146,6 +146,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         { to: `/sites/${siteId}/templates`, icon: Rocket, label: 'Templates' },
         { to: `/sites/${siteId}/graph`, icon: GitBranch, label: 'Graph' },
         { to: `/sites/${siteId}/import`, icon: Upload, label: 'Import' },
+        { to: `/sites/${siteId}/migration`, icon: Download, label: 'Migration' },
       ]
     : [];
 
