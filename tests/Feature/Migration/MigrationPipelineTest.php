@@ -127,6 +127,93 @@ HTML;
         $this->assertSame(['image', 'paragraph'], array_column($right, 'type'));
     }
 
+    public function test_extractor_maps_divi_tabs_to_an_accordion(): void
+    {
+        // Tabbed panels can't render statically, so tabs → accordion (every
+        // panel's title + content stays crawlable, not just the first tab).
+        $html = <<<'HTML'
+<html><body><div class="entry-content">
+<div class="et_pb_module et_pb_tabs et_pb_tabs_0">
+  <ul class="et_pb_tabs_controls">
+    <li class="et_pb_tab_active"><a href="#">Overview</a></li>
+    <li><a href="#">Details</a></li>
+  </ul>
+  <div class="et_pb_all_tabs">
+    <div class="et_pb_tab et_pb_active_content"><div class="et_pb_tab_content"><p>First panel body.</p></div></div>
+    <div class="et_pb_tab"><div class="et_pb_tab_content"><p>Second panel with a <a href="https://origin.tld/more/">link</a>.</p></div></div>
+  </div>
+</div>
+</div></body></html>
+HTML;
+
+        $result = app(LiveContentExtractor::class)->extract($html, 'Page', null);
+
+        $this->assertCount(1, $result['blocks']);
+        $acc = $result['blocks'][0];
+        $this->assertSame('accordion', $acc['type']);
+        $this->assertTrue($acc['data']['openFirst']);
+        $this->assertCount(2, $acc['data']['items']);
+        $this->assertSame('Overview', $acc['data']['items'][0]['title']);
+        $this->assertStringContainsString('First panel body.', $acc['data']['items'][0]['content']);
+        $this->assertSame('Details', $acc['data']['items'][1]['title']);
+        $this->assertStringContainsString('href="https://origin.tld/more/"', $acc['data']['items'][1]['content']);
+    }
+
+    public function test_extractor_maps_a_gallery_preferring_full_size_links(): void
+    {
+        $html = <<<'HTML'
+<html><body><div class="entry-content">
+<div class="et_pb_module et_pb_gallery">
+  <div class="et_pb_gallery_items">
+    <div class="et_pb_gallery_item"><a href="https://origin.tld/up/full-a.jpg"><img src="https://origin.tld/up/full-a-400x300.jpg" alt="Alpha"></a></div>
+    <div class="et_pb_gallery_item"><a href="https://origin.tld/up/full-b.jpg"><img src="https://origin.tld/up/full-b-400x300.jpg" alt="Beta"></a></div>
+  </div>
+</div>
+</div></body></html>
+HTML;
+
+        $result = app(LiveContentExtractor::class)->extract($html, 'Page', null);
+
+        $this->assertCount(1, $result['blocks']);
+        $gallery = $result['blocks'][0];
+        $this->assertSame('gallery', $gallery['type']);
+        $this->assertCount(2, $gallery['data']['images']);
+        // canonical gallery shape = URL strings; the lightbox full-size target
+        // wins over the rendered thumbnail
+        $this->assertSame('https://origin.tld/up/full-a.jpg', $gallery['data']['images'][0]);
+        $this->assertSame('https://origin.tld/up/full-b.jpg', $gallery['data']['images'][1]);
+    }
+
+    public function test_extractor_maps_number_counters_to_stats(): void
+    {
+        $html = <<<'HTML'
+<html><body><div class="entry-content">
+<div class="et_pb_module et_pb_counters">
+  <div class="et_pb_number_counter" data-number-value="95">
+    <div class="percent"><p><span class="percent-value">0</span><span class="percent-sign">%</span></p></div>
+    <h3 class="title">Satisfaction</h3>
+  </div>
+  <div class="et_pb_number_counter" data-number-value="1200">
+    <div class="percent"><p><span class="percent-value">0</span></p></div>
+    <h3 class="title">Clients</h3>
+  </div>
+</div>
+</div></body></html>
+HTML;
+
+        $result = app(LiveContentExtractor::class)->extract($html, 'Page', null);
+
+        $this->assertCount(1, $result['blocks']);
+        $stats = $result['blocks'][0];
+        $this->assertSame('stats', $stats['type']);
+        $this->assertCount(2, $stats['data']['items']);
+        $this->assertSame('95', $stats['data']['items'][0]['value']);
+        $this->assertSame('%', $stats['data']['items'][0]['suffix']);
+        $this->assertSame('Satisfaction', $stats['data']['items'][0]['label']);
+        $this->assertSame('1200', $stats['data']['items'][1]['value']);
+        $this->assertSame('Clients', $stats['data']['items'][1]['label']);
+    }
+
     public function test_link_rewriter_recreates_internal_links(): void
     {
         $this->makeContent();

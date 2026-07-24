@@ -31,6 +31,10 @@ class LiveContentExtractor
     private const SKIP_ANCESTOR_CLASSES =
         '/\s(et_pb_sidebar|sidebar|related|nav-single|comment|et_social|sharedaddy|wp-block-comments|widget)\S*\s/';
 
+    /** Ancestors that ARE a widget captured whole — inner nodes must be skipped. */
+    private const WIDGET_ANCESTOR_CLASSES =
+        '/\s(et_pb_accordion|et_pb_tabs|et_pb_gallery|wp-block-gallery|et_pb_counters|et_pb_number_counter|et_pb_circle_counter)\s/';
+
     /**
      * @return array{
      *   blocks: array<int, array>,
@@ -106,11 +110,20 @@ class LiveContentExtractor
         // Builder accordions (Divi et_pb_accordion, native <details>) are
         // captured whole as accordion blocks — walking their text nodes would
         // flatten an interactive widget into static headings + paragraphs.
+        // Builder widget containers we reproduce as native blocks instead of
+        // flattening: accordions, tabs (→ accordion, the static-faithful form),
+        // galleries (→ gallery), number/circle counters (→ stats). A helper
+        // keeps the has-class XPath predicate readable.
+        $has = fn (string $c) => "contains(concat(' ',normalize-space(@class),' '),' {$c} ')";
+        $widgetContainers = "|.//div[{$has('et_pb_accordion')} or {$has('et_pb_tabs')}"
+            . " or {$has('et_pb_gallery')} or {$has('wp-block-gallery')}"
+            . " or {$has('et_pb_counters')} or {$has('et_pb_number_counter')}"
+            . " or {$has('et_pb_circle_counter')}]";
         $nodes = $xp->query(
             './/h1|.//h2|.//h3|.//h4|.//h5|.//h6|.//p|.//ul|.//ol|.//img|.//blockquote'
             . "|.//a[contains(@class,'button') or contains(@class,'btn')]"
-            . "|.//div[contains(concat(' ',normalize-space(@class),' '),' et_pb_accordion ')]"
-            . ($allowColumns ? "|.//div[contains(concat(' ',normalize-space(@class),' '),' et_pb_row ')]" : ''),
+            . $widgetContainers
+            . ($allowColumns ? "|.//div[{$has('et_pb_row')}]" : ''),
             $root
         );
 
@@ -126,8 +139,9 @@ class LiveContentExtractor
                 if (preg_match(self::SKIP_ANCESTOR_CLASSES, $ancClass)) {
                     continue 2;
                 }
-                // members of an accordion are captured with the widget itself
-                if (str_contains($ancClass, ' et_pb_accordion ')) {
+                // members of a widget we capture whole (accordion/tabs/gallery/
+                // counters) must not also be walked as loose content
+                if (preg_match(self::WIDGET_ANCESTOR_CLASSES, $ancClass)) {
                     continue 2;
                 }
                 // members of a captured multi-column row are extracted per column
@@ -138,12 +152,27 @@ class LiveContentExtractor
 
             $tag = strtolower($node->nodeName);
 
-            if ($tag === 'div') { // matched only for accordion/row containers
+            if ($tag === 'div') { // matched only for widget/row containers
                 $class = ' ' . $node->getAttribute('class') . ' ';
                 if (str_contains($class, ' et_pb_accordion ')) {
                     $accordion = $this->extractAccordion($doc, $xp, $node);
                     if ($accordion !== null) {
                         $blocks[] = $accordion;
+                    }
+                } elseif (str_contains($class, ' et_pb_tabs ')) {
+                    $tabs = $this->extractTabs($doc, $xp, $node);
+                    if ($tabs !== null) {
+                        $blocks[] = $tabs;
+                    }
+                } elseif (str_contains($class, ' et_pb_gallery ') || str_contains($class, ' wp-block-gallery ')) {
+                    $gallery = $this->extractGallery($xp, $node, $assetSite);
+                    if ($gallery !== null) {
+                        $blocks[] = $gallery;
+                    }
+                } elseif (str_contains($class, ' et_pb_counters ') || str_contains($class, ' et_pb_number_counter ') || str_contains($class, ' et_pb_circle_counter ')) {
+                    $stats = $this->extractCounters($xp, $node);
+                    if ($stats !== null) {
+                        $blocks[] = $stats;
                     }
                 } elseif ($allowColumns && str_contains($class, ' et_pb_row ')) {
                     // trial-extract per column on a COPY of the dedup set — a
@@ -277,6 +306,115 @@ class LiveContentExtractor
         return $items === []
             ? null
             : $this->block('accordion', ['items' => $items, 'openFirst' => $openFirst]);
+    }
+
+    /**
+     * Divi tabs → accordion block. Tabbed panels can't be reproduced statically
+     * (the native tabs block only renders panel 0 without JS), so we map to an
+     * accordion, which keeps every panel's title AND content readable and
+     * crawlable — the faithful choice for content, not just the first tab.
+     * Titles live in .et_pb_tabs_controls li a; panels in .et_pb_tab_content.
+     */
+    private function extractTabs(\DOMDocument $doc, \DOMXPath $xp, \DOMElement $container): ?array
+    {
+        $titles = [];
+        foreach ($xp->query(".//ul[contains(@class,'et_pb_tabs_controls')]//li", $container) as $li) {
+            $titles[] = trim($li->textContent);
+        }
+
+        $items = [];
+        $panels = $xp->query(".//div[contains(concat(' ',normalize-space(@class),' '),' et_pb_tab_content ')]", $container);
+        foreach ($panels as $i => $panel) {
+            $inner = '';
+            foreach ($panel->childNodes as $c) {
+                $inner .= $doc->saveHTML($c);
+            }
+            $content = trim(strip_tags($inner, '<a><strong><em><b><i><br><p><ul><ol><li>'));
+            $title = trim($titles[$i] ?? '') ?: 'Tab ' . ($i + 1);
+            if ($content === '') {
+                continue;
+            }
+            $items[] = ['title' => $title, 'content' => $content];
+        }
+
+        return $items === []
+            ? null
+            : $this->block('accordion', ['items' => $items, 'openFirst' => true]);
+    }
+
+    /**
+     * Divi/WP gallery → native gallery block. Prefers the full-size link target
+     * (a>img) over the rendered thumbnail, then maps each to an imported Asset
+     * by filename so the static build serves local copies.
+     */
+    private function extractGallery(\DOMXPath $xp, \DOMElement $container, ?Site $assetSite): ?array
+    {
+        $images = [];
+        $seen = [];
+        foreach ($xp->query('.//img', $container) as $img) {
+            // full-size href if the image is wrapped in a lightbox link
+            $link = null;
+            for ($anc = $img->parentNode; $anc instanceof \DOMElement; $anc = $anc->parentNode) {
+                if (strtolower($anc->nodeName) === 'a' && $anc->getAttribute('href') !== '') {
+                    $link = $anc->getAttribute('href');
+                    break;
+                }
+            }
+            $thumb = $img->getAttribute('data-src') ?: $img->getAttribute('src');
+            $src = $link && preg_match('/\.(jpe?g|png|webp|gif|avif)$/i', $link) ? $link : $thumb;
+            if (!$src || str_starts_with($src, 'data:') || isset($seen[$src])) {
+                continue;
+            }
+            $seen[$src] = true;
+            $mapped = $assetSite ? $this->assetForUrl($assetSite, $src) : null;
+            // Gallery stores images as URL STRINGS (canonical shape the editor
+            // and validator expect). Serve URLs become static at publish via
+            // AssetPublisher's rendered-HTML rewrite, same as image blocks.
+            $images[] = $mapped['url'] ?? $src;
+        }
+
+        return count($images) < 2
+            ? null // a single image is just an image block, not a gallery
+            : $this->block('gallery', ['images' => $images, 'layout' => 'grid', 'columns' => min(4, count($images)), 'gap' => '12px']);
+    }
+
+    /**
+     * Divi number/circle counters → native stats block. The counted value lives
+     * in data-number-value (falls back to .percent-value text), the unit in
+     * .percent-sign, the caption in .title.
+     */
+    private function extractCounters(\DOMXPath $xp, \DOMElement $container): ?array
+    {
+        // The matched node may be the wrapping .et_pb_counters OR a single
+        // counter — normalise to the list of individual counter elements.
+        $containerClass = ' ' . $container->getAttribute('class') . ' ';
+        $counters = (str_contains($containerClass, ' et_pb_number_counter ') || str_contains($containerClass, ' et_pb_circle_counter '))
+            ? [$container]
+            : iterator_to_array($xp->query(".//div[contains(concat(' ',normalize-space(@class),' '),' et_pb_number_counter ') or contains(concat(' ',normalize-space(@class),' '),' et_pb_circle_counter ')]", $container));
+
+        $items = [];
+        foreach ($counters as $counter) {
+            $value = $counter->getAttribute('data-number-value');
+            if ($value === '') {
+                $valueNode = $xp->query(".//*[contains(@class,'percent-value')]", $counter)->item(0);
+                $value = $valueNode ? trim($valueNode->textContent) : '';
+            }
+            if ($value === '') {
+                continue;
+            }
+            $signNode = $xp->query(".//*[contains(@class,'percent-sign')]", $counter)->item(0);
+            $titleNode = $xp->query(".//*[contains(@class,'title')]", $counter)->item(0);
+            $items[] = [
+                'value' => $value,
+                'suffix' => $signNode ? trim($signNode->textContent) : '',
+                'prefix' => '',
+                'label' => $titleNode ? trim($titleNode->textContent) : '',
+            ];
+        }
+
+        return $items === []
+            ? null
+            : $this->block('stats', ['items' => $items, 'columns' => min(4, count($items)), 'gap' => '24px']);
     }
 
     private function extractMeta(\DOMXPath $xp): array
