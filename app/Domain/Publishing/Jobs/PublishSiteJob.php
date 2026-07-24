@@ -296,6 +296,20 @@ class PublishSiteJob implements ShouldQueue
 
             $this->broadcast('Published successfully!');
 
+            // Purge the CDN edge so the new build is visible immediately.
+            // No-op unless Cloudflare credentials are configured; never fatal.
+            try {
+                $purged = \App\Domain\Publishing\Services\CloudflarePurger::purgeSite(
+                    $site,
+                    (string) ($this->deployment->refresh()->artifact_path ?: $stagingPath)
+                );
+                if ($purged > 0) {
+                    $this->broadcast("Cloudflare cache purged ({$purged} URLs)");
+                }
+            } catch (\Throwable $e) {
+                logger()->warning("Cloudflare purge failed for site {$site->id}: {$e->getMessage()}");
+            }
+
             // A successful FULL rebuild covers every page — clear staleness flags
             try {
                 app(\App\Domain\References\Services\StalenessResolver::class)->clearForSite($site);

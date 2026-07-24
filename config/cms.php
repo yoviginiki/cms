@@ -91,4 +91,11 @@ return [
         'check_interval' => 86400, // 24 hours
     ],
 
+    // Edge-cache purge after deploys (see CloudflarePurger). Token needs only
+    // Zone → Cache Purge permission. Both empty = feature off.
+    'cloudflare' => [
+        'api_token' => env('CLOUDFLARE_API_TOKEN', ''),
+        'zone_id' => env('CLOUDFLARE_ZONE_ID', ''),
+    ],
+
 ];
