@@ -233,73 +233,109 @@ class ElementorTreeCompiler
     }
 
     /**
-     * A container's children become rows: a run of widgets (and column-ish
-     * containers flattened) is one single-column row; a container holding 2–4
-     * sub-containers side by side becomes a multi-column row.
+     * Recursive structure mapping. An element that is itself a flex ROW of
+     * 2-4 sub-containers becomes ONE multi-column row (side-by-side layout
+     * preserved, real width ratios on the 12-grid). Everything else walks its
+     * children in order: widget runs become single-column rows, child
+     * containers recurse — so nested header rows and card rows survive.
      */
     private function rowsOf(array $el): array
     {
+        $kids = $el['elements'] ?? [];
+        $containerKids = array_values(array_filter($kids, fn ($e) => ($e['elType'] ?? '') === 'container'));
+        $dir = $el['settings']['flex_direction'] ?? 'row';
+
+        if ($dir !== 'column' && count($kids) >= 2 && count($containerKids) === count($kids)) {
+            // Prefer the explicitly-widthed containers as the columns; any
+            // width-less trailing containers become their own rows below.
+            $widthed = array_values(array_filter($containerKids, function ($c) {
+                $w = $c['settings']['width'] ?? null;
+
+                return is_array($w) && ($w['unit'] ?? '') === '%' && is_numeric($w['size'] ?? null) && (float) $w['size'] <= 100;
+            }));
+            $cols = count($widthed) >= 2 ? $widthed : $containerKids;
+            if (count($cols) <= 4) {
+                $colIds = array_map(fn ($c) => $c['id'] ?? '', $cols);
+                $rows = [];
+                if (($row = $this->columnsRow($cols)) !== null) {
+                    $rows[] = $row;
+                }
+                foreach ($containerKids as $extra) {
+                    if (!in_array($extra['id'] ?? '', $colIds, true)) {
+                        foreach ($this->rowsOf($extra) as $r) {
+                            $rows[] = $r;
+                        }
+                    }
+                }
+                if ($rows !== []) {
+                    return $rows;
+                }
+            }
+        }
+
         $rows = [];
         $buffer = [];
         $flush = function () use (&$rows, &$buffer) {
             if ($buffer !== []) {
-                $rows[] = $this->row('1', [$this->column($buffer)]);
+                $rows[] = $this->row('1', [$this->column($this->mergeStats($buffer))]);
                 $buffer = [];
             }
         };
-
-        foreach ($el['elements'] ?? [] as $child) {
+        foreach ($kids as $child) {
             if (($child['elType'] ?? '') === 'widget') {
                 foreach ($this->widgetModules($child) as $m) {
                     $buffer[] = $m;
                 }
                 continue;
             }
-
-            // container child
-            $subContainers = array_values(array_filter($child['elements'] ?? [], fn ($e) => ($e['elType'] ?? '') === 'container'));
-            $isRowContainer = count($subContainers) >= 2 && count($subContainers) <= 4
-                && count($subContainers) === count($child['elements'] ?? [])
-                && ($child['settings']['flex_direction'] ?? 'row') !== 'column';
-
-            if ($isRowContainer) {
-                $flush();
-                $columns = [];
-                $widths = [];
-                foreach ($subContainers as $sub) {
-                    $modules = $this->flattenModules($sub);
-                    if ($modules !== []) {
-                        $columns[] = $this->column($modules);
-                        $w = $sub['settings']['width'] ?? null;
-                        $widths[] = (is_array($w) && ($w['unit'] ?? '') === '%' && is_numeric($w['size'] ?? null))
-                            ? (float) $w['size'] : null;
-                    }
-                }
-                if (count($columns) >= 2) {
-                    $layouts = [2 => '1/2+1/2', 3 => '1/3+1/3+1/3', 4 => '1/4+1/4+1/4+1/4'];
-                    $row = $this->row($layouts[count($columns)] ?? '1/2+1/2', $columns);
-                    // Real Elementor column ratios → the 12-unit grid (P5 col_spans).
-                    if (!in_array(null, $widths, true)) {
-                        $spans = array_map(fn ($w) => max(2, min(10, (int) round($w * 12 / 100))), $widths);
-                        while (array_sum($spans) > 12) { $spans[array_search(max($spans), $spans, true)]--; }
-                        while (array_sum($spans) < 12) { $spans[array_search(min($spans), $spans, true)]++; }
-                        $row['data']['col_spans'] = $spans;
-                    }
-                    $rows[] = $row;
-                } elseif ($columns !== []) {
-                    $rows[] = $this->row('1', $columns);
-                }
-                continue;
-            }
-
-            foreach ($this->flattenModules($child) as $m) {
-                $buffer[] = $m;
+            $flush();
+            foreach ($this->rowsOf($child) as $r) {
+                $rows[] = $r;
             }
         }
         $flush();
 
-        // Merge consecutive stats items produced by sibling counters/funfacts.
         return array_values(array_filter($rows));
+    }
+
+    /** 2-4 containers side by side → one row; image-only columns collapse to a compact gallery. */
+    private function columnsRow(array $conts): ?array
+    {
+        $columns = [];
+        $widths = [];
+        foreach ($conts as $c) {
+            $modules = $this->flattenModules($c);
+            if ($modules === []) {
+                continue;
+            }
+            $images = array_filter($modules, fn ($m) => $m['type'] === 'image');
+            if (count($modules) >= 3 && count($images) === count($modules)) {
+                $modules = [$this->module('gallery', [
+                    'images' => array_map(fn ($m) => ['src' => $m['data']['url'], 'alt' => $m['data']['alt'] ?? '', 'caption' => ''], $modules),
+                    'layout' => 'grid', 'columns' => 2,
+                ])];
+            }
+            $columns[] = $this->column($modules);
+            $w = $c['settings']['width'] ?? null;
+            $widths[] = (is_array($w) && ($w['unit'] ?? '') === '%' && is_numeric($w['size'] ?? null) && (float) $w['size'] <= 100)
+                ? (float) $w['size'] : null;
+        }
+        if ($columns === []) {
+            return null;
+        }
+        if (count($columns) === 1) {
+            return $this->row('1', $columns);
+        }
+        $layouts = [2 => '1/2+1/2', 3 => '1/3+1/3+1/3', 4 => '1/4+1/4+1/4+1/4'];
+        $row = $this->row($layouts[count($columns)] ?? '1/2+1/2', array_slice($columns, 0, 4));
+        if (!in_array(null, $widths, true) && count($widths) === count($columns)) {
+            $spans = array_map(fn ($w) => max(2, min(10, (int) round($w * 12 / 100))), $widths);
+            while (array_sum($spans) > 12) { $spans[array_search(max($spans), $spans, true)]--; }
+            while (array_sum($spans) < 12) { $spans[array_search(min($spans), $spans, true)]++; }
+            $row['data']['col_spans'] = $spans;
+        }
+
+        return $row;
     }
 
     /** All modules inside a container, order preserved, nesting flattened. */
