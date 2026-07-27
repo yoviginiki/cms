@@ -44,6 +44,7 @@ class SiteWizardController extends Controller
             'max_pages' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'site_id' => ['sometimes', 'nullable', 'uuid'],
             'menu_label' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'fidelity' => ['sometimes', 'nullable', 'in:exact,blocks'],
         ]);
         $this->authorizeTarget($request, $data['site_id'] ?? null);
 
@@ -53,6 +54,7 @@ class SiteWizardController extends Controller
                 'max_pages' => $data['max_pages'] ?? null,
                 'site_id' => $data['site_id'] ?? null,
                 'menu_label' => $data['menu_label'] ?? null,
+                'fidelity' => $data['fidelity'] ?? null,
             ])),
         ], 201));
     }

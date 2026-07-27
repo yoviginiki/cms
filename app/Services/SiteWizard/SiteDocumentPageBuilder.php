@@ -180,6 +180,14 @@ class SiteDocumentPageBuilder
             $html
         );
 
+        // Inline-style backgrounds (<style> blocks and style="" attributes)
+        // reference package files too — builder exports lean on them heavily.
+        $html = preg_replace_callback(
+            '#url\(\s*(["\']?)([^"\')]+)\1\s*\)#i',
+            fn ($m) => str_starts_with($m[2], 'data:') ? $m[0] : 'url(' . $m[1] . $rewriteOne($m[2]) . $m[1] . ')',
+            $html
+        );
+
         return preg_replace_callback('#\bsrcset=(["\'])([^"\']+)\1#i', function ($m) use ($rewriteOne) {
             $entries = array_map(function ($entry) use ($rewriteOne) {
                 $entry = trim($entry);

@@ -73,20 +73,25 @@ class PageManifestCompiler
         $kind = $block['kind'] ?? '';
         $align = in_array($block['align'] ?? '', ['left', 'center', 'right'], true) ? $block['align'] : null;
         $fg = $this->safeHex($block['_fg'] ?? '');
+        $anim = $this->animationFor($block);
 
         // kind=columns → one N-col row, N columns.
         if ($kind === 'columns') {
             $cells = array_slice($block['columns'] ?? [], 0, 3);
             $layout = count($cells) >= 3 ? '1/3+1/3+1/3' : '1/2+1/2';
             $columns = [];
-            foreach ($cells as $cell) {
+            foreach ($cells as $i => $cell) {
                 $modules = [];
+                // Cards animate as a stagger: each cell starts a beat later.
+                $cellAnim = $anim ? [array_merge($anim, ['delay' => min(3000, ($anim['delay'] ?? 0) + $i * 120)])] : null;
                 if (($cell['image'] ?? '') !== '') {
-                    $modules[] = $this->module('image', ['url' => $cell['image'], 'size' => 'large', 'alt' => $cell['heading'] ?? '']);
+                    $modules[] = $this->module('image', ['url' => $cell['image'], 'size' => 'large', 'alt' => $cell['heading'] ?? '']
+                        + ($cellAnim ? ['__animation' => $cellAnim[0]] : []));
                 }
                 if (($cell['heading'] ?? '') !== '') {
                     $modules[] = $this->module('heading', ['text' => $this->clean($cell['heading'], 255), 'level' => 'h3']
-                        + ($align ? ['textAlign' => $align] : []) + ($fg ? ['color' => $fg] : []));
+                        + ($align ? ['textAlign' => $align] : []) + ($fg ? ['color' => $fg] : [])
+                        + ($cellAnim ? ['__animation' => $cellAnim[0]] : []));
                 }
                 if (($cell['body'] ?? '') !== '') {
                     $modules[] = $this->module('text', ['content' => $this->html($cell['body'])]
@@ -103,7 +108,34 @@ class PageManifestCompiler
             return [];
         }
 
+        if ($anim !== null) {
+            foreach ($modules as $i => $module) {
+                if ($module !== null) {
+                    $modules[$i]['data']['__animation'] = $anim;
+                }
+            }
+        }
+
         return [$this->row('1', [$this->column($modules)])];
+    }
+
+    /**
+     * The source element's entrance animation (read off the DOM by the
+     * importer) in the builder's own __animation shape; null when none.
+     */
+    private function animationFor(array $block): ?array
+    {
+        $name = $block['_anim'] ?? null;
+        if (!is_string($name) || !in_array($name, ['fade', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'zoom', 'scale-in'], true)) {
+            return null;
+        }
+        $anim = ['entrance' => $name, 'duration' => 600];
+        $delay = (int) ($block['_anim_delay'] ?? 0);
+        if ($delay > 0) {
+            $anim['delay'] = min(3000, $delay);
+        }
+
+        return $anim;
     }
 
     /** @return array<int, array> */

@@ -45,6 +45,7 @@ class SiteWizardService
     public function __construct(
         private SiteCrawler $crawler,
         private ZipSiteIngestor $zip,
+        private UrlSiteMirror $mirror,
         private SitePageBuilder $pageBuilder,
         private SiteDocumentPageBuilder $documentBuilder,
         private SiteMenuBuilder $menuBuilder,
@@ -189,6 +190,42 @@ class SiteWizardService
     private function stepIngest(SiteWizardSession $session): bool
     {
         $session->markStep('ingest', 'running');
+
+        if ($session->source === 'url' && $session->fidelity() === 'exact') {
+            // Exact copy of a live site: mirror pages + assets into the
+            // workspace in ZIP layout, then reuse the whole ZIP-exact
+            // pipeline (verbatim documents keep the source's own CSS/JS —
+            // and with them its animations and effects).
+            $mirrored = $this->mirror->mirror(
+                $session,
+                (string) $session->reference_url,
+                (int) ($session->options['max_pages'] ?? config('cms.site_wizard.max_pages', 15)),
+            );
+            $entryPage = collect($mirrored['pages'])->firstWhere('is_home', true) ?? $mirrored['pages'][0];
+            $entry = $this->pageBuilder->extractLocal($session, $entryPage['path']);
+
+            $sources = array_map(fn ($p) => [
+                'ref' => $p['path'],
+                'slug' => $p['slug'],
+                'title' => null,
+                'is_home' => $p['is_home'],
+                'depth' => 0,
+                'page_id' => null,
+                'status' => 'pending',
+                'error' => null,
+            ], $mirrored['pages']);
+
+            $session->update([
+                'sources' => $sources,
+                'nav' => $entry['nav'],
+                'style_signals' => $entry['style'],
+                'title' => $this->siteName($session, $entry['manifest']['page_title'] ?? null),
+            ]);
+            $session->markStep('ingest', 'done', count($sources) . ' page(s) mirrored, '
+                . $mirrored['stats']['files'] . ' asset file(s)');
+
+            return true;
+        }
 
         if ($session->source === 'url') {
             $result = $this->crawler->ingest($session);

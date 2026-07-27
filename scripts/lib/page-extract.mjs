@@ -61,7 +61,42 @@ export const PAGE_EXTRACTOR = () => {
     const f = toHex(styl(el).color);
     if (b) block._bg = b;
     if (f) block._fg = f;
+    const anim = animOf(el);
+    if (anim) { block._anim = anim.name; if (anim.delay) block._anim_delay = anim.delay; }
     return block;
+  };
+
+  // Entrance animation the source assigned to this element (or a wrapper):
+  // Elementor data-settings _animation, animate.css classes, or AOS attrs —
+  // mapped onto the CMS's own entrance vocabulary.
+  const ANIM_MAP = {
+    fadein: 'fade', fadeinup: 'slide-up', fadeindown: 'slide-down',
+    fadeinleft: 'slide-left', fadeinright: 'slide-right',
+    slideinup: 'slide-up', slideindown: 'slide-down', slideinleft: 'slide-left', slideinright: 'slide-right',
+    zoomin: 'zoom', zoominup: 'zoom', bouncein: 'scale-in', pulse: 'scale-in',
+    'fade-up': 'slide-up', 'fade-down': 'slide-down', 'fade-left': 'slide-left',
+    'fade-right': 'slide-right', 'zoom-in': 'zoom', fade: 'fade',
+  };
+  const animOf = (el) => {
+    let n = el, depth = 0;
+    while (n && n.nodeType === 1 && depth <= 6) {
+      const ds = n.getAttribute && n.getAttribute('data-settings');
+      if (ds) {
+        const m = /"_animation(?:_mobile|_tablet)?"\s*:\s*"([a-zA-Z-]+)"/.exec(ds);
+        if (m && ANIM_MAP[m[1].toLowerCase()]) {
+          const d = /"_animation_delay"\s*:\s*"?(\d+)"?/.exec(ds);
+          return { name: ANIM_MAP[m[1].toLowerCase()], delay: d ? Math.min(3000, +d[1]) : 0 };
+        }
+      }
+      const aos = n.getAttribute && n.getAttribute('data-aos');
+      if (aos && ANIM_MAP[aos.toLowerCase()]) return { name: ANIM_MAP[aos.toLowerCase()], delay: 0 };
+      for (const cls of (n.classList ? Array.from(n.classList) : [])) {
+        const key = cls.toLowerCase();
+        if (key !== 'fade' && ANIM_MAP[key]) return { name: ANIM_MAP[key], delay: 0 };
+      }
+      n = n.parentElement; depth++;
+    }
+    return null;
   };
 
   const firstImg = (el) => {

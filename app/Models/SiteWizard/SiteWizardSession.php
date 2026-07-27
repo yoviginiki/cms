@@ -57,8 +57,7 @@ class SiteWizardSession extends Model
      */
     public function fidelity(): string
     {
-        return ($this->options['fidelity'] ?? 'blocks') === 'exact' && $this->source === 'zip'
-            ? 'exact' : 'blocks';
+        return ($this->options['fidelity'] ?? 'blocks') === 'exact' ? 'exact' : 'blocks';
     }
 
     /** Slug prefix for imported pages in 'into' mode (keeps them grouped, avoids collisions). */

@@ -142,7 +142,9 @@ class SiteService
         $original = $slug;
         $count = 1;
 
-        while (Site::where('slug', $slug)->exists()) {
+        // The DB unique index also sees soft-deleted sites — the check must
+        // too, or a re-import of a deleted site's name crashes on insert.
+        while (Site::withTrashed()->where('slug', $slug)->exists()) {
             $slug = $original . '-' . $count++;
         }
 
