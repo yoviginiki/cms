@@ -74,6 +74,7 @@ class PageManifestCompiler
         $align = in_array($block['align'] ?? '', ['left', 'center', 'right'], true) ? $block['align'] : null;
         $fg = $this->safeHex($block['_fg'] ?? '');
         $anim = $this->animationFor($block);
+        $effects = $this->effectsFor($block);
 
         // kind=columns → one N-col row, N columns.
         if ($kind === 'columns') {
@@ -86,7 +87,7 @@ class PageManifestCompiler
                 $cellAnim = $anim ? [array_merge($anim, ['delay' => min(3000, ($anim['delay'] ?? 0) + $i * 120)])] : null;
                 if (($cell['image'] ?? '') !== '') {
                     $modules[] = $this->module('image', ['url' => $cell['image'], 'size' => 'large', 'alt' => $cell['heading'] ?? '']
-                        + ($cellAnim ? ['__animation' => $cellAnim[0]] : []));
+                        + ($cellAnim ? ['__animation' => $cellAnim[0]] : []) + ($effects ? ['effects' => $effects] : []));
                 }
                 if (($cell['heading'] ?? '') !== '') {
                     $modules[] = $this->module('heading', ['text' => $this->clean($cell['heading'], 255), 'level' => 'h3']
@@ -117,6 +118,23 @@ class PageManifestCompiler
         }
 
         return [$this->row('1', [$this->column($modules)])];
+    }
+
+    /**
+     * The source element's hover effect (read off the DOM by the importer) in
+     * the builder's own card-effects shape; null when none.
+     */
+    private function effectsFor(array $block): ?array
+    {
+        $preset = $block['_hover'] ?? null;
+        if (!is_string($preset) || !in_array($preset, ['lift', 'scale', 'lift-scale', 'soft-pop', 'strong-pop'], true)) {
+            return null;
+        }
+
+        return [
+            'enabled' => true,
+            'hover' => ['enabled' => true, 'preset' => $preset, 'duration' => 300, 'easing' => 'ease-out'],
+        ];
     }
 
     /**
@@ -178,9 +196,14 @@ class PageManifestCompiler
                     + ($align ? ['textAlign' => $align] : []) + ($fg ? ['color' => $fg] : []))];
 
             case 'image':
-                return $this->safe($block['url'] ?? '')
-                    ? [$this->module('image', ['url' => $block['url'], 'alt' => $this->clean($block['alt'] ?? '', 255), 'size' => 'large'])]
-                    : [];
+                if (!$this->safe($block['url'] ?? '')) {
+                    return [];
+                }
+                $data = ['url' => $block['url'], 'alt' => $this->clean($block['alt'] ?? '', 255), 'size' => 'large'];
+                if ($effects = $this->effectsFor($block)) {
+                    $data['effects'] = $effects;
+                }
+                return [$this->module('image', $data)];
 
             case 'gallery':
                 $images = array_values(array_filter((array) ($block['images'] ?? []), fn ($u) => $this->safe((string) $u)));

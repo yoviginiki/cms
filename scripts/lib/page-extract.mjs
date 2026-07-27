@@ -77,6 +77,23 @@ export const PAGE_EXTRACTOR = () => {
     'fade-up': 'slide-up', 'fade-down': 'slide-down', 'fade-left': 'slide-left',
     'fade-right': 'slide-right', 'zoom-in': 'zoom', fade: 'fade',
   };
+  // Hover/transition effect the source gives this element (or a wrapper):
+  // named effect classes, or a real transform/shadow transition on the card.
+  const hoverOf = (el) => {
+    let n = el, depth = 0;
+    while (n && n.nodeType === 1 && depth <= 4) {
+      const cls = String(n.className || '').toLowerCase();
+      if (/shiny|glass|zoom-hover|hover-zoom/.test(cls)) return 'scale';
+      if (/hover-lift|lift-hover/.test(cls)) return 'lift';
+      const s = styl(n);
+      const props = s.transitionProperty || '';
+      const dur = parseFloat(s.transitionDuration) || 0;
+      if (dur >= 0.15 && /(transform|box-shadow|\ball\b)/.test(props)) return 'lift-scale';
+      n = n.parentElement; depth++;
+    }
+    return null;
+  };
+
   const animOf = (el) => {
     let n = el, depth = 0;
     while (n && n.nodeType === 1 && depth <= 6) {
@@ -266,12 +283,20 @@ export const PAGE_EXTRACTOR = () => {
     if (logos) { blocks.push(deco(el, { kind: 'gallery', images: logos })); consume(el); return; }
 
     if (isRow(el)) {
-      const cells = Array.from(el.children).filter(visible).map(cellOf).filter(Boolean).slice(0, 3);
-      if (cells.length >= 2) { blocks.push(deco(el, { kind: 'columns', columns: cells })); consume(el); return; }
+      const kids = Array.from(el.children).filter(visible);
+      const cells = kids.map(cellOf).filter(Boolean).slice(0, 3);
+      if (cells.length >= 2) {
+        const b = deco(el, { kind: 'columns', columns: cells });
+        const hv = kids.length ? hoverOf(kids[0]) : null;
+        if (hv) b._hover = hv;
+        blocks.push(b); consume(el); return;
+      }
     }
 
     if (looksButton(el)) {
-      const b = deco(el, { kind: 'button', text: clean(txt(el), 60) });
+      // Deco from the PARENT: the button's own fill is widget styling — read
+      // as section background it would paint the whole section that color.
+      const b = deco(el.parentElement || el, { kind: 'button', text: clean(txt(el), 60) });
       const href = el.tagName === 'A' ? absUrl(el.getAttribute('href')) : null;
       if (href) b.url = href;
       blocks.push(b);
@@ -294,7 +319,11 @@ export const PAGE_EXTRACTOR = () => {
     if (tag === 'img') {
       if (el.naturalWidth > 120 || rect(el).width > 120) {
         const u = absUrl(el.currentSrc || el.src);
-        if (u) blocks.push(deco(el, { kind: 'image', url: u, alt: clean(el.alt, 200) }));
+        if (u) {
+          const b = deco(el, { kind: 'image', url: u, alt: clean(el.alt, 200) });
+          const hv = hoverOf(el); if (hv) b._hover = hv;
+          blocks.push(b);
+        }
       }
       consume(el); return;
     }

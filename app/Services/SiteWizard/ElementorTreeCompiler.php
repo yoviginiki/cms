@@ -1,0 +1,467 @@
+<?php
+
+namespace App\Services\SiteWizard;
+
+use Illuminate\Support\Str;
+
+/**
+ * Compiles an Elementor page document (_elementor_data JSON) STRAIGHT into the
+ * native block tree — no DOM heuristics. Every Elementor widget maps to the
+ * closest native module (heading→heading, counter→stats, image-carousel→
+ * logostrip/gallery, elementskit-accordion→accordion, google_maps→map, …) with
+ * its real settings: section backgrounds and overlays, entrance animations
+ * (_animation → __animation), hover effects, colors and alignment. The result
+ * is a fully editable page that moves and reads like the source.
+ *
+ * Media: every image URL runs through the $importImage callback (url, alt) →
+ * new url, so the caller controls media-library import and deduping.
+ */
+class ElementorTreeCompiler
+{
+    private const ANIM_MAP = [
+        'fadein' => 'fade', 'fadeinup' => 'slide-up', 'fadeindown' => 'slide-down',
+        'fadeinleft' => 'slide-left', 'fadeinright' => 'slide-right',
+        'slideinup' => 'slide-up', 'slideindown' => 'slide-down',
+        'slideinleft' => 'slide-left', 'slideinright' => 'slide-right',
+        'zoomin' => 'zoom', 'bouncein' => 'scale-in', 'pulse' => 'scale-in',
+    ];
+
+    private const ICON_MAP = [
+        'snowflake' => 'Snowflake', 'cog' => 'Settings', 'gear' => 'Settings', 'wrench' => 'Wrench',
+        'truck' => 'Truck', 'phone' => 'Phone', 'envelope' => 'Mail', 'map' => 'MapPin',
+        'check' => 'CheckCircle', 'star' => 'Star', 'bolt' => 'Zap', 'shield' => 'Shield',
+        'users' => 'Users', 'user' => 'User', 'clock' => 'Clock', 'headset' => 'Headphones',
+        'tools' => 'Wrench', 'thermometer' => 'Thermometer', 'industry' => 'Factory',
+        'box' => 'Package', 'boxes' => 'Boxes', 'award' => 'Award', 'handshake' => 'Handshake',
+    ];
+
+    /** @var callable(string,string):string */
+    private $importImage;
+    private int $order = 0;
+    /** @var array<string,string> Elementor kit global color id => hex */
+    private array $globalColors = [];
+
+    /**
+     * @param array $document decoded _elementor_data
+     * @param callable(string,string):string $importImage url,alt → serve url
+     * @return array<int,array> section nodes for BlockService::syncBlocks
+     */
+    public function compile(array $document, callable $importImage, array $globalColors = []): array
+    {
+        $this->importImage = $importImage;
+        $this->globalColors = $globalColors;
+        $this->order = 0;
+
+        $sections = [];
+        foreach ($document as $top) {
+            $section = $this->section($top);
+            if ($section !== null) {
+                $sections[] = $section;
+            }
+        }
+
+        return $sections;
+    }
+
+    // ── structure ──
+
+    private function section(array $el): ?array
+    {
+        $rows = $this->rowsOf($el);
+        if ($rows === []) {
+            return null;
+        }
+
+        $s = $el['settings'] ?? [];
+        $data = ['padding_top' => '48px', 'padding_bottom' => '48px', 'max_width' => '1200px'];
+
+        $bgImage = $this->imageUrl($s['background_image'] ?? null);
+        if (($s['background_background'] ?? '') === 'classic' && $bgImage !== null) {
+            $data['bg_type'] = 'image';
+            $data['bg_image'] = ($this->importImage)($bgImage, '');
+            $data['bg_image_size'] = 'cover';
+            $overlay = $this->settingColor($s, 'background_overlay_color');
+            if (($s['background_overlay_background'] ?? '') === 'classic' && $overlay !== null) {
+                $data['bg_overlay_color'] = $overlay;
+                $data['bg_overlay_opacity'] = min(1, max(0, (float) ($s['background_overlay_opacity']['size'] ?? 0.5)));
+            }
+        } elseif (($bg = $this->settingColor($s, 'background_color')) !== null) {
+            $data['bg_type'] = 'color';
+            $data['bg_color'] = $bg;
+        }
+
+        return [
+            'id' => (string) Str::uuid(), 'type' => 'section', 'level' => 'section',
+            'order' => $this->order++, 'data' => $data, 'children' => $this->reorder($rows),
+        ];
+    }
+
+    /**
+     * A container's children become rows: a run of widgets (and column-ish
+     * containers flattened) is one single-column row; a container holding 2–4
+     * sub-containers side by side becomes a multi-column row.
+     */
+    private function rowsOf(array $el): array
+    {
+        $rows = [];
+        $buffer = [];
+        $flush = function () use (&$rows, &$buffer) {
+            if ($buffer !== []) {
+                $rows[] = $this->row('1', [$this->column($buffer)]);
+                $buffer = [];
+            }
+        };
+
+        foreach ($el['elements'] ?? [] as $child) {
+            if (($child['elType'] ?? '') === 'widget') {
+                foreach ($this->widgetModules($child) as $m) {
+                    $buffer[] = $m;
+                }
+                continue;
+            }
+
+            // container child
+            $subContainers = array_values(array_filter($child['elements'] ?? [], fn ($e) => ($e['elType'] ?? '') === 'container'));
+            $isRowContainer = count($subContainers) >= 2 && count($subContainers) <= 4
+                && count($subContainers) === count($child['elements'] ?? [])
+                && ($child['settings']['flex_direction'] ?? 'row') !== 'column';
+
+            if ($isRowContainer) {
+                $flush();
+                $columns = [];
+                foreach ($subContainers as $sub) {
+                    $modules = $this->flattenModules($sub);
+                    if ($modules !== []) {
+                        $columns[] = $this->column($modules);
+                    }
+                }
+                if (count($columns) >= 2) {
+                    $layouts = [2 => '1/2+1/2', 3 => '1/3+1/3+1/3', 4 => '1/4+1/4+1/4+1/4'];
+                    $rows[] = $this->row($layouts[count($columns)] ?? '1/2+1/2', $columns);
+                } elseif ($columns !== []) {
+                    $rows[] = $this->row('1', $columns);
+                }
+                continue;
+            }
+
+            foreach ($this->flattenModules($child) as $m) {
+                $buffer[] = $m;
+            }
+        }
+        $flush();
+
+        // Merge consecutive stats items produced by sibling counters/funfacts.
+        return array_values(array_filter($rows));
+    }
+
+    /** All modules inside a container, order preserved, nesting flattened. */
+    private function flattenModules(array $el): array
+    {
+        $modules = [];
+        foreach ($el['elements'] ?? [] as $child) {
+            if (($child['elType'] ?? '') === 'widget') {
+                foreach ($this->widgetModules($child) as $m) {
+                    $modules[] = $m;
+                }
+            } else {
+                foreach ($this->flattenModules($child) as $m) {
+                    $modules[] = $m;
+                }
+            }
+        }
+
+        return $this->mergeStats($modules);
+    }
+
+    /** Consecutive single-item stats blocks collapse into one multi-column stats. */
+    private function mergeStats(array $modules): array
+    {
+        $out = [];
+        foreach ($modules as $m) {
+            $last = $out !== [] ? count($out) - 1 : null;
+            if ($m['type'] === 'stats' && $last !== null && $out[$last]['type'] === 'stats' && count($out[$last]['data']['items']) < 4) {
+                $out[$last]['data']['items'] = array_merge($out[$last]['data']['items'], $m['data']['items']);
+                $out[$last]['data']['columns'] = count($out[$last]['data']['items']);
+                continue;
+            }
+            $out[] = $m;
+        }
+
+        return $out;
+    }
+
+    // ── widgets ──
+
+    /** @return array<int,array> zero or more module nodes for one widget */
+    private function widgetModules(array $el): array
+    {
+        $s = $el['settings'] ?? [];
+        $shared = $this->sharedProps($s);
+
+        $modules = match ($el['widgetType'] ?? '') {
+            'heading' => [$this->module('heading', array_filter([
+                'text' => $this->plain($s['title'] ?? ''),
+                'level' => in_array($s['header_size'] ?? '', ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'], true) ? $s['header_size'] : 'h2',
+                'textAlign' => in_array($s['align'] ?? '', ['left', 'center', 'right'], true) ? $s['align'] : null,
+                'color' => $this->settingColor($s, 'title_color'),
+            ]))],
+
+            'text-editor' => [$this->module('text', array_filter([
+                'content' => (string) ($s['editor'] ?? ''),
+                'color' => $this->settingColor($s, 'text_color'),
+            ]))],
+
+            'image' => $this->imageModule($s),
+
+            'elementskit-creative-button' => [$this->module('button', array_filter([
+                'text' => $this->plain($s['ekit_btn_text'] ?? ''),
+                'url' => $this->url($s['ekit_btn_url'] ?? null),
+                'style' => 'primary',
+            ]))],
+
+            'counter' => [$this->module('stats', ['items' => [[
+                'value' => (string) ($s['ending_number'] ?? '0'),
+                'label' => $this->plain($s['title'] ?? ''),
+                'prefix' => $this->plain($s['prefix'] ?? ''),
+                'suffix' => $this->plain($s['suffix'] ?? ''),
+            ]], 'columns' => 1])],
+
+            'elementskit-funfact' => [$this->module('stats', ['items' => [[
+                'value' => (string) ($s['ekit_funfact_number'] ?? '0'),
+                'label' => $this->plain($s['ekit_funfact_title_text'] ?? ''),
+                'prefix' => '',
+                'suffix' => $this->plain(($s['ekit_funfact_super_text'] ?? '') . ($s['ekit_funfact_number_suffix'] ?? '')),
+            ]], 'columns' => 1])],
+
+            'elementskit-progressbar' => [$this->module('stats', ['items' => [[
+                'value' => (string) ($s['ekit_progressbar_percentage'] ?? '0'),
+                'label' => $this->plain($s['ekit_progressbar_title'] ?? ''),
+                'prefix' => '', 'suffix' => '%',
+            ]], 'columns' => 1])],
+
+            'icon-list' => [$this->module('list', [
+                'items' => array_values(array_filter(array_map(
+                    fn ($i) => $this->plain($i['text'] ?? ''), (array) ($s['icon_list'] ?? [])
+                ))),
+                'style' => 'check', 'icon' => '',
+            ])],
+
+            'elementskit-icon-box', 'icon-box', 'image-box' => $this->iconBoxModules($s),
+
+            'elementskit-accordion' => [$this->module('accordion', [
+                'items' => array_values(array_filter(array_map(fn ($i) => [
+                    'title' => $this->plain($i['acc_title'] ?? ''),
+                    'content' => (string) ($i['acc_content'] ?? ''),
+                ], (array) ($s['ekit_accordion_items'] ?? [])), fn ($i) => $i['title'] !== '')),
+                'multiOpen' => false, 'iconStyle' => 'chevron',
+            ])],
+
+            'image-carousel' => $this->carouselModules($s),
+
+            'elementskit-category-list' => [$this->module('categorylist', ['style' => 'cards', 'showCount' => true, 'parentOnly' => false])],
+
+            'elementskit-blog-posts' => [$this->module('latestposts', ['count' => 3, 'categoryId' => '', 'showExcerpt' => true, 'showImage' => true])],
+
+            'elementskit-contact-form7' => [$this->module('contact-form', [
+                'fields' => [
+                    ['label' => 'Име', 'type' => 'text', 'required' => true],
+                    ['label' => 'Имейл', 'type' => 'email', 'required' => true],
+                    ['label' => 'Телефон', 'type' => 'tel', 'required' => false],
+                    ['label' => 'Съобщение', 'type' => 'textarea', 'required' => true],
+                ],
+                'submitText' => 'Изпрати', 'recipientEmail' => '',
+            ])],
+
+            'google_maps' => [$this->module('map', [
+                'address' => $this->plain($s['address'] ?? ''), 'zoom' => 14, 'height' => '400px', 'style' => 'roadmap',
+            ])],
+
+            'elementskit-video' => [$this->module('video', array_filter([
+                'url' => $this->url($s['ekit_video_link'] ?? null) ?? (string) ($s['ekit_video_url'] ?? ''),
+                'autoplay' => false, 'muted' => true,
+            ], fn ($v) => $v !== '' && $v !== null))],
+
+            default => [],
+        };
+
+        $modules = array_values(array_filter($modules, fn ($m) => $m !== null && $this->hasContent($m)));
+
+        if ($shared !== []) {
+            foreach ($modules as $i => $m) {
+                $modules[$i]['data'] = array_merge($m['data'], $shared);
+            }
+        }
+
+        return $modules;
+    }
+
+    private function imageModule(array $s): array
+    {
+        $url = $this->imageUrl($s['image'] ?? null);
+        if ($url === null) {
+            return [];
+        }
+        $data = ['url' => ($this->importImage)($url, ''), 'alt' => '', 'size' => 'large'];
+        if (str_contains((string) ($s['at_animation_hover_effect'] ?? ''), 'effect')) {
+            $data['effects'] = ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'scale', 'duration' => 300, 'easing' => 'ease-out']];
+        }
+
+        return [$this->module('image', $data)];
+    }
+
+    /** Icon-box → icon-appropriate featuregrid item (merged later by siblings? kept simple: 1-item grid). */
+    private function iconBoxModules(array $s): array
+    {
+        $title = $this->plain($s['ekit_icon_box_title_text'] ?? $s['title_text'] ?? '');
+        $desc = $this->plain($s['ekit_icon_box_description_text'] ?? $s['description_text'] ?? '');
+        if ($title === '' && $desc === '') {
+            return [];
+        }
+
+        $modules = [];
+        $img = $this->imageUrl($s['image'] ?? null);
+        if ($img !== null) {
+            $modules[] = $this->module('image', ['url' => ($this->importImage)($img, $title), 'alt' => $title, 'size' => 'large']);
+        }
+        if ($title !== '') {
+            $modules[] = $this->module('heading', ['text' => $title, 'level' => 'h3']);
+        }
+        if ($desc !== '') {
+            $modules[] = $this->module('text', ['content' => '<p>' . e($desc) . '</p>']);
+        }
+
+        return $modules;
+    }
+
+    private function carouselModules(array $s): array
+    {
+        $images = [];
+        foreach ((array) ($s['carousel'] ?? []) as $img) {
+            $u = is_array($img) ? ($img['url'] ?? null) : null;
+            if (is_string($u) && $u !== '') {
+                $images[] = ['src' => ($this->importImage)($u, ''), 'alt' => '', 'url' => ''];
+            }
+        }
+        if ($images === []) {
+            return [];
+        }
+
+        // Many small images → a scrolling logo strip; otherwise a gallery grid.
+        return count($images) >= 4
+            ? [$this->module('logostrip', ['images' => $images, 'speed' => 30])]
+            : [$this->module('gallery', [
+                'images' => array_map(fn ($i) => ['src' => $i['src'], 'alt' => '', 'caption' => ''], $images),
+                'layout' => 'grid', 'columns' => min(3, count($images)),
+            ])];
+    }
+
+    // ── shared props (animation) ──
+
+    private function sharedProps(array $s): array
+    {
+        $shared = [];
+        $anim = strtolower((string) ($s['_animation'] ?? ''));
+        if ($anim !== '' && isset(self::ANIM_MAP[$anim])) {
+            $a = ['entrance' => self::ANIM_MAP[$anim], 'duration' => 600];
+            $delay = (int) ($s['_animation_delay'] ?? 0);
+            if ($delay > 0) {
+                $a['delay'] = min(3000, $delay);
+            }
+            $shared['__animation'] = $a;
+        }
+
+        return $shared;
+    }
+
+    // ── node builders / helpers ──
+
+    private function row(string $layout, array $columns): array
+    {
+        return [
+            'id' => (string) Str::uuid(), 'type' => 'row', 'level' => 'row', 'order' => 0,
+            'data' => ['layout' => $layout, 'gap' => '24px'], 'children' => $this->reorder($columns),
+        ];
+    }
+
+    private function column(array $modules): array
+    {
+        return [
+            'id' => (string) Str::uuid(), 'type' => 'column', 'level' => 'column', 'order' => 0,
+            'data' => [], 'children' => $this->reorder($modules),
+        ];
+    }
+
+    private function module(string $type, array $data): array
+    {
+        return [
+            'id' => (string) Str::uuid(), 'type' => $type, 'level' => 'module', 'order' => 0,
+            'data' => $data, 'children' => [],
+        ];
+    }
+
+    private function hasContent(array $m): bool
+    {
+        $d = $m['data'];
+
+        return match ($m['type']) {
+            'heading' => trim((string) ($d['text'] ?? '')) !== '',
+            'text' => trim(strip_tags((string) ($d['content'] ?? ''))) !== '',
+            'button' => trim((string) ($d['text'] ?? '')) !== '',
+            'image' => ($d['url'] ?? '') !== '',
+            'list' => ($d['items'] ?? []) !== [],
+            'accordion', 'stats' => ($d['items'] ?? []) !== [],
+            'logostrip', 'gallery' => ($d['images'] ?? []) !== [],
+            'map' => trim((string) ($d['address'] ?? '')) !== '',
+            'video' => ($d['url'] ?? '') !== '',
+            default => true,
+        };
+    }
+
+    private function reorder(array $nodes): array
+    {
+        return array_values(array_map(function ($node, $i) {
+            $node['order'] = $i;
+
+            return $node;
+        }, $nodes, array_keys($nodes)));
+    }
+
+    private function plain(mixed $v): string
+    {
+        return trim(strip_tags((string) $v));
+    }
+
+    /** A color setting: literal value, or the kit global the __globals__ ref points to. */
+    private function settingColor(array $s, string $key): ?string
+    {
+        $literal = $this->color($s[$key] ?? null);
+        if ($literal !== null) {
+            return $literal;
+        }
+        $ref = $s['__globals__'][$key] ?? '';
+        if (is_string($ref) && preg_match('#globals/colors\?id=([A-Za-z0-9_-]+)#', str_replace('\\/', '/', $ref), $m)) {
+            return $this->color($this->globalColors[$m[1]] ?? null);
+        }
+
+        return null;
+    }
+
+    private function color(mixed $v): ?string
+    {
+        return is_string($v) && preg_match('/^#[0-9a-fA-F]{3,8}$/', trim($v)) === 1 ? strtolower(trim($v)) : null;
+    }
+
+    private function url(mixed $v): ?string
+    {
+        $u = is_array($v) ? ($v['url'] ?? null) : (is_string($v) ? $v : null);
+
+        return is_string($u) && preg_match('#^(https?://|/)#i', $u) === 1 ? $u : null;
+    }
+
+    private function imageUrl(mixed $v): ?string
+    {
+        $u = is_array($v) ? ($v['url'] ?? null) : null;
+
+        return is_string($u) && preg_match('#^https?://#i', $u) === 1 ? $u : null;
+    }
+}
