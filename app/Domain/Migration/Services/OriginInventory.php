@@ -55,6 +55,11 @@ class OriginInventory
         $name = basename(parse_url($loc, PHP_URL_PATH) ?? '');
 
         return match (true) {
+            // WP core names children wp-sitemap-posts-{postType}-N.xml — the
+            // literal "posts-" segment appears for EVERY post type, so the
+            // post-type suffix must win before the generic markers.
+            str_contains($name, 'posts-page') => 'page',
+            str_contains($name, 'posts-post') => 'post',
             str_contains($name, 'post-sitemap'), str_contains($name, 'posts-') => 'post',
             str_contains($name, 'page-sitemap'), str_contains($name, 'pages-') => 'page',
             str_contains($name, 'category') => 'category',

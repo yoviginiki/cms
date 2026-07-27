@@ -178,7 +178,10 @@ class ElementorTreeCompiler
         }
 
         $s = $el['settings'] ?? [];
-        $data = ['padding_top' => '48px', 'padding_bottom' => '48px', 'max_width' => '1200px'];
+        $pad = $s['padding'] ?? null;
+        $padTop = (is_array($pad) && ($pad['unit'] ?? 'px') === 'px' && is_numeric($pad['top'] ?? null)) ? min(200, (int) $pad['top']) . 'px' : '48px';
+        $padBottom = (is_array($pad) && ($pad['unit'] ?? 'px') === 'px' && is_numeric($pad['bottom'] ?? null)) ? min(200, (int) $pad['bottom']) . 'px' : '48px';
+        $data = ['padding_top' => $padTop, 'padding_bottom' => $padBottom, 'max_width' => '1200px'];
 
         $bgImage = $this->imageUrl($s['background_image'] ?? null);
         if (($s['background_background'] ?? '') === 'classic' && $bgImage !== null) {
@@ -516,7 +519,7 @@ class ElementorTreeCompiler
     /** Source-site product categories as linked tile columns (context-fed). */
     private function categoryTiles(): array
     {
-        $cats = array_slice((array) ($this->context['categories'] ?? []), 0, 8);
+        $cats = array_slice((array) ($this->context['categories'] ?? []), 0, 12);
         if ($cats === []) {
             return [$this->module('categorylist', ['style' => 'cards', 'showCount' => true, 'parentOnly' => false])];
         }
@@ -571,9 +574,11 @@ class ElementorTreeCompiler
             return [];
         }
         $data = ['url' => ($this->importImage)($url, ''), 'alt' => '', 'size' => 'large'];
-        if (str_contains((string) ($s['at_animation_hover_effect'] ?? ''), 'effect')) {
-            $data['effects'] = ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'scale', 'duration' => 300, 'easing' => 'ease-out']];
-        }
+        // Builder sites dress nearly every image the same way: a soft entrance
+        // when it scrolls in and a hover response. Recreate both by default;
+        // explicit per-widget animation settings still win via sharedProps.
+        $data['effects'] = ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'scale', 'duration' => 350, 'easing' => 'ease-out']];
+        $data['__animation'] = ['entrance' => 'zoom', 'duration' => 700];
 
         return [$this->module('image', $data)];
     }

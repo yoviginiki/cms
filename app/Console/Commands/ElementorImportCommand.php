@@ -102,7 +102,7 @@ class ElementorImportCommand extends Command
             $file = $thumbId ? $wp->table("{$prefix}postmeta")->where('post_id', $thumbId)->where('meta_key', '_wp_attached_file')->value('meta_value') : null;
             $context['projects'][] = [
                 'title' => $proj->post_title,
-                'text' => mb_substr(trim(strip_tags($proj->post_content)), 0, 220),
+                'text' => mb_substr(trim(strip_tags($proj->post_content)), 0, 400),
                 'image' => $file && $origin ? "{$origin}/wp-content/uploads/{$file}" : null,
             ];
         }
@@ -110,7 +110,7 @@ class ElementorImportCommand extends Command
         if ((int) $this->option('catalog-post') > 0) {
             $html = (string) $wp->table("{$prefix}posts")->where('ID', (int) $this->option('catalog-post'))->value('post_content');
             preg_match_all('#<img src="([^"]+)" alt="([^"]*)"#', $html, $m, PREG_SET_ORDER);
-            foreach (array_slice($m, 0, 8) as $tile) {
+            foreach (array_slice($m, 0, 12) as $tile) {
                 $context['categories'][] = ['name' => html_entity_decode($tile[2]), 'image' => $tile[1]];
             }
         }

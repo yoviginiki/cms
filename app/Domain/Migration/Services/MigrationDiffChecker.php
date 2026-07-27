@@ -161,7 +161,11 @@ class MigrationDiffChecker
         @$doc->loadHTML('<?xml encoding="utf-8"?>' . $html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xp = new \DOMXPath($doc);
 
-        foreach ($xp->query('//script|//style|//noscript|//header|//footer|//nav') as $n) {
+        // Builder header/footer templates render as plain <div>s — match them
+        // by class so both sides exclude the same chrome.
+        foreach ($xp->query('//script|//style|//noscript|//header|//footer|//nav'
+            . '|//*[contains(@class,"ekit-template-content-header")]'
+            . '|//*[contains(@class,"ekit-template-content-footer")]') as $n) {
             $n->parentNode?->removeChild($n);
         }
 
@@ -297,6 +301,9 @@ class MigrationDiffChecker
 
     private function fetch(string $url): string
     {
+        // Cache-bust: both sides may sit behind edge caches (~hours stale) —
+        // a diff against yesterday's HTML reports yesterday's gaps.
+        $url .= (str_contains($url, '?') ? '&' : '?') . '_mdiff=' . time();
         $res = Http::timeout(40)->retry(2, 500)->get($url);
         if (!$res->successful()) {
             throw new \RuntimeException("HTTP {$res->status()} for {$url}");

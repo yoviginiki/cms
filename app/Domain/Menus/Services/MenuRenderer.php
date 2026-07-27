@@ -229,6 +229,36 @@ class MenuRenderer
             $html .= "    <p style=\"font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#888);margin-bottom:1.5rem;max-width:500px;margin-left:auto;margin-right:auto;\">" . e($footerText) . "</p>\n";
         }
 
+        // Footer columns: settings['footer_columns'] = [{heading, lines: []}]
+        // — contact/address blocks with REAL heading markup (migrated sites'
+        // footers carry offices, phones, departments as h4 columns).
+        $columns = is_array($settings['footer_columns'] ?? null) ? $settings['footer_columns'] : [];
+        if ($columns !== []) {
+            $count = max(1, min(4, count($columns)));
+            $html .= "    <div style=\"display:grid;grid-template-columns:repeat({$count},1fr);gap:2rem;text-align:left;max-width:var(--container-width,1080px);margin:0 auto 2rem;\">\n";
+            foreach (array_slice($columns, 0, 4) as $col) {
+                if (!is_array($col)) {
+                    continue;
+                }
+                $html .= "      <div>\n";
+                if (($col['heading'] ?? '') !== '') {
+                    $html .= '        <h4 style="margin:0 0 0.75rem;font-size:1rem;color:' . $textColor . ';">' . e((string) $col['heading']) . "</h4>\n";
+                }
+                foreach (array_slice((array) ($col['lines'] ?? []), 0, 8) as $line) {
+                    $line = (string) $line;
+                    $rendered = e($line);
+                    if (filter_var($line, FILTER_VALIDATE_EMAIL)) {
+                        $rendered = '<a href="mailto:' . e($line) . '">' . e($line) . '</a>';
+                    } elseif (preg_match('/^\+?[\d\s\-()]{6,20}$/', $line) === 1) {
+                        $rendered = '<a href="tel:' . e(preg_replace('/[^+\d]/', '', $line)) . '">' . e($line) . '</a>';
+                    }
+                    $html .= '        <p style="margin:0 0 0.35rem;font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#888);">' . $rendered . "</p>\n";
+                }
+                $html .= "      </div>\n";
+            }
+            $html .= "    </div>\n";
+        }
+
         // Footer menu links
         if ($items->isNotEmpty()) {
             $html .= "    <nav style=\"margin-bottom:1.5rem;\">\n";
