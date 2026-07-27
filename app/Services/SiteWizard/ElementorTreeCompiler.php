@@ -53,14 +53,93 @@ class ElementorTreeCompiler
         $this->order = 0;
 
         $sections = [];
-        foreach ($document as $top) {
-            $section = $this->section($top);
+        foreach ($document as $i => $top) {
+            $section = $i === 0 ? $this->heroSection($top) : null;
+            $section ??= $this->section($top);
             if ($section !== null) {
                 $sections[] = $section;
             }
         }
 
         return $sections;
+    }
+
+    /**
+     * The page's FIRST section, when it is a classic hero (background photo +
+     * headline), becomes a real hero module: title, intro, CTA and the photo
+     * with a readability overlay — instead of loose text flattened over the
+     * image. Returns null when the opening section isn't hero-shaped.
+     */
+    private function heroSection(array $el): ?array
+    {
+        $s = $el['settings'] ?? [];
+        $bgImage = $this->imageUrl($s['background_image'] ?? null);
+        if (($s['background_background'] ?? '') !== 'classic' || $bgImage === null) {
+            return null;
+        }
+
+        // First heading + first text + first button anywhere inside.
+        $found = ['heading' => null, 'text' => null, 'button' => null];
+        $consumed = [];
+        $scan = function (array $node) use (&$scan, &$found, &$consumed) {
+            foreach ($node['elements'] ?? [] as $child) {
+                if (($child['elType'] ?? '') === 'widget') {
+                    $type = $child['widgetType'] ?? '';
+                    $slot = match ($type) {
+                        'heading' => $found['heading'] === null ? 'heading' : null,
+                        'text-editor' => $found['text'] === null ? 'text' : null,
+                        'elementskit-creative-button' => $found['button'] === null ? 'button' : null,
+                        default => null,
+                    };
+                    if ($slot !== null) {
+                        $found[$slot] = $child['settings'] ?? [];
+                        $consumed[] = $child['id'] ?? '';
+                    }
+                } else {
+                    $scan($child);
+                }
+            }
+        };
+        $scan($el);
+
+        if ($found['heading'] === null) {
+            return null;
+        }
+
+        $data = [
+            'title' => $this->plain($found['heading']['title'] ?? ''),
+            'headlineTag' => 'h1',
+            'bg_type' => 'image',
+            'bg_image' => ($this->importImage)($bgImage, ''),
+            'bg_image_size' => 'cover',
+            'sectionHeight' => 'lg',
+            'textAlignment' => 'left',
+        ];
+        if ($found['text'] !== null) {
+            $data['subtitle'] = mb_substr($this->plain($found['text']['editor'] ?? ''), 0, 400);
+        }
+        if ($found['button'] !== null) {
+            $data['ctaText'] = $this->plain($found['button']['ekit_btn_text'] ?? '');
+            if (($u = $this->url($found['button']['ekit_btn_url'] ?? null)) !== null) {
+                $data['ctaUrl'] = $u;
+            }
+        }
+        $overlay = $this->settingColor($s, 'background_overlay_color');
+        $data['bg_overlay_color'] = $overlay ?? '#000000';
+        $data['bg_overlay_opacity'] = $overlay !== null
+            ? min(1, max(0, (float) ($s['background_overlay_opacity']['size'] ?? 0.45)))
+            : 0.45;
+        $data['headlineColor'] = '#ffffff';
+        $data['subtitleColor'] = '#f5f5f5';
+
+        return [
+            'id' => (string) Str::uuid(), 'type' => 'section', 'level' => 'section',
+            'order' => $this->order++,
+            'data' => ['padding_top' => '0px', 'padding_bottom' => '0px', 'max_width' => '1200px'],
+            'children' => $this->reorder([
+                $this->row('1', [$this->column([$this->module('hero', $data)])]),
+            ]),
+        ];
     }
 
     // ── structure ──
