@@ -40,16 +40,19 @@ class ElementorTreeCompiler
     private int $order = 0;
     /** @var array<string,string> Elementor kit global color id => hex */
     private array $globalColors = [];
+    /** @var array{projects?:array,categories?:array} source-site context for dynamic widgets */
+    private array $context = [];
 
     /**
      * @param array $document decoded _elementor_data
      * @param callable(string,string):string $importImage url,alt → serve url
      * @return array<int,array> section nodes for BlockService::syncBlocks
      */
-    public function compile(array $document, callable $importImage, array $globalColors = []): array
+    public function compile(array $document, callable $importImage, array $globalColors = [], array $context = []): array
     {
         $this->importImage = $importImage;
         $this->globalColors = $globalColors;
+        $this->context = $context;
         $this->order = 0;
 
         $sections = [];
@@ -283,12 +286,43 @@ class ElementorTreeCompiler
         };
         foreach ($kids as $child) {
             if (($child['elType'] ?? '') === 'widget') {
+                if (($child['widgetType'] ?? '') === 'coolify-project-grid') {
+                    $flush();
+                    if (($row = $this->projectCardsRow()) !== null) {
+                        $rows[] = $row;
+                    }
+                    continue;
+                }
                 foreach ($this->widgetModules($child) as $m) {
                     $buffer[] = $m;
                 }
                 continue;
             }
             $flush();
+            // A row container holding ONLY 2-4 widgets is also a columns row
+            // (icon-box strips, button pairs) — each widget gets a column.
+            $grand = $child['elements'] ?? [];
+            $allWidgets = $grand !== [] && count($grand) <= 4
+                && count(array_filter($grand, fn ($g) => ($g['elType'] ?? '') === 'widget')) === count($grand)
+                && (($child['settings']['flex_direction'] ?? 'row') !== 'column');
+            if ($allWidgets && count($grand) >= 2) {
+                $columns = [];
+                foreach ($grand as $g) {
+                    $mods = $this->widgetModules($g);
+                    if ($mods !== []) {
+                        $columns[] = $this->column($mods);
+                    }
+                }
+                if (count($columns) >= 2) {
+                    $layouts = [2 => '1/2+1/2', 3 => '1/3+1/3+1/3', 4 => '1/4+1/4+1/4+1/4'];
+                    $rows[] = $this->row($layouts[count($columns)] ?? '1/2+1/2', $columns);
+                    continue;
+                }
+                foreach ($columns as $col) {
+                    $rows[] = $this->row('1', [$col]);
+                }
+                continue;
+            }
             foreach ($this->rowsOf($child) as $r) {
                 $rows[] = $r;
             }
@@ -311,7 +345,7 @@ class ElementorTreeCompiler
             $images = array_filter($modules, fn ($m) => $m['type'] === 'image');
             if (count($modules) >= 3 && count($images) === count($modules)) {
                 $modules = [$this->module('gallery', [
-                    'images' => array_map(fn ($m) => ['src' => $m['data']['url'], 'alt' => $m['data']['alt'] ?? '', 'caption' => ''], $modules),
+                    'images' => array_map(fn ($m) => $m['data']['url'], $modules),
                     'layout' => 'grid', 'columns' => 2,
                 ])];
             }
@@ -442,7 +476,7 @@ class ElementorTreeCompiler
 
             'image-carousel' => $this->carouselModules($s),
 
-            'elementskit-category-list' => [$this->module('categorylist', ['style' => 'cards', 'showCount' => true, 'parentOnly' => false])],
+            'elementskit-category-list' => $this->categoryTiles(),
 
             'elementskit-blog-posts' => [$this->module('latestposts', ['count' => 3, 'categoryId' => '', 'showExcerpt' => true, 'showImage' => true])],
 
@@ -477,6 +511,52 @@ class ElementorTreeCompiler
         }
 
         return $modules;
+    }
+
+    /** Source-site product categories as linked tile columns (context-fed). */
+    private function categoryTiles(): array
+    {
+        $cats = array_slice((array) ($this->context['categories'] ?? []), 0, 8);
+        if ($cats === []) {
+            return [$this->module('categorylist', ['style' => 'cards', 'showCount' => true, 'parentOnly' => false])];
+        }
+        $images = [];
+        foreach ($cats as $cat) {
+            if (!empty($cat['image'])) {
+                $images[] = ($this->importImage)($cat['image'], (string) ($cat['name'] ?? ''));
+            }
+        }
+
+        return $images === [] ? [] : [$this->module('gallery', ['images' => $images, 'layout' => 'grid', 'columns' => 4])];
+    }
+
+    /** Source-site project cards (context-fed): image + title + text, side by side. */
+    private function projectCardsRow(): ?array
+    {
+        $projects = array_slice((array) ($this->context['projects'] ?? []), 0, 2);
+        $columns = [];
+        foreach ($projects as $pr) {
+            $mods = [];
+            if (!empty($pr['image'])) {
+                $mods[] = $this->module('image', ['url' => ($this->importImage)($pr['image'], (string) ($pr['title'] ?? '')), 'alt' => (string) ($pr['title'] ?? ''), 'size' => 'large']);
+            }
+            if (!empty($pr['title'])) {
+                $mods[] = $this->module('heading', ['text' => $this->plain($pr['title']), 'level' => 'h3']);
+            }
+            if (!empty($pr['text'])) {
+                $mods[] = $this->module('text', ['content' => '<p>' . e($this->plain($pr['text'])) . '</p>']);
+            }
+            if ($mods !== []) {
+                $columns[] = $this->column($mods);
+            }
+        }
+        if ($columns === []) {
+            return null;
+        }
+
+        return count($columns) >= 2
+            ? $this->row('1/2+1/2', $columns)
+            : $this->row('1', $columns);
     }
 
     private function imageModule(array $s): array
@@ -535,13 +615,14 @@ class ElementorTreeCompiler
             return [];
         }
 
-        // Many small images → a scrolling logo strip; otherwise a gallery grid.
-        return count($images) >= 4
-            ? [$this->module('logostrip', ['images' => $images, 'speed' => 30])]
-            : [$this->module('gallery', [
-                'images' => array_map(fn ($i) => ['src' => $i['src'], 'alt' => '', 'caption' => ''], $images),
-                'layout' => 'grid', 'columns' => min(3, count($images)),
-            ])];
+        // Many small images → a logo strip; otherwise a gallery grid.
+        // Canonical shapes: logostrip wants 'logos' as URL strings, gallery
+        // wants plain URL-string images (objects are rejected by the editor).
+        $urls = array_map(fn ($i) => $i['src'], $images);
+
+        return count($urls) >= 4
+            ? [$this->module('logostrip', ['logos' => $urls, 'grayscale' => false, 'columns' => min(6, count($urls))])]
+            : [$this->module('gallery', ['images' => $urls, 'layout' => 'grid', 'columns' => min(3, count($urls))])];
     }
 
     // ── shared props (animation) ──
@@ -599,7 +680,8 @@ class ElementorTreeCompiler
             'image' => ($d['url'] ?? '') !== '',
             'list' => ($d['items'] ?? []) !== [],
             'accordion', 'stats' => ($d['items'] ?? []) !== [],
-            'logostrip', 'gallery' => ($d['images'] ?? []) !== [],
+            'logostrip' => ($d['logos'] ?? []) !== [],
+            'gallery' => ($d['images'] ?? []) !== [],
             'map' => trim((string) ($d['address'] ?? '')) !== '',
             'video' => ($d['url'] ?? '') !== '',
             default => true,

@@ -98,10 +98,12 @@ class MigrationDiffChecker
             }
         }
 
-        // images by base filename — published files are content-hashed
+        // images by base filename — published files are content-hashed;
+        // importers also slug the names (big_2-1.png → big-2-1.png, prefixes),
+        // so both sides compare CANONICALIZED (alnum-only, no size suffix).
         // ({checksum}_variant.ext), so translate hashes back to original names
         $newImageNames = $this->resolveHashedNames($site, $new['images']);
-        $missingImages = array_values(array_diff($origin['images'], $newImageNames));
+        $missingImages = $this->diffFilenames($origin['images'], $newImageNames);
 
         // CSS background images: a builder often uses these decoratively
         // (section backdrops, dividers) — count them present if the new page
@@ -246,6 +248,28 @@ class MigrationDiffChecker
     }
 
     /** @param string[] $names @return string[] with content-hashes mapped to original filenames */
+    /** Filenames that are genuinely absent, compared shape-insensitively. */
+    private function diffFilenames(array $origin, array $new): array
+    {
+        $canon = function (string $name): string {
+            $base = pathinfo($name, PATHINFO_FILENAME);
+            $base = preg_replace('/-\d+x\d+$/', '', $base); // WP size suffix
+            return preg_replace('/[^a-z0-9]/', '', mb_strtolower($base));
+        };
+        $have = array_map($canon, $new);
+        $out = [];
+        foreach ($origin as $name) {
+            $c = $canon($name);
+            $found = false;
+            foreach ($have as $h) {
+                if ($h !== '' && (str_contains($h, $c) || str_contains($c, $h))) { $found = true; break; }
+            }
+            if (!$found) { $out[] = $name; }
+        }
+
+        return $out;
+    }
+
     private function resolveHashedNames(Site $site, array $names): array
     {
         $out = [];

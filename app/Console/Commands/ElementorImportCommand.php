@@ -35,6 +35,11 @@ class ElementorImportCommand extends Command
         {--wp-host=127.0.0.1 : WordPress database host}
         {--wp-prefix=wp_ : WordPress table prefix}
         {--pages= : WP post id:target slug pairs, comma separated}
+        {--origin= : Source site base URL (for media referenced only by path)}
+        {--catalog-post=0 : WP post ID whose markup lists the category tiles}
+        {--posts=0 : Import the N latest source posts as CMS posts}
+        {--posts-lang= : Only source posts in this Polylang language (e.g. bg)}
+        {--posts-exclude= : Source post IDs to skip (comma separated)}
         {--publish : Publish imported pages instead of leaving drafts}';
 
     protected $description = 'Import Elementor pages from a WordPress DB as native block trees';
@@ -87,6 +92,30 @@ class ElementorImportCommand extends Command
             $this->line('kit colors: ' . count($globalColors));
         }
 
+        // Source-site context for DYNAMIC widgets the JSON can't describe:
+        // project grids and category tiles read the WP database directly.
+        $context = ['projects' => [], 'categories' => []];
+        $origin = rtrim((string) ($this->option('origin') ?: ''), '/');
+        foreach ($wp->table("{$prefix}posts")->where('post_type', 'awaiken-project')->where('post_status', 'publish')
+            ->orderByDesc('post_date')->limit(2)->get() as $proj) {
+            $thumbId = $wp->table("{$prefix}postmeta")->where('post_id', $proj->ID)->where('meta_key', '_thumbnail_id')->value('meta_value');
+            $file = $thumbId ? $wp->table("{$prefix}postmeta")->where('post_id', $thumbId)->where('meta_key', '_wp_attached_file')->value('meta_value') : null;
+            $context['projects'][] = [
+                'title' => $proj->post_title,
+                'text' => mb_substr(trim(strip_tags($proj->post_content)), 0, 220),
+                'image' => $file && $origin ? "{$origin}/wp-content/uploads/{$file}" : null,
+            ];
+        }
+        // Category tiles: parsed off the source's own catalog page markup.
+        if ((int) $this->option('catalog-post') > 0) {
+            $html = (string) $wp->table("{$prefix}posts")->where('ID', (int) $this->option('catalog-post'))->value('post_content');
+            preg_match_all('#<img src="([^"]+)" alt="([^"]*)"#', $html, $m, PREG_SET_ORDER);
+            foreach (array_slice($m, 0, 8) as $tile) {
+                $context['categories'][] = ['name' => html_entity_decode($tile[2]), 'image' => $tile[1]];
+            }
+        }
+        $this->line('context: ' . count($context['projects']) . ' projects, ' . count($context['categories']) . ' categories');
+
         $pairs = [];
         foreach (array_filter(explode(',', (string) $this->option('pages'))) as $pair) {
             [$id, $slug] = array_pad(explode(':', trim($pair), 2), 2, null);
@@ -94,7 +123,7 @@ class ElementorImportCommand extends Command
                 $pairs[(int) $id] = trim($slug);
             }
         }
-        if ($pairs === []) {
+        if ($pairs === [] && (int) $this->option('posts') === 0) {
             $this->error('No --pages given (expected e.g. 4967:home,187:about-us).');
 
             return self::FAILURE;
@@ -122,7 +151,7 @@ class ElementorImportCommand extends Command
                 continue;
             }
 
-            $tree = $compiler->compile($doc, $importImage, $globalColors);
+            $tree = $compiler->compile($doc, $importImage, $globalColors, $context);
             if ($tree === []) {
                 $this->warn("WP {$wpId}: produced no blocks — skipped");
                 continue;
@@ -143,6 +172,68 @@ class ElementorImportCommand extends Command
 
             $sections = count($tree);
             $this->info("WP {$wpId} → /{$slug} ({$sections} sections)");
+        }
+
+        // Latest source POSTS → real CMS posts (feeds the latestposts block).
+        $postCount = (int) $this->option('posts');
+        if ($postCount > 0) {
+            $imported = 0;
+            $q = $wp->table("{$prefix}posts as p")->where('p.post_type', 'post')->where('p.post_status', 'publish');
+            if (($lang = (string) $this->option('posts-lang')) !== '') {
+                $q->join("{$prefix}term_relationships as lr", 'lr.object_id', '=', 'p.ID')
+                    ->join("{$prefix}term_taxonomy as ltt", function ($j) {
+                        $j->on('ltt.term_taxonomy_id', '=', 'lr.term_taxonomy_id')->where('ltt.taxonomy', 'language');
+                    })
+                    ->join("{$prefix}terms as lt", 'lt.term_id', '=', 'ltt.term_id')->where('lt.slug', $lang);
+            }
+            $wpPosts = $q->select('p.*')->orderByDesc('p.post_date')->orderByDesc('p.ID')->limit($postCount * 2)->get();
+            foreach ($wpPosts as $wpPost) {
+                if ($imported >= $postCount) {
+                    break;
+                }
+                $slug = \Illuminate\Support\Str::slug(mb_substr($wpPost->post_title, 0, 60)) ?: ('post-' . $wpPost->ID);
+                $exclude = array_filter(array_map('intval', explode(',', (string) $this->option('posts-exclude'))));
+                if (in_array((int) $wpPost->ID, $exclude, true)) {
+                    continue;
+                }
+                if (\App\Models\Post::withTrashed()->where('site_id', $site->id)->where('slug', $slug)->exists()) {
+                    $imported++;
+                    continue;
+                }
+                $thumbId = $wp->table("{$prefix}postmeta")->where('post_id', $wpPost->ID)->where('meta_key', '_thumbnail_id')->value('meta_value');
+                $file = $thumbId ? $wp->table("{$prefix}postmeta")->where('post_id', $thumbId)->where('meta_key', '_wp_attached_file')->value('meta_value') : null;
+                $featured = $file && $origin ? $importImage("{$origin}/wp-content/uploads/{$file}", $wpPost->post_title) : null;
+                $post = \App\Models\Post::create([
+                    'site_id' => $site->id,
+                    'title' => $wpPost->post_title,
+                    'slug' => $slug,
+                    'excerpt' => mb_substr(trim(strip_tags($wpPost->post_content)), 0, 200),
+                    'featured_image' => $featured,
+                    'status' => 'published',
+                    'published_at' => $wpPost->post_date,
+                ]);
+                $paras = array_slice(array_filter(array_map('trim', preg_split('#</p>|\n{2,}#', strip_tags($wpPost->post_content, '<p>')))), 0, 12);
+                $tree = [[
+                    'id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'section', 'level' => 'section', 'order' => 0,
+                    'data' => ['padding_top' => '48px', 'padding_bottom' => '48px', 'max_width' => '900px'],
+                    'children' => [[
+                        'id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'row', 'level' => 'row', 'order' => 0,
+                        'data' => ['layout' => '1', 'gap' => '24px'],
+                        'children' => [[
+                            'id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'column', 'level' => 'column', 'order' => 0,
+                            'data' => [],
+                            'children' => array_values(array_map(fn ($t, $i) => [
+                                'id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'text', 'level' => 'module', 'order' => $i,
+                                'data' => ['content' => '<p>' . e(strip_tags($t)) . '</p>'],
+                                'children' => [],
+                            ], $paras, array_keys($paras))),
+                        ]],
+                    ]],
+                ]];
+                $blocks->syncBlocks($post, $tree);
+                $imported++;
+                $this->line("post: {$wpPost->post_title}");
+            }
         }
 
         $this->info('Imported ' . count($assetMap) . ' media file(s).');
