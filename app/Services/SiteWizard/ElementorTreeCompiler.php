@@ -132,14 +132,33 @@ class ElementorTreeCompiler
         $data['headlineColor'] = '#ffffff';
         $data['subtitleColor'] = '#f5f5f5';
 
+        // Whatever else lived in the hero band (trust badges, secondary CTAs,
+        // check lists) still matters — it renders right below the hero.
+        $rest = $this->stripWidgets($el, $consumed);
+        $rows = [$this->row('1', [$this->column([$this->module('hero', $data)])])];
+        foreach ($this->rowsOf($rest) as $extraRow) {
+            $rows[] = $extraRow;
+        }
+
         return [
             'id' => (string) Str::uuid(), 'type' => 'section', 'level' => 'section',
             'order' => $this->order++,
-            'data' => ['padding_top' => '0px', 'padding_bottom' => '0px', 'max_width' => '1200px'],
-            'children' => $this->reorder([
-                $this->row('1', [$this->column([$this->module('hero', $data)])]),
-            ]),
+            'data' => ['padding_top' => '0px', 'padding_bottom' => '48px', 'max_width' => '1200px'],
+            'children' => $this->reorder($rows),
         ];
+    }
+
+    /** A copy of the element tree without the given widget ids. */
+    private function stripWidgets(array $el, array $ids): array
+    {
+        $el['elements'] = array_values(array_filter(array_map(
+            fn ($c) => ($c['elType'] ?? '') === 'widget'
+                ? (in_array($c['id'] ?? '', $ids, true) ? null : $c)
+                : $this->stripWidgets($c, $ids),
+            $el['elements'] ?? []
+        )));
+
+        return $el;
     }
 
     // ── structure ──
@@ -208,15 +227,27 @@ class ElementorTreeCompiler
             if ($isRowContainer) {
                 $flush();
                 $columns = [];
+                $widths = [];
                 foreach ($subContainers as $sub) {
                     $modules = $this->flattenModules($sub);
                     if ($modules !== []) {
                         $columns[] = $this->column($modules);
+                        $w = $sub['settings']['width'] ?? null;
+                        $widths[] = (is_array($w) && ($w['unit'] ?? '') === '%' && is_numeric($w['size'] ?? null))
+                            ? (float) $w['size'] : null;
                     }
                 }
                 if (count($columns) >= 2) {
                     $layouts = [2 => '1/2+1/2', 3 => '1/3+1/3+1/3', 4 => '1/4+1/4+1/4+1/4'];
-                    $rows[] = $this->row($layouts[count($columns)] ?? '1/2+1/2', $columns);
+                    $row = $this->row($layouts[count($columns)] ?? '1/2+1/2', $columns);
+                    // Real Elementor column ratios → the 12-unit grid (P5 col_spans).
+                    if (!in_array(null, $widths, true)) {
+                        $spans = array_map(fn ($w) => max(2, min(10, (int) round($w * 12 / 100))), $widths);
+                        while (array_sum($spans) > 12) { $spans[array_search(max($spans), $spans, true)]--; }
+                        while (array_sum($spans) < 12) { $spans[array_search(min($spans), $spans, true)]++; }
+                        $row['data']['col_spans'] = $spans;
+                    }
+                    $rows[] = $row;
                 } elseif ($columns !== []) {
                     $rows[] = $this->row('1', $columns);
                 }
