@@ -300,8 +300,9 @@ HTML;
 HTML;
 
         Http::fake([
-            'origin.tld/page' => Http::response($originHtml),
-            'new.tld/page' => Http::response($newHtml),
+            // The checker cache-busts with a query string — match loosely.
+            'origin.tld/page*' => Http::response($originHtml),
+            'new.tld/page*' => Http::response($newHtml),
         ]);
 
         $report = app(MigrationDiffChecker::class)->comparePairs($this->site, 'origin.tld', [
