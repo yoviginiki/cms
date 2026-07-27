@@ -128,12 +128,16 @@ class ElementorTreeCompiler
             }
         }
         $overlay = $this->settingColor($s, 'background_overlay_color');
-        $data['bg_overlay_color'] = $overlay ?? '#000000';
+        // Default overlay tint = the kit's primary (builder heroes overlay
+        // their brand dark, not neutral black).
+        $data['bg_overlay_color'] = $overlay ?? $this->color($this->globalColors['primary'] ?? null) ?? '#000000';
         $data['bg_overlay_opacity'] = $overlay !== null
             ? min(1, max(0, (float) ($s['background_overlay_opacity']['size'] ?? 0.45)))
-            : 0.45;
+            : 0.55;
         $data['headlineColor'] = '#ffffff';
         $data['subtitleColor'] = '#f5f5f5';
+        $data['headlineSize'] = '46px';
+        $data['headlineWeight'] = '700';
 
         // Whatever else lived in the hero band (trust badges, secondary CTAs,
         // check lists) still matters — it renders right below the hero.
@@ -346,7 +350,7 @@ class ElementorTreeCompiler
                 continue;
             }
             $images = array_filter($modules, fn ($m) => $m['type'] === 'image');
-            if (count($modules) >= 3 && count($images) === count($modules)) {
+            if (count($modules) >= 2 && count($images) === count($modules)) {
                 $modules = [$this->module('gallery', [
                     'images' => array_map(fn ($m) => $m['data']['url'], $modules),
                     'layout' => 'grid', 'columns' => 2,
@@ -519,7 +523,7 @@ class ElementorTreeCompiler
     /** Source-site product categories as linked tile columns (context-fed). */
     private function categoryTiles(): array
     {
-        $cats = array_slice((array) ($this->context['categories'] ?? []), 0, 12);
+        $cats = array_slice((array) ($this->context['categories'] ?? []), 0, 6);
         if ($cats === []) {
             return [$this->module('categorylist', ['style' => 'cards', 'showCount' => true, 'parentOnly' => false])];
         }
@@ -530,7 +534,8 @@ class ElementorTreeCompiler
             }
         }
 
-        return $images === [] ? [] : [$this->module('gallery', ['images' => $images, 'layout' => 'grid', 'columns' => 4])];
+        // One compact band, like the source's category carousel.
+        return $images === [] ? [] : [$this->module('gallery', ['images' => $images, 'layout' => 'grid', 'columns' => min(6, count($images))])];
     }
 
     /** Source-site project cards (context-fed): image + title + text, side by side. */
