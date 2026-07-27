@@ -140,10 +140,14 @@ class ElementorTreeCompiler
             $rows[] = $extraRow;
         }
 
+        // Elementor top-level sections are full-bleed: the hero photo must
+        // reach the viewport edges, only its CONTENT stays in the column.
+        $data['contentMaxWidth'] = '1200px';
+
         return [
             'id' => (string) Str::uuid(), 'type' => 'section', 'level' => 'section',
             'order' => $this->order++,
-            'data' => ['padding_top' => '0px', 'padding_bottom' => '48px', 'max_width' => '1200px'],
+            'data' => ['padding_top' => '0px', 'padding_bottom' => '48px', 'max_width' => '1200px', 'width_mode' => 'full'],
             'children' => $this->reorder($rows),
         ];
     }

@@ -20,6 +20,9 @@
     $widthMode = in_array($data['width_mode'] ?? '', ['contained', 'wide', 'full'], true) ? $data['width_mode'] : '';
     if ($widthMode === 'full') {
         $innerWrap = 'max-width:none;margin:0;';       // full-bleed, edge-to-edge
+        // Break out of any padded page wrapper: a "full" section must reach
+        // the viewport edges no matter what the theme's grid pads around it.
+        $fullBleed = 'width:100vw;margin-left:calc(50% - 50vw);max-width:100vw;overflow-x:clip;';
     } elseif ($widthMode === 'wide') {
         $innerWrap = 'max-width:1440px;margin:0 auto;'; // wide container
     } else {
@@ -60,7 +63,7 @@
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 @if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
-<section class="section-block {{ $__effectScope }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" @if($id) id="{{ $id }}" @elseif($__htmlId) id="{{ $__htmlId }}" @endif style="padding-top:{{ $padTop }};padding-bottom:{{ $padBottom }};position:relative;{{ $__sharedStyle }}{{ $legacyStyle }}" @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif @if(!empty($data['scene'])) data-scene="{{ $data['scene'] }}" @endif @if(!empty($data['experienceTransition'])) data-experience-transition="{{ $data['experienceTransition'] }}" @endif @if(!empty($data['experienceEnter'])) data-experience-enter="{{ $data['experienceEnter'] }}" @endif @if(!empty($data['experiencePin'])) data-experience-pin="true" @endif>
+<section class="section-block {{ $__effectScope }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" @if($id) id="{{ $id }}" @elseif($__htmlId) id="{{ $__htmlId }}" @endif style="padding-top:{{ $padTop }};padding-bottom:{{ $padBottom }};position:relative;{{ $fullBleed ?? '' }}{{ $__sharedStyle }}{{ $legacyStyle }}" @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif @if(!empty($data['scene'])) data-scene="{{ $data['scene'] }}" @endif @if(!empty($data['experienceTransition'])) data-experience-transition="{{ $data['experienceTransition'] }}" @endif @if(!empty($data['experienceEnter'])) data-experience-enter="{{ $data['experienceEnter'] }}" @endif @if(!empty($data['experiencePin'])) data-experience-pin="true" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
     <div style="{{ $innerWrap }}position:relative;z-index:1;">
         {!! $children !!}
