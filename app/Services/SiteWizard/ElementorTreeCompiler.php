@@ -188,10 +188,44 @@ class ElementorTreeCompiler
             $data['bg_color'] = $bg;
         }
 
+        // Dark band: anything the source left on the default (dark) text color
+        // must flip light, or it vanishes into the background.
+        if (($data['bg_color'] ?? null) !== null && $this->isDark($data['bg_color'])) {
+            $rows = $this->lightenText($rows);
+        }
+
         return [
             'id' => (string) Str::uuid(), 'type' => 'section', 'level' => 'section',
             'order' => $this->order++, 'data' => $data, 'children' => $this->reorder($rows),
         ];
+    }
+
+    private function isDark(string $hex): bool
+    {
+        if (preg_match('/^#([0-9a-f]{6})/i', $hex, $m) !== 1) {
+            return false;
+        }
+        [$r, $g, $b] = sscanf($m[1], '%02x%02x%02x');
+
+        return (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255 < 0.4;
+    }
+
+    /** Give color-less headings/text/list modules a light tone (recursive over rows). */
+    private function lightenText(array $nodes): array
+    {
+        foreach ($nodes as $i => $node) {
+            if (($node['level'] ?? '') === 'module') {
+                $type = $node['type'];
+                if (in_array($type, ['heading', 'text'], true) && empty($node['data']['color'])) {
+                    $nodes[$i]['data']['color'] = $type === 'heading' ? '#ffffff' : '#d5d9e2';
+                }
+            }
+            if (!empty($node['children'])) {
+                $nodes[$i]['children'] = $this->lightenText($node['children']);
+            }
+        }
+
+        return $nodes;
     }
 
     /**
@@ -409,6 +443,11 @@ class ElementorTreeCompiler
     {
         $url = $this->imageUrl($s['image'] ?? null);
         if ($url === null) {
+            return [];
+        }
+        // Decorative trust-face/avatar clusters read as content images here —
+        // stacked strangers add nothing to the migrated page.
+        if (preg_match('#(trusted-client|avatar|profile-(pic|img))[^/]*$#i', $url) === 1) {
             return [];
         }
         $data = ['url' => ($this->importImage)($url, ''), 'alt' => '', 'size' => 'large'];
