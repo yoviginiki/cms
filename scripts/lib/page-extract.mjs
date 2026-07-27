@@ -69,6 +69,51 @@ export const PAGE_EXTRACTOR = () => {
     if (img) { const u = absUrl(img.currentSrc || img.src); if (u) return u; }
     return null;
   };
+
+  // Effective CSS background-image (heroes/banners style them on a wrapper).
+  const bgImageOf = (el, maxUp) => {
+    let n = el, depth = 0;
+    while (n && n.nodeType === 1 && depth <= (maxUp ?? 6)) {
+      const m = /url\(["']?([^"')]+)["']?\)/.exec(styl(n).backgroundImage || '');
+      if (m && !/^data:/i.test(m[1])) { const u = absUrl(m[1]); if (u) return u; }
+      n = n.parentElement; depth++;
+    }
+    return null;
+  };
+
+  // The full-width band an element belongs to (for hero backgrounds/CTAs).
+  const sectionOf = (el) => {
+    let n = el, best = null;
+    while (n && n.nodeType === 1 && n !== document.body) {
+      const r = rect(n);
+      if (r.height >= 240 && r.width >= innerWidth * 0.6) { best = n; if (r.height >= 340) break; }
+      n = n.parentElement;
+    }
+    return best || el.parentElement || el;
+  };
+
+  // A link/button STYLED as a button: explicit class, or padded with its own fill.
+  const looksButton = (el) => {
+    if (!el || !/^(a|button)$/i.test(el.tagName)) return false;
+    const t = txt(el);
+    if (!t || t.length < 2 || t.length > 40 || el.querySelector('img')) return false;
+    if (/(^|[\s_-])(btn|button)([\s_-]|$)/i.test(String(el.className || ''))) return true;
+    const s = styl(el);
+    return toHex(s.backgroundColor) !== null && parseFloat(s.paddingLeft) >= 10 && parseFloat(s.paddingTop) >= 6;
+  };
+
+  // A strip of ≥4 small same-band images (brand/partner logo rows).
+  const logoRow = (el) => {
+    if (rect(el).height > 400) return null;
+    const imgs = Array.from(el.querySelectorAll('img')).filter((i) => visible(i));
+    if (imgs.length < 4) return null;
+    const small = imgs.filter((i) => { const r = rect(i); return r.height > 12 && r.height <= 130 && r.width <= 420; });
+    if (small.length < 4 || small.length < imgs.length * 0.8) return null;
+    const tops = small.map((i) => Math.round(rect(i).top));
+    if (Math.max(...tops) - Math.min(...tops) > 200) return null;
+    const urls = [...new Set(small.map((i) => absUrl(i.currentSrc || i.src)).filter(Boolean))];
+    return urls.length >= 4 ? urls.slice(0, 12) : null;
+  };
   const firstHeading = (el) => {
     let h = Array.from(el.querySelectorAll('h1,h2,h3,h4,h5,h6')).find((h) => visible(h) && txt(h));
     if (!h) h = Array.from(el.querySelectorAll('[class*="title"],[class*="heading"]')).find((x) => visible(x) && txt(x) && txt(x).length < 120);
@@ -111,18 +156,68 @@ export const PAGE_EXTRACTOR = () => {
     const h = firstHeading(el); if (h) c.heading = h;
     const b = firstPara(el); if (b) c.body = b;
     const im = firstImg(el); if (im) c.image = im;
+    if (!c.heading && !c.body && !c.image) {
+      // Counters/stat tiles: no h/p markup — first text line is the figure,
+      // the rest the label.
+      const lines = (el.innerText || '').split('\n').map((s) => s.trim()).filter(Boolean);
+      if (lines.length && lines.join(' ').length <= 400) {
+        c.heading = clean(lines[0], 80);
+        const rest = clean(lines.slice(1).join(' '), 300);
+        if (rest) c.body = rest;
+      }
+    }
     return (c.heading || c.body || c.image) ? c : null;
   };
 
   const emitHero = (el) => {
     const block = deco(el, { kind: 'hero', title: clean(txt(el), 200) });
+    const sect = sectionOf(el);
+
+    // Background: effective CSS background-image of the hero band; else ANY
+    // element overlapping the band that paints one (builders often put the
+    // photo on an absolutely-positioned layer OUTSIDE the heading's ancestry);
+    // else a large <img> covering most of the band.
+    let bgi = bgImageOf(el) || bgImageOf(sect, 2);
+    if (!bgi) {
+      const sr = rect(sect);
+      let bestArea = 0;
+      for (const cand of document.querySelectorAll('div,section')) {
+        const r = rect(cand);
+        if (r.height < sr.height * 0.5 || r.width < sr.width * 0.5) continue;
+        const overlap = Math.min(r.bottom, sr.bottom) - Math.max(r.top, sr.top);
+        if (overlap < sr.height * 0.5) continue;
+        const m = /url\(["']?([^"')]+)["']?\)/.exec(styl(cand).backgroundImage || '');
+        if (m && !/^data:/i.test(m[1])) {
+          const area = r.width * r.height;
+          if (area > bestArea) { bestArea = area; bgi = absUrl(m[1]); }
+        }
+      }
+    }
+    if (!bgi) {
+      const sr = rect(sect);
+      const big = Array.from(sect.querySelectorAll('img')).find((i) =>
+        visible(i) && rect(i).width >= sr.width * 0.5 && rect(i).height >= sr.height * 0.5);
+      if (big) bgi = absUrl(big.currentSrc || big.src);
+    }
+    if (bgi) block.image = bgi;
+
     let sib = el.nextElementSibling;
     while (sib && !visible(sib)) sib = sib.nextElementSibling;
     if (sib && (sib.tagName === 'P' || sib.matches('[class*="sub"],[class*="lead"]'))) {
       const s = clean(txt(sib), 300); if (s) { block.subtitle = s; consume(sib); }
     }
-    const cta = firstCta(el.parentElement || el);
-    if (cta) { block.cta_text = cta.text; if (cta.url) block.cta_url = cta.url; }
+
+    // CTA: a button-styled link anywhere in the hero band beats the nearest anchor.
+    const btn = Array.from(sect.querySelectorAll('a,button')).find((a) => visible(a) && !skip(a) && looksButton(a));
+    if (btn) {
+      block.cta_text = clean(txt(btn), 60);
+      const href = btn.tagName === 'A' ? absUrl(btn.getAttribute('href')) : null;
+      if (href) block.cta_url = href;
+      consume(btn);
+    } else {
+      const cta = firstCta(el.parentElement || el);
+      if (cta) { block.cta_text = cta.text; if (cta.url) block.cta_url = cta.url; }
+    }
     consume(el);
     return block;
   };
@@ -132,9 +227,20 @@ export const PAGE_EXTRACTOR = () => {
     if (!el || consumed.has(el) || !visible(el) || skip(el) || depth > 30) return;
     const tag = el.tagName.toLowerCase();
 
+    const logos = logoRow(el);
+    if (logos) { blocks.push(deco(el, { kind: 'gallery', images: logos })); consume(el); return; }
+
     if (isRow(el)) {
       const cells = Array.from(el.children).filter(visible).map(cellOf).filter(Boolean).slice(0, 3);
       if (cells.length >= 2) { blocks.push(deco(el, { kind: 'columns', columns: cells })); consume(el); return; }
+    }
+
+    if (looksButton(el)) {
+      const b = deco(el, { kind: 'button', text: clean(txt(el), 60) });
+      const href = el.tagName === 'A' ? absUrl(el.getAttribute('href')) : null;
+      if (href) b.url = href;
+      blocks.push(b);
+      consume(el); return;
     }
 
     if (/^h[1-6]$/.test(tag)) {

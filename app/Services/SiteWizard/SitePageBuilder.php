@@ -97,6 +97,11 @@ class SitePageBuilder
                 case 'image':
                     $blocks[$i] = $this->rewriteImageField($session, $site, $block, 'url', (string) ($block['alt'] ?? ''));
                     break;
+                case 'hero':
+                    if (!empty($block['image'])) {
+                        $blocks[$i] = $this->rewriteImageField($session, $site, $block, 'image', (string) ($block['title'] ?? ''));
+                    }
+                    break;
                 case 'gallery':
                     foreach ($block['images'] ?? [] as $j => $url) {
                         $blocks[$i]['images'][$j] = $this->importOne($session, $site, (string) $url) ?? $url;

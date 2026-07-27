@@ -93,7 +93,7 @@ class PageManifestValidator
         };
 
         // URL-bearing optional fields must be safe when present.
-        foreach (['url', 'cta_url'] as $f) {
+        foreach (['url', 'cta_url', 'image'] as $f) {
             if (isset($block[$f]) && is_string($block[$f]) && $block[$f] !== '' && !$this->safeUrl($block[$f])) {
                 $e[] = "{$at}.{$f} must be an http(s) URL.";
             }

@@ -115,6 +115,25 @@ class PageManifestCompiler
                 if (($block['subtitle'] ?? '') !== '') $data['subtitle'] = $this->clean($block['subtitle'], 500);
                 if (($block['cta_text'] ?? '') !== '') $data['ctaText'] = $this->clean($block['cta_text'], 60);
                 if ($this->safe($block['cta_url'] ?? '')) $data['ctaUrl'] = $block['cta_url'];
+                // Design fidelity: the importer read the hero's real background
+                // image off the DOM. Recreate it with a readability overlay
+                // matched to the source's own text tone (_fg).
+                if ($this->safe($block['image'] ?? '')) {
+                    $data['bg_type'] = 'image';
+                    $data['bg_image'] = $block['image'];
+                    $data['bg_image_size'] = 'cover';
+                    $fgHex = $this->safeHex($block['_fg'] ?? '');
+                    if ($fgHex === null || $this->isLight($fgHex)) {
+                        $data['bg_overlay_color'] = '#000000';
+                        $data['bg_overlay_opacity'] = 0.45;
+                        $data['headlineColor'] = '#ffffff';
+                        $data['subtitleColor'] = '#f5f5f5';
+                    } else {
+                        $data['headlineColor'] = $fgHex;
+                        $data['subtitleColor'] = $fgHex;
+                    }
+                    $data['sectionHeight'] = 'md';
+                }
                 return [$this->module('hero', $data)];
 
             case 'heading':
@@ -253,8 +272,24 @@ class PageManifestCompiler
         if (!is_string($url) || $url === '') {
             return false;
         }
+
+        // Site-relative asset serve URLs ("/api/v1/sites/.../serve") are what
+        // the wizard's media importer rewrites images to — they must survive
+        // compilation, not be dropped as "not a URL".
+        if (str_starts_with($url, '/') && !str_starts_with($url, '//')) {
+            return preg_match('/^[A-Za-z0-9\/\_\-\.\%\?\=\&]+$/', $url) === 1;
+        }
+
         $scheme = mb_strtolower((string) parse_url($url, PHP_URL_SCHEME));
 
         return in_array($scheme, ['http', 'https'], true) && filter_var($url, FILTER_VALIDATE_URL) !== false;
+    }
+
+    /** Perceived-luminance check for overlay/text-tone decisions. */
+    private function isLight(string $hex): bool
+    {
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+
+        return (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255 > 0.55;
     }
 }
