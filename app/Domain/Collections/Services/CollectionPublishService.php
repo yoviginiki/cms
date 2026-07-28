@@ -501,7 +501,7 @@ class CollectionPublishService
                 }
 
                 $url = RecordDisplay::categoryUrl($collection, $node, $urlLocale);
-                $html = $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template, $locale);
+                $html = $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), null, $locale);
                 $this->write($site, $stagingPath, ltrim($url, '/') . 'index.html', $html);
             }
         }
@@ -538,7 +538,7 @@ class CollectionPublishService
 
         $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
 
-        return $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template, $locale);
+        return $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), null, $locale);
     }
 
     /** Full HTML document for one category page (shared publisher/preview). */

@@ -12,6 +12,10 @@ export const collectionCategoriesDefinition: BlockDefinition = {
     parentNodeId: null,   // null = root level; otherwise children of that node
     layout: 'cards',      // cards | pills | list
     columns: 4,
+    showImage: false,     // category image (own, else first product's)
+    imageHeight: '140px',
+    showName: true,
+    showDescription: false,
     showCount: true,
     hideEmpty: false,
     gap: '1rem',

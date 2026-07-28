@@ -40,7 +40,21 @@ export const CollectionCategoriesEditor: React.FC<BlockEditorProps> = ({ block, 
             { value: '4', label: '4' }, { value: '5', label: '5' }, { value: '6', label: '6' },
           ]} />
       )}
-      <ToggleField label="Show record count" value={(data.showCount as boolean) ?? true}
+      <div className="border-t border-base-300/20 pt-2 text-[11px] font-medium text-base-content/60">Show</div>
+      <ToggleField label="Image" value={(data.showImage as boolean) ?? false}
+        onChange={v => update('showImage', v)}
+        helperText="Uses the category's own image, else the first product's image in that category" />
+      {((data.showImage as boolean) ?? false) && (
+        <TextField label="Image size" value={(data.imageHeight as string) || '140px'} onChange={v => update('imageHeight', v)}
+          placeholder="140px"
+          helperText="Cards: image height. List: thumbnail size (square)." />
+      )}
+      <ToggleField label="Name" value={(data.showName as boolean) ?? true}
+        onChange={v => update('showName', v)} />
+      <ToggleField label="Description / intro" value={(data.showDescription as boolean) ?? false}
+        onChange={v => update('showDescription', v)}
+        helperText="Shows the category's intro text (set per category)" />
+      <ToggleField label="Record count" value={(data.showCount as boolean) ?? true}
         onChange={v => update('showCount', v)} />
       <ToggleField label="Hide empty categories" value={(data.hideEmpty as boolean) ?? false}
         onChange={v => update('hideEmpty', v)}

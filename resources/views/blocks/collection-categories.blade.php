@@ -80,6 +80,38 @@
     $columns = max(2, min(6, (int) ($data['columns'] ?? 4)));
     $gap = $cssDim($data['gap'] ?? '') ?: '1rem';
     $showCount = $data['showCount'] ?? true;
+    $showName = $data['showName'] ?? true;
+    $showImage = $data['showImage'] ?? false;
+    $showDescription = $data['showDescription'] ?? false;
+    $imageHeight = $cssDim($data['imageHeight'] ?? '') ?: '140px';
+
+    // Per-category image: use the node's own image (schema.image) if set, else
+    // fall back to the first published product in the node's subtree — so
+    // categories get a representative picture with zero manual work.
+    $nodeImages = [];
+    $nodeDesc = [];
+    if ($collection && ($showImage || $showDescription)) {
+        foreach ($nodes as $n) {
+            $nodeDesc[$n->id] = trim((string) ($n->schema['description'] ?? ''));
+            if (!$showImage) { continue; }
+            // Resolve an image reference (asset id OR url) to a servable URL.
+            $resolveImg = fn($v) => (is_string($v) && $v !== '')
+                ? ((str_starts_with($v, '/') || str_starts_with($v, 'http')) ? $v : RecordDisplay::assetUrl($site, $v))
+                : null;
+            $own = $resolveImg($n->schema['image'] ?? null);
+            if ($own) { $nodeImages[$n->id] = $own; continue; }
+            $ids = [$n->id];
+            $collectIds = function ($pid) use (&$collectIds, $byParent, &$ids) {
+                foreach ($byParent->get($pid, collect()) as $c) { $ids[] = $c->id; $collectIds($c->id); }
+            };
+            $collectIds($n->id);
+            $rec = \App\Models\Record::where('collection_id', $collection->id)
+                ->where('status', 'published')->whereIn('category_node_id', $ids)
+                ->whereRaw("data->>'image' is not null and data->>'image' <> ''")
+                ->orderBy('position')->first();
+            if ($rec) { $nodeImages[$n->id] = $resolveImg($rec->data['image'] ?? null); }
+        }
+    }
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
 <div class="collection-categories-block {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif>
@@ -103,9 +135,15 @@
     <div class="cc-list" style="display:flex;flex-direction:column;gap:{{ $gap }};">
         @foreach($nodes as $node)
             <a href="{{ RecordDisplay::categoryUrl($collection, $node, $__urlLocale) }}"
-               style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 1.1rem;border:1px solid var(--color-border-light,#e5e5e0);border-radius:12px;text-decoration:none;color:var(--color-heading,#1a202c);transition:border-color .2s ease,transform .2s ease;"
+               style="display:flex;align-items:center;gap:1rem;padding:.75rem 1.1rem;border:1px solid var(--color-border-light,#e5e5e0);border-radius:12px;text-decoration:none;color:var(--color-heading,#1a202c);transition:border-color .2s ease,transform .2s ease;"
                onmouseover="this.style.borderColor='var(--color-primary,#3b82f6)'" onmouseout="this.style.borderColor='var(--color-border-light,#e5e5e0)'">
-                <span style="font-weight:600;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>
+                @if($showImage && !empty($nodeImages[$node->id]))
+                    <img src="{{ e($nodeImages[$node->id]) }}" alt="" loading="lazy" style="flex-shrink:0;width:{{ $imageHeight }};height:{{ $imageHeight }};object-fit:cover;border-radius:8px;">
+                @endif
+                <span style="flex:1;min-width:0;">
+                    @if($showName)<span style="display:block;font-weight:600;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>@endif
+                    @if($showDescription && !empty($nodeDesc[$node->id]))<span style="display:block;opacity:.7;font-size:.85em;line-height:1.4;margin-top:.15rem;">{{ $nodeDesc[$node->id] }}</span>@endif
+                </span>
                 @if($showCount)<span style="opacity:.5;font-size:.85em;white-space:nowrap;">{{ $counts[$node->id] ?? 0 }}</span>@endif
             </a>
         @endforeach
@@ -114,13 +152,22 @@
     <div class="cc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min({{ intval(960 / $columns) }}px,100%),1fr));gap:{{ $gap }};">
         @foreach($nodes as $node)
             <a href="{{ RecordDisplay::categoryUrl($collection, $node, $__urlLocale) }}"
-               style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 16px;background:var(--color-bg,#fff);border:1px solid var(--color-border-light,rgba(26,32,44,.08));border-radius:16px;text-decoration:none;color:var(--color-heading,#1a202c);text-align:center;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;"
+               style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:{{ $showImage && !empty($nodeImages[$node->id]) ? '0 0 20px' : '24px 16px' }};overflow:hidden;background:var(--color-bg,#fff);border:1px solid var(--color-border-light,rgba(26,32,44,.08));border-radius:16px;text-decoration:none;color:var(--color-heading,#1a202c);text-align:center;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;"
                onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 28px -12px rgba(0,0,0,.18)';this.style.borderColor='var(--color-primary,#3b82f6)'"
                onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='var(--color-border-light,rgba(26,32,44,.08))'">
-                <span style="width:48px;height:48px;border-radius:12px;background:color-mix(in srgb,var(--color-primary,#3b82f6) 10%,transparent);display:inline-flex;align-items:center;justify-content:center;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
-                </span>
-                <span style="font-weight:600;font-size:.95em;line-height:1.35;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>
+                @if($showImage && !empty($nodeImages[$node->id]))
+                    <img src="{{ e($nodeImages[$node->id]) }}" alt="" loading="lazy" style="width:100%;height:{{ $imageHeight }};object-fit:cover;display:block;">
+                @elseif($showImage)
+                    <span style="width:100%;height:{{ $imageHeight }};background:var(--color-bg-alt,#f5f5f0);display:flex;align-items:center;justify-content:center;">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                    </span>
+                @else
+                    <span style="width:48px;height:48px;margin-top:24px;border-radius:12px;background:color-mix(in srgb,var(--color-primary,#3b82f6) 10%,transparent);display:inline-flex;align-items:center;justify-content:center;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                    </span>
+                @endif
+                @if($showName)<span style="font-weight:600;font-size:.95em;line-height:1.35;padding:0 12px;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>@endif
+                @if($showDescription && !empty($nodeDesc[$node->id]))<span style="opacity:.7;font-size:.85em;line-height:1.4;padding:0 14px;">{{ $nodeDesc[$node->id] }}</span>@endif
                 @if($showCount)<span style="opacity:.5;font-size:.8em;">{{ $counts[$node->id] ?? 0 }}</span>@endif
             </a>
         @endforeach
