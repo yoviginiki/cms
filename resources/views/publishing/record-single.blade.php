@@ -12,12 +12,13 @@
 <article class="record-single" style="padding:2.5rem 0;">
     <nav style="font-size:.85rem;margin-bottom:1.5rem;opacity:.7;" aria-label="Breadcrumb">
         <a href="/{{ RecordDisplay::pathPrefix($collection) }}/" style="color:inherit;">{{ $collection->name }}</a>
+        @foreach(($categoryTrail ?? []) as $catNode)
+            <span aria-hidden="true"> / </span><a href="{{ RecordDisplay::categoryUrl($collection, $catNode, $trailUrlLocale ?? null) }}" style="color:inherit;">{{ RecordDisplay::nodeName($catNode, $trailLocale ?? null) }}</a>
+        @endforeach
         @foreach($ancestors as $ancestor)
             <span aria-hidden="true"> / </span><a href="{{ RecordDisplay::recordUrl($collection, $ancestor) }}" style="color:inherit;">{{ $ancestor->title }}</a>
         @endforeach
-        @if($ancestors !== [])
-            <span aria-hidden="true"> / </span><span aria-current="page">{{ $record->title }}</span>
-        @endif
+        <span aria-hidden="true"> / </span><span aria-current="page">{{ $record->title }}</span>
     </nav>
     <h1 style="margin:0 0 1.5rem;">{{ $record->title }}</h1>
     @if($heroSrc)

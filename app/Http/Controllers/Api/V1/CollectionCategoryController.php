@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Collections\Services\CategorySchemaResolver;
 use App\Domain\Collections\Services\CollectionCategoryService;
+use App\Domain\References\Services\StalenessResolver;
 use App\Http\Controllers\Controller;
 use App\Models\CollectionCategoryNode;
 use App\Models\ContentCollection;
@@ -21,7 +22,23 @@ class CollectionCategoryController extends Controller
     public function __construct(
         private CollectionCategoryService $service,
         private CategorySchemaResolver $resolver,
+        private StalenessResolver $staleness,
     ) {
+    }
+
+    /**
+     * Flag the collection stale so a republish rebuilds its archive, category
+     * pages, category images and the client-side SEARCH INDEX — otherwise a
+     * category rename/image/description change would leave them outdated. A full
+     * publish rebuilds them regardless; this also flags embedding pages.
+     */
+    private function markCollectionStale(Site $site, ContentCollection $collection): void
+    {
+        try {
+            $this->staleness->markStale($site, 'collection', $collection->id, 'category_changed');
+        } catch (\Throwable $e) {
+            // never fail a category mutation over staleness bookkeeping
+        }
     }
 
     public function index(Site $site, ContentCollection $collection): JsonResponse
@@ -38,6 +55,7 @@ class CollectionCategoryController extends Controller
         $this->assertOnSite($site, $collection);
 
         $node = $this->service->create($collection, $site, $request->all());
+        $this->markCollectionStale($site, $collection);
 
         return response()->json(['data' => $this->service->serialize($node, 0)], 201);
     }
@@ -48,6 +66,7 @@ class CollectionCategoryController extends Controller
         $this->assertOnSite($site, $collection, $node);
 
         $node = $this->service->update($node, $site, $request->all());
+        $this->markCollectionStale($site, $collection);
 
         return response()->json(['data' => $this->service->serialize($node)]);
     }
@@ -63,6 +82,7 @@ class CollectionCategoryController extends Controller
         ]);
 
         $node = $this->service->move($node, $validated['parent_id'] ?? null, $validated['sort_order'] ?? null);
+        $this->markCollectionStale($site, $collection);
 
         return response()->json(['data' => $this->service->serialize($node)]);
     }
@@ -74,6 +94,7 @@ class CollectionCategoryController extends Controller
 
         $mode = $request->query('mode') === 'cascade' ? 'cascade' : 'reparent';
         $result = $this->service->delete($node, $mode);
+        $this->markCollectionStale($site, $collection);
 
         return response()->json(['data' => $result, 'message' => 'Category deleted.']);
     }

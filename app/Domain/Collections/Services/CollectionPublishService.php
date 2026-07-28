@@ -282,11 +282,26 @@ class CollectionPublishService
         $ancestors = RecordDisplay::ancestors($collection, $record);
         $children = RecordDisplay::children($collection, $record);
 
+        // Category-tree trail for the breadcrumb: the record's category node and
+        // its parents (root → leaf), each linking to its category page.
+        $categoryTrail = [];
+        if ($record->category_node_id) {
+            $byId = CollectionCategoryNode::where('collection_id', $collection->id)->get()->keyBy('id');
+            $node = $byId->get($record->category_node_id);
+            while ($node) {
+                array_unshift($categoryTrail, $node);
+                $node = $node->parent_id ? $byId->get($node->parent_id) : null;
+            }
+        }
+        $recLocale = RecordDisplay::recordLocale($collection, $record) ?? \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+        $recUrlLocale = $recLocale === \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site) ? null : $recLocale;
+
         $context = [
             '__record' => $record,
             '__collection' => $collection,
             '__ancestors' => $ancestors,
             '__children' => $children,
+            '__categoryTrail' => $categoryTrail,
         ];
 
         $template = ThemeTemplate::resolveForRecord($record);
@@ -301,6 +316,9 @@ class CollectionPublishService
                 'record' => $record,
                 'ancestors' => $ancestors,
                 'children' => $children,
+                'categoryTrail' => $categoryTrail,
+                'trailUrlLocale' => $recUrlLocale,
+                'trailLocale' => $recLocale,
             ])->render();
         }
 

@@ -149,26 +149,36 @@
         @endforeach
     </div>
 @else
-    <div class="cc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min({{ intval(960 / $columns) }}px,100%),1fr));gap:{{ $gap }};">
+    @php
+        $ccUid = 'ccg-' . substr(md5(($__htmlId ?: '') . $collection->id . $layout), 0, 8);
+        // Square-ish image: honor a numeric imageHeight if set, else square.
+        $imgSquare = ($data['imageHeight'] ?? '') === '' ? 'aspect-ratio:1/1;height:auto' : 'height:' . $imageHeight;
+    @endphp
+    <style>
+        .{{ $ccUid }}{grid-template-columns:repeat({{ $columns }},minmax(0,1fr));}
+        @media(max-width:900px){.{{ $ccUid }}{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}
+        @media(max-width:560px){.{{ $ccUid }}{grid-template-columns:1fr!important;}}
+    </style>
+    <div class="cc-grid {{ $ccUid }}" style="display:grid;gap:{{ $gap }};">
         @foreach($nodes as $node)
             <a href="{{ RecordDisplay::categoryUrl($collection, $node, $__urlLocale) }}"
-               style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:{{ $showImage && !empty($nodeImages[$node->id]) ? '0 0 20px' : '24px 16px' }};overflow:hidden;background:var(--color-bg,#fff);border:1px solid var(--color-border-light,rgba(26,32,44,.08));border-radius:16px;text-decoration:none;color:var(--color-heading,#1a202c);text-align:center;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;"
+               style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:{{ $showImage && !empty($nodeImages[$node->id]) ? '0 0 22px' : '24px 16px' }};overflow:hidden;background:var(--color-bg,#fff);border:1px solid var(--color-border-light,rgba(26,32,44,.08));border-radius:16px;text-decoration:none;color:var(--color-heading,#1a202c);text-align:center;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;"
                onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 28px -12px rgba(0,0,0,.18)';this.style.borderColor='var(--color-primary,#3b82f6)'"
                onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='var(--color-border-light,rgba(26,32,44,.08))'">
                 @if($showImage && !empty($nodeImages[$node->id]))
-                    <img src="{{ e($nodeImages[$node->id]) }}" alt="" loading="lazy" style="width:100%;height:{{ $imageHeight }};object-fit:cover;display:block;">
+                    <img src="{{ e($nodeImages[$node->id]) }}" alt="" loading="lazy" style="width:100%;{{ $imgSquare }};object-fit:cover;display:block;">
                 @elseif($showImage)
-                    <span style="width:100%;height:{{ $imageHeight }};background:var(--color-bg-alt,#f5f5f0);display:flex;align-items:center;justify-content:center;">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                    <span style="width:100%;aspect-ratio:1/1;background:var(--color-bg-alt,#f5f5f0);display:flex;align-items:center;justify-content:center;">
+                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
                     </span>
                 @else
                     <span style="width:48px;height:48px;margin-top:24px;border-radius:12px;background:color-mix(in srgb,var(--color-primary,#3b82f6) 10%,transparent);display:inline-flex;align-items:center;justify-content:center;">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
                     </span>
                 @endif
-                @if($showName)<span style="font-weight:600;font-size:.95em;line-height:1.35;padding:0 12px;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>@endif
-                @if($showDescription && !empty($nodeDesc[$node->id]))<span style="opacity:.7;font-size:.85em;line-height:1.4;padding:0 14px;">{{ $nodeDesc[$node->id] }}</span>@endif
-                @if($showCount)<span style="opacity:.5;font-size:.8em;">{{ $counts[$node->id] ?? 0 }}</span>@endif
+                @if($showName)<span style="font-weight:700;font-size:1.15rem;line-height:1.3;padding:0 14px;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>@endif
+                @if($showDescription && !empty($nodeDesc[$node->id]))<span style="opacity:.7;font-size:.9rem;line-height:1.45;padding:0 16px;">{{ $nodeDesc[$node->id] }}</span>@endif
+                @if($showCount)<span style="opacity:.5;font-size:.85rem;">{{ $counts[$node->id] ?? 0 }}</span>@endif
             </a>
         @endforeach
     </div>
