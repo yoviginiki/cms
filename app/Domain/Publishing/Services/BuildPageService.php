@@ -1287,7 +1287,7 @@ html[data-anim-scroll] [style*="animation-name:block-"]{animation-play-state:pau
 
         // href/src/content/action/poster/data-src attributes with root-absolute values
         $html = preg_replace_callback(
-            '#\b(href|src|content|action|poster|data-src)="(/[^"/][^"]*|/)"#i',
+            '#\b(href|src|content|action|poster|data-src|data-cs-source)="(/[^"/][^"]*|/)"#i',
             function ($m) use ($base) {
                 $url = $m[2];
                 if (str_starts_with($url, '/api/') || str_starts_with($url, $base . '/') || $url === $base) {
