@@ -136,7 +136,7 @@ class ElementorTreeCompiler
             : 0.55;
         $data['headlineColor'] = '#ffffff';
         $data['subtitleColor'] = '#f5f5f5';
-        $data['headlineSize'] = '66px';
+        $data['headlineSize'] = '56px';
         $data['headlineWeight'] = '700';
 
         // Whatever else lived in the hero band (trust badges, secondary CTAs,
@@ -429,6 +429,8 @@ class ElementorTreeCompiler
                 'level' => in_array($s['header_size'] ?? '', ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'], true) ? $s['header_size'] : 'h2',
                 'textAlign' => in_array($s['align'] ?? '', ['left', 'center', 'right'], true) ? $s['align'] : null,
                 'color' => $this->settingColor($s, 'title_color'),
+                'fontWeight' => in_array((string) ($s['title_typography_font_weight'] ?? ''), ['400', '500', '600', '700', '800', '900'], true)
+                    ? (string) $s['title_typography_font_weight'] : null,
             ]))],
 
             'text-editor' => [$this->module('text', array_filter([
@@ -578,7 +580,8 @@ class ElementorTreeCompiler
         if (preg_match('#(trusted-client|avatar|profile-(pic|img))[^/]*$#i', $url) === 1) {
             return [];
         }
-        $data = ['url' => ($this->importImage)($url, ''), 'alt' => '', 'size' => 'large'];
+        $sizeMap = ['thumbnail' => 'small', 'medium' => 'medium', 'medium_large' => 'medium', 'large' => 'large', 'full' => 'large'];
+        $data = ['url' => ($this->importImage)($url, ''), 'alt' => '', 'size' => $sizeMap[$s['image_size'] ?? 'full'] ?? 'large'];
         // Builder sites dress nearly every image the same way: a soft entrance
         // when it scrolls in and a hover response. Recreate both by default;
         // explicit per-widget animation settings still win via sharedProps.
