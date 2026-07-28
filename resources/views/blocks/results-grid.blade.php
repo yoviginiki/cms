@@ -39,10 +39,10 @@
     <p class="cs-status" role="status" aria-live="polite" style="font-size:.85rem;opacity:.6;margin:0 0 .8rem;"></p>
     @if($layout === 'list')
     {{-- LIST layout: one row per record — optional small thumbnail, title + fields --}}
-    <div class="cs-results" style="display:flex;flex-direction:column;gap:.6rem;"></div>
+    <div class="cs-results" style="display:flex;flex-direction:column;gap:4px;"></div>
     <p class="cs-empty" hidden style="opacity:.6;padding:2rem 0;text-align:center;">{{ $emptyText }}</p>
     <template data-cs-card>
-        <article class="record-row" style="display:flex;align-items:center;gap:1.15rem;padding:1rem 1.25rem;border:1px solid var(--color-border,#e5e2dd);background:var(--color-surface,#fff);border-radius:12px;transition:border-color .18s ease,box-shadow .18s ease;"
+        <article class="record-row" style="display:flex;align-items:center;gap:1.15rem;padding:.5rem .9rem;border:1px solid var(--color-border,#e5e2dd);background:var(--color-surface,#fff);border-radius:12px;transition:border-color .18s ease,box-shadow .18s ease;"
                  onmouseover="this.style.borderColor='var(--color-primary,#3b82f6)';this.style.boxShadow='0 8px 22px -16px rgba(0,0,0,.3)'" onmouseout="this.style.borderColor='var(--color-border,#e5e2dd)';this.style.boxShadow=''">
             @if($showImage)
             <a data-cs-slot="url" style="flex-shrink:0;display:block;width:76px;height:76px;border-radius:10px;overflow:hidden;background:var(--color-bg-alt,#f5f5f0);">
