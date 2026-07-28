@@ -323,41 +323,70 @@ class CollectionPublishService
         return $this->wrapInLayout($site, $head, $body, $record->title);
     }
 
-    /** Statically paginated archive: /{prefix}/ + /{prefix}/page/{n}/. */
+    /**
+     * Statically paginated archive: /{prefix}/ + /{prefix}/page/{n}/.
+     * Locale-field collections publish one archive per language — the default
+     * language at /{prefix}/, others at /{locale}/{prefix}/.
+     */
     private function buildArchivePages(Site $site, ContentCollection $collection, $records, string $stagingPath): void
     {
         $prefix = $this->prefixFor($collection);
         $perPage = max(6, min(100, (int) ($collection->settings['per_page'] ?? 24)));
-        $totalPages = max(1, (int) ceil($records->count() / $perPage));
         $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
 
-        for ($page = 1; $page <= $totalPages; $page++) {
-            $pageRecords = $records->forPage($page, $perPage)->values();
-            $html = $this->archivePageHtml($site, $collection, $pageRecords, $records->count(), $page, $totalPages, $template);
-            $path = $page === 1 ? "{$prefix}/index.html" : "{$prefix}/page/{$page}/index.html";
-            $this->write($site, $stagingPath, $path, $html);
+        foreach ($this->partitionByLocale($site, $collection, $records) as $urlPrefix => $group) {
+            $totalPages = max(1, (int) ceil($group->count() / $perPage));
+            for ($page = 1; $page <= $totalPages; $page++) {
+                $pageRecords = $group->forPage($page, $perPage)->values();
+                $html = $this->archivePageHtml($site, $collection, $pageRecords, $group->count(), $page, $totalPages, $template, $urlPrefix);
+                $path = $page === 1 ? "{$urlPrefix}{$prefix}/index.html" : "{$urlPrefix}{$prefix}/page/{$page}/index.html";
+                $this->write($site, $stagingPath, $path, $html);
+            }
         }
     }
 
+    /**
+     * Records grouped by URL locale prefix: [''] for single-language
+     * collections; ['' => default-language rows, '{locale}/' => …] otherwise.
+     * @return array<string, \Illuminate\Support\Collection>
+     */
+    private function partitionByLocale(Site $site, ContentCollection $collection, $records): array
+    {
+        if (!RecordDisplay::localeField($collection)) {
+            return ['' => collect($records)->values()];
+        }
+
+        $groups = [];
+        foreach ($records as $record) {
+            $urlPrefix = RecordDisplay::localeUrlPrefix($collection, RecordDisplay::recordLocale($collection, $record));
+            $groups[$urlPrefix] ??= collect();
+            $groups[$urlPrefix]->push($record);
+        }
+        ksort($groups); // default ('') first
+
+        return array_map(fn ($g) => $g->values(), $groups);
+    }
+
     /** One archive page for the dynamic /sites/{slug}/{prefix}/ preview. */
-    public function renderArchivePageHtml(Site $site, ContentCollection $collection, int $page = 1): string
+    public function renderArchivePageHtml(Site $site, ContentCollection $collection, int $page = 1, string $urlPrefix = ''): string
     {
         $records = Record::where('collection_id', $collection->id)
             ->where('status', 'published')
             ->orderByDesc('published_at')
             ->get();
+        $records = $this->partitionByLocale($site, $collection, $records)[$urlPrefix] ?? collect();
         $perPage = max(6, min(100, (int) ($collection->settings['per_page'] ?? 24)));
         $totalPages = max(1, (int) ceil($records->count() / $perPage));
         $page = max(1, min($totalPages, $page));
         $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
 
-        return $this->archivePageHtml($site, $collection, $records->forPage($page, $perPage)->values(), $records->count(), $page, $totalPages, $template);
+        return $this->archivePageHtml($site, $collection, $records->forPage($page, $perPage)->values(), $records->count(), $page, $totalPages, $template, $urlPrefix);
     }
 
     /** Full HTML document for one archive page (shared publisher/preview). */
-    private function archivePageHtml(Site $site, ContentCollection $collection, $pageRecords, int $totalCount, int $page, int $totalPages, ?ThemeTemplate $template): string
+    private function archivePageHtml(Site $site, ContentCollection $collection, $pageRecords, int $totalCount, int $page, int $totalPages, ?ThemeTemplate $template, string $urlPrefix = ''): string
     {
-        $prefix = $this->prefixFor($collection);
+        $prefix = $urlPrefix . $this->prefixFor($collection);
         $context = [
             '__collection' => $collection,
             '__archiveRecords' => $pageRecords,
@@ -504,7 +533,14 @@ class CollectionPublishService
      */
     public function buildIndex(Site $site, ContentCollection $collection, $records, string $stagingPath): void
     {
-        $prefix = $this->prefixFor($collection);
+        foreach ($this->partitionByLocale($site, $collection, $records) as $urlPrefix => $group) {
+            $this->buildIndexGroup($site, $collection, $group, $stagingPath, $urlPrefix);
+        }
+    }
+
+    private function buildIndexGroup(Site $site, ContentCollection $collection, $records, string $stagingPath, string $urlPrefix): void
+    {
+        $prefix = $urlPrefix . $this->prefixFor($collection);
         $fields = $collection->fields();
 
         $searchable = array_values(array_filter($fields, fn ($f) => $f['searchable'] ?? false));

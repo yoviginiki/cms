@@ -63,6 +63,16 @@ class DynamicSiteController extends Controller
                 return $this->respondCollectionHtml(
                     $this->collectionPublish()->renderArchivePageHtml($site, $collection), $site);
             }
+            // /{locale} — the homepage translation (slug convention {home}-{locale}).
+            if ($this->enabledLocalePrefix($site, $slug)) {
+                $home = $this->findHomePage($site);
+                $translated = $home
+                    ? Page::where('site_id', $site->id)->where('slug', "{$home->slug}-{$slug}")->first()
+                    : null;
+                if ($translated) {
+                    return $this->renderContent($translated, $site);
+                }
+            }
             abort(404, "Page not found: {$slug}");
         }
 
@@ -78,6 +88,19 @@ class DynamicSiteController extends Controller
         $post = Post::where('site_id', $site->id)->where('slug', $postSlug)->first();
 
         if (!$post) {
+            // /{locale}/{prefix} — a localized collection archive.
+            if ($this->enabledLocalePrefix($site, $categorySlug)
+                && ($collection = $this->findCollectionByPrefix($site, $postSlug))) {
+                return $this->respondCollectionHtml(
+                    $this->collectionPublish()->renderArchivePageHtml($site, $collection, 1, "{$categorySlug}/"), $site);
+            }
+            // /{locale}/{page-base-slug} — a translated page (slug convention {base}-{locale}).
+            if ($this->enabledLocalePrefix($site, $categorySlug)) {
+                $translated = Page::where('site_id', $site->id)->where('slug', "{$postSlug}-{$categorySlug}")->first();
+                if ($translated) {
+                    return $this->renderContent($translated, $site);
+                }
+            }
             // /{prefix}/{record-slug} — a collection record detail page.
             if ($collection = $this->findCollectionByPrefix($site, $categorySlug)) {
                 $record = \App\Models\Record::where('collection_id', $collection->id)
@@ -103,6 +126,13 @@ class DynamicSiteController extends Controller
     {
         $site = $this->resolveSite($siteSlug);
         $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+
+        // Leading locale segment (/en/products/…) — strip it; the renderers
+        // emit locale-prefixed URLs themselves.
+        $localePrefix = '';
+        if ($segments !== [] && $this->enabledLocalePrefix($site, $segments[0])) {
+            $localePrefix = array_shift($segments) . '/';
+        }
         if (count($segments) < 2) {
             abort(404);
         }
@@ -116,7 +146,7 @@ class DynamicSiteController extends Controller
         // /{prefix}/page/{n}
         if ($segments[1] === 'page' && isset($segments[2]) && ctype_digit($segments[2])) {
             return $this->respondCollectionHtml(
-                $publish->renderArchivePageHtml($site, $collection, (int) $segments[2]), $site);
+                $publish->renderArchivePageHtml($site, $collection, (int) $segments[2], $localePrefix), $site);
         }
 
         // /{prefix}/category/{root…leaf}
@@ -146,6 +176,14 @@ class DynamicSiteController extends Controller
         }
 
         abort(404, "Not found: /{$path}");
+    }
+
+    /** True when the segment is an enabled non-default site locale (URL prefix). */
+    private function enabledLocalePrefix(Site $site, string $segment): bool
+    {
+        return preg_match('/^[a-z]{2}$/', $segment) === 1
+            && $segment !== \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site)
+            && in_array($segment, \App\Domain\Publishing\Services\LocalePaths::languages($site), true);
     }
 
     /** Collection whose public prefix (settings.path_prefix or slug) matches. */

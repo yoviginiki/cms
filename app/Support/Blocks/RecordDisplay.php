@@ -48,12 +48,93 @@ class RecordDisplay
         return preg_match('/^[a-z0-9-]+$/', (string) $prefix) ? $prefix : $collection->slug;
     }
 
+    /**
+     * Locale plumbing: a collection opts into per-language URLs via a select
+     * field holding the locale — settings.locale_field, else a field keyed
+     * 'language' or 'locale'. Records of non-default languages publish under
+     * /{locale}/{prefix}/… mirroring the LocalePaths page convention.
+     */
+    public static function localeField(ContentCollection $collection): ?string
+    {
+        $key = $collection->settings['locale_field'] ?? null;
+        if (!$key) {
+            foreach (['language', 'locale'] as $candidate) {
+                if ($collection->field($candidate)) {
+                    $key = $candidate;
+                    break;
+                }
+            }
+        }
+
+        return ($key && $collection->field($key)) ? $key : null;
+    }
+
+    public static function recordLocale(ContentCollection $collection, Record $record): ?string
+    {
+        $key = self::localeField($collection);
+        $value = $key ? ($record->data[$key] ?? null) : null;
+
+        return (is_string($value) && preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', $value)) ? strtolower($value) : null;
+    }
+
+    /** '' for the site default language (or unknown), '{locale}/' otherwise. */
+    public static function localeUrlPrefix(ContentCollection $collection, ?string $locale): string
+    {
+        if (!$locale) {
+            return '';
+        }
+        $site = $collection->relationLoaded('site') ? $collection->site : Site::find($collection->site_id);
+
+        return $site ? \App\Domain\Publishing\Services\LocalePaths::prefix($site, $locale) : '';
+    }
+
+    /**
+     * Locale of a category node — the locale of its root's records (category
+     * trees are per-language: vioiv has a Продукти root and a Products root).
+     * Cached per root; null for tree-wide/unknown.
+     */
+    private static array $nodeLocaleCache = [];
+
+    public static function nodeLocale(ContentCollection $collection, \App\Models\CollectionCategoryNode $node): ?string
+    {
+        if (!self::localeField($collection)) {
+            return null;
+        }
+
+        $root = $node;
+        $seen = [];
+        while ($root->parent_id && !isset($seen[$root->id])) {
+            $seen[$root->id] = true;
+            $root = \App\Models\CollectionCategoryNode::find($root->parent_id) ?? $root;
+        }
+
+        $key = $collection->id . ':' . $root->id;
+        if (!array_key_exists($key, self::$nodeLocaleCache)) {
+            $byParent = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)
+                ->get(['id', 'parent_id'])->groupBy('parent_id');
+            $ids = [];
+            $stack = [$root->id];
+            while ($stack !== []) {
+                $id = array_pop($stack);
+                $ids[] = $id;
+                foreach ($byParent->get($id, collect()) as $child) {
+                    $stack[] = $child->id;
+                }
+            }
+            $record = Record::where('collection_id', $collection->id)->whereIn('category_node_id', $ids)->first();
+            self::$nodeLocaleCache[$key] = $record ? self::recordLocale($collection, $record) : null;
+        }
+
+        return self::$nodeLocaleCache[$key];
+    }
+
     public static function recordUrl(ContentCollection $collection, Record $record): string
     {
         $segments = array_map(fn (Record $r) => $r->slug, self::ancestors($collection, $record));
         $segments[] = $record->slug;
 
-        return '/' . self::pathPrefix($collection) . '/' . implode('/', $segments) . '/';
+        return '/' . self::localeUrlPrefix($collection, self::recordLocale($collection, $record))
+            . self::pathPrefix($collection) . '/' . implode('/', $segments) . '/';
     }
 
     /**
@@ -66,7 +147,8 @@ class RecordDisplay
      */
     public static function categoryUrl(ContentCollection $collection, \App\Models\CollectionCategoryNode $node): string
     {
-        return '/' . self::pathPrefix($collection) . '/category/' . implode('/', self::categorySlugPath($node)) . '/';
+        return '/' . self::localeUrlPrefix($collection, self::nodeLocale($collection, $node))
+            . self::pathPrefix($collection) . '/category/' . implode('/', self::categorySlugPath($node)) . '/';
     }
 
     /**

@@ -432,6 +432,29 @@ class PublishSiteJob implements ShouldQueue
         $htaccess .= "</IfModule>\n";
 
         if (!$redirects->isEmpty()) {
+            // HTML redirect stubs — the only mechanism that works on every
+            // static host (nginx ignores .htaccess; _redirects is
+            // Netlify/CF-Pages-only). Written for simple path sources; regex
+            // sources beyond a trailing '/?' can't map to a single file.
+            foreach ($redirects as $r) {
+                $sourcePath = preg_replace('~/\?$~', '', trim($r->source_path));
+                $sourcePath = trim($sourcePath, '/');
+                if ($sourcePath === '' || preg_match('~[\^$*+()\[\]{}|\\?]~', $sourcePath)) {
+                    continue;
+                }
+                $target = e($r->target_url);
+                $stub = '<!doctype html><html><head><meta charset="utf-8">'
+                    . '<meta http-equiv="refresh" content="0;url=' . $target . '">'
+                    . '<link rel="canonical" href="' . $target . '">'
+                    . '<meta name="robots" content="noindex">'
+                    . '<title>Redirecting…</title></head>'
+                    . '<body><a href="' . $target . '">Redirecting…</a>'
+                    . '<script>location.replace(' . json_encode($r->target_url) . ');</script>'
+                    . '</body></html>';
+                File::ensureDirectoryExists("{$stagingPath}/{$sourcePath}");
+                File::put("{$stagingPath}/{$sourcePath}/index.html", $stub);
+            }
+
             // _redirects file (Netlify/Cloudflare Pages format)
             $lines = [];
             foreach ($redirects as $r) {
