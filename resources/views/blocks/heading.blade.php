@@ -39,7 +39,10 @@
 @endphp
 @php
     // Allow safe inline HTML in headings: <br>, <em>, <strong>, <span> with class/style only
-    $headingText = $data['text'] ?? '';
+    // Per-locale heading text: data.text_translations[locale] wins for the
+    // matching language (e.g. an archive/template heading shown on /en/…).
+    $__hl = $__locale ?? null;
+    $headingText = ($__hl && !empty($data['text_translations'][$__hl])) ? $data['text_translations'][$__hl] : ($data['text'] ?? '');
     $allowHtml = !empty($data['allowHtml']);
     if ($allowHtml) {
         $headingText = strip_tags($headingText, '<br><em><strong><span>');

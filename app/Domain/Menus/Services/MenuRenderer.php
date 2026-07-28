@@ -192,7 +192,7 @@ class MenuRenderer
         }
 
         // Header CTA button (from site settings)
-        $ctaHtml = $this->navCtaHtml($settings);
+        $ctaHtml = $this->navCtaHtml($settings, $menu->locale);
         if ($ctaHtml !== '') {
             $html .= "      <li class=\"menu-cta\">{$ctaHtml}</li>\n";
         }
@@ -207,7 +207,7 @@ class MenuRenderer
             $target = $item->target !== '_self' ? ' target="' . e($item->target) . '" rel="noopener"' : '';
             $html .= "      <a href=\"{$url}\"{$target} class=\"menu-custom-link\">{$label}</a>\n";
         }
-        $ctaHtml = $this->navCtaHtml($settings);
+        $ctaHtml = $this->navCtaHtml($settings, $menu->locale);
         if ($ctaHtml !== '') {
             $html .= "      {$ctaHtml}\n";
         }
@@ -223,11 +223,13 @@ class MenuRenderer
      * Header CTA button markup from site settings (nav_cta = {text, url}).
      * Returns '' when unset/invalid so existing headers are unaffected.
      */
-    private function navCtaHtml(array $settings): string
+    private function navCtaHtml(array $settings, ?string $locale = null): string
     {
         $cta = $settings['nav_cta'] ?? null;
         if (!is_array($cta)) return '';
-        $text = trim((string) ($cta['text'] ?? ''));
+        // Per-locale label: nav_cta.translations[locale] wins for a locale menu,
+        // else the default text. Keeps the CTA in the visitor's language.
+        $text = trim((string) (($locale ? ($cta['translations'][$locale] ?? null) : null) ?? $cta['text'] ?? ''));
         $url = self::safeUrl((string) ($cta['url'] ?? ''));
         if ($text === '' || !$url) return '';
 

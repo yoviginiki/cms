@@ -424,8 +424,10 @@ class CollectionPublishService
     private function archivePageHtml(Site $site, ContentCollection $collection, $pageRecords, int $totalCount, int $page, int $totalPages, ?ThemeTemplate $template, string $urlPrefix = ''): string
     {
         $prefix = $urlPrefix . $this->prefixFor($collection);
+        $archiveLocale = trim($urlPrefix, '/') ?: \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
         $context = [
             '__collection' => $collection,
+            '__locale' => $archiveLocale,
             '__archiveRecords' => $pageRecords,
             '__archiveRecordCount' => $totalCount,
             '__archiveCurrentPage' => $page,

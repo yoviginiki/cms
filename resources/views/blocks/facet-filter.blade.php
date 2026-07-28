@@ -13,7 +13,7 @@
     // A star = cross-collection search: one synthetic Type facet, filled by JS.
     $isCross = ($data['collectionId'] ?? null) === '*';
     $collection = (!$isCross && !empty($data['collectionId'])) ? \App\Models\ContentCollection::find($data['collectionId']) : ($isCross ? null : ($__collection ?? null));
-    [$csMode, $source] = $isCross ? ['static', RecordDisplay::sitePathBase($site) . '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);
+    [$csMode, $source] = $isCross ? ['static', RecordDisplay::sitePathBase($site) . '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site, $__locale ?? null) : ['static', '']);
     $csKey = $isCross ? '_site' : $collection?->slug;
     $style = in_array($data['style'] ?? 'checkbox', ['checkbox','dropdown']) ? ($data['style'] ?? 'checkbox') : 'checkbox';
 
@@ -31,7 +31,8 @@
                 ->map(fn ($n) => RecordDisplay::nodeName($n, $__pl))
                 ->filter()->unique()->values()->all();
             if ($catOpts !== []) {
-                $facetFields[] = ['key' => '__cat', 'label' => trim((string) ($data['categoryLabel'] ?? '')) ?: 'Категория', 'type' => 'select', 'options' => $catOpts];
+                $catLabel = trim((string) ($data['categoryLabel'] ?? '')) ?: ($__pl === 'en' ? 'Category' : 'Категория');
+                $facetFields[] = ['key' => '__cat', 'label' => $catLabel, 'type' => 'select', 'options' => $catOpts];
             }
         }
         $picks = array_filter((array) ($data['fields'] ?? []), 'is_string');
@@ -52,22 +53,25 @@
 @elseif($facetFields === [])
     <p style="opacity:.5;font-size:.85rem;">No facetable fields — mark select/boolean/relation fields as facets in the collection schema.</p>
 @else
+    <div style="display:flex;flex-direction:column;gap:1.75rem;padding:1.4rem 1.5rem;background:var(--color-surface,#fff);border:1px solid var(--color-border-light,rgba(26,32,44,.1));border-radius:18px;box-shadow:0 6px 22px -16px rgba(0,0,0,.25);">
     @foreach($facetFields as $field)
         <fieldset class="cs-facet" data-cs-facet="{{ $field['key'] }}" data-cs-facet-type="{{ $field['type'] }}"
-                  style="border:0;padding:0;margin:0 0 1.1rem;">
-            <legend style="font-weight:600;font-size:.9rem;margin-bottom:.4rem;padding:0;">{{ $field['label'] }}</legend>
-            <div class="cs-facet-options" style="display:flex;flex-direction:column;gap:.25rem;font-size:.9rem;">
+                  style="border:0;padding:0;margin:0;">
+            <legend style="font-weight:700;font-size:1.1rem;margin:0 0 .8rem;padding:0 0 .55rem;width:100%;border-bottom:2px solid var(--color-primary,#3b82f6);color:var(--color-heading,#1a202c);">{{ $field['label'] }}</legend>
+            <div class="cs-facet-options" style="display:flex;flex-direction:column;gap:.6rem;font-size:1.02rem;">
                 {{-- Options with known values render statically (visible pre-JS);
                      boolean/relation values are filled by the island from the index. --}}
                 @foreach(($field['options'] ?? []) as $option)
-                    <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;">
-                        <input type="checkbox" value="{{ $option }}" data-cs-facet-value>
-                        <span>{{ $option }}</span>
-                        <span class="cs-count" style="opacity:.5;font-size:.8rem;"></span>
+                    <label style="display:flex;align-items:center;gap:.65rem;cursor:pointer;line-height:1.4;padding:.1rem 0;transition:color .15s ease;"
+                           onmouseover="this.style.color='var(--color-primary,#3b82f6)'" onmouseout="this.style.color=''">
+                        <input type="checkbox" value="{{ $option }}" data-cs-facet-value style="width:19px;height:19px;flex-shrink:0;accent-color:var(--color-primary,#3b82f6);cursor:pointer;">
+                        <span style="flex:1;">{{ $option }}</span>
+                        <span class="cs-count" style="opacity:.5;font-size:.88rem;"></span>
                     </label>
                 @endforeach
             </div>
         </fieldset>
     @endforeach
+    </div>
 @endif
 </div>

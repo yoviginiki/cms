@@ -13,7 +13,7 @@
     // '*' = cross-collection search over the site-level manifest (v3).
     $isCross = ($data['collectionId'] ?? null) === '*';
     $collection = (!$isCross && !empty($data['collectionId'])) ? \App\Models\ContentCollection::find($data['collectionId']) : ($isCross ? null : ($__collection ?? null));
-    [$csMode, $source] = $isCross ? ['static', RecordDisplay::sitePathBase($site) . '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);
+    [$csMode, $source] = $isCross ? ['static', RecordDisplay::sitePathBase($site) . '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site, $__locale ?? null) : ['static', '']);
     $csKey = $isCross ? '_site' : $collection?->slug;
     $columns = max(1, min(6, (int) ($data['columns'] ?? 3)));
     $layout = in_array($data['layout'] ?? 'cards', ['cards', 'list'], true) ? ($data['layout'] ?? 'cards') : 'cards';
@@ -42,16 +42,17 @@
     <div class="cs-results" style="display:flex;flex-direction:column;gap:.6rem;"></div>
     <p class="cs-empty" hidden style="opacity:.6;padding:2rem 0;text-align:center;">{{ $emptyText }}</p>
     <template data-cs-card>
-        <article class="record-row" style="display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;border:1px solid var(--color-border,#e5e2dd);background:var(--color-surface,#fff);border-radius:8px;">
+        <article class="record-row" style="display:flex;align-items:center;gap:1.15rem;padding:1rem 1.25rem;border:1px solid var(--color-border,#e5e2dd);background:var(--color-surface,#fff);border-radius:12px;transition:border-color .18s ease,box-shadow .18s ease;"
+                 onmouseover="this.style.borderColor='var(--color-primary,#3b82f6)';this.style.boxShadow='0 8px 22px -16px rgba(0,0,0,.3)'" onmouseout="this.style.borderColor='var(--color-border,#e5e2dd)';this.style.boxShadow=''">
             @if($showImage)
-            <a data-cs-slot="url" style="flex-shrink:0;display:block;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--color-bg-alt,#f5f5f0);">
+            <a data-cs-slot="url" style="flex-shrink:0;display:block;width:76px;height:76px;border-radius:10px;overflow:hidden;background:var(--color-bg-alt,#f5f5f0);">
                 <img data-cs-slot="image" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
             </a>
             @endif
             <div style="flex:1;min-width:0;">
-                <h3 style="margin:0;font-size:1rem;"><a data-cs-slot="url" data-cs-slot-text="title" style="color:inherit;text-decoration:none;"></a></h3>
+                <h3 style="margin:0 0 .25rem;font-size:1.2rem;line-height:1.3;"><a data-cs-slot="url" data-cs-slot-text="title" style="color:inherit;text-decoration:none;"></a></h3>
                 @foreach($cardFields as $f)
-                    <span data-cs-slot-field="{{ $f['key'] }}" data-cs-field-type="{{ $f['type'] }}" style="font-size:.85rem;margin-right:1rem;color:var(--color-text-muted,#6b6864);"></span>
+                    <span data-cs-slot-field="{{ $f['key'] }}" data-cs-field-type="{{ $f['type'] }}" style="font-size:.98rem;margin-right:1rem;color:var(--color-text-muted,#6b6864);"></span>
                 @endforeach
             </div>
         </article>

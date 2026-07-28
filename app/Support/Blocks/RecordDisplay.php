@@ -299,13 +299,17 @@ class RecordDisplay
      *
      * @return array{0: 'static'|'api', 1: string} [mode, url]
      */
-    public static function searchSource(ContentCollection $collection, Site $site): array
+    public static function searchSource(ContentCollection $collection, Site $site, ?string $locale = null): array
     {
         if ($collection->tier === 'dynamic') {
             return ['api', rtrim((string) config('app.url'), '/') . "/api/v1/public/{$site->id}/collections/{$collection->slug}/records"];
         }
 
-        return ['static', '/' . self::pathPrefix($collection) . '/index.json'];
+        // Per-locale static index: the /{locale}/ archive must read its own
+        // index shard, not the default-language one.
+        $localePrefix = $locale ? self::localeUrlPrefix($collection, $locale) : '';
+
+        return ['static', '/' . $localePrefix . self::pathPrefix($collection) . '/index.json'];
     }
 
     /** HTML-safe rendering of one field value ('' when empty). */
