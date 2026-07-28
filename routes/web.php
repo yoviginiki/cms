@@ -20,6 +20,9 @@ Route::middleware(['auth', \App\Http\Middleware\SetTenantFromAuth::class])->pref
     Route::get('/', [DynamicSiteController::class, 'home'])->name('site.home');
     Route::get('/{categorySlug}/{postSlug}', [DynamicSiteController::class, 'post'])->name('site.post');
     Route::get('/{slug}', [DynamicSiteController::class, 'page'])->name('site.page');
+    // Deep collection paths (category pages, archive pagination, nested records).
+    Route::get('/{path}', [DynamicSiteController::class, 'collectionPath'])
+        ->where('path', '.*')->name('site.collection-path');
 });
 
 // ─── Public asset serve (for magazine viewer images) ───

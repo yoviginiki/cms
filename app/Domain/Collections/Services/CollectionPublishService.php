@@ -265,6 +265,17 @@ class CollectionPublishService
     /** Build one record's detail page (used by full and delta publishes). */
     public function buildRecordPage(Site $site, ContentCollection $collection, Record $record, string $stagingPath): void
     {
+        $html = $this->renderRecordPageHtml($site, $collection, $record);
+        $path = ltrim(RecordDisplay::recordUrl($collection, $record), '/') . 'index.html';
+        $this->write($stagingPath, $path, $html);
+    }
+
+    /**
+     * Full HTML document for one record page — shared by the static publisher
+     * and the dynamic /sites/{slug}/… preview.
+     */
+    public function renderRecordPageHtml(Site $site, ContentCollection $collection, Record $record): string
+    {
         $record->loadMissing('relationsOut.toRecord');
 
         // Hierarchy (S3): breadcrumb chain + child listing for tree collections.
@@ -309,10 +320,7 @@ class CollectionPublishService
             $head .= '<meta property="og:image" content="' . e($thumb) . '">';
         }
 
-        $html = $this->wrapInLayout($site, $head, $body, $record->title);
-
-        $path = ltrim(RecordDisplay::recordUrl($collection, $record), '/') . 'index.html';
-        $this->write($stagingPath, $path, $html);
+        return $this->wrapInLayout($site, $head, $body, $record->title);
     }
 
     /** Statically paginated archive: /{prefix}/ + /{prefix}/page/{n}/. */
@@ -325,41 +333,61 @@ class CollectionPublishService
 
         for ($page = 1; $page <= $totalPages; $page++) {
             $pageRecords = $records->forPage($page, $perPage)->values();
-
-            $context = [
-                '__collection' => $collection,
-                '__archiveRecords' => $pageRecords,
-                '__archiveRecordCount' => $records->count(),
-                '__archiveCurrentPage' => $page,
-                '__archiveTotalPages' => $totalPages,
-                '__archiveBaseUrl' => "/{$prefix}",
-            ];
-
-            if ($template) {
-                $blocks = $template->blocks()->whereNull('parent_block_id')->orderBy('order')->with('children')->get();
-                $body = $this->buildService->renderBlocksWithContext($blocks, $site, $context);
-            } else {
-                $body = View::make('publishing.record-archive', [
-                    'site' => $site,
-                    'collection' => $collection,
-                    'records' => $pageRecords,
-                    'currentPage' => $page,
-                    'totalPages' => $totalPages,
-                    'baseUrl' => "/{$prefix}",
-                ])->render();
-            }
-
-            $head = '<title>' . e($collection->name) . ($page > 1 ? " — page {$page}" : '') . ' | ' . e($site->name) . '</title>'
-                . '<meta name="description" content="' . e(mb_substr("Browse {$collection->name} — {$site->name}", 0, 160)) . '">';
-
-            // Runtime injection is auto-detected from data-cs-role in the body
-            // (templated archives with search blocks); the fallback archive has
-            // none and must not pay for an unused script.
-            $html = $this->wrapInLayout($site, $head, $body, $collection->name);
-
+            $html = $this->archivePageHtml($site, $collection, $pageRecords, $records->count(), $page, $totalPages, $template);
             $path = $page === 1 ? "{$prefix}/index.html" : "{$prefix}/page/{$page}/index.html";
             $this->write($stagingPath, $path, $html);
         }
+    }
+
+    /** One archive page for the dynamic /sites/{slug}/{prefix}/ preview. */
+    public function renderArchivePageHtml(Site $site, ContentCollection $collection, int $page = 1): string
+    {
+        $records = Record::where('collection_id', $collection->id)
+            ->where('status', 'published')
+            ->orderByDesc('published_at')
+            ->get();
+        $perPage = max(6, min(100, (int) ($collection->settings['per_page'] ?? 24)));
+        $totalPages = max(1, (int) ceil($records->count() / $perPage));
+        $page = max(1, min($totalPages, $page));
+        $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
+
+        return $this->archivePageHtml($site, $collection, $records->forPage($page, $perPage)->values(), $records->count(), $page, $totalPages, $template);
+    }
+
+    /** Full HTML document for one archive page (shared publisher/preview). */
+    private function archivePageHtml(Site $site, ContentCollection $collection, $pageRecords, int $totalCount, int $page, int $totalPages, ?ThemeTemplate $template): string
+    {
+        $prefix = $this->prefixFor($collection);
+        $context = [
+            '__collection' => $collection,
+            '__archiveRecords' => $pageRecords,
+            '__archiveRecordCount' => $totalCount,
+            '__archiveCurrentPage' => $page,
+            '__archiveTotalPages' => $totalPages,
+            '__archiveBaseUrl' => "/{$prefix}",
+        ];
+
+        if ($template) {
+            $blocks = $template->blocks()->whereNull('parent_block_id')->orderBy('order')->with('children')->get();
+            $body = $this->buildService->renderBlocksWithContext($blocks, $site, $context);
+        } else {
+            $body = View::make('publishing.record-archive', [
+                'site' => $site,
+                'collection' => $collection,
+                'records' => $pageRecords,
+                'currentPage' => $page,
+                'totalPages' => $totalPages,
+                'baseUrl' => "/{$prefix}",
+            ])->render();
+        }
+
+        $head = '<title>' . e($collection->name) . ($page > 1 ? " — page {$page}" : '') . ' | ' . e($site->name) . '</title>'
+            . '<meta name="description" content="' . e(mb_substr("Browse {$collection->name} — {$site->name}", 0, 160)) . '">';
+
+        // Runtime injection is auto-detected from data-cs-role in the body
+        // (templated archives with search blocks); the fallback archive has
+        // none and must not pay for an unused script.
+        return $this->wrapInLayout($site, $head, $body, $collection->name);
     }
 
     /**
@@ -403,36 +431,70 @@ class CollectionPublishService
             }
 
             $url = RecordDisplay::categoryUrl($collection, $node);
-            $context = [
-                '__collection' => $collection,
-                '__categoryNode' => $node,
-                '__archiveRecords' => $nodeRecords,
-                '__archiveRecordCount' => $nodeRecords->count(),
-                '__archiveCurrentPage' => 1,
-                '__archiveTotalPages' => 1,
-                '__archiveBaseUrl' => rtrim($url, '/'),
-            ];
-
-            if ($template) {
-                $blocks = $template->blocks()->whereNull('parent_block_id')->orderBy('order')->with('children')->get();
-                $body = $this->buildService->renderBlocksWithContext($blocks, $site, $context);
-            } else {
-                $body = View::make('publishing.record-category', [
-                    'site' => $site,
-                    'collection' => $collection,
-                    'node' => $node,
-                    'children' => $byParent->get($node->id, collect()),
-                    'records' => $nodeRecords,
-                ])->render();
-            }
-
-            $head = '<title>' . e($node->name) . ' | ' . e($site->name) . '</title>'
-                . '<meta name="description" content="' . e(mb_substr("{$node->name} — {$collection->name}, {$site->name}", 0, 160)) . '">';
-            $html = $this->wrapInLayout($site, $head, $body, $node->name);
+            $html = $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template);
             $this->write($stagingPath, ltrim($url, '/') . 'index.html', $html);
         }
 
         return $warnings;
+    }
+
+    /** One category page for the dynamic /sites/{slug}/{prefix}/category/… preview. */
+    public function renderCategoryPageHtml(Site $site, ContentCollection $collection, CollectionCategoryNode $node): string
+    {
+        $records = Record::where('collection_id', $collection->id)
+            ->where('status', 'published')
+            ->get();
+        $all = CollectionCategoryNode::where('collection_id', $collection->id)->orderBy('sort_order')->get();
+        $byParent = $all->groupBy(fn ($n) => $n->parent_id ?? '');
+
+        $ids = [];
+        $stack = [$node->id];
+        while ($stack !== []) {
+            $id = array_pop($stack);
+            $ids[$id] = true;
+            foreach ($byParent->get($id, collect()) as $child) {
+                $stack[] = $child->id;
+            }
+        }
+        $nodeRecords = $records->filter(fn ($r) => isset($ids[$r->category_node_id]))
+            ->sortByDesc('published_at')->values();
+
+        $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
+
+        return $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template);
+    }
+
+    /** Full HTML document for one category page (shared publisher/preview). */
+    private function categoryPageHtml(Site $site, ContentCollection $collection, CollectionCategoryNode $node, $nodeRecords, $children, ?ThemeTemplate $template): string
+    {
+        $url = RecordDisplay::categoryUrl($collection, $node);
+        $context = [
+            '__collection' => $collection,
+            '__categoryNode' => $node,
+            '__archiveRecords' => $nodeRecords,
+            '__archiveRecordCount' => $nodeRecords->count(),
+            '__archiveCurrentPage' => 1,
+            '__archiveTotalPages' => 1,
+            '__archiveBaseUrl' => rtrim($url, '/'),
+        ];
+
+        if ($template) {
+            $blocks = $template->blocks()->whereNull('parent_block_id')->orderBy('order')->with('children')->get();
+            $body = $this->buildService->renderBlocksWithContext($blocks, $site, $context);
+        } else {
+            $body = View::make('publishing.record-category', [
+                'site' => $site,
+                'collection' => $collection,
+                'node' => $node,
+                'children' => $children,
+                'records' => $nodeRecords,
+            ])->render();
+        }
+
+        $head = '<title>' . e($node->name) . ' | ' . e($site->name) . '</title>'
+            . '<meta name="description" content="' . e(mb_substr("{$node->name} — {$collection->name}, {$site->name}", 0, 160)) . '">';
+
+        return $this->wrapInLayout($site, $head, $body, $node->name);
     }
 
     /**

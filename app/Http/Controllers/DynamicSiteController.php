@@ -58,6 +58,11 @@ class DynamicSiteController extends Controller
         $page = Page::where('site_id', $site->id)->where('slug', $slug)->first();
 
         if (!$page) {
+            // A collection archive lives at its prefix path (/products/).
+            if ($collection = $this->findCollectionByPrefix($site, $slug)) {
+                return $this->respondCollectionHtml(
+                    $this->collectionPublish()->renderArchivePageHtml($site, $collection), $site);
+            }
             abort(404, "Page not found: {$slug}");
         }
 
@@ -73,10 +78,97 @@ class DynamicSiteController extends Controller
         $post = Post::where('site_id', $site->id)->where('slug', $postSlug)->first();
 
         if (!$post) {
+            // /{prefix}/{record-slug} — a collection record detail page.
+            if ($collection = $this->findCollectionByPrefix($site, $categorySlug)) {
+                $record = \App\Models\Record::where('collection_id', $collection->id)
+                    ->where('status', 'published')->where('slug', $postSlug)->first();
+                if ($record) {
+                    return $this->respondCollectionHtml(
+                        $this->collectionPublish()->renderRecordPageHtml($site, $collection, $record), $site);
+                }
+            }
             abort(404, "Post not found: {$postSlug}");
         }
 
         return $this->renderContent($post, $site);
+    }
+
+    /**
+     * Deep collection paths the fixed routes can't match:
+     *   /{prefix}/category/{root…leaf}/ — category listing page
+     *   /{prefix}/page/{n}/             — archive pagination
+     *   /{prefix}/{ancestors…}/{slug}/  — nested record detail
+     */
+    public function collectionPath(Request $request, string $siteSlug, string $path): Response
+    {
+        $site = $this->resolveSite($siteSlug);
+        $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+        if (count($segments) < 2) {
+            abort(404);
+        }
+
+        $collection = $this->findCollectionByPrefix($site, $segments[0]);
+        if (!$collection) {
+            abort(404, "Not found: /{$path}");
+        }
+        $publish = $this->collectionPublish();
+
+        // /{prefix}/page/{n}
+        if ($segments[1] === 'page' && isset($segments[2]) && ctype_digit($segments[2])) {
+            return $this->respondCollectionHtml(
+                $publish->renderArchivePageHtml($site, $collection, (int) $segments[2]), $site);
+        }
+
+        // /{prefix}/category/{root…leaf}
+        if ($segments[1] === 'category' && count($segments) > 2) {
+            $node = null;
+            $parentId = null;
+            foreach (array_slice($segments, 2) as $slug) {
+                $node = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)
+                    ->where('slug', $slug)
+                    ->when($parentId === null, fn ($q) => $q->whereNull('parent_id'), fn ($q) => $q->where('parent_id', $parentId))
+                    ->first();
+                if (!$node) {
+                    abort(404, "Category not found: {$slug}");
+                }
+                $parentId = $node->id;
+            }
+            return $this->respondCollectionHtml(
+                $publish->renderCategoryPageHtml($site, $collection, $node), $site);
+        }
+
+        // /{prefix}/{ancestors…}/{slug} — hierarchical record URL; match by leaf slug.
+        $record = \App\Models\Record::where('collection_id', $collection->id)
+            ->where('status', 'published')->where('slug', end($segments))->first();
+        if ($record) {
+            return $this->respondCollectionHtml(
+                $publish->renderRecordPageHtml($site, $collection, $record), $site);
+        }
+
+        abort(404, "Not found: /{$path}");
+    }
+
+    /** Collection whose public prefix (settings.path_prefix or slug) matches. */
+    private function findCollectionByPrefix(Site $site, string $prefix): ?\App\Models\ContentCollection
+    {
+        return \App\Models\ContentCollection::where('site_id', $site->id)->get()
+            ->first(fn ($c) => (($c->settings['path_prefix'] ?? null) ?: $c->slug) === $prefix);
+    }
+
+    private function collectionPublish(): \App\Domain\Collections\Services\CollectionPublishService
+    {
+        return app(\App\Domain\Collections\Services\CollectionPublishService::class);
+    }
+
+    /** Preview response for publisher-rendered collection HTML (links rewritten to the /sites prefix). */
+    private function respondCollectionHtml(string $html, Site $site): Response
+    {
+        $html = $this->rewriteLinksForPreview($html, $site);
+
+        return response($html, 200)
+            ->header('Content-Type', 'text/html')
+            ->header('X-Robots-Tag', 'noindex')
+            ->header('Cache-Control', 'no-store');
     }
 
     /**
