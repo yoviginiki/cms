@@ -113,10 +113,17 @@ export default function SliderEditor() {
   const activeSlide = slides.find(s => s.id === activeSlideId) ?? slides[0];
   const rootData = (root?.data ?? {}) as Record<string, any>;
   const heights = rootData.height ?? {};
-  const canvasHeightRatio = (() => {
+  // Absolute canvas height in px, matching the frontend's `.sp-slider` height so
+  // the editor is WYSIWYG. vh/% resolve against the device's nominal viewport
+  // height; px (the common case) is taken literally — previously any px height
+  // was ignored and forced to 0.7·viewportH, making the editor far shorter than
+  // the live page (layers looked tight in the editor, sparse/"big space" live).
+  const canvasHeight = (() => {
     const h = String(heights[canvasDevice] ?? '70vh');
-    const n = parseFloat(h) || 70;
-    return h.endsWith('vh') ? n / 100 : 0.7;
+    const n = parseFloat(h);
+    if (!Number.isFinite(n) || n <= 0) return DEVICE_VIEWPORT_H[canvasDevice] * 0.7;
+    if (h.endsWith('vh') || h.endsWith('%')) return DEVICE_VIEWPORT_H[canvasDevice] * (n / 100);
+    return n; // px — honor the literal height
   })();
 
   const saveMutation = useMutation({
@@ -789,7 +796,7 @@ export default function SliderEditor() {
             }}>
             <div style={{
               width: Math.round(DEVICE_WIDTHS[canvasDevice] * zoom),
-              height: Math.round(DEVICE_VIEWPORT_H[canvasDevice] * canvasHeightRatio * zoom),
+              height: Math.round(canvasHeight * zoom),
               margin: '0 auto',
             }}>
             <div ref={canvasRef}
@@ -798,7 +805,7 @@ export default function SliderEditor() {
               className="relative bg-neutral-900 overflow-hidden shadow-lg shrink-0"
               style={{
                 width: DEVICE_WIDTHS[canvasDevice],
-                height: Math.round(DEVICE_VIEWPORT_H[canvasDevice] * canvasHeightRatio),
+                height: Math.round(canvasHeight),
                 transform: `scale(${zoom})`,
                 transformOrigin: 'top left',
               }}>
