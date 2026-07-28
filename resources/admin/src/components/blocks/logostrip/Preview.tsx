@@ -2,11 +2,17 @@ import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 
 export const LogostripPreview: React.FC<BlockComponentProps> = ({ block }) => {
-  const { logos, grayscale, gap } = block.data as {
+  const { logos, grayscale, gap, sizeMode, logoSize } = block.data as {
     logos: string[];
     grayscale: boolean;
     gap: string;
+    sizeMode?: 'height' | 'width';
+    logoSize?: number;
   };
+  const size = Math.max(8, Math.min(600, logoSize ?? 48));
+  const imgSize: React.CSSProperties = (sizeMode === 'width')
+    ? { width: size, height: 'auto', objectFit: 'contain' }
+    : { height: size, width: 'auto', objectFit: 'contain' };
 
   const logoList = Array.isArray(logos) ? logos : [];
 
@@ -48,8 +54,7 @@ export const LogostripPreview: React.FC<BlockComponentProps> = ({ block }) => {
           key={i}
           src={url}
           alt=""
-          className="h-10 object-contain"
-          style={grayscale ? { filter: 'grayscale(100%)' } : undefined}
+          style={{ ...imgSize, ...(grayscale ? { filter: 'grayscale(100%)' } : {}) }}
         />
       ))}
     </div>

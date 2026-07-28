@@ -39,11 +39,16 @@
     $grayscale = $data['grayscale'] ?? true;
     $columns = $data['columns'] ?? 4;
     $gap = $data['gap'] ?? '32px';
+    // Uniform logo sizing: constrain by height OR width (in px); the other axis
+    // is auto so aspect ratio is preserved. Defaults to 48px height (legacy 3rem).
+    $sizeMode = ($data['sizeMode'] ?? 'height') === 'width' ? 'width' : 'height';
+    $logoSize = max(8, min(600, (int) ($data['logoSize'] ?? 48)));
+    $sizeStyle = $sizeMode === 'width' ? "width:{$logoSize}px;height:auto;" : "height:{$logoSize}px;width:auto;";
 @endphp
 <div class="logostrip-block" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:{{ e($gap) }};">
     @foreach($logos as $url)
         @if(!empty($url))
-            <img class="img-filtered" src="{{ e($url) }}" alt="" loading="lazy" style="height:3rem;object-fit:contain;@if($grayscale)filter:grayscale(100%);@endif{{ $__imageFilter }}">
+            <img class="img-filtered" src="{{ e($url) }}" alt="" loading="lazy" style="{{ $sizeStyle }}object-fit:contain;@if($grayscale)filter:grayscale(100%);@endif{{ $__imageFilter }}">
         @endif
     @endforeach
 </div>

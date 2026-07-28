@@ -10,6 +10,8 @@ export const logostripDefinition: BlockDefinition = {
     grayscale: true,
     columns: 4,
     gap: '32px',
+    sizeMode: 'height',
+    logoSize: 48,
   },
   allowsChildren: false,
 };
