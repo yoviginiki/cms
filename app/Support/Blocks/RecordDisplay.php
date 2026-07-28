@@ -57,6 +57,37 @@ class RecordDisplay
     }
 
     /**
+     * Deterministic public URL for a category listing page:
+     *   /{prefix}/category/{root-slug}/…/{node-slug}/
+     * Ancestor slugs are included so sibling namespaces (e.g. the two vioiv
+     * language roots Products / Продукти) stay separate and nested depth is
+     * unambiguous. Shared by the publisher (page path) and the home-page card
+     * links (href) so the two never diverge.
+     */
+    public static function categoryUrl(ContentCollection $collection, \App\Models\CollectionCategoryNode $node): string
+    {
+        return '/' . self::pathPrefix($collection) . '/category/' . implode('/', self::categorySlugPath($node)) . '/';
+    }
+
+    /**
+     * Slug segments root→leaf for a category node (walks parent_id upward with
+     * cycle protection). @return array<int, string>
+     */
+    public static function categorySlugPath(\App\Models\CollectionCategoryNode $node): array
+    {
+        $segments = [];
+        $seen = [];
+        $current = $node;
+        while ($current instanceof \App\Models\CollectionCategoryNode && !isset($seen[$current->id])) {
+            $seen[$current->id] = true;
+            array_unshift($segments, $current->slug);
+            $current = $current->parent_id ? \App\Models\CollectionCategoryNode::find($current->parent_id) : null;
+        }
+
+        return $segments;
+    }
+
+    /**
      * Hierarchy (S3): the published-ancestor chain root→…→parent, empty for
      * flat collections. Walks the hierarchy field's edges upward with cycle
      * and depth protection; unpublished ancestors are skipped from URLs so

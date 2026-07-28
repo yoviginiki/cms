@@ -6,11 +6,13 @@ use App\Domain\Publishing\Services\ArchiveBuildService;
 use App\Domain\Publishing\Services\AssetPublisher;
 use App\Domain\Publishing\Services\BuildPageService;
 use App\Domain\Publishing\Services\FaviconGenerator;
+use App\Models\CollectionCategoryNode;
 use App\Models\ContentCollection;
 use App\Models\Record;
 use App\Models\Site;
 use App\Models\ThemeTemplate;
 use App\Support\Blocks\RecordDisplay;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\View;
 
@@ -229,11 +231,16 @@ class CollectionPublishService
 
         $this->buildArchivePages($site, $collection, $records, $stagingPath);
 
+        // Per-category listing pages (subtree-inclusive) for collections that
+        // carry a category tree. A tree-less collection produces nothing here —
+        // fully backward compatible.
+        $warnings = $this->buildCategoryPages($site, $collection, $records, $stagingPath);
+
         if (!$isDynamic) {
             $this->buildIndex($site, $collection, $records, $stagingPath);
         }
 
-        return [];
+        return $warnings;
     }
 
     /**
@@ -249,6 +256,7 @@ class CollectionPublishService
             ->get();
 
         $this->buildArchivePages($site, $collection, $records, $stagingPath);
+        $this->buildCategoryPages($site, $collection, $records, $stagingPath);
         if ($collection->tier !== 'dynamic') {
             $this->buildIndex($site, $collection, $records, $stagingPath);
         }
@@ -352,6 +360,79 @@ class CollectionPublishService
             $path = $page === 1 ? "{$prefix}/index.html" : "{$prefix}/page/{$page}/index.html";
             $this->write($stagingPath, $path, $html);
         }
+    }
+
+    /**
+     * Per-category listing pages (subtree-inclusive): /{prefix}/category/{root…leaf}/.
+     * Each node's page lists the published records of its whole subtree, so a
+     * parent category shows everything beneath it. Collections without a
+     * category tree produce nothing — fully backward compatible.
+     * Uses the record-archive template when one exists (with __categoryNode
+     * context) else the publishing.record-category fallback view.
+     *
+     * @return array<int, string> human-readable warnings
+     */
+    private function buildCategoryPages(Site $site, ContentCollection $collection, $records, string $stagingPath): array
+    {
+        $nodes = CollectionCategoryNode::where('collection_id', $collection->id)
+            ->orderBy('depth')->orderBy('sort_order')->get();
+        if ($nodes->isEmpty()) {
+            return [];
+        }
+
+        $warnings = [];
+        $byParent = $nodes->groupBy(fn ($n) => $n->parent_id ?? '');
+        $byNode = $records->filter(fn ($r) => $r->category_node_id)->groupBy('category_node_id');
+        $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
+
+        // Subtree record sets, computed leaf→root so each parent reuses its
+        // children's already-collected rows.
+        $subtree = [];
+        foreach ($nodes->sortByDesc('depth') as $node) {
+            $rows = collect($byNode->get($node->id, collect()));
+            foreach ($byParent->get($node->id, collect()) as $child) {
+                $rows = $rows->concat($subtree[$child->id] ?? collect());
+            }
+            $subtree[$node->id] = $rows->unique('id')->sortByDesc('published_at')->values();
+        }
+
+        foreach ($nodes as $node) {
+            $nodeRecords = $subtree[$node->id] ?? collect();
+            if ($nodeRecords->isEmpty()) {
+                $warnings[] = "Category \"{$node->name}\" ({$collection->name}) has no published records — its page publishes empty.";
+            }
+
+            $url = RecordDisplay::categoryUrl($collection, $node);
+            $context = [
+                '__collection' => $collection,
+                '__categoryNode' => $node,
+                '__archiveRecords' => $nodeRecords,
+                '__archiveRecordCount' => $nodeRecords->count(),
+                '__archiveCurrentPage' => 1,
+                '__archiveTotalPages' => 1,
+                '__archiveBaseUrl' => rtrim($url, '/'),
+            ];
+
+            if ($template) {
+                $blocks = $template->blocks()->whereNull('parent_block_id')->orderBy('order')->with('children')->get();
+                $body = $this->buildService->renderBlocksWithContext($blocks, $site, $context);
+            } else {
+                $body = View::make('publishing.record-category', [
+                    'site' => $site,
+                    'collection' => $collection,
+                    'node' => $node,
+                    'children' => $byParent->get($node->id, collect()),
+                    'records' => $nodeRecords,
+                ])->render();
+            }
+
+            $head = '<title>' . e($node->name) . ' | ' . e($site->name) . '</title>'
+                . '<meta name="description" content="' . e(mb_substr("{$node->name} — {$collection->name}, {$site->name}", 0, 160)) . '">';
+            $html = $this->wrapInLayout($site, $head, $body, $node->name);
+            $this->write($stagingPath, ltrim($url, '/') . 'index.html', $html);
+        }
+
+        return $warnings;
     }
 
     /**
