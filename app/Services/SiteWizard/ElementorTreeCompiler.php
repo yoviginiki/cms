@@ -274,10 +274,19 @@ class ElementorTreeCompiler
             return '<div style="display:flex;align-items:flex-start;gap:16px;margin:0 0 20px">' . $tile . $body . '</div>';
         }
 
-        return '<div style="margin:0 0 10px">'
-            . '<img src="' . e($iconUrl) . '" alt="" width="40" height="40" style="' . $blue . ';margin-bottom:14px">'
-            . '<div style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a)">' . e($title) . '</div>'
-            . $descHtml . '</div>';
+        // Icon-top (service cards): padded header that, on hover, fills with the
+        // accent from the bottom while the icon darkens and the title goes white
+        // — matching the source's hover_from_bottom overlay.
+        $uid = 'sf' . substr(md5($iconUrl . $title), 0, 7);
+        $accent = $this->accent();
+
+        return '<div class="' . $uid . '" style="position:relative;padding:26px 24px 20px;border-radius:14px;'
+            . 'background:linear-gradient(to top,' . $accent . ',' . $accent . ') no-repeat bottom / 100% 0;transition:background-size .4s ease">'
+            . '<img src="' . e($iconUrl) . '" alt="" width="40" height="40" class="ic" style="' . $blue . ';margin-bottom:14px;transition:filter .4s">'
+            . '<div class="ti" style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a);transition:color .4s">' . e($title) . '</div>'
+            . $descHtml
+            . '<style>.' . $uid . ':hover{background-size:100% 100%!important}.' . $uid . ':hover .ic{filter:brightness(0) invert(.1)!important}.' . $uid . ':hover .ti{color:#fff!important}'
+            . '@media(prefers-reduced-motion:reduce){.' . $uid . '{transition:none}}</style></div>';
     }
 
     /** Headline HTML with each letter in its own span on a staggered entrance;
