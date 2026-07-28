@@ -689,10 +689,16 @@ class CollectionPublishService
             }
             if ($thumb = RecordDisplay::thumbUrl($site, $collection, $record)) {
                 // Publish the asset and reference its static hashed path.
-                $row['i'] = AssetPublisher::rewriteHtml('<img src="' . $thumb . '">');
-                $row['i'] = preg_match('/src="([^"]+)"/', $row['i'], $m) ? $m[1] : null;
-                if ($row['i'] === null) {
-                    unset($row['i']);
+                $rewritten = AssetPublisher::rewriteHtml('<img src="' . $thumb . '">');
+                $src = preg_match('/src="([^"]+)"/', $rewritten, $m) ? $m[1] : null;
+                if ($src !== null) {
+                    // Index values live in JSON, so they skip the page-level
+                    // slug-hosting base rewrite — prepend the site base here.
+                    $base = RecordDisplay::sitePathBase($site);
+                    if ($base !== '' && str_starts_with($src, '/') && !str_starts_with($src, $base . '/') && !str_starts_with($src, '/api/')) {
+                        $src = $base . $src;
+                    }
+                    $row['i'] = $src;
                 }
             }
 
