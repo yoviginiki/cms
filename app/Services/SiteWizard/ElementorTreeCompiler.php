@@ -481,6 +481,29 @@ class ElementorTreeCompiler
         $containerKids = array_values(array_filter($kids, fn ($e) => ($e['elType'] ?? '') === 'container'));
         $dir = $el['settings']['flex_direction'] ?? 'row';
 
+        // This container is itself a flex ROW of 2-4 sibling widgets of the SAME
+        // type (an icon-box strip, a button pair) → map each widget to its own
+        // column so they sit side by side, matching the source, instead of
+        // buffering into one stacked column. Homogeneous + row-direction gate
+        // keeps ordinary vertical widget stacks (heading+text+button) untouched.
+        $widgetTypes = array_map(fn ($k) => $k['widgetType'] ?? '', $kids);
+        if ($dir !== 'column' && count($kids) >= 2 && count($kids) <= 4
+            && count(array_filter($kids, fn ($k) => ($k['elType'] ?? '') === 'widget')) === count($kids)
+            && count(array_unique($widgetTypes)) === 1 && $widgetTypes[0] !== '') {
+            $columns = [];
+            foreach ($kids as $g) {
+                $mods = $this->widgetModules($g);
+                if ($mods !== []) {
+                    $columns[] = $this->column($mods);
+                }
+            }
+            if (count($columns) >= 2) {
+                $layouts = [2 => '1/2+1/2', 3 => '1/3+1/3+1/3', 4 => '1/4+1/4+1/4+1/4'];
+
+                return [$this->row($layouts[count($columns)] ?? '1/2+1/2', $columns)];
+            }
+        }
+
         if ($dir !== 'column' && count($kids) >= 2 && count($containerKids) === count($kids)) {
             // Prefer the explicitly-widthed containers as the columns; any
             // width-less trailing containers become their own rows below.
@@ -599,6 +622,19 @@ class ElementorTreeCompiler
         $row = $this->row($layouts[count($columns)] ?? '1/2+1/2', array_slice($columns, 0, 4));
         if (!in_array(null, $widths, true) && count($widths) === count($columns)) {
             $spans = array_map(fn ($w) => max(2, min(10, (int) round($w * 12 / 100))), $widths);
+            // A 2-column split whose real widths clearly differ (>=5 percentage
+            // points) but which rounded to the same span would render 50/50 and
+            // squeeze a wider content column — e.g. the source's 54/46 about-us
+            // band. Nudge them apart so the wider column stays wider (keeps big
+            // headings on the source's line count).
+            if (count($spans) === 2 && $spans[0] === $spans[1] && abs($widths[0] - $widths[1]) >= 5) {
+                $wider = $widths[0] >= $widths[1] ? 0 : 1;
+                $narrow = 1 - $wider;
+                if ($spans[$wider] < 10 && $spans[$narrow] > 2) {
+                    $spans[$wider]++;
+                    $spans[$narrow]--;
+                }
+            }
             while (array_sum($spans) > 12) { $spans[array_search(max($spans), $spans, true)]--; }
             while (array_sum($spans) < 12) { $spans[array_search(min($spans), $spans, true)]++; }
             $row['data']['col_spans'] = $spans;
@@ -794,23 +830,46 @@ class ElementorTreeCompiler
     /** Source-site product categories as linked tile columns (context-fed). */
     private function categoryTiles(): array
     {
-        $cats = array_slice((array) ($this->context['categories'] ?? []), 0, 6);
+        $cats = array_slice((array) ($this->context['categories'] ?? []), 0, 12);
+        // Keep named categories only; render them as titled, icon-badged cards
+        // (no product photo) that link to the catalog — a scannable directory of
+        // the site's product categories rather than a strip of thumbnails.
+        $cats = array_values(array_filter($cats, fn ($c) => trim((string) ($c['name'] ?? '')) !== ''));
         if ($cats === []) {
             return [$this->module('categorylist', ['style' => 'cards', 'showCount' => true, 'parentOnly' => false])];
         }
-        $images = [];
+
+        return [$this->module('html-embed', ['html' => $this->categoryCardsHtml($cats)])];
+    }
+
+    /** A responsive grid of category cards: an accent-tinted icon badge + the
+     * category name, each linking to the catalog. No images — a clean directory
+     * of categories. Whole-card hover lift, reduced-motion safe. */
+    private function categoryCardsHtml(array $cats): string
+    {
+        $accent = $this->accent();
+        $tint = $this->rgba($accent, 0.10);
+        $href = $this->context['catalog_url'] ?? 'products';
+        // A generic "stacked layers" category glyph (accent-coloured, currentColor).
+        $glyph = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="' . $accent
+            . '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+            . '<path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></svg>';
+        $cards = '';
         foreach ($cats as $cat) {
-            if (!empty($cat['image'])) {
-                $images[] = ($this->importImage)($cat['image'], (string) ($cat['name'] ?? ''));
-            }
+            $uid = 'cc' . substr(md5(($cat['name'] ?? '') . $accent), 0, 7);
+            $cards .= '<a href="' . e($href) . '" class="' . $uid . '" style="text-decoration:none;color:inherit;'
+                . 'display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px 16px;background:#fff;'
+                . 'border:1px solid rgba(26,32,44,.08);border-radius:16px;transition:transform .3s ease,box-shadow .3s ease">'
+                . '<span class="cci" style="width:56px;height:56px;border-radius:14px;background:' . $tint . ';'
+                . 'display:inline-flex;align-items:center;justify-content:center;transition:background-color .3s ease">' . $glyph . '</span>'
+                . '<span style="font-weight:600;font-size:15px;line-height:1.3;text-align:center;color:var(--color-heading,#1a202c)">'
+                . e($cat['name']) . '</span>'
+                . '<style>.' . $uid . ':hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(15,23,42,.10)}'
+                . '.' . $uid . ':hover .cci{background-color:' . $tint . '}'
+                . '@media(prefers-reduced-motion:reduce){.' . $uid . '{transition:none}.' . $uid . ':hover{transform:none}}</style></a>';
         }
 
-        // One compact band, like the source's category carousel.
-        return $images === [] ? [] : [$this->module('gallery', [
-            'images' => $images, 'layout' => 'grid', 'columns' => min(6, count($images)),
-            'effects' => ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'shine']],
-            '__animation' => ['entrance' => 'fade', 'duration' => 700],
-        ])];
+        return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px">' . $cards . '</div>';
     }
 
     /** Source-site project cards (context-fed): image + title + text, side by side. */
@@ -1025,9 +1084,20 @@ class ElementorTreeCompiler
             'fontSize' => $this->edim($s['typography_font_size'] ?? $s['title_typography_font_size'] ?? null),
             'lineHeight' => $this->edim($s['typography_line_height'] ?? $s['title_typography_line_height'] ?? null),
             'letterSpacing' => $this->edim($s['typography_letter_spacing'] ?? $s['title_typography_letter_spacing'] ?? null),
+            'fontWeight' => $this->fontWeight($s['typography_font_weight'] ?? $s['title_typography_font_weight'] ?? null),
         ];
 
         return array_filter($out, fn ($v) => $v !== '');
+    }
+
+    /** Elementor font-weight token → a numeric weight the heading block accepts
+     * (400-900); 'normal'/'bold' and empty map through, anything else drops. */
+    private function fontWeight($raw): string
+    {
+        $w = strtolower(trim((string) $raw));
+        $w = ['normal' => '400', 'bold' => '700'][$w] ?? $w;
+
+        return in_array($w, ['400', '500', '600', '700', '800', '900'], true) ? $w : '';
     }
 
     /** A fully-transparent 8-digit hex (alpha 00) is not a card fill. */
@@ -1126,6 +1196,18 @@ class ElementorTreeCompiler
     private function accent(): string
     {
         return $this->color($this->globalColors['accent'] ?? null) ?? '#2f6df6';
+    }
+
+    /** A #rrggbb colour as an rgba() string with the given alpha (for subtle
+     * accent tints inside inline-styled html-embed tiles/cards). */
+    private function rgba(string $hex, float $a): string
+    {
+        if (preg_match('/^#([0-9a-f]{6})/i', $hex, $m) !== 1) {
+            return 'rgba(47,109,246,' . $a . ')';
+        }
+        [$r, $g, $b] = sscanf($m[1], '%02x%02x%02x');
+
+        return 'rgba(' . $r . ',' . $g . ',' . $b . ',' . $a . ')';
     }
 
     /**

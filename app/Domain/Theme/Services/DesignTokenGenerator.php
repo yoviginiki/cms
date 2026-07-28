@@ -343,12 +343,20 @@ class DesignTokenGenerator
             'font-h1', 'font-h2', 'font-h3', 'font-h4', 'font-h5', 'font-h6',
             'font-button', 'font-nav'];
 
+        $genericFamilies = ['system-ui', 'ui-monospace', 'ui-sans-serif', 'ui-serif',
+            'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'inherit', 'initial', '-apple-system'];
         $uniqueFonts = [];
         foreach ($fontKeys as $key) {
             $val = $tokens[$key] ?? null;
-            if (!$val || str_contains($val, 'system-ui') || str_contains($val, 'ui-monospace')) continue;
+            if (!$val) continue;
+            if (is_array($val)) $val = $val[0] ?? '';
+            // Only the PRIMARY family decides whether there's a webfont to load —
+            // a real font (e.g. "Plus Jakarta Sans") must still import even when
+            // its fallback stack lists system-ui/sans-serif (previously the whole
+            // token was skipped if 'system-ui' appeared anywhere in the stack).
             $clean = trim(explode(',', $val)[0], "' \"");
-            if (!$clean || isset($uniqueFonts[$clean])) continue;
+            if ($clean === '' || in_array(strtolower($clean), $genericFamilies, true)) continue;
+            if (isset($uniqueFonts[$clean])) continue;
             $uniqueFonts[$clean] = true;
         }
 

@@ -121,6 +121,11 @@ class ElementorImportCommand extends Command
                 $context['categories'][] = ['name' => html_entity_decode($tile[2]), 'image' => $tile[1]];
             }
         }
+        // Where category cards link: the site's product collection page (its
+        // slug, resolved page-relative — this band lives on the home page).
+        $collectionSlug = DB::table('collections')->where('site_id', $site->id)
+            ->orderBy('created_at')->value('slug');
+        $context['catalog_url'] = $collectionSlug ?: 'products';
         $this->line('context: ' . count($context['projects']) . ' projects, ' . count($context['categories']) . ' categories');
 
         $pairs = [];
@@ -338,6 +343,11 @@ class ElementorImportCommand extends Command
         if (($secondary = $size('secondary')) !== null) {
             $vars[] = '--font-size-xl:' . $rem($secondary);
         }
+        // Body base: match the source. The token profile's house default (17px)
+        // is larger than the builder default (16px); use the kit's own body-text
+        // size when set, otherwise reset to 1rem so imported copy reads like its
+        // source rather than the platform's larger house body.
+        $vars[] = '--font-size-base:' . (($bodySize = $size('text')) !== null ? $rem($bodySize) : '1rem');
 
         $recipe = '';
         if ($vars !== []) {

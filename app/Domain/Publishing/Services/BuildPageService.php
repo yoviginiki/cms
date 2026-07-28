@@ -1166,6 +1166,9 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-heading,inherit);font-weight:var(--head
 .btn-secondary:hover{background:var(--color-border,#e2e8f0);opacity:1}
 .btn-ghost{background:transparent;color:var(--color-text,#1e293b);border-color:transparent}
 .btn-ghost:hover{background:var(--color-bg-alt,#f8fafc);opacity:1}
+.btn:hover{filter:brightness(0.93);transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,0.16)}
+.btn:active{transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){.btn:hover{transform:none}}
 ';
         }
 
