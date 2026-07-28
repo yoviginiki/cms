@@ -9,6 +9,7 @@ export const resultsGridDefinition: BlockDefinition = {
   level: 'module',
   defaultData: {
     collectionId: null,
+    layout: 'cards',
     columns: 3,
     showImage: true,
     cardFields: [],

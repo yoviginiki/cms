@@ -17,11 +17,15 @@ export const ResultsGridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
       <CollectionSelect value={collectionId} onChange={v => update('collectionId', v)}
         unsetLabel="— inherited from archive —"
         helperText={!collectionId ? 'Inside a record template the collection is inherited from the template' : undefined} />
-      <SelectField label="Columns" value={String(data.columns ?? 3)} onChange={v => update('columns', Number(v))}
-        options={[
-          { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' },
-          { value: '4', label: '4' }, { value: '5', label: '5' }, { value: '6', label: '6' },
-        ]} />
+      <SelectField label="Layout" value={String(data.layout ?? 'cards')} onChange={v => update('layout', v)}
+        options={[{ value: 'cards', label: 'Cards (grid)' }, { value: 'list', label: 'List (rows)' }]} />
+      {(data.layout ?? 'cards') !== 'list' && (
+        <SelectField label="Columns" value={String(data.columns ?? 3)} onChange={v => update('columns', Number(v))}
+          options={[
+            { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' },
+            { value: '4', label: '4' }, { value: '5', label: '5' }, { value: '6', label: '6' },
+          ]} />
+      )}
       <ToggleField label="Show Image" value={data.showImage !== false} onChange={v => update('showImage', v)} />
       {collectionId && schemaLoading && <SchemaLoadingHint />}
       {collection && (

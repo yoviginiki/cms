@@ -16,6 +16,7 @@
     [$csMode, $source] = $isCross ? ['static', RecordDisplay::sitePathBase($site) . '/search/index.json'] : ($collection ? RecordDisplay::searchSource($collection, $site) : ['static', '']);
     $csKey = $isCross ? '_site' : $collection?->slug;
     $columns = max(1, min(6, (int) ($data['columns'] ?? 3)));
+    $layout = in_array($data['layout'] ?? 'cards', ['cards', 'list'], true) ? ($data['layout'] ?? 'cards') : 'cards';
     $showImage = $data['showImage'] ?? true;
     $emptyText = trim((string) ($data['emptyText'] ?? '')) ?: 'No results — try a different search.';
     $cardFields = [];
@@ -36,6 +37,27 @@
     <p style="opacity:.5;padding:1rem;border:1px dashed var(--color-border,#ddd);">Pick a collection for this results grid.</p>
 @else
     <p class="cs-status" role="status" aria-live="polite" style="font-size:.85rem;opacity:.6;margin:0 0 .8rem;"></p>
+    @if($layout === 'list')
+    {{-- LIST layout: one row per record — optional small thumbnail, title + fields --}}
+    <div class="cs-results" style="display:flex;flex-direction:column;gap:.6rem;"></div>
+    <p class="cs-empty" hidden style="opacity:.6;padding:2rem 0;text-align:center;">{{ $emptyText }}</p>
+    <template data-cs-card>
+        <article class="record-row" style="display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;border:1px solid var(--color-border,#e5e2dd);background:var(--color-surface,#fff);border-radius:8px;">
+            @if($showImage)
+            <a data-cs-slot="url" style="flex-shrink:0;display:block;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--color-bg-alt,#f5f5f0);">
+                <img data-cs-slot="image" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
+            </a>
+            @endif
+            <div style="flex:1;min-width:0;">
+                <h3 style="margin:0;font-size:1rem;"><a data-cs-slot="url" data-cs-slot-text="title" style="color:inherit;text-decoration:none;"></a></h3>
+                @foreach($cardFields as $f)
+                    <span data-cs-slot-field="{{ $f['key'] }}" data-cs-field-type="{{ $f['type'] }}" style="font-size:.85rem;margin-right:1rem;color:var(--color-text-muted,#6b6864);"></span>
+                @endforeach
+            </div>
+        </article>
+    </template>
+    @else
+    {{-- CARDS layout (default) --}}
     <div class="cs-results" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min({{ intval(720 / $columns) }}px,100%),1fr));gap:1.5rem;"></div>
     <p class="cs-empty" hidden style="opacity:.6;padding:2rem 0;text-align:center;">{{ $emptyText }}</p>
     {{-- Mustache-grade card template: the island clones it and fills the
@@ -57,5 +79,6 @@
             </div>
         </article>
     </template>
+    @endif
 @endif
 </div>
