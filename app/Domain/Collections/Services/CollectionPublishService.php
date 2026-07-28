@@ -607,6 +607,11 @@ class CollectionPublishService
 
         $searchable = array_values(array_filter($fields, fn ($f) => $f['searchable'] ?? false));
         $facetable = array_values(array_filter($fields, fn ($f) => $f['facetable'] ?? false));
+        // Category tree → a synthetic '__cat' facet (localized per index group)
+        // so records can be filtered by their actual category node, not just a
+        // flat select field. Consumed by the facet-filter's category-tree option.
+        $catNodes = CollectionCategoryNode::where('collection_id', $collection->id)->get()->keyBy('id');
+        $groupLocale = trim($urlPrefix, '/') ?: \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
         // Display fields: what result cards may show (scalars only, keep the index lean).
         $display = array_values(array_filter($fields, fn ($f) => in_array($f['type'], ['text', 'price', 'select', 'sku', 'date', 'boolean', 'number'], true)));
 
@@ -657,6 +662,10 @@ class CollectionPublishService
                         $facets[$field['key']] = $value;
                     }
                 }
+            }
+
+            if ($record->category_node_id && ($catNode = $catNodes->get($record->category_node_id))) {
+                $facets['__cat'] = RecordDisplay::nodeName($catNode, $groupLocale);
             }
 
             $displayValues = [];

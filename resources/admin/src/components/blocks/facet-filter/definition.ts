@@ -9,6 +9,7 @@ export const facetFilterDefinition: BlockDefinition = {
   level: 'module',
   defaultData: {
     collectionId: null,
+    showCategoryTree: false, // filter by the collection's category tree
     fields: [],
     style: 'checkbox',     // checkbox, dropdown
   },

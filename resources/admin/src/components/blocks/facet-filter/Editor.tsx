@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import type { BlockEditorProps } from '@/types/blocks';
-import { SelectField } from '@/components/editor/fields';
+import { SelectField, ToggleField } from '@/components/editor/fields';
 import { CollectionSelect, FieldMultiPick, SchemaLoadingHint, isFacetField, useCollection } from '../collections-shared';
 
 export const FacetFilterEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
@@ -21,6 +21,11 @@ export const FacetFilterEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
       <CollectionSelect value={collectionId} onChange={v => update('collectionId', v)}
         unsetLabel="— inherited from archive —"
         helperText={!collectionId ? 'Inside a record template the collection is inherited from the template' : undefined} />
+      {collection && (
+        <ToggleField label="Category tree filter" value={(data.showCategoryTree as boolean) ?? false}
+          onChange={v => update('showCategoryTree', v)}
+          helperText="Filter by the collection's category tree (its actual categories)" />
+      )}
       {collectionId && schemaLoading && <SchemaLoadingHint />}
       {collection && facetFields.length === 0 && (
         <div className="text-[11px] text-base-content/50 bg-base-200/60 p-2 rounded">

@@ -22,6 +22,18 @@
     if ($isCross) {
         $facetFields[] = ['key' => '_type', 'label' => trim((string) ($data['typeLabel'] ?? '')) ?: 'Type', 'type' => 'select', 'options' => []];
     } elseif ($collection) {
+        // Category-tree facet (synthetic '__cat', matches the index): filter by
+        // the actual category node, localized to the page language.
+        if (!empty($data['showCategoryTree'])) {
+            $__pl = $__locale ?? null;
+            $catOpts = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)
+                ->orderBy('sort_order')->orderBy('name')->get()
+                ->map(fn ($n) => RecordDisplay::nodeName($n, $__pl))
+                ->filter()->unique()->values()->all();
+            if ($catOpts !== []) {
+                $facetFields[] = ['key' => '__cat', 'label' => trim((string) ($data['categoryLabel'] ?? '')) ?: 'Категория', 'type' => 'select', 'options' => $catOpts];
+            }
+        }
         $picks = array_filter((array) ($data['fields'] ?? []), 'is_string');
         foreach ($collection->fields() as $field) {
             if (($field['facetable'] ?? false) && ($picks === [] || in_array($field['key'], $picks, true))) {
