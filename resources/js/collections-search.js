@@ -263,6 +263,12 @@
           el.style.display = active ? 'none' : '';
         });
       }
+
+      // Scroll AFTER the browse grid collapses so we measure the final layout.
+      if (pendingScroll) {
+        pendingScroll = false;
+        requestAnimationFrame(function () { requestAnimationFrame(scrollToResults); });
+      }
     }
 
     function renderFacets(countsByKey) {
@@ -341,9 +347,13 @@
 
     // Bring the results into view after an explicit filter/search (facet click or
     // Search button) — the facet list can be long, so jump back up to the top of
-    // the results with the search bar still in sight. Not called on type-ahead.
+    // the results with the search bar still in sight. Not on type-ahead.
+    // pendingScroll is honored inside renderRows() so the scroll runs AFTER the
+    // category grid collapses and results render (measuring the final layout,
+    // not the pre-collapse bottom position).
+    var pendingScroll = false;
     function scrollToResults() {
-      var el = resultRoots[0] || facetRoots[0];
+      var el = searchInputs[0] || resultRoots[0] || facetRoots[0];
       if (!el || !el.getBoundingClientRect) return;
       var top = el.getBoundingClientRect().top + (window.pageYOffset || 0) - 90;
       try { window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
@@ -383,8 +393,8 @@
         e.preventDefault();
         clearTimeout(debounceTimer);
         state.q = input.value.trim();
+        pendingScroll = true;
         apply();
-        scrollToResults();
       });
     });
 
@@ -394,8 +404,8 @@
         if (input.checked) { if (vals.indexOf(input.value) === -1) vals.push(input.value); }
         else vals = vals.filter(function (v) { return v !== input.value; });
         state.facets[key] = vals;
+        pendingScroll = true;
         apply();
-        scrollToResults();
       });
     }
 
