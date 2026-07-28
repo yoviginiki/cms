@@ -109,6 +109,23 @@ class BuildPageService
                 . "\n" . '<script defer src="' . $runtime['js'] . '"></script>';
         }
 
+        // Entrance animations fire when their section SCROLLS INTO VIEW, not
+        // at page load — below-the-fold content would otherwise finish
+        // animating unseen. The <html> flag arms the paused state only when
+        // JS runs (no-JS visitors just see everything, statically).
+        $headScripts .= "\n" . '<script>document.documentElement.setAttribute(\'data-anim-scroll\',\'1\')</script>';
+        $bodyScripts .= "\n" . <<<'HTML'
+<script>document.addEventListener('DOMContentLoaded',function(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var els=[].slice.call(document.querySelectorAll('[style*="animation-name:block-"]'));
+  if(!els.length||!('IntersectionObserver' in window)){els.forEach(function(e){e.style.animationPlayState='running'});return}
+  var io=new IntersectionObserver(function(en){en.forEach(function(x){
+    if(x.isIntersecting){x.target.style.animationPlayState='running';io.unobserve(x.target)}
+  })},{threshold:0.15,rootMargin:'0px 0px -5% 0px'});
+  els.forEach(function(e){io.observe(e)});
+});</script>
+HTML;
+
         // Collections search islands (Track G2): pages carrying any search
         // block load the hashed vanilla-JS island runtime; everything else
         // loads nothing.
@@ -1158,6 +1175,7 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
 @keyframes block-zoom{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
 @keyframes block-scale-in{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){[style*="animation-name"],[data-animation]{animation:none!important}}
+html[data-anim-scroll] [style*="animation-name:block-"]{animation-play-state:paused}
 .block-hover-opacity{transition:opacity .3s ease}.block-hover-opacity:hover{opacity:.7}
 .block-hover-lift{transition:transform .3s ease,box-shadow .3s ease}.block-hover-lift:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(0,0,0,.12)}
 .block-hover-glow{transition:box-shadow .3s ease}.block-hover-glow:hover{box-shadow:0 0 20px rgba(59,130,246,.4)}
