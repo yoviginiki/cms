@@ -129,10 +129,11 @@ class ElementorTreeCompiler
         };
 
         $layers = [
-            $layer('heading', [
+            $layer('heading', array_filter([
                 'text' => $this->plain($found['heading']['title'] ?? ''),
                 'level' => 'h1', 'color' => '#ffffff', 'fontWeight' => '700',
-            ], ['x' => '6%', 'y' => '22%', 'widthPct' => 48], 'fadeUp', 0.2),
+            ] + $this->headingTypography($found['heading']), fn ($v) => $v !== null && $v !== ''),
+                ['x' => '6%', 'y' => '22%', 'widthPct' => 48], 'fadeUp', 0.2),
         ];
         if ($found['text'] !== null) {
             $layers[] = $layer('text', [
@@ -545,7 +546,7 @@ class ElementorTreeCompiler
                 'color' => $this->settingColor($s, 'title_color'),
                 'fontWeight' => in_array((string) ($s['title_typography_font_weight'] ?? ''), ['400', '500', '600', '700', '800', '900'], true)
                     ? (string) $s['title_typography_font_weight'] : null,
-            ]))],
+            ] + $this->headingTypography($s)))],
 
             'text-editor' => [$this->module('text', array_filter([
                 'content' => (string) ($s['editor'] ?? ''),
@@ -862,6 +863,20 @@ class ElementorTreeCompiler
         }
 
         return $data;
+    }
+
+    /** Per-widget heading typography (font-size/line-height/letter-spacing) →
+     * heading-module fields, so a widget that overrides the kit scale (e.g. a
+     * 66px hero title) renders at its real size instead of the theme default. */
+    private function headingTypography(array $s): array
+    {
+        $out = [
+            'fontSize' => $this->edim($s['typography_font_size'] ?? $s['title_typography_font_size'] ?? null),
+            'lineHeight' => $this->edim($s['typography_line_height'] ?? $s['title_typography_line_height'] ?? null),
+            'letterSpacing' => $this->edim($s['typography_letter_spacing'] ?? $s['title_typography_letter_spacing'] ?? null),
+        ];
+
+        return array_filter($out, fn ($v) => $v !== '');
     }
 
     /** A fully-transparent 8-digit hex (alpha 00) is not a card fill. */

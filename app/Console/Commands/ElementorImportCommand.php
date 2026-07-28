@@ -76,7 +76,9 @@ class ElementorImportCommand extends Command
         $prefix = preg_replace('/[^A-Za-z0-9_]/', '', (string) $this->option('wp-prefix'));
 
         // Elementor kit global colors (dark section backgrounds, accents…)
+        // and system typography (drives the auto type-scale recipe below).
         $globalColors = [];
+        $kitTypography = [];
         $kitId = (int) ($wp->table("{$prefix}options")->where('option_name', 'elementor_active_kit')->value('option_value') ?? 0);
         if ($kitId > 0) {
             $raw = (string) $wp->table("{$prefix}postmeta")->where('post_id', $kitId)
@@ -89,7 +91,12 @@ class ElementorImportCommand extends Command
                     }
                 }
             }
-            $this->line('kit colors: ' . count($globalColors));
+            foreach ((array) ($settings['system_typography'] ?? []) as $t) {
+                if (!empty($t['_id'])) {
+                    $kitTypography[$t['_id']] = $t;
+                }
+            }
+            $this->line('kit colors: ' . count($globalColors) . ', typography: ' . count($kitTypography));
         }
 
         // Source-site context for DYNAMIC widgets the JSON can't describe:
@@ -141,6 +148,7 @@ class ElementorImportCommand extends Command
             return $assetMap[$url] = $serve;
         };
 
+        $heroSlider = false;
         foreach ($pairs as $wpId => $slug) {
             $row = $wp->table("{$prefix}posts as p")
                 ->join("{$prefix}postmeta as m", 'm.post_id', '=', 'p.ID')
@@ -155,6 +163,9 @@ class ElementorImportCommand extends Command
             if ($tree === []) {
                 $this->warn("WP {$wpId}: produced no blocks — skipped");
                 continue;
+            }
+            if (!$heroSlider && isset($tree[0]) && $this->nodeHasSlider($tree[0])) {
+                $heroSlider = true;
             }
 
             $page = Page::where('site_id', $site->id)->where('slug', $slug)->first();
@@ -172,6 +183,14 @@ class ElementorImportCommand extends Command
 
             $sections = count($tree);
             $this->info("WP {$wpId} → /{$slug} ({$sections} sections)");
+        }
+
+        // Auto-recipe: kit typography → the site's type scale, plus the
+        // transparent-overlay header when the home hero is a slider. Kept in
+        // settings.custom_css between markers so re-import refreshes just this
+        // block and never clobbers hand-written CSS.
+        if ($pairs !== []) {
+            $this->applyAutoRecipe($site, $kitTypography, $heroSlider);
         }
 
         // Latest source POSTS → real CMS posts (feeds the latestposts block).
@@ -239,5 +258,77 @@ class ElementorImportCommand extends Command
         $this->info('Imported ' . count($assetMap) . ' media file(s).');
 
         return self::SUCCESS;
+    }
+
+    /** Does a compiled section node contain a slider anywhere below it? */
+    private function nodeHasSlider(array $node): bool
+    {
+        if (($node['type'] ?? '') === 'slider') {
+            return true;
+        }
+        foreach ($node['children'] ?? [] as $child) {
+            if ($this->nodeHasSlider($child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Write the kit-derived type scale (+ overlay-header recipe when the hero
+     * is a slider) into settings.custom_css, between markers, so re-import
+     * refreshes only this block and leaves any hand-written CSS intact.
+     */
+    private function applyAutoRecipe(Site $site, array $kitTypography, bool $heroSlider): void
+    {
+        $rem = fn ($px) => rtrim(rtrim(number_format((float) $px / 16, 4, '.', ''), '0'), '.') . 'rem';
+        $size = fn (string $id) => is_numeric($kitTypography[$id]['typography_font_size']['size'] ?? null)
+            ? (float) $kitTypography[$id]['typography_font_size']['size'] : null;
+
+        $vars = [];
+        if (($primary = $size('primary')) !== null) {
+            $vars[] = '--font-size-2xl:' . $rem($primary);
+            $vars[] = '--font-size-3xl:' . $rem($primary * 1.4);
+            if (is_numeric($lh = $kitTypography['primary']['typography_line_height']['size'] ?? null)) {
+                $vars[] = '--line-height-heading:' . $lh;
+                $vars[] = '--line-height-tight:' . $lh;
+            }
+        }
+        if (($secondary = $size('secondary')) !== null) {
+            $vars[] = '--font-size-xl:' . $rem($secondary);
+        }
+
+        $recipe = '';
+        if ($vars !== []) {
+            $recipe .= ":root{" . implode(';', $vars) . "}\n";
+        }
+        if ($heroSlider) {
+            $recipe .= <<<'CSS'
+                body:has(.pos-main > section:first-child .sp-slider) .site-grid{position:relative}
+                body:has(.pos-main > section:first-child .sp-slider) .pos-nav{position:absolute;top:0;left:0;right:0;z-index:1000}
+                body:has(.pos-main > section:first-child .sp-slider) .pos-nav .site-nav{position:static!important;background:transparent!important;border-bottom:none!important;box-shadow:none!important;backdrop-filter:none!important}
+                body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-top-link,body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-custom-link{color:#fff!important}
+                .sp-slider .sp-slide .sp-layer:has(h1){width:60%!important}
+
+                CSS;
+        }
+        if (trim($recipe) === '') {
+            return;
+        }
+
+        $begin = '/* >>> elementor auto-recipe */';
+        $end = '/* <<< elementor auto-recipe */';
+        $block = $begin . "\n" . rtrim($recipe) . "\n" . $end;
+
+        $existing = (string) ($site->settings['custom_css'] ?? '');
+        // Replace a previous auto-recipe block; otherwise append.
+        $pattern = '#' . preg_quote($begin, '#') . '.*?' . preg_quote($end, '#') . '#s';
+        $merged = preg_match($pattern, $existing) === 1
+            ? preg_replace($pattern, $block, $existing)
+            : trim($existing . "\n\n" . $block);
+
+        $site->update(['settings' => array_merge($site->settings ?? [], ['custom_css' => $merged])]);
+        $this->line('auto-recipe: type scale' . ($heroSlider ? ' + overlay header' : '') . ' → custom_css');
     }
 }

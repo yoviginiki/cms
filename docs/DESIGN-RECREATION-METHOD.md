@@ -57,6 +57,14 @@
     иконография се emit-ва като `html-embed` module (raw). Слой/колона може да е
     ЛЮБОЙ блок тип, вкл. `html-embed`.
   - **nav CTA бутон**: `settings.nav_cta = {text,url}` (MenuRenderer, per-site).
+  - **Типография per-widget**: heading чете собствения `typography_font_size`/
+    `line_height`/`letter_spacing` на widget-а (hero h1=66px точно, не theme scale).
+  - **AUTO-RECIPE (import сам пише в `settings.custom_css`)**: kit `system_typography`
+    → type scale (`--font-size-2xl/3xl/xl`, `--line-height-heading`) + overlay-header
+    рецепта КОГАТО home hero е slider. Между маркери `/* >>> elementor auto-recipe */`
+    … `/* <<< */` → re-import само refresh-ва тоя блок, ръчният CSS остава. **Значи
+    типография + прозрачно меню вече НЕ са ръчна стъпка** (виж §5 — остава само
+    footer/site-specific).
 - **Divi / друг builder**: `php artisan migration:spider {site} {origin}`
   (`LiveContentExtractor` — rendered DOM → блокове; accordion/tabs/gallery/
   counters имат explicit поддръжка).
@@ -115,7 +123,9 @@ body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-top-link,bod
 3. Backup: `DB::table('blocks')->where('blockable_id',<pageid>)` преди import.
 4. `elementor:import --tenant --site --wp-db --wp-user --wp-pass --wp-prefix --origin --catalog-post --pages=ID:slug` (БЕЗ `--publish` = draft).
 5. Build in-process → сравни (виж §3) → чак тогава `PublishOrchestrator::publish($site,$user,'full')` (terminal статус = **'live'**).
-6. Приложи §5 custom_css рецептите + `nav_cta`. Мери с `migration:diff`.
+6. Типография + overlay меню се пишат АВТОМАТИЧНО от import (auto-recipe).
+   Ръчно остава само: `nav_cta` (header CTA от Elementor header template, не от
+   страницата), footer данни, и тъмна титулна лента на вътрешни стр. Мери с `migration:diff`.
 7. Останалите разлики са СЕКЦИОННИ → фикс в компилатора (§2 списъка вече покрива hero/icon-box/cards/stats/news), НЕ на страницата. Blade edit → `view:clear`+`queue:restart`.
 
 ## Платформени правила, въведени от този метод (пазени с тестове)
