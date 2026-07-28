@@ -115,7 +115,7 @@ class ElementorTreeCompiler
             'bg_type' => 'image',
             'bg_image' => ($this->importImage)($bgImage, ''),
             'bg_image_size' => 'cover',
-            'sectionHeight' => 'lg',
+            'sectionHeight' => 'fullscreen',
             'textAlignment' => 'left',
         ];
         if ($found['text'] !== null) {
@@ -136,7 +136,7 @@ class ElementorTreeCompiler
             : 0.55;
         $data['headlineColor'] = '#ffffff';
         $data['subtitleColor'] = '#f5f5f5';
-        $data['headlineSize'] = '46px';
+        $data['headlineSize'] = '66px';
         $data['headlineWeight'] = '700';
 
         // Whatever else lived in the hero band (trust badges, secondary CTAs,
@@ -485,7 +485,7 @@ class ElementorTreeCompiler
 
             'elementskit-category-list' => $this->categoryTiles(),
 
-            'elementskit-blog-posts' => [$this->module('latestposts', ['count' => 3, 'categoryId' => '', 'showExcerpt' => true, 'showImage' => true])],
+            'elementskit-blog-posts' => [$this->module('latestposts', ['count' => 3, 'categoryId' => '', 'showExcerpt' => false, 'showImage' => true])],
 
             'elementskit-contact-form7' => [$this->module('contact-form', [
                 'fields' => [
