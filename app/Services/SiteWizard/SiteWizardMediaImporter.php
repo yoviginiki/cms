@@ -72,27 +72,50 @@ class SiteWizardMediaImporter
 
             // Trust the bytes, not the extension/headers.
             $size = @getimagesize($tmp);
-            if (!$size || empty($size['mime']) || !str_starts_with($size['mime'], 'image/')) {
-                return null;
-            }
-            $ext = match ($size['mime']) {
-                'image/jpeg' => 'jpg',
-                'image/png' => 'png',
-                'image/gif' => 'gif',
-                'image/webp' => 'webp',
-                default => null,
-            };
-            if (!$ext) {
+            if ($size && !empty($size['mime']) && str_starts_with($size['mime'], 'image/')) {
+                $ext = match ($size['mime']) {
+                    'image/jpeg' => 'jpg',
+                    'image/png' => 'png',
+                    'image/gif' => 'gif',
+                    'image/webp' => 'webp',
+                    default => null,
+                };
+                if (!$ext) {
+                    return null;
+                }
+                $mime = $size['mime'];
+            } elseif ($this->looksLikeSvg($body)) {
+                // SVG is vector XML — getimagesize can't read it, so raster
+                // detection above always failed and icon SVGs were dropped
+                // (left as dead /wp-content/… hotlinks). AssetService::upload
+                // sanitizes SVGs (scripts/handlers/external refs stripped)
+                // before storing, so this is safe to accept.
+                $ext = 'svg';
+                $mime = 'image/svg+xml';
+            } else {
                 return null;
             }
 
             $filename = (Str::slug($name) ?: 'imported') . ".{$ext}";
 
-            return $this->assets->upload($site, new UploadedFile($tmp, $filename, $size['mime'], null, true));
+            return $this->assets->upload($site, new UploadedFile($tmp, $filename, $mime, null, true));
         } catch (\Throwable) {
             return null;
         } finally {
             @unlink($tmp);
         }
+    }
+
+    /** Heuristic: does the payload look like an SVG document? (getimagesize
+     *  can't detect SVG, so raster sniffing misses it.) The sanitizer that
+     *  runs at upload is the real gate; this just routes SVG bytes to it. */
+    private function looksLikeSvg(string $body): bool
+    {
+        $head = substr($body, 0, 1024);
+        // Skip a UTF-8 BOM and leading whitespace before checking the root.
+        $head = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $head));
+
+        return stripos($head, '<svg') !== false
+            && ($head[0] === '<'); // XML/SVG opening, not HTML wrapping an <svg>
     }
 }
