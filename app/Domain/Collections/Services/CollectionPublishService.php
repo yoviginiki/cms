@@ -66,7 +66,7 @@ class CollectionPublishService
                 if (($result['type'] ?? '') === 'records') {
                     $collection = $query->sourceCollection();
                     $rows = collect($result['rows'])->take(500)->map(fn ($r) => array_filter([
-                        'u' => $collection ? RecordDisplay::recordUrl($collection, $r) : null,
+                        'u' => $collection ? RecordDisplay::sitePathBase($site) . RecordDisplay::recordUrl($collection, $r) : null,
                         't' => $r->title,
                         'd' => $r->data,
                     ]))->values()->all();
@@ -74,7 +74,7 @@ class CollectionPublishService
                     $rows = collect($result['rows'] ?? [])->take(500)->values()->all();
                 }
 
-                $this->write($stagingPath, "queries/{$query->slug}.json", json_encode([
+                $this->write($site, $stagingPath, "queries/{$query->slug}.json", json_encode([
                     'query' => $query->slug,
                     'name' => $query->name,
                     'generated' => now()->toISOString(),
@@ -140,7 +140,7 @@ class CollectionPublishService
             return;
         }
 
-        $this->write($stagingPath, 'search/index.json', json_encode([
+        $this->write($site, $stagingPath, 'search/index.json', json_encode([
             'site' => $site->slug,
             'generated' => now()->toISOString(),
             'fields' => [['key' => '_type', 'label' => 'Type', 'type' => 'select', 'facet' => true]],
@@ -190,8 +190,8 @@ class CollectionPublishService
 
         $json = json_encode($rows, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $shard = 'search/pages-1.' . substr(md5($json), 0, 8) . '.json';
-        $this->write($stagingPath, $shard, $json);
-        $this->write($stagingPath, 'search/pages.json', json_encode([
+        $this->write($site, $stagingPath, $shard, $json);
+        $this->write($site, $stagingPath, 'search/pages.json', json_encode([
             'collection' => '_pages',
             'name' => 'Pages',
             'count' => count($rows),
@@ -267,7 +267,7 @@ class CollectionPublishService
     {
         $html = $this->renderRecordPageHtml($site, $collection, $record);
         $path = ltrim(RecordDisplay::recordUrl($collection, $record), '/') . 'index.html';
-        $this->write($stagingPath, $path, $html);
+        $this->write($site, $stagingPath, $path, $html);
     }
 
     /**
@@ -335,7 +335,7 @@ class CollectionPublishService
             $pageRecords = $records->forPage($page, $perPage)->values();
             $html = $this->archivePageHtml($site, $collection, $pageRecords, $records->count(), $page, $totalPages, $template);
             $path = $page === 1 ? "{$prefix}/index.html" : "{$prefix}/page/{$page}/index.html";
-            $this->write($stagingPath, $path, $html);
+            $this->write($site, $stagingPath, $path, $html);
         }
     }
 
@@ -432,7 +432,7 @@ class CollectionPublishService
 
             $url = RecordDisplay::categoryUrl($collection, $node);
             $html = $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template);
-            $this->write($stagingPath, ltrim($url, '/') . 'index.html', $html);
+            $this->write($site, $stagingPath, ltrim($url, '/') . 'index.html', $html);
         }
 
         return $warnings;
@@ -570,7 +570,7 @@ class CollectionPublishService
             }
 
             $row = [
-                'u' => RecordDisplay::recordUrl($collection, $record),
+                'u' => RecordDisplay::sitePathBase($site) . RecordDisplay::recordUrl($collection, $record),
                 't' => $record->title,
                 's' => implode(' ', array_unique(array_filter($searchStrings))),
             ];
@@ -619,7 +619,7 @@ class CollectionPublishService
             $filename = 'index-' . ($i + 1) . ".{$hash}.json";
             File::ensureDirectoryExists("{$stagingPath}/{$prefix}");
             File::put("{$stagingPath}/{$prefix}/{$filename}", $json);
-            $shardUrls[] = "/{$prefix}/{$filename}";
+            $shardUrls[] = RecordDisplay::sitePathBase($site) . "/{$prefix}/{$filename}";
         }
 
         $manifest = [
@@ -737,9 +737,14 @@ class CollectionPublishService
         ]))->render();
     }
 
-    private function write(string $stagingPath, string $path, string $html): void
+    private function write(Site $site, string $stagingPath, string $path, string $html): void
     {
         $html = AssetPublisher::rewriteHtml($html);
+        // Slug-hosted sites live in a docroot subdir — root-absolute links in
+        // collection pages must carry the base or they escape the site.
+        if (str_ends_with($path, '.html')) {
+            $html = BuildPageService::rewriteBaseForSlugHosting($html, $site);
+        }
         File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
         File::put("{$stagingPath}/{$path}", $html);
     }
