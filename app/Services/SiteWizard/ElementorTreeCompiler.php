@@ -631,7 +631,7 @@ class ElementorTreeCompiler
         $urls = array_map(fn ($i) => $i['src'], $images);
 
         return count($urls) >= 4
-            ? [$this->module('logostrip', ['logos' => $urls, 'grayscale' => false, 'columns' => min(6, count($urls))])]
+            ? [$this->module('logostrip', ['logos' => array_slice($urls, 0, 9), 'grayscale' => false, 'columns' => min(6, count($urls))])]
             : [$this->module('gallery', ['images' => $urls, 'layout' => 'grid', 'columns' => min(3, count($urls))])];
     }
 
