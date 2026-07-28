@@ -265,13 +265,21 @@ class ElementorTreeCompiler
         }
 
         if ($position === 'left') {
-            $tile = '<span style="flex-shrink:0;width:60px;height:60px;border-radius:14px;background:' . $this->accent() . ';'
-                . 'display:inline-flex;align-items:center;justify-content:center">'
+            // Source "about-us-item" hover: the whole tile is the trigger and the
+            // icon chip flips from the accent to the dark heading tone (icon
+            // stays white), with a smooth transition — no card lift.
+            $uid = 'fl' . substr(md5($iconUrl . $title), 0, 7);
+            $accent = $this->accent();
+            $tile = '<span class="ch" style="flex-shrink:0;width:60px;height:60px;border-radius:14px;background:' . $accent . ';'
+                . 'display:inline-flex;align-items:center;justify-content:center;transition:background-color .35s ease">'
                 . '<img src="' . e($iconUrl) . '" alt="" width="30" height="30" style="filter:brightness(0) invert(1)"></span>';
             $body = '<div><div style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a)">'
                 . e($title) . '</div>' . $descHtml . '</div>';
 
-            return '<div style="display:flex;align-items:flex-start;gap:16px;margin:0 0 20px">' . $tile . $body . '</div>';
+            return '<div class="' . $uid . '" style="display:flex;align-items:flex-start;gap:16px;margin:0 0 16px">'
+                . $tile . $body
+                . '<style>.' . $uid . ':hover .ch{background-color:var(--color-heading,#1a202c)!important}'
+                . '@media(prefers-reduced-motion:reduce){.' . $uid . ' .ch{transition:none}}</style></div>';
         }
 
         // Icon-top (service cards): padded header that, on hover, fills with the

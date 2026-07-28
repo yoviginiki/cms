@@ -275,6 +275,25 @@ class ElementorImportCommand extends Command
         return false;
     }
 
+    /** Darken a #rrggbb toward better contrast on white, preserving hue. Colours
+     * that already read comfortably (luminance already low) are left as-is. */
+    private function deepenForWhite(string $hex): string
+    {
+        if (preg_match('/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i', $hex, $m) !== 1) {
+            return $hex;
+        }
+        [$r, $g, $b] = [hexdec($m[1]), hexdec($m[2]), hexdec($m[3])];
+        $lum = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
+        // Already dark enough (~7:1+ on white) → keep. Otherwise scale RGB down.
+        if ($lum <= 0.30) {
+            return strtolower($hex);
+        }
+        $factor = 0.30 / $lum;
+        $clamp = fn ($v) => max(0, min(255, (int) round($v * $factor)));
+
+        return sprintf('#%02x%02x%02x', $clamp($r), $clamp($g), $clamp($b));
+    }
+
     /**
      * Write the kit-derived type scale (+ overlay-header recipe when the hero
      * is a slider) into settings.custom_css, between markers, so re-import
@@ -295,9 +314,13 @@ class ElementorImportCommand extends Command
         if (($heading = $hex('primary')) !== null) {
             $vars[] = '--color-heading:' . $heading;
         }
-        if (($body = $hex('text')) !== null) {
-            $vars[] = '--color-text-muted:' . $body;
-        }
+        // Body/muted text: builder kits often ship a mid-grey (#6d6d6d) that is
+        // low-contrast on the white content band. Deepen it toward a WCAG-AA
+        // readable tone (~7:1 on white) while preserving the kit's hue; fall
+        // back to a safe readable default when the kit sets no body colour.
+        $vars[] = '--color-text-muted:' . (($body = $hex('text')) !== null
+            ? $this->deepenForWhite($body)
+            : '#4a5261');
         // Kit accent → the site's primary/accent (buttons, links, hovers), so
         // theme controls follow the source instead of the platform default.
         if (($accent = $hex('accent')) !== null) {
