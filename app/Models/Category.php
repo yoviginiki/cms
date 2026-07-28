@@ -14,11 +14,12 @@ class Category extends Model
 
     protected $fillable = [
         'site_id', 'parent_id', 'default_layout_id', 'name', 'slug',
-        'description', 'sort_order', 'is_public', 'grid_id',
+        'description', 'settings', 'sort_order', 'is_public', 'grid_id',
     ];
 
     protected $casts = [
         'is_public' => 'boolean',
+        'settings' => 'array',
     ];
 
     public function site(): BelongsTo
