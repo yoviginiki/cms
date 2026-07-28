@@ -125,6 +125,10 @@ class MenuRenderer
         $css .= ".{$scopeClass} .menu-hamburger-panel a:last-child{border-bottom:none;}\n";
 
         $css .= "@media(max-width:{$mobileBreakpoint}px){.{$scopeClass} .menu-hamburger{display:flex!important;}.{$scopeClass} .menu-desktop{display:none!important;}}\n";
+
+        // Optional header CTA button (site settings: nav_cta = {text,url})
+        $css .= ".{$scopeClass} .nav-cta-btn{display:inline-block;padding:10px 22px;border-radius:999px;background:var(--color-primary,var(--color-accent,#2f6df6));color:#fff!important;font-family:var(--font-heading,sans-serif);font-size:" . ($fontSize ?: 'var(--nav-font-size,13px)') . ";font-weight:600;letter-spacing:0.03em;text-transform:none;text-decoration:none;white-space:nowrap;transition:background .2s,transform .2s;}\n";
+        $css .= ".{$scopeClass} .nav-cta-btn:hover{background:var(--color-primary-dark,var(--color-accent,#1b52d6));transform:translateY(-1px);}\n";
         $css .= "</style>\n";
 
         // Nav HTML — always sticky with solid background for mobile reliability
@@ -182,6 +186,12 @@ class MenuRenderer
             $html .= "      <li><button aria-label=\"Search\" style=\"background:none;border:none;cursor:pointer;opacity:0.6;\" onclick=\"alert('Search coming soon')\">&#128269;</button></li>\n";
         }
 
+        // Header CTA button (from site settings)
+        $ctaHtml = $this->navCtaHtml($settings);
+        if ($ctaHtml !== '') {
+            $html .= "      <li class=\"menu-cta\">{$ctaHtml}</li>\n";
+        }
+
         $html .= "    </ul>\n";
 
         // Mobile panel
@@ -192,12 +202,31 @@ class MenuRenderer
             $target = $item->target !== '_self' ? ' target="' . e($item->target) . '" rel="noopener"' : '';
             $html .= "      <a href=\"{$url}\"{$target} class=\"menu-custom-link\">{$label}</a>\n";
         }
+        $ctaHtml = $this->navCtaHtml($settings);
+        if ($ctaHtml !== '') {
+            $html .= "      {$ctaHtml}\n";
+        }
         $html .= "    </div>\n";
 
         $html .= "  </div>\n";
         $html .= "</nav>\n";
 
         return $html;
+    }
+
+    /**
+     * Header CTA button markup from site settings (nav_cta = {text, url}).
+     * Returns '' when unset/invalid so existing headers are unaffected.
+     */
+    private function navCtaHtml(array $settings): string
+    {
+        $cta = $settings['nav_cta'] ?? null;
+        if (!is_array($cta)) return '';
+        $text = trim((string) ($cta['text'] ?? ''));
+        $url = self::safeUrl((string) ($cta['url'] ?? ''));
+        if ($text === '' || !$url) return '';
+
+        return '<a href="' . e($url) . '" class="nav-cta-btn">' . e($text) . '</a>';
     }
 
     private function renderFooter(Menu $menu, Site $site, $items, array $settings, array $style, string $ariaLabel): string

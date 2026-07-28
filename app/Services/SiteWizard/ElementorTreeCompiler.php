@@ -391,7 +391,7 @@ class ElementorTreeCompiler
                     '__animation' => ['entrance' => 'zoom', 'duration' => 700],
                 ])];
             }
-            $columns[] = $this->column($modules);
+            $columns[] = $this->column($modules, $this->cardStyle($c));
             $w = $c['settings']['width'] ?? null;
             $widths[] = (is_array($w) && ($w['unit'] ?? '') === '%' && is_numeric($w['size'] ?? null) && (float) $w['size'] <= 100)
                 ? (float) $w['size'] : null;
@@ -705,12 +705,98 @@ class ElementorTreeCompiler
         ];
     }
 
-    private function column(array $modules): array
+    private function column(array $modules, array $cardData = []): array
     {
         return [
             'id' => (string) Str::uuid(), 'type' => 'column', 'level' => 'column', 'order' => 0,
-            'data' => [], 'children' => $this->reorder($modules),
+            'data' => $cardData, 'children' => $this->reorder($modules),
         ];
+    }
+
+    /**
+     * Card styling for a source column-container: reproduce a designed "card"
+     * (background / border / radius / padding) either from the container's own
+     * Elementor settings (e.g. glass service tiles) or, when it wraps a single
+     * ElementsKit icon-box styled as a box, from that widget's box settings
+     * (e.g. white feature cards). Returns column `data` overrides, or [] when
+     * the container is not a card (so ordinary columns are untouched).
+     */
+    private function cardStyle(array $container): array
+    {
+        $s = $container['settings'] ?? [];
+        $visual = [];
+        $bg = null;
+
+        $bgc = $this->color($s['background_color'] ?? null);
+        if ($bgc !== null && ($s['background_background'] ?? '') === 'classic' && !$this->isTransparent($bgc)) {
+            $bg = $bgc;
+        }
+        $borderColor = $this->color($s['border_color'] ?? null);
+        if (($s['border_border'] ?? '') === 'solid' && $borderColor !== null) {
+            $visual['borderStyle'] = 'solid';
+            $visual['borderWidth'] = $this->edim($s['border_width'] ?? null) ?: '1px';
+            $visual['borderColor'] = $borderColor;
+        }
+        if (($rad = $this->edim($s['border_radius'] ?? null)) !== '') {
+            $visual['borderRadius'] = $rad;
+        }
+        $pad = $this->edim($s['padding'] ?? null);
+
+        // NB: a single container can wrap several ElementsKit icon-boxes, so we
+        // deliberately do NOT promote an icon-box's own box styling to the whole
+        // column (that paints one oversized empty card). Card styling is taken
+        // only from the container itself — reliable for glass/tile grids.
+
+        // A container is only a "card" when it has a fill or a rounded, bordered
+        // frame — otherwise leave the column unstyled so ordinary layout columns
+        // (which may carry incidental padding) are unaffected.
+        $isCard = $bg !== null || (isset($visual['borderColor']) && isset($visual['borderRadius']));
+        if (!$isCard) {
+            return [];
+        }
+
+        $data = [];
+        if ($bg !== null) {
+            $data['background_color'] = $bg;
+        }
+        if ($pad !== '') {
+            $data['padding'] = $pad;
+        }
+        if ($visual !== []) {
+            $data['__style'] = ['visual' => $visual];
+        }
+
+        return $data;
+    }
+
+    /** A fully-transparent 8-digit hex (alpha 00) is not a card fill. */
+    private function isTransparent(string $hex): bool
+    {
+        return preg_match('/^#[0-9a-f]{6}00$/i', $hex) === 1;
+    }
+
+    /** Elementor dimension object → CSS shorthand ('' when unset or all-zero). */
+    private function edim(mixed $v): string
+    {
+        if (!is_array($v)) {
+            return '';
+        }
+        $unit = in_array($v['unit'] ?? 'px', ['px', 'em', 'rem', '%'], true) ? $v['unit'] : 'px';
+        if (isset($v['size']) && is_numeric($v['size'])) {
+            return ((float) $v['size'] === 0.0) ? '' : ((float) $v['size']) . $unit;
+        }
+        $sides = ['top', 'right', 'bottom', 'left'];
+        $nums = array_map(fn ($k) => is_numeric($v[$k] ?? null) ? (float) $v[$k] : 0.0, $sides);
+        if (array_sum($nums) === 0.0) {
+            return '';
+        }
+        // Collapse equal sides to a single value — the style pipeline (safeDim)
+        // accepts one dimension, not 4-value shorthand.
+        if (count(array_unique($nums)) === 1) {
+            return $nums[0] . $unit;
+        }
+
+        return implode(' ', array_map(fn ($n) => $n . $unit, $nums));
     }
 
     private function module(string $type, array $data): array

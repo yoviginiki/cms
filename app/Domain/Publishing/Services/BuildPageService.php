@@ -112,9 +112,12 @@ class BuildPageService
         // Entrance animations fire when their section SCROLLS INTO VIEW, not
         // at page load — below-the-fold content would otherwise finish
         // animating unseen. The <html> flag arms the paused state only when
-        // JS runs (no-JS visitors just see everything, statically).
-        $headScripts .= "\n" . '<script>document.documentElement.setAttribute(\'data-anim-scroll\',\'1\')</script>';
-        $bodyScripts .= "\n" . <<<'HTML'
+        // JS runs (no-JS visitors just see everything, statically). Emitted
+        // only when the page actually has entrance-animated blocks, so
+        // animation-free pages ship no runtime (and no IntersectionObserver).
+        if ($this->hasEntranceAnimation($content)) {
+            $headScripts .= "\n" . '<script>document.documentElement.setAttribute(\'data-anim-scroll\',\'1\')</script>';
+            $bodyScripts .= "\n" . <<<'HTML'
 <script>document.addEventListener('DOMContentLoaded',function(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var els=[].slice.call(document.querySelectorAll('[style*="animation-name:block-"]'));
@@ -125,6 +128,7 @@ class BuildPageService
   els.forEach(function(e){io.observe(e)});
 });</script>
 HTML;
+        }
 
         // Collections search islands (Track G2): pages carrying any search
         // block load the hashed vanilla-JS island runtime; everything else
@@ -385,6 +389,29 @@ HTML;
         }
 
         return $this->minifier->minify($html);
+    }
+
+    /**
+     * Whether any block on the page carries an entrance animation — the
+     * block-editor entrance (data.__animation.entrance) or the canvas layer
+     * entrance (style.layout.anim). Gates the scroll-reveal runtime so
+     * animation-free pages emit no IntersectionObserver.
+     */
+    private function hasEntranceAnimation(Page|Post $content): bool
+    {
+        foreach ($content->blocks()->get(['data', 'style']) as $block) {
+            $entrance = $block->data['__animation']['entrance'] ?? null;
+            if (is_string($entrance) && $entrance !== '' && $entrance !== 'none') {
+                return true;
+            }
+            $anim = $block->style['layout']['anim'] ?? null;
+            $canvasType = is_array($anim) ? ($anim['type'] ?? null) : $anim;
+            if (is_string($canvasType) && $canvasType !== '' && $canvasType !== 'none') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
