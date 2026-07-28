@@ -285,7 +285,11 @@ class ElementorTreeCompiler
             . '<img src="' . e($iconUrl) . '" alt="" width="40" height="40" class="ic" style="' . $blue . ';margin-bottom:14px;transition:filter .4s">'
             . '<div class="ti" style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a);transition:color .4s">' . e($title) . '</div>'
             . $descHtml
-            . '<style>.' . $uid . ':hover{background-size:100% 100%!important}.' . $uid . ':hover .ic{filter:brightness(0) invert(.1)!important}.' . $uid . ':hover .ti{color:#fff!important}'
+            // Trigger the hover from the WHOLE card (the column that wraps this
+            // header + the image below), not just the header box.
+            . '<style>.column-block:has(.' . $uid . '):hover .' . $uid . '{background-size:100% 100%!important}'
+            . '.column-block:has(.' . $uid . '):hover .ic{filter:brightness(0) invert(.1)!important}'
+            . '.column-block:has(.' . $uid . '):hover .ti{color:#fff!important}'
             . '@media(prefers-reduced-motion:reduce){.' . $uid . '{transition:none}}</style></div>';
     }
 
