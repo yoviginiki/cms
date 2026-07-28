@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -6,7 +6,7 @@ import {
   Pencil, Check, X, CornerUpLeft,
 } from 'lucide-react';
 import {
-  collections, collectionCategories,
+  collections, collectionCategories, sites,
   type Collection, type CategoryNode, type CollectionField, type CollectionFieldType,
 } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
@@ -354,6 +354,14 @@ function NodeSchemaPanel({ siteId, collectionId, node, baseFields, chain, onSave
 }) {
   const { toast } = useToast();
   const [fields, setFields] = useState<CollectionField[]>(node.schema?.fields ?? []);
+  const [translations, setTranslations] = useState<Record<string, string>>(node.name_translations ?? {});
+  useEffect(() => { setTranslations(node.name_translations ?? {}); }, [node.id]);
+  const { data: site } = useQuery<any>({
+    queryKey: ['site', siteId],
+    queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
+  });
+  const defaultLang = site?.settings?.default_language || 'en';
+  const extraLangs: string[] = ((site?.settings?.languages as string[]) || []).filter((l) => l && l !== defaultLang);
   const [dirty, setDirty] = useState(false);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -385,7 +393,7 @@ function NodeSchemaPanel({ siteId, collectionId, node, baseFields, chain, onSave
   }, [fields]);
 
   const saveMutation = useMutation({
-    mutationFn: () => collectionCategories.update(siteId, collectionId, node.id, { schema: { fields } }),
+    mutationFn: () => collectionCategories.update(siteId, collectionId, node.id, { schema: { fields }, name_translations: translations }),
     onSuccess: () => { setDirty(false); setServerErrors({}); onSaved(); toast({ type: 'success', message: 'Category fields saved.' }); },
     onError: (e: any) => {
       const errs = validationErrors(e);
@@ -411,6 +419,24 @@ function NodeSchemaPanel({ siteId, collectionId, node, baseFields, chain, onSave
         They stack on top of the collection’s base fields{chain.length > 1 ? ' and the parent categories’ fields' : ''}.
         A field key that matches a base field overrides it here.
       </p>
+
+      {extraLangs.length > 0 && (
+        <div className="mb-4 rounded-box border border-base-300/40 p-3">
+          <p className="text-[11px] text-base-content/40 mb-2">
+            Name translations — shown on /{'{'}locale{'}'}/ pages; the slug stays the same, only the language prefix changes.
+          </p>
+          <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            {extraLangs.map((lang) => (
+              <label key={lang} className="flex items-center gap-2 text-[12px]">
+                <span className="uppercase text-base-content/40 w-7 shrink-0">{lang}</span>
+                <input value={translations[lang] ?? ''} placeholder={node.name}
+                  onChange={(e) => { setTranslations((t) => ({ ...t, [lang]: e.target.value })); touch(); }}
+                  className="input input-bordered input-sm w-full text-[12px]" />
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {baseFields.length > 0 && (
         <details className="mb-4">

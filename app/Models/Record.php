@@ -22,7 +22,7 @@ class Record extends Model
     public const STATUSES = ['draft', 'published'];
 
     protected $fillable = [
-        'collection_id', 'category_node_id', 'site_id', 'slug', 'title', 'status', 'position', 'data', 'published_at',
+        'collection_id', 'category_node_id', 'translation_group_id', 'site_id', 'slug', 'title', 'status', 'position', 'data', 'published_at',
         'needs_republish', 'needs_republish_reason', 'publish_at', 'unpublish_at', 'seo_meta',
     ];
 

@@ -164,12 +164,27 @@ class DynamicSiteController extends Controller
                 $parentId = $node->id;
             }
             return $this->respondCollectionHtml(
-                $publish->renderCategoryPageHtml($site, $collection, $node), $site);
+                $publish->renderCategoryPageHtml($site, $collection, $node, trim($localePrefix, '/') ?: null), $site);
         }
 
-        // /{prefix}/{ancestors…}/{slug} — hierarchical record URL; match by leaf slug.
+        // /{prefix}/{ancestors…}/{slug} — record URL; the public slug is the
+        // translation group's canonical (default-language) slug, so resolve
+        // the canonical record first, then swap to the requested locale's
+        // group sibling when a locale prefix is present.
         $record = \App\Models\Record::where('collection_id', $collection->id)
             ->where('status', 'published')->where('slug', end($segments))->first();
+        if ($record && $localePrefix !== '' && $record->translation_group_id) {
+            $wanted = trim($localePrefix, '/');
+            $localeKey = \App\Support\Blocks\RecordDisplay::localeField($collection);
+            if ($localeKey) {
+                $sibling = \App\Models\Record::where('collection_id', $collection->id)
+                    ->where('translation_group_id', $record->translation_group_id)
+                    ->where('status', 'published')
+                    ->whereRaw('data->>? = ?', [$localeKey, $wanted])
+                    ->first();
+                $record = $sibling ?: $record;
+            }
+        }
         if ($record) {
             return $this->respondCollectionHtml(
                 $publish->renderRecordPageHtml($site, $collection, $record), $site);

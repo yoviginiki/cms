@@ -20,6 +20,13 @@
         $collection = $__collection;
     }
 
+    // Page locale (from the build context) drives link prefixes, display
+    // names and counts; default language links carry no prefix.
+    $__pageLocale = $__locale ?? null;
+    $__defaultLocale = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+    $__urlLocale = ($__pageLocale && $__pageLocale !== $__defaultLocale) ? $__pageLocale : null;
+    $__localeKey = $collection ? RecordDisplay::localeField($collection) : null;
+
     $nodes = collect();
     $counts = [];
     if ($collection) {
@@ -42,9 +49,15 @@
 
         // Published-record counts per node, then rolled up the subtree so a
         // parent card counts everything beneath it.
-        $direct = \App\Models\Record::where('collection_id', $collection->id)
+        $directQuery = \App\Models\Record::where('collection_id', $collection->id)
             ->where('status', 'published')
-            ->whereNotNull('category_node_id')
+            ->whereNotNull('category_node_id');
+        if ($__localeKey && $__pageLocale) {
+            $__pageLocale === $__defaultLocale
+                ? $directQuery->whereRaw("(data->>? = ? or data->>? is null)", [$__localeKey, $__pageLocale, $__localeKey])
+                : $directQuery->whereRaw("data->>? = ?", [$__localeKey, $__pageLocale]);
+        }
+        $direct = $directQuery
             ->selectRaw('category_node_id, count(*) as c')
             ->groupBy('category_node_id')
             ->pluck('c', 'category_node_id');
@@ -78,10 +91,10 @@
 @elseif($layout === 'pills')
     <div class="cc-pills" style="display:flex;flex-wrap:wrap;gap:{{ $gap }};">
         @foreach($nodes as $node)
-            <a href="{{ RecordDisplay::categoryUrl($collection, $node) }}"
+            <a href="{{ RecordDisplay::categoryUrl($collection, $node, $__urlLocale) }}"
                style="display:inline-flex;align-items:center;gap:.5em;padding:.45em 1em;border:1px solid var(--color-border-light,#e5e5e0);border-radius:999px;text-decoration:none;color:var(--color-heading,#1a202c);font-size:.9em;transition:border-color .2s ease,background .2s ease;"
                onmouseover="this.style.borderColor='var(--color-primary,#3b82f6)'" onmouseout="this.style.borderColor='var(--color-border-light,#e5e5e0)'">
-                {{ $node->name }}
+                {{ RecordDisplay::nodeName($node, $__pageLocale) }}
                 @if($showCount)<span style="opacity:.5;font-size:.85em;">{{ $counts[$node->id] ?? 0 }}</span>@endif
             </a>
         @endforeach
@@ -89,10 +102,10 @@
 @elseif($layout === 'list')
     <div class="cc-list" style="display:flex;flex-direction:column;gap:{{ $gap }};">
         @foreach($nodes as $node)
-            <a href="{{ RecordDisplay::categoryUrl($collection, $node) }}"
+            <a href="{{ RecordDisplay::categoryUrl($collection, $node, $__urlLocale) }}"
                style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 1.1rem;border:1px solid var(--color-border-light,#e5e5e0);border-radius:12px;text-decoration:none;color:var(--color-heading,#1a202c);transition:border-color .2s ease,transform .2s ease;"
                onmouseover="this.style.borderColor='var(--color-primary,#3b82f6)'" onmouseout="this.style.borderColor='var(--color-border-light,#e5e5e0)'">
-                <span style="font-weight:600;">{{ $node->name }}</span>
+                <span style="font-weight:600;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>
                 @if($showCount)<span style="opacity:.5;font-size:.85em;white-space:nowrap;">{{ $counts[$node->id] ?? 0 }}</span>@endif
             </a>
         @endforeach
@@ -100,14 +113,14 @@
 @else
     <div class="cc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min({{ intval(960 / $columns) }}px,100%),1fr));gap:{{ $gap }};">
         @foreach($nodes as $node)
-            <a href="{{ RecordDisplay::categoryUrl($collection, $node) }}"
+            <a href="{{ RecordDisplay::categoryUrl($collection, $node, $__urlLocale) }}"
                style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 16px;background:var(--color-bg,#fff);border:1px solid var(--color-border-light,rgba(26,32,44,.08));border-radius:16px;text-decoration:none;color:var(--color-heading,#1a202c);text-align:center;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;"
                onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 28px -12px rgba(0,0,0,.18)';this.style.borderColor='var(--color-primary,#3b82f6)'"
                onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='var(--color-border-light,rgba(26,32,44,.08))'">
                 <span style="width:48px;height:48px;border-radius:12px;background:color-mix(in srgb,var(--color-primary,#3b82f6) 10%,transparent);display:inline-flex;align-items:center;justify-content:center;">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
                 </span>
-                <span style="font-weight:600;font-size:.95em;line-height:1.35;">{{ $node->name }}</span>
+                <span style="font-weight:600;font-size:.95em;line-height:1.35;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>
                 @if($showCount)<span style="opacity:.5;font-size:.8em;">{{ $counts[$node->id] ?? 0 }}</span>@endif
             </a>
         @endforeach

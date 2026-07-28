@@ -89,49 +89,60 @@ class RecordDisplay
     }
 
     /**
-     * Locale of a category node — the locale of its root's records (category
-     * trees are per-language: vioiv has a Продукти root and a Products root).
-     * Cached per root; null for tree-wide/unknown.
+     * Canonical public slug of a record: its translation group's default-
+     * language member's slug (mirrors the pages convention — internal slugs
+     * differ per language, the published URL differs only by locale prefix).
+     * Records without a group (or already in the default language) use their
+     * own slug. Cached per group.
      */
-    private static array $nodeLocaleCache = [];
+    private static array $canonicalSlugCache = [];
 
-    public static function nodeLocale(ContentCollection $collection, \App\Models\CollectionCategoryNode $node): ?string
+    public static function canonicalSlug(ContentCollection $collection, Record $record): string
     {
-        if (!self::localeField($collection)) {
-            return null;
+        if (!$record->translation_group_id) {
+            return $record->slug;
+        }
+        $site = $collection->relationLoaded('site') ? $collection->site : Site::find($collection->site_id);
+        $default = $site ? \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site) : null;
+        if (!$default || self::recordLocale($collection, $record) === $default) {
+            return $record->slug;
         }
 
-        $root = $node;
-        $seen = [];
-        while ($root->parent_id && !isset($seen[$root->id])) {
-            $seen[$root->id] = true;
-            $root = \App\Models\CollectionCategoryNode::find($root->parent_id) ?? $root;
+        $key = $record->translation_group_id;
+        if (!array_key_exists($key, self::$canonicalSlugCache)) {
+            $localeKey = self::localeField($collection);
+            $sibling = $localeKey
+                ? Record::where('collection_id', $collection->id)
+                    ->where('translation_group_id', $key)
+                    ->whereRaw("data->>? = ?", [$localeKey, $default])
+                    ->first()
+                : null;
+            self::$canonicalSlugCache[$key] = $sibling?->slug;
         }
 
-        $key = $collection->id . ':' . $root->id;
-        if (!array_key_exists($key, self::$nodeLocaleCache)) {
-            $byParent = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)
-                ->get(['id', 'parent_id'])->groupBy('parent_id');
-            $ids = [];
-            $stack = [$root->id];
-            while ($stack !== []) {
-                $id = array_pop($stack);
-                $ids[] = $id;
-                foreach ($byParent->get($id, collect()) as $child) {
-                    $stack[] = $child->id;
-                }
-            }
-            $record = Record::where('collection_id', $collection->id)->whereIn('category_node_id', $ids)->first();
-            self::$nodeLocaleCache[$key] = $record ? self::recordLocale($collection, $record) : null;
+        return self::$canonicalSlugCache[$key] ?? $record->slug;
+    }
+
+    /** Display name of a category node for a locale (name_translations override). */
+    public static function nodeName(\App\Models\CollectionCategoryNode $node, ?string $locale = null): string
+    {
+        if ($locale && is_array($node->name_translations) && !empty($node->name_translations[$locale])) {
+            return (string) $node->name_translations[$locale];
         }
 
-        return self::$nodeLocaleCache[$key];
+        return $node->name;
+    }
+
+    /** URL prefix for an explicit locale ('' for null/default). */
+    public static function localePrefixFor(ContentCollection $collection, ?string $locale): string
+    {
+        return self::localeUrlPrefix($collection, $locale);
     }
 
     public static function recordUrl(ContentCollection $collection, Record $record): string
     {
-        $segments = array_map(fn (Record $r) => $r->slug, self::ancestors($collection, $record));
-        $segments[] = $record->slug;
+        $segments = array_map(fn (Record $r) => self::canonicalSlug($collection, $r), self::ancestors($collection, $record));
+        $segments[] = self::canonicalSlug($collection, $record);
 
         return '/' . self::localeUrlPrefix($collection, self::recordLocale($collection, $record))
             . self::pathPrefix($collection) . '/' . implode('/', $segments) . '/';
@@ -145,9 +156,9 @@ class RecordDisplay
      * unambiguous. Shared by the publisher (page path) and the home-page card
      * links (href) so the two never diverge.
      */
-    public static function categoryUrl(ContentCollection $collection, \App\Models\CollectionCategoryNode $node): string
+    public static function categoryUrl(ContentCollection $collection, \App\Models\CollectionCategoryNode $node, ?string $locale = null): string
     {
-        return '/' . self::localeUrlPrefix($collection, self::nodeLocale($collection, $node))
+        return '/' . self::localeUrlPrefix($collection, $locale)
             . self::pathPrefix($collection) . '/category/' . implode('/', self::categorySlugPath($node)) . '/';
     }
 

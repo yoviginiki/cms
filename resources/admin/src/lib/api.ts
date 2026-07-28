@@ -725,6 +725,7 @@ export const collections = {
 // ── Category tree (per-node schema) ──
 
 export interface CategoryNode {
+  name_translations?: Record<string, string> | null;
   id: string;
   collection_id: string;
   parent_id: string | null;
@@ -750,7 +751,7 @@ export const collectionCategories = {
     api.get<{ data: CategoryNode[] }>(`/sites/${siteId}/collections/${collectionId}/category-tree`),
   create: (siteId: string, collectionId: string, body: { name: string; parent_id?: string | null; schema?: { fields: CollectionField[] } }) =>
     api.post<{ data: CategoryNode }>(`/sites/${siteId}/collections/${collectionId}/category-nodes`, body),
-  update: (siteId: string, collectionId: string, nodeId: string, body: { name?: string; slug?: string; schema?: { fields: CollectionField[] } }) =>
+  update: (siteId: string, collectionId: string, nodeId: string, body: { name?: string; slug?: string; schema?: { fields: CollectionField[] }; name_translations?: Record<string, string> }) =>
     api.put<{ data: CategoryNode }>(`/sites/${siteId}/collections/${collectionId}/category-nodes/${nodeId}`, body),
   move: (siteId: string, collectionId: string, nodeId: string, body: { parent_id?: string | null; sort_order?: number | null }) =>
     api.post<{ data: CategoryNode }>(`/sites/${siteId}/collections/${collectionId}/category-nodes/${nodeId}/move`, body),

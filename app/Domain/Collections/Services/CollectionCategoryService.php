@@ -76,6 +76,7 @@ class CollectionCategoryService
             'collection_id' => $node->collection_id,
             'parent_id' => $node->parent_id,
             'name' => $node->name,
+            'name_translations' => $node->name_translations ?: (object) [],
             'slug' => $node->slug,
             'sort_order' => $node->sort_order,
             'depth' => $node->depth,
@@ -127,6 +128,16 @@ class CollectionCategoryService
         }
         if (array_key_exists('schema', $input)) {
             $attrs['schema'] = $this->schemaValidator->validateNodeFields($input['schema'], $site, $node->collection);
+        }
+        if (array_key_exists('name_translations', $input) && is_array($input['name_translations'])) {
+            // {locale: name} — locale keys sanitized, blank names dropped.
+            $clean = [];
+            foreach ($input['name_translations'] as $locale => $name) {
+                if (preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', (string) $locale) && is_string($name) && trim($name) !== '') {
+                    $clean[strtolower((string) $locale)] = mb_substr(trim($name), 0, 255);
+                }
+            }
+            $attrs['name_translations'] = $clean ?: null;
         }
 
         if ($attrs !== []) {

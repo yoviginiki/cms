@@ -82,6 +82,16 @@
             ->where('status', 'published')
             ->with('relationsOut.toRecord');
 
+        // Locale-field collections: list only the current page's language.
+        $__rlLocaleKey = RecordDisplay::localeField($collection);
+        $__rlLocale = $__locale ?? null;
+        if ($__rlLocaleKey && $__rlLocale) {
+            $__rlDefault = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+            $__rlLocale === $__rlDefault
+                ? $query->whereRaw("(data->>? = ? or data->>? is null)", [$__rlLocaleKey, $__rlLocale, $__rlLocaleKey])
+                : $query->whereRaw("data->>? = ?", [$__rlLocaleKey, $__rlLocale]);
+        }
+
         // Category-tree filter: the picked node's whole subtree.
         if (!empty($data['categoryNodeId'])) {
             $node = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)

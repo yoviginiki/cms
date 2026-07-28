@@ -28,13 +28,14 @@ class CollectionCategoryNode extends Model
     use HasUuids;
 
     protected $fillable = [
-        'collection_id', 'site_id', 'parent_id', 'name', 'slug', 'sort_order', 'depth', 'schema',
+        'collection_id', 'site_id', 'parent_id', 'name', 'name_translations', 'slug', 'sort_order', 'depth', 'schema',
     ];
 
     protected function casts(): array
     {
         return [
             'schema' => 'array',
+            'name_translations' => 'array',
             'sort_order' => 'integer',
             'depth' => 'integer',
         ];

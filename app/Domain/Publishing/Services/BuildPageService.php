@@ -3,6 +3,7 @@ namespace App\Domain\Publishing\Services;
 
 use App\Domain\Grid\Services\GridRenderer;
 use App\Domain\Grid\Services\GridResolver;
+use App\Domain\Publishing\Services\LocalePaths;
 use App\Domain\Hooks\HookDispatcher;
 use App\Domain\Menus\Services\MenuRenderer;
 use App\Domain\Theme\Services\DesignTokenGenerator;
@@ -58,7 +59,7 @@ class BuildPageService
     {
         $this->imageIndex = 0;
         $this->isPreview = $isPreview;
-        $this->templateContext = [];
+        $this->templateContext = ['__locale' => LocalePaths::contentLocale($content, $site)];
 
         // A page whose raw_html is a COMPLETE document (exact-copy site
         // import) publishes verbatim: it ships its own <head>, styles, nav,

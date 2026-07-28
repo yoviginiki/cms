@@ -3,7 +3,10 @@
      record-archive template. Breadcrumb + subcategory links + card grid of
      the category subtree's records. --}}
 @php
-    $prefix = '/' . (($collection->settings['path_prefix'] ?? null) ?: $collection->slug);
+    $locale = $locale ?? null;
+    $urlLocale = $urlLocale ?? null;
+    $displayName = $displayName ?? $node->name;
+    $prefix = '/' . ($urlLocale ? $urlLocale . '/' : '') . (($collection->settings['path_prefix'] ?? null) ?: $collection->slug);
     $crumbNodes = [];
     $walk = $node;
     while ($walk) {
@@ -17,20 +20,20 @@
         @foreach($crumbNodes as $crumb)
             <span aria-hidden="true"> / </span>
             @if($crumb->id === $node->id)
-                <span aria-current="page">{{ $crumb->name }}</span>
+                <span aria-current="page">{{ RecordDisplay::nodeName($crumb, $locale) }}</span>
             @else
-                <a href="{{ RecordDisplay::categoryUrl($collection, $crumb) }}" style="color:inherit;">{{ $crumb->name }}</a>
+                <a href="{{ RecordDisplay::categoryUrl($collection, $crumb, $urlLocale) }}" style="color:inherit;">{{ RecordDisplay::nodeName($crumb, $locale) }}</a>
             @endif
         @endforeach
     </nav>
-    <h1 style="margin:0 0 1.5rem;">{{ $node->name }}</h1>
+    <h1 style="margin:0 0 1.5rem;">{{ $displayName }}</h1>
 
     @if($children->isNotEmpty())
         <div class="record-category-children" style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:2rem;">
             @foreach($children as $child)
-                <a href="{{ RecordDisplay::categoryUrl($collection, $child) }}"
+                <a href="{{ RecordDisplay::categoryUrl($collection, $child, $urlLocale) }}"
                    style="padding:.45em 1em;border:1px solid var(--color-border,#e5e2dd);border-radius:999px;color:inherit;text-decoration:none;font-size:.9em;">
-                    {{ $child->name }}
+                    {{ RecordDisplay::nodeName($child, $locale) }}
                 </a>
             @endforeach
         </div>

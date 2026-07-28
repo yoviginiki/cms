@@ -439,40 +439,59 @@ class CollectionPublishService
 
         $warnings = [];
         $byParent = $nodes->groupBy(fn ($n) => $n->parent_id ?? '');
-        $byNode = $records->filter(fn ($r) => $r->category_node_id)->groupBy('category_node_id');
         $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
 
-        // Subtree record sets, computed leaf→root so each parent reuses its
-        // children's already-collected rows.
-        $subtree = [];
-        foreach ($nodes->sortByDesc('depth') as $node) {
-            $rows = collect($byNode->get($node->id, collect()));
-            foreach ($byParent->get($node->id, collect()) as $child) {
-                $rows = $rows->concat($subtree[$child->id] ?? collect());
-            }
-            $subtree[$node->id] = $rows->unique('id')->sortByDesc('published_at')->values();
-        }
+        // One tree, one page per (locale × node): the default language at
+        // /{prefix}/category/…, other languages at /{locale}/{prefix}/category/…
+        // — same slugs, only the prefix differs.
+        $default = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+        $locales = RecordDisplay::localeField($collection)
+            ? \App\Domain\Publishing\Services\LocalePaths::languages($site)
+            : [$default];
 
-        foreach ($nodes as $node) {
-            $nodeRecords = $subtree[$node->id] ?? collect();
-            if ($nodeRecords->isEmpty()) {
-                $warnings[] = "Category \"{$node->name}\" ({$collection->name}) has no published records — its page publishes empty.";
+        foreach ($locales as $locale) {
+            $urlLocale = $locale === $default ? null : $locale;
+            $localeRecords = RecordDisplay::localeField($collection)
+                ? $records->filter(fn ($r) => (RecordDisplay::recordLocale($collection, $r) ?? $default) === $locale)->values()
+                : $records;
+
+            $byNode = $localeRecords->filter(fn ($r) => $r->category_node_id)->groupBy('category_node_id');
+            $subtree = [];
+            foreach ($nodes->sortByDesc('depth') as $node) {
+                $rows = collect($byNode->get($node->id, collect()));
+                foreach ($byParent->get($node->id, collect()) as $child) {
+                    $rows = $rows->concat($subtree[$child->id] ?? collect());
+                }
+                $subtree[$node->id] = $rows->unique('id')->sortByDesc('published_at')->values();
             }
 
-            $url = RecordDisplay::categoryUrl($collection, $node);
-            $html = $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template);
-            $this->write($site, $stagingPath, ltrim($url, '/') . 'index.html', $html);
+            foreach ($nodes as $node) {
+                $nodeRecords = $subtree[$node->id] ?? collect();
+                if ($nodeRecords->isEmpty() && $locale === $default) {
+                    $warnings[] = "Category \"{$node->name}\" ({$collection->name}) has no published records — its page publishes empty.";
+                }
+
+                $url = RecordDisplay::categoryUrl($collection, $node, $urlLocale);
+                $html = $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template, $locale);
+                $this->write($site, $stagingPath, ltrim($url, '/') . 'index.html', $html);
+            }
         }
 
         return $warnings;
     }
 
     /** One category page for the dynamic /sites/{slug}/{prefix}/category/… preview. */
-    public function renderCategoryPageHtml(Site $site, ContentCollection $collection, CollectionCategoryNode $node): string
+    public function renderCategoryPageHtml(Site $site, ContentCollection $collection, CollectionCategoryNode $node, ?string $locale = null): string
     {
+        $default = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+        $locale = $locale ?: $default;
+
         $records = Record::where('collection_id', $collection->id)
             ->where('status', 'published')
             ->get();
+        if (RecordDisplay::localeField($collection)) {
+            $records = $records->filter(fn ($r) => (RecordDisplay::recordLocale($collection, $r) ?? $default) === $locale)->values();
+        }
         $all = CollectionCategoryNode::where('collection_id', $collection->id)->orderBy('sort_order')->get();
         $byParent = $all->groupBy(fn ($n) => $n->parent_id ?? '');
 
@@ -490,16 +509,22 @@ class CollectionPublishService
 
         $template = ThemeTemplate::resolveForRecordArchive($site->id, $collection->id);
 
-        return $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template);
+        return $this->categoryPageHtml($site, $collection, $node, $nodeRecords, $byParent->get($node->id, collect()), $template, $locale);
     }
 
     /** Full HTML document for one category page (shared publisher/preview). */
-    private function categoryPageHtml(Site $site, ContentCollection $collection, CollectionCategoryNode $node, $nodeRecords, $children, ?ThemeTemplate $template): string
+    private function categoryPageHtml(Site $site, ContentCollection $collection, CollectionCategoryNode $node, $nodeRecords, $children, ?ThemeTemplate $template, ?string $locale = null): string
     {
-        $url = RecordDisplay::categoryUrl($collection, $node);
+        $default = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+        $locale = $locale ?: $default;
+        $urlLocale = $locale === $default ? null : $locale;
+        $displayName = RecordDisplay::nodeName($node, $locale);
+
+        $url = RecordDisplay::categoryUrl($collection, $node, $urlLocale);
         $context = [
             '__collection' => $collection,
             '__categoryNode' => $node,
+            '__locale' => $locale,
             '__archiveRecords' => $nodeRecords,
             '__archiveRecordCount' => $nodeRecords->count(),
             '__archiveCurrentPage' => 1,
@@ -517,13 +542,16 @@ class CollectionPublishService
                 'node' => $node,
                 'children' => $children,
                 'records' => $nodeRecords,
+                'locale' => $locale,
+                'urlLocale' => $urlLocale,
+                'displayName' => $displayName,
             ])->render();
         }
 
-        $head = '<title>' . e($node->name) . ' | ' . e($site->name) . '</title>'
-            . '<meta name="description" content="' . e(mb_substr("{$node->name} — {$collection->name}, {$site->name}", 0, 160)) . '">';
+        $head = '<title>' . e($displayName) . ' | ' . e($site->name) . '</title>'
+            . '<meta name="description" content="' . e(mb_substr("{$displayName} — {$collection->name}, {$site->name}", 0, 160)) . '">';
 
-        return $this->wrapInLayout($site, $head, $body, $node->name);
+        return $this->wrapInLayout($site, $head, $body, $displayName);
     }
 
     /**
