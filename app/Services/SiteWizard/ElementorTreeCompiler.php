@@ -138,11 +138,13 @@ class ElementorTreeCompiler
         if ($found['text'] !== null) {
             $layers[] = $layer('text', [
                 'content' => $this->heroIntro($found['text']['editor'] ?? ''),
-                'color' => '#e7ebf2',
+                'textColor' => '#ffffff',
             ], ['x' => '6%', 'y' => '44%', 'widthPct' => 46], 'fadeUp', 0.55);
         }
         if ($found['button'] !== null) {
-            $btn = ['text' => $this->plain($found['button']['ekit_btn_text'] ?? ''), 'style' => 'primary'];
+            $btn = array_filter([
+                'text' => $this->plain($found['button']['ekit_btn_text'] ?? ''), 'style' => 'primary',
+            ] + $this->buttonSkin($found['button']), fn ($v) => $v !== null && $v !== '');
             if (($u = $this->url($found['button']['ekit_btn_url'] ?? null)) !== null) {
                 $btn['url'] = $u;
             }
@@ -170,7 +172,7 @@ class ElementorTreeCompiler
             if ($t !== '' || $d !== '') {
                 $layers[] = $layer('text', [
                     'content' => '<p><strong>' . e($t) . '</strong>' . ($d !== '' ? '<br>' . e($d) : '') . '</p>',
-                    'color' => '#ffffff',
+                    'textColor' => '#ffffff',
                 ], ['x' => '40%', 'y' => '80%', 'widthPct' => 24], 'fadeUp', 1.5);
             }
         }
@@ -268,8 +270,22 @@ class ElementorTreeCompiler
 
         return '<a href="' . e($url) . '" target="_blank" rel="noopener" '
             . 'style="display:inline-flex;align-items:center;gap:16px;text-decoration:none">'
-            . '<span style="font-weight:700;color:#0f2350;font-size:16px;white-space:nowrap">' . e($label) . '</span>'
+            . '<span style="font-weight:700;color:#ffffff;font-size:16px;white-space:nowrap">' . e($label) . '</span>'
             . $play . '</a>';
+    }
+
+    /** Source button colours/size (ElementsKit creative button) → button-block
+     * skin fields, so the CTA keeps its real look instead of the theme default. */
+    private function buttonSkin(array $s): array
+    {
+        $weight = (string) ($s['ekit_btn_typography_font_weight'] ?? '');
+
+        return array_filter([
+            'bgColor' => $this->color($s['ekit_btn_bg_color'] ?? null),
+            'textColor' => $this->color($s['ekit_btn_text_color'] ?? null),
+            'fontSize' => $this->edim($s['ekit_btn_typography_font_size'] ?? null),
+            'fontWeight' => in_array($weight, ['400', '500', '600', '700', '800', '900'], true) ? $weight : null,
+        ], fn ($v) => $v !== null && $v !== '');
     }
 
     /** A copy of the element tree without the given widget ids. */
@@ -343,8 +359,11 @@ class ElementorTreeCompiler
         foreach ($nodes as $i => $node) {
             if (($node['level'] ?? '') === 'module') {
                 $type = $node['type'];
-                if (in_array($type, ['heading', 'text'], true) && empty($node['data']['color'])) {
-                    $nodes[$i]['data']['color'] = $type === 'heading' ? '#ffffff' : '#d5d9e2';
+                // Headings key on `color`, text blocks on `textColor`.
+                if ($type === 'heading' && empty($node['data']['color'])) {
+                    $nodes[$i]['data']['color'] = '#ffffff';
+                } elseif ($type === 'text' && empty($node['data']['textColor'])) {
+                    $nodes[$i]['data']['textColor'] = '#d5d9e2';
                 }
             }
             if (!empty($node['children'])) {
@@ -550,7 +569,7 @@ class ElementorTreeCompiler
 
             'text-editor' => [$this->module('text', array_filter([
                 'content' => (string) ($s['editor'] ?? ''),
-                'color' => $this->settingColor($s, 'text_color'),
+                'textColor' => $this->settingColor($s, 'text_color'),
             ]))],
 
             'image' => $this->imageModule($s),
@@ -559,7 +578,7 @@ class ElementorTreeCompiler
                 'text' => $this->plain($s['ekit_btn_text'] ?? ''),
                 'url' => $this->url($s['ekit_btn_url'] ?? null),
                 'style' => 'primary',
-            ]))],
+            ] + $this->buttonSkin($s)))],
 
             'counter' => [$this->module('stats', ['items' => [[
                 'value' => (string) ($s['ending_number'] ?? '0'),

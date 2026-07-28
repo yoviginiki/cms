@@ -20,7 +20,13 @@
     $sizeClass = match($size) { 'sm' => 'btn-sm', 'lg' => 'btn-lg', default => '' };
     $styleClass = match($style) { 'secondary' => 'btn-secondary', 'outline' => 'btn-outline', 'ghost' => 'btn-ghost', default => 'btn-primary' };
     $safeUrl = fn($v) => preg_match('/^(javascript|data|vbscript)\s*:/i', preg_replace('/[\x00-\x1f\x7f\s]/', '', (string) $v)) ? '#' : (string) $v;
+    // Optional per-button skin (migrated CTAs keep their source colours/size).
+    $bg = \App\Support\Blocks\BlockStyle::safeColor($data['bgColor'] ?? '');
+    $fg = \App\Support\Blocks\BlockStyle::safeColor($data['textColor'] ?? '');
+    $fs = \App\Support\Blocks\BlockStyle::safeDim($data['fontSize'] ?? '');
+    $fw = in_array((string)($data['fontWeight'] ?? ''), ['400','500','600','700','800','900']) ? $data['fontWeight'] : '';
+    $skin = ($bg ? "background:{$bg};border-color:{$bg};" : '') . ($fg ? "color:{$fg};" : '') . ($fs ? "font-size:{$fs};" : '') . ($fw ? "font-weight:{$fw};" : '');
 @endphp
-<a href="{{ e($safeUrl($data['url'] ?? '#')) }}" class="btn {{ $styleClass }} {{ $sizeClass }}"{!! $target !!}>{{ $data['text'] ?? 'Button' }}</a>
+<a href="{{ e($safeUrl($data['url'] ?? '#')) }}" class="btn {{ $styleClass }} {{ $sizeClass }}"@if($skin) style="{{ $skin }}"@endif{!! $target !!}>{{ $data['text'] ?? 'Button' }}</a>
 
 </div>
