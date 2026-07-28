@@ -50,9 +50,14 @@ const LAYER_TYPES: { type: string; label: string; icon: React.ComponentType<{ si
   { type: 'group', label: 'Group', icon: Group, defaults: {}, size: { widthPct: 40, heightPct: 30 } },
 ];
 
-const DEVICE_WIDTHS = { desktop: 1280, tablet: 834, mobile: 390 } as const;
+// Desktop previews at Full-HD (1920×1080): sliders commonly sit in full-bleed
+// (100vw) sections, so the canvas must match the width the hero actually renders
+// at on a desktop — previewing at 1280 made fixed-px text wrap differently than
+// the live page (headline 2 lines in editor vs 1 line live). Tablet/mobile keep
+// their device widths.
+const DEVICE_WIDTHS = { desktop: 1920, tablet: 834, mobile: 390 } as const;
 /** nominal viewport heights: vh-based slider heights resolve against these */
-const DEVICE_VIEWPORT_H = { desktop: 720, tablet: 1112, mobile: 844 } as const;
+const DEVICE_VIEWPORT_H = { desktop: 1080, tablet: 1112, mobile: 844 } as const;
 
 export default function SliderEditor() {
   const { siteId = '', sliderId = '' } = useParams();
