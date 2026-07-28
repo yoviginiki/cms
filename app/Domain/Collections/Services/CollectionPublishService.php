@@ -320,7 +320,26 @@ class CollectionPublishService
             $head .= '<meta property="og:image" content="' . e($thumb) . '">';
         }
 
-        return $this->wrapInLayout($site, $head, $body, $record->title);
+        $localePathsCls = \App\Domain\Publishing\Services\LocalePaths::class;
+        $recDefault = $localePathsCls::defaultLanguage($site);
+        $recLocale = RecordDisplay::recordLocale($collection, $record) ?? $recDefault;
+        $alternates = null;
+        if (RecordDisplay::localeField($collection) && $localePathsCls::isMultilingual($site)) {
+            $alternates = [$recLocale => RecordDisplay::recordUrl($collection, $record)];
+            if ($record->translation_group_id) {
+                $siblings = Record::where('collection_id', $collection->id)
+                    ->where('translation_group_id', $record->translation_group_id)
+                    ->where('status', 'published')
+                    ->where('id', '!=', $record->id)
+                    ->get();
+                foreach ($siblings as $sibling) {
+                    $sibLocale = RecordDisplay::recordLocale($collection, $sibling) ?? $recDefault;
+                    $alternates[$sibLocale] = RecordDisplay::recordUrl($collection, $sibling);
+                }
+            }
+        }
+
+        return $this->wrapInLayout($site, $head, $body, $record->title, false, $recLocale, $alternates);
     }
 
     /**
@@ -413,10 +432,20 @@ class CollectionPublishService
         $head = '<title>' . e($collection->name) . ($page > 1 ? " — page {$page}" : '') . ' | ' . e($site->name) . '</title>'
             . '<meta name="description" content="' . e(mb_substr("Browse {$collection->name} — {$site->name}", 0, 160)) . '">';
 
+        $localePathsCls = \App\Domain\Publishing\Services\LocalePaths::class;
+        $archiveDefault = $localePathsCls::defaultLanguage($site);
+        $archiveLocale = rtrim($urlPrefix, '/') ?: $archiveDefault;
+        $alternates = [];
+        if (RecordDisplay::localeField($collection)) {
+            foreach ($localePathsCls::languages($site) as $lang) {
+                $alternates[$lang] = '/' . $localePathsCls::prefix($site, $lang) . $this->prefixFor($collection) . '/';
+            }
+        }
+
         // Runtime injection is auto-detected from data-cs-role in the body
         // (templated archives with search blocks); the fallback archive has
         // none and must not pay for an unused script.
-        return $this->wrapInLayout($site, $head, $body, $collection->name);
+        return $this->wrapInLayout($site, $head, $body, $collection->name, false, $archiveLocale, $alternates ?: null);
     }
 
     /**
@@ -551,7 +580,12 @@ class CollectionPublishService
         $head = '<title>' . e($displayName) . ' | ' . e($site->name) . '</title>'
             . '<meta name="description" content="' . e(mb_substr("{$displayName} — {$collection->name}, {$site->name}", 0, 160)) . '">';
 
-        return $this->wrapInLayout($site, $head, $body, $displayName);
+        $alternates = [];
+        foreach (\App\Domain\Publishing\Services\LocalePaths::languages($site) as $lang) {
+            $alternates[$lang] = RecordDisplay::categoryUrl($collection, $node, $lang === $default ? null : $lang);
+        }
+
+        return $this->wrapInLayout($site, $head, $body, $displayName, false, $locale, $alternates);
     }
 
     /**
@@ -776,9 +810,24 @@ class CollectionPublishService
     }
 
     /** Same full-page wrapping as templated category archives. */
-    private function wrapInLayout(Site $site, string $headContent, string $body, string $title, bool $includeSearchRuntime = false): string
+    private function wrapInLayout(Site $site, string $headContent, string $body, string $title, bool $includeSearchRuntime = false, ?string $locale = null, ?array $alternates = null): string
     {
-        $vars = $this->archiveService->getArchiveVars($site);
+        $vars = $this->archiveService->getArchiveVars($site, $locale);
+        $localePaths = \App\Domain\Publishing\Services\LocalePaths::class;
+
+        // Multilingual: hreflang alternates + the switcher pill, computed from
+        // the caller's [locale => url] map (translation groups / shared slugs).
+        if ($locale && $alternates && $localePaths::isMultilingual($site)) {
+            $base = $localePaths::baseUrl($site);
+            foreach ($alternates as $lang => $url) {
+                $headContent .= '<link rel="alternate" hreflang="' . e($lang) . '" href="' . e($base . $url) . '">';
+            }
+            $default = $localePaths::defaultLanguage($site);
+            if (isset($alternates[$default])) {
+                $headContent .= '<link rel="alternate" hreflang="x-default" href="' . e($base . $alternates[$default]) . '">';
+            }
+            $body .= $localePaths::switcherHtmlFor($site, $alternates, $locale);
+        }
         $themeConfig = $site->theme?->config ?? [];
 
         $bodyScripts = '';

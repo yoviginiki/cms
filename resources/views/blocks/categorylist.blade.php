@@ -17,8 +17,29 @@
     $style = $data['style'] ?? 'links';
     $showCount = $data['showCount'] ?? true;
     $parentOnly = $data['parentOnly'] ?? false;
-    // $categories would be populated at build time
-    $categories = $categories ?? [];
+
+    // Self-populating, locale-aware: names translate via the category's
+    // settings.name_translations, links carry the page's locale prefix and
+    // counts include only that language's posts.
+    $__clDefault = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+    $__clLocale = $__locale ?? $__clDefault;
+    $__clPrefix = $__clLocale === $__clDefault ? '' : $__clLocale . '/';
+    if (empty($categories)) {
+        $catQuery = \App\Models\Category::where('site_id', $site->id);
+        if ($parentOnly) {
+            $catQuery->whereNull('parent_id');
+        }
+        $categories = $catQuery->orderBy('name')->get()->map(function ($cat) use ($site, $__clDefault, $__clLocale, $__clPrefix) {
+            $count = $cat->posts()->where('status', 'published')->get()
+                ->filter(fn ($p) => \App\Domain\Publishing\Services\LocalePaths::contentLocale($p, $site) === $__clLocale)
+                ->count();
+            return [
+                'name' => ($cat->settings['name_translations'][$__clLocale] ?? null) ?: $cat->name,
+                'url' => '/' . $__clPrefix . $cat->slug . '/',
+                'count' => $count,
+            ];
+        })->filter(fn ($c) => $c['count'] > 0)->values()->all();
+    }
 @endphp
 @if($style === 'badges')
     <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">

@@ -39,9 +39,10 @@ class MenuController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'location' => ['sometimes', 'string', 'in:header,footer,sidebar,mobile'],
+            'locale' => ['sometimes', 'nullable', 'string', 'max:5', 'regex:/^[a-z]{2}(-[a-z]{2})?$/i'],
         ]);
 
-        $menu = $this->menuService->createMenu($request->only(['name', 'location']), $site);
+        $menu = $this->menuService->createMenu($request->only(['name', 'location', 'locale']), $site);
 
         // A located menu renders on every page — keep site-scope edges current
         $this->references->recomputeSiteScope($site);
@@ -65,6 +66,7 @@ class MenuController extends Controller
         $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'location' => ['sometimes', 'string', 'in:header,footer,sidebar,mobile'],
+            'locale' => ['sometimes', 'nullable', 'string', 'max:5', 'regex:/^[a-z]{2}(-[a-z]{2})?$/i'],
             'style' => ['sometimes', 'array'],
             'style.bgColor' => ['sometimes', 'nullable', 'string', 'max:50'],
             'style.textColor' => ['sometimes', 'nullable', 'string', 'max:50'],
@@ -81,7 +83,7 @@ class MenuController extends Controller
             'style.showSocial' => ['sometimes', 'boolean'],
         ]);
 
-        $menu = $this->menuService->updateMenu($menu, $request->only(['name', 'location', 'style']));
+        $menu = $this->menuService->updateMenu($menu, $request->only(['name', 'location', 'locale', 'style']));
 
         // Location/style changes alter rendered output; location moves also
         // change which pages carry the menu — refresh site-scope edges

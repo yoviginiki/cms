@@ -50,6 +50,17 @@
 
     // Query posts
     $query = \App\Models\Post::where('site_id', $site->id)->where('status', 'published');
+
+    // Multilingual: list only the current page's language (default language
+    // includes posts with no locale set).
+    $__lpDefault = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+    $__lpLocale = $__locale ?? $__lpDefault;
+    $__lpPrefix = $__lpLocale === $__lpDefault ? '' : $__lpLocale . '/';
+    if (\App\Domain\Publishing\Services\LocalePaths::isMultilingual($site)) {
+        $__lpLocale === $__lpDefault
+            ? $query->where(fn ($q) => $q->whereRaw("seo_meta->>'locale' is null")->orWhereRaw("seo_meta->>'locale' = ?", [$__lpLocale]))
+            : $query->whereRaw("seo_meta->>'locale' = ?", [$__lpLocale]);
+    }
     if ($categoryId) {
         $query->where('category_id', $categoryId);
     }
@@ -91,7 +102,7 @@
     <ul style="list-style:none;padding:0;margin:0;">
         @foreach($posts as $post)
             <li style="padding:0.5rem 0;border-bottom:1px solid var(--color-bg-alt,#f3f4f6);display:flex;align-items:center;gap:0.5rem;">
-                <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;font-size:0.875rem;flex:1;">{{ $post->title }}</a>
+                <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post) }}" style="color:var(--color-text, #1e293b);text-decoration:none;font-size:0.875rem;flex:1;">{{ $post->title }}</a>
                 @if($showDate)
                     <span style="font-size:0.75rem;color:var(--color-text-muted,#9ca3af);">{{ $post->published_at?->format('M j') }}</span>
                 @endif
@@ -107,10 +118,10 @@
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
-                        <a href="/{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
+                        <a href="/{{ $__lpPrefix }}{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:600;font-size:1rem;text-align:{{ $titleAlign }};">
-                        <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
+                        <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post) }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
                     </h3>
                     @if($showContent)
                         <div style="margin:0.5rem 0 0;font-size:0.875rem;line-height:1.6;">{!! $renderContent($post) !!}</div>
@@ -135,10 +146,10 @@
             @endif
             <div style="padding:1.25rem;">
                 @if($showCategory && $first->category)
-                    <a href="/{{ $first->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $first->category->name }}</a>
+                    <a href="/{{ $__lpPrefix }}{{ $first->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $first->category->name }}</a>
                 @endif
                 <h2 style="margin:0.25rem 0;font-weight:700;font-size:1.5rem;text-align:{{ $titleAlign }};">
-                    <a href="/{{ $first->category?->slug ?? 'uncategorized' }}/{{ $first->slug }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
+                    <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $first) }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
                 </h2>
                 @if($showContent)
                     <div style="margin-top:0.75rem;font-size:0.9375rem;line-height:1.7;">{!! $renderContent($first) !!}</div>
@@ -162,10 +173,10 @@
                 @endif
                 <div style="{{ $showContent ? 'max-width:var(--prose-max-width,65ch);margin-left:auto;margin-right:auto;' : 'padding:1rem;' }}">
                     @if($showCategory && $post->category)
-                        <a href="/{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
+                        <a href="/{{ $__lpPrefix }}{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:var(--heading-weight,600);font-family:var(--font-heading,inherit);letter-spacing:var(--letter-spacing-heading,0);text-align:{{ $titleAlign }};">
-                        <a href="/{{ $post->category?->slug ?? 'uncategorized' }}/{{ $post->slug }}" style="color:var(--color-heading, var(--color-text, #1e293b));text-decoration:none;">{{ $post->title }}</a>
+                        <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post) }}" style="color:var(--color-heading, var(--color-text, #1e293b));text-decoration:none;">{{ $post->title }}</a>
                     </h3>
                     @if($showContent)
                         <div style="margin-top:1rem;">{!! $renderContent($post) !!}</div>

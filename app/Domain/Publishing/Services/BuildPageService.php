@@ -207,8 +207,8 @@ HTML;
                     'content' => $content,
                 ])->render();
             } else {
-                $headerNav = $this->menuRenderer->renderByLocation($site, 'header');
-                $footerNav = $this->menuRenderer->renderByLocation($site, 'footer');
+                $headerNav = $this->menuRenderer->renderByLocation($site, 'header', $this->templateContext['__locale'] ?? null);
+                $footerNav = $this->menuRenderer->renderByLocation($site, 'footer', $this->templateContext['__locale'] ?? null);
                 $bodyContent = ($headerNav ?: ($themeConfig['navigation_html'] ?? ''))
                     . $magazineHtml
                     . ($footerNav ?? '');
@@ -341,10 +341,10 @@ HTML;
                 $footerHtml = $this->renderGlobalTemplate($site, 'footer');
 
                 if (!$headerHtml) {
-                    $headerHtml = $this->menuRenderer->renderByLocation($site, 'header') ?: ($themeConfig['navigation_html'] ?? '');
+                    $headerHtml = $this->menuRenderer->renderByLocation($site, 'header', $this->templateContext['__locale'] ?? null) ?: ($themeConfig['navigation_html'] ?? '');
                 }
                 if (!$footerHtml) {
-                    $footerHtml = $this->menuRenderer->renderByLocation($site, 'footer') ?: '';
+                    $footerHtml = $this->menuRenderer->renderByLocation($site, 'footer', $this->templateContext['__locale'] ?? null) ?: '';
                 }
 
                 $bodyContent = $renderedBlocks;

@@ -46,7 +46,7 @@ class PositionRenderer
 
         return match ($position->type) {
             'canvas' => $this->renderCanvas($position, $content, $site),
-            'menu' => $this->renderMenu($position, $site),
+            'menu' => $this->renderMenu($position, $content, $site),
             'query' => $this->renderQuery($position, $content, $site),
             'fixed' => $this->renderFixed($position, $site),
             'widget' => $this->renderWidget($position, $site),
@@ -161,12 +161,13 @@ class PositionRenderer
     /**
      * Menu: renders a named menu location.
      */
-    private function renderMenu(GridPosition $position, Site $site): string
+    private function renderMenu(GridPosition $position, Page|Post $content, Site $site): string
     {
         $config = $position->config_json ?? [];
         $location = $config['location'] ?? 'header';
+        $locale = \App\Domain\Publishing\Services\LocalePaths::contentLocale($content, $site);
 
-        return $this->menuRenderer->renderByLocation($site, $location);
+        return $this->menuRenderer->renderByLocation($site, $location, $locale);
     }
 
     /**

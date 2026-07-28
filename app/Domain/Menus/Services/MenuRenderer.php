@@ -50,9 +50,14 @@ class MenuRenderer
         return $this->renderHeader($menu, $site, $items, $settings, $style, $ariaLabel);
     }
 
-    public function renderByLocation(Site $site, string $location): string
+    public function renderByLocation(Site $site, string $location, ?string $locale = null): string
     {
-        $menu = $site->menus()->where('location', $location)->first();
+        // Menu-per-language: a locale-tagged menu wins for its language;
+        // menus without a locale serve the default language and act as the
+        // fallback for locales that have no menu of their own.
+        $menus = $site->menus()->where('location', $location)->get();
+        $menu = $locale ? $menus->first(fn ($m) => $m->locale === $locale) : null;
+        $menu ??= $menus->first(fn ($m) => empty($m->locale)) ?? $menus->first();
         $label = match ($location) {
             'header' => 'Main navigation',
             'footer' => 'Footer navigation',

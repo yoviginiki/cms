@@ -62,12 +62,20 @@ class MenuItem extends Model
         }
 
         if ($this->page_id && $this->page) {
-            $slug = $this->page->slug === 'home' ? '' : $this->page->slug;
-            return $baseUrl . '/' . $slug;
+            // LocalePaths strips the -{locale} slug suffix and adds the
+            // /{locale}/ prefix, so a menu item to a translated page links
+            // its public URL (/en/about/) rather than the internal slug.
+            $site = $this->page->site;
+            return $site
+                ? $baseUrl . \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $this->page)
+                : $baseUrl . '/' . ($this->page->slug === 'home' ? '' : $this->page->slug);
         }
 
         if ($this->post_id && $this->post) {
-            return $baseUrl . '/' . ($this->post->category ? $this->post->category->slug . '/' : '') . $this->post->slug;
+            $site = $this->post->site;
+            return $site
+                ? $baseUrl . \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $this->post)
+                : $baseUrl . '/' . ($this->post->category ? $this->post->category->slug . '/' : '') . $this->post->slug;
         }
 
         if ($this->category_id && $this->category) {

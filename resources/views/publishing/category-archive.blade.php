@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $category->name }} | {{ $site->name }}</title>
-    <meta name="description" content="Posts in {{ $category->name }}">
+    <title>{{ $displayName ?? $category->name }} | {{ $site->name }}</title>
+    <meta name="description" content="Posts in {{ $displayName ?? $category->name }}">
     <link rel="canonical" href="{{ $baseUrl }}/{{ $category->slug }}">
     @if(!empty($rssUrl))<link rel="alternate" type="application/rss+xml" title="{{ $site->name }} Feed" href="{{ $rssUrl }}">@endif
     @if(!empty($designTokensCss))<style>{!! $designTokensCss !!}</style>@endif
@@ -17,7 +17,7 @@
 <body>
     <header role="banner">@if(!empty($navigation)){!! $navigation !!}@endif</header>
     <main role="main" style="max-width:var(--container-width,800px);margin:0 auto;padding:var(--space-8,2rem) var(--container-padding,1rem);">
-        <h1>{{ $category->name }}</h1>
+        <h1>{{ $displayName ?? $category->name }}</h1>
         @if($category->description)<p style="color:var(--color-text-muted,#6b7280);margin-bottom:var(--space-6,1.5rem);">{{ $category->description }}</p>@endif
 
         {{-- Direct posts in this category --}}

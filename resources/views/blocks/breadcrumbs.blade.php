@@ -16,14 +16,21 @@
 @php
   $separator = $data['separator'] ?? '/';
   $showHome = $data['showHome'] ?? true;
-  $homeLabel = $data['homeLabel'] ?? 'Home';
   $showCurrent = $data['showCurrent'] ?? true;
   $useSchema = $data['schema'] ?? true;
+
+  // Locale-aware: home links to the language's root, ancestor URLs come from
+  // LocalePaths (locale prefix + -{locale} suffix stripping), and the Home
+  // label localizes unless explicitly overridden on the block.
+  $__bcDefault = \App\Domain\Publishing\Services\LocalePaths::defaultLanguage($site);
+  $__bcLocale = $__locale ?? $__bcDefault;
+  $__bcPrefix = $__bcLocale === $__bcDefault ? '' : $__bcLocale . '/';
+  $homeLabel = ($data['homeLabel'] ?? null) ?: \App\Domain\Publishing\Services\LocalePaths::uiLabel('home', $__bcLocale);
 
   // Build breadcrumb trail from page hierarchy
   $crumbs = [];
   if ($showHome) {
-      $crumbs[] = ['label' => $homeLabel, 'url' => '/'];
+      $crumbs[] = ['label' => $homeLabel, 'url' => '/' . $__bcPrefix];
   }
 
   // If we have a page with parent, build the chain
@@ -31,7 +38,7 @@
       $ancestors = [];
       $current = $page->parent;
       while ($current) {
-          array_unshift($ancestors, ['label' => $current->title, 'url' => '/' . $current->slug]);
+          array_unshift($ancestors, ['label' => $current->title, 'url' => \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $current)]);
           $current = $current->parent;
       }
       $crumbs = array_merge($crumbs, $ancestors);

@@ -211,6 +211,18 @@ class LocalePaths
         $current = self::contentLocale($content, $site);
         $alternates = self::alternates($site, $content);
 
+        return self::switcherHtmlFor($site, array_map(fn ($a) => $a['url'], $alternates), $current);
+    }
+
+    /**
+     * Switcher pill from a plain [locale => url] map — used by collection
+     * pages (categories/records/archives) where alternates are computed from
+     * translation groups rather than the page slug convention.
+     */
+    public static function switcherHtmlFor(Site $site, array $urls, string $current): string
+    {
+        if (!self::isMultilingual($site)) return '';
+
         $links = '';
         foreach (self::languages($site) as $lang) {
             $label = strtoupper($lang);
@@ -218,7 +230,7 @@ class LocalePaths
                 $links .= '<span style="font-weight:700;color:var(--color-text,#1f2937);">' . e($label) . '</span>';
                 continue;
             }
-            $href = $alternates[$lang]['url'] ?? ('/' . self::prefix($site, $lang));
+            $href = $urls[$lang] ?? ('/' . self::prefix($site, $lang));
             $links .= '<a href="' . e($href) . '" style="color:var(--color-text-muted,#6b7280);text-decoration:none;" hreflang="' . e($lang) . '">' . e($label) . '</a>';
         }
 

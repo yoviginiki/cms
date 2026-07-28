@@ -27,13 +27,26 @@ class ArchiveBuildService
      */
     public function buildAll(Site $site, string $stagingPath): array
     {
-        $posts = $site->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
-        if ($posts->isEmpty()) {
+        $all = $site->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
+        if ($all->isEmpty()) {
             return [];
         }
 
-        $this->buildBlogIndex($site, $posts, $stagingPath);
-        $warnings = $this->buildCategoryArchives($site, $stagingPath);
+        // Multilingual sites publish one blog index + category archives per
+        // language: the default at /blog/ and /{cat}/, others at /{locale}/…
+        // (same slugs, only the prefix differs). Single-language sites take
+        // exactly one pass with an empty prefix — behavior unchanged.
+        $warnings = [];
+        $default = LocalePaths::defaultLanguage($site);
+        foreach (LocalePaths::languages($site) as $locale) {
+            $prefix = LocalePaths::prefix($site, $locale);
+            $posts = $all->filter(fn ($p) => LocalePaths::contentLocale($p, $site) === $locale)->values();
+            if ($posts->isEmpty() && $locale !== $default) {
+                continue;
+            }
+            $this->buildBlogIndex($site, $posts, $stagingPath, $prefix, $locale);
+            $warnings = array_merge($warnings, $this->buildCategoryArchives($site, $stagingPath, $prefix, $locale));
+        }
         $this->buildTagArchives($site, $stagingPath);
         $this->buildAuthorArchives($site, $stagingPath);
 
@@ -61,7 +74,7 @@ class ArchiveBuildService
         File::put("{$stagingPath}/{$path}", $html);
     }
 
-    public function getArchiveVars(Site $site): array
+    public function getArchiveVars(Site $site, ?string $locale = null): array
     {
         $themeConfig = $site->theme?->config ?? [];
         $menuRenderer = app(MenuRenderer::class);
@@ -88,17 +101,17 @@ class ArchiveBuildService
             'headScripts' => $bareDesign ? ($site->settings['head_scripts'] ?? '') : '',
             'navigation' => $bareDesign
                 ? ($site->settings['chrome_header_html'] ?? '')
-                : $menuRenderer->renderByLocation($site, 'header'),
+                : $menuRenderer->renderByLocation($site, 'header', $locale),
             'footerNavigation' => $bareDesign
                 ? ($site->settings['chrome_footer_html'] ?? '')
-                : $menuRenderer->renderByLocation($site, 'footer'),
+                : $menuRenderer->renderByLocation($site, 'footer', $locale),
             'rssUrl' => "{$baseUrl}/feed.xml",
         ];
     }
 
-    public function buildBlogIndex(Site $site, $posts, string $stagingPath): void
+    public function buildBlogIndex(Site $site, $posts, string $stagingPath, string $prefix = '', ?string $locale = null): void
     {
-        $vars = $this->getArchiveVars($site);
+        $vars = $this->getArchiveVars($site, $locale);
         $perPage = 10;
         $totalPages = max(1, (int) ceil($posts->count() / $perPage));
 
@@ -108,21 +121,24 @@ class ArchiveBuildService
                 'posts' => $pagePosts,
                 'currentPage' => $page,
                 'totalPages' => $totalPages,
-                'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, 'Blog', $page === 1 ? '/blog/' : "/blog/page/{$page}/", $pagePosts),
+                'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, 'Blog', $page === 1 ? "/{$prefix}blog/" : "/{$prefix}blog/page/{$page}/", $pagePosts),
             ]))->render();
 
-            $path = $page === 1 ? 'blog/index.html' : "blog/page/{$page}/index.html";
+            $path = $page === 1 ? "{$prefix}blog/index.html" : "{$prefix}blog/page/{$page}/index.html";
             $this->write($stagingPath, $path, $html, $site);
         }
     }
 
     /** @return string[] lint warnings (archive templates rendering zero posts) */
-    public function buildCategoryArchives(Site $site, string $stagingPath): array
+    public function buildCategoryArchives(Site $site, string $stagingPath, string $prefix = '', ?string $locale = null): array
     {
         $warnings = [];
-        $vars = $this->getArchiveVars($site);
+        $locale ??= LocalePaths::defaultLanguage($site);
+        $vars = $this->getArchiveVars($site, $locale);
         $categories = $site->categories()->withCount('posts')->get();
         $buildService = app(BuildPageService::class);
+        $isDefaultLocale = $prefix === '';
+        $localizeName = fn ($cat) => ($cat->settings['name_translations'][$locale] ?? null) ?: $cat->name;
 
         foreach ($categories as $category) {
             // A real page owns its slug: category archives write to /{slug}/
@@ -138,14 +154,20 @@ class ArchiveBuildService
                 continue;
             }
 
-            $posts = $category->posts()->with(['category', 'author'])->where('status', 'published')->orderByDesc('published_at')->get();
+            $posts = $category->posts()->with(['category', 'author'])->where('status', 'published')->orderByDesc('published_at')->get()
+                ->filter(fn ($p) => LocalePaths::contentLocale($p, $site) === $locale)->values();
+            if ($posts->isEmpty() && !$isDefaultLocale) {
+                continue; // no /{locale}/{cat}/ page for languages this category has no posts in
+            }
+            $displayName = $localizeName($category);
 
             // Check for archive template
             $archiveTemplate = ThemeTemplate::resolveForArchive($site->id, $category->id);
 
             if ($archiveTemplate) {
                 $html = $this->renderArchiveWithTemplate($archiveTemplate, $category, $posts, $site, $vars, $buildService,
-                    app(StructuredDataService::class)->generateArchiveGraph($site, $category->name, "/{$category->slug}/", $posts));
+                    app(StructuredDataService::class)->generateArchiveGraph($site, $displayName, "/{$prefix}{$category->slug}/", $posts),
+                    $prefix, $locale, $displayName);
 
                 // An empty/misconfigured archive template fails completely
                 // silently — the archive publishes with no post listing at all.
@@ -160,21 +182,24 @@ class ArchiveBuildService
                 $children = $categories->where('parent_id', $category->id);
                 $childData = [];
                 foreach ($children as $child) {
-                    $childPosts = $child->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
+                    $childPosts = $child->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get()
+                        ->filter(fn ($p) => LocalePaths::contentLocale($p, $site) === $locale)->values();
                     if ($childPosts->isNotEmpty()) {
-                        $childData[] = ['category' => $child, 'posts' => $childPosts];
+                        $childData[] = ['category' => $child, 'posts' => $childPosts, 'displayName' => $localizeName($child)];
                     }
                 }
 
                 $html = View::make('publishing.category-archive', array_merge($vars, [
                     'category' => $category,
+                    'displayName' => $displayName,
+                    'urlPrefix' => $prefix,
                     'posts' => $posts,
                     'childCategories' => $childData,
-                    'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $category->name, "/{$category->slug}/", $posts),
+                    'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $displayName, "/{$prefix}{$category->slug}/", $posts),
                 ]))->render();
             }
 
-            $path = "{$category->slug}/index.html";
+            $path = "{$prefix}{$category->slug}/index.html";
             $this->write($stagingPath, $path, $html, $site);
         }
 
@@ -189,15 +214,20 @@ class ArchiveBuildService
         array $vars,
         BuildPageService $buildService,
         string $extraHead = '',
+        string $prefix = '',
+        ?string $locale = null,
+        ?string $displayName = null,
     ): string {
+        $displayName ??= $category->name;
         // Set archive context for dynamic blocks
         $archiveContext = [
             '__category' => $category,
+            '__locale' => $locale ?? LocalePaths::defaultLanguage($site),
             '__archivePosts' => $posts,
             '__archivePostCount' => $posts->count(),
             '__archiveCurrentPage' => 1,
             '__archiveTotalPages' => 1,
-            '__archiveBaseUrl' => "/{$category->slug}",
+            '__archiveBaseUrl' => "/{$prefix}{$category->slug}",
         ];
 
         // Render template blocks with archive context (safe try/finally inside)
@@ -210,8 +240,8 @@ class ArchiveBuildService
         $renderedBlocks = $buildService->renderBlocksWithContext($templateBlocks, $site, $archiveContext);
 
         $themeConfig = $site->theme?->config ?? [];
-        $description = trim((string) ($category->description ?: "Posts in {$category->name} — {$site->name}"));
-        $headContent = '<title>' . e($category->name) . ' | ' . e($site->name) . '</title>'
+        $description = trim((string) ($category->description ?: "Posts in {$displayName} — {$site->name}"));
+        $headContent = '<title>' . e($displayName) . ' | ' . e($site->name) . '</title>'
             . '<meta name="description" content="' . e(mb_substr($description, 0, 160)) . '">'
             . app(FaviconGenerator::class)->headLink()
             . $extraHead;
@@ -226,7 +256,7 @@ class ArchiveBuildService
             'hookBodyClose' => '',
             'renderedBlocks' => $renderedBlocks,
             'mainStyle' => 'max-width:var(--container-width,1080px);margin:0 auto;padding:0 1.5rem;',
-            'content' => (object) ['title' => $category->name, 'seo_meta' => []],
+            'content' => (object) ['title' => $displayName, 'seo_meta' => []],
             'themeConfig' => $themeConfig,
         ]))->render();
     }

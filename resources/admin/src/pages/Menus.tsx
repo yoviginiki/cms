@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Loader2, Menu as MenuIcon, Edit2 } from 'lucide-react';
-import { menus } from '@/lib/api';
+import { menus, sites as sitesApi } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
@@ -11,6 +11,7 @@ interface MenuData {
   name: string;
   slug: string;
   location: string;
+  locale?: string | null;
   items_count: number;
 }
 
@@ -69,6 +70,18 @@ export default function Menus() {
     }
   };
 
+  // Site languages for the per-menu language tag (menu-per-language model)
+  const { data: site } = useQuery<any>({
+    queryKey: ['site', siteId],
+    queryFn: () => sitesApi.get(siteId).then((r: any) => r.data.data),
+  });
+  const siteLangs: string[] = (site?.settings?.languages as string[]) || [];
+  const defaultLang: string = site?.settings?.default_language || 'en';
+  const localeMutation = useMutation({
+    mutationFn: ({ id, locale }: { id: string; locale: string | null }) => menus.update(siteId, id, { locale }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['menus', siteId] }),
+  });
+
   const locationLabel = (loc: string) => {
     const labels: Record<string, string> = { header: 'Header', footer: 'Footer', sidebar: 'Sidebar', mobile: 'Mobile' };
     return labels[loc] || loc;
@@ -102,6 +115,13 @@ export default function Menus() {
                 <div>
                   <h3 className="font-semibold text-base-content">{menu.name}</h3>
                   <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700">{locationLabel(menu.location)}</span>
+                  {siteLangs.length > 1 && (
+                    <select value={menu.locale || ''} onChange={e => localeMutation.mutate({ id: menu.id, locale: e.target.value || null })}
+                      className="select select-bordered select-xs ml-1.5 mt-1 align-middle" title="Menu language — a locale-tagged menu is used only on that language's pages">
+                      <option value="">{defaultLang.toUpperCase()} (default)</option>
+                      {siteLangs.filter(l => l !== defaultLang).map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+                    </select>
+                  )}
                 </div>
                 <button onClick={() => setDeleteTarget(menu)} className="p-1 text-base-content/40 hover:text-red-500 rounded"><Trash2 className="h-4 w-4" /></button>
               </div>
