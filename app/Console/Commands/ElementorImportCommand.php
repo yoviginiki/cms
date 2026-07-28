@@ -190,7 +190,7 @@ class ElementorImportCommand extends Command
         // settings.custom_css between markers so re-import refreshes just this
         // block and never clobbers hand-written CSS.
         if ($pairs !== []) {
-            $this->applyAutoRecipe($site, $kitTypography, $heroSlider);
+            $this->applyAutoRecipe($site, $kitTypography, $globalColors, $heroSlider);
         }
 
         // Latest source POSTS → real CMS posts (feeds the latestposts block).
@@ -280,13 +280,24 @@ class ElementorImportCommand extends Command
      * is a slider) into settings.custom_css, between markers, so re-import
      * refreshes only this block and leaves any hand-written CSS intact.
      */
-    private function applyAutoRecipe(Site $site, array $kitTypography, bool $heroSlider): void
+    private function applyAutoRecipe(Site $site, array $kitTypography, array $globalColors, bool $heroSlider): void
     {
         $rem = fn ($px) => rtrim(rtrim(number_format((float) $px / 16, 4, '.', ''), '0'), '.') . 'rem';
         $size = fn (string $id) => is_numeric($kitTypography[$id]['typography_font_size']['size'] ?? null)
             ? (float) $kitTypography[$id]['typography_font_size']['size'] : null;
+        $hex = fn (string $id) => (isset($globalColors[$id]) && preg_match('/^#[0-9a-fA-F]{6}$/', $globalColors[$id]))
+            ? strtolower($globalColors[$id]) : null;
 
         $vars = [];
+        // Heading colour from the kit's "primary" dark tone — NOT its "black"
+        // (Elementor kits routinely mislabel a grey as Black; headings that
+        // inherit it render muted grey instead of the real dark heading tone).
+        if (($heading = $hex('primary')) !== null) {
+            $vars[] = '--color-heading:' . $heading;
+        }
+        if (($body = $hex('text')) !== null) {
+            $vars[] = '--color-text-muted:' . $body;
+        }
         if (($primary = $size('primary')) !== null) {
             $vars[] = '--font-size-2xl:' . $rem($primary);
             $vars[] = '--font-size-3xl:' . $rem($primary * 1.4);

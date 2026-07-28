@@ -237,18 +237,29 @@ class ElementorTreeCompiler
      * tile beside a compact title (feature row, as in the "about" band); any
      * other position → a plain brand-blue icon above the title (as in the
      * service tiles). Both keep title/description compact, not a giant heading. */
-    private function featureBoxHtml(string $iconUrl, string $title, string $desc, string $position): string
+    private function featureBoxHtml(string $iconUrl, string $title, string $desc, string $position, ?string $boxBg = null): string
     {
         $blue = 'filter:brightness(0) saturate(100%) invert(34%) sepia(93%) saturate(1500%) hue-rotate(205deg) brightness(96%) contrast(94%)';
         $descHtml = $desc !== ''
             ? '<div style="color:var(--color-text-muted,#64748b);margin-top:4px;font-size:15px">' . e($desc) . '</div>'
             : '';
 
+        // Icon-box with its own solid box background → a real card (icon-top).
+        // Literal colours keep the card's text readable even on a dark band
+        // (they're immune to the dark-section lightenText swap).
+        if ($boxBg !== null) {
+            return '<div style="background:' . $boxBg . ';padding:28px;border-radius:20px;border:1px solid rgba(26,32,44,0.08);margin:0 0 16px">'
+                . '<img src="' . e($iconUrl) . '" alt="" width="40" height="40" style="' . $blue . ';margin-bottom:14px">'
+                . '<div style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:#1a202c">' . e($title) . '</div>'
+                . ($desc !== '' ? '<div style="color:#6d6d6d;margin-top:4px;font-size:15px">' . e($desc) . '</div>' : '')
+                . '</div>';
+        }
+
         if ($position === 'left') {
             $tile = '<span style="flex-shrink:0;width:60px;height:60px;border-radius:14px;background:#2f6df6;'
                 . 'display:inline-flex;align-items:center;justify-content:center">'
                 . '<img src="' . e($iconUrl) . '" alt="" width="30" height="30" style="filter:brightness(0) invert(1)"></span>';
-            $body = '<div><div style="font-weight:700;font-size:17px;line-height:1.35;color:var(--color-heading,#0f172a)">'
+            $body = '<div><div style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a)">'
                 . e($title) . '</div>' . $descHtml . '</div>';
 
             return '<div style="display:flex;align-items:flex-start;gap:16px;margin:0 0 20px">' . $tile . $body . '</div>';
@@ -256,7 +267,7 @@ class ElementorTreeCompiler
 
         return '<div style="margin:0 0 10px">'
             . '<img src="' . e($iconUrl) . '" alt="" width="40" height="40" style="' . $blue . ';margin-bottom:14px">'
-            . '<div style="font-weight:700;font-size:17px;line-height:1.35;color:var(--color-heading,#0f172a)">' . e($title) . '</div>'
+            . '<div style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a)">' . e($title) . '</div>'
             . $descHtml . '</div>';
     }
 
@@ -281,8 +292,8 @@ class ElementorTreeCompiler
         $weight = (string) ($s['ekit_btn_typography_font_weight'] ?? '');
 
         return array_filter([
-            'bgColor' => $this->color($s['ekit_btn_bg_color'] ?? null),
-            'textColor' => $this->color($s['ekit_btn_text_color'] ?? null),
+            'bgColor' => $this->colorGlobalFirst($s, 'ekit_btn_bg_color'),
+            'textColor' => $this->colorGlobalFirst($s, 'ekit_btn_text_color'),
             'fontSize' => $this->edim($s['ekit_btn_typography_font_size'] ?? null),
             'fontWeight' => in_array($weight, ['400', '500', '600', '700', '800', '900'], true) ? $weight : null,
         ], fn ($v) => $v !== null && $v !== '');
@@ -364,6 +375,14 @@ class ElementorTreeCompiler
                     $nodes[$i]['data']['color'] = '#ffffff';
                 } elseif ($type === 'text' && empty($node['data']['textColor'])) {
                     $nodes[$i]['data']['textColor'] = '#d5d9e2';
+                } elseif ($type === 'html-embed' && !empty($node['data']['html'])) {
+                    // Feature-box tiles / checklists carry inline colour tokens
+                    // that read dark on light bands — swap to light on dark ones.
+                    $nodes[$i]['data']['html'] = strtr($node['data']['html'], [
+                        'color:var(--color-heading,#0f172a)' => 'color:#ffffff',
+                        'var(--color-text-muted,#64748b)' => '#d5d9e2',
+                        'var(--color-text-muted,#5b6472)' => '#d5d9e2',
+                    ]);
                 }
             }
             if (!empty($node['children'])) {
@@ -744,13 +763,16 @@ class ElementorTreeCompiler
             return [];
         }
 
-        // ElementsKit header icon (SVG) → feature box (tile-left or icon-top).
+        // ElementsKit header icon (SVG) → feature box (tile-left, icon-top, or a
+        // real card when the widget carries its own solid box background).
         $hi = $s['ekit_icon_box_header_icons']['value'] ?? null;
         if (is_array($hi) && is_string($hi['url'] ?? null) && $hi['url'] !== '') {
             $position = ($s['ekit_icon_box_icon_position'] ?? 'top') === 'left' ? 'left' : 'top';
+            $boxBg = $this->color($s['ekit_icon_box_infobox_bg_group_color'] ?? null);
+            $boxBg = ($boxBg !== null && !$this->isTransparent($boxBg)) ? $boxBg : null;
 
             return [$this->module('html-embed', [
-                'html' => $this->featureBoxHtml(($this->importImage)($hi['url'], $title), $title, $desc, $position),
+                'html' => $this->featureBoxHtml(($this->importImage)($hi['url'], $title), $title, $desc, $position, $boxBg),
             ])];
         }
 
@@ -987,6 +1009,25 @@ class ElementorTreeCompiler
     private function color(mixed $v): ?string
     {
         return is_string($v) && preg_match('/^#[0-9a-fA-F]{3,8}$/', trim($v)) === 1 ? strtolower(trim($v)) : null;
+    }
+
+    /**
+     * A color where an Elementor kit-global reference WINS over the stored
+     * literal — Elementor keeps the old literal when you switch a control to a
+     * global, and renders the global. settingColor() prefers the literal (right
+     * for plain fields); this is for fields that carry a global (e.g. buttons).
+     */
+    private function colorGlobalFirst(array $s, string $key): ?string
+    {
+        $ref = $s['__globals__'][$key] ?? '';
+        if (is_string($ref) && preg_match('#globals/colors\?id=([A-Za-z0-9_-]+)#', str_replace('\\/', '/', $ref), $m)) {
+            $global = $this->color($this->globalColors[$m[1]] ?? null);
+            if ($global !== null) {
+                return $global;
+            }
+        }
+
+        return $this->color($s[$key] ?? null);
     }
 
     private function url(mixed $v): ?string
