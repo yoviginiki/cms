@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Migration\Jobs\RunMigrationToolJob;
+use App\Domain\Migration\Services\ElementorImportPlanner;
 use App\Domain\Migration\Support\MigrationRunStore;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
@@ -56,6 +57,36 @@ class MigrationController extends Controller
         $this->authorize('view', $site);
 
         return response()->json(['data' => MigrationRunStore::all($site)]);
+    }
+
+    /**
+     * "Assisted" Elementor import planner: connect once with the supplied WP DB
+     * credentials (NOT stored), enumerate the Elementor pages and return the
+     * ready-to-run `elementor:import` command. Host is locked to localhost.
+     */
+    public function elementorPlan(Request $request, Site $site, ElementorImportPlanner $planner): JsonResponse
+    {
+        $this->authorize('update', $site);
+
+        $data = $request->validate([
+            'wp_db' => 'required|string|max:120|regex:/^[A-Za-z0-9_]+$/',
+            'wp_user' => 'required|string|max:120|regex:/^[A-Za-z0-9_.@-]+$/',
+            'wp_pass' => 'required|string|max:200',
+            'wp_prefix' => 'sometimes|nullable|string|max:40|regex:/^[A-Za-z0-9_]+$/',
+            'origin' => 'sometimes|nullable|url|max:300',
+        ]);
+
+        try {
+            $plan = $planner->plan($site, $data);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Could not read the WordPress database — check the credentials and prefix.'], 422);
+        }
+
+        if ($plan['pages'] === []) {
+            return response()->json(['message' => 'No Elementor-built pages found for that prefix.'], 422);
+        }
+
+        return response()->json(['data' => $plan]);
     }
 
     public function show(Site $site, string $runId): JsonResponse

@@ -5,6 +5,7 @@ import {
   ArrowLeft, Bug, ExternalLink, FileText, Loader2, Play, RefreshCw, Route as RouteIcon, Camera,
 } from 'lucide-react';
 import { migration } from '@/lib/api';
+import ElementorPlanner from '@/components/ElementorPlanner';
 
 interface RunSummary {
   id: string;
@@ -334,6 +335,8 @@ export default function MigrationPage() {
           )}
         </div>
       )}
+
+      {siteId && <ElementorPlanner siteId={siteId} />}
 
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">

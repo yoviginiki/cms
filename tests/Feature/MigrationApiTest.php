@@ -98,4 +98,38 @@ class MigrationApiTest extends TestCase
             ->get("/api/v1/sites/{$this->site->id}/migration/artifacts/..%2F..%2F..%2F.env")
             ->assertNotFound();
     }
+
+    public function test_elementor_plan_requires_authentication(): void
+    {
+        $this->postJson("/api/v1/sites/{$this->site->id}/migration/elementor-plan", [
+            'wp_db' => 'db', 'wp_user' => 'u', 'wp_pass' => 'p',
+        ])->assertUnauthorized();
+    }
+
+    public function test_elementor_plan_validates_input(): void
+    {
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/sites/{$this->site->id}/migration/elementor-plan", ['wp_user' => 'u'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['wp_db', 'wp_pass']);
+
+        // db name must be an identifier (no injection)
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/sites/{$this->site->id}/migration/elementor-plan", [
+                'wp_db' => 'db; DROP TABLE', 'wp_user' => 'u', 'wp_pass' => 'p',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['wp_db']);
+    }
+
+    public function test_elementor_plan_returns_422_on_unreadable_database(): void
+    {
+        // Valid-format but bogus credentials → graceful 422, never a 500.
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/sites/{$this->site->id}/migration/elementor-plan", [
+                'wp_db' => 'definitely_not_a_real_db_'.uniqid(), 'wp_user' => 'nobody', 'wp_pass' => 'nope', 'wp_prefix' => 'wp_',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Could not read the WordPress database — check the credentials and prefix.');
+    }
 }

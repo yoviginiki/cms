@@ -500,6 +500,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/import/{importId}/status', [ImportController::class, 'status']);
 
         // Migration toolchain (spider rebuild / redirect maps / verification diff)
+        Route::post('sites/{site}/migration/elementor-plan', [\App\Http\Controllers\Api\V1\MigrationController::class, 'elementorPlan']);
         Route::post('sites/{site}/migration/runs', [\App\Http\Controllers\Api\V1\MigrationController::class, 'start']);
         Route::get('sites/{site}/migration/runs', [\App\Http\Controllers\Api\V1\MigrationController::class, 'index']);
         Route::get('sites/{site}/migration/runs/{runId}', [\App\Http\Controllers\Api\V1\MigrationController::class, 'show']);

@@ -292,6 +292,15 @@ export interface SiteWizardSource {
   status: 'pending' | 'building' | 'done' | 'failed';
   page_id?: string | null;
   error?: string | null;
+  /** Set by the verify step: objective per-page fidelity vs. the source. */
+  fidelity?: {
+    coverage?: number;
+    missing_headings?: number;
+    missing_images?: number;
+    missing_links?: number;
+    gap_samples?: string[];
+    error?: string;
+  } | null;
 }
 
 export interface SiteWizardSession {
@@ -389,6 +398,10 @@ export const migration = {
   runs: (siteId: string) => api.get(`/sites/${siteId}/migration/runs`),
   run: (siteId: string, runId: string) => api.get(`/sites/${siteId}/migration/runs/${runId}`),
   artifactUrl: (siteId: string, path: string) => `/api/v1/sites/${siteId}/migration/artifacts/${path}`,
+  elementorPlan: (
+    siteId: string,
+    creds: { wp_db: string; wp_user: string; wp_pass: string; wp_prefix?: string; origin?: string },
+  ) => api.post(`/sites/${siteId}/migration/elementor-plan`, creds),
 };
 
 export const ai = {

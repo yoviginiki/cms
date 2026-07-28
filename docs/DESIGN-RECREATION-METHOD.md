@@ -119,7 +119,7 @@ body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-top-link,bod
 
 ### 6. Бърза recipe за СЛЕДВАЩ Elementor сайт (минимум ръчна работа)
 1. WP DB достъп: чети `wp-config.php` (DB_NAME/USER/PASSWORD, `$table_prefix`).
-2. Мап WP post id→slug: `SELECT ID,post_name FROM {prefix}posts WHERE post_type='page' AND post_status='publish'` (+ провери `_elementor_data` през postmeta).
+2. **Планер (assisted, не пази пароли)**: `php artisan elementor:plan --site --tenant --wp-db --wp-user --wp-pass --wp-prefix --origin` ИЛИ Migration admin страницата → "Elementor import planner" панел. Изброява Elementor страниците, matched към CMS slug-овете, и печата ГОТОВАТА `elementor:import` команда (парола = placeholder). Спестява ръчния id→slug мапинг (`ElementorImportPlanner`, host lock 127.0.0.1).
 3. Backup: `DB::table('blocks')->where('blockable_id',<pageid>)` преди import.
 4. `elementor:import --tenant --site --wp-db --wp-user --wp-pass --wp-prefix --origin --catalog-post --pages=ID:slug` (БЕЗ `--publish` = draft).
 5. Build in-process → сравни (виж §3) → чак тогава `PublishOrchestrator::publish($site,$user,'full')` (terminal статус = **'live'**).
