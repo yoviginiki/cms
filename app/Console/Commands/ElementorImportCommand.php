@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use App\Domain\Blocks\Services\BlockService;
 use App\Domain\Database\RlsManager;
+use App\Domain\Sliders\Services\SliderService;
 use App\Models\Page;
 use App\Models\Site;
+use App\Models\Slider;
 use App\Services\SiteWizard\ElementorTreeCompiler;
 use App\Services\SiteWizard\SiteWizardMediaImporter;
 use Illuminate\Console\Command;
@@ -48,6 +50,7 @@ class ElementorImportCommand extends Command
         ElementorTreeCompiler $compiler,
         BlockService $blocks,
         SiteWizardMediaImporter $media,
+        SliderService $sliders,
     ): int {
         if ($this->option('tenant')) {
             DB::statement("SELECT set_config('app.current_tenant_id', ?, false)", [$this->option('tenant')]);
@@ -181,13 +184,23 @@ class ElementorImportCommand extends Command
                 ]);
                 $this->line("created page {$slug}");
             }
+            // Sliders are LIBRARY entities, never inline on a page (the editor
+            // only renders the slider_ref embed — an inline 'slider' shows as
+            // "Unknown block"). Lift each compiled slider into its own library
+            // Slider and leave a slider_ref in its place.
+            $sliderCount = 0;
+            $tree = $this->extractSlidersToLibrary(
+                $site, $slug, $tree, $sliders, (bool) $this->option('publish'), $sliderCount,
+            );
+
             $blocks->syncBlocks($page, $tree);
             if ($this->option('publish')) {
                 $page->update(['status' => 'published', 'published_at' => now()]);
             }
 
             $sections = count($tree);
-            $this->info("WP {$wpId} → /{$slug} ({$sections} sections)");
+            $extracted = $sliderCount > 0 ? ", {$sliderCount} slider(s) → library" : '';
+            $this->info("WP {$wpId} → /{$slug} ({$sections} sections{$extracted})");
         }
 
         // Auto-recipe: kit typography → the site's type scale, plus the
@@ -263,6 +276,49 @@ class ElementorImportCommand extends Command
         $this->info('Imported ' . count($assetMap) . ' media file(s).');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Walk a compiled block tree and pull every inline 'slider' node out into a
+     * standalone library Slider, replacing it in the page tree with a lightweight
+     * slider_ref. This keeps the architecture invariant (sliders live in the
+     * library; pages only embed them) so imported heroes are editable in the
+     * Sliders UI instead of rendering as "Unknown block".
+     *
+     * @param  int  $count  running count of sliders extracted (by reference)
+     * @return array the tree with sliders replaced by slider_ref nodes
+     */
+    private function extractSlidersToLibrary(
+        Site $site, string $slug, array $nodes, SliderService $sliders, bool $publish, int &$count,
+    ): array {
+        $out = [];
+        foreach ($nodes as $node) {
+            if (($node['type'] ?? '') === 'slider') {
+                $name = 'Hero — ' . $slug . ($count > 0 ? ' (' . ($count + 1) . ')' : '');
+                $count++;
+                $slider = Slider::create([
+                    'site_id' => $site->id, 'name' => $name, 'status' => 'draft',
+                ]);
+                // The slider node itself is the library root; sync its full subtree
+                // (slide → layers) onto the entity, then publish so the ref renders.
+                $sliders->syncBlocks($slider, [$node]);
+                if ($publish) {
+                    $sliders->publish($slider);
+                }
+                $out[] = [
+                    'type' => 'slider_ref', 'level' => 'module', 'order' => $node['order'] ?? 0,
+                    'data' => ['sliderId' => $slider->id], 'children' => [],
+                ];
+
+                continue;
+            }
+            if (!empty($node['children'])) {
+                $node['children'] = $this->extractSlidersToLibrary($site, $slug, $node['children'], $sliders, $publish, $count);
+            }
+            $out[] = $node;
+        }
+
+        return $out;
     }
 
     /** Does a compiled section node contain a slider anywhere below it? */

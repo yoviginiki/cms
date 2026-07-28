@@ -167,7 +167,7 @@ class StaleContentController extends Controller
 
         return response()->json(['data' => [
             'deployment' => $deployment->fresh(),
-            'promoted' => $built->count(),
+            'promoted' => count($built),
             'failed' => $deployment->metadata['failed'] ?? [],
         ]]);
     }
