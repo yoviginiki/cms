@@ -226,6 +226,11 @@ class SpreadGenerationTest extends TestCase
         ];
         Http::fake(['api.anthropic.com/*' => Http::response($this->opusResponse($doc))]);
         $session = $this->makeGeneratingSession();
+        // Enable the toggle explicitly so the test is independent of the ambient
+        // ISSUE_STUDIO_AUTO_SOURCE_IMAGES env default (off in some deployments).
+        $brief = $session->brief;
+        $brief['auto_source_images'] = true;
+        $session->update(['brief' => $brief]);
 
         $assetId = '019f0000-0000-7000-8000-0000000000ab';
         $asset = new \App\Models\Asset();

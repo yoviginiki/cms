@@ -181,6 +181,11 @@ class ReferenceExtractorRegistry
             'timeline' => $null,
             'toc' => $null,
             'tooltip' => $null,
+            // Interactive app-blocks — self-contained widgets, reference nothing.
+            'breathing-pacer' => $null,
+            'meditation-timer' => $null,
+            'pelvic-trainer' => $null,
+            'partner-deck' => $null,
         ];
     }
 
