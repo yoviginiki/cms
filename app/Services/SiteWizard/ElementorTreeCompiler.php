@@ -128,13 +128,22 @@ class ElementorTreeCompiler
             ];
         };
 
-        $layers = [
-            $layer('heading', array_filter([
-                'text' => $this->plain($found['heading']['title'] ?? ''),
-                'level' => 'h1', 'color' => '#ffffff', 'fontWeight' => '700',
-            ] + $this->headingTypography($found['heading']), fn ($v) => $v !== null && $v !== ''),
-                ['x' => '6%', 'y' => '22%', 'widthPct' => 48], 'fadeUp', 0.2),
-        ];
+        // Hero headline as a per-letter reveal (matches the source's split-text
+        // animation). Emitted as an un-animated slide layer so its own CSS
+        // stagger drives the entrance, not the slider's layer fade.
+        $hTypo = $this->headingTypography($found['heading']);
+        $hStyle = 'margin:0;font-family:var(--font-heading,inherit);color:#fff;font-weight:700;'
+            . 'font-size:' . ($hTypo['fontSize'] ?? 'var(--font-size-3xl,4rem)') . ';'
+            . 'line-height:' . ($hTypo['lineHeight'] ?? '1.2') . ';'
+            . (isset($hTypo['letterSpacing']) ? 'letter-spacing:' . $hTypo['letterSpacing'] . ';' : '');
+        $layers = [[
+            'id' => (string) Str::uuid(), 'type' => 'html-embed', 'level' => 'module', 'order' => 0,
+            'data' => [
+                'html' => $this->splitLettersHtml($this->plain($found['heading']['title'] ?? ''), $hStyle),
+                'layout' => ['x' => '6%', 'y' => '22%', 'widthPct' => 60, 'zIndex' => 3],
+            ],
+            'children' => [],
+        ]];
         if ($found['text'] !== null) {
             $layers[] = $layer('text', [
                 'content' => $this->heroIntro($found['text']['editor'] ?? ''),
@@ -269,6 +278,50 @@ class ElementorTreeCompiler
             . '<img src="' . e($iconUrl) . '" alt="" width="40" height="40" style="' . $blue . ';margin-bottom:14px">'
             . '<div style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a)">' . e($title) . '</div>'
             . $descHtml . '</div>';
+    }
+
+    /** Headline HTML with each letter in its own span on a staggered entrance;
+     * words stay unbreakable so wrapping still happens at spaces. */
+    private function splitLettersHtml(string $text, string $hStyle): string
+    {
+        $text = trim($text);
+        $i = 0;
+        $out = '';
+        foreach (preg_split('/\s+/u', $text) as $word) {
+            if ($word === '') {
+                continue;
+            }
+            $letters = '';
+            foreach (preg_split('//u', $word, -1, PREG_SPLIT_NO_EMPTY) as $ch) {
+                $delay = min(1400, $i * 30);
+                $letters .= '<span style="display:inline-block;opacity:0;animation:heroLtr .55s cubic-bezier(.2,.7,.3,1) ' . $delay . 'ms forwards">' . e($ch) . '</span>';
+                $i++;
+            }
+            $out .= '<span style="display:inline-block;white-space:nowrap">' . $letters . '</span> ';
+            $i++;
+        }
+
+        return '<h1 class="hero-split" style="' . $hStyle . '">' . trim($out) . '</h1>'
+            . '<style>@keyframes heroLtr{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}'
+            . '@media(prefers-reduced-motion:reduce){.hero-split span{opacity:1!important;transform:none!important;animation:none!important}}</style>';
+    }
+
+    /** Elementor text-path → a slowly-rotating circular text badge with a
+     * centered arrow (the source's "Свържете се с нас" spinner). */
+    private function circularTextHtml(string $text): string
+    {
+        $text = trim($text) !== '' ? $text : 'Свържете се с нас • ';
+        $uid = 'cp' . substr(md5($text), 0, 6);
+
+        return '<div style="position:relative;width:150px;height:150px;margin:0 0 28px">'
+            . '<svg viewBox="0 0 200 200" width="150" height="150" style="animation:' . $uid . ' 16s linear infinite">'
+            . '<defs><path id="' . $uid . 'p" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0" fill="none"/></defs>'
+            . '<text fill="#77b6ff" font-size="12.5" font-weight="700" letter-spacing="1.5">'
+            . '<textPath href="#' . $uid . 'p">' . e($text) . '</textPath></text></svg>'
+            . '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;'
+            . 'border-radius:50%;background:#77b6ff;display:flex;align-items:center;justify-content:center;color:#0b3382;font-size:22px;line-height:1">↗</span>'
+            . '<style>@keyframes ' . $uid . '{to{transform:rotate(360deg)}}'
+            . '@media(prefers-reduced-motion:reduce){[style*="' . $uid . '"]{animation:none!important}}</style></div>';
     }
 
     /** Hero "request a consultation" label + circular play button (html-embed
@@ -628,6 +681,8 @@ class ElementorTreeCompiler
                     'html' => $this->checkListHtml($items, 'var(--color-text-muted,#5b6472)'),
                 ])];
             })(),
+
+            'text-path' => [$this->module('html-embed', ['html' => $this->circularTextHtml($this->plain($s['text'] ?? ''))])],
 
             'elementskit-icon-box', 'icon-box', 'image-box' => $this->iconBoxModules($s),
 
