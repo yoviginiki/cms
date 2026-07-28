@@ -201,6 +201,18 @@ class AppScaffolder
             'created_by' => $userId,
         ]);
 
+        $this->seedArchiveBlocks($template, $collection);
+
+        return $template;
+    }
+
+    /**
+     * Starter blocks for a record-archive template: heading + record-loop
+     * (inheriting the archive's paginated records) + pagination. Public so the
+     * manual "New Template" flow can seed the same starter.
+     */
+    public function seedArchiveBlocks(ThemeTemplate $template, ContentCollection $collection): void
+    {
         $this->blocks->syncBlocks($template, [
             $this->section([
                 $this->module('heading', ['text' => $collection->name, 'level' => 'h1']),
@@ -215,8 +227,6 @@ class AppScaffolder
                 $this->module('archive-pagination', []),
             ]),
         ]);
-
-        return $template;
     }
 
     /**
@@ -235,6 +245,18 @@ class AppScaffolder
             'created_by' => $userId,
         ]);
 
+        $this->seedRecordBlocks($template, $collection);
+
+        return $template;
+    }
+
+    /**
+     * Starter blocks for a record-single template: title, first image, a
+     * field-value per remaining field, and a children loop for hierarchical
+     * collections. Public for the manual "New Template" starter flow.
+     */
+    public function seedRecordBlocks(ThemeTemplate $template, ContentCollection $collection): void
+    {
         $titleField = $collection->titleField();
         $imageField = null;
         $detailModules = [$this->module('record-title', ['tag' => 'h1'])];
@@ -262,8 +284,6 @@ class AppScaffolder
         }
 
         $this->blocks->syncBlocks($template, $sections);
-
-        return $template;
     }
 
     // ─── Block-tree helpers (single column section) ─────────────────────

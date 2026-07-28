@@ -50,7 +50,11 @@ class ThemeTemplateController extends Controller
             'post_format' => ['sometimes', 'nullable', 'in:standard,video,gallery,audio,link'],
             'is_default' => ['sometimes', 'boolean'],
             'settings' => ['sometimes', 'array'],
+            'seed_starter' => ['sometimes', 'boolean'],
         ]);
+
+        $seedStarter = (bool) ($data['seed_starter'] ?? false);
+        unset($data['seed_starter']);
 
         $data['site_id'] = $site->id;
         $data['slug'] = Str::slug($data['name']);
@@ -72,6 +76,19 @@ class ThemeTemplateController extends Controller
         }
 
         $template = ThemeTemplate::create($data);
+
+        // Starter blocks: pre-fill record templates with the same proven
+        // layout the App Wizard seeds, instead of an empty canvas.
+        if ($seedStarter && $template->collection_id
+            && in_array($template->type, ['record-single', 'record-archive'], true)) {
+            $collection = \App\Models\ContentCollection::find($template->collection_id);
+            if ($collection) {
+                $scaffolder = app(\App\Domain\Collections\Services\AppScaffolder::class);
+                $template->type === 'record-archive'
+                    ? $scaffolder->seedArchiveBlocks($template, $collection)
+                    : $scaffolder->seedRecordBlocks($template, $collection);
+            }
+        }
 
         return response()->json(['data' => $template], 201);
     }

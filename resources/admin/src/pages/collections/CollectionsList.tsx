@@ -194,16 +194,16 @@ export default function CollectionsList() {
                   <td>
                     <div className="flex items-center justify-end gap-0.5">
                       <Link to={`/sites/${siteId}/collections/${c.id}/records`}
-                        className="btn btn-ghost btn-xs btn-square" title="Records">
-                        <Table2 size={13} />
+                        className="btn btn-ghost btn-xs gap-1 font-normal text-base-content/60 hover:text-base-content" title="Records">
+                        <Table2 size={13} /> Records
                       </Link>
                       <Link to={`/sites/${siteId}/collections/${c.id}/categories`}
-                        className="btn btn-ghost btn-xs btn-square" title="Categories">
-                        <FolderTree size={13} />
+                        className="btn btn-ghost btn-xs gap-1 font-normal text-base-content/60 hover:text-base-content" title="Category tree & per-category fields">
+                        <FolderTree size={13} /> Categories
                       </Link>
                       <Link to={`/sites/${siteId}/collections/${c.id}/schema`}
-                        className="btn btn-ghost btn-xs btn-square" title="Edit schema">
-                        <Pencil size={13} />
+                        className="btn btn-ghost btn-xs gap-1 font-normal text-base-content/60 hover:text-base-content" title="Edit schema">
+                        <Pencil size={13} /> Schema
                       </Link>
                       <button
                         onClick={() => setDeleteTarget(c)}

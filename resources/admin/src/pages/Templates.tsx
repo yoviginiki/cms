@@ -60,6 +60,7 @@ export default function Templates() {
   const [newPostFormat, setNewPostFormat] = useState('');
   const [newCollectionId, setNewCollectionId] = useState('');
   const [newIsDefault, setNewIsDefault] = useState(false);
+  const [newSeedStarter, setNewSeedStarter] = useState(true);
 
   const { data: categoriesList } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['categories', siteId],
@@ -101,6 +102,7 @@ export default function Templates() {
       post_format: newPostFormat || null,
       collection_id: isRecordType ? newCollectionId : null,
       is_default: newIsDefault,
+      seed_starter: isRecordType ? newSeedStarter : false,
     });
   };
 
@@ -244,6 +246,18 @@ export default function Templates() {
                       : 'The template renders records of this collection'}
                   </p>
                 </div>
+              )}
+              {isRecordType && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={newSeedStarter} onChange={e => setNewSeedStarter(e.target.checked)}
+                    className="checkbox checkbox-primary checkbox-xs" />
+                  <span className="text-[12px]">
+                    Start with starter blocks
+                    <span className="block text-[10px] text-base-content/40">
+                      Pre-fills the template ({newType === 'record-archive' ? 'heading + record grid + pagination' : 'title + image + field values'}) instead of an empty canvas
+                    </span>
+                  </span>
+                </label>
               )}
               {(newType === 'post' || newType === 'archive') && (
                 <div>
