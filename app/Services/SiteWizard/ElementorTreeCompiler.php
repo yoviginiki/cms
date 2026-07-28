@@ -565,20 +565,20 @@ class ElementorTreeCompiler
                 'label' => $this->plain($s['title'] ?? ''),
                 'prefix' => $this->plain($s['prefix'] ?? ''),
                 'suffix' => $this->plain($s['suffix'] ?? ''),
-            ]], 'columns' => 1])],
+            ]], 'columns' => 1, 'plain' => true])],
 
             'elementskit-funfact' => [$this->module('stats', ['items' => [[
                 'value' => (string) ($s['ekit_funfact_number'] ?? '0'),
                 'label' => $this->plain($s['ekit_funfact_title_text'] ?? ''),
                 'prefix' => '',
                 'suffix' => $this->plain(($s['ekit_funfact_super_text'] ?? '') . ($s['ekit_funfact_number_suffix'] ?? '')),
-            ]], 'columns' => 1])],
+            ]], 'columns' => 1, 'plain' => true])],
 
             'elementskit-progressbar' => [$this->module('stats', ['items' => [[
                 'value' => (string) ($s['ekit_progressbar_percentage'] ?? '0'),
                 'label' => $this->plain($s['ekit_progressbar_title'] ?? ''),
                 'prefix' => '', 'suffix' => '%',
-            ]], 'columns' => 1])],
+            ]], 'columns' => 1, 'plain' => true])],
 
             'icon-list' => (function () use ($s) {
                 $items = array_values(array_filter(array_map(
@@ -604,7 +604,10 @@ class ElementorTreeCompiler
 
             'elementskit-category-list' => $this->categoryTiles(),
 
-            'elementskit-blog-posts' => [$this->module('latestposts', ['count' => 3, 'categoryId' => '', 'showExcerpt' => false, 'showImage' => true])],
+            'elementskit-blog-posts' => [$this->module('latestposts', [
+                'limit' => 3, 'columns' => 3, 'layout' => 'cards',
+                'showImage' => true, 'showDate' => true, 'showExcerpt' => false, 'showCategory' => false,
+            ])],
 
             'elementskit-contact-form7' => [$this->module('contact-form', [
                 'fields' => [

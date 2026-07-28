@@ -34,11 +34,17 @@
     $valueFontSize = $cssDim($data['valueFontSize'] ?? '') ?: '2.5rem';
     $tsShadowPresets = ['sm' => '0 1px 2px rgba(0,0,0,0.15)', 'md' => '0 2px 4px rgba(0,0,0,0.25)', 'lg' => '0 4px 8px rgba(0,0,0,0.4)', 'outline' => '-1px -1px 0 rgba(0,0,0,0.3),1px -1px 0 rgba(0,0,0,0.3),-1px 1px 0 rgba(0,0,0,0.3),1px 1px 0 rgba(0,0,0,0.3)', 'glow' => '0 0 10px rgba(255,255,255,0.8),0 0 20px rgba(255,255,255,0.4)'];
     $textShadow = $tsShadowPresets[$data['textShadow'] ?? ''] ?? '';
+    // Plain (borderless) tiles — number + label with no card frame, as in many
+    // builder hero/trust bands.
+    $plain = !empty($data['plain']);
+    $cellStyle = $plain
+        ? 'padding:0;'
+        : "padding:1.5rem;border:1px solid {$cardBorderColor};border-radius:{$cardRadius};" . ($cardBgColor ? "background-color:{$cardBgColor};" : '') . ($cardShadow ? "box-shadow:{$cardShadow};" : '');
 @endphp
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};text-align:{{ $textAlign }};">
     @foreach($items as $item)
         @php $countTo = preg_match('/^\d[\d\s.,]*$/', trim((string) ($item['value'] ?? ''))) === 1 ? trim((string) $item['value']) : null; @endphp
-        <div style="padding:1.5rem;border:1px solid {{ $cardBorderColor }};border-radius:{{ $cardRadius }};{{ $cardBgColor ? "background-color:{$cardBgColor};" : '' }}{{ $cardShadow ? "box-shadow:{$cardShadow};" : '' }}">
+        <div style="{{ $cellStyle }}">
             <div style="font-family:var(--font-heading,inherit);font-size:{{ $valueFontSize }};font-weight:700;line-height:1;color:{{ $valueColor }};{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['prefix'] ?? '' }}<span @if($countTo) data-countup="{{ $countTo }}" @endif>{{ $item['value'] ?? '' }}</span>{{ $item['suffix'] ?? '' }}</div>
             <div style="color:{{ $labelColor }};font-size:0.875rem;margin-top:0.5rem;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['label'] ?? '' }}</div>
         </div>
