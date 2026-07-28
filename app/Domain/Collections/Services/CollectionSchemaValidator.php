@@ -39,19 +39,7 @@ class CollectionSchemaValidator
         if ($fields === []) {
             return ['fields' => [], 'title_field' => null, 'slug_source' => null];
         }
-        if (count($fields) > self::MAX_FIELDS) {
-            $this->fail('fields', 'A collection may have at most ' . self::MAX_FIELDS . ' fields.');
-        }
-
-        $normalized = [];
-        $seenKeys = [];
-
-        foreach (array_values($fields) as $i => $field) {
-            if (!is_array($field)) {
-                $this->fail("fields.{$i}", 'Invalid field definition.');
-            }
-            $normalized[] = $this->validateField($field, $i, $seenKeys, $site, $existing);
-        }
+        $normalized = $this->validateFieldList($fields, $site, $existing);
 
         $keys = array_column($normalized, 'key');
 
@@ -74,6 +62,52 @@ class CollectionSchemaValidator
             'title_field' => $titleField,
             'slug_source' => $slugSource,
         ];
+    }
+
+    /**
+     * Validate + normalize a bare list of field definitions (no title/slug
+     * wrapper). Shared by full collection schemas and per-node category
+     * schemas (the category tree). Throws with fields.{i}.* keys.
+     *
+     * @param  array<int, mixed>  $fields
+     * @return array<int, array<string, mixed>> normalized field defs
+     */
+    public function validateFieldList(array $fields, Site $site, ?ContentCollection $existing = null): array
+    {
+        if (!is_array($fields)) {
+            $this->fail('fields', 'Invalid fields definition.');
+        }
+        if (count($fields) > self::MAX_FIELDS) {
+            $this->fail('fields', 'A collection may have at most ' . self::MAX_FIELDS . ' fields.');
+        }
+
+        $normalized = [];
+        $seenKeys = [];
+        foreach (array_values($fields) as $i => $field) {
+            if (!is_array($field)) {
+                $this->fail("fields.{$i}", 'Invalid field definition.');
+            }
+            $normalized[] = $this->validateField($field, $i, $seenKeys, $site, $existing);
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Validate a category-tree node's own schema — a bare field list, no title
+     * or slug (those stay on the base collection so every record always has a
+     * title). Returns the canonical { fields: [...] } to store on the node.
+     *
+     * @return array{fields: array<int, array<string, mixed>>}
+     */
+    public function validateNodeFields(mixed $schema, Site $site, ContentCollection $collection): array
+    {
+        $fields = is_array($schema) ? ($schema['fields'] ?? $schema) : [];
+        if (!is_array($fields)) {
+            $this->fail('fields', 'Invalid fields definition.');
+        }
+
+        return ['fields' => $this->validateFieldList($fields, $site, $collection)];
     }
 
     private function validateField(array $field, int $i, array &$seenKeys, Site $site, ?ContentCollection $existing): array

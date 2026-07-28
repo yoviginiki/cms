@@ -23,6 +23,7 @@ class RecordController extends Controller
     public function __construct(
         private RecordService $service,
         private ReferenceUsageService $usage,
+        private \App\Domain\Collections\Services\CollectionCategoryService $categories,
     ) {
     }
 
@@ -35,6 +36,18 @@ class RecordController extends Controller
 
         if (($status = $request->input('status')) && in_array($status, Record::STATUSES, true)) {
             $query->where('status', $status);
+        }
+
+        // Category tree filter: a specific node, its whole subtree, or unfiled.
+        if ($request->boolean('uncategorized')) {
+            $query->whereNull('category_node_id');
+        } elseif (($nodeId = $request->input('category_node_id')) && is_string($nodeId)) {
+            $node = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)->find($nodeId);
+            if ($node && $request->boolean('include_descendants')) {
+                $query->whereIn('category_node_id', $this->categories->subtreeIds($collection, $node));
+            } else {
+                $query->where('category_node_id', $nodeId);
+            }
         }
 
         if (($q = trim((string) $request->input('q', ''))) !== '') {
@@ -137,12 +150,13 @@ class RecordController extends Controller
         $this->assertOnSite($site, $collection);
 
         $validated = $request->validate([
-            'action' => ['required', 'in:publish,draft,delete,set_field'],
+            'action' => ['required', 'in:publish,draft,delete,set_field,assign_category'],
             'ids' => ['required', 'array', 'min:1', 'max:200'],
             'ids.*' => ['uuid'],
             'force' => ['sometimes', 'boolean'],
             'field' => ['required_if:action,set_field', 'string', 'max:40'],
             'value' => ['sometimes', 'nullable'],
+            'category_node_id' => ['sometimes', 'nullable', 'uuid'],
         ]);
 
         $field = null;
@@ -151,6 +165,17 @@ class RecordController extends Controller
             if (!$field || in_array($field['type'], ['relation', 'computed'], true)) {
                 return response()->json(['message' => 'Pick a stored (non-relation, non-computed) schema field to bulk-edit.'], 422);
             }
+        }
+
+        // Bulk-file records under a category node (null clears the assignment).
+        if ($validated['action'] === 'assign_category') {
+            $targetNodeId = $validated['category_node_id'] ?? null;
+            $this->categories->requireNodeOfCollection($collection->id, $targetNodeId);
+            $done = Record::where('collection_id', $collection->id)
+                ->whereIn('id', $validated['ids'])
+                ->update(['category_node_id' => $targetNodeId]);
+
+            return response()->json(['data' => ['done' => $done, 'skipped' => []]]);
         }
 
         $records = Record::where('collection_id', $collection->id)
@@ -288,6 +313,7 @@ class RecordController extends Controller
         $out = [
             'id' => $record->id,
             'collection_id' => $record->collection_id,
+            'category_node_id' => $record->category_node_id,
             'slug' => $record->slug,
             'title' => $record->title,
             'status' => $record->status,

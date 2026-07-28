@@ -664,6 +664,7 @@ export interface CollectionRecordSeoMeta {
 export interface CollectionRecord {
   id: string;
   collection_id: string;
+  category_node_id?: string | null;
   slug: string;
   title: string;
   status: 'draft' | 'published';
@@ -683,6 +684,7 @@ export interface CollectionRecordPayload {
   data: Record<string, unknown>;
   relations?: Record<string, { id: string; pivot?: Record<string, unknown> }[]>;
   status: 'draft' | 'published';
+  category_node_id?: string | null;
   slug?: string;
   publish_at?: string | null;
   unpublish_at?: string | null;
@@ -719,6 +721,44 @@ export const collections = {
     api.post(`/sites/${siteId}/collections/${id}/convert`, { field, to }),
 };
 
+// ── Category tree (per-node schema) ──
+
+export interface CategoryNode {
+  id: string;
+  collection_id: string;
+  parent_id: string | null;
+  name: string;
+  slug: string;
+  sort_order: number;
+  depth: number;
+  schema: { fields: CollectionField[] };
+  record_count?: number | null;
+  children: CategoryNode[];
+}
+
+export interface CategoryEffectiveSchema {
+  node_id: string;
+  title_field: string | null;
+  slug_source?: string | null;
+  fields: CollectionField[];
+  chain: { id: string; name: string }[];
+}
+
+export const collectionCategories = {
+  tree: (siteId: string, collectionId: string) =>
+    api.get<{ data: CategoryNode[] }>(`/sites/${siteId}/collections/${collectionId}/category-tree`),
+  create: (siteId: string, collectionId: string, body: { name: string; parent_id?: string | null; schema?: { fields: CollectionField[] } }) =>
+    api.post<{ data: CategoryNode }>(`/sites/${siteId}/collections/${collectionId}/category-nodes`, body),
+  update: (siteId: string, collectionId: string, nodeId: string, body: { name?: string; slug?: string; schema?: { fields: CollectionField[] } }) =>
+    api.put<{ data: CategoryNode }>(`/sites/${siteId}/collections/${collectionId}/category-nodes/${nodeId}`, body),
+  move: (siteId: string, collectionId: string, nodeId: string, body: { parent_id?: string | null; sort_order?: number | null }) =>
+    api.post<{ data: CategoryNode }>(`/sites/${siteId}/collections/${collectionId}/category-nodes/${nodeId}/move`, body),
+  delete: (siteId: string, collectionId: string, nodeId: string, mode: 'reparent' | 'cascade' = 'reparent') =>
+    api.delete(`/sites/${siteId}/collections/${collectionId}/category-nodes/${nodeId}`, { params: { mode } }),
+  effectiveSchema: (siteId: string, collectionId: string, nodeId: string) =>
+    api.get<{ data: CategoryEffectiveSchema }>(`/sites/${siteId}/collections/${collectionId}/category-nodes/${nodeId}/effective-schema`),
+};
+
 export const collectionRecords = {
   list: (siteId: string, collectionId: string, params?: Record<string, unknown>) =>
     api.get(`/sites/${siteId}/collections/${collectionId}/records`, { params }),
@@ -738,7 +778,8 @@ export const collectionRecords = {
     api.post<{ data: CollectionRecord }>(`/sites/${siteId}/collections/${collectionId}/records/${recordId}/revisions/${revisionId}/restore`),
   bulk: (siteId: string, collectionId: string, body:
     | { action: 'publish' | 'draft' | 'delete'; ids: string[]; force?: boolean }
-    | { action: 'set_field'; ids: string[]; field: string; value: unknown }) =>
+    | { action: 'set_field'; ids: string[]; field: string; value: unknown }
+    | { action: 'assign_category'; ids: string[]; category_node_id: string | null }) =>
     api.post(`/sites/${siteId}/collections/${collectionId}/records/bulk`, body),
   exportUrl: (siteId: string, collectionId: string) => `/api/v1/sites/${siteId}/collections/${collectionId}/export`,
 };

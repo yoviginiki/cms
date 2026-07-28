@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Trash2, Loader2, Database, Pencil, Table2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, Database, Pencil, Table2, FolderTree } from 'lucide-react';
 import { collections, type Collection } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -196,6 +196,10 @@ export default function CollectionsList() {
                       <Link to={`/sites/${siteId}/collections/${c.id}/records`}
                         className="btn btn-ghost btn-xs btn-square" title="Records">
                         <Table2 size={13} />
+                      </Link>
+                      <Link to={`/sites/${siteId}/collections/${c.id}/categories`}
+                        className="btn btn-ghost btn-xs btn-square" title="Categories">
+                        <FolderTree size={13} />
                       </Link>
                       <Link to={`/sites/${siteId}/collections/${c.id}/schema`}
                         className="btn btn-ghost btn-xs btn-square" title="Edit schema">

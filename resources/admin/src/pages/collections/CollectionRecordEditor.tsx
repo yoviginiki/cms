@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Save, Rocket, History, CalendarClock, Search as SearchIcon, X, ChevronDown, ChevronRight } from 'lucide-react';
 import {
-  collections, collectionRecords,
+  collections, collectionRecords, collectionCategories,
   type Collection, type CollectionRecord, type CollectionRecordPayload, type CollectionRecordRevision,
+  type CategoryNode, type CategoryEffectiveSchema,
 } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -95,6 +96,7 @@ export default function CollectionRecordEditor() {
 
   const [data, setData] = useState<Record<string, unknown>>({});
   const [relations, setRelations] = useState<Record<string, SelectedRelation[]>>({});
+  const [categoryNodeId, setCategoryNodeId] = useState<string | null>(null);
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
@@ -111,6 +113,7 @@ export default function CollectionRecordEditor() {
   /** Load form state from a serialized record (initial load and revision restore). */
   const hydrate = useCallback((rec: CollectionRecord) => {
     setData(rec.data ?? {});
+    setCategoryNodeId(rec.category_node_id ?? null);
     setSlug(rec.slug ?? '');
     setSlugTouched(true); // existing slugs shouldn't silently change with the title
     setStatus(rec.status);
@@ -136,9 +139,37 @@ export default function CollectionRecordEditor() {
     hydrate(record);
   }, [record, isNew, hydrate]);
 
-  const fields = collection?.schema?.fields ?? [];
+  // Category tree (opt-in). When the collection has categories the user can
+  // file the record under a node; the node's effective schema (base + ancestor
+  // + node fields) then drives the form.
+  const { data: categoryTree = [] } = useQuery<CategoryNode[]>({
+    queryKey: ['category-tree', siteId, collectionId],
+    queryFn: () => collectionCategories.tree(siteId, collectionId).then((r) => r.data.data),
+  });
+  const hasCategories = categoryTree.length > 0;
+
+  const { data: effectiveSchema } = useQuery<CategoryEffectiveSchema>({
+    queryKey: ['category-effective-schema', siteId, collectionId, categoryNodeId],
+    queryFn: () => collectionCategories.effectiveSchema(siteId, collectionId, categoryNodeId!).then((r) => r.data.data),
+    enabled: !!categoryNodeId,
+  });
+
+  const fields = (categoryNodeId && effectiveSchema ? effectiveSchema.fields : collection?.schema?.fields) ?? [];
   const titleKey = collection?.schema?.title_field ?? '';
   const slugSourceKey = collection?.schema?.slug_source || titleKey;
+
+  // Flatten the tree into indented options for the picker.
+  const categoryOptions = useMemo(() => {
+    const opts: { id: string; label: string }[] = [];
+    const walk = (nodes: CategoryNode[], depth: number) => {
+      for (const n of nodes) {
+        opts.push({ id: n.id, label: `${'  '.repeat(depth)}${n.name}` });
+        walk(n.children, depth + 1);
+      }
+    };
+    walk(categoryTree, 0);
+    return opts;
+  }, [categoryTree]);
 
   const setFieldValue = (key: string, v: unknown) => {
     setData((prev) => ({ ...prev, [key]: v }));
@@ -168,6 +199,7 @@ export default function CollectionRecordEditor() {
         ]),
     ),
     status: saveStatus,
+    category_node_id: categoryNodeId,
     ...(slug.trim() ? { slug: slug.trim() } : {}),
     publish_at: localToIso(publishAt),
     unpublish_at: localToIso(unpublishAt),
@@ -320,6 +352,26 @@ export default function CollectionRecordEditor() {
         <div className="border border-warning/40 bg-warning/10 rounded-box p-4 text-[13px] text-base-content/70">
           This collection has no fields yet —{' '}
           <Link to={`/sites/${siteId}/collections/${collectionId}/schema`} className="text-primary hover:underline">define the schema</Link> first.
+        </div>
+      )}
+
+      {/* Category picker (only when the collection has a category tree) */}
+      {hasCategories && (
+        <div className="border border-base-300/40 rounded-box bg-base-100 p-5 mb-4">
+          <label className="text-[12px] text-base-content/60 mb-1 block">Category</label>
+          <select
+            value={categoryNodeId ?? ''}
+            onChange={(e) => setCategoryNodeId(e.target.value || null)}
+            className="select select-bordered select-sm w-full text-[13px]"
+          >
+            <option value="">— Uncategorized —</option>
+            {categoryOptions.map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-base-content/35 mt-1">
+            The chosen category can add its own fields to this record (they appear below).
+          </p>
         </div>
       )}
 

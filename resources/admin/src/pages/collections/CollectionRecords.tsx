@@ -4,11 +4,12 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Upload, Download, Trash2, Loader2, Search, ArrowUp, ArrowDown, ArrowUpDown,
   Pencil, Database, Check, ArrowLeft, Eye, EyeOff, Image as ImageIcon, File as FileIcon,
-  Copy, CalendarClock, TimerOff, ListPlus,
+  Copy, CalendarClock, TimerOff, ListPlus, FolderTree,
 } from 'lucide-react';
 import {
-  collections, collectionRecords,
+  collections, collectionRecords, collectionCategories,
   type Collection, type CollectionField, type CollectionRecord, type CollectionRecordPayload,
+  type CategoryNode,
 } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -264,6 +265,7 @@ export default function CollectionRecords() {
   const { toast } = useToast();
 
   const [statusTab, setStatusTab] = useState<StatusTab>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>(''); // '' = all, node id, or 'none'
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sort, setSort] = useState('updated_at');
@@ -298,12 +300,28 @@ export default function CollectionRecords() {
     [collection],
   );
 
-  const queryKey = ['collection-records', siteId, collectionId, statusTab, debouncedSearch, sort, direction, page, perPage];
+  // Category tree for the filter dropdown (empty tree hides the control).
+  const { data: categoryTree = [] } = useQuery<CategoryNode[]>({
+    queryKey: ['category-tree', siteId, collectionId],
+    queryFn: () => collectionCategories.tree(siteId, collectionId).then((r) => r.data.data),
+  });
+  const categoryOptions = useMemo(() => {
+    const opts: { id: string; label: string }[] = [];
+    const walk = (nodes: CategoryNode[], depth: number) => {
+      for (const n of nodes) { opts.push({ id: n.id, label: `${'  '.repeat(depth)}${n.name}` }); walk(n.children, depth + 1); }
+    };
+    walk(categoryTree, 0);
+    return opts;
+  }, [categoryTree]);
+
+  const queryKey = ['collection-records', siteId, collectionId, statusTab, categoryFilter, debouncedSearch, sort, direction, page, perPage];
   const { data: result, isLoading, error, isFetching } = useQuery<{ data: CollectionRecord[]; meta: RecordsMeta }>({
     queryKey,
     queryFn: () => {
       const params: Record<string, unknown> = { sort, direction, page, per_page: perPage };
       if (statusTab) params.status = statusTab;
+      if (categoryFilter === 'none') params.uncategorized = 1;
+      else if (categoryFilter) { params.category_node_id = categoryFilter; params.include_descendants = 1; }
       if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
       return collectionRecords.list(siteId, collectionId, params).then((r) => r.data);
     },
@@ -483,6 +501,9 @@ export default function CollectionRecords() {
         <a href={collectionRecords.exportUrl(siteId, collectionId)} className="btn btn-ghost btn-sm gap-1.5 text-[12px]" title="Download all records as CSV">
           <Download size={13} /> Export CSV
         </a>
+        <Link to={`/sites/${siteId}/collections/${collectionId}/categories`} className="btn btn-ghost btn-sm gap-1.5 text-[12px]" title="Category tree">
+          <FolderTree size={13} /> Categories
+        </Link>
         <Link to={`/sites/${siteId}/collections/${collectionId}/import`} className="btn btn-outline btn-sm gap-1.5 text-[12px]">
           <Upload size={13} /> Import
         </Link>
@@ -502,6 +523,18 @@ export default function CollectionRecords() {
             </button>
           ))}
         </div>
+        {categoryOptions.length > 0 && (
+          <select
+            value={categoryFilter}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); setSelectedIds([]); }}
+            className="select select-bordered select-sm text-[12px] max-w-[16rem]"
+            title="Filter by category"
+          >
+            <option value="">All categories</option>
+            <option value="none">— Uncategorized —</option>
+            {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+        )}
         <label className="input input-bordered input-sm flex items-center gap-2 text-[12px] w-64">
           <Search className="h-3.5 w-3.5 text-base-content/30" />
           <input

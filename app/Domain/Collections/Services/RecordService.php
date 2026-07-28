@@ -25,6 +25,7 @@ class RecordService
         private ReferenceRecorder $references,
         private StalenessResolver $staleness,
         private RecordRevisionService $revisions,
+        private CategorySchemaResolver $schemaResolver,
     ) {
     }
 
@@ -35,7 +36,17 @@ class RecordService
      */
     public function save(ContentCollection $collection, Site $site, ?Record $record, array $input): Record
     {
-        $fields = $collection->fields();
+        // Category tree (opt-in, additive): the record's effective schema is
+        // the collection's base fields merged with its category node's ancestor
+        // chain. With no node it is exactly the base fields — backward compatible.
+        $nodeId = array_key_exists('category_node_id', $input)
+            ? ($input['category_node_id'] ?: null)
+            : $record?->category_node_id;
+        if ($nodeId !== null && !\App\Models\CollectionCategoryNode::where('collection_id', $collection->id)->whereKey($nodeId)->exists()) {
+            throw ValidationException::withMessages(['category_node_id' => 'That category does not belong to this collection.']);
+        }
+
+        $fields = $this->schemaResolver->effectiveFields($collection, $nodeId);
         if ($fields === [] || !$collection->titleField()) {
             throw ValidationException::withMessages([
                 'data' => 'This collection has no fields yet — design its schema before adding records.',
@@ -111,12 +122,13 @@ class RecordService
             $urlShifted = $slug !== $record->slug || $parentChanged;
         }
 
-        $saved = DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input, $hierarchyKey, $urlShifted, $scheduleAttrs) {
+        $saved = DB::transaction(function () use ($collection, $site, $record, $data, $relations, $status, $slug, $title, $input, $hierarchyKey, $urlShifted, $scheduleAttrs, $fields, $nodeId) {
             $attrs = $scheduleAttrs + [
                 'slug' => $slug,
                 'title' => mb_substr($title, 0, 255),
                 'status' => $status,
                 'data' => $data,
+                'category_node_id' => $nodeId,
             ];
 
             if ($status === 'published' && (!$record || $record->status !== 'published')) {
@@ -143,9 +155,9 @@ class RecordService
             // keys not present are left untouched (partial updates stay safe).
             $pivotSearchStrings = $this->syncRelations($record, $site, $relations);
 
-            $record->updateSearchText($this->searchStrings($collection, $record, $pivotSearchStrings));
+            $record->updateSearchText($this->searchStrings($collection, $record, $pivotSearchStrings, $fields));
 
-            $this->references->persistEdges($site->id, 'record', $record->id, $this->edges($collection, $record));
+            $this->references->persistEdges($site->id, 'record', $record->id, $this->edges($record, $fields));
 
             if ($urlShifted) {
                 $this->flagDescendantsStale($record, $hierarchyKey);
@@ -271,7 +283,8 @@ class RecordService
                             }
                         }
                     }
-                    $record->updateSearchText($this->searchStrings($collection, $record, $pivotStrings));
+                    $fields = $this->schemaResolver->effectiveFields($collection, $record->category_node_id);
+                    $record->updateSearchText($this->searchStrings($collection, $record, $pivotStrings, $fields));
                     $count++;
                 }
             });
@@ -291,7 +304,7 @@ class RecordService
             return [];
         }
 
-        return $this->edges($collection, $record);
+        return $this->edges($record, $this->schemaResolver->effectiveFields($collection, $record->category_node_id));
     }
 
     /** Service-level uniqueness for `unique`-flagged fields (per collection). */
@@ -512,12 +525,15 @@ class RecordService
         return $searchStrings;
     }
 
-    /** @return array<int, string> strings feeding the tsvector */
-    private function searchStrings(ContentCollection $collection, Record $record, array $pivotStrings): array
+    /**
+     * @param  array<int, array<string, mixed>>  $fields effective schema fields
+     * @return array<int, string> strings feeding the tsvector
+     */
+    private function searchStrings(ContentCollection $collection, Record $record, array $pivotStrings, array $fields): array
     {
         $strings = [(string) $record->title, $record->slug];
 
-        foreach ($collection->fields() as $field) {
+        foreach ($fields as $field) {
             if (!($field['searchable'] ?? false)) {
                 continue;
             }
@@ -551,13 +567,14 @@ class RecordService
      * relation edges → record embeds (so a related record's change cascades
      * staleness to pages showing this one).
      *
+     * @param  array<int, array<string, mixed>>  $fields effective schema fields
      * @return array<int, array{target_type: string, target_id: ?string, kind: string}>
      */
-    private function edges(ContentCollection $collection, Record $record): array
+    private function edges(Record $record, array $fields): array
     {
         $edges = [];
 
-        foreach ($collection->fields() as $field) {
+        foreach ($fields as $field) {
             $value = $record->data[$field['key']] ?? null;
             if ($value === null) {
                 continue;

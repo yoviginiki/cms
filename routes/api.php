@@ -257,6 +257,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/collections/{collection}/import', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'upload']);
         Route::post('sites/{site}/collections/{collection}/import/{importId}/execute', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'execute']);
         Route::get('sites/{site}/collections/{collection}/import/{importId}/status', [\App\Http\Controllers\Api\V1\CollectionImportController::class, 'status']);
+        // Category tree (per-node schema) — arbitrary-depth categories under a collection
+        $cc = \App\Http\Controllers\Api\V1\CollectionCategoryController::class;
+        Route::get('sites/{site}/collections/{collection}/category-tree', [$cc, 'index']);
+        Route::post('sites/{site}/collections/{collection}/category-nodes', [$cc, 'store']);
+        Route::put('sites/{site}/collections/{collection}/category-nodes/{node}', [$cc, 'update']);
+        Route::post('sites/{site}/collections/{collection}/category-nodes/{node}/move', [$cc, 'move']);
+        Route::delete('sites/{site}/collections/{collection}/category-nodes/{node}', [$cc, 'destroy']);
+        Route::get('sites/{site}/collections/{collection}/category-nodes/{node}/effective-schema', [$cc, 'effectiveSchema']);
+
         Route::apiResource('sites.collections', \App\Http\Controllers\Api\V1\CollectionController::class);
         Route::apiResource('sites.collections.records', \App\Http\Controllers\Api\V1\RecordController::class);
 

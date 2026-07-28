@@ -51,6 +51,12 @@ class ContentCollection extends Model
         return $this->hasMany(Record::class, 'collection_id');
     }
 
+    /** The collection's category tree nodes (per-node schema). */
+    public function categoryNodes(): HasMany
+    {
+        return $this->hasMany(CollectionCategoryNode::class, 'collection_id');
+    }
+
     /** @return array<int, array<string, mixed>> the validated field definitions */
     public function fields(): array
     {

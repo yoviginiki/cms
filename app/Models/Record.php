@@ -22,7 +22,7 @@ class Record extends Model
     public const STATUSES = ['draft', 'published'];
 
     protected $fillable = [
-        'collection_id', 'site_id', 'slug', 'title', 'status', 'position', 'data', 'published_at',
+        'collection_id', 'category_node_id', 'site_id', 'slug', 'title', 'status', 'position', 'data', 'published_at',
         'needs_republish', 'needs_republish_reason', 'publish_at', 'unpublish_at', 'seo_meta',
     ];
 
@@ -40,6 +40,12 @@ class Record extends Model
     public function collection(): BelongsTo
     {
         return $this->belongsTo(ContentCollection::class, 'collection_id');
+    }
+
+    /** The category-tree node this record is filed under, if any (nullable). */
+    public function categoryNode(): BelongsTo
+    {
+        return $this->belongsTo(CollectionCategoryNode::class, 'category_node_id');
     }
 
     public function site(): BelongsTo
