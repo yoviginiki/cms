@@ -81,10 +81,9 @@ class ElementorTreeCompiler
             return null;
         }
 
-        // First heading + first text + first button anywhere inside.
-        $found = ['heading' => null, 'text' => null, 'button' => null];
-        $consumed = [];
-        $scan = function (array $node) use (&$scan, &$found, &$consumed) {
+        // Collect the hero's cast: headline, intro, CTA, checklist, badge.
+        $found = ['heading' => null, 'text' => null, 'button' => null, 'list' => null, 'badge' => null];
+        $scan = function (array $node) use (&$scan, &$found) {
             foreach ($node['elements'] ?? [] as $child) {
                 if (($child['elType'] ?? '') === 'widget') {
                     $type = $child['widgetType'] ?? '';
@@ -92,11 +91,12 @@ class ElementorTreeCompiler
                         'heading' => $found['heading'] === null ? 'heading' : null,
                         'text-editor' => $found['text'] === null ? 'text' : null,
                         'elementskit-creative-button' => $found['button'] === null ? 'button' : null,
+                        'icon-list' => $found['list'] === null ? 'list' : null,
+                        'image-box' => $found['badge'] === null ? 'badge' : null,
                         default => null,
                     };
                     if ($slot !== null) {
                         $found[$slot] = $child['settings'] ?? [];
-                        $consumed[] = $child['id'] ?? '';
                     }
                 } else {
                     $scan($child);
@@ -104,58 +104,91 @@ class ElementorTreeCompiler
             }
         };
         $scan($el);
-
         if ($found['heading'] === null) {
             return null;
         }
 
-        $data = [
-            'title' => $this->plain($found['heading']['title'] ?? ''),
-            'headlineTag' => 'h1',
-            'bg_type' => 'image',
-            'bg_image' => ($this->importImage)($bgImage, ''),
-            'bg_image_size' => 'cover',
-            'sectionHeight' => 'fullscreen',
-            'textAlignment' => 'left',
+        // The source hero is a layered slider composition — rebuild it as the
+        // native slider: background photo (subtle Ken Burns motion), the
+        // source's navy gradient, and each text as an absolutely-positioned
+        // layer entering on its own animation beat.
+        $bg = ($this->importImage)($bgImage, '');
+        $navy = $this->color($this->globalColors['primary'] ?? null) ?? '#1a202c';
+        $overlay = 'linear-gradient(270deg, rgba(26,32,44,0) 11%, rgba(26,32,44,0.8) 61%)';
+
+        $layer = function (string $type, array $data, array $layout, string $preset, float $delay) {
+            $data['layout'] = $layout + ['zIndex' => 3];
+            $data['animation'] = ['in' => ['preset' => $preset, 'delay' => $delay, 'duration' => 1.0]];
+
+            return [
+                'id' => (string) Str::uuid(), 'type' => $type, 'level' => 'module', 'order' => 0,
+                'data' => $data, 'children' => [],
+            ];
+        };
+
+        $layers = [
+            $layer('heading', [
+                'text' => $this->plain($found['heading']['title'] ?? ''),
+                'level' => 'h1', 'color' => '#ffffff', 'fontWeight' => '700',
+            ], ['x' => '6%', 'y' => '22%', 'widthPct' => 48], 'fadeUp', 0.2),
         ];
         if ($found['text'] !== null) {
-            $data['subtitle'] = mb_substr($this->plain($found['text']['editor'] ?? ''), 0, 400);
+            $layers[] = $layer('text', [
+                'content' => '<p>' . e(mb_substr($this->plain($found['text']['editor'] ?? ''), 0, 300)) . '</p>',
+                'color' => '#e7ebf2',
+            ], ['x' => '6%', 'y' => '45%', 'widthPct' => 40], 'fadeUp', 0.55);
         }
         if ($found['button'] !== null) {
-            $data['ctaText'] = $this->plain($found['button']['ekit_btn_text'] ?? '');
+            $btn = ['text' => $this->plain($found['button']['ekit_btn_text'] ?? ''), 'style' => 'primary'];
             if (($u = $this->url($found['button']['ekit_btn_url'] ?? null)) !== null) {
-                $data['ctaUrl'] = $u;
+                $btn['url'] = $u;
+            }
+            $layers[] = $layer('button', $btn, ['x' => '6%', 'y' => '66%'], 'fadeUp', 0.9);
+        }
+        if ($found['list'] !== null) {
+            $items = array_values(array_filter(array_map(fn ($i) => $this->plain($i['text'] ?? ''), (array) ($found['list']['icon_list'] ?? []))));
+            if ($items !== []) {
+                $layers[] = $layer('text', [
+                    'content' => '<p>' . implode('<br>', array_map(fn ($t) => '✔ ' . e($t), array_slice($items, 0, 3))) . '</p>',
+                    'color' => '#ffffff',
+                ], ['x' => '6%', 'y' => '79%', 'widthPct' => 26], 'slideRight', 1.2);
             }
         }
-        $overlay = $this->settingColor($s, 'background_overlay_color');
-        // Default overlay tint = the kit's primary (builder heroes overlay
-        // their brand dark, not neutral black).
-        $data['bg_overlay_color'] = $overlay ?? $this->color($this->globalColors['primary'] ?? null) ?? '#000000';
-        $data['bg_overlay_opacity'] = $overlay !== null
-            ? min(1, max(0, (float) ($s['background_overlay_opacity']['size'] ?? 0.45)))
-            : 0.55;
-        $data['headlineColor'] = '#ffffff';
-        $data['subtitleColor'] = '#f5f5f5';
-        $data['headlineSize'] = '56px';
-        $data['headlineWeight'] = '700';
-
-        // Whatever else lived in the hero band (trust badges, secondary CTAs,
-        // check lists) still matters — it renders right below the hero.
-        $rest = $this->stripWidgets($el, $consumed);
-        $rows = [$this->row('1', [$this->column([$this->module('hero', $data)])])];
-        foreach ($this->rowsOf($rest) as $extraRow) {
-            $rows[] = $extraRow;
+        if ($found['badge'] !== null) {
+            $t = $this->plain($found['badge']['title_text'] ?? '');
+            $d = $this->plain($found['badge']['description_text'] ?? '');
+            if ($t !== '' || $d !== '') {
+                $layers[] = $layer('text', [
+                    'content' => '<p><strong>' . e($t) . '</strong>' . ($d !== '' ? '<br>' . e($d) : '') . '</p>',
+                    'color' => '#ffffff',
+                ], ['x' => '36%', 'y' => '79%', 'widthPct' => 26], 'fadeUp', 1.5);
+            }
         }
 
-        // Elementor top-level sections are full-bleed: the hero photo must
-        // reach the viewport edges, only its CONTENT stays in the column.
-        $data['contentMaxWidth'] = '1200px';
+        $slide = [
+            'id' => (string) Str::uuid(), 'type' => 'slide', 'level' => 'module', 'order' => 0,
+            'data' => [
+                'background' => ['type' => 'image', 'src' => $bg, 'overlay' => $overlay, 'kenBurns' => true],
+                'label' => 'Hero',
+            ],
+            'children' => $this->reorder($layers),
+        ];
+        $slider = [
+            'id' => (string) Str::uuid(), 'type' => 'slider', 'level' => 'module', 'order' => 0,
+            'data' => [
+                'height' => ['desktop' => '860px', 'tablet' => '640px', 'mobile' => '560px'],
+                'swiper' => ['effect' => 'fade', 'autoplay' => false, 'loop' => false, 'navigation' => false, 'pagination' => false],
+            ],
+            'children' => [$slide],
+        ];
 
         return [
             'id' => (string) Str::uuid(), 'type' => 'section', 'level' => 'section',
             'order' => $this->order++,
-            'data' => ['padding_top' => '0px', 'padding_bottom' => '48px', 'max_width' => '1200px', 'width_mode' => 'full'],
-            'children' => $this->reorder($rows),
+            'data' => ['padding_top' => '0px', 'padding_bottom' => '0px', 'max_width' => '1200px', 'width_mode' => 'full'],
+            'children' => $this->reorder([
+                $this->row('1', [$this->column([$slider])]),
+            ]),
         ];
     }
 

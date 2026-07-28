@@ -236,7 +236,12 @@ class SliderRender
         $jsHash = substr(md5_file($jsSource), 0, 8);
         $cssHash = substr(md5_file($cssSource), 0, 8);
 
-        if ($site->custom_domain) {
+        // Atomic deploys build into a versioned dir and swap a symlink LAST —
+        // writing through the public path would land the runtime in the
+        // PREVIOUS build. Use the in-flight build target when one is set.
+        if (\App\Domain\Publishing\Services\AssetPublisher::deployTarget()) {
+            $target = \App\Domain\Publishing\Services\AssetPublisher::deployTarget();
+        } elseif ($site->custom_domain) {
             $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
             $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
             $target = $tenantBase . '/' . $safeDomain . '/public_html';

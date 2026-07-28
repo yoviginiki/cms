@@ -100,7 +100,7 @@ class BuildPageService
         // Swiper/GSAP next to the static output (tenant CSPs commonly restrict
         // script-src to 'self' — no third-party CDN). Deferred, order
         // preserved. Pages without sliders load nothing.
-        if ($content->blocks()->where('type', 'slider_ref')->exists()) {
+        if ($content->blocks()->whereIn('type', ['slider_ref', 'slider'])->exists()) {
             $runtime = \App\Support\Blocks\SliderRender::publishRuntime($site);
             $headScripts .= "\n" . '<link rel="stylesheet" href="' . $runtime['swiperCss'] . '">'
                 . "\n" . '<link rel="stylesheet" href="' . $runtime['css'] . '">';
