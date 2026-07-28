@@ -55,7 +55,7 @@ export type RevealMode = 'none' | 'fade' | 'reveal-left' | 'reveal-right' | 'rev
 
 export const REVEAL_MODES: RevealMode[] = ['none', 'fade', 'reveal-left', 'reveal-right', 'reveal-top', 'reveal-bottom', 'circle', 'diagonal'];
 
-export type HoverPreset = 'none' | 'lift' | 'scale' | 'lift-scale' | 'soft-pop' | 'strong-pop';
+export type HoverPreset = 'none' | 'lift' | 'scale' | 'lift-scale' | 'soft-pop' | 'strong-pop' | 'shine';
 export type FilterPreset = 'none' | 'grayscale' | 'sepia' | 'muted' | 'high-contrast' | 'custom';
 
 // ═══════════════════════════════════════
@@ -69,6 +69,7 @@ export const HOVER_PRESETS: Record<HoverPreset, { scale: number; translateY: num
   'lift-scale': { scale: 1.02, translateY: -4, shadow: 'medium' },
   'soft-pop': { scale: 1.02, translateY: -3, shadow: 'soft' },
   'strong-pop': { scale: 1.05, translateY: -8, shadow: 'strong' },
+  shine: { scale: 1, translateY: 0, shadow: 'none' },
 };
 
 const SHADOW_VALUES: Record<string, string> = {

@@ -127,7 +127,7 @@ class PageManifestCompiler
     private function effectsFor(array $block): ?array
     {
         $preset = $block['_hover'] ?? null;
-        if (!is_string($preset) || !in_array($preset, ['lift', 'scale', 'lift-scale', 'soft-pop', 'strong-pop'], true)) {
+        if (!is_string($preset) || !in_array($preset, ['lift', 'scale', 'lift-scale', 'soft-pop', 'strong-pop', 'shine'], true)) {
             return null;
         }
 

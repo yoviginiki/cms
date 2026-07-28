@@ -21,6 +21,9 @@ class BlockEffects
         'lift-scale' => ['scale' => 1.02, 'translateY' => -4, 'shadow' => 'medium'],
         'soft-pop' => ['scale' => 1.02, 'translateY' => -3, 'shadow' => 'soft'],
         'strong-pop' => ['scale' => 1.05, 'translateY' => -8, 'shadow' => 'strong'],
+        // Gleam sweep (builder "shiny glass"): transform stays put — the
+        // motion is a light streak, emitted by shineCss() below.
+        'shine' => ['scale' => 1, 'translateY' => 0, 'shadow' => 'none'],
     ];
 
     private const SHADOW_VALUES = [
@@ -82,6 +85,28 @@ class BlockEffects
         $easing = in_array($rawEasing, ['ease', 'ease-out', 'ease-in-out']) ? $rawEasing : 'ease-out';
 
         return "transition:transform {$duration}ms {$easing},box-shadow {$duration}ms {$easing};";
+    }
+
+    /**
+     * Gleam-sweep hover ("shiny glass"): a skewed light streak crosses the
+     * container once per hover, with a subtle image zoom. $selector is the
+     * CONTAINER of one image (needs position+overflow, so pass a wrapper,
+     * never the <img> itself).
+     */
+    public static function shineCss(string $selector): string
+    {
+        $sel = trim($selector);
+        if ($sel === '') return '';
+
+        return "{$sel}{position:relative;overflow:hidden;display:block}"
+            . "{$sel}::after{content:'';position:absolute;top:0;left:-85%;width:55%;height:100%;"
+            . "background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.35) 50%,rgba(255,255,255,0) 100%);"
+            . "transform:skewX(-20deg);pointer-events:none;z-index:2}"
+            . "{$sel}:hover::after{animation:bfx-shine .85s ease}"
+            . "{$sel} img{transition:transform .5s ease}"
+            . "{$sel}:hover img{transform:scale(1.04)}"
+            . "@keyframes bfx-shine{to{left:135%}}"
+            . "@media(prefers-reduced-motion:reduce){{$sel}:hover::after{animation:none}{$sel}:hover img{transform:none}}";
     }
 
     /**

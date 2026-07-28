@@ -17,6 +17,9 @@
     $__imageFilter = BlockEffects::imageFilterStyle($data ?? []);
     $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
+    if ($__effectScope && (($data['effects']['hover']['preset'] ?? '') === 'shine')) {
+        $__hoverCss .= BlockEffects::shineCss(".{$__effectScope} .gallery-item");
+    }
     $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);
     $__revealMode = in_array(($data['effects']['imageHoverReveal']['mode'] ?? 'fade'), ['none','fade','reveal-left','reveal-right','reveal-top','reveal-bottom','circle','diagonal']) ? ($data['effects']['imageHoverReveal']['mode'] ?? 'fade') : 'fade';
     $__isFadeReveal = $__revealMode === 'fade' || $__revealMode === 'none';
@@ -31,7 +34,7 @@
     }
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
-@if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
+@if($__hoverCss || $__revealImgCss)<style>{!! $__hoverCss !!}{!! $__revealImgCss !!}</style>@endif
 <div class="gallery-block {{ $__effectScope }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php
@@ -49,7 +52,9 @@
             $imgH = is_array($img) ? ($img['height'] ?? null) : null;
         @endphp
         @if(!empty($src))
+            <span class="gallery-item" style="border-radius:4px;">
             <img class="img-filtered" src="{{ e($src) }}" alt="{{ e($alt) }}"@if($imgW) width="{{ (int) $imgW }}"@endif @if($imgH)height="{{ (int) $imgH }}"@endif loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:cover;border-radius:4px;{{ $__imageFilter }}">
+            </span>
         @endif
     @endforeach
 </div>

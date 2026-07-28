@@ -17,6 +17,9 @@
     $__imageFilter = BlockEffects::imageFilterStyle($data ?? []);
     $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
+    if ($__effectScope && (($data['effects']['hover']['preset'] ?? '') === 'shine')) {
+        $__hoverCss .= BlockEffects::shineCss(".{$__effectScope} figure, .{$__effectScope} .image-wrap");
+    }
     $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);
     $__revealMode = in_array(($data['effects']['imageHoverReveal']['mode'] ?? 'fade'), ['none','fade','reveal-left','reveal-right','reveal-top','reveal-bottom','circle','diagonal']) ? ($data['effects']['imageHoverReveal']['mode'] ?? 'fade') : 'fade';
     $__isFadeReveal = $__revealMode === 'fade' || $__revealMode === 'none';
@@ -31,7 +34,7 @@
     }
 @endphp
 @if($__hideOn['css'])<style>{{ $__hideOn['css'] }}</style>@endif
-@if($__hoverCss || $__revealImgCss)<style>{{ $__hoverCss }}{{ $__revealImgCss }}</style>@endif
+@if($__hoverCss || $__revealImgCss)<style>{!! $__hoverCss !!}{!! $__revealImgCss !!}</style>@endif
 <div class="image-block {{ $__effectScope }} {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="position:relative;{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif @if(!empty($__adv['ariaLabel'])) aria-label="{{ $__adv['ariaLabel'] }}" @endif>
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 @php

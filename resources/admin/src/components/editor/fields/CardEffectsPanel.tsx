@@ -21,6 +21,7 @@ const HOVER_OPTIONS: Array<{ value: HoverPreset; label: string; desc: string }> 
   { value: 'lift-scale', label: 'Lift + Scale', desc: 'Lift and grow' },
   { value: 'soft-pop', label: 'Soft Pop', desc: 'Subtle lift with gentle shadow' },
   { value: 'strong-pop', label: 'Strong Pop', desc: 'Dramatic lift and scale' },
+  { value: 'shine', label: 'Shine', desc: 'Light streak sweeps across on hover' },
 ];
 
 const FILTER_OPTIONS: Array<{ value: FilterPreset; label: string }> = [

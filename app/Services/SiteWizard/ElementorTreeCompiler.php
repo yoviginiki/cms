@@ -387,6 +387,8 @@ class ElementorTreeCompiler
                 $modules = [$this->module('gallery', [
                     'images' => array_map(fn ($m) => $m['data']['url'], $modules),
                     'layout' => 'grid', 'columns' => 2,
+                    'effects' => ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'shine']],
+                    '__animation' => ['entrance' => 'zoom', 'duration' => 700],
                 ])];
             }
             $columns[] = $this->column($modules);
@@ -570,7 +572,11 @@ class ElementorTreeCompiler
         }
 
         // One compact band, like the source's category carousel.
-        return $images === [] ? [] : [$this->module('gallery', ['images' => $images, 'layout' => 'grid', 'columns' => min(6, count($images))])];
+        return $images === [] ? [] : [$this->module('gallery', [
+            'images' => $images, 'layout' => 'grid', 'columns' => min(6, count($images)),
+            'effects' => ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'shine']],
+            '__animation' => ['entrance' => 'fade', 'duration' => 700],
+        ])];
     }
 
     /** Source-site project cards (context-fed): image + title + text, side by side. */
@@ -618,7 +624,7 @@ class ElementorTreeCompiler
         // Builder sites dress nearly every image the same way: a soft entrance
         // when it scrolls in and a hover response. Recreate both by default;
         // explicit per-widget animation settings still win via sharedProps.
-        $data['effects'] = ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'scale', 'duration' => 350, 'easing' => 'ease-out']];
+        $data['effects'] = ['enabled' => true, 'hover' => ['enabled' => true, 'preset' => 'shine', 'duration' => 350, 'easing' => 'ease-out']];
         $data['__animation'] = ['entrance' => 'zoom', 'duration' => 700];
 
         return [$this->module('image', $data)];
