@@ -81,16 +81,18 @@ class ElementorTreeCompiler
             return null;
         }
 
-        // Collect the hero's cast: headline, intro, CTA, checklist, badge.
-        $found = ['heading' => null, 'text' => null, 'button' => null, 'list' => null, 'badge' => null];
+        // Collect the hero's cast: headline, intro, CTA, video, checklist, badge.
+        // The second heading (after the main title) is the video's label.
+        $found = ['heading' => null, 'text' => null, 'button' => null, 'video' => null, 'videoLabel' => null, 'list' => null, 'badge' => null];
         $scan = function (array $node) use (&$scan, &$found) {
             foreach ($node['elements'] ?? [] as $child) {
                 if (($child['elType'] ?? '') === 'widget') {
                     $type = $child['widgetType'] ?? '';
                     $slot = match ($type) {
-                        'heading' => $found['heading'] === null ? 'heading' : null,
+                        'heading' => $found['heading'] === null ? 'heading' : ($found['videoLabel'] === null ? 'videoLabel' : null),
                         'text-editor' => $found['text'] === null ? 'text' : null,
                         'elementskit-creative-button' => $found['button'] === null ? 'button' : null,
+                        'elementskit-video' => $found['video'] === null ? 'video' : null,
                         'icon-list' => $found['list'] === null ? 'list' : null,
                         'image-box' => $found['badge'] === null ? 'badge' : null,
                         default => null,
@@ -134,24 +136,31 @@ class ElementorTreeCompiler
         ];
         if ($found['text'] !== null) {
             $layers[] = $layer('text', [
-                'content' => '<p>' . e(mb_substr($this->plain($found['text']['editor'] ?? ''), 0, 300)) . '</p>',
+                'content' => $this->heroIntro($found['text']['editor'] ?? ''),
                 'color' => '#e7ebf2',
-            ], ['x' => '6%', 'y' => '45%', 'widthPct' => 40], 'fadeUp', 0.55);
+            ], ['x' => '6%', 'y' => '44%', 'widthPct' => 46], 'fadeUp', 0.55);
         }
         if ($found['button'] !== null) {
             $btn = ['text' => $this->plain($found['button']['ekit_btn_text'] ?? ''), 'style' => 'primary'];
             if (($u = $this->url($found['button']['ekit_btn_url'] ?? null)) !== null) {
                 $btn['url'] = $u;
             }
-            $layers[] = $layer('button', $btn, ['x' => '6%', 'y' => '66%'], 'fadeUp', 0.9);
+            $layers[] = $layer('button', $btn, ['x' => '6%', 'y' => '67%'], 'fadeUp', 0.9);
+        }
+        // Video pop-out ("Заявете консултация" + play button), beside the CTA.
+        if ($found['video'] !== null) {
+            $vUrl = $this->url($found['video']['ekit_video_popup_url'] ?? null);
+            $vLabel = $found['videoLabel'] !== null ? $this->plain($found['videoLabel']['title'] ?? '') : '';
+            if ($vUrl !== null && $vLabel !== '') {
+                $layers[] = $layer('html-embed', ['html' => $this->heroVideoHtml($vLabel, $vUrl)],
+                    ['x' => '30%', 'y' => '68%'], 'fadeUp', 1.05);
+            }
         }
         if ($found['list'] !== null) {
             $items = array_values(array_filter(array_map(fn ($i) => $this->plain($i['text'] ?? ''), (array) ($found['list']['icon_list'] ?? []))));
             if ($items !== []) {
-                $layers[] = $layer('text', [
-                    'content' => '<p>' . implode('<br>', array_map(fn ($t) => '✔ ' . e($t), array_slice($items, 0, 3))) . '</p>',
-                    'color' => '#ffffff',
-                ], ['x' => '6%', 'y' => '79%', 'widthPct' => 26], 'slideRight', 1.2);
+                $layers[] = $layer('html-embed', ['html' => $this->checkListHtml(array_slice($items, 0, 3), '#fff')],
+                    ['x' => '6%', 'y' => '80%', 'widthPct' => 30], 'slideRight', 1.2);
             }
         }
         if ($found['badge'] !== null) {
@@ -161,7 +170,7 @@ class ElementorTreeCompiler
                 $layers[] = $layer('text', [
                     'content' => '<p><strong>' . e($t) . '</strong>' . ($d !== '' ? '<br>' . e($d) : '') . '</p>',
                     'color' => '#ffffff',
-                ], ['x' => '36%', 'y' => '79%', 'widthPct' => 26], 'fadeUp', 1.5);
+                ], ['x' => '40%', 'y' => '80%', 'widthPct' => 24], 'fadeUp', 1.5);
             }
         }
 
@@ -190,6 +199,76 @@ class ElementorTreeCompiler
                 $this->row('1', [$this->column([$slider])]),
             ]),
         ];
+    }
+
+    /** Hero intro: keep the source's paragraph structure; cap runaway length. */
+    private function heroIntro(string $html): string
+    {
+        $html = trim($html);
+        if ($html === '') {
+            return '';
+        }
+        if (mb_strlen(strip_tags($html)) > 500) {
+            return '<p>' . e(mb_substr($this->plain($html), 0, 300)) . '…</p>';
+        }
+
+        return $html;
+    }
+
+    /** A checklist rendered as raw HTML with blue fa-check-circle icons and a
+     * caller-chosen text colour (white on the dark hero, muted on light bands). */
+    private function checkListHtml(array $items, string $textColor): string
+    {
+        $icon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#2f6df6" style="flex-shrink:0">'
+            . '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1.2 14.6l-4.2-4.2 1.5-1.5 2.7 2.7 5.4-5.4 1.5 1.5-6.9 6.9z"/></svg>';
+        $rows = '';
+        foreach ($items as $t) {
+            $rows .= '<div style="display:flex;align-items:center;gap:10px;margin:0 0 12px;color:' . $textColor . ';'
+                . 'font-size:16px;line-height:1.3">' . $icon . '<span>' . e($t) . '</span></div>';
+        }
+
+        return '<div>' . $rows . '</div>';
+    }
+
+    /** Icon-box as raw HTML. Position 'left' → the SVG icon in a rounded blue
+     * tile beside a compact title (feature row, as in the "about" band); any
+     * other position → a plain brand-blue icon above the title (as in the
+     * service tiles). Both keep title/description compact, not a giant heading. */
+    private function featureBoxHtml(string $iconUrl, string $title, string $desc, string $position): string
+    {
+        $blue = 'filter:brightness(0) saturate(100%) invert(34%) sepia(93%) saturate(1500%) hue-rotate(205deg) brightness(96%) contrast(94%)';
+        $descHtml = $desc !== ''
+            ? '<div style="color:var(--color-text-muted,#64748b);margin-top:4px;font-size:15px">' . e($desc) . '</div>'
+            : '';
+
+        if ($position === 'left') {
+            $tile = '<span style="flex-shrink:0;width:60px;height:60px;border-radius:14px;background:#2f6df6;'
+                . 'display:inline-flex;align-items:center;justify-content:center">'
+                . '<img src="' . e($iconUrl) . '" alt="" width="30" height="30" style="filter:brightness(0) invert(1)"></span>';
+            $body = '<div><div style="font-weight:700;font-size:17px;line-height:1.35;color:var(--color-heading,#0f172a)">'
+                . e($title) . '</div>' . $descHtml . '</div>';
+
+            return '<div style="display:flex;align-items:flex-start;gap:16px;margin:0 0 20px">' . $tile . $body . '</div>';
+        }
+
+        return '<div style="margin:0 0 10px">'
+            . '<img src="' . e($iconUrl) . '" alt="" width="40" height="40" style="' . $blue . ';margin-bottom:14px">'
+            . '<div style="font-weight:700;font-size:17px;line-height:1.35;color:var(--color-heading,#0f172a)">' . e($title) . '</div>'
+            . $descHtml . '</div>';
+    }
+
+    /** Hero "request a consultation" label + circular play button (html-embed
+     * layer) linking to the source's popup video. */
+    private function heroVideoHtml(string $label, string $url): string
+    {
+        $play = '<span style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;'
+            . 'border-radius:50%;background:rgba(173,213,247,0.92);flex-shrink:0">'
+            . '<svg width="18" height="18" viewBox="0 0 24 24" fill="#0b3382"><path d="M8 5v14l11-7z"/></svg></span>';
+
+        return '<a href="' . e($url) . '" target="_blank" rel="noopener" '
+            . 'style="display:inline-flex;align-items:center;gap:16px;text-decoration:none">'
+            . '<span style="font-weight:700;color:#0f2350;font-size:16px;white-space:nowrap">' . e($label) . '</span>'
+            . $play . '</a>';
     }
 
     /** A copy of the element tree without the given widget ids. */
@@ -501,12 +580,15 @@ class ElementorTreeCompiler
                 'prefix' => '', 'suffix' => '%',
             ]], 'columns' => 1])],
 
-            'icon-list' => [$this->module('list', [
-                'items' => array_values(array_filter(array_map(
+            'icon-list' => (function () use ($s) {
+                $items = array_values(array_filter(array_map(
                     fn ($i) => $this->plain($i['text'] ?? ''), (array) ($s['icon_list'] ?? [])
-                ))),
-                'style' => 'check', 'icon' => '',
-            ])],
+                )));
+
+                return $items === [] ? [] : [$this->module('html-embed', [
+                    'html' => $this->checkListHtml($items, 'var(--color-text-muted,#5b6472)'),
+                ])];
+            })(),
 
             'elementskit-icon-box', 'icon-box', 'image-box' => $this->iconBoxModules($s),
 
@@ -637,6 +719,16 @@ class ElementorTreeCompiler
         $desc = $this->plain($s['ekit_icon_box_description_text'] ?? $s['description_text'] ?? '');
         if ($title === '' && $desc === '') {
             return [];
+        }
+
+        // ElementsKit header icon (SVG) → feature box (tile-left or icon-top).
+        $hi = $s['ekit_icon_box_header_icons']['value'] ?? null;
+        if (is_array($hi) && is_string($hi['url'] ?? null) && $hi['url'] !== '') {
+            $position = ($s['ekit_icon_box_icon_position'] ?? 'top') === 'left' ? 'left' : 'top';
+
+            return [$this->module('html-embed', [
+                'html' => $this->featureBoxHtml(($this->importImage)($hi['url'], $title), $title, $desc, $position),
+            ])];
         }
 
         $modules = [];
