@@ -231,7 +231,7 @@ class ElementorTreeCompiler
      * caller-chosen text colour (white on the dark hero, muted on light bands). */
     private function checkListHtml(array $items, string $textColor): string
     {
-        $icon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="#2f6df6" style="flex-shrink:0">'
+        $icon = '<svg width="22" height="22" viewBox="0 0 24 24" fill="' . $this->accent() . '" style="flex-shrink:0">'
             . '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1.2 14.6l-4.2-4.2 1.5-1.5 2.7 2.7 5.4-5.4 1.5 1.5-6.9 6.9z"/></svg>';
         $rows = '';
         foreach ($items as $t) {
@@ -265,7 +265,7 @@ class ElementorTreeCompiler
         }
 
         if ($position === 'left') {
-            $tile = '<span style="flex-shrink:0;width:60px;height:60px;border-radius:14px;background:#2f6df6;'
+            $tile = '<span style="flex-shrink:0;width:60px;height:60px;border-radius:14px;background:' . $this->accent() . ';'
                 . 'display:inline-flex;align-items:center;justify-content:center">'
                 . '<img src="' . e($iconUrl) . '" alt="" width="30" height="30" style="filter:brightness(0) invert(1)"></span>';
             $body = '<div><div style="font-weight:700;font-size:var(--font-size-xl,1.25rem);line-height:1.35;color:var(--color-heading,#0f172a)">'
@@ -312,14 +312,15 @@ class ElementorTreeCompiler
     {
         $text = trim($text) !== '' ? $text : 'Свържете се с нас • ';
         $uid = 'cp' . substr(md5($text), 0, 6);
+        $accent = $this->accent();
 
         return '<div style="position:relative;width:150px;height:150px;margin:0 0 28px">'
             . '<svg viewBox="0 0 200 200" width="150" height="150" style="animation:' . $uid . ' 16s linear infinite">'
             . '<defs><path id="' . $uid . 'p" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0" fill="none"/></defs>'
-            . '<text fill="#77b6ff" font-size="12.5" font-weight="700" letter-spacing="1.5">'
+            . '<text fill="' . $accent . '" font-size="12.5" font-weight="700" letter-spacing="1.5">'
             . '<textPath href="#' . $uid . 'p">' . e($text) . '</textPath></text></svg>'
             . '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;'
-            . 'border-radius:50%;background:#77b6ff;display:flex;align-items:center;justify-content:center;color:#0b3382;font-size:22px;line-height:1">↗</span>'
+            . 'border-radius:50%;background:' . $accent . ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;line-height:1">↗</span>'
             . '<style>@keyframes ' . $uid . '{to{transform:rotate(360deg)}}'
             . '@media(prefers-reduced-motion:reduce){[style*="' . $uid . '"]{animation:none!important}}</style></div>';
     }
@@ -601,7 +602,40 @@ class ElementorTreeCompiler
             }
         }
 
-        return $this->mergeStats($modules);
+        return $this->mergeBadgeRow($this->mergeStats($modules));
+    }
+
+    /**
+     * A circular text-path badge immediately followed by card feature-boxes is,
+     * in the source, one horizontal cluster (badge + cards on a line) — not a
+     * vertical stack. Fuse them into a single flex-row html-embed.
+     */
+    private function mergeBadgeRow(array $modules): array
+    {
+        $isBadge = fn ($m) => ($m['type'] ?? '') === 'html-embed' && str_contains($m['data']['html'] ?? '', 'textPath');
+        $isCard = fn ($m) => ($m['type'] ?? '') === 'html-embed' && str_contains($m['data']['html'] ?? '', 'padding:28px;border-radius');
+
+        $out = [];
+        $n = count($modules);
+        for ($i = 0; $i < $n;) {
+            if ($isBadge($modules[$i]) && isset($modules[$i + 1]) && $isCard($modules[$i + 1])) {
+                $cards = '';
+                $j = $i + 1;
+                while ($j < $n && $isCard($modules[$j])) {
+                    $cards .= '<div style="flex:1 1 180px">' . $modules[$j]['data']['html'] . '</div>';
+                    $j++;
+                }
+                $out[] = $this->module('html-embed', ['html' =>
+                    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin:8px 0 16px">'
+                    . '<div style="flex:0 0 130px">' . $modules[$i]['data']['html'] . '</div>' . $cards . '</div>']);
+                $i = $j;
+                continue;
+            }
+            $out[] = $modules[$i];
+            $i++;
+        }
+
+        return $out;
     }
 
     /** Consecutive single-item stats blocks collapse into one multi-column stats. */
@@ -1064,6 +1098,13 @@ class ElementorTreeCompiler
     private function color(mixed $v): ?string
     {
         return is_string($v) && preg_match('/^#[0-9a-fA-F]{3,8}$/', trim($v)) === 1 ? strtolower(trim($v)) : null;
+    }
+
+    /** The source kit's accent colour (blue tiles, check icons, badge…), or a
+     * sensible default — so migrated accents follow the source, not a constant. */
+    private function accent(): string
+    {
+        return $this->color($this->globalColors['accent'] ?? null) ?? '#2f6df6';
     }
 
     /**

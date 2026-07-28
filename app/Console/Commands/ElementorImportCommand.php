@@ -298,6 +298,12 @@ class ElementorImportCommand extends Command
         if (($body = $hex('text')) !== null) {
             $vars[] = '--color-text-muted:' . $body;
         }
+        // Kit accent → the site's primary/accent (buttons, links, hovers), so
+        // theme controls follow the source instead of the platform default.
+        if (($accent = $hex('accent')) !== null) {
+            $vars[] = '--color-primary:' . $accent;
+            $vars[] = '--color-accent:' . $accent;
+        }
         if (($primary = $size('primary')) !== null) {
             $vars[] = '--font-size-2xl:' . $rem($primary);
             $vars[] = '--font-size-3xl:' . $rem($primary * 1.4);
@@ -314,6 +320,12 @@ class ElementorImportCommand extends Command
         if ($vars !== []) {
             $recipe .= ":root{" . implode(';', $vars) . "}\n";
         }
+        // Rounded media — builder themes round every content image/gallery; the
+        // block defaults are square (or a token 4px), which reads unfinished.
+        $recipe .= ".pos-main .image-block img,.pos-main .image-block figure,.pos-main .gallery-item,"
+            . ".pos-main .gallery-item img,.pos-main .latestposts-block img,.pos-main .logostrip img"
+            . "{border-radius:16px!important}\n"
+            . ".pos-main .image-block figure,.pos-main .gallery-item{overflow:hidden}\n";
         if ($heroSlider) {
             $recipe .= <<<'CSS'
                 body:has(.pos-main > section:first-child .sp-slider) .site-grid{position:relative}
