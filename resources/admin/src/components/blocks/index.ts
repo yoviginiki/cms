@@ -99,6 +99,7 @@ import './record-title';
 import './record-image';
 import './field-value';
 import './record-loop';
+import './collection-categories';
 import './search-box';
 import './facet-filter';
 import './results-grid';

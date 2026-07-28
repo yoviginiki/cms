@@ -18,6 +18,7 @@ export const recordLoopDefinition: BlockDefinition = {
     limit: 12,
     sortField: '',
     sortDirection: 'desc',
+    categoryNodeId: null, // limit to a category subtree
     filterField: null,
     filterValue: '',
     showImage: true,

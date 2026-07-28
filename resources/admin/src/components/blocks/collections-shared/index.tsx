@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { collections as collectionsApi, savedQueries as savedQueriesApi, themeTemplates, type Collection, type CollectionField, type CollectionFieldType, type SavedQuery } from '@/lib/api';
+import { collections as collectionsApi, savedQueries as savedQueriesApi, themeTemplates, collectionCategories as collectionCategoriesApi, type CategoryNode, type Collection, type CollectionField, type CollectionFieldType, type SavedQuery } from '@/lib/api';
 import { SelectField, TextField, ToggleField } from '@/components/editor/fields';
 
 /**
@@ -233,4 +233,46 @@ export function FilterValueInput({ field, value, onChange }: FilterValueInputPro
 /** Editor hint shown while a selected collection's schema loads. */
 export function SchemaLoadingHint() {
   return <div className="text-[11px] text-base-content/40">Loading schema…</div>;
+}
+
+
+// ─── Category tree picker ───
+
+/** Category tree of a collection (shared cache with the Collections pages). */
+export function useCategoryTree(collectionId: string | null | undefined) {
+  const { siteId = '' } = useParams();
+  return useQuery<CategoryNode[]>({
+    queryKey: ['category-tree', siteId, collectionId],
+    queryFn: () => collectionCategoriesApi.tree(siteId, collectionId as string).then((r) => r.data.data),
+    enabled: !!siteId && !!collectionId,
+  });
+}
+
+function flattenTree(nodes: CategoryNode[], depth = 0): Array<{ value: string; label: string }> {
+  const out: Array<{ value: string; label: string }> = [];
+  for (const n of nodes) {
+    out.push({ value: n.id, label: `${'\u2014 '.repeat(depth)}${n.name}` });
+    if (n.children?.length) out.push(...flattenTree(n.children, depth + 1));
+  }
+  return out;
+}
+
+interface CategoryNodeSelectProps {
+  collectionId: string | null | undefined;
+  value: string | null;
+  onChange: (v: string | null) => void;
+  label?: string;
+  unsetLabel?: string;
+  helperText?: string;
+}
+
+/** Dropdown over a collection's category tree (depth-indented). */
+export function CategoryNodeSelect({ collectionId, value, onChange, label = 'Category', unsetLabel = '\u2014 all / root level \u2014', helperText }: CategoryNodeSelectProps) {
+  const { data: tree } = useCategoryTree(collectionId);
+  if (!collectionId) return null;
+  return (
+    <SelectField label={label} value={value || ''} onChange={(v) => onChange(v || null)}
+      options={[{ value: '', label: unsetLabel }, ...flattenTree(tree ?? [])]}
+      helperText={helperText} />
+  );
 }

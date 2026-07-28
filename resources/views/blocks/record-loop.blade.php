@@ -82,6 +82,26 @@
             ->where('status', 'published')
             ->with('relationsOut.toRecord');
 
+        // Category-tree filter: the picked node's whole subtree.
+        if (!empty($data['categoryNodeId'])) {
+            $node = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)
+                ->find($data['categoryNodeId']);
+            if ($node) {
+                $all = \App\Models\CollectionCategoryNode::where('collection_id', $collection->id)
+                    ->get(['id', 'parent_id'])->groupBy('parent_id');
+                $subtree = [];
+                $stack = [$node->id];
+                while ($stack !== []) {
+                    $id = array_pop($stack);
+                    $subtree[] = $id;
+                    foreach ($all->get($id, collect()) as $child) $stack[] = $child->id;
+                }
+                $query->whereIn('category_node_id', $subtree);
+            } else {
+                $query->whereRaw('1 = 0'); // node deleted — render empty, not everything
+            }
+        }
+
         // Filter/sort keys must exist in the validated schema — never raw SQL from block data.
         $filterKey = (string) ($data['filterField'] ?? '');
         if ($filterKey !== '' && $collection->field($filterKey) && ($data['filterValue'] ?? '') !== '') {

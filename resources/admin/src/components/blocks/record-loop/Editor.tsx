@@ -1,7 +1,7 @@
 import type { BlockEditorProps } from '@/types/blocks';
 import { SelectField, TextField, ToggleField } from '@/components/editor/fields';
 import {
-  CollectionSelect, FieldMultiPick, FilterValueInput, QuerySelect, SchemaLoadingHint,
+  CategoryNodeSelect, CollectionSelect, FieldMultiPick, FilterValueInput, QuerySelect, SchemaLoadingHint,
   isCardField, isFilterableField, isImageField, isSortableField,
   SORT_META_OPTIONS, useCollection,
 } from '../collections-shared';
@@ -85,6 +85,14 @@ export const RecordLoopEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }
       {collectionId && schemaLoading && <SchemaLoadingHint />}
 
       <div className="divider text-[10px] text-base-content/40 my-1">Sorting &amp; Filtering</div>
+      {sourceMode === 'auto' && collectionId && (
+        <CategoryNodeSelect collectionId={collectionId}
+          value={(data.categoryNodeId as string | null) || null}
+          onChange={v => update('categoryNodeId', v)}
+          label="Category"
+          unsetLabel="— all categories —"
+          helperText="Only records in this category (subcategories included)" />
+      )}
       <SelectField label="Sort By" value={(data.sortField as string) || ''} onChange={v => update('sortField', v || null)}
         options={[{ value: '', label: 'Published date (default)' }, ...sortOptions]} />
       <SelectField label="Sort Direction" value={(data.sortDirection as string) || 'desc'} onChange={v => update('sortDirection', v)}
