@@ -32,6 +32,26 @@ async function capture(url, file) {
   const page = await context.newPage();
   try {
     await page.goto(url, { waitUntil: 'load', timeout: 45000 });
+    // Capture the SETTLED page: builder entrance animations (Elementor's
+    // elementor-invisible, our block entrances, Ken Burns) otherwise freeze
+    // mid-flight or as blank sections and poison the pixel score. Scroll the
+    // whole page (lazy images + waypoint animations), then hard-disable all
+    // motion and force animated elements visible on BOTH sides.
+    await page.evaluate(async () => {
+      await new Promise((resolve) => {
+        let y = 0;
+        const t = setInterval(() => {
+          window.scrollBy(0, 700); y += 700;
+          if (y >= document.body.scrollHeight) { clearInterval(t); resolve(); }
+        }, 60);
+      });
+      window.scrollTo(0, 0);
+    });
+    await page.addStyleTag({ content:
+      '*,*::before,*::after{animation:none!important;transition:none!important}' +
+      '.elementor-invisible{opacity:1!important;visibility:visible!important}' +
+      '[data-animation],[style*="animation-name"]{opacity:1!important;transform:none!important}' });
+    await page.waitForTimeout(600);
     await page.waitForTimeout(1500); // fonts/lazy content settle
     const height = await page.evaluate(() => document.body.scrollHeight);
     await page.screenshot({ path: file, fullPage: true });

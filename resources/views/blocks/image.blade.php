@@ -18,7 +18,7 @@
     $__effectScope = $__effectsEnabled ? 'bfx-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
     $__hoverCss = $__effectScope ? BlockEffects::cardHoverCss($data ?? [], $__effectScope) : '';
     if ($__effectScope && (($data['effects']['hover']['preset'] ?? '') === 'shine')) {
-        $__hoverCss .= BlockEffects::shineCss(".{$__effectScope} figure, .{$__effectScope} .image-wrap");
+        $__hoverCss .= BlockEffects::shineCss(".{$__effectScope} figure.image-block");
     }
     $__revealEnabled = BlockEffects::isRevealEnabled($data ?? []);
     $__revealMode = in_array(($data['effects']['imageHoverReveal']['mode'] ?? 'fade'), ['none','fade','reveal-left','reveal-right','reveal-top','reveal-bottom','circle','diagonal']) ? ($data['effects']['imageHoverReveal']['mode'] ?? 'fade') : 'fade';
