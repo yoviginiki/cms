@@ -339,6 +339,17 @@
       scheduleBeacon();
     }
 
+    // Bring the results into view after an explicit filter/search (facet click or
+    // Search button) — the facet list can be long, so jump back up to the top of
+    // the results with the search bar still in sight. Not called on type-ahead.
+    function scrollToResults() {
+      var el = resultRoots[0] || facetRoots[0];
+      if (!el || !el.getBoundingClientRect) return;
+      var top = el.getBoundingClientRect().top + (window.pageYOffset || 0) - 90;
+      try { window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
+      catch (e) { window.scrollTo(0, Math.max(0, top)); }
+    }
+
     // Search analytics (v3): anonymous aggregate term counts. Fires once per
     // settled term (2s idle), text/plain so sendBeacon needs no preflight.
     var beaconUrl = null;
@@ -373,6 +384,7 @@
         clearTimeout(debounceTimer);
         state.q = input.value.trim();
         apply();
+        scrollToResults();
       });
     });
 
@@ -383,6 +395,7 @@
         else vals = vals.filter(function (v) { return v !== input.value; });
         state.facets[key] = vals;
         apply();
+        scrollToResults();
       });
     }
 
