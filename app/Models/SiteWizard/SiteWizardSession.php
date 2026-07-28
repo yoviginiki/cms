@@ -25,7 +25,7 @@ class SiteWizardSession extends Model
     public const SOURCES = ['url', 'zip'];
 
     /** Pipeline step keys in execution order. */
-    public const STEP_KEYS = ['ingest', 'create_site', 'theme', 'polish', 'pages', 'menu', 'finalize'];
+    public const STEP_KEYS = ['ingest', 'create_site', 'theme', 'polish', 'pages', 'menu', 'verify', 'finalize'];
 
     public const STEP_LABELS = [
         'ingest' => 'Reading the design',
@@ -34,6 +34,7 @@ class SiteWizardSession extends Model
         'polish' => 'AI theme polish',
         'pages' => 'Building the pages',
         'menu' => 'Building the navigation',
+        'verify' => 'Measuring fidelity against the source',
         'finalize' => 'Finishing up',
     ];
 

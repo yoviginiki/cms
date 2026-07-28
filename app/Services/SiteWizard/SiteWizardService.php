@@ -99,6 +99,7 @@ class SiteWizardService
                 'polish' => $this->stepPolish($session),
                 'pages' => $this->stepPages($session),
                 'menu' => $this->stepMenu($session),
+                'verify' => $this->stepVerify($session),
                 'finalize' => $this->stepFinalize($session),
                 default => false,
             };
@@ -269,6 +270,19 @@ class SiteWizardService
         }
 
         $detail = count($session->refresh()->sources) . ' page(s) found';
+        if ($session->source === 'url') {
+            $builder = $this->detectBuilder((string) $session->reference_url);
+            if ($builder !== null) {
+                $session->update(['options' => array_merge($session->options ?? [], ['builder_detected' => $builder])]);
+                $detail .= " — {$builder} design detected";
+                if ($builder === 'Elementor') {
+                    // The method doc's rule: builder JSON beats DOM heuristics.
+                    // With WP database access, `elementor:import` compiles
+                    // _elementor_data straight into native blocks (1:1 path).
+                    $detail .= ' (with WP DB access, `elementor:import` gives a 1:1 native import)';
+                }
+            }
+        }
         if ($session->source === 'zip' && isset($extracted['stats'])) {
             $detail .= ' in ' . $extracted['stats']['files'] . ' archive file(s)';
             if (($extracted['stats']['skipped_ext'] ?? []) !== []) {
@@ -483,6 +497,126 @@ class SiteWizardService
         }
 
         return true;
+    }
+
+    /**
+     * The measurement half of the design-recreation method, built into the
+     * pipeline (docs/DESIGN-RECREATION-METHOD.md §3): every build ends with an
+     * OBJECTIVE fidelity score, not an eyeball. Each built page is rendered
+     * in-process (they are still drafts — no live URL exists) and compared
+     * against the source HTML with the migration diff engine; per-page
+     * coverage + gap counts land on the source row for the UI, the roll-up in
+     * the step detail. Batched like stepPages so slow origins can't blow the
+     * queue timeout, and never fails the build — a score is advice, not a gate.
+     */
+    private function stepVerify(SiteWizardSession $session): bool
+    {
+        if ($session->fidelity() === 'exact') {
+            $session->markStep('verify', 'skipped', 'Exact copies are verbatim by construction');
+
+            return true;
+        }
+
+        $session->markStep('verify', 'running');
+        $site = Site::findOrFail($session->site_id);
+        $checker = app(\App\Domain\Migration\Services\MigrationDiffChecker::class);
+        $renderer = app(\App\Domain\Publishing\Services\BuildPageService::class);
+        $originHost = $session->source === 'url'
+            ? (string) (parse_url((string) $session->reference_url, PHP_URL_HOST) ?: '')
+            : '';
+
+        $needsCheck = fn ($s) => ($s['status'] ?? '') === 'done'
+            && !empty($s['page_id']) && !array_key_exists('fidelity', $s);
+
+        $checked = 0;
+        while ($checked < self::PAGE_BATCH) {
+            $session->refresh();
+            $pending = collect($session->sources ?? [])->first($needsCheck);
+            if ($pending === null) {
+                break;
+            }
+            $session->updateSource($pending['ref'], [
+                'fidelity' => $this->measureFidelity($session, $site, $checker, $renderer, $originHost, $pending),
+            ]);
+            $checked++;
+        }
+
+        if (collect($session->refresh()->sources ?? [])->contains($needsCheck)) {
+            return true; // step stays 'running'; the next job invocation continues
+        }
+
+        $scores = collect($session->sources ?? [])
+            ->pluck('fidelity')->filter(fn ($f) => isset($f['coverage']))->values();
+        if ($scores->isEmpty()) {
+            $session->markStep('verify', 'skipped', 'No pages could be compared against the source');
+
+            return true;
+        }
+
+        $avg = round((float) $scores->avg('coverage'), 1);
+        $withGaps = $scores->filter(fn ($f) => ($f['missing_headings'] ?? 0) + ($f['missing_images'] ?? 0) > 0)->count();
+        $session->markStep('verify', 'done', "Text coverage {$avg}% across {$scores->count()} page(s)"
+            . ($withGaps > 0 ? " — {$withGaps} with missing headings or images" : ' — no content gaps found'));
+
+        return true;
+    }
+
+    /** @return array per-page fidelity scores, or ['error' => …] — never throws */
+    private function measureFidelity(
+        SiteWizardSession $session,
+        Site $site,
+        \App\Domain\Migration\Services\MigrationDiffChecker $checker,
+        \App\Domain\Publishing\Services\BuildPageService $renderer,
+        string $originHost,
+        array $source,
+    ): array {
+        try {
+            if ($session->source === 'url') {
+                // Cache-bust: edge caches serve hours-stale HTML otherwise.
+                $sep = str_contains($source['ref'], '?') ? '&' : '?';
+                $originHtml = \Illuminate\Support\Facades\Http::timeout(25)->retry(1, 300)
+                    ->get($source['ref'] . $sep . '_wfid=' . time())->throw()->body();
+            } else {
+                if (!is_file($source['ref'])) {
+                    throw new RuntimeException('The extracted source file is gone');
+                }
+                $originHtml = (string) file_get_contents($source['ref']);
+            }
+
+            $page = Page::where('site_id', $site->id)->findOrFail($source['page_id']);
+            $newHtml = $renderer->build($page, $site->theme, $site);
+            $report = $checker->compareHtml($site, $originHost, $originHtml, $newHtml, $source['slug'] ?? $source['ref']);
+
+            return [
+                'coverage' => $report['text_coverage'],
+                'missing_headings' => count($report['missing_headings']),
+                'missing_images' => count($report['missing_images']),
+                'missing_links' => count($report['missing_links']),
+                'gap_samples' => array_slice(array_merge(
+                    $report['missing_headings'],
+                    $report['missing_text_samples'] ?? [],
+                ), 0, 3),
+            ];
+        } catch (\Throwable $e) {
+            return ['error' => mb_substr($e->getMessage(), 0, 160)];
+        }
+    }
+
+    /** Best-effort builder fingerprint of the reference site (never throws). */
+    private function detectBuilder(string $url): ?string
+    {
+        try {
+            $html = \Illuminate\Support\Facades\Http::timeout(15)->get($url)->body();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return match (true) {
+            str_contains($html, 'elementor') => 'Elementor',
+            str_contains($html, 'et_pb_') || str_contains($html, 'Divi') => 'Divi',
+            str_contains($html, 'wp-content') => 'WordPress',
+            default => null,
+        };
     }
 
     private function stepFinalize(SiteWizardSession $session): bool

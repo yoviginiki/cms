@@ -24,31 +24,36 @@ class MigrationDiffChecker
 {
     public function __construct(private LinkRewriter $links) {}
 
+    /** Site the link map was last built for — compareHtml() rebuilds lazily. */
+    private ?string $mappedSiteId = null;
+
     /**
      * @param array<int, array{origin: string, new: string, label?: string}> $pairs
      * @return array{pages: array<int, array>, summary: array}
      */
     public function comparePairs(Site $site, string $originHost, array $pairs): array
     {
-        $this->links->buildMap($site);
         $reports = [];
         foreach ($pairs as $pair) {
             $reports[] = $this->comparePair($site, $originHost, $pair);
         }
 
+        return ['pages' => $reports, 'summary' => $this->summarize($reports)];
+    }
+
+    /** @param array<int, array> $reports */
+    public function summarize(array $reports): array
+    {
         $avg = fn (string $k) => count($reports)
             ? round(array_sum(array_column($reports, $k)) / count($reports), 1)
             : 0.0;
 
         return [
-            'pages' => $reports,
-            'summary' => [
-                'pages' => count($reports),
-                'avg_text_coverage' => $avg('text_coverage'),
-                'pages_with_missing_headings' => count(array_filter($reports, fn ($r) => $r['missing_headings'] !== [])),
-                'pages_with_missing_images' => count(array_filter($reports, fn ($r) => $r['missing_images'] !== [])),
-                'pages_with_missing_links' => count(array_filter($reports, fn ($r) => $r['missing_links'] !== [])),
-            ],
+            'pages' => count($reports),
+            'avg_text_coverage' => $avg('text_coverage'),
+            'pages_with_missing_headings' => count(array_filter($reports, fn ($r) => $r['missing_headings'] !== [])),
+            'pages_with_missing_images' => count(array_filter($reports, fn ($r) => $r['missing_images'] !== [])),
+            'pages_with_missing_links' => count(array_filter($reports, fn ($r) => $r['missing_links'] !== [])),
         ];
     }
 
@@ -64,6 +69,21 @@ class MigrationDiffChecker
                 'text_coverage' => 0.0, 'missing_headings' => [], 'demoted_headings' => [],
                 'missing_images' => [], 'missing_background_images' => [], 'missing_links' => [], 'meta' => [],
             ];
+        }
+
+        return $this->compareHtml($site, $originHost, $originHtml, $newHtml, $label);
+    }
+
+    /**
+     * Compare two already-obtained HTML documents. This is the engine behind
+     * comparePair, public so callers with no live URL for one side (the Site
+     * Wizard renders DRAFT pages in-process) can still measure fidelity.
+     */
+    public function compareHtml(Site $site, string $originHost, string $originHtml, string $newHtml, string $label): array
+    {
+        if ($this->mappedSiteId !== $site->id) {
+            $this->links->buildMap($site);
+            $this->mappedSiteId = $site->id;
         }
 
         $origin = $this->analyze($originHtml);

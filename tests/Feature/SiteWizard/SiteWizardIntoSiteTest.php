@@ -27,6 +27,8 @@ class SiteWizardIntoSiteTest extends TestCase
         parent::setUp();
         $this->setTenantScope($this->owner);
         config(['queue.default' => 'sync']);
+        // The verify step and builder detection fetch the origin over HTTP.
+        \Illuminate\Support\Facades\Http::fake(fn () => \Illuminate\Support\Facades\Http::response('<html><body><main><p>Origin page.</p></main></body></html>'));
 
         $this->target = Site::factory()->create([
             'tenant_id' => $this->tenant->id,

@@ -27,6 +27,15 @@ class SiteWizardFlowTest extends TestCase
         // Run the BuildSiteJob chain inline: the suite's queue driver points at
         // shared infrastructure, which makes drain-based tests order-dependent.
         config(['queue.default' => 'sync']);
+        // The verify step + builder detection fetch the origin over HTTP. The
+        // fake origin carries a sentence the built pages contain and one they
+        // don't, so the fidelity score is meaningfully between 0 and 100.
+        \Illuminate\Support\Facades\Http::fake(fn () => \Illuminate\Support\Facades\Http::response(
+            "<html><body><main>\n"
+            . "<p>A long story about the studio and its people.</p>\n"
+            . "<p>This origin sentence was never migrated to the new page at all.</p>\n"
+            . '</main></body></html>'
+        ));
     }
 
     private function extraction(string $title, array $blocks, array $nav = [], array $links = [], array $style = []): array
@@ -135,6 +144,22 @@ class SiteWizardFlowTest extends TestCase
         // Homepage assignment.
         $this->assertSame($home->id, $site->fresh()->settings['homepage_id'] ?? null);
         $this->assertSame('page', $site->fresh()->settings['homepage_type'] ?? null);
+
+        // The verify step measured every built page against the source and
+        // recorded an objective per-page fidelity score (the design-recreation
+        // method's measurement loop, run by the wizard itself).
+        $verify = $session->refresh()->stepState('verify');
+        $this->assertSame('done', $verify['status'] ?? null);
+        $this->assertStringContainsString('Text coverage', (string) ($verify['detail'] ?? ''));
+        foreach ($session->sources as $src) {
+            $this->assertIsNumeric($src['fidelity']['coverage'] ?? null, "source {$src['slug']} has no fidelity score");
+        }
+        // The about page contains the origin's migrated sentence but not the
+        // never-migrated one — exactly half the substantive chunks.
+        $about = collect($session->sources)->firstWhere('slug', 'about');
+        $this->assertSame(50.0, (float) $about['fidelity']['coverage']);
+        // Builder detection ran on the (faked) origin — no builder markers there.
+        $this->assertArrayNotHasKey('builder_detected', $session->options ?? []);
 
         // Accept publishes everything.
         $this->actingAsOwner()->postJson("/api/v1/site-wizard/sessions/{$id}/accept")->assertOk();

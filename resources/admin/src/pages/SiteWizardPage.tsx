@@ -332,6 +332,21 @@ export default function SiteWizardPage() {
                 {src.status === 'failed' && (
                   <span className="text-xs text-error/80 truncate max-w-[45%]" title={src.error || ''}>{src.error}</span>
                 )}
+                {typeof src.fidelity?.coverage === 'number' && (
+                  <span
+                    className={`badge badge-xs badge-outline ${
+                      src.fidelity.coverage >= 95 ? 'badge-success' : src.fidelity.coverage >= 80 ? 'badge-warning' : 'badge-error'
+                    }`}
+                    title={[
+                      `Text coverage vs. the source: ${src.fidelity.coverage}%`,
+                      src.fidelity.missing_headings ? `${src.fidelity.missing_headings} missing heading(s)` : null,
+                      src.fidelity.missing_images ? `${src.fidelity.missing_images} missing image(s)` : null,
+                      ...(src.fidelity.gap_samples || []).map((s) => `· ${s}`),
+                    ].filter(Boolean).join('\n')}
+                  >
+                    {src.fidelity.coverage}% match
+                  </span>
+                )}
                 {review && src.page_id && session.site && (
                   <Link className="link link-primary text-xs" to={`/sites/${session.site.id}/pages/${src.page_id}/edit`}>
                     edit
