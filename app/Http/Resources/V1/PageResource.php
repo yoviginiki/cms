@@ -18,6 +18,7 @@ class PageResource extends JsonResource
             'experience_mode' => $this->experience_mode,
             'raw_html' => $this->raw_html,
             'layout_id' => $this->layout_id,
+            'grid_id' => $this->grid_id,
             'seo_meta' => $this->seo_meta,
             'sort_order' => $this->sort_order,
             'parent_id' => $this->parent_id,

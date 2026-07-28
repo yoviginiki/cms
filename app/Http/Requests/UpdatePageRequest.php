@@ -21,6 +21,7 @@ class UpdatePageRequest extends FormRequest
             'editor_mode' => ['sometimes', 'in:block,magazine,canvas'],
             'experience_mode' => ['sometimes', 'in:standard,cinematic'],
             'layout_id' => ['sometimes', 'nullable', 'uuid'],
+            'grid_id' => ['sometimes', 'nullable', 'uuid', 'exists:grids,id'],
             'seo_meta' => ['sometimes', 'array'],
             'seo_meta.title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'seo_meta.description' => ['sometimes', 'nullable', 'string', 'max:1000'],

@@ -5,8 +5,9 @@ import {
   ArrowLeft, Save, Loader2, LayoutGrid, Plus, Minus, MousePointer, Eraser, Trash2,
   Settings, Palette, Columns, Smartphone, Monitor, Eye, ChevronDown, ChevronRight,
   Undo2, Redo2, Sparkles, AlertTriangle, Check, X, ArrowUp, ArrowDown,
+  Tablet, RefreshCw, ExternalLink, PencilRuler,
 } from 'lucide-react';
-import { grids, categories as categoriesApi, publishing } from '@/lib/api';
+import { grids, categories as categoriesApi, publishing, sites, pages as pagesApi } from '@/lib/api';
 
 type PositionType = 'canvas' | 'menu' | 'query' | 'fixed' | 'widget' | 'static';
 type RightTab = 'grid-settings' | 'area-config';
@@ -248,6 +249,12 @@ export default function GridEditor() {
   const [mode, setMode] = useState<'select' | 'erase'>('select');
   const [rightTab, setRightTab] = useState<RightTab>('grid-settings');
 
+  // Live preview state
+  const [view, setView] = useState<'layout' | 'preview'>('layout');
+  const [previewPageId, setPreviewPageId] = useState<string | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [iframeNonce, setIframeNonce] = useState(0);
+
   const cols = cells[0]?.length || 0;
   const rows = cells.length;
 
@@ -304,6 +311,31 @@ export default function GridEditor() {
     queryKey: ['grid', siteId, gridId],
     queryFn: () => grids.get(siteId, gridId).then((r: any) => r.data.data),
   });
+
+  // Data for live preview: site slug + pages of the site
+  const { data: siteData } = useQuery({
+    queryKey: ['site', siteId],
+    queryFn: () => sites.get(siteId).then((r: any) => r.data.data),
+  });
+  const { data: previewPages } = useQuery<Array<{ id: string; title: string; slug: string; status: string }>>({
+    queryKey: ['grid-preview-pages', siteId],
+    queryFn: () => pagesApi.list(siteId, { per_page: 100 }).then((r: any) => r.data.data),
+    enabled: view === 'preview',
+  });
+
+  // Pick a sensible default page for preview (homepage first)
+  useEffect(() => {
+    if (view === 'preview' && !previewPageId && previewPages?.length) {
+      const home = previewPages.find(p => p.slug === 'home');
+      setPreviewPageId((home || previewPages[0]).id);
+    }
+  }, [view, previewPages, previewPageId]);
+
+  const previewPage = previewPages?.find(p => p.id === previewPageId) || null;
+  const previewUrl = siteData?.slug && previewPage
+    ? `/sites/${siteData.slug}/${previewPage.slug === 'home' ? '' : previewPage.slug}?_grid=${gridId}&_toolbar=0`
+    : null;
+  const DEVICE_WIDTHS: Record<string, string> = { desktop: '100%', tablet: '768px', mobile: '390px' };
 
   useEffect(() => {
     if (gridData) {
@@ -523,6 +555,7 @@ export default function GridEditor() {
     onSuccess: async () => {
       setIsDirty(false);
       queryClient.invalidateQueries({ queryKey: ['grid', siteId, gridId] });
+      setIframeNonce(n => n + 1); // refresh live preview with the saved state
       setPublishStatus('publishing');
       try {
         await publishing.publish(siteId);
@@ -583,6 +616,17 @@ export default function GridEditor() {
           {isDirty && <span className="flex items-center gap-1.5 text-[11px] text-warning font-medium shrink-0"><span className="w-1.5 h-1.5 rounded-full bg-warning" /> Незапазено</span>}
         </div>
         <div className="flex items-center gap-2">
+          {/* Layout / Live preview switcher */}
+          <div className="flex items-center rounded-lg border border-base-300 bg-base-200/60 p-0.5 mr-1">
+            <button onClick={() => setView('layout')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${view === 'layout' ? 'bg-base-100 text-base-content font-medium shadow-sm' : 'text-base-content/50 hover:text-base-content'}`}>
+              <PencilRuler size={13} /> Оформление
+            </button>
+            <button onClick={() => setView('preview')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${view === 'preview' ? 'bg-base-100 text-base-content font-medium shadow-sm' : 'text-base-content/50 hover:text-base-content'}`}>
+              <Eye size={13} /> Преглед
+            </button>
+          </div>
           <div className="flex items-center gap-0.5 mr-1">
             <button onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"
               className="btn btn-ghost btn-sm btn-square disabled:opacity-20"><Undo2 size={15} /></button>
@@ -600,7 +644,59 @@ export default function GridEditor() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
+        {/* ═══ LEFT: live preview ═══ */}
+        {view === 'preview' && (
+          <div className="flex-1 flex flex-col p-5 overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <select value={previewPageId || ''} onChange={e => setPreviewPageId(e.target.value)}
+                className="px-2.5 py-1.5 bg-base-100 border border-base-300 rounded-lg text-xs focus:outline-none focus:border-primary max-w-60">
+                {(previewPages || []).map(p => (
+                  <option key={p.id} value={p.id}>{p.title} (/{p.slug === 'home' ? '' : p.slug})</option>
+                ))}
+              </select>
+
+              <div className="flex items-center rounded-lg border border-base-300 bg-base-100 p-0.5">
+                {([['desktop', Monitor], ['tablet', Tablet], ['mobile', Smartphone]] as const).map(([d, Icon]) => (
+                  <button key={d} onClick={() => setPreviewDevice(d)} title={d}
+                    className={`p-1.5 rounded-md transition-colors ${previewDevice === d ? 'bg-primary/15 text-primary' : 'text-base-content/40 hover:text-base-content'}`}>
+                    <Icon size={14} />
+                  </button>
+                ))}
+              </div>
+
+              <button onClick={() => setIframeNonce(n => n + 1)} title="Презареди"
+                className="btn btn-ghost btn-sm btn-square border border-base-300"><RefreshCw size={13} /></button>
+              {previewUrl && (
+                <a href={previewUrl.replace('&_toolbar=0', '')} target="_blank" rel="noreferrer" title="Отвори в нов таб"
+                  className="btn btn-ghost btn-sm btn-square border border-base-300"><ExternalLink size={13} /></a>
+              )}
+
+              <span className="text-[11px] text-base-content/40">
+                Реално съдържание, рендерирано през този грид.
+              </span>
+              {isDirty && (
+                <span className="flex items-center gap-1.5 text-[11px] text-warning">
+                  <AlertTriangle size={12} /> Имаш незапазени промени — прегледът показва последно запазената версия.
+                </span>
+              )}
+            </div>
+
+            <div className="flex-1 bg-base-300/30 border border-base-300 rounded-xl overflow-hidden flex justify-center">
+              {previewUrl ? (
+                <iframe key={`${previewPageId}-${previewDevice}-${iframeNonce}`} src={previewUrl}
+                  title="Grid preview" className="h-full bg-white transition-all"
+                  style={{ width: DEVICE_WIDTHS[previewDevice], border: 'none' }} />
+              ) : (
+                <div className="flex items-center justify-center text-base-content/30 text-sm">
+                  {previewPages && previewPages.length === 0 ? 'Сайтът няма страници за преглед' : <Loader2 className="animate-spin" size={20} />}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ═══ LEFT: Grid canvas ═══ */}
+        {view === 'layout' && (
         <div className="flex-1 p-5 overflow-auto">
           {/* Controls */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -785,6 +881,7 @@ export default function GridEditor() {
             <span><kbd className="kbd kbd-xs">Ctrl</kbd>+<kbd className="kbd kbd-xs">S</kbd> запази</span>
           </div>
         </div>
+        )}
 
         {/* ═══ RIGHT: Config panel ═══ */}
         <div className="w-96 bg-base-100 border-l border-base-300 overflow-y-auto shrink-0">

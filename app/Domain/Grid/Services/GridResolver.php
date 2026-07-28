@@ -21,10 +21,22 @@ class GridResolver
      */
     public function resolve(Page|Post $content, Site $site): ?Grid
     {
+        return $this->resolveDetailed($content, $site)['grid'];
+    }
+
+    /**
+     * Like resolve(), but also reports where the grid came from,
+     * so the admin can show "inherited from X".
+     *
+     * @return array{grid: ?Grid, source: string, assignment: ?GridAssignment}
+     *         source: override | page | post | category | post_type | rule | default | none
+     */
+    public function resolveDetailed(Page|Post $content, Site $site): array
+    {
         // 1. Direct override on content
         if ($content->grid_id) {
             $grid = Grid::with('positions')->find($content->grid_id);
-            if ($grid) return $grid;
+            if ($grid) return ['grid' => $grid, 'source' => 'override', 'assignment' => null];
         }
 
         $isPost = $content instanceof Post;
@@ -59,11 +71,15 @@ class GridResolver
             };
 
             if ($match) {
-                return Grid::with('positions')->find($assignment->grid_id);
+                return [
+                    'grid' => Grid::with('positions')->find($assignment->grid_id),
+                    'source' => $assignment->assignable_type,
+                    'assignment' => $assignment,
+                ];
             }
         }
 
-        return null;
+        return ['grid' => null, 'source' => 'none', 'assignment' => null];
     }
 
     private function matchesRule(Page|Post $content, ?string $pattern): bool

@@ -70,6 +70,7 @@ export const pages = {
   duplicateAsCanvas: (siteId: string, pageId: string) => api.post(`/sites/${siteId}/pages/${pageId}/duplicate-as-canvas`),
   reorder: (siteId: string, items: unknown[]) => api.post(`/sites/${siteId}/pages/reorder`, { items }),
   diff: (siteId: string, pageId: string) => api.get(`/sites/${siteId}/pages/${pageId}/diff`),
+  resolvedGrid: (siteId: string, pageId: string) => api.get(`/sites/${siteId}/pages/${pageId}/resolved-grid`),
 };
 
 export const blocks = {

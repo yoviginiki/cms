@@ -56,6 +56,26 @@ class PageController extends Controller
         return (new PageResource($page))->response();
     }
 
+    /**
+     * Which grid will this page actually render with, and why.
+     * Powers the "Grid" info panel in the page editor.
+     */
+    public function resolvedGrid(Site $site, Page $page, \App\Domain\Grid\Services\GridResolver $resolver): JsonResponse
+    {
+        $this->authorize('view', $page);
+
+        $result = $resolver->resolveDetailed($page, $site);
+
+        return response()->json(['data' => [
+            'grid' => $result['grid'] ? [
+                'id' => $result['grid']->id,
+                'name' => $result['grid']->name,
+                'slug' => $result['grid']->slug,
+            ] : null,
+            'source' => $result['source'],
+        ]]);
+    }
+
     public function store(CreatePageRequest $request, Site $site): JsonResponse
     {
         $this->authorize('create', [Page::class, $site]);

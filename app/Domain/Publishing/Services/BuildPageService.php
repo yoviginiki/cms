@@ -54,7 +54,7 @@ class BuildPageService
         private MagazineRenderer $magazineRenderer,
     ) {}
 
-    public function build(Page|Post $content, ?Theme $theme, Site $site, bool $isPreview = false): string
+    public function build(Page|Post $content, ?Theme $theme, Site $site, bool $isPreview = false, ?\App\Models\Grid $gridOverride = null): string
     {
         $this->imageIndex = 0;
         $this->isPreview = $isPreview;
@@ -254,7 +254,7 @@ HTML;
         // exact-fidelity design sites: every page is self-contained, so the
         // theme's grid scaffolding must not wrap it.
         $hasRawHtml = $content instanceof Page && $content->raw_html;
-        $grid = (!$useLayout && !$hasRawHtml && !$bareDesign) ? $this->gridResolver->resolve($content, $site) : null;
+        $grid = (!$useLayout && !$hasRawHtml && !$bareDesign) ? ($gridOverride ?? $this->gridResolver->resolve($content, $site)) : null;
 
         if ($grid) {
             $gridResult = $this->gridRenderer->render($grid, $content, $site);

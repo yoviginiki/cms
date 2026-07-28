@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye, Globe, FileText } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye, Globe, FileText, LayoutGrid } from 'lucide-react';
 import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
@@ -37,7 +37,7 @@ import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
-import { api, blocks as blocksApi, pages as pagesApi, magEditor, sites, themeEngine } from '@/lib/api';
+import { api, blocks as blocksApi, pages as pagesApi, magEditor, sites, themeEngine, grids as gridsApi } from '@/lib/api';
 import type { MagElement, MagPageData, MagElementStyle, TextFrameData, ImageFrameData } from '@/types/magazine';
 import '@/components/blocks';
 
@@ -908,6 +908,70 @@ function PageThemePicker({ siteId, pageId }: { siteId: string; pageId: string })
   );
 }
 
+// Shows which grid the page renders with and where it comes from
+// (direct override vs assignment vs site default), with an override select.
+function GridSettingsBlock({ page, siteId, pageId, saveSetting }: {
+  page: any; siteId: string; pageId: string;
+  saveSetting: (field: string, value: unknown) => Promise<void> | void;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: resolved } = useQuery<any>({
+    queryKey: ['resolved-grid', siteId, pageId],
+    queryFn: () => pagesApi.resolvedGrid(siteId, pageId).then((r: any) => r.data.data),
+  });
+  const { data: gridList } = useQuery<any[]>({
+    queryKey: ['grids', siteId],
+    queryFn: () => gridsApi.list(siteId).then((r: any) => r.data.data),
+  });
+
+  const SOURCE_LABELS: Record<string, string> = {
+    override: 'зададен ръчно за тази страница',
+    page: 'присвоен на тази страница (Assignments)',
+    post: 'присвоен на този пост (Assignments)',
+    category: 'наследен от категорията',
+    post_type: 'зададен за всички страници (Assignments)',
+    rule: 'по URL правило (Assignments)',
+    default: 'наследен от сайта (default)',
+    none: 'няма грид — ползва се стандартен layout',
+  };
+
+  const changeGrid = async (v: string) => {
+    await saveSetting('grid_id', v || null);
+    queryClient.invalidateQueries({ queryKey: ['resolved-grid', siteId, pageId] });
+  };
+
+  return (
+    <div>
+      <label className="text-[11px] text-gray-500 mb-1 block flex items-center gap-1">
+        <LayoutGrid size={11} /> Grid
+      </label>
+      <select defaultValue={page?.grid_id || ''} className="select select-bordered select-sm w-full text-[12px]"
+        onChange={e => changeGrid(e.target.value)}>
+        <option value="">
+          {resolved && resolved.source !== 'override' && resolved.grid
+            ? `Наследен: ${resolved.grid.name}`
+            : 'Наследен (автоматично)'}
+        </option>
+        {(gridList || []).map((g: any) => (
+          <option key={g.id} value={g.id}>{g.name}</option>
+        ))}
+      </select>
+      {resolved && (
+        <p className="text-[10px] text-gray-400 mt-0.5">
+          Рендерира се с <strong>{resolved.grid?.name || '—'}</strong> · {SOURCE_LABELS[resolved.source] || resolved.source}
+        </p>
+      )}
+      {resolved?.grid && (
+        <button onClick={() => navigate(`/sites/${siteId}/grids/${resolved.grid.id}/edit`)}
+          className="text-[10px] text-blue-500 mt-0.5">
+          Редактирай грида „{resolved.grid.name}“ →
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug, metaRef, onDirty }: {
   page: any; siteId: string; pageId: string;
   layouts: any[]; publicBase: string; siteSlug: string;
@@ -1026,6 +1090,9 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
           </button>
         )}
       </div>
+
+      {/* Grid */}
+      <GridSettingsBlock page={page} siteId={siteId} pageId={pageId} saveSetting={saveSetting} />
 
       {/* Language */}
       <div>

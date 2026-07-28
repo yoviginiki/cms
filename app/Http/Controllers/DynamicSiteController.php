@@ -104,14 +104,24 @@ class DynamicSiteController extends Controller
     private function renderContent(Page|Post $content, Site $site): Response
     {
         $site->load('theme');
-        $html = $this->buildService->build($content, $site->theme, $site, isPreview: true);
+
+        // ?_grid={id} — force-render through a specific grid (used by the
+        // admin grid editor's live preview). Grid must belong to this site.
+        $gridOverride = null;
+        if ($overrideId = request()->query('_grid')) {
+            $gridOverride = \App\Models\Grid::with('positions')
+                ->where('site_id', $site->id)
+                ->find($overrideId);
+        }
+
+        $html = $this->buildService->build($content, $site->theme, $site, isPreview: true, gridOverride: $gridOverride);
 
         // Rewrite internal links for the dynamic preview prefix
         // /about → /sites/cytechno/about, / → /sites/cytechno/
         $html = $this->rewriteLinksForPreview($html, $site);
 
         // Resolve grid for toolbar info
-        $grid = $this->gridResolver->resolve($content, $site);
+        $grid = $gridOverride ?? $this->gridResolver->resolve($content, $site);
 
         // Experience Mode runtime — inject when cinematic or ?experience=1
         $isExperience = ($content->experience_mode ?? 'standard') === 'cinematic'
@@ -122,9 +132,11 @@ class DynamicSiteController extends Controller
             $html = str_replace('</head>', $experienceAssets . "\n</head>", $html);
         }
 
-        // Inject admin toolbar
-        $toolbar = $this->buildToolbar($content, $site, $grid);
-        $html = str_replace('</body>', $toolbar . '</body>', $html);
+        // Inject admin toolbar (?_toolbar=0 hides it, e.g. inside admin iframes)
+        if (request()->query('_toolbar') !== '0') {
+            $toolbar = $this->buildToolbar($content, $site, $grid);
+            $html = str_replace('</body>', $toolbar . '</body>', $html);
+        }
 
         return response($html, 200)
             ->header('Content-Type', 'text/html')

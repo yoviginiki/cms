@@ -136,6 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/pages/{page}/duplicate-as-canvas', [PageController::class, 'duplicateAsCanvas']);
         Route::post('sites/{site}/pages/{page}/translate', [PageController::class, 'translate']);
         Route::get('sites/{site}/pages/{page}/translations', [PageController::class, 'translations']);
+        Route::get('sites/{site}/pages/{page}/resolved-grid', [PageController::class, 'resolvedGrid']);
         Route::apiResource('sites.pages', PageController::class);
 
         // Posts
