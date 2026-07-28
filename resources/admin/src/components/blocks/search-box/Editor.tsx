@@ -18,6 +18,8 @@ export const SearchBoxEditor: React.FC<BlockEditorProps> = ({ block, onUpdate })
         helperText={!collectionId ? 'Inside a record template the collection is inherited from the template' : undefined} />
       <TextField label="Placeholder" value={(data.placeholder as string) || ''} onChange={v => update('placeholder', v)}
         placeholder="Defaults to “Search {collection}…”" />
+      <TextField label="Button label" value={(data.buttonLabel as string) || ''} onChange={v => update('buttonLabel', v)}
+        placeholder="Search" />
     </div>
   );
 };

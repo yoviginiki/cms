@@ -10,6 +10,7 @@ export const searchBoxDefinition: BlockDefinition = {
   defaultData: {
     collectionId: null,
     placeholder: '',
+    buttonLabel: 'Search',
   },
   allowsChildren: false,
 };

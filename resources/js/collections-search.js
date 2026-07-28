@@ -256,9 +256,10 @@
         }
       });
 
-      // Static archive listing yields to the results grid while filtering.
+      // Static archive listing / category browse yields to the results grid
+      // while filtering, then returns when the search is cleared.
       if (resultRoots.length) {
-        document.querySelectorAll('.record-loop-block').forEach(function (el) {
+        document.querySelectorAll('.record-loop-block, .collection-categories-block').forEach(function (el) {
           el.style.display = active ? 'none' : '';
         });
       }
@@ -364,6 +365,14 @@
         state.q = input.value.trim();
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(apply, isApi ? 250 : 150);
+      });
+      // Explicit search via the button or Enter — fires immediately.
+      var form = input.closest('form');
+      if (form) form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        clearTimeout(debounceTimer);
+        state.q = input.value.trim();
+        apply();
       });
     });
 
