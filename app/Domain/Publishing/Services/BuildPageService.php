@@ -1154,6 +1154,7 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-heading,inherit);font-weight:var(--head
 .prose ul,.prose ol{padding-left:1.5em}
 .columns-block{margin-bottom:1.5rem}
 .image-block{margin-bottom:1.5rem}
+figure.image-block{margin:0}
 .image-block figcaption{font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#666);margin-top:0.5rem;text-align:center}
 .quote-block{border-left:4px solid var(--color-primary,#3b82f6);padding:1rem 1.5rem;margin:1.5rem 0;font-style:italic}
 .quote-block cite{display:block;font-style:normal;font-weight:600;margin-top:0.5rem}
@@ -1194,6 +1195,42 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-heading,inherit);font-weight:var(--head
 footer[role="contentinfo"]{background:var(--footer-bg,var(--color-bg-alt,#f8fafc));color:var(--footer-color,var(--color-text-muted,#64748b));border-top:1px solid var(--footer-border-color,var(--color-border-light,#f0f0eb));padding:2rem 0}
 footer[role="contentinfo"] a{color:var(--footer-color,var(--color-text-muted,#64748b));transition:color 0.2s}
 footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
+';
+
+        // ─── Mobile responsive (SYSTEMIC) ───
+        // Lives in critical CSS so EVERY wrapper inherits it — standard
+        // (layout.blade), grid-layout, and magazine pages alike. Grid-layout
+        // pages otherwise get zero mobile handling and overflow at 390px.
+        // Making pages mobile-friendly must be the default, not a per-page fix.
+        $css .= '
+@media(max-width:768px){
+/* Kill CSS-grid/flex track blowout: let items shrink below their content
+   min-size. Without this a single nowrap/wide descendant forces a 1fr track
+   (== minmax(auto,1fr)) wider than the viewport and overflows the page. */
+.site-grid,.site-grid *,main *,[class*="-block"]{min-width:0}
+/* The page grid collapses to a single column on phones. */
+.site-grid{grid-template-columns:1fr!important}
+/* Stack every common multi-column block grid + any inline multi-track grid. */
+.columns-block>div,.stats-block>div,.gallery-block--grid,.gallery-block--masonry,.gallery-block--carousel,[style*="grid-template-columns:repeat("],[style*="grid-template-columns: repeat("],[style*="grid-template-columns:1fr 1fr"],[style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:1fr!important}
+/* Section padding — smaller on phones, no double inner padding when nested. */
+.section-block{padding-left:1rem!important;padding-right:1rem!important}
+.section-block .section-block{padding-left:0!important;padding-right:0!important}
+/* Images and media never overflow. */
+img,video,iframe{max-width:100%!important;height:auto}
+/* Sticky sidebar stacks under content. */
+.stickysidebar-block>div{flex-direction:column!important}
+.stickysidebar-block aside{width:100%!important;position:static!important}
+/* Wide tables scroll instead of blowing out the layout. */
+table{display:block;overflow-x:auto;max-width:100%}
+/* Cap oversized headings so big display type never overflows a 390px screen
+   (auto-recipe / theme tokens can set h1 well above 3rem). */
+h1{font-size:clamp(1.6rem,7vw,3rem)!important}
+h2{font-size:clamp(1.35rem,5.5vw,2.25rem)!important}
+h3{font-size:clamp(1.15rem,4.5vw,1.6rem)!important}
+}
+@media(max-width:480px){
+.section-block{padding-top:2.5rem!important;padding-bottom:2.5rem!important}
+}
 ';
 
         // Block entrance animations (must match BlockStyle::ANIMATION_NAMES)

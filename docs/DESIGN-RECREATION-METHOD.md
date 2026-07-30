@@ -128,12 +128,51 @@ body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-top-link,bod
    страницата), footer данни, и тъмна титулна лента на вътрешни стр. Мери с `migration:diff`.
 7. Останалите разлики са СЕКЦИОННИ → фикс в компилатора (§2 списъка вече покрива hero/icon-box/cards/stats/news), НЕ на страницата. Blade edit → `view:clear`+`queue:restart`.
 
+### 7. Mobile / responsive — DEFAULT, наготово (не е ръчна стъпка)
+
+**Мобилната адаптивност е системна, не per-page.** Компилаторът произвежда
+mobile-friendly output за ВСЕКИ сайт наготово; не пипай страници на ръка за
+телефон. Логиката живее на едно място — критичния CSS, който всеки wrapper
+инжектира (`BuildPageService::buildCriticalCss()`) — за да го наследяват и
+`layout.blade`, и `grid-layout.blade` (Elementor/grid сайтове), и magazine.
+Валидирано на vioiv (12 страници: 71–145px overflow → 0 на 390px).
+
+Какво прави автоматично при `@media(max-width:768px)`:
+- **Kill grid blowout**: `.site-grid,.site-grid *,main *,[class*="-block"]{min-width:0}`
+  — без това единствен nowrap/широк наследник разпъва `1fr` (==`minmax(auto,1fr)`)
+  трак по-широк от екрана и чупи цялата страница (това беше причина №1).
+- `.site-grid{grid-template-columns:1fr!important}` — страничният grid става една колона.
+- Стакват се всички multi-column блок-грид-ове (`stats`/`gallery`/`columns` +
+  всеки inline `repeat(`/`1fr 1fr`).
+- Секционен padding надолу, `img/video/iframe{max-width:100%}`, широки таблици скролват, sticky sidebar се стака.
+- Заглавия се клампват (`h1/h2/h3` clamp с `!important`) — auto-recipe/токен може да е сложил h1 > 3rem.
+
+Освен това:
+- **`GridCssGenerator`**: всеки grid без изричен `breakpoints_json['mobile']`
+  колабира на 1 колона на ≤768px (не само когато има `mobile_order`) +
+  `.site-grid > *{min-width:0}`. Пазено с `GridCssMobileTest`.
+- **Токени** (`DesignTokenGenerator`): `--font-size-xl…5xl` са `clamp()` по
+  подразбиране (max == старата фиксирана стойност → desktop непроменен).
+
+Site-specific капан (виж §5): full-bleed секция трябва да пробива до ръба на
+viewport-а с `margin-left:calc(50% - 50vw)`, НЕ `margin-left:0` — при mobile
+gutter на grid-а `0` я измества с ширината на gutter-а (vioiv slider hero =
+20px overflow на 7 стр., докато custom_css правилото не го смени на `calc`).
+
+Проверка: `node scripts/migration-shots.mjs` при 390px + програмен overflow
+одит (`document.documentElement.scrollWidth > innerWidth`; изброй елементите с
+`getBoundingClientRect().right > innerWidth`). „Изглежда добре" не е измерване —
+чети кадъра И числото.
+
 ## Платформени правила, въведени от този метод (пазени с тестове)
 
 - **Scroll-triggered entrance анимации СА DEFAULT** за всички публикувани
   страници (paused до влизане във viewport, no-JS safe, reduced-motion
   bypass) — `ScrollEntranceAnimationTest` пази механизма.
 - Full-bleed секции наистина стигат ръбовете (breakout през padded wrappers).
+- **Mobile-friendly е DEFAULT** за всеки сайт (§7): grid колабира на 1 колона,
+  grid items shrink-ват (`min-width:0`), заглавия се клампват, блок-грид-ове се
+  стакват — от `buildCriticalCss()` + `GridCssGenerator`. Пазено с `GridCssMobileTest`.
 - Галериите прилагат hover ефекти PER IMAGE (`.gallery-item` wrapper);
   `shine` е наличен preset в Card Effects.
 - Stats блокът брои от 0 при показване.

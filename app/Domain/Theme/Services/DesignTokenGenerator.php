@@ -412,11 +412,14 @@ class DesignTokenGenerator
             'font-size-base' => 'clamp(14px, 1vw + 12px, 18px)',
             'font-size-sm' => '0.875rem',
             'font-size-lg' => '1.125rem',
-            'font-size-xl' => '1.25rem',
-            'font-size-2xl' => '1.5rem',
-            'font-size-3xl' => '2rem',
-            'font-size-4xl' => '2.25rem',
-            'font-size-5xl' => '3rem',
+            // Fluid by default: cap on phones, full size on desktop (max == the
+            // old fixed value, so desktop is unchanged) — headings never
+            // overflow a narrow screen out of the box.
+            'font-size-xl' => 'clamp(1.1rem, 0.5vw + 1rem, 1.25rem)',
+            'font-size-2xl' => 'clamp(1.3rem, 1.2vw + 1rem, 1.5rem)',
+            'font-size-3xl' => 'clamp(1.6rem, 2vw + 1rem, 2rem)',
+            'font-size-4xl' => 'clamp(1.75rem, 2.6vw + 1rem, 2.25rem)',
+            'font-size-5xl' => 'clamp(2rem, 4vw + 1rem, 3rem)',
             'font-weight-normal' => '400',
             'font-weight-medium' => '500',
             'font-weight-bold' => '700',

@@ -68,6 +68,13 @@ class GridCssGenerator
 
         $css .= "}\n";
 
+        // Grid items must be allowed to shrink below their content's intrinsic
+        // min-size, otherwise a single wide/nowrap descendant (e.g. a rotating
+        // SVG badge) forces the `1fr` track (== minmax(auto,1fr)) wider than the
+        // viewport and blows out the whole page on mobile. This is the #1 cause
+        // of horizontal overflow on grid-layout pages.
+        $css .= ".site-grid > * { min-width: 0; }\n";
+
         // Horizontal scroll / snap: each direct child is a snap target
         if (in_array($grid->layout_mode, ['horizontal-scroll', 'snap-sections'])) {
             $axis = $grid->layout_mode === 'horizontal-scroll' ? 'x' : 'y';
@@ -175,7 +182,12 @@ class GridCssGenerator
             }
         }
 
-        if (!empty($mobileOrders) && empty($breakpoints['mobile'])) {
+        // Unless the grid ships an explicit mobile breakpoint, EVERY grid
+        // collapses to a single column on phones by default — a multi-column
+        // desktop layout is never readable at 390px. (Previously this only
+        // fired when a position had a mobile_order, leaving most imported grids
+        // multi-column and overflowing on mobile.)
+        if (empty($breakpoints['mobile'])) {
             $css .= "@media (max-width: 768px) {\n";
             $css .= "  .site-grid { grid-template-columns: 1fr; }\n";
             foreach ($mobileOrders as $order) {
