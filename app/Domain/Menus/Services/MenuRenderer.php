@@ -29,6 +29,21 @@ class MenuRenderer
         return '';
     }
 
+    /**
+     * Intrinsic width/height attrs for an asset-serve URL, so the browser can
+     * reserve the box and avoid layout shift (the logo is otherwise an
+     * "unsized image element" — a CLS culprit). Empty when the URL isn't a
+     * library asset or has no stored dimensions.
+     */
+    private static function assetDimsAttr(string $url): string
+    {
+        if (!preg_match('#/assets/([0-9a-f-]{36})/serve#', $url, $m)) return '';
+        $asset = \App\Models\Asset::find($m[1]);
+        $d = (array) ($asset?->dimensions ?? []);
+        if (empty($d['width']) || empty($d['height'])) return '';
+        return ' width="' . (int) $d['width'] . '" height="' . (int) $d['height'] . '"';
+    }
+
     public function render(?Menu $menu, Site $site, string $ariaLabel = 'Main navigation'): string
     {
         if (!$menu) return '';
@@ -165,7 +180,7 @@ class MenuRenderer
             if (!empty($settings['logo_show_name'])) {
                 $nameSpan = "<span style=\"font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);\">" . $siteName . '</span>';
             }
-            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"flex-shrink:0;display:flex;align-items:center;gap:10px;text-decoration:none;\"><img src=\"" . e($logoUrl) . "\" alt=\"" . $siteName . "\" style=\"height:" . ($height ? 'calc(' . $height . ' - 16px)' : '40px') . ";max-height:48px;width:auto;\" />{$nameSpan}</a>\n";
+            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"flex-shrink:0;display:flex;align-items:center;gap:10px;text-decoration:none;\"><img src=\"" . e($logoUrl) . "\" alt=\"" . $siteName . "\"" . self::assetDimsAttr($logoUrl) . " style=\"height:" . ($height ? 'calc(' . $height . ' - 16px)' : '40px') . ";max-height:48px;width:auto;\" />{$nameSpan}</a>\n";
         } else {
             $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";text-decoration:none;letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);flex-shrink:0;\">" . $siteName . "</a>\n";
         }
@@ -259,7 +274,7 @@ class MenuRenderer
 
         // Logo or site name
         if ($logoUrl) {
-            $html .= "    <a href=\"/\"><img src=\"" . e($logoUrl) . "\" alt=\"{$siteName}\" style=\"height:32px;width:auto;margin:0 auto 1.5rem;display:block;opacity:0.8;\" /></a>\n";
+            $html .= "    <a href=\"/\"><img src=\"" . e($logoUrl) . "\" alt=\"{$siteName}\"" . self::assetDimsAttr($logoUrl) . " style=\"height:32px;width:auto;margin:0 auto 1.5rem;display:block;opacity:0.8;\" /></a>\n";
         } else {
             $html .= "    <a href=\"/\" style=\"font-family:var(--font-heading);font-size:1.25rem;color:{$textColor};text-decoration:none;display:block;margin-bottom:1rem;\">{$siteName}</a>\n";
         }

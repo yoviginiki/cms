@@ -38,6 +38,10 @@
     html,body{overflow-x:hidden;max-width:100vw}
 
     @media (max-width: 767px) {
+      /* Let grid/flex items shrink below their content min-size (kills the
+         single-track blowout that overflows the page). */
+      .site-grid, .site-grid *, main *, [class*="-block"] { min-width: 0; }
+
       /* Force multi-column grids to single column */
       [style*="grid-template-columns:repeat(2"] { grid-template-columns: 1fr !important; }
       [style*="grid-template-columns:repeat(3"] { grid-template-columns: 1fr !important; }
@@ -67,6 +71,12 @@
       /* Reduce large headings */
       h1 { font-size: clamp(1.5rem, 5vw, 3rem) !important; }
       h2 { font-size: clamp(1.25rem, 4vw, 2rem) !important; }
+
+      /* Tap targets (WCAG 2.5.8): inline footer / language links get real
+         height + spacing on touch screens. */
+      footer nav a, [class*="lsw"] a { display: inline-block; padding: 8px 6px; line-height: 1.2; }
+      footer a[href^="tel:"], footer a[href^="mailto:"] { display: inline-block; min-height: 24px; padding: 6px 0; line-height: 1.5; }
+      footer p:has(> a[href^="tel:"]), footer p:has(> a[href^="mailto:"]) { margin-bottom: 6px; }
 
       /* Fix fullbleed on mobile */
       .fullbleed-block section { min-height: 40vh !important; }

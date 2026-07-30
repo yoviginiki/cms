@@ -1227,10 +1227,12 @@ table{display:block;overflow-x:auto;max-width:100%}
 h1{font-size:clamp(1.6rem,7vw,3rem)!important}
 h2{font-size:clamp(1.35rem,5.5vw,2.25rem)!important}
 h3{font-size:clamp(1.15rem,4.5vw,1.6rem)!important}
-/* Tap targets (WCAG 2.5.8): inline footer / language links are ~15px tall —
-   give them real height + spacing on touch screens. */
-footer[role="contentinfo"] nav a,[class*="lsw"] a{display:inline-block;padding:8px 6px;line-height:1.2}
-footer[role="contentinfo"] a[href^="tel:"],footer[role="contentinfo"] a[href^="mailto:"]{display:inline-block;padding:5px 0}
+/* Tap targets (WCAG 2.5.8): inline footer / language links are ~15px tall — give
+   them real height + spacing on touch screens. Match the plain `footer` tag too:
+   grid-page footers render as <footer class="footer-…"> without role. */
+footer nav a,[class*="lsw"] a{display:inline-block;padding:8px 6px;line-height:1.2}
+footer a[href^="tel:"],footer a[href^="mailto:"]{display:inline-block;min-height:24px;padding:6px 0;line-height:1.5}
+footer p:has(> a[href^="tel:"]),footer p:has(> a[href^="mailto:"]){margin-bottom:6px}
 }
 @media(max-width:480px){
 .section-block{padding-top:2.5rem!important;padding-bottom:2.5rem!important}
