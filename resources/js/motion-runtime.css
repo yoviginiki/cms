@@ -10,6 +10,11 @@
    max-content blowout (slides are 100%-wide flex items pre-init) */
 .sp-slider .swiper{position:absolute;inset:0;}
 .sp-slide{position:relative;overflow:hidden;}
+/* content stage: positioning context for layers. Neutral default = the full
+   slide box, so layer left/top percentages are unchanged. Sites may restyle
+   it (e.g. centered max-width container) to box the content without touching
+   the full-bleed background, which stays a sibling of the stage. */
+.sp-stage{position:absolute;inset:0;}
 
 /* backgrounds */
 .sp-bg{position:absolute;inset:0;z-index:0;overflow:hidden;}

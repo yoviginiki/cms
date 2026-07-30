@@ -35,5 +35,8 @@
   @if($overlay)
     <div class="sp-bg-overlay" style="background:{{ $overlay }}"></div>
   @endif
-  {!! $children !!}
+  {{-- Content stage: positioning context for the layers. Defaults to the full
+       slide box (inset:0) so existing sliders are unchanged; sites can restyle
+       .sp-stage (e.g. to a centered container) to box the content. --}}
+  <div class="sp-stage">{!! $children !!}</div>
 </div>
