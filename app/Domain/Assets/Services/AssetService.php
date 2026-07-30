@@ -226,6 +226,13 @@ class AssetService
             $disk->put($thumbPath, $thumb->encodeUsingFileExtension('jpg', 80));
             $variants['thumb_200'] = $thumbPath;
 
+            // webp (source resolution): guarantees EVERY raster image has a webp,
+            // including small ones (<=400px) that skip all the sized variants
+            // below — those otherwise ship as the original PNG/JPG.
+            $srcWebpPath = "{$basePath}/{$uuid}_webp.webp";
+            $disk->put($srcWebpPath, (clone $image)->encodeUsingFileExtension('webp', 82));
+            $variants['webp'] = $srcWebpPath;
+
             // medium_800: 800px wide, maintain aspect
             if ($image->width() > 800) {
                 $medium = clone $image;

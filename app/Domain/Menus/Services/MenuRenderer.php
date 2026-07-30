@@ -147,7 +147,7 @@ class MenuRenderer
         $css .= "@media(max-width:{$mobileBreakpoint}px){.{$scopeClass} .menu-hamburger{display:flex!important;}.{$scopeClass} .menu-desktop{display:none!important;}}\n";
 
         // Optional header CTA button (site settings: nav_cta = {text,url})
-        $css .= ".{$scopeClass} .nav-cta-btn{display:inline-block;padding:10px 22px;border-radius:999px;background:var(--color-primary,var(--color-accent,#2f6df6));color:#fff!important;font-family:var(--font-heading,sans-serif);font-size:" . ($fontSize ?: 'var(--nav-font-size,13px)') . ";font-weight:600;letter-spacing:0.03em;text-transform:none;text-decoration:none;white-space:nowrap;transition:background .2s,transform .2s;}\n";
+        $css .= ".{$scopeClass} .nav-cta-btn{display:inline-block;padding:10px 22px;border-radius:999px;background:var(--btn-bg,var(--color-primary,var(--color-accent,#2f6df6)));color:var(--btn-color,#fff)!important;font-family:var(--font-heading,sans-serif);font-size:" . ($fontSize ?: 'var(--nav-font-size,13px)') . ";font-weight:600;letter-spacing:0.03em;text-transform:none;text-decoration:none;white-space:nowrap;transition:background .2s,transform .2s;}\n";
         $css .= ".{$scopeClass} .nav-cta-btn:hover{background:var(--color-primary-dark,var(--color-accent,#1b52d6));transform:translateY(-1px);}\n";
         $css .= "</style>\n";
 
@@ -268,7 +268,11 @@ class MenuRenderer
         // (a global --color-text-muted is tuned for light page bg and fails
         // contrast on a dark footer). Derive it from the footer text color,
         // mixed slightly toward the footer bg for hierarchy.
-        $html = "<style>.{$scopeClass}{--footer-muted:color-mix(in srgb, {$textColor} 78%, {$bgColor});}.{$scopeClass} a{color:{$textColor};transition:color 0.2s;}.{$scopeClass} a:hover{color:{$hoverColor};}</style>\n";
+        // Tap targets (WCAG 2.5.8): footer contact/menu links are inline ~15px —
+        // give them >=24px height + spacing on every viewport (desktop flags this
+        // too), scoped to this footer so nothing else is affected.
+        $tap = ".{$scopeClass} a[href^=\"tel:\"],.{$scopeClass} a[href^=\"mailto:\"]{display:inline-block;min-height:24px;padding:6px 0;line-height:1.5;}.{$scopeClass} nav a{display:inline-block;padding:6px 4px;}";
+        $html = "<style>.{$scopeClass}{--footer-muted:color-mix(in srgb, {$textColor} 78%, {$bgColor});}.{$scopeClass} a{color:{$textColor};transition:color 0.2s;}.{$scopeClass} a:hover{color:{$hoverColor};}{$tap}</style>\n";
         $html .= "<footer class=\"{$scopeClass}\" style=\"background:{$bgColor};color:{$textColor};padding:var(--space-16,80px) var(--container-padding,30px);\" aria-label=\"" . e($ariaLabel) . "\">\n";
         $html .= "  <div style=\"max-width:var(--container-width,1080px);margin:0 auto;text-align:center;\">\n";
 

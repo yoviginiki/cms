@@ -111,7 +111,10 @@
                 foreach (['webp_400' => '400w', 'webp_800' => '800w'] as $vn => $desc) {
                     if (!empty($variants[$vn])) { $webp[] = "{$base}/{$vn} {$desc}"; }
                 }
-                return ['url' => $base, 'w' => $dim['width'] ?? null, 'h' => $dim['height'] ?? null, 'webp' => implode(', ', $webp)];
+                // Small images (<=400px) skip the sized webp variants — fall back
+                // to the source-resolution webp so they still ship as webp.
+                $webpVal = $webp ? implode(', ', $webp) : (!empty($variants['webp']) ? "{$base}/webp" : '');
+                return ['url' => $base, 'w' => $dim['width'] ?? null, 'h' => $dim['height'] ?? null, 'webp' => $webpVal];
             };
             $own = $resolveImg($n->schema['image'] ?? null);
             if ($own) { $nodeImages[$n->id] = $own; continue; }
@@ -184,7 +187,7 @@
                onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='var(--color-border-light,rgba(26,32,44,.08))'">
                 @if($showImage && !empty($nodeImages[$node->id]))
                     @php $__ni = $nodeImages[$node->id]; @endphp
-                    @if(!empty($__ni['webp']))<picture><source srcset="{{ $__ni['webp'] }}" type="image/webp"><img src="{{ e($__ni['url']) }}" alt="" loading="lazy" @if($__ni['w'])width="{{ $__ni['w'] }}"@endif @if($__ni['h'])height="{{ $__ni['h'] }}"@endif style="width:100%;{{ $imgSquare }};object-fit:cover;display:block;"></picture>
+                    @if(!empty($__ni['webp']))<picture><source srcset="{{ $__ni['webp'] }}" sizes="(max-width:560px) 88vw, (max-width:900px) 45vw, 24vw" type="image/webp"><img src="{{ e($__ni['url']) }}" alt="" loading="lazy" @if($__ni['w'])width="{{ $__ni['w'] }}"@endif @if($__ni['h'])height="{{ $__ni['h'] }}"@endif style="width:100%;{{ $imgSquare }};object-fit:cover;display:block;"></picture>
                     @else<img src="{{ e($__ni['url']) }}" alt="" loading="lazy" @if($__ni['w'])width="{{ $__ni['w'] }}"@endif @if($__ni['h'])height="{{ $__ni['h'] }}"@endif style="width:100%;{{ $imgSquare }};object-fit:cover;display:block;">@endif
                 @elseif($showImage)
                     <span style="width:100%;aspect-ratio:1/1;background:var(--color-bg-alt,#f5f5f0);display:flex;align-items:center;justify-content:center;">
