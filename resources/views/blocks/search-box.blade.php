@@ -33,7 +33,7 @@
         <input type="search" name="q" placeholder="{{ $placeholder }}" aria-label="{{ $placeholder }}" autocomplete="off"
                style="flex:1;min-width:0;padding:.85rem 1.1rem;font-size:1.05rem;border:1px solid var(--color-border,#ccc);background:var(--color-surface,#fff);color:inherit;border-radius:10px;">
         <button type="submit" data-cs-submit aria-label="{{ $buttonLabel }}"
-                style="flex-shrink:0;display:inline-flex;align-items:center;gap:.45rem;padding:.85rem 1.5rem;font-size:1.05rem;font-weight:600;border:0;border-radius:10px;background:var(--color-primary,#3b82f6);color:#fff;cursor:pointer;transition:background .2s,transform .15s;"
+                style="flex-shrink:0;display:inline-flex;align-items:center;gap:.45rem;padding:.85rem 1.5rem;font-size:1.05rem;font-weight:600;border:0;border-radius:10px;background:var(--btn-bg,var(--color-primary,#3b82f6));color:var(--btn-color,#fff);cursor:pointer;transition:background .2s,transform .15s;"
                 onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
             <span>{{ $buttonLabel }}</span>

@@ -249,7 +249,11 @@ class MenuRenderer
         $hoverColor = self::safeCss($style['hoverColor'] ?? 'var(--color-accent)');
         $scopeClass = 'footer-' . substr(md5($menu->id), 0, 8);
 
-        $html = "<style>.{$scopeClass} a{color:{$textColor};transition:color 0.2s;}.{$scopeClass} a:hover{color:{$hoverColor};}</style>\n";
+        // Muted footer text must stay readable on the footer's OWN background
+        // (a global --color-text-muted is tuned for light page bg and fails
+        // contrast on a dark footer). Derive it from the footer text color,
+        // mixed slightly toward the footer bg for hierarchy.
+        $html = "<style>.{$scopeClass}{--footer-muted:color-mix(in srgb, {$textColor} 78%, {$bgColor});}.{$scopeClass} a{color:{$textColor};transition:color 0.2s;}.{$scopeClass} a:hover{color:{$hoverColor};}</style>\n";
         $html .= "<footer class=\"{$scopeClass}\" style=\"background:{$bgColor};color:{$textColor};padding:var(--space-16,80px) var(--container-padding,30px);\" aria-label=\"" . e($ariaLabel) . "\">\n";
         $html .= "  <div style=\"max-width:var(--container-width,1080px);margin:0 auto;text-align:center;\">\n";
 
@@ -262,7 +266,7 @@ class MenuRenderer
 
         // Footer text
         if ($footerText) {
-            $html .= "    <p style=\"font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#888);margin-bottom:1.5rem;max-width:500px;margin-left:auto;margin-right:auto;\">" . e($footerText) . "</p>\n";
+            $html .= "    <p style=\"font-size:var(--font-size-sm,0.875rem);color:var(--footer-muted,var(--color-text-muted,#888));margin-bottom:1.5rem;max-width:500px;margin-left:auto;margin-right:auto;\">" . e($footerText) . "</p>\n";
         }
 
         // Footer columns: settings['footer_columns'] = [{heading, lines: []}]
@@ -278,7 +282,7 @@ class MenuRenderer
                 }
                 $html .= "      <div>\n";
                 if (($col['heading'] ?? '') !== '') {
-                    $html .= '        <h4 style="margin:0 0 0.75rem;font-size:1rem;color:' . $textColor . ';">' . e((string) $col['heading']) . "</h4>\n";
+                    $html .= '        <h2 style="margin:0 0 0.75rem;font-size:1rem;font-weight:600;color:' . $textColor . ';">' . e((string) $col['heading']) . "</h2>\n";
                 }
                 foreach (array_slice((array) ($col['lines'] ?? []), 0, 8) as $line) {
                     $line = (string) $line;
@@ -288,7 +292,7 @@ class MenuRenderer
                     } elseif (preg_match('/^\+?[\d\s\-()]{6,20}$/', $line) === 1) {
                         $rendered = '<a href="tel:' . e(preg_replace('/[^+\d]/', '', $line)) . '">' . e($line) . '</a>';
                     }
-                    $html .= '        <p style="margin:0 0 0.35rem;font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#888);">' . $rendered . "</p>\n";
+                    $html .= '        <p style="margin:0 0 0.35rem;font-size:var(--font-size-sm,0.875rem);color:var(--footer-muted,var(--color-text-muted,#888));">' . $rendered . "</p>\n";
                 }
                 $html .= "      </div>\n";
             }
@@ -302,7 +306,7 @@ class MenuRenderer
             foreach ($items as $item) {
                 $url = e($item->resolveUrl($this->menuBaseUrl));
                 $label = e($item->label);
-                $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#888);transition:color 0.2s;\">{$label}</a></li>\n";
+                $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:var(--font-size-sm,0.875rem);color:var(--footer-muted,var(--color-text-muted,#888));transition:color 0.2s;\">{$label}</a></li>\n";
             }
             $html .= "      </ul>\n";
             $html .= "    </nav>\n";
@@ -314,7 +318,7 @@ class MenuRenderer
         }
 
         // Copyright
-        $html .= "    <p style=\"font-size:0.75rem;color:var(--color-text-muted,#888);margin-top:1.5rem;\">" . e($footerCopyright) . "</p>\n";
+        $html .= "    <p style=\"font-size:0.75rem;color:var(--footer-muted,var(--color-text-muted,#888));margin-top:1.5rem;\">" . e($footerCopyright) . "</p>\n";
 
         $html .= "  </div>\n";
         $html .= "</footer>\n";

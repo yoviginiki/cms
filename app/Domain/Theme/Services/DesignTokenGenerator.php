@@ -360,13 +360,22 @@ class DesignTokenGenerator
             $uniqueFonts[$clean] = true;
         }
 
-        $fonts = [];
-        foreach (array_keys($uniqueFonts) as $fontName) {
-            $fonts[] = urlencode($fontName) . ':wght@300;400;500;600;700';
+        if (empty($uniqueFonts)) return '';
+
+        $familyNames = array_keys($uniqueFonts);
+
+        // Prefer self-hosting: download the woff2 into the build and emit local
+        // @font-face (same-origin, no render-blocking cross-origin @import). Falls
+        // back to the @import in admin preview or if the fetch fails.
+        $local = app(\App\Domain\Publishing\Services\GoogleFontPublisher::class)->localCss($familyNames);
+        if ($local !== null && $local !== '') {
+            return $local;
         }
 
-        if (empty($fonts)) return '';
-
+        $fonts = [];
+        foreach ($familyNames as $fontName) {
+            $fonts[] = urlencode($fontName) . ':wght@300;400;500;600;700';
+        }
         $families = implode('&family=', $fonts);
         return "@import url('https://fonts.googleapis.com/css2?family={$families}&display=swap');\n";
     }

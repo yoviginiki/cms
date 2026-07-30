@@ -164,6 +164,33 @@ gutter на grid-а `0` я измества с ширината на gutter-а (
 `getBoundingClientRect().right > innerWidth`). „Изглежда добре" не е измерване —
 чети кадъра И числото.
 
+### 8. Performance / достъпност — DEFAULT (наготово)
+
+Всичко е системно, всеки сайт го получава наготово при следващ publish.
+
+- **Google Fonts self-hosted** (не render-blocking): `GoogleFontPublisher`
+  (`app/Domain/Publishing/Services/`) сваля css2-а на Google с модерен UA,
+  тегли всяко woff2, копира го в build-а под `/assets/fonts/{sha1}.woff2` и
+  връща СЪЩИЯ CSS с пренаписани URL-и към нашия домейн. Само URL-ите се сменят
+  → всички `unicode-range` subset-и (latin, latin-ext, **cyrillic**) остават →
+  кирилицата рендерира. `DesignTokenGenerator::generateFontImports()` ползва
+  локалния CSS, а при липса на deploy target / мрежа пада обратно на `@import`
+  (admin preview). URL-ите се rebase-ват с `/{slug}` от
+  `rewriteBaseForSlugHosting`. Байтовете се кешират на `assets` диска между
+  build-ове. CSP вече позволява `font-src 'self'`. Пазено с
+  `GoogleFontPublisherTest`.
+- **Изображения**: библиотечните asset-и вече носят `dimensions` + `webp_*`
+  варианти (Intervention v4/GD). Блоковете emit-ват `<picture>`+webp source +
+  `width/height` (CLS). Покрити: `image`, `gallery`, `hero`,
+  `collection-categories` (последният зарежда Asset-а за node/record снимките).
+  Останалите post-thumbnail блокове ползват `featured_image` стринг → нямат
+  dims (бъдеща работа). Пазено с `SemanticHtmlTest`, `AssetVariantsTest`.
+- **Достъпност**: футър column заглавия са `h2` (heading-order след h1);
+  футър muted текст ползва `--footer-muted` (color-mix от footer text→bg,
+  контраст на тъмен футър); бутони ползват `--btn-color` (не hardcoded бяло —
+  напр. search бутонът); nav/footer/lang линковете имат tap-target размер на
+  ≤768px (в `buildCriticalCss`).
+
 ## Платформени правила, въведени от този метод (пазени с тестове)
 
 - **Scroll-triggered entrance анимации СА DEFAULT** за всички публикувани
@@ -173,6 +200,12 @@ gutter на grid-а `0` я измества с ширината на gutter-а (
 - **Mobile-friendly е DEFAULT** за всеки сайт (§7): grid колабира на 1 колона,
   grid items shrink-ват (`min-width:0`), заглавия се клампват, блок-грид-ове се
   стакват — от `buildCriticalCss()` + `GridCssGenerator`. Пазено с `GridCssMobileTest`.
+- **Performance/a11y са DEFAULT** (§8): Google Fonts се self-host-ват (сваляне на
+  woff2 в build-а, локален `@font-face`, без render-blocking `@import`) —
+  `GoogleFontPublisher` + `DesignTokenGenerator`. Raster изображения носят
+  `<picture>`+webp+`width/height` (image/gallery/hero/collection-categories).
+  Футър заглавия са `h2` (heading-order), футър текст ползва контрастен цвят,
+  бутони ползват `--btn-color`, tap-targets имат размер на телефон.
 - Галериите прилагат hover ефекти PER IMAGE (`.gallery-item` wrapper);
   `shine` е наличен preset в Card Effects.
 - Stats блокът брои от 0 при показване.

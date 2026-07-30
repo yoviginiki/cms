@@ -94,10 +94,25 @@
         foreach ($nodes as $n) {
             $nodeDesc[$n->id] = trim((string) ($n->schema['description'] ?? ''));
             if (!$showImage) { continue; }
-            // Resolve an image reference (asset id OR url) to a servable URL.
-            $resolveImg = fn($v) => (is_string($v) && $v !== '')
-                ? ((str_starts_with($v, '/') || str_starts_with($v, 'http')) ? $v : RecordDisplay::assetUrl($site, $v))
-                : null;
+            // Resolve an image reference (asset id OR url) to a structured
+            // record: servable URL + intrinsic width/height (for CLS) + webp
+            // srcset (for byte savings) when it's a library asset.
+            $resolveImg = function ($v) use ($site) {
+                if (!is_string($v) || $v === '') { return null; }
+                if (str_starts_with($v, '/') || str_starts_with($v, 'http')) {
+                    return ['url' => $v, 'w' => null, 'h' => null, 'webp' => ''];
+                }
+                $base = RecordDisplay::assetUrl($site, $v);
+                $asset = \App\Models\Asset::find($v);
+                if (!$asset) { return ['url' => $base, 'w' => null, 'h' => null, 'webp' => '']; }
+                $dim = (array) ($asset->dimensions ?? []);
+                $variants = (array) ($asset->variants ?? []);
+                $webp = [];
+                foreach (['webp_400' => '400w', 'webp_800' => '800w'] as $vn => $desc) {
+                    if (!empty($variants[$vn])) { $webp[] = "{$base}/{$vn} {$desc}"; }
+                }
+                return ['url' => $base, 'w' => $dim['width'] ?? null, 'h' => $dim['height'] ?? null, 'webp' => implode(', ', $webp)];
+            };
             $own = $resolveImg($n->schema['image'] ?? null);
             if ($own) { $nodeImages[$n->id] = $own; continue; }
             $ids = [$n->id];
@@ -138,7 +153,9 @@
                style="display:flex;align-items:center;gap:1rem;padding:.75rem 1.1rem;border:1px solid var(--color-border-light,#e5e5e0);border-radius:12px;text-decoration:none;color:var(--color-heading,#1a202c);transition:border-color .2s ease,transform .2s ease;"
                onmouseover="this.style.borderColor='var(--color-primary,#3b82f6)'" onmouseout="this.style.borderColor='var(--color-border-light,#e5e5e0)'">
                 @if($showImage && !empty($nodeImages[$node->id]))
-                    <img src="{{ e($nodeImages[$node->id]) }}" alt="" loading="lazy" style="flex-shrink:0;width:{{ $imageHeight }};height:{{ $imageHeight }};object-fit:cover;border-radius:8px;">
+                    @php $__ni = $nodeImages[$node->id]; @endphp
+                    @if(!empty($__ni['webp']))<picture><source srcset="{{ $__ni['webp'] }}" type="image/webp"><img src="{{ e($__ni['url']) }}" alt="" loading="lazy" @if($__ni['w'])width="{{ $__ni['w'] }}"@endif @if($__ni['h'])height="{{ $__ni['h'] }}"@endif style="flex-shrink:0;width:{{ $imageHeight }};height:{{ $imageHeight }};object-fit:cover;border-radius:8px;"></picture>
+                    @else<img src="{{ e($__ni['url']) }}" alt="" loading="lazy" @if($__ni['w'])width="{{ $__ni['w'] }}"@endif @if($__ni['h'])height="{{ $__ni['h'] }}"@endif style="flex-shrink:0;width:{{ $imageHeight }};height:{{ $imageHeight }};object-fit:cover;border-radius:8px;">@endif
                 @endif
                 <span style="flex:1;min-width:0;">
                     @if($showName)<span style="display:block;font-weight:600;">{{ RecordDisplay::nodeName($node, $__pageLocale) }}</span>@endif
@@ -166,7 +183,9 @@
                onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 28px -12px rgba(0,0,0,.18)';this.style.borderColor='var(--color-primary,#3b82f6)'"
                onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='var(--color-border-light,rgba(26,32,44,.08))'">
                 @if($showImage && !empty($nodeImages[$node->id]))
-                    <img src="{{ e($nodeImages[$node->id]) }}" alt="" loading="lazy" style="width:100%;{{ $imgSquare }};object-fit:cover;display:block;">
+                    @php $__ni = $nodeImages[$node->id]; @endphp
+                    @if(!empty($__ni['webp']))<picture><source srcset="{{ $__ni['webp'] }}" type="image/webp"><img src="{{ e($__ni['url']) }}" alt="" loading="lazy" @if($__ni['w'])width="{{ $__ni['w'] }}"@endif @if($__ni['h'])height="{{ $__ni['h'] }}"@endif style="width:100%;{{ $imgSquare }};object-fit:cover;display:block;"></picture>
+                    @else<img src="{{ e($__ni['url']) }}" alt="" loading="lazy" @if($__ni['w'])width="{{ $__ni['w'] }}"@endif @if($__ni['h'])height="{{ $__ni['h'] }}"@endif style="width:100%;{{ $imgSquare }};object-fit:cover;display:block;">@endif
                 @elseif($showImage)
                     <span style="width:100%;aspect-ratio:1/1;background:var(--color-bg-alt,#f5f5f0);display:flex;align-items:center;justify-content:center;">
                         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#3b82f6)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
