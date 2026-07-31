@@ -220,6 +220,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/pages/{page}/inline/session', [InlineEditController::class, 'session']);
         Route::patch('sites/{site}/pages/{page}/inline/blocks', [InlineEditController::class, 'patchBlocks']);
         Route::post('sites/{site}/pages/{page}/inline/draft', [InlineEditController::class, 'draft']);
+        Route::post('sites/{site}/pages/{page}/inline/publish', [InlineEditController::class, 'publish']);
         Route::get('sites/{site}/pages/{page}/inline/export', [InlineEditController::class, 'export']);
 
         // Assets

@@ -64,6 +64,15 @@ final class InlineEditRbacTest extends TestCase
         }
     }
 
+    public function test_editor_cannot_inline_publish(): void
+    {
+        // inlinePublish is admin+; an editor can inline-edit a draft but not
+        // publish it. authorize() rejects before any orchestrator work runs.
+        $this->actingRole('editor')
+            ->postJson("/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/inline/publish", [], $this->apiHeaders())
+            ->assertStatus(403);
+    }
+
     public function test_viewer_preview_has_no_edit_overlay(): void
     {
         // Even with ?sp_edit=1, a viewer's preview renders in Publish mode.

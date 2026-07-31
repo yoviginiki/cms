@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Blocks\Services\BlockService;
 use App\Domain\InlineEdit\Services\InlineEditService;
 use App\Domain\Publishing\Services\BuildPageService;
+use App\Domain\Publishing\Services\PublishOrchestrator;
 use App\Domain\References\Services\ReferenceRecorder;
 use App\Http\Controllers\Controller;
 use App\Models\Block;
@@ -31,6 +32,7 @@ class InlineEditController extends Controller
         private BlockService $blockService,
         private InlineEditService $inline,
         private BuildPageService $buildService,
+        private PublishOrchestrator $orchestrator,
     ) {
     }
 
@@ -148,6 +150,34 @@ class InlineEditController extends Controller
             'version_id' => $version->id,
             'version_number' => $version->version_number,
         ]);
+    }
+
+    /**
+     * Publish from inline edit mode: promote a draft page to published and
+     * rebuild the site via the existing orchestrator. Requires the
+     * inlinePublish ability (admin+). Never automatic — an explicit user act.
+     */
+    public function publish(Request $request, Site $site, Page $page): JsonResponse
+    {
+        $this->authorize('inlinePublish', $page);
+
+        if ($page->status !== 'published') {
+            $page->status = 'published';
+            $page->published_at = $page->published_at ?? now();
+            $page->save();
+        }
+
+        try {
+            $deployment = $this->orchestrator->publish($site, $request->user(), 'partial');
+        } catch (\RuntimeException $e) {
+            // A deployment is already in progress.
+            return response()->json(['message' => $e->getMessage()], 409);
+        }
+
+        return response()->json([
+            'status' => $page->status,
+            'deployment' => $deployment,
+        ], 201);
     }
 
     /** Export the current draft as json (block payload) or html (publish render). */
