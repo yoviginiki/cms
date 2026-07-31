@@ -37,6 +37,14 @@
     /* Prevent horizontal overflow on all screen sizes */
     html,body{overflow-x:hidden;max-width:100vw}
 
+    /* Below the content max-width, pad section CONTENT (inner padding) so
+       backgrounds stay edge-to-edge — no page-bg strips around colored bands. */
+    @media (max-width: 1024px) {
+      .section-block { padding-left: clamp(1rem, 4vw, 2rem) !important; padding-right: clamp(1rem, 4vw, 2rem) !important; }
+      .section-block > div { padding-left: 0 !important; padding-right: 0 !important; }
+      .section-block .section-block { padding-left: 0 !important; padding-right: 0 !important; }
+    }
+
     @media (max-width: 767px) {
       /* Let grid/flex items shrink below their content min-size (kills the
          single-track blowout that overflows the page). */
@@ -49,14 +57,8 @@
       [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
       [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
 
-      /* Reduce section padding on mobile */
-      .section-block { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-
-      /* Cap section inner max-width — no extra padding if already inside a section */
-      .section-block > div { padding-left: 0 !important; padding-right: 0 !important; }
-
-      /* Nested sections (e.g. post content inside latestposts) — no double padding */
-      .section-block .section-block { padding-left: 0 !important; padding-right: 0 !important; }
+      /* (Section horizontal padding handled by the <=1024px rule above so
+         backgrounds stay full-bleed.) */
 
       /* Ensure images don't overflow */
       img { max-width: 100% !important; height: auto !important; }

@@ -1203,6 +1203,15 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
         // pages otherwise get zero mobile handling and overflow at 390px.
         // Making pages mobile-friendly must be the default, not a per-page fix.
         $css .= '
+/* Below the content max-width, give section CONTENT horizontal breathing room
+   as INNER padding — so backgrounds (dark bands, colored sections) still span
+   edge-to-edge and never leave page-bg strips on the sides. This replaces the
+   old per-site ".site-grid padding" gutter hack, which inset the whole section
+   (background included) and showed white strips around every colored band. */
+@media(max-width:1024px){
+.section-block{padding-left:clamp(1rem,4vw,2rem)!important;padding-right:clamp(1rem,4vw,2rem)!important}
+.section-block .section-block{padding-left:0!important;padding-right:0!important}
+}
 @media(max-width:768px){
 /* Kill CSS-grid/flex track blowout: let items shrink below their content
    min-size. Without this a single nowrap/wide descendant forces a 1fr track
@@ -1212,8 +1221,9 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
 .site-grid{grid-template-columns:1fr!important}
 /* Stack every common multi-column block grid + any inline multi-track grid. */
 .columns-block>div,.stats-block>div,.gallery-block--grid,.gallery-block--masonry,.gallery-block--carousel,[style*="grid-template-columns:repeat("],[style*="grid-template-columns: repeat("],[style*="grid-template-columns:1fr 1fr"],[style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:1fr!important}
-/* Section padding — smaller on phones, no double inner padding when nested. */
-.section-block{padding-left:1rem!important;padding-right:1rem!important}
+/* No double inner padding when nested (horizontal padding itself is handled by
+   the <=1024px rule below so section BACKGROUNDS stay full-bleed — content is
+   padded, never the whole section inset with a page-bg gutter). */
 .section-block .section-block{padding-left:0!important;padding-right:0!important}
 /* Images and media never overflow. */
 img,video,iframe{max-width:100%!important;height:auto}
