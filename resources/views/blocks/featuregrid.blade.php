@@ -46,12 +46,12 @@
     $titleTextShadow = $tsShadowPresets[$data['titleTextShadow'] ?? ''] ?? '';
 @endphp
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
-    @foreach($items as $item)
+    @foreach($items as $i => $item)
         <div style="display:flex;flex-direction:{{ $flexDir }};align-items:{{ $style === 'icon-left' ? 'flex-start' : 'center' }};gap:0.75rem;padding:{{ $cardPadding }};border:{{ $cardBorderWidth }} solid {{ $cardBorderColor }};border-radius:{{ $cardRadius }};text-align:{{ $style === 'icon-left' ? 'left' : 'center' }};{{ $cardBgColor ? "background-color:{$cardBgColor};" : '' }}{{ $cardShadow ? "box-shadow:{$cardShadow};" : '' }}">
             <div style="font-size:{{ $iconSize }};line-height:1;{{ $iconColor ? "color:{$iconColor};" : '' }}">{{ $item['icon'] ?? '' }}</div>
             <div>
-                <div style="font-weight:600;margin-bottom:0.25rem;{{ $titleColor ? "color:{$titleColor};" : '' }}{{ $titleTextShadow ? "text-shadow:{$titleTextShadow};" : '' }}">{{ $item['title'] ?? '' }}</div>
-                <div style="color:{{ $descColor }};font-size:0.875rem;">{{ $item['description'] ?? '' }}</div>
+                <div{!! sp_editable($__blockId ?? '', "items.{$i}.title", 'text') !!} style="font-weight:600;margin-bottom:0.25rem;{{ $titleColor ? "color:{$titleColor};" : '' }}{{ $titleTextShadow ? "text-shadow:{$titleTextShadow};" : '' }}">{{ $item['title'] ?? '' }}</div>
+                <div{!! sp_editable($__blockId ?? '', "items.{$i}.description", 'text') !!} style="color:{{ $descColor }};font-size:0.875rem;">{{ $item['description'] ?? '' }}</div>
             </div>
         </div>
     @endforeach

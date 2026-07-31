@@ -65,6 +65,8 @@ final class SpEditableRenderTest extends TestCase
         'accordion' => ['items' => [['title' => 'Въпрос 1', 'content' => '<p>Отговор 1</p>'], ['title' => 'Въпрос 2', 'content' => '<p>Отговор 2</p>']]],
         'testimonial' => ['items' => [['quote' => 'Q0', 'author' => 'Автор 0', 'role' => 'Роля 0'], ['quote' => 'Q1', 'author' => 'Автор 1', 'role' => 'Роля 1']], 'layout' => 'single'],
         'stats' => ['items' => [['value' => '100', 'label' => 'Клиенти'], ['value' => '50', 'label' => 'Проекти']], 'columns' => 2],
+        'timeline' => ['items' => [['date' => '2020', 'title' => 'Начало', 'description' => 'Описание 0'], ['date' => '2021', 'title' => 'Растеж', 'description' => 'Описание 1']], 'layout' => 'left'],
+        'featuregrid' => ['items' => [['icon' => 'star', 'title' => 'Функция 1', 'description' => 'Описание 1'], ['icon' => 'dot', 'title' => 'Функция 2', 'description' => 'Описание 2']], 'columns' => 2],
     ];
 
     private const BLOCK_ID = '11111111-2222-3333-4444-555555555555';
@@ -94,6 +96,8 @@ final class SpEditableRenderTest extends TestCase
         'accordion' => ['items.0.title', 'text'],
         'testimonial' => ['items.0.author', 'text'],
         'stats' => ['items.0.value', 'text'],
+        'timeline' => ['items.0.title', 'text'],
+        'featuregrid' => ['items.0.title', 'text'],
     ];
 
     public static function setUpBeforeClass(): void
@@ -148,6 +152,8 @@ final class SpEditableRenderTest extends TestCase
             'accordion' => ['accordion'],
             'testimonial' => ['testimonial'],
             'stats' => ['stats'],
+            'timeline' => ['timeline'],
+            'featuregrid' => ['featuregrid'],
         ];
     }
 
