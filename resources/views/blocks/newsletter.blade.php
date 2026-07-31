@@ -25,7 +25,7 @@
     $headingTextShadow = $tsShadowPresets[$data['headingTextShadow'] ?? ''] ?? '';
 @endphp
 <div style="{{ $isCard ? 'border:1px solid var(--color-border,#e2e8f0);border-radius:var(--border-radius-md,0.5rem);padding:2rem;text-align:center;' : '' }}{{ $isFull ? 'background:var(--color-bg-alt,#eff6ff);padding:2rem;text-align:center;border-radius:var(--border-radius-md,0.5rem);' : '' }}">
-    <h3 style="font-weight:600;margin-bottom:0.25rem;{{ $headingTextShadow ? "text-shadow:{$headingTextShadow};" : '' }}">{{ $heading }}</h3>
+    <h3{!! sp_editable($__blockId ?? '', 'heading', 'text') !!} style="font-weight:600;margin-bottom:0.25rem;{{ $headingTextShadow ? "text-shadow:{$headingTextShadow};" : '' }}">{{ $heading }}</h3>
     @if($description)
         <p style="color:var(--color-text-muted,#6b7280);font-size:0.875rem;margin-bottom:1rem;">{{ $description }}</p>
     @endif

@@ -54,6 +54,10 @@ final class SpEditableRenderTest extends TestCase
         'sidenote' => ['content' => 'Странична бележка на живо.', 'side' => 'right'],
         'runningtext' => ['content' => '<p>Течащ текст на живо в колони.</p>', 'columns' => 2],
         'imagecaption' => ['url' => 'https://example.com/x.jpg', 'alt' => 'Alt', 'caption' => 'Надпис на живо'],
+        'newsletter' => ['heading' => 'Абонирай се'],
+        'paywall' => ['heading' => 'Абонирай се, за да четеш'],
+        'chart' => ['title' => 'Диаграма', 'type' => 'bar'],
+        'video' => ['title' => 'Видео заглавие', 'heroMode' => true, 'url' => 'https://cdn.example/v.mp4'],
     ];
 
     private const BLOCK_ID = '11111111-2222-3333-4444-555555555555';
@@ -72,6 +76,10 @@ final class SpEditableRenderTest extends TestCase
         'sidenote' => ['content', 'text'],
         'runningtext' => ['content', 'richtext'],
         'imagecaption' => ['caption', 'text'],
+        'newsletter' => ['heading', 'text'],
+        'paywall' => ['heading', 'text'],
+        'chart' => ['title', 'text'],
+        'video' => ['title', 'text'],
     ];
 
     public static function setUpBeforeClass(): void
@@ -115,6 +123,10 @@ final class SpEditableRenderTest extends TestCase
             'sidenote' => ['sidenote'],
             'runningtext' => ['runningtext'],
             'imagecaption' => ['imagecaption'],
+            'newsletter' => ['newsletter'],
+            'paywall' => ['paywall'],
+            'chart' => ['chart'],
+            'video' => ['video'],
         ];
     }
 

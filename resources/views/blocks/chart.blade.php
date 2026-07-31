@@ -27,7 +27,7 @@
 @endphp
 <div>
     @if($title)
-        <div style="font-weight:600;margin-bottom:0.75rem;">{{ $title }}</div>
+        <div{!! sp_editable($__blockId ?? '', 'title', 'text') !!} style="font-weight:600;margin-bottom:0.75rem;">{{ $title }}</div>
     @endif
     <svg width="{{ $svgWidth }}" height="{{ $svgHeight + 30 }}" viewBox="0 0 {{ $svgWidth }} {{ $svgHeight + 30 }}" xmlns="http://www.w3.org/2000/svg">
         @foreach($items as $i => $item)
