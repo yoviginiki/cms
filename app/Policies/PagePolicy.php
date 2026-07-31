@@ -43,16 +43,25 @@ class PagePolicy
 
     /**
      * Open inline edit mode over the preview and save inline field patches.
-     * editor+ only — viewer and author cannot inline-edit.
+     * editor+ on any page; an author only on pages they created; viewer never.
      *
-     * NOTE: brief 4.3 wants author to inline-edit their OWN pages; that needs a
-     * pages.author_id ownership column that does not exist yet, so the minimal
-     * additive extension keeps inline edit at editor+. Add ownership + an author
-     * branch here to enable author-scoped editing later.
+     * Author ownership uses pages.author_id (Page::author). That column is null
+     * until the add-author_id-to-pages migration has run and been backfilled, so
+     * authors stay locked out until then — safe to ship ahead of the migration.
      */
     public function inlineEdit(User $user, Page $page): bool
     {
-        return $user->hasMinimumRole('editor') && $this->sameTenant($user, $page);
+        if (!$this->sameTenant($user, $page)) {
+            return false;
+        }
+
+        if ($user->hasMinimumRole('editor')) {
+            return true;
+        }
+
+        return $user->role === 'author'
+            && $page->author_id !== null
+            && $page->author_id === $user->id;
     }
 
     /**

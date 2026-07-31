@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use App\Domain\Concerns\PurgesBlocksOnForceDelete;
 
 class Page extends Model
@@ -18,8 +20,20 @@ class Page extends Model
     protected $fillable = [
         'site_id', 'parent_id', 'title', 'slug', 'layout_id',
         'status', 'editor_mode', 'experience_mode', 'seo_meta', 'sort_order', 'grid_id', 'published_at', 'scheduled_at',
-        'raw_html', 'needs_republish', 'needs_republish_reason', 'content_modified_at',
+        'raw_html', 'needs_republish', 'needs_republish_reason', 'content_modified_at', 'author_id',
     ];
+
+    protected static function booted(): void
+    {
+        // Stamp the creating user as author so authors can inline-edit their own
+        // pages (see PagePolicy::inlineEdit). Guarded on the column existing, so
+        // it stays inert until the add-author_id-to-pages migration has run.
+        static::creating(function (Page $page): void {
+            if ($page->author_id === null && Auth::check() && Schema::hasColumn('pages', 'author_id')) {
+                $page->author_id = Auth::id();
+            }
+        });
+    }
 
     protected $attributes = [
         'experience_mode' => 'standard',
@@ -38,6 +52,11 @@ class Page extends Model
     public function site(): BelongsTo
     {
         return $this->belongsTo(Site::class);
+    }
+
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author_id');
     }
 
     public function parent(): BelongsTo

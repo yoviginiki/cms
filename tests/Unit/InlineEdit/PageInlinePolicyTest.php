@@ -78,4 +78,26 @@ final class PageInlinePolicyTest extends TestCase
         $this->assertFalse($this->policy->inlineEdit($user, $page), "$role inlineEdit across tenant");
         $this->assertFalse($this->policy->inlinePublish($user, $page), "$role inlinePublish across tenant");
     }
+
+    public function test_author_can_inline_edit_only_own_page(): void
+    {
+        $author = $this->user('author', 't1');
+        $author->id = 'author-1';
+
+        $own = $this->page('t1');
+        $own->author_id = 'author-1';
+        $this->assertTrue($this->policy->inlineEdit($author, $own), 'author owns page');
+        $this->assertFalse($this->policy->inlinePublish($author, $own), 'author still cannot publish');
+
+        $others = $this->page('t1');
+        $others->author_id = 'someone-else';
+        $this->assertFalse($this->policy->inlineEdit($author, $others), "author, others' page");
+
+        $unowned = $this->page('t1'); // author_id null (pre-migration state)
+        $this->assertFalse($this->policy->inlineEdit($author, $unowned), 'author, unowned page');
+
+        $crossTenantOwn = $this->page('t2');
+        $crossTenantOwn->author_id = 'author-1';
+        $this->assertFalse($this->policy->inlineEdit($author, $crossTenantOwn), 'author owns but cross-tenant');
+    }
 }
