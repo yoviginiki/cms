@@ -42,11 +42,11 @@
         : "padding:1.5rem;border:1px solid {$cardBorderColor};border-radius:{$cardRadius};" . ($cardBgColor ? "background-color:{$cardBgColor};" : '') . ($cardShadow ? "box-shadow:{$cardShadow};" : '');
 @endphp
 <div style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};text-align:{{ $textAlign }};">
-    @foreach($items as $item)
+    @foreach($items as $i => $item)
         @php $countTo = preg_match('/^\d[\d\s.,]*$/', trim((string) ($item['value'] ?? ''))) === 1 ? trim((string) $item['value']) : null; @endphp
         <div style="{{ $cellStyle }}">
-            <div style="font-family:var(--font-heading,inherit);font-size:{{ $valueFontSize }};font-weight:700;line-height:1;color:{{ $valueColor }};{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['prefix'] ?? '' }}<span @if($countTo) data-countup="{{ $countTo }}" @endif>{{ $item['value'] ?? '' }}</span>{{ $item['suffix'] ?? '' }}</div>
-            <div style="color:{{ $labelColor }};font-size:0.875rem;margin-top:0.5rem;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['label'] ?? '' }}</div>
+            <div style="font-family:var(--font-heading,inherit);font-size:{{ $valueFontSize }};font-weight:700;line-height:1;color:{{ $valueColor }};{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['prefix'] ?? '' }}<span{!! sp_editable($__blockId ?? '', "items.{$i}.value", 'text') !!} @if($countTo) data-countup="{{ $countTo }}" @endif>{{ $item['value'] ?? '' }}</span>{{ $item['suffix'] ?? '' }}</div>
+            <div{!! sp_editable($__blockId ?? '', "items.{$i}.label", 'text') !!} style="color:{{ $labelColor }};font-size:0.875rem;margin-top:0.5rem;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['label'] ?? '' }}</div>
         </div>
     @endforeach
 </div>

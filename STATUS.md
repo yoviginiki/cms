@@ -790,7 +790,7 @@ Additive layer over the page preview. Published output is byte-identical
 
 | Компонент | Статус | Оценка | Известни проблеми |
 |---|---|---|---|
-| RenderMode + `sp_editable()` (Phase 1 + rollout) | Complete | 9/10 | 21 блока (20 flat + accordion NESTED чрез dot-path items.N.title/content); nested addressing поддържа items.*.field; останалите ~80 partial-а |
+| RenderMode + `sp_editable()` (Phase 1 + rollout) | Complete | 9/10 | 23 блока (20 flat + 3 NESTED: accordion/testimonial/stats чрез dot-path items.N.field); nested addressing поддържа items.*.field; останалите ~78 partial-а (предимно структурни/динамични/споделени — не са кандидати) |
 | Overlay runtime `overlay.js` (Phase 2) | Complete | 8/10 | Toolbar формат = `execCommand` (deprecated, best-effort) |
 | Web-preview host + `toolbar.js` (Phase 2) | Complete | 8/10 | Vanilla, НЕ React; `PreviewPane.tsx` е мъртъв код и не се ползва |
 | Save/Draft/Export API (Phase 3) | Complete | 8/10 | Валидацията е по-строга от Page Editor (per-field), не идентична; feature тестове чакат тестова база |
