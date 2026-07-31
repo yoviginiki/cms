@@ -27,6 +27,6 @@
     $fw = in_array((string)($data['fontWeight'] ?? ''), ['400','500','600','700','800','900']) ? $data['fontWeight'] : '';
     $skin = ($bg ? "background:{$bg};border-color:{$bg};" : '') . ($fg ? "color:{$fg};" : '') . ($fs ? "font-size:{$fs};" : '') . ($fw ? "font-weight:{$fw};" : '');
 @endphp
-<a href="{{ e($safeUrl($data['url'] ?? '#')) }}" class="btn {{ $styleClass }} {{ $sizeClass }}"@if($skin) style="{{ $skin }}"@endif{!! $target !!}>{{ $data['text'] ?? 'Button' }}</a>
+<a{!! sp_editable($__blockId ?? '', 'text', 'text') !!} href="{{ e($safeUrl($data['url'] ?? '#')) }}" class="btn {{ $styleClass }} {{ $sizeClass }}"@if($skin) style="{{ $skin }}"@endif{!! $target !!}>{{ $data['text'] ?? 'Button' }}</a>
 
 </div>

@@ -524,6 +524,10 @@ HTML;
             'blockAnimation' => $blockAnimation,
             'blockAdvanced' => $blockAdvanced,
             'blockResponsive' => $blockResponsive,
+            // Inline-edit addressing: consumed only by sp_editable() in Edit
+            // mode. Ignored (never referenced) on the publish path.
+            '__blockId' => $block->id,
+            '__blockType' => $block->type,
         ], $this->templateContext))->render();
 
         // Wrap with responsive style overrides if any exist

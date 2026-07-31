@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AssetController;
 use App\Http\Controllers\Api\V1\AssetServeController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BlockController;
+use App\Http\Controllers\Api\V1\InlineEditController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\DiffController;
 use App\Http\Controllers\Api\V1\ImportController;
@@ -214,6 +215,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('sites/{site}/pages/{page}/blocks', [BlockController::class, 'syncForPage']);
         Route::get('sites/{site}/posts/{post}/blocks', [BlockController::class, 'indexForPost']);
         Route::put('sites/{site}/posts/{post}/blocks', [BlockController::class, 'syncForPost']);
+
+        // Inline edit — save / draft / export (additive; writes to live blocks)
+        Route::post('sites/{site}/pages/{page}/inline/session', [InlineEditController::class, 'session']);
+        Route::patch('sites/{site}/pages/{page}/inline/blocks', [InlineEditController::class, 'patchBlocks']);
+        Route::post('sites/{site}/pages/{page}/inline/draft', [InlineEditController::class, 'draft']);
+        Route::get('sites/{site}/pages/{page}/inline/export', [InlineEditController::class, 'export']);
 
         // Assets
         Route::apiResource('sites.assets', AssetController::class);
