@@ -5,6 +5,7 @@ namespace App\Domain\InlineEdit\Services;
 use App\Domain\Blocks\Services\BlockRegistry;
 use App\Domain\Publishing\Services\SanitizationService;
 use App\Models\Block;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -62,39 +63,50 @@ class InlineEditService
 
     /**
      * Validate one field patch against the block schema and return the SANITIZED
-     * value to store. Unknown, reserved, or deep (dotted) paths and
-     * schema-invalid values are rejected with 422 — never silently ignored
-     * (Phase 3.2).
+     * value to store. Supports flat keys ('text') and nested dot-paths into
+     * repeatable items ('items.0.title'). Unknown, reserved, or schema-invalid
+     * paths/values are rejected with 422 — never silently ignored (Phase 3.2).
      */
     public function sanitizeField(Block $block, string $field, mixed $value): mixed
     {
-        if (str_contains($field, '.') || str_starts_with($field, '__') || in_array($field, self::RESERVED_KEYS, true)) {
-            throw new HttpException(422, "Field path '{$field}' is not inline-editable.");
+        // Reserved/structural segments are never inline-editable.
+        foreach (explode('.', $field) as $segment) {
+            if ($segment === '' || str_starts_with($segment, '__') || in_array($segment, self::RESERVED_KEYS, true)) {
+                throw new HttpException(422, "Field path '{$field}' is not inline-editable.");
+            }
         }
 
         $definition = $this->registry->get($block->type);
         $rules = $definition?->validationRules() ?? [];
 
-        if (!array_key_exists($field, $rules)) {
+        // A concrete path (items.0.title) validates against its schema wildcard
+        // pattern (items.*.title).
+        $pattern = implode('.', array_map(
+            static fn (string $seg): string => ctype_digit($seg) ? '*' : $seg,
+            explode('.', $field),
+        ));
+
+        if (!array_key_exists($pattern, $rules)) {
             throw new HttpException(422, "Unknown field path '{$field}' for block type '{$block->type}'.");
         }
 
-        $validator = Validator::make([$field => $value], [$field => $rules[$field]]);
+        $validator = Validator::make(['value' => $value], ['value' => $rules[$pattern]]);
         if ($validator->fails()) {
             throw new HttpException(422, "Invalid value for '{$field}': " . $validator->errors()->first());
         }
 
-        // Same sanitizer + same per-block config as the render/save path.
-        $probe = new Block([
-            'type' => $block->type,
-            'data' => array_merge($block->data ?? [], [$field => $value]),
-        ]);
+        // Sanitize through the SAME pipeline: set the value at the path in a
+        // probe block and read back the sanitized leaf.
+        $probeData = $block->data ?? [];
+        Arr::set($probeData, $field, $value);
+        $probe = new Block(['type' => $block->type, 'data' => $probeData]);
 
-        return $this->sanitizer->sanitizeBlock($probe)[$field] ?? null;
+        return Arr::get($this->sanitizer->sanitizeBlock($probe), $field);
     }
 
     /**
      * Apply validated + sanitized field patches to a block's data (in memory).
+     * Dot-paths set nested leaves; flat keys set top-level fields.
      *
      * @param  array<int,array{field:string,value:mixed}>  $patches
      * @return array the new data payload
@@ -103,7 +115,7 @@ class InlineEditService
     {
         $data = $block->data ?? [];
         foreach ($patches as $patch) {
-            $data[$patch['field']] = $this->sanitizeField($block, $patch['field'], $patch['value']);
+            Arr::set($data, $patch['field'], $this->sanitizeField($block, $patch['field'], $patch['value']));
         }
 
         return $data;

@@ -62,6 +62,7 @@ final class SpEditableRenderTest extends TestCase
         'meditation-timer' => ['eyebrow' => 'Практика'],
         'partner-deck' => ['eyebrow' => 'Практика'],
         'pelvic-trainer' => ['eyebrow' => 'Практика'],
+        'accordion' => ['items' => [['title' => 'Въпрос 1', 'content' => '<p>Отговор 1</p>'], ['title' => 'Въпрос 2', 'content' => '<p>Отговор 2</p>']]],
     ];
 
     private const BLOCK_ID = '11111111-2222-3333-4444-555555555555';
@@ -88,6 +89,7 @@ final class SpEditableRenderTest extends TestCase
         'meditation-timer' => ['eyebrow', 'text'],
         'partner-deck' => ['eyebrow', 'text'],
         'pelvic-trainer' => ['eyebrow', 'text'],
+        'accordion' => ['items.0.title', 'text'],
     ];
 
     public static function setUpBeforeClass(): void
@@ -139,6 +141,7 @@ final class SpEditableRenderTest extends TestCase
             'meditation-timer' => ['meditation-timer'],
             'partner-deck' => ['partner-deck'],
             'pelvic-trainer' => ['pelvic-trainer'],
+            'accordion' => ['accordion'],
         ];
     }
 
