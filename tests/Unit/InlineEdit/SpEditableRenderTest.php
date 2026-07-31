@@ -52,6 +52,8 @@ final class SpEditableRenderTest extends TestCase
         'hero' => ['title' => 'Геройско заглавие', 'subtitle' => 'Кратко подзаглавие'],
         'ctabanner' => ['heading' => 'Готови ли сте?'],
         'sidenote' => ['content' => 'Странична бележка на живо.', 'side' => 'right'],
+        'runningtext' => ['content' => '<p>Течащ текст на живо в колони.</p>', 'columns' => 2],
+        'imagecaption' => ['url' => 'https://example.com/x.jpg', 'alt' => 'Alt', 'caption' => 'Надпис на живо'],
     ];
 
     private const BLOCK_ID = '11111111-2222-3333-4444-555555555555';
@@ -68,6 +70,8 @@ final class SpEditableRenderTest extends TestCase
         'hero' => ['title', 'text'],
         'ctabanner' => ['heading', 'text'],
         'sidenote' => ['content', 'text'],
+        'runningtext' => ['content', 'richtext'],
+        'imagecaption' => ['caption', 'text'],
     ];
 
     public static function setUpBeforeClass(): void
@@ -109,6 +113,8 @@ final class SpEditableRenderTest extends TestCase
             'hero' => ['hero'],
             'ctabanner' => ['ctabanner'],
             'sidenote' => ['sidenote'],
+            'runningtext' => ['runningtext'],
+            'imagecaption' => ['imagecaption'],
         ];
     }
 

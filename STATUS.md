@@ -790,7 +790,7 @@ Additive layer over the page preview. Published output is byte-identical
 
 | Компонент | Статус | Оценка | Известни проблеми |
 |---|---|---|---|
-| RenderMode + `sp_editable()` (Phase 1 + rollout) | Complete | 9/10 | 10 блока (heading/rich-text/image/paragraph/text/pullquote/button/hero/ctabanner/sidenote); останалите ~91 partial-а нямат атрибути |
+| RenderMode + `sp_editable()` (Phase 1 + rollout) | Complete | 9/10 | 12 блока (heading/rich-text/image/paragraph/text/pullquote/button/hero/ctabanner/sidenote/runningtext/imagecaption); останалите ~89 partial-а нямат атрибути |
 | Overlay runtime `overlay.js` (Phase 2) | Complete | 8/10 | Toolbar формат = `execCommand` (deprecated, best-effort) |
 | Web-preview host + `toolbar.js` (Phase 2) | Complete | 8/10 | Vanilla, НЕ React; `PreviewPane.tsx` е мъртъв код и не се ползва |
 | Save/Draft/Export API (Phase 3) | Complete | 8/10 | Валидацията е по-строга от Page Editor (per-field), не идентична; feature тестове чакат тестова база |
