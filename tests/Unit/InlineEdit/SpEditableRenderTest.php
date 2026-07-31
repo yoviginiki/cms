@@ -58,6 +58,10 @@ final class SpEditableRenderTest extends TestCase
         'paywall' => ['heading' => 'Абонирай се, за да четеш'],
         'chart' => ['title' => 'Диаграма', 'type' => 'bar'],
         'video' => ['title' => 'Видео заглавие', 'heroMode' => true, 'url' => 'https://cdn.example/v.mp4'],
+        'breathing-pacer' => ['eyebrow' => 'Практика'],
+        'meditation-timer' => ['eyebrow' => 'Практика'],
+        'partner-deck' => ['eyebrow' => 'Практика'],
+        'pelvic-trainer' => ['eyebrow' => 'Практика'],
     ];
 
     private const BLOCK_ID = '11111111-2222-3333-4444-555555555555';
@@ -80,6 +84,10 @@ final class SpEditableRenderTest extends TestCase
         'paywall' => ['heading', 'text'],
         'chart' => ['title', 'text'],
         'video' => ['title', 'text'],
+        'breathing-pacer' => ['eyebrow', 'text'],
+        'meditation-timer' => ['eyebrow', 'text'],
+        'partner-deck' => ['eyebrow', 'text'],
+        'pelvic-trainer' => ['eyebrow', 'text'],
     ];
 
     public static function setUpBeforeClass(): void
@@ -127,6 +135,10 @@ final class SpEditableRenderTest extends TestCase
             'paywall' => ['paywall'],
             'chart' => ['chart'],
             'video' => ['video'],
+            'breathing-pacer' => ['breathing-pacer'],
+            'meditation-timer' => ['meditation-timer'],
+            'partner-deck' => ['partner-deck'],
+            'pelvic-trainer' => ['pelvic-trainer'],
         ];
     }
 

@@ -30,7 +30,7 @@
 <div class="breathing-pacer-block rr-app-tool rr-breath-tool {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" data-advanced-at="{{ $advancedAt }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif>
     <div class="tool-heading">
         <div>
-            @if($eyebrow)<p class="eyebrow">{{ $eyebrow }}</p>@endif
+            @if($eyebrow)<p{!! sp_editable($__blockId ?? '', 'eyebrow', 'text') !!} class="eyebrow">{{ $eyebrow }}</p>@endif
             <h2>{{ $title }}</h2>
         </div>
         <label class="sound-toggle"><input type="checkbox" @if($soundDefault) checked @endif> {{ $soundLabel }}</label>

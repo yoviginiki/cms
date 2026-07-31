@@ -30,7 +30,7 @@
     <script type="application/json" class="rr-config">@json($runtimeConfig)</script>
     @if($eyebrow || $title)
     <div class="tool-heading"><div>
-        @if($eyebrow)<p class="eyebrow">{{ $eyebrow }}</p>@endif
+        @if($eyebrow)<p{!! sp_editable($__blockId ?? '', 'eyebrow', 'text') !!} class="eyebrow">{{ $eyebrow }}</p>@endif
         @if($title)<h2>{{ $title }}</h2>@endif
     </div></div>
     @endif
