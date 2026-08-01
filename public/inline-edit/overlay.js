@@ -118,9 +118,17 @@
     if (img) img.src = url;
     el.setAttribute('data-sp-image', url);
     if (assetId) el.setAttribute('data-sp-asset', assetId);
-    // Persist through the normal dirty/blur path (the image field is 'url').
+    // Persist through the normal dirty/blur path.
     send('sp:field:dirty', { block: f.block, field: f.field, value: url });
     send('sp:field:blur', { block: f.block, field: f.field, value: url });
+    // The image block carries a companion assetId that drives responsive
+    // variants — keep it in step so srcset doesn't point at the previous asset.
+    // (logostrip logos are plain URLs, field 'logos.N', with no assetId.)
+    if (f.field === 'url') {
+      var aid = assetId || null;
+      send('sp:field:dirty', { block: f.block, field: 'assetId', value: aid });
+      send('sp:field:blur', { block: f.block, field: 'assetId', value: aid });
+    }
   }
 
   function enableEl(el) {

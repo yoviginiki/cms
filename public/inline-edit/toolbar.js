@@ -91,7 +91,7 @@
     api('PATCH', CONFIG.apiBase + '/blocks', { expected_version: session.version, patches: patches })
       .then(function (r) {
         if (r.status === 409) {
-          status('Конфликт — презаредете', '#ef4444');
+          conflictStatus();
           patches.forEach(function (p) { toOverlay({ type: 'sp:conflict', block: p.block, field: p.field }); });
           return null;
         }
@@ -185,6 +185,16 @@
     dirtyBadge.textContent = text;
     dirtyBadge.style.background = color || '#f59e0b';
     dirtyBadge.style.display = text ? 'block' : 'none';
+  }
+
+  function conflictStatus() {
+    if (!dirtyBadge) return;
+    dirtyBadge.style.background = '#ef4444';
+    dirtyBadge.style.display = 'block';
+    dirtyBadge.innerHTML = 'Този блок е променен другаде — ' +
+      '<a href="#" style="color:#fff;text-decoration:underline;font-weight:700">Презареди</a>';
+    var a = dirtyBadge.querySelector('a');
+    if (a) a.addEventListener('click', function (e) { e.preventDefault(); window.location.reload(); });
   }
 
   function trackDirty(d) {
