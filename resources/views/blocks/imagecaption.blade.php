@@ -36,7 +36,7 @@
 {!! \App\Support\Blocks\BlockStyle::buildOverlayHtml($data ?? []) !!}
 <figure class="image-caption image-caption--{{ $data['captionPosition'] ?? 'below' }}">
   @if(!empty($data['src']))<img class="img-filtered" src="{{ e($data['src']) }}" alt="{{ e($data['alt'] ?? '') }}" loading="lazy" @if($__imageFilter)style="{{ $__imageFilter }}"@endif>@endif
-  @if(!empty($data['caption']))<figcaption>{{ e($data['caption']) }}</figcaption>@endif
+  @if(!empty($data['caption']))<figcaption{!! sp_editable($__blockId ?? '', 'caption', 'text') !!}>{{ e($data['caption']) }}</figcaption>@endif
 </figure>
 
 </div>

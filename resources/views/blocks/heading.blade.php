@@ -50,6 +50,6 @@
         $headingText = e($headingText);
     }
 @endphp
-<{{ $level }} style="margin:0;font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:{{ $fontFamily }};line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif @if($textShadow)text-shadow:{{ $textShadow }};@endif">@if($hasLink)<a href="{{ e($linkUrl) }}" target="{{ $linkTarget }}" style="color:inherit;text-decoration:none;" rel="noopener">@endif{!! $headingText !!}@if($hasLink)</a>@endif</{{ $level }}>
+<{{ $level }}{!! sp_editable($__blockId ?? '', 'text', 'text') !!} style="margin:0;font-size:{{ $fontSize }};font-weight:{{ $fontWeight }};font-family:{{ $fontFamily }};line-height:{{ $lineHeight }};color:{{ $color }};@if($letterSpacing)letter-spacing:{{ $letterSpacing }};@endif @if($textTransform)text-transform:{{ $textTransform }};@endif @if($textAlign)text-align:{{ $textAlign }};@endif @if($textShadow)text-shadow:{{ $textShadow }};@endif">@if($hasLink)<a href="{{ e($linkUrl) }}" target="{{ $linkTarget }}" style="color:inherit;text-decoration:none;" rel="noopener">@endif{!! $headingText !!}@if($hasLink)</a>@endif</{{ $level }}>
 
 </div>

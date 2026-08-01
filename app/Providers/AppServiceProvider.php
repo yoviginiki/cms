@@ -119,6 +119,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(HookDispatcher::class);
 
+        // Inline-edit layer: ambient render mode (default Publish) + the
+        // sp_editable() Blade helper. Both are inert on the publish path.
+        $this->app->singleton(\App\Domain\Publishing\Rendering\RenderContext::class);
+        require_once app_path('Support/Rendering/sp_helpers.php');
+
         $this->app->singleton(BlockRegistry::class, function () {
             $registry = new BlockRegistry();
             $registry->register(new HeroBlockDefinition());

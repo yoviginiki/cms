@@ -25,10 +25,10 @@
     @foreach(($data['items'] ?? []) as $index => $item)
         <details style="border-bottom:1px solid var(--color-border,#e2e8f0);overflow:hidden;"@if($openFirst && $index === 0) open @endif>
             <summary style="padding:1.25rem 0;cursor:pointer;font-family:var(--font-heading,inherit);font-weight:var(--heading-weight,600);font-size:var(--font-size-lg,1.125rem);letter-spacing:var(--letter-spacing-heading,0);list-style:none;display:flex;align-items:center;justify-content:space-between;color:var(--color-heading,var(--color-text,#1e293b));transition:opacity 0.3s;">
-                <span @if($titleTextShadow) style="text-shadow:{{ $titleTextShadow }}" @endif>{{ $item['title'] ?? '' }}</span>
+                <span{!! sp_editable($__blockId ?? '', "items.{$index}.title", 'text') !!} @if($titleTextShadow) style="text-shadow:{{ $titleTextShadow }}" @endif>{{ $item['title'] ?? '' }}</span>
                 <span style="font-size:0.75rem;color:var(--color-text-muted,#64748b);letter-spacing:0.1em;text-transform:uppercase;font-family:var(--font-body,inherit);font-weight:400;">open</span>
             </summary>
-            <div style="padding:0 0 2rem;line-height:var(--line-height-body,1.6);color:var(--color-text,#1e293b);">
+            <div{!! sp_editable($__blockId ?? '', "items.{$index}.content", 'richtext') !!} style="padding:0 0 2rem;line-height:var(--line-height-body,1.6);color:var(--color-text,#1e293b);">
                 {!! $item['content'] ?? '' !!}
             </div>
         </details>

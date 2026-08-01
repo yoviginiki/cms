@@ -1,0 +1,63 @@
+<div class="breathing-pacer-block rr-app-tool rr-breath-tool  " data-advanced-at="20" style=""  >
+    <div class="tool-heading">
+        <div>
+            <p class="eyebrow">Практика</p>            <h2>Breathing pacer</h2>
+        </div>
+        <label class="sound-toggle"><input type="checkbox"  checked > Gentle cues</label>
+    </div>
+    <div class="pacer-stage" aria-live="polite">
+        <div class="breath-orb orb-in" style="--phase-time:3s">
+            <div class="orb-progress" style="--progress:0deg"></div>
+            <div class="orb-copy"><strong>Inhale</strong><span>3</span></div>
+        </div>
+        <div class="round-readout"><span>Round 1 / 5</span><span>about 1 min</span></div>
+    </div>
+    <div class="phase-settings">
+                                <label>
+                <span>Inhale</span>
+                <div class="stepper">
+                    <button type="button"  aria-label="Decrease Inhale">&minus;</button>
+                    <output>3s</output>
+                    <button type="button"  aria-label="Increase Inhale">+</button>
+                </div>
+                <input type="range" min="3" max="60" step="1"  aria-label="Inhale duration" value="3">
+            </label>
+                                <label>
+                <span>Hold gently</span>
+                <div class="stepper">
+                    <button type="button"  disabled  aria-label="Decrease Hold gently">&minus;</button>
+                    <output>3s</output>
+                    <button type="button"  disabled  aria-label="Increase Hold gently">+</button>
+                </div>
+                <input type="range" min="3" max="60" step="1"  disabled  aria-label="Hold gently duration" value="3">
+            </label>
+                                <label>
+                <span>Exhale</span>
+                <div class="stepper">
+                    <button type="button"  disabled  aria-label="Decrease Exhale">&minus;</button>
+                    <output>3s</output>
+                    <button type="button"  disabled  aria-label="Increase Exhale">+</button>
+                </div>
+                <input type="range" min="3" max="60" step="1"  disabled  aria-label="Exhale duration" value="3">
+            </label>
+                                <label>
+                <span>Rest empty</span>
+                <div class="stepper">
+                    <button type="button"  disabled  aria-label="Decrease Rest empty">&minus;</button>
+                    <output>3s</output>
+                    <button type="button"  disabled  aria-label="Increase Rest empty">+</button>
+                </div>
+                <input type="range" min="3" max="60" step="1"  disabled  aria-label="Rest empty duration" value="3">
+            </label>
+            </div>
+    <div class="round-settings">
+        <span>Rounds</span>
+                    <button type="button" class="">3</button>
+                    <button type="button" class="selected">5</button>
+                    <button type="button" class="">8</button>
+            </div>
+    <div class="tool-actions">
+        <button type="button" class="button button-ink">Start practice</button>
+        <button type="button" class="button button-quiet">Reset</button>
+    </div>
+</div>

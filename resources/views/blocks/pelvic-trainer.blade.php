@@ -27,7 +27,7 @@
     <script type="application/json" class="rr-config">@json($runtimeConfig)</script>
     <div class="pelvic-visual" data-phase="0"><span></span><span></span><span></span></div>
     <div class="pelvic-copy">
-        @if($eyebrow)<p class="eyebrow">{{ $eyebrow }}</p>@endif
+        @if($eyebrow)<p{!! sp_editable($__blockId ?? '', 'eyebrow', 'text') !!} class="eyebrow">{{ $eyebrow }}</p>@endif
         <h2>{{ $first['label'] ?? 'Arrive' }}</h2>
         <p>{{ $first['cue'] ?? '' }}</p>
         <strong>{{ (int) ($first['seconds'] ?? 8) }}s <small>· round 1/{{ $rounds }}</small></strong>

@@ -27,11 +27,11 @@
     .timeline-item::before { content: ''; position: absolute; left: -2rem; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--color-primary,#3b82f6); border: 2px solid #fff; box-shadow: 0 0 0 2px var(--color-border-strong,#d1d5db); }
 </style>
 <div class="timeline-block">
-    @foreach($items as $item)
+    @foreach($items as $i => $item)
         <div class="timeline-item">
-            <div style="font-size:0.75rem;color:var(--color-text-muted,#64748b);margin-bottom:0.25rem;">{{ $item['date'] ?? '' }}</div>
-            <div style="font-weight:600;{{ $titleTextShadow ? "text-shadow:{$titleTextShadow};" : '' }}">{{ $item['title'] ?? '' }}</div>
-            <div style="color:var(--color-text-muted,#6b7280);font-size:0.875rem;">{{ $item['description'] ?? '' }}</div>
+            <div{!! sp_editable($__blockId ?? '', "items.{$i}.date", 'text') !!} style="font-size:0.75rem;color:var(--color-text-muted,#64748b);margin-bottom:0.25rem;">{{ $item['date'] ?? '' }}</div>
+            <div{!! sp_editable($__blockId ?? '', "items.{$i}.title", 'text') !!} style="font-weight:600;{{ $titleTextShadow ? "text-shadow:{$titleTextShadow};" : '' }}">{{ $item['title'] ?? '' }}</div>
+            <div{!! sp_editable($__blockId ?? '', "items.{$i}.description", 'text') !!} style="color:var(--color-text-muted,#6b7280);font-size:0.875rem;">{{ $item['description'] ?? '' }}</div>
         </div>
     @endforeach
 </div>

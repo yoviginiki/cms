@@ -54,7 +54,7 @@
     $textShadow = $tsShadowPresets[$data['textShadow'] ?? ''] ?? '';
 @endphp
 <div style="{{ $gridStyle }}">
-    @foreach($items as $item)
+    @foreach($items as $i => $item)
         <blockquote style="border:1px solid {{ $cardBorderColor }};border-radius:{{ $cardRadius }};padding:1.5rem;margin-bottom:{{ $layout === 'grid' ? '0' : '1rem' }};{{ $cardBgColor ? "background-color:{$cardBgColor};" : '' }}{{ $cardShadow ? "box-shadow:{$cardShadow};" : '' }}">
             <p style="font-style:italic;color:{{ $quoteColor }};margin-bottom:1rem;{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">&ldquo;{{ $item['quote'] ?? '' }}&rdquo;</p>
             <div style="display:flex;align-items:center;gap:0.75rem;">
@@ -62,8 +62,8 @@
                     <img class="img-filtered" src="{{ $item['avatar'] }}" alt="" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover;{{ $__imageFilter }}" />
                 @endif
                 <div>
-                    <cite style="display:block;font-style:normal;font-weight:600;{{ $authorColor ? "color:{$authorColor};" : '' }}{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['author'] ?? '' }}</cite>
-                    <div style="color:var(--color-text-muted,#64748b);font-size:0.875rem;">{{ $item['role'] ?? '' }}</div>
+                    <cite{!! sp_editable($__blockId ?? '', "items.{$i}.author", 'text') !!} style="display:block;font-style:normal;font-weight:600;{{ $authorColor ? "color:{$authorColor};" : '' }}{{ $textShadow ? "text-shadow:{$textShadow};" : '' }}">{{ $item['author'] ?? '' }}</cite>
+                    <div{!! sp_editable($__blockId ?? '', "items.{$i}.role", 'text') !!} style="color:var(--color-text-muted,#64748b);font-size:0.875rem;">{{ $item['role'] ?? '' }}</div>
                 </div>
             </div>
         </blockquote>

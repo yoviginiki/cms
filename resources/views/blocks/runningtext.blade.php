@@ -20,7 +20,7 @@
     $columnRule = $data['columnRule'] ?? false;
 @endphp
 
-<div style="column-count: {{ $columns }}; column-gap: {{ $columnGap }};{{ $columnRule ? ' column-rule: 1px solid var(--color-border);' : '' }}">
+<div{!! sp_editable($__blockId ?? '', 'content', 'richtext') !!} style="column-count: {{ $columns }}; column-gap: {{ $columnGap }};{{ $columnRule ? ' column-rule: 1px solid var(--color-border);' : '' }}">
     {!! $content !!}
 </div>
 

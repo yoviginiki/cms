@@ -54,7 +54,7 @@
     $fitStyle = ($objectFit ? "object-fit:{$objectFit};" : '') . ($objectPosition ? "object-position:{$objectPosition};" : '');
     $imgStyle = trim($fitStyle . ($__imageFilter ?: ''));
 @endphp
-<figure class="image-block"@if($size !== 'full') style="max-width: {{ $maxWidth }};"@endif>
+<figure{!! sp_editable($__blockId ?? '', 'url', 'image') !!} class="image-block"@if($size !== 'full') style="max-width: {{ $maxWidth }};"@endif>
     @if(!empty($url))
         @php
             // Blade won't compile a directive glued to a word ("400w@if"), so

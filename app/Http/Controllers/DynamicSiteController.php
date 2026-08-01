@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Domain\Grid\Services\GridResolver;
 use App\Domain\Publishing\Services\BuildPageService;
+use App\Domain\Publishing\Rendering\RenderContext;
+use App\Domain\Publishing\Rendering\RenderMode;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class DynamicSiteController extends Controller
 {
@@ -259,7 +262,15 @@ class DynamicSiteController extends Controller
                 ->find($overrideId);
         }
 
-        $html = $this->buildService->build($content, $site->theme, $site, isPreview: true, gridOverride: $gridOverride);
+        // Inline edit mode — gated on ?sp_edit=1 AND the update ability
+        // (provisional gate; Phase 4 swaps it for page.inline_edit). Renders the
+        // SAME preview through RenderMode::Edit so partials emit data-sp-*.
+        $editMode = request()->query('sp_edit') === '1' && Gate::allows('inlineEdit', $content);
+
+        $build = fn () => $this->buildService->build($content, $site->theme, $site, isPreview: true, gridOverride: $gridOverride);
+        $html = $editMode
+            ? app(RenderContext::class)->runIn(RenderMode::Edit, $build)
+            : $build();
 
         // Rewrite internal links for the dynamic preview prefix
         // /about → /sites/cytechno/about, / → /sites/cytechno/
@@ -281,6 +292,11 @@ class DynamicSiteController extends Controller
         if (request()->query('_toolbar') !== '0') {
             $toolbar = $this->buildToolbar($content, $site, $grid);
             $html = str_replace('</body>', $toolbar . '</body>', $html);
+        }
+
+        // Inline-edit overlay + toolbar — only in edit mode, lazily loaded.
+        if ($editMode) {
+            $html = str_replace('</body>', $this->inlineEditAssets($content, $site) . '</body>', $html);
         }
 
         return response($html, 200)
@@ -337,6 +353,35 @@ class DynamicSiteController extends Controller
             },
             $html
         );
+    }
+
+    /**
+     * Config + lazy loaders for the inline-edit overlay and its parent-side
+     * toolbar. Injected only in edit mode.
+     */
+    private function inlineEditAssets(Page|Post $content, Site $site): string
+    {
+        $type = $content instanceof Post ? 'post' : 'page';
+        $editUrl = "/admin/sites/{$site->id}/{$type}s/{$content->id}/edit";
+
+        // apiBase drives the inline save/session endpoints. Only pages have the
+        // inline API (and edit mode is gated to pages via inlineEdit), so this
+        // is a page-scoped URL; null for anything else.
+        $apiBase = $content instanceof Page
+            ? "/api/v1/sites/{$site->id}/pages/{$content->id}/inline"
+            : null;
+
+        $config = json_encode([
+            'pageId' => $content->id,
+            'versionId' => null,
+            'parentOrigin' => rtrim(config('app.url'), '/'),
+            'editUrl' => $editUrl,
+            'apiBase' => $apiBase,
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+        return '<script>window.__SP_EDIT=' . $config . ';</script>'
+            . '<script src="/inline-edit/overlay.js" defer></script>'
+            . '<script src="/inline-edit/toolbar.js" defer></script>';
     }
 
     /**

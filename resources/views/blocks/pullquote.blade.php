@@ -22,7 +22,7 @@
 @endphp
 
 <figure class="pullquote pullquote--{{ $style }}">
-    <blockquote @if($textShadow) style="text-shadow:{{ $textShadow }}" @endif>{{ $text }}</blockquote>
+    <blockquote{!! sp_editable($__blockId ?? '', 'text', 'text') !!} @if($textShadow) style="text-shadow:{{ $textShadow }}" @endif>{{ $text }}</blockquote>
     @if($attribution)
         <figcaption><cite style="font-style:normal;">{{ $attribution }}</cite></figcaption>
     @endif

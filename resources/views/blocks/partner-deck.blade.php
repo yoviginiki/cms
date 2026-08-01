@@ -25,7 +25,7 @@
 <div class="partner-deck-block rr-app-tool rr-partner-deck {{ $__customClass }} {{ $__hideOn['scopeClass'] }}" style="{{ $__sharedStyle }}" @if($__htmlId) id="{{ $__htmlId }}" @endif @if($__animAttr) data-animation="{{ $__animAttr }}" @endif>
     <script type="application/json" class="rr-config">@json($runtimeConfig)</script>
     <div class="deck-number">01</div>
-    @if($eyebrow)<p class="eyebrow">{{ $eyebrow }}</p>@endif
+    @if($eyebrow)<p{!! sp_editable($__blockId ?? '', 'eyebrow', 'text') !!} class="eyebrow">{{ $eyebrow }}</p>@endif
     <h2>{{ $first['title'] ?? '' }}</h2>
     <p>{{ $first['body'] ?? '' }}</p>
     <div class="tool-actions">

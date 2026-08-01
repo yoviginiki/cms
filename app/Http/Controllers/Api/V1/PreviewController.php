@@ -9,10 +9,13 @@ use App\Models\Block;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Site;
+use App\Domain\Publishing\Rendering\RenderContext;
+use App\Domain\Publishing\Rendering\RenderMode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 
@@ -31,7 +34,7 @@ class PreviewController extends Controller
     {
         $this->authorize('view', $site);
 
-        $html = $this->renderPreview($page, $site);
+        $html = $this->renderPreview($page, $site, $this->editModeFor($page));
 
         return response($html, 200)
             ->header('Content-Type', 'text/html')
@@ -46,7 +49,7 @@ class PreviewController extends Controller
     {
         $this->authorize('view', $site);
 
-        $html = $this->renderPreview($post, $site);
+        $html = $this->renderPreview($post, $site, $this->editModeFor($post));
 
         return response($html, 200)
             ->header('Content-Type', 'text/html')
@@ -141,10 +144,31 @@ class PreviewController extends Controller
     /**
      * Render preview HTML with postMessage listener for live updates.
      */
-    private function renderPreview(Page|Post $content, Site $site): string
+    /**
+     * Decide whether inline edit mode is allowed for this request.
+     *
+     * Gated on the explicit ?sp_edit=1 flag AND the caller's ability to update
+     * the content. The update ability is a provisional gate; Phase 4 replaces it
+     * with the dedicated page.inline_edit ability.
+     */
+    private function editModeFor(Page|Post $content): bool
+    {
+        return request()->query('sp_edit') === '1' && Gate::allows('inlineEdit', $content);
+    }
+
+    private function renderPreview(Page|Post $content, Site $site, bool $editMode = false): string
     {
         $site->load('theme');
-        $html = $this->buildService->build($content, $site->theme, $site);
+
+        // Edit mode renders the SAME page through RenderMode::Edit so block
+        // partials emit data-sp-* addressing. The publish/view path never sets
+        // this, so its bytes are unchanged.
+        $html = $editMode
+            ? app(RenderContext::class)->runIn(
+                RenderMode::Edit,
+                fn () => $this->buildService->build($content, $site->theme, $site),
+            )
+            : $this->buildService->build($content, $site->theme, $site);
 
         // Inject preview script for live updates via postMessage
         $previewScript = <<<'JS'
@@ -174,6 +198,12 @@ JS;
         // Insert preview script before </body>
         $html = str_replace('</body>', $previewScript . '</body>', $html);
 
+        // Inline-edit overlay — lazily injected only in edit mode, from the
+        // admin origin. Nothing here on the plain preview/view path.
+        if ($editMode) {
+            $html = str_replace('</body>', $this->overlayBootstrap($content) . '</body>', $html);
+        }
+
         // Experience Mode runtime — inject when cinematic or ?experience=1
         $isExperience = ($content->experience_mode ?? 'standard') === 'cinematic'
             || request()->query('experience') === '1';
@@ -185,6 +215,21 @@ JS;
         }
 
         return $html;
+    }
+
+    /**
+     * Bootstrap config + lazy loader for the inline-edit overlay bundle.
+     */
+    private function overlayBootstrap(Page|Post $content): string
+    {
+        $config = json_encode([
+            'pageId' => $content->id,
+            'versionId' => null,
+            'parentOrigin' => rtrim(config('app.url'), '/'),
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+        return '<script>window.__SP_EDIT=' . $config . ';</script>'
+            . '<script src="/inline-edit/overlay.js" defer></script>';
     }
 
     /**

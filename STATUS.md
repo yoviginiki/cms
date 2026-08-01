@@ -780,3 +780,34 @@ All three fixes shipped to prod (merges into main master, php-fpm reloaded) with
 ### Result
 
 The Art Shop demo was built **end-to-end through the CMS's own functions** and is **live at https://ensodo.eu/artshop/**. Every gap the demo hit was a real platform bug, fixed in the platform (not hand-coded around) with a regression test, then the demo resumed through the UI path — exactly the intended bug-hunt outcome. Post-session STATUS ratings for the demo-critical areas (hierarchy, query UI, forms, wizards, import, docs) are all **WORKING**, now proven by a live acceptance build.
+
+---
+
+## Inline Edit Layer (quick-fix editing over preview) — 2026-07-31
+
+Additive layer over the page preview. Published output is byte-identical
+(`RenderMode::Publish`); everything lives in `RenderMode::Edit`.
+
+| Компонент | Статус | Оценка | Известни проблеми |
+|---|---|---|---|
+| RenderMode + `sp_editable()` (Phase 1 + rollout) | Complete | 9/10 | 25 блока (20 flat + 5 NESTED: accordion/testimonial/stats/timeline/featuregrid); nested addressing поддържа items.*.field; останалите ~78 partial-а (предимно структурни/динамични/споделени — не са кандидати) |
+| Overlay runtime `overlay.js` (Phase 2) | Complete | 8/10 | Toolbar формат = `execCommand` (deprecated, best-effort) |
+| Web-preview host + `toolbar.js` (Phase 2) | Complete | 8/10 | Vanilla, НЕ React; `PreviewPane.tsx` е мъртъв код и не се ползва |
+| Save/Draft/Export API (Phase 3) | Complete | 8/10 | Валидацията е по-строга от Page Editor (per-field), не идентична; feature тестове чакат тестова база |
+| RBAC abilities (Phase 4) | Complete | 7/10 | `author` не може inline edit (няма `pages.author_id`); `inlinePublish` дефинирано, но няма endpoint |
+| Audit gate (Phase 5) | Partial | 7/10 | DB-backed Playwright сценарии (1,2,4) чакат тестова база |
+
+### Доказани (изпълнени в тази сесия)
+- **Publish regression: PASS** — 3-те pilot блока byte-for-byte идентични с pre-Phase-1 snapshot (292/253/510B).
+- **Slow-3G FCP: PASS** — 488ms (без edit) → 528ms (с edit), delta +40ms; overlay (defer+lazy) не блокира render.
+- **Overlay bundle: 4.6KB gzipped** (overlay 2.85KB + toolbar 2.33KB).
+- **Overlay↔parent контракт: 14/14** (iframe topology) + **8/8** (single-doc web-preview topology).
+- **Write rules DB-free: 16/16** — 422 непознат/reserved/deep/invalid, 403 shared-entity, 409 hash-lock, sanitize reuse.
+- **RBAC матрица DB-free: 16/16** — viewer/author deny, editor edit-only, admin/owner full, cross-tenant deny.
+- **Locked affordance: 4/4** — shared-entity поле → не-editable + tooltip "Редактирай в библиотеката".
+- **End-to-end save loop: 10/10** — `toolbar.js` вика `POST inline/session`, autosave (debounce 2s / immediate on blur) → `PATCH inline/blocks` с `expected_version` + `block_hash`; 200 → "Записано ✓", 409 → "Конфликт" + overlay маркира полето (`sp-conflict`).
+
+### Известни отклонения от брифа (честно)
+1. **Rich text се изпраща като sanitized HTML, НЕ през TipTap сериализатора.** Web-preview повърхността е vanilla (няма TipTap инстанция — той живее в React admin bundle-а). Съхраняваният формат е идентичен (HTML string на `block.data.content`, същия като TipTap) и минава през същия rich-text HTMLPurifier конфиг + клиентски whitelist (b/i/a/br/strong/em), така че allowed-tag set-ът е детерминистичен. Но не е буквално `WysiwygEditor.getHTML()`. Single-source-of-truth се пази на ниво storage формат, не на ниво serializer call.
+2. **`author` роля не може inline edit** — минималният RBAC вариант; изисква `pages.author_id` ownership колона за "author редактира собствените си страници" (брифът 4.3).
+3. **Няма тестова база** (`.env.testing` липсва, `.env` е production) — feature/integration тестовете (`tests/Feature/InlineEdit/*`) са CI-ready но не пуснати в тази сесия; логиката е доказана DB-free чрез unit тестове + standalone харнеси.
