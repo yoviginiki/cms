@@ -97,6 +97,32 @@
     el.classList.add('sp-locked');
   }
 
+  // Open the real React asset library (AssetPicker) as a popup and apply the
+  // chosen asset when it posts back. Returns false if the popup was blocked.
+  function openAssetPicker(el, f) {
+    var popup = window.open(CONFIG.assetPickerUrl, 'sp-asset-picker', 'width=920,height=760,scrollbars=yes,resizable=yes');
+    if (!popup) return false;
+
+    function onMsg(ev) {
+      if (ev.origin !== PARENT_ORIGIN) return;
+      if (!ev.data || ev.data.source !== 'sp-asset-picker' || !ev.data.url) return;
+      window.removeEventListener('message', onMsg);
+      applyImage(el, f, ev.data.url, ev.data.assetId);
+    }
+    window.addEventListener('message', onMsg);
+    return true;
+  }
+
+  function applyImage(el, f, url, assetId) {
+    var img = el.tagName === 'IMG' ? el : el.querySelector('img');
+    if (img) img.src = url;
+    el.setAttribute('data-sp-image', url);
+    if (assetId) el.setAttribute('data-sp-asset', assetId);
+    // Persist through the normal dirty/blur path (the image field is 'url').
+    send('sp:field:dirty', { block: f.block, field: f.field, value: url });
+    send('sp:field:blur', { block: f.block, field: f.field, value: url });
+  }
+
   function enableEl(el) {
     var f = fieldsFor(el);
     el.classList.add('sp-editable');
@@ -111,6 +137,10 @@
       el.style.cursor = 'pointer';
       el.addEventListener('click', function (ev) {
         ev.preventDefault();
+        // Open the real library popup straight from the click (keeps the user
+        // gesture so it isn't blocked). Falls back to the parent shell if no
+        // picker is configured or the popup is blocked.
+        if (CONFIG.assetPickerUrl && openAssetPicker(el, f)) return;
         send('sp:image:request', { block: f.block, field: f.field });
       });
       return;

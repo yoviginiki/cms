@@ -374,6 +374,7 @@ class DynamicSiteController extends Controller
             'parentOrigin' => rtrim(config('app.url'), '/'),
             'editUrl' => $editUrl,
             'apiBase' => $apiBase,
+            'assetPickerUrl' => "/admin/sites/{$site->id}/asset-picker",
         ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
         return '<script>window.__SP_EDIT=' . $config . ';</script>'
