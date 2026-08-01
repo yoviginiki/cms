@@ -31,6 +31,7 @@ const FrozenLegacyEditor = () => (
   </div>
 );
 const Assets = lazy(() => import('./pages/Assets'));
+const AssetPickerPopup = lazy(() => import('./pages/AssetPickerPopup'));
 const SiteSettings = lazy(() => import('./pages/SiteSettings'));
 const ImportPage = lazy(() => import('./pages/ImportPage'));
 const MigrationPage = lazy(() => import('./pages/MigrationPage'));
@@ -124,6 +125,7 @@ export default function App() {
           <Route path="/sites/:siteId/grids/assignments" element={<LayoutRoute><GridAssignments /></LayoutRoute>} />
           <Route path="/sites/:siteId/grids/:gridId/edit" element={<GridEditor />} />
           <Route path="/sites/:siteId/assets" element={<LayoutRoute><Assets /></LayoutRoute>} />
+          <Route path="/sites/:siteId/asset-picker" element={<AssetPickerPopup />} />
           <Route path="/sites/:siteId/templates" element={<LayoutRoute><Templates /></LayoutRoute>} />
           <Route path="/sites/:siteId/templates/:templateId/edit" element={<TemplateEditor />} />
           <Route path="/sites/:siteId/theme-engine" element={<LayoutRoute><ThemeEngine /></LayoutRoute>} />

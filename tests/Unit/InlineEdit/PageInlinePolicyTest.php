@@ -3,9 +3,11 @@
 namespace Tests\Unit\InlineEdit;
 
 use App\Models\Page;
+use App\Models\Post;
 use App\Models\Site;
 use App\Models\User;
 use App\Policies\PagePolicy;
+use App\Policies\PostPolicy;
 use Illuminate\Contracts\Console\Kernel;
 use PHPUnit\Framework\TestCase;
 
@@ -99,5 +101,36 @@ final class PageInlinePolicyTest extends TestCase
         $crossTenantOwn = $this->page('t2');
         $crossTenantOwn->author_id = 'author-1';
         $this->assertFalse($this->policy->inlineEdit($author, $crossTenantOwn), 'author owns but cross-tenant');
+    }
+
+    /**
+     * @dataProvider matrix
+     */
+    public function test_post_same_tenant_matrix(string $role, bool $edit, bool $publish): void
+    {
+        $policy = new PostPolicy();
+        $post = new Post();
+        $post->setRelation('site', new Site(['tenant_id' => 't1']));
+        $user = $this->user($role, 't1');
+
+        $this->assertSame($edit, $policy->inlineEdit($user, $post), "post $role inlineEdit");
+        $this->assertSame($publish, $policy->inlinePublish($user, $post), "post $role inlinePublish");
+    }
+
+    public function test_post_author_can_inline_edit_only_own_post(): void
+    {
+        $policy = new PostPolicy();
+        $author = $this->user('author', 't1');
+        $author->id = 'author-1';
+
+        $own = new Post();
+        $own->setRelation('site', new Site(['tenant_id' => 't1']));
+        $own->author_id = 'author-1';
+        $this->assertTrue($policy->inlineEdit($author, $own), 'author owns post');
+
+        $others = new Post();
+        $others->setRelation('site', new Site(['tenant_id' => 't1']));
+        $others->author_id = 'someone-else';
+        $this->assertFalse($policy->inlineEdit($author, $others), "author, others' post");
     }
 }

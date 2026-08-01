@@ -37,6 +37,17 @@ class BuildPageService
     /** per-build style-preset resolver (lazy; caches presets for this build) */
     private ?\App\Domain\Blocks\Services\StylePresetResolver $presetResolver = null;
 
+    /**
+     * Content blocks that are NOT inline-editable (raw HTML / media / shared
+     * entities). In edit mode they are tagged data-sp-locked so the overlay
+     * shows an "edit in Page Editor" affordance instead of doing nothing.
+     */
+    private const INLINE_LOCKED_TYPES = [
+        'html-embed', 'code', 'gallery', 'flipbook', 'audio', 'map', 'beforeafter',
+        'table', 'catalog', 'logostrip', 'socialembed', 'sharebuttons', 'icon',
+        'slider_ref', 'global_ref', 'menu',
+    ];
+
     private function presetResolver(): \App\Domain\Blocks\Services\StylePresetResolver
     {
         return $this->presetResolver ??= new \App\Domain\Blocks\Services\StylePresetResolver();
@@ -534,6 +545,21 @@ HTML;
         if ($respStyleCss['css']) {
             $rendered = '<style>' . $respStyleCss['css'] . '</style>'
                 . '<div class="' . $respStyleCss['scopeClass'] . '">' . $rendered . '</div>';
+        }
+
+        // Inline edit — mark non-editable content blocks as locked so the
+        // overlay can show an "edit in Page Editor" hint instead of nothing.
+        // Edit mode only; the publish path never sets it, so bytes are unchanged.
+        if (
+            in_array($block->type, self::INLINE_LOCKED_TYPES, true)
+            && app(\App\Domain\Publishing\Rendering\RenderContext::class)->isEdit()
+        ) {
+            $rendered = preg_replace(
+                '/<div class="' . preg_quote($block->type, '/') . '-block/',
+                '<div data-sp-block="' . $block->id . '" data-sp-locked="1" class="' . $block->type . '-block',
+                $rendered,
+                1,
+            );
         }
 
         return $rendered;

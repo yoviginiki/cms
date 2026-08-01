@@ -290,7 +290,7 @@ class DynamicSiteController extends Controller
 
         // Inject admin toolbar (?_toolbar=0 hides it, e.g. inside admin iframes)
         if (request()->query('_toolbar') !== '0') {
-            $toolbar = $this->buildToolbar($content, $site, $grid);
+            $toolbar = $this->buildToolbar($content, $site, $grid, $editMode);
             $html = str_replace('</body>', $toolbar . '</body>', $html);
         }
 
@@ -364,12 +364,9 @@ class DynamicSiteController extends Controller
         $type = $content instanceof Post ? 'post' : 'page';
         $editUrl = "/admin/sites/{$site->id}/{$type}s/{$content->id}/edit";
 
-        // apiBase drives the inline save/session endpoints. Only pages have the
-        // inline API (and edit mode is gated to pages via inlineEdit), so this
-        // is a page-scoped URL; null for anything else.
-        $apiBase = $content instanceof Page
-            ? "/api/v1/sites/{$site->id}/pages/{$content->id}/inline"
-            : null;
+        // apiBase drives the inline save/session endpoints — pages and posts
+        // both have the inline API ($type is 'page' or 'post').
+        $apiBase = "/api/v1/sites/{$site->id}/{$type}s/{$content->id}/inline";
 
         $config = json_encode([
             'pageId' => $content->id,
@@ -377,6 +374,7 @@ class DynamicSiteController extends Controller
             'parentOrigin' => rtrim(config('app.url'), '/'),
             'editUrl' => $editUrl,
             'apiBase' => $apiBase,
+            'assetPickerUrl' => "/admin/sites/{$site->id}/asset-picker",
         ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
         return '<script>window.__SP_EDIT=' . $config . ';</script>'
@@ -387,9 +385,23 @@ class DynamicSiteController extends Controller
     /**
      * Build admin toolbar HTML injected into every page.
      */
-    private function buildToolbar(Page|Post $content, Site $site, $grid): string
+    private function buildToolbar(Page|Post $content, Site $site, $grid, bool $editMode = false): string
     {
         $user = Auth::user();
+
+        // Inline-edit toggle — for pages and posts, only for users who may
+        // inline-edit. Toggles ?sp_edit=1 on this same preview URL.
+        $inlineBtn = '';
+        if (Gate::allows('inlineEdit', $content)) {
+            if ($editMode) {
+                $exit = e(request()->fullUrlWithoutQuery(['sp_edit']));
+                $inlineBtn = '<a href="' . $exit . '" style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#22c55e;color:#052e16;border-radius:6px;text-decoration:none;font-size:12px;font-weight:700;">✓ Изход от редакция</a>';
+            } else {
+                $enter = e(request()->fullUrlWithQuery(['sp_edit' => '1']));
+                $inlineBtn = '<a href="' . $enter . '" style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">✏️ Редактирай на място</a>';
+            }
+        }
+
         $type = $content instanceof Post ? 'post' : 'page';
         $typeLabel = $content instanceof Post ? 'Пост' : 'Страница';
         $editUrl = "/admin/sites/{$site->id}/{$type}s/{$content->id}/edit";
@@ -425,9 +437,10 @@ class DynamicSiteController extends Controller
   <span style="color:#94a3b8;">Grid: <a href="{$gridEditUrl}" style="color:#a78bfa;text-decoration:none;" target="_blank">{$gridName}</a></span>
   {$categoryHtml}
   <span style="flex:1;"></span>
+  {$inlineBtn}
   <a href="{$editUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#3b82f6;color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-    Редактирай
+    Page Editor
   </a>
   <a href="/admin/sites/{$site->id}" target="_blank" style="padding:4px 12px;background:#334155;color:#94a3b8;border-radius:6px;text-decoration:none;font-size:12px;">Dashboard</a>
   <span style="color:#64748b;font-size:11px;">{$user?->name}</span>

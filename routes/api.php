@@ -222,6 +222,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/pages/{page}/inline/draft', [InlineEditController::class, 'draft']);
         Route::post('sites/{site}/pages/{page}/inline/publish', [InlineEditController::class, 'publish']);
         Route::get('sites/{site}/pages/{page}/inline/export', [InlineEditController::class, 'export']);
+        Route::post('sites/{site}/posts/{post}/inline/session', [InlineEditController::class, 'sessionPost']);
+        Route::patch('sites/{site}/posts/{post}/inline/blocks', [InlineEditController::class, 'patchBlocksPost']);
+        Route::post('sites/{site}/posts/{post}/inline/draft', [InlineEditController::class, 'draftPost']);
+        Route::post('sites/{site}/posts/{post}/inline/publish', [InlineEditController::class, 'publishPost']);
+        Route::get('sites/{site}/posts/{post}/inline/export', [InlineEditController::class, 'exportPost']);
 
         // Assets
         Route::apiResource('sites.assets', AssetController::class);
