@@ -364,12 +364,9 @@ class DynamicSiteController extends Controller
         $type = $content instanceof Post ? 'post' : 'page';
         $editUrl = "/admin/sites/{$site->id}/{$type}s/{$content->id}/edit";
 
-        // apiBase drives the inline save/session endpoints. Only pages have the
-        // inline API (and edit mode is gated to pages via inlineEdit), so this
-        // is a page-scoped URL; null for anything else.
-        $apiBase = $content instanceof Page
-            ? "/api/v1/sites/{$site->id}/pages/{$content->id}/inline"
-            : null;
+        // apiBase drives the inline save/session endpoints — pages and posts
+        // both have the inline API ($type is 'page' or 'post').
+        $apiBase = "/api/v1/sites/{$site->id}/{$type}s/{$content->id}/inline";
 
         $config = json_encode([
             'pageId' => $content->id,
@@ -391,10 +388,10 @@ class DynamicSiteController extends Controller
     {
         $user = Auth::user();
 
-        // Inline-edit toggle — pages only, and only for users who may inline-edit.
-        // Enters/leaves edit mode by toggling ?sp_edit=1 on this same preview URL.
+        // Inline-edit toggle — for pages and posts, only for users who may
+        // inline-edit. Toggles ?sp_edit=1 on this same preview URL.
         $inlineBtn = '';
-        if ($content instanceof Page && Gate::allows('inlineEdit', $content)) {
+        if (Gate::allows('inlineEdit', $content)) {
             if ($editMode) {
                 $exit = e(request()->fullUrlWithoutQuery(['sp_edit']));
                 $inlineBtn = '<a href="' . $exit . '" style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#22c55e;color:#052e16;border-radius:6px;text-decoration:none;font-size:12px;font-weight:700;">✓ Изход от редакция</a>';

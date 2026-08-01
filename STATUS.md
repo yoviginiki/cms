@@ -794,7 +794,7 @@ Additive layer over the page preview. Published output is byte-identical
 | Overlay runtime `overlay.js` (Phase 2) | Complete | 8/10 | Toolbar формат = `execCommand` (deprecated, best-effort) |
 | Web-preview host + `toolbar.js` (Phase 2) | Complete | 8/10 | Vanilla, НЕ React; `PreviewPane.tsx` е мъртъв код и не се ползва |
 | Save/Draft/Export API (Phase 3) | Complete | 8/10 | Валидацията е по-строга от Page Editor (per-field), не идентична; feature тестове чакат тестова база |
-| RBAC abilities (Phase 4) | Complete | 7/10 | `author` не може inline edit (няма `pages.author_id`); `inlinePublish` дефинирано, но няма endpoint |
+| RBAC abilities (Phase 4) + posts | Complete | 7/10 | `author` не може inline edit (няма `pages.author_id`); `inlinePublish` дефинирано, но няма endpoint |
 | Audit gate (Phase 5) | Partial | 7/10 | DB-backed Playwright сценарии (1,2,4) чакат тестова база |
 
 ### Доказани (изпълнени в тази сесия)
