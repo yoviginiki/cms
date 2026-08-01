@@ -46,8 +46,14 @@ echo -e "${CYAN}  Block Audit — Ensodo CMS Platform${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
 echo ""
 
-# Get all frontend block folders (excluding .ts files like registry.ts, index.ts)
-FRONTEND_BLOCKS=$(ls "$FRONTEND_DIR" | grep -v '\.ts$' | sort)
+# Get all frontend block folders. Real blocks are DIRECTORIES; skip loose files
+# (e.g. appToolPreview.tsx) and shared-helper folders that aren't block types.
+BLOCK_IGNORE="collections-shared"
+FRONTEND_BLOCKS=$(cd "$FRONTEND_DIR" && for d in */; do
+  d="${d%/}"
+  case " $BLOCK_IGNORE " in *" $d "*) continue ;; esac
+  echo "$d"
+done | sort)
 
 # Get all blade templates
 BLADE_BLOCKS=$(ls "$BLADE_DIR"/*.blade.php 2>/dev/null | xargs -I{} basename {} .blade.php | sort)
