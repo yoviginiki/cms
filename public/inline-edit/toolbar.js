@@ -117,7 +117,8 @@
       '.sp-editable{outline:1px dashed #6366f1;outline-offset:2px;transition:outline-color .15s}' +
       '.sp-editable:hover{outline-color:#818cf8}' +
       '.sp-editable:focus{outline:2px solid #6366f1}' +
-      '.sp-locked{opacity:.75;cursor:not-allowed}' +
+      '.sp-locked{outline:1px dashed #94a3b8;outline-offset:2px;cursor:not-allowed}' +
+      '.sp-locked:hover{outline-color:#64748b}' +
       '#sp-toolbar{position:fixed;z-index:2147483000;display:none;align-items:center;gap:4px;' +
       'background:#111827;color:#fff;padding:6px 8px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.35);' +
       'font:13px system-ui,-apple-system,sans-serif}' +

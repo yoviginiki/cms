@@ -174,9 +174,36 @@
     el.classList.remove('sp-editable', 'sp-locked');
   }
 
+  // Whole blocks that aren't inline-editable (raw HTML / media / shared
+  // entities) carry data-sp-locked but no data-sp-field.
+  function lockedEls() {
+    return Array.prototype.slice.call(document.querySelectorAll('[data-sp-locked="1"]:not([data-sp-field])'));
+  }
+
+  function enableLocked(el) {
+    el.classList.add('sp-locked');
+    el.setAttribute('title', 'Редактирай в Page Editor');
+    el.style.cursor = 'not-allowed';
+    if (!el.__spLockClick) {
+      el.__spLockClick = function (ev) { ev.preventDefault(); ev.stopPropagation(); };
+      el.addEventListener('click', el.__spLockClick, true);
+    }
+  }
+
+  function disableLocked(el) {
+    el.classList.remove('sp-locked');
+    el.removeAttribute('title');
+    el.style.cursor = '';
+    if (el.__spLockClick) {
+      el.removeEventListener('click', el.__spLockClick, true);
+      el.__spLockClick = null;
+    }
+  }
+
   function setMode(mode) {
     editing = mode === 'edit';
     editableEls().forEach(editing ? enableEl : disableEl);
+    lockedEls().forEach(editing ? enableLocked : disableLocked);
   }
 
   // ---- parent → overlay --------------------------------------------------
