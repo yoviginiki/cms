@@ -46,9 +46,9 @@
     $sizeStyle = $sizeMode === 'width' ? "width:{$logoSize}px;height:auto;" : "height:{$logoSize}px;width:auto;";
 @endphp
 <div class="logostrip-block" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:{{ e($gap) }};">
-    @foreach($logos as $url)
+    @foreach($logos as $i => $url)
         @if(!empty($url))
-            <img class="img-filtered" src="{{ e($url) }}" alt="" loading="lazy" style="{{ $sizeStyle }}object-fit:contain;@if($grayscale)filter:grayscale(100%);@endif{{ $__imageFilter }}">
+            <img{!! sp_editable($__blockId ?? '', "logos.{$i}", 'image') !!} class="img-filtered" src="{{ e($url) }}" alt="" loading="lazy" style="{{ $sizeStyle }}object-fit:contain;@if($grayscale)filter:grayscale(100%);@endif{{ $__imageFilter }}">
         @endif
     @endforeach
 </div>
