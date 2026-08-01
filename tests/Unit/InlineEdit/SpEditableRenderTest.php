@@ -70,6 +70,8 @@ final class SpEditableRenderTest extends TestCase
         'list' => ['listType' => 'bullet', 'items' => ['Едно', 'Две', 'Три']],
         'table' => ['headers' => ['Колона A', 'Колона B'], 'rows' => [['1', '2'], ['3', '4']]],
         'logostrip' => ['logos' => ['https://ex/a.png', 'https://ex/b.png']],
+        'pricingtable' => ['plans' => [['name' => 'Basic', 'price' => '$10', 'period' => '/мес', 'features' => ['A', 'B']], ['name' => 'Pro', 'price' => '$20', 'features' => ['C']]]],
+        'featurecomparison' => ['plans' => [['name' => 'Basic', 'price' => '$10'], ['name' => 'Pro', 'price' => '$20']], 'features' => [['name' => 'Ф1', 'values' => [true, false]], ['name' => 'Ф2', 'values' => ['да', 'не']]]],
     ];
 
     private const BLOCK_ID = '11111111-2222-3333-4444-555555555555';
@@ -104,6 +106,8 @@ final class SpEditableRenderTest extends TestCase
         'list' => ['items.0', 'text'],
         'table' => ['headers.0', 'text'],
         'logostrip' => ['logos.0', 'image'],
+        'pricingtable' => ['plans.0.name', 'text'],
+        'featurecomparison' => ['features.0.name', 'text'],
     ];
 
     public static function setUpBeforeClass(): void
@@ -163,6 +167,8 @@ final class SpEditableRenderTest extends TestCase
             'list' => ['list'],
             'table' => ['table'],
             'logostrip' => ['logostrip'],
+            'pricingtable' => ['pricingtable'],
+            'featurecomparison' => ['featurecomparison'],
         ];
     }
 

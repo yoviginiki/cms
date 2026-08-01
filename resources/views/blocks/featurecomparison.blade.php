@@ -22,10 +22,10 @@
         <thead>
             <tr>
                 <th style="text-align:left;padding:0.75rem;border-bottom:2px solid var(--color-border,#e2e8f0);color:var(--color-text-muted,#6b7280);font-weight:500;">Feature</th>
-                @foreach($plans as $plan)
+                @foreach($plans as $pi => $plan)
                     <th style="text-align:center;padding:0.75rem;border-bottom:2px solid var(--color-border,#e2e8f0);">
-                        <div style="font-weight:600;color:var(--color-heading,#1f2937);">{{ $plan['name'] ?? '' }}</div>
-                        <div style="font-size:0.75rem;color:var(--color-text-muted,#6b7280);">{{ $plan['price'] ?? '' }}</div>
+                        <div{!! sp_editable($__blockId ?? '', "plans.{$pi}.name", 'text') !!} style="font-weight:600;color:var(--color-heading,#1f2937);">{{ $plan['name'] ?? '' }}</div>
+                        <div{!! sp_editable($__blockId ?? '', "plans.{$pi}.price", 'text') !!} style="font-size:0.75rem;color:var(--color-text-muted,#6b7280);">{{ $plan['price'] ?? '' }}</div>
                     </th>
                 @endforeach
             </tr>
@@ -33,7 +33,7 @@
         <tbody>
             @foreach($features as $fi => $feat)
                 <tr style="{{ $fi % 2 === 0 ? 'background:var(--color-bg-alt,#f8fafc);' : '' }}">
-                    <td style="padding:0.75rem;color:var(--color-text,#374151);">{{ $feat['name'] ?? '' }}</td>
+                    <td{!! sp_editable($__blockId ?? '', "features.{$fi}.name", 'text') !!} style="padding:0.75rem;color:var(--color-text,#374151);">{{ $feat['name'] ?? '' }}</td>
                     @foreach(($feat['values'] ?? []) as $val)
                         <td style="text-align:center;padding:0.75rem;">
                             @if(is_bool($val))
