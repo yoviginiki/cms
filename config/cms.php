@@ -33,6 +33,31 @@ return [
         'max_tokens' => (int) env('AI_MAX_TOKENS', 2000),
     ],
 
+    'sumi' => [
+        // Kill-switch for the additive pgvector path (Sumi / RAG). OFF by
+        // default: the vector column / index stay inert (no dual-write, reads
+        // keep using the jsonb PHP-cosine path), so a host can carry the schema
+        // with zero added load until the operator opts in. Flip to true only
+        // after the extension + migrations are in place on that host.
+        'pgvector' => env('SUMI_PGVECTOR_ENABLED', false),
+
+        // Which embedding provider Sumi indexes/queries with. Both provider
+        // implementations stay in the codebase; this is the switch.
+        //   auto (default) → Voyage if services.voyage.key is set, else hash
+        //   voyage | ollama | hash
+        'embedder' => env('SUMI_EMBEDDER', 'auto'),
+        'hash_dims' => (int) env('SUMI_HASH_DIMS', 16),
+
+        // Local embeddings via Ollama. Default host is the Home PC on the
+        // WireGuard tunnel (bge-m3, 1024-dim, multilingual incl. Bulgarian).
+        'ollama' => [
+            'base_url' => env('OLLAMA_BASE_URL', 'http://10.10.0.2:11434'),
+            'model' => env('OLLAMA_EMBED_MODEL', 'bge-m3'),
+            'dims' => (int) env('OLLAMA_EMBED_DIMS', 1024),
+            'timeout' => (int) env('OLLAMA_TIMEOUT', 30),
+        ],
+    ],
+
     'issue_studio' => [
         // Sonnet drives the interview; Opus drives flatplan + spread generation.
         'model_interview' => env('ISSUE_STUDIO_MODEL_INTERVIEW', 'claude-sonnet-5'),

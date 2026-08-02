@@ -41,4 +41,10 @@ return [
         'key' => env('PEXELS_API_KEY'),
     ],
 
+    // Voyage embeddings — used by the Content Projection Layer (Sumi/RAG) to
+    // embed projection segments. Anthropic has no embeddings model.
+    'voyage' => [
+        'key' => env('VOYAGE_API_KEY'),
+    ],
+
 ];

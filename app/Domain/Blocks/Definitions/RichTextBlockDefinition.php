@@ -2,7 +2,11 @@
 
 namespace App\Domain\Blocks\Definitions;
 
-class RichTextBlockDefinition implements BlockDefinition
+use App\Domain\Projection\Contracts\ProvidesProjection;
+use App\Domain\Projection\Descriptors\BlockProjection;
+use App\Domain\Projection\Descriptors\FieldType;
+
+class RichTextBlockDefinition implements BlockDefinition, ProvidesProjection
 {
     public function type(): string { return 'rich-text'; }
     public function category(): string { return 'content'; }
@@ -23,4 +27,18 @@ class RichTextBlockDefinition implements BlockDefinition
 
     public function allowsChildren(): bool { return false; }
     public function maxChildren(): ?int { return null; }
+
+    public function projection(): ?BlockProjection
+    {
+        // Rich body content: a self-contained RAG segment. The RichText type
+        // tells the builder to HTML-parse the value for outbound links, inline
+        // assets and word count (inventory), so no separate flag is needed.
+        return BlockProjection::make()
+            ->schemaType(null)
+            ->field('content', 'text', FieldType::RichText, [
+                'rag' => true,
+                'segment' => true,
+            ])
+            ->segmentBoundary(true);
+    }
 }
