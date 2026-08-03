@@ -964,8 +964,20 @@ HTML;
         $this->imageIndex++;
         $data['_is_first_image'] = $this->imageIndex === 1;
 
-        if (!empty($data['asset_id'])) {
-            $asset = Asset::find($data['asset_id']);
+        // Resolve the backing asset. Editor-authored blocks carry `asset_id`;
+        // migrated/imported blocks (Elementor, site wizard) only carry a serve
+        // `url`, so reverse-resolve the UUID out of it — otherwise the WebP
+        // variant + intrinsic-dimensions pipeline silently skips every migrated
+        // image and ships the full-size original (the LCP/CLS regression this
+        // healed for VIOIV). Same regex enrichGalleryData already relies on.
+        $assetId = $data['asset_id'] ?? null;
+        if (empty($assetId) && !empty($data['url']) && is_string($data['url'])
+            && preg_match('#/assets/([0-9a-f-]{36})/serve#i', $data['url'], $m)) {
+            $assetId = $m[1];
+        }
+
+        if (!empty($assetId)) {
+            $asset = Asset::find($assetId);
             if ($asset) {
                 $baseUrl = "/api/v1/sites/{$site->id}/assets/{$asset->id}/serve";
                 $data['url'] = $data['url'] ?: $baseUrl;
@@ -1038,6 +1050,29 @@ HTML;
     {
         $bg = $data['background'] ?? [];
         $data['_bg_url'] = \App\Support\Blocks\SliderRender::resolveBackgroundUrl($bg, $site->id);
+
+        // Attach WebP variants + intrinsic dimensions for image backgrounds so
+        // the slide can emit a <picture> with a lightweight LCP source instead
+        // of shipping the full-size original (mirrors enrichImageData). Works
+        // for editor blocks (background.assetId) and migrated ones (a serve URL
+        // in background.src) alike.
+        if (($bg['type'] ?? '') === 'image') {
+            $bgAssetId = $bg['assetId'] ?? null;
+            if (empty($bgAssetId) && is_string($bg['src'] ?? null)
+                && preg_match('#/assets/([0-9a-f-]{36})/serve#i', $bg['src'], $bm)) {
+                $bgAssetId = $bm[1];
+            }
+            if (!empty($bgAssetId) && ($bgAsset = Asset::find($bgAssetId))) {
+                $bgBaseUrl = "/api/v1/sites/{$site->id}/assets/{$bgAsset->id}/serve";
+                $bgVariants = [];
+                foreach ($bgAsset->variants ?? [] as $variantName => $path) {
+                    $bgVariants[$variantName] = "{$bgBaseUrl}/{$variantName}";
+                }
+                $data['_bg_variants'] = $bgVariants;
+                $data['_bg_width'] = $bgAsset->dimensions['width'] ?? null;
+                $data['_bg_height'] = $bgAsset->dimensions['height'] ?? null;
+            }
+        }
 
         $overlay = $bg['overlay'] ?? null;
         $data['_overlay_css'] = (is_string($overlay) && preg_match(
