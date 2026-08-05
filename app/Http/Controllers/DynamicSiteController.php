@@ -220,6 +220,7 @@ class DynamicSiteController extends Controller
     private function respondCollectionHtml(string $html, Site $site): Response
     {
         $html = $this->rewriteLinksForPreview($html, $site);
+        $html = $this->rewritePreviewAssets($html, $site);
 
         return response($html, 200)
             ->header('Content-Type', 'text/html')
@@ -275,6 +276,7 @@ class DynamicSiteController extends Controller
         // Rewrite internal links for the dynamic preview prefix
         // /about → /sites/cytechno/about, / → /sites/cytechno/
         $html = $this->rewriteLinksForPreview($html, $site);
+        $html = $this->rewritePreviewAssets($html, $site);
 
         // Resolve grid for toolbar info
         $grid = $gridOverride ?? $this->gridResolver->resolve($content, $site);
@@ -350,6 +352,47 @@ class DynamicSiteController extends Controller
 
                 // Default: rewrite it (could be a page or post path)
                 return 'href="' . $prefix . $path . '"';
+            },
+            $html
+        );
+    }
+
+    /**
+     * Preview-only: rewrite published-style asset paths
+     * (/assets/files/{checksum}[_{variant}].{ext}) to extensionless
+     * /media/{siteId}/{assetId} serve URLs that resolve on the app domain.
+     *
+     * Hand-authored/imported html-embeds bake the published path straight into
+     * CSS url() / img src / srcset. Those binaries only exist in the published
+     * docroot, so on the preview (app) domain nginx serves image extensions
+     * statically, never reaches Laravel, and 404s them — a full-page embed then
+     * renders blank. The extensionless /media/ route DOES reach Laravel. This
+     * only touches the rendered preview HTML; stored content and published
+     * output are unaffected.
+     */
+    private function rewritePreviewAssets(string $html, Site $site): string
+    {
+        if (!str_contains($html, '/assets/files/')) {
+            return $html;
+        }
+
+        $byChecksum = \App\Models\Asset::where('site_id', $site->id)
+            ->whereNotNull('checksum')
+            ->get(['id', 'checksum'])
+            ->keyBy('checksum');
+
+        if ($byChecksum->isEmpty()) {
+            return $html;
+        }
+
+        return preg_replace_callback(
+            '#/assets/files/([0-9a-f]{16,64})(?:_[a-z0-9]+)?\.[a-z0-9]+#i',
+            function ($m) use ($byChecksum, $site) {
+                $asset = $byChecksum->get(strtolower($m[1]));
+
+                // Serve the original (drop any variant suffix) — a preview only
+                // needs the image to appear, not the exact published derivative.
+                return $asset ? "/media/{$site->id}/{$asset->id}" : $m[0];
             },
             $html
         );
