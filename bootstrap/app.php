@@ -11,6 +11,12 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function (): void {
+            // Module receiving endpoints live at /api/modules/* (outside api/v1),
+            // authenticated by module token rather than the user session.
+            \Illuminate\Support\Facades\Route::prefix('api/modules')
+                ->group(__DIR__.'/../routes/modules.php');
+        },
     )
     ->withCommands([
         __DIR__.'/../app/Console/Commands',
@@ -21,6 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant.scope' => \App\Http\Middleware\TenantScope::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
+            'module.token' => \App\Http\Middleware\AuthModuleToken::class,
             'public.site' => \App\Http\Middleware\SetTenantFromPublicSite::class,
             'public.cors' => \App\Http\Middleware\PublicSiteCors::class,
         ]);

@@ -152,3 +152,114 @@ no un-sanctioned decisions were made silently.
   embedder:** the Home PC is physically OFF (wg0 peer, last handshake 32 days
   ago); Voyage has no key. The switch + code are ready for the moment either an
   Ollama host is up or a key is set.
+
+## Module Framework + Culture Engine session (2026-08-07)
+
+- **DB-ENV — build/test against `cms_saas_platform_test` only; production
+  migrations are an explicit owner handoff, never run in-session.** Phase 0
+  pre-flight found `.env` resolves to the production database `cms_saas_platform`
+  (`APP_ENV=production`) and there is no `.env.testing`; the testing env lives
+  inline in `phpunit.xml` (`cms_saas_platform_test`). Per Phase 0 step 2 this is
+  a production-name match → `php artisan migrate` is NEVER run in this session
+  (it would bind to `.env` = prod). All development and the full test suite run
+  against `cms_saas_platform_test` via `RefreshDatabase`, which never touches
+  prod. The finished migrations are handed to the owner to run against prod in a
+  maintenance window (single-confirm gate). Rationale: satisfies the FORBIDDEN /
+  SINGLE-CONFIRM rules and Autonomy Rule 5 while still allowing full TDD.
+  → Owner said "go" (2026-08-07): proceed on the test DB.
+
+- **RBAC — the three module abilities map onto the existing role hierarchy;
+  no named-permission layer is introduced.** The spec (§2.1) names permissions
+  `module.culture.use`, `module.culture.manage`, `modules.administer` and says
+  "wire into the existing RBAC, do not invent a parallel one." The existing RBAC
+  is a *linear role hierarchy* — `User::hasMinimumRole()` + `EnsureRole`
+  middleware (`role` alias), roles `viewer<author<editor<admin<owner`, enforced
+  by the `users_role_check` DB constraint. There is no permissions table / policy
+  primitive to attach named abilities to. Building one would be the forbidden
+  "parallel system." Decision: express the three abilities as role thresholds and
+  gate via the existing `role` middleware + policy methods:
+    - `module.culture.use`    → `editor`+ (see module UI, view received drafts)
+    - `module.culture.manage` → `admin`+ (tenant on/off, settings, tokens)
+    - `modules.administer`    → `owner`  (platform global on/off, all modules)
+  A thin `ModulePermissions` helper centralises these thresholds so the mapping is
+  changeable in one place if the owner later disagrees. Additive, reversible.
+  → Owner said "go" (2026-08-07): approved the role-threshold mapping.
+
+- **RLS-TOKENS — `module_tokens` carries NO tenant RLS (mirrors Sanctum's
+  `personal_access_tokens`); `module_tenant` gets standard FORCE-RLS.** Spec
+  §1.1 says token/pivot RLS must "mirror whatever pattern the audit found; if
+  ambiguous, log a decision and STOP." `module_tenant` (tenant_id NOT NULL) is
+  unambiguous → `tenant_isolation` policy `tenant_id = current_setting(
+  'app.current_tenant_id', true)::uuid`, ENABLE+FORCE, exactly like `webhooks`.
+  `module_tokens` has an auth-bootstrap conflict: the bearer token identifies the
+  tenant, so the row must be found *before* any tenant GUC can be set — RLS keyed
+  on the GUC would hide every row and make auth impossible. The audit shows the
+  nearest existing precedent is Sanctum's `personal_access_tokens`, which is
+  deliberately NOT tenant-RLS'd for this exact reason. Decision (not a STOP — the
+  pattern is determinable, not ambiguous): `module_tokens` is an auth-credential
+  table with no tenant RLS; the `AuthModuleToken` guard looks the token up by
+  hash, then SETs `app.current_tenant_id` from `token.tenant_id` (identical shape
+  to `SetTenantFromAuth`); all management reads/writes filter by `tenant_id`
+  explicitly and are RBAC-gated (`module.culture.manage` = admin+). Only the
+  hash is stored, so a row read yields no usable secret — same tradeoff Sanctum
+  accepts. Reversible. If the owner wants stricter isolation, a `SECURITY DEFINER`
+  lookup function is the fallback.
+
+- **AUDIT — token-authenticated requests are audited to a dedicated
+  `module_api_logs` table, not the existing `activity_logs`.** Spec §2.2 says use
+  "existing audit mechanism if present; otherwise a minimal `module_api_logs`
+  table — log the decision." The existing `ActivityLogService`/`activity_logs`
+  is user- and site-centric: it stamps `user_id = Auth::id()` and its RLS policy
+  is `site_id IN (sites WHERE tenant = GUC)`. Token requests have no
+  authenticated user, and may be platform-level or tenant-level with NO site —
+  a null `site_id` row fails that policy's WITH CHECK and cannot be inserted. So
+  the existing mechanism structurally cannot log these requests. Decision: a
+  minimal `module_api_logs` table (module_id, module_token_id, tenant_id nullable,
+  method, path, ability, decision, status_code, ip). No tenant RLS — it is
+  auth-adjacent (a denied-auth request has no tenant) and mirrors the
+  RLS-TOKENS rationale; admin reads filter by tenant_id + RBAC. Writes are
+  best-effort (try/catch, never block the request).
+
+- **VISUAL-GATE — Phase 3 Playwright capture deferred to close-out (owner away).**
+  Spec Phase 3 ends "STOP. Present screenshots/Playwright captures." In THIS
+  environment that is not possible without crossing into production: the admin
+  vite build outputs to `public/admin-assets/` (the LIVE bundle — `npx vite
+  build` is the deploy step), and serving the SPA drives `/api/v1` against the
+  prod `.env` DB. Both violate DB-ENV. The owner was asked how to handle the
+  visual gate and was away (60s no response). Best-judgment decision: the Phase 3
+  code is complete and verified as far as is prod-safe — backend 6/6 feature
+  tests green, frontend `tsc --noEmit` clean — and the live visual capture is
+  deferred to Phase 5, to be done via a prod-safe scratch build (`vite build
+  --outDir` to a throwaway dir + Playwright with `/api/v1/modules` intercepted by
+  canned JSON), or handed to the owner's staging env. Proceeding to Phase 4.
+  → **RESOLVED (2026-08-07):** owner said "go"; ran the prod-safe path. Scratch
+  `vite build --base=/ --outDir <tmp>` (never touched `public/admin-assets/`),
+  served statically, Playwright (Chromium 1228) with all `/api/v1/**` intercepted
+  by canned JSON. The Modules screen renders correctly — both gated nav entries,
+  Culture Engine card, platform/tenant toggles, settings-schema select, token
+  manager with the seeded token — normally (2.2s) and under CDP Slow-3G
+  throttling (15.1s full load, no crash). Screenshots in the session scratchpad.
+  Zero production contact. Settings UI upgraded YELLOW→GREEN in STATUS.md.
+
+- **ENTITY — received bulletins are created as `Post` drafts (not Pages).**
+  Spec §4.1 says "choose the entity the audit shows is appropriate for articles;
+  log the decision." The audit shows `Post` is the blog/article entity (category,
+  tags, excerpt, post_format, published_at, RSS) while `Page` is structural site
+  chrome. Bulletins are dated editorial articles → `Post`, created via the
+  existing `PostService::createPost` (slug uniqueness, default category) with
+  `status='draft'`. Never published (Prime Directive; spec §4.1).
+
+- **TARGET-SITE — the draft's site = module_tenant.settings['target_site_id'],
+  else the tenant's first site.** The contract payload names no site, but a Post
+  needs one. Resolution: if the tenant's culture-engine settings carry a valid
+  `target_site_id` (belonging to the tenant) use it; otherwise fall back to the
+  tenant's earliest-created site. No site at all → 422 `no_target_site`. Keeps the
+  wire contract unchanged and configurable from Settings → Modules later.
+
+- **IDEMPOTENCY — `(module_id, tenant_id, idempotency_key)` unique, payload hash
+  = sha256 of the raw request body.** New tenant-RLS'd table
+  `module_idempotency_keys` (written inside the token's tenant context). Same key
+  + same body-hash → 200 with the SAME external_id (the existing draft); same key
+  + different hash → 409 `idempotency_key_conflict`; no key → create without
+  dedupe. Type validation runs BEFORE any write, so an unknown-block 422 persists
+  nothing. external_id returned to the Culture Engine is the draft Post's uuid.

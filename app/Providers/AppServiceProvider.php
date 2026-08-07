@@ -119,6 +119,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(HookDispatcher::class);
 
+        // Module Framework — per-request cached enablement resolver.
+        $this->app->singleton(\App\Domain\Modules\Services\ModuleRegistry::class);
+
         // Inline-edit layer: ambient render mode (default Publish) + the
         // sp_editable() Blade helper. Both are inert on the publish path.
         $this->app->singleton(\App\Domain\Publishing\Rendering\RenderContext::class);
@@ -137,6 +140,8 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new ButtonBlockDefinition());
             $registry->register(new RowBlockDefinition());
             $registry->register(new SectionBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\BulletinSectionBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\EventCardBlockDefinition());
             $registry->register(new SpacerBlockDefinition());
             $registry->register(new VideoBlockDefinition());
             $registry->register(new HtmlEmbedBlockDefinition());
@@ -259,6 +264,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Module receiving endpoints (token-authenticated). Keyed by the module
+        // token when present, else the caller IP.
+        RateLimiter::for('module-api', function (Request $request) {
+            $token = $request->attributes->get('module_token');
+            $key = $token?->getKey() ?: $request->ip();
+            return Limit::perMinute(60)->by('module-api:' . $key);
+        });
+
         if (!config('cms.redis_enabled')) {
             config([
                 'cache.default' => 'file',
@@ -291,5 +304,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Asset::class, AssetPolicy::class);
         Gate::policy(Block::class, BlockPolicy::class);
         Gate::policy(Tag::class, TagPolicy::class);
+
+        // Module Framework abilities → role-hierarchy thresholds (docs: RBAC).
+        \App\Domain\Modules\Support\ModulePermissions::registerGates();
     }
 }

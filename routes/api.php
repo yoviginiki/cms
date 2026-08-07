@@ -300,6 +300,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/webhooks/{webhook}/test', [\App\Http\Controllers\Api\V1\WebhookController::class, 'test']);
         Route::apiResource('sites.webhooks', \App\Http\Controllers\Api\V1\WebhookController::class)->except(['show']);
 
+        // Module Framework — Settings → Modules. Read is open (powers nav
+        // gating + returns the caller's abilities); mutations are ability-gated
+        // inside the controllers (modules.administer / module.culture.manage).
+        Route::prefix('modules')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\V1\ModuleController::class, 'index']);
+            Route::patch('{module:key}/global', [\App\Http\Controllers\Api\V1\ModuleController::class, 'setGlobal']);
+            Route::patch('{module:key}/tenant', [\App\Http\Controllers\Api\V1\ModuleController::class, 'setTenant']);
+            Route::put('{module:key}/settings', [\App\Http\Controllers\Api\V1\ModuleController::class, 'updateSettings']);
+            Route::get('{module:key}/tokens', [\App\Http\Controllers\Api\V1\ModuleTokenController::class, 'index']);
+            Route::post('{module:key}/tokens', [\App\Http\Controllers\Api\V1\ModuleTokenController::class, 'store']);
+            Route::delete('{module:key}/tokens/{token}', [\App\Http\Controllers\Api\V1\ModuleTokenController::class, 'destroy']);
+        });
+
         // Saved queries (Track G-Q) — authoring is admin/owner only
         Route::middleware('role:admin')->group(function () {
             Route::post('sites/{site}/saved-queries/preview', [\App\Http\Controllers\Api\V1\SavedQueryController::class, 'preview']);

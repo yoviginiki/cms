@@ -889,4 +889,52 @@ export const webhooks = {
     api.get<{ data: WebhookDelivery[] }>(`/sites/${siteId}/webhooks/${id}/deliveries`),
 };
 
+// ── Module Framework (Settings → Modules) ──
+export interface ModuleSettingField {
+  key: string;
+  label: string;
+  type: string;
+  options?: string[];
+  default?: unknown;
+  help?: string;
+}
+export interface ModuleInfo {
+  key: string;
+  name: string;
+  description: string | null;
+  enabled_globally: boolean;
+  enabled_for_tenant: boolean;
+  effective_enabled: boolean;
+  settings_schema?: { fields?: ModuleSettingField[] } | null;
+  settings?: Record<string, unknown>;
+}
+export interface ModuleTokenInfo {
+  id: string;
+  name: string;
+  abilities: string[];
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}
+export interface ModuleAccess {
+  abilities: { use: boolean; manage: boolean; administer: boolean };
+  modules: ModuleInfo[];
+}
+
+export const modules = {
+  list: () => api.get<ModuleAccess>('/modules'),
+  setGlobal: (key: string, enabled: boolean) =>
+    api.patch<{ enabled_globally: boolean }>(`/modules/${key}/global`, { enabled }),
+  setTenant: (key: string, enabled: boolean) =>
+    api.patch<{ enabled_for_tenant: boolean }>(`/modules/${key}/tenant`, { enabled }),
+  updateSettings: (key: string, settings: Record<string, unknown>) =>
+    api.put<{ settings: Record<string, unknown> }>(`/modules/${key}/settings`, { settings }),
+  tokens: {
+    list: (key: string) => api.get<{ tokens: ModuleTokenInfo[] }>(`/modules/${key}/tokens`),
+    create: (key: string, body: { name: string; abilities?: string[] }) =>
+      api.post<{ token: ModuleTokenInfo; plaintext: string }>(`/modules/${key}/tokens`, body),
+    revoke: (key: string, id: string) => api.delete(`/modules/${key}/tokens/${id}`),
+  },
+};
+
 export default api;
