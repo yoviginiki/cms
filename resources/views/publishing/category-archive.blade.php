@@ -14,7 +14,7 @@
     @if(!empty($headScripts)){!! $headScripts !!}@endif
     {!! $archiveJsonLd ?? '' !!}
 </head>
-<body>
+<body class="archive-page">
     <header role="banner">@if(!empty($navigation)){!! $navigation !!}@endif</header>
     <main role="main" class="archive-main" style="max-width:var(--container-width,1200px);margin:0 auto;padding:var(--space-8,2rem) var(--container-padding,1rem);">
         <h1 class="archive-title">{{ $displayName ?? $category->name }}</h1>

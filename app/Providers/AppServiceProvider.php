@@ -292,6 +292,26 @@ class AppServiceProvider extends ServiceProvider
             'query' => \App\Models\SavedQuery::class,
         ]);
 
+        // Related posts on single posts — opt-in via site settings.related_posts.enabled.
+        // Injected through the page_render filter (runs before the serve→static asset
+        // rewrite, so featured images resolve correctly for both preview and static).
+        app(HookDispatcher::class)->addFilter('page_render', function (string $html, $content, $site): string {
+            if (!($content instanceof Post)) return $html;
+            if (empty($site->settings['related_posts']['enabled'])) return $html;
+            $limit = max(2, min(8, (int) ($site->settings['related_posts']['limit'] ?? 4)));
+            $related = Post::where('site_id', $site->id)
+                ->where('status', 'published')
+                ->where('id', '!=', $content->id)
+                ->when($content->category_id, fn ($q) => $q->where('category_id', $content->category_id))
+                ->orderByDesc('published_at')
+                ->limit($limit)
+                ->get();
+            if ($related->count() < 2) return $html;
+            $section = view('publishing._related-posts', ['posts' => $related, 'site' => $site])->render();
+            $pos = strripos($html, '</main>');
+            return $pos !== false ? substr($html, 0, $pos) . $section . substr($html, $pos) : $html;
+        });
+
         // Explicit route model bindings for non-standard model locations
         Route::model('themeTemplate', ThemeTemplate::class);
         Route::model('issue', \App\Domain\IssueComposer\Models\MagazineIssue::class);
