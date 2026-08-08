@@ -14,6 +14,7 @@ export const latestpostsDefinition: BlockDefinition = {
     orderBy: 'latest',
     titleAlign: 'left',
     showImage: true,
+    linkImage: true,
     showExcerpt: true,
     showDate: true,
     showCategory: true,

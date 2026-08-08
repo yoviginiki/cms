@@ -46,6 +46,7 @@
     $excerptLength = $data['excerptLength'] ?? 120;
     $showDate = $data['showDate'] ?? true;
     $showCategory = $data['showCategory'] ?? true;
+    $linkImage = $data['linkImage'] ?? true;
     $titleAlign = in_array($data['titleAlign'] ?? '', ['left', 'center', 'right']) ? $data['titleAlign'] : 'left';
 
     // Query posts
@@ -95,6 +96,16 @@
         return $html;
     };
 
+    // Helper: render a featured image, optionally wrapped in a link to the post.
+    // The title already links to the article, so the image link is marked
+    // aria-hidden / tabindex=-1 to avoid a duplicate stop for keyboard/SR users.
+    $renderImg = function($post, $imgStyle, $wrapStyle = '') use ($linkImage, $site, $__imageFilter) {
+        $img = '<img class="img-filtered" src="' . e($post->featured_image) . '" alt="" loading="lazy" style="' . $imgStyle . $__imageFilter . '" />';
+        if (!$linkImage) return $img;
+        $url = \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post);
+        return '<a href="' . e($url) . '" aria-hidden="true" tabindex="-1" style="display:block;text-decoration:none;color:inherit;' . $wrapStyle . '">' . $img . '</a>';
+    };
+
     // Helper: get excerpt text
     $getExcerpt = function($post) use ($excerptLength) {
         $text = $post->excerpt ?: '';
@@ -124,7 +135,7 @@
         @foreach($posts as $post)
             <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--color-bg-alt,#f3f4f6);">
                 @if($showImage && $post->featured_image)
-                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;{{ $__imageFilter }}" />
+                    {!! $renderImg($post, 'width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;', 'flex-shrink:0;') !!}
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
@@ -152,7 +163,7 @@
         @php $first = $posts->shift(); @endphp
         <article style="margin-bottom:1.5rem;border:1px solid var(--color-border,#e2e8f0);border-radius:var(--border-radius-md,0.5rem);overflow:hidden;">
             @if($showImage && $first->featured_image)
-                <img class="img-filtered" src="{{ $first->featured_image }}" alt="" loading="lazy" style="width:100%;height:280px;object-fit:cover;{{ $__imageFilter }}" />
+                {!! $renderImg($first, 'width:100%;height:280px;object-fit:cover;') !!}
             @endif
             <div style="padding:1.25rem;">
                 @if($showCategory && $first->category)
@@ -177,7 +188,7 @@
         @foreach($posts as $post)
             <article style="{{ $showContent ? '' : 'border:var(--card-border,1px solid var(--color-border,#e2e8f0));border-radius:var(--border-radius-md,0.5rem);' }}overflow:hidden;">
                 @if($showImage && $post->featured_image)
-                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
+                    {!! $renderImg($post, 'width:100%;height:160px;object-fit:cover;') !!}
                 @elseif($showImage && !$showContent)
                     <div style="background:var(--color-bg-alt,#f3f4f6);height:160px;"></div>
                 @endif
