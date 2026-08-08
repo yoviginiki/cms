@@ -20,6 +20,10 @@
     $columns = max(1, min(6, intval($data['columns'] ?? 3)));
     $cardStyle = $data['cardStyle'] ?? 'vertical';
     $isHorizontal = $cardStyle === 'horizontal';
+    // Opt-in 3D scroll-reveal: each card tilts/fades up into place as it scrolls
+    // into view (IntersectionObserver below; reduced-motion shows them instantly).
+    $cardReveal = !empty($data['cardReveal']);
+    $__revealScope = $cardReveal ? 'pgr-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
 
     // Content meta toggles
     $showDate = !empty($data['showDate']);
@@ -112,8 +116,17 @@
     </div>
 @else
 @if($columns > 1)<style>@media(max-width:640px){.pg-grid{grid-template-columns:1fr!important}}@media(min-width:641px) and (max-width:900px){.pg-grid{grid-template-columns:repeat(2,1fr)!important}}</style>@endif
-<div class="pg-grid" style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
+@if($isHorizontal)<style>@media(max-width:640px){.pg-grid>article{flex-direction:column!important}.pg-himg{width:100%!important}}</style>@endif
+@if($cardReveal)
+<style>
+.{{ $__revealScope }}>article{opacity:0;transform:perspective(1500px) rotateX(85deg);transform-origin:50% 50%;transition:opacity .55s ease,transform .85s cubic-bezier(.2,.72,.24,1);will-change:opacity,transform;backface-visibility:hidden}
+.{{ $__revealScope }}>article.pg-in{opacity:1;transform:perspective(1500px) rotateX(0deg)}
+@media(prefers-reduced-motion:reduce){.{{ $__revealScope }}>article{opacity:1!important;transform:none!important;transition:none!important}}
+</style>
+@endif
+<div class="pg-grid {{ $__revealScope }}" @if($cardReveal) data-pg-reveal @endif style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
+        @php $__postUrl = '/' . ($post->category?->slug ?? 'uncategorized') . '/' . $post->slug; @endphp
         <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius !== null ? $cardBorderRadius . 'px' : 'var(--border-radius-md,0.5rem)' }};overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
             {{-- Heading ABOVE image --}}
             @if($showHeading && $headingPosition === 'above')
@@ -138,7 +151,7 @@
             </div>
             @endif
             @if($showImage)
-            <div style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isVerticalHeading ? 'flex:1;height:' . $imageHeight . ';' : ($isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';') }}{{ $imageWidth !== '100%' && !$isHorizontal && !$isVerticalHeading ? 'margin:0 auto;' : '' }}">
+            <div class="{{ $isHorizontal ? 'pg-himg' : '' }}" style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isVerticalHeading ? 'flex:1;height:' . $imageHeight . ';' : ($isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';') }}{{ $imageWidth !== '100%' && !$isHorizontal && !$isVerticalHeading ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
                     @if($__revealEnabled && !$__isFadeReveal)
                         {{-- Clip-path mode: two layers — original below, filtered on top --}}
@@ -150,6 +163,10 @@
                     @endif
                 @endif
                 {!! $__overlayHtml !!}
+                {{-- Make the featured image link to the post (stretched link over
+                     the whole image area, above any overlay). Card titles link
+                     too; this gives the image the same click target. --}}
+                <a href="{{ $__postUrl }}" class="pg-img-link" aria-label="{{ $post->title }}" title="{{ $post->title }}" style="position:absolute;inset:0;z-index:2;"></a>
             </div>
             @endif
             {{-- Vertical heading RIGHT --}}
@@ -198,6 +215,35 @@
         </article>
     @endforeach
 </div>
+@if($cardReveal)
+<script>
+(function(){
+  if(window.__pgReveal)return; window.__pgReveal=1;
+  function run(){
+    var cards=document.querySelectorAll('[data-pg-reveal]>article');
+    if(!('IntersectionObserver' in window)){cards.forEach(function(a){a.classList.add('pg-in');});return;}
+    // Sequential cascade: cards that scroll into view queue up and flip one at a
+    // time (top-to-bottom) on a fixed interval, instead of all reacting at once.
+    var queue=[], timer=null;
+    function pump(){
+      if(timer)return;
+      timer=setInterval(function(){
+        if(!queue.length){clearInterval(timer);timer=null;return;}
+        queue.shift().classList.add('pg-in');
+      },150);
+    }
+    var obs=new IntersectionObserver(function(es){
+      es.filter(function(e){return e.isIntersecting;})
+        .sort(function(a,b){return a.boundingClientRect.top-b.boundingClientRect.top;})
+        .forEach(function(e){queue.push(e.target);obs.unobserve(e.target);});
+      pump();
+    },{rootMargin:'0px 0px -8% 0px',threshold:0.12});
+    cards.forEach(function(a){obs.observe(a);});
+  }
+  if(document.readyState!=='loading')run(); else document.addEventListener('DOMContentLoaded',run);
+})();
+</script>
+@endif
 @endif
 
 </div>
