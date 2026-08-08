@@ -467,59 +467,79 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   moveBlock: (activeId, overId, position) => {
-    const state = get();
-    const undoStack = [
-      ...state.undoStack.slice(-(state.maxUndoSteps - 1)),
-      deepClone(state.blocks),
-    ];
+    // A block can never be dropped onto itself.
+    if (activeId === overId) return;
 
-    let newBlocks = deepClone(state.blocks);
-    const activeFound = findInTree(newBlocks, activeId);
+    const state = get();
+    const working = deepClone(state.blocks);
+    const activeFound = findInTree(working, activeId);
     if (!activeFound) return;
 
-    // Enforce hierarchy containment on move
-    const moveParentReq: Record<string, string> = {
-      row: 'section',
-      column: 'row',
-      module: 'column',
-    };
-    const activeLevel = activeFound.block.level;
-    if (activeLevel && moveParentReq[activeLevel]) {
-      const neededParent = moveParentReq[activeLevel];
-      if (position === 'inside') {
-        const target = findInTree(newBlocks, overId);
-        if (!target || target.block.level !== neededParent) return;
-      } else {
-        // before/after — target must be same level (reorder among siblings)
-        const target = findInTree(newBlocks, overId);
-        if (!target || target.block.level !== activeLevel) return;
-      }
+    // CYCLE GUARD — never drop a block into itself or its own subtree. Doing so
+    // removes the block (and everything under it) from the tree, then fails to
+    // find the drop target because the target lived *inside* what we just
+    // removed — silently deleting the subtree. For a top-level section that
+    // wipes the whole page (symptom: canvas resets to "Add your first section").
+    if (findInTree(activeFound.block.children ?? [], overId)) return;
+
+    // HIERARCHY CONTAINMENT. Depth rank of each level:
+    const rank: Record<string, number> = { section: 0, row: 1, column: 2, module: 3 };
+    const activeLevel = activeFound.block.level ?? 'module';
+    const targetBefore = findInTree(working, overId);
+    if (!targetBefore) return;
+    const targetLevel = targetBefore.block.level ?? 'section';
+    if (position === 'inside') {
+      // Drop INTO a container that is strictly higher in the hierarchy than the
+      // moved block (a module can't hold anything). Missing intermediate levels
+      // are created on drop — e.g. a module dropped into an empty row is wrapped
+      // in a new column, into a section a new row+column. This is what makes an
+      // empty row/section a usable drop target.
+      if (!(activeLevel in rank) || rank[targetLevel] >= rank[activeLevel]) return;
+    } else {
+      // before/after — must reorder among same-level siblings.
+      if (targetLevel !== activeLevel) return;
     }
 
     const movingBlock = deepClone(activeFound.block);
-    newBlocks = removeFromTree(newBlocks, activeId);
+    let newBlocks = removeFromTree(working, activeId);
+
+    // FAIL-SAFE — re-find the target in the post-removal tree. If it vanished
+    // (shouldn't, given the cycle guard), abort rather than commit a tree that
+    // has lost the moved block.
+    const target = findInTree(newBlocks, overId);
+    if (!target) return;
 
     if (position === 'inside') {
-      const target = findInTree(newBlocks, overId);
-      if (target) {
-        target.block.children.push(movingBlock);
-        target.block.children = reorder(target.block.children);
+      // Wrap the moved block in whatever container levels are missing between
+      // it and the drop target, so the nesting stays legal
+      // (section → row → column → module).
+      let node: BlockData = movingBlock;
+      for (let r = rank[activeLevel] - 1; r > rank[targetLevel]; r--) {
+        const wrapType = r === 1 ? 'row' : r === 2 ? 'column' : null;
+        if (!wrapType) break;
+        node = {
+          id: generateId(),
+          type: wrapType,
+          level: wrapType,
+          data: wrapType === 'row' ? { layout: '1/1' } : {},
+          children: [node],
+          order: 0,
+        };
       }
+      target.block.children = reorder([...(target.block.children ?? []), node]);
     } else {
-      const target = findInTree(newBlocks, overId);
-      if (target) {
-        const insertIndex =
-          position === 'after' ? target.index + 1 : target.index;
-        target.parent.splice(insertIndex, 0, movingBlock);
-        const parentArr = target.parent;
-        for (let i = 0; i < parentArr.length; i++) {
-          parentArr[i] = { ...parentArr[i], order: i };
-        }
+      const insertIndex = position === 'after' ? target.index + 1 : target.index;
+      target.parent.splice(insertIndex, 0, movingBlock);
+      for (let i = 0; i < target.parent.length; i++) {
+        target.parent[i] = { ...target.parent[i], order: i };
       }
     }
 
     newBlocks = reorder(newBlocks);
-
+    const undoStack = [
+      ...state.undoStack.slice(-(state.maxUndoSteps - 1)),
+      deepClone(state.blocks),
+    ];
     set({ blocks: newBlocks, undoStack, redoStack: [], isDirty: true });
   },
 
