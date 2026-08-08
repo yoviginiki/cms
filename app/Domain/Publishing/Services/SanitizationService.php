@@ -29,6 +29,7 @@ class SanitizationService
             return false;
         });
 
+        try {
         // Rich text purifier
         $config = HTMLPurifier_Config::createDefault();
         $config->set('HTML.Allowed', 'p,br,strong,em,u,a[href|target|rel],ul,ol,li,h1,h2,h3,h4,h5,h6,blockquote,code,pre,table,thead,tbody,tr,th,td,img[src|alt|width|height],span[class],hr');
@@ -91,9 +92,12 @@ class SanitizationService
         }
         $magConfig->getCSSDefinition()->info['column-span'] = new \HTMLPurifier_AttrDef_Enum(['none', 'all']);
         $this->magazinePurifier = new HTMLPurifier($magConfig);
-
-        // Restore original error handler
-        restore_error_handler();
+        } finally {
+            // Restore the original error handler even if purifier construction
+            // throws — otherwise the suppressor leaks into the rest of the
+            // process and PHPUnit flags every later test "risky".
+            restore_error_handler();
+        }
     }
 
     /**

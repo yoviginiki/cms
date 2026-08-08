@@ -6,6 +6,7 @@ use App\Domain\Publishing\Rendering\RenderContext;
 use App\Domain\Publishing\Rendering\RenderMode;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\View;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -172,9 +173,7 @@ final class SpEditableRenderTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider pilotBlocks
-     */
+    #[DataProvider('pilotBlocks')]
     public function test_publish_output_is_byte_identical_to_pinned_snapshot(string $type): void
     {
         $expected = file_get_contents(__DIR__ . "/snapshots/$type.publish.html");
@@ -189,21 +188,22 @@ final class SpEditableRenderTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider pilotBlocks
-     */
+    #[DataProvider('pilotBlocks')]
     public function test_publish_emits_no_inline_edit_artifacts(string $type): void
     {
         app(RenderContext::class)->set(RenderMode::Publish);
         $html = $this->render($type);
 
         $this->assertStringNotContainsString('data-sp-', $html, "'$type' leaked a data-sp-* attribute on the publish path.");
-        $this->assertStringNotContainsString('<script', $html, "'$type' injected a <script> on the publish path.");
+        // The inline-edit layer adds only data-sp-* ATTRIBUTES, never a script
+        // (proven by test_edit_mode_is_publish_plus_only_sp_attributes). A block's
+        // own legitimate scripts — the stats count-up, interactive-block JSON
+        // config islands — are intentional published output, pinned byte-for-byte
+        // by test_publish_output_is_byte_identical_to_pinned_snapshot; so this
+        // test must not blanket-forbid <script>.
     }
 
-    /**
-     * @dataProvider pilotBlocks
-     */
+    #[DataProvider('pilotBlocks')]
     public function test_edit_mode_emits_addressing_contract(string $type): void
     {
         app(RenderContext::class)->set(RenderMode::Edit);
@@ -220,9 +220,8 @@ final class SpEditableRenderTest extends TestCase
      * The edit-mode attributes must add exactly what publish lacks and nothing
      * more: stripping every data-sp-* attribute must return the byte-identical
      * publish snapshot.
-     *
-     * @dataProvider pilotBlocks
      */
+    #[DataProvider('pilotBlocks')]
     public function test_edit_mode_is_publish_plus_only_sp_attributes(string $type): void
     {
         app(RenderContext::class)->set(RenderMode::Edit);
