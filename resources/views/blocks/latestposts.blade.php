@@ -62,7 +62,13 @@
             : $query->whereRaw("seo_meta->>'locale' = ?", [$__lpLocale]);
     }
     if ($categoryId) {
-        $query->where('category_id', $categoryId);
+        // Include posts from child categories too (WordPress-style: a parent
+        // category query returns its subcategories' posts). Leaf categories are
+        // unaffected (no children → just the exact match).
+        $__lpCatIds = \App\Models\Category::where('site_id', $site->id)
+            ->where('parent_id', $categoryId)->pluck('id')->all();
+        $__lpCatIds[] = $categoryId;
+        $query->whereIn('category_id', $__lpCatIds);
     }
     if ($showContent) {
         $query->with(['blocks' => fn($q) => $q->whereNull('parent_block_id')->orderBy('order')]);
@@ -71,6 +77,10 @@
         case 'oldest': $query->orderBy('published_at', 'asc'); break;
         case 'title': $query->orderBy('title', 'asc'); break;
         case 'random': $query->inRandomOrder(); break;
+        // Most read: rolling window signal (seo_meta.win_views from the daily
+        // popularity refresh), then the historical baseline (hist_views, seeded
+        // from the source site's all-time views), then recency.
+        case 'popular': $query->orderByRaw("COALESCE(NULLIF(seo_meta->>'win_views',''),'0')::bigint DESC, COALESCE(NULLIF(seo_meta->>'hist_views',''),'0')::bigint DESC")->orderByDesc('published_at'); break;
         default: $query->orderByDesc('published_at');
     }
     $posts = $query->limit($limit)->get();
@@ -118,7 +128,7 @@
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
-                        <a href="/{{ $__lpPrefix }}{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
+                        <a href="/{{ $__lpPrefix }}{{ ltrim($post->category->url_path, '/') }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:600;font-size:1rem;text-align:{{ $titleAlign }};">
                         <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post) }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
@@ -146,7 +156,7 @@
             @endif
             <div style="padding:1.25rem;">
                 @if($showCategory && $first->category)
-                    <a href="/{{ $__lpPrefix }}{{ $first->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $first->category->name }}</a>
+                    <a href="/{{ $__lpPrefix }}{{ ltrim($first->category->url_path, '/') }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $first->category->name }}</a>
                 @endif
                 <h2 style="margin:0.25rem 0;font-weight:700;font-size:1.5rem;text-align:{{ $titleAlign }};">
                     <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $first) }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
@@ -173,7 +183,7 @@
                 @endif
                 <div style="{{ $showContent ? 'max-width:var(--prose-max-width,65ch);margin-left:auto;margin-right:auto;' : 'padding:1rem;' }}">
                     @if($showCategory && $post->category)
-                        <a href="/{{ $__lpPrefix }}{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
+                        <a href="/{{ $__lpPrefix }}{{ ltrim($post->category->url_path, '/') }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:var(--heading-weight,600);font-family:var(--font-heading,inherit);letter-spacing:var(--letter-spacing-heading,0);text-align:{{ $titleAlign }};">
                         <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post) }}" style="color:var(--color-heading, var(--color-text, #1e293b));text-decoration:none;">{{ $post->title }}</a>
