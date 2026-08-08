@@ -124,10 +124,10 @@
 @media(prefers-reduced-motion:reduce){.{{ $__revealScope }}>article{opacity:1!important;transform:none!important;transition:none!important}}
 </style>
 @endif
-<div class="pg-grid {{ $__revealScope }}" @if($cardReveal) data-pg-reveal @endif style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};width:100%;max-width:100%;box-sizing:border-box;">
+<div class="pg-grid {{ $__revealScope }}" @if($cardReveal) data-pg-reveal @endif style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
         @php $__postUrl = '/' . ($post->category?->slug ?? 'uncategorized') . '/' . $post->slug; @endphp
-        <article class="{{ $__effectScope }}" style="min-width:0;{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius !== null ? $cardBorderRadius . 'px' : 'var(--border-radius-md,0.5rem)' }};overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
+        <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius !== null ? $cardBorderRadius . 'px' : 'var(--border-radius-md,0.5rem)' }};overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
             {{-- Heading ABOVE image --}}
             @if($showHeading && $headingPosition === 'above')
             <div style="padding:0.75rem 1rem 0.25rem;">
