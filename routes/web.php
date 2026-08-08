@@ -99,6 +99,11 @@ Route::get('/{slug}', function (string $slug) {
             $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
             \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
         }
+        // Site slug → dynamic preview home (e.g. /artday → /sites/artday/)
+        $site = \App\Models\Site::where('slug', $slug)->first();
+        if ($site) {
+            return redirect("/sites/{$slug}/");
+        }
         // Find page
         $page = \App\Models\Page::where('slug', $slug)->where('status', 'published')->first();
         if ($page) {
