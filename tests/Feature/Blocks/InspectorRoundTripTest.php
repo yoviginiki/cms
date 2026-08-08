@@ -52,7 +52,10 @@ class InspectorRoundTripTest extends TestCase
         ]]);
 
         $this->assertStringNotContainsString('javascript', $html);
-        $this->assertStringNotContainsString('url(', $html);
+        // The injected `url(javascript:1)` must be stripped — but the page's own
+        // font-loading `@import url('fonts.googleapis…')` legitimately contains
+        // `url(`, so assert the payload specifically, not any url( on the page.
+        $this->assertStringNotContainsString('url(javascript', $html);
     }
 
     public function test_block_opacity_is_emitted(): void

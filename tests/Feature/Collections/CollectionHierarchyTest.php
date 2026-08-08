@@ -29,7 +29,10 @@ class CollectionHierarchyTest extends TestCase
     {
         parent::setUp();
         $this->setTenantScope($this->owner);
-        $this->site = Site::factory()->create(['tenant_id' => $this->tenant->id, 'settings' => ['auto_publish' => false]]);
+        // Root-hosted (custom_domain set) so RecordDisplay::sitePathBase() is '' —
+        // these assertions expect base-less URLs; slug-hosting has its own
+        // coverage in SlugHostingBaseRewriteTest.
+        $this->site = Site::factory()->create(['tenant_id' => $this->tenant->id, 'custom_domain' => 'categories.test', 'settings' => ['auto_publish' => false]]);
         $this->categories = $this->makeCategories();
         $this->staging = storage_path('app/test-builds/' . uniqid());
         File::ensureDirectoryExists($this->staging);
