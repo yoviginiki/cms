@@ -17,6 +17,7 @@ import { useParams } from 'react-router-dom';
 import { Monitor, Tablet, Smartphone, LayoutList, Eye, Plus, Code, FileText, Sparkles, Replace } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { SortableBlock } from './SortableBlock';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { WireframeBlock } from './WireframeBlock';
 import { DragOverlay } from './DragOverlay';
 import { BlockIcon } from './BlockIcon';
@@ -178,7 +179,19 @@ export function BuilderDndProvider({ children }: { children: React.ReactNode }) 
         const parentId = overId.replace('-children', '');
         moveBlock(active.id as string, parentId, 'inside');
       } else {
-        moveBlock(active.id as string, overId, 'after');
+        // Dropped onto another block. If that block is the container this one
+        // belongs in (e.g. a module dropped onto a column, or a column onto a
+        // row), move INSIDE it — an 'after' move across levels is rejected by
+        // the store's hierarchy guard and would silently do nothing. This is
+        // what lets you drag a module into a different (incl. empty) column.
+        const parentReq: Record<string, string> = { row: 'section', column: 'row', module: 'column' };
+        const activeLevel = (activeData.block as { level?: string } | undefined)?.level;
+        const overBlock = over.data.current?.block as { id: string; level?: string } | undefined;
+        if (activeLevel && overBlock && parentReq[activeLevel] === overBlock.level) {
+          moveBlock(active.id as string, overBlock.id, 'inside');
+        } else {
+          moveBlock(active.id as string, overId, 'after');
+        }
       }
     }
   }
@@ -533,7 +546,19 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
                   <>
                     {blocks.map((block, i) => (
                       <div key={block.id}>
-                        <SortableBlock block={block} />
+                        {/* Contain render errors to the offending section so a
+                            single bad block can't blank the whole editor (the
+                            app-level boundary would otherwise replace everything).
+                            The message shown here is the real error to fix. */}
+                        <ErrorBoundary
+                          fallback={
+                            <div className="border-2 border-dashed border-error/40 bg-error/5 rounded-lg p-4 text-center text-xs text-error/80">
+                              This section failed to render. Your content is safe — reload the page. If it persists, tell us what you last did.
+                            </div>
+                          }
+                        >
+                          <SortableBlock block={block} />
+                        </ErrorBoundary>
                         {/* Insert point between sections */}
                         {i < blocks.length - 1 && (
                           <div className="flex justify-center py-2">

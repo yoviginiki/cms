@@ -87,6 +87,27 @@ export function spansToGridTemplate(spans: number[]): string {
 }
 
 /**
+ * `grid-template-columns` for a row, sized to the ACTUAL number of column
+ * children (`columnCount`). Column widths are seeded from explicit `col_spans`
+ * when present, otherwise from the `layout` preset, otherwise an even split —
+ * but the number of tracks always equals `columnCount`. This is the guard that
+ * stops a row from rendering phantom, undroppable columns when its layout
+ * preset implies more columns than actually exist.
+ */
+export function gridTemplateForColumns(
+  colSpans: unknown,
+  layout: string | undefined,
+  columnCount: number,
+): string {
+  const count = Math.max(1, Math.floor(columnCount));
+  const spans = normalizeSpans(
+    Array.isArray(colSpans) ? colSpans : presetToSpans(layout, count),
+    count,
+  );
+  return spansToGridTemplate(spans);
+}
+
+/**
  * The CSS `order` for the column originally at index `i`, given a mobile
  * `stack_order` permutation (display order → original index). Columns not
  * named in the permutation keep their natural order.

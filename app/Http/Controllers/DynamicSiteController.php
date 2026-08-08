@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Grid\Services\GridResolver;
+use App\Domain\Publishing\Services\ArchiveBuildService;
 use App\Domain\Publishing\Services\BuildPageService;
+use App\Domain\Publishing\Services\LocalePaths;
+use App\Models\Category;
 use App\Domain\Publishing\Rendering\RenderContext;
 use App\Domain\Publishing\Rendering\RenderMode;
 use App\Models\Page;
@@ -76,6 +79,21 @@ class DynamicSiteController extends Controller
                     return $this->renderContent($translated, $site);
                 }
             }
+            // Single-segment post URL (/{post-slug}) — posts share the /{slug} route.
+            $post = Post::where('site_id', $site->id)->where('slug', $slug)->where('status', 'published')->first();
+            if ($post) {
+                return $this->renderContent($post, $site);
+            }
+            // Rootless category base (/{cat-slug} is the archive itself).
+            if (trim(LocalePaths::categoryBase($site), '/') === '') {
+                $category = Category::where('site_id', $site->id)->where('slug', $slug)->first();
+                if ($category) {
+                    return $this->respondCollectionHtml(
+                        app(ArchiveBuildService::class)->renderCategoryArchiveHtml($site, $category),
+                        $site
+                    );
+                }
+            }
             abort(404, "Page not found: {$slug}");
         }
 
@@ -88,6 +106,21 @@ class DynamicSiteController extends Controller
     public function post(Request $request, string $siteSlug, string $categorySlug, string $postSlug): Response
     {
         $site = $this->resolveSite($siteSlug);
+
+        // WordPress-style category archive at /{categoryBase}/{slug} (e.g. /category/world).
+        // Category taxonomy archives are otherwise only built statically; serve them
+        // here so category links resolve in the dynamic preview too.
+        $catBase = trim(LocalePaths::categoryBase($site), '/');
+        if ($catBase !== '' && $categorySlug === $catBase) {
+            $category = Category::where('site_id', $site->id)->where('slug', $postSlug)->first();
+            if ($category) {
+                return $this->respondCollectionHtml(
+                    app(ArchiveBuildService::class)->renderCategoryArchiveHtml($site, $category),
+                    $site
+                );
+            }
+        }
+
         $post = Post::where('site_id', $site->id)->where('slug', $postSlug)->first();
 
         if (!$post) {
@@ -138,6 +171,20 @@ class DynamicSiteController extends Controller
         }
         if (count($segments) < 2) {
             abort(404);
+        }
+
+        // WordPress-style category archive (with pagination): /{categoryBase}/{slug}[/page/{n}]
+        $catBase = trim(LocalePaths::categoryBase($site), '/');
+        if ($catBase !== '' && $segments[0] === $catBase) {
+            $category = Category::where('site_id', $site->id)->where('slug', $segments[1])->first();
+            if ($category) {
+                $page = (($segments[2] ?? null) === 'page' && ctype_digit($segments[3] ?? '')) ? (int) $segments[3] : 1;
+                return $this->respondCollectionHtml(
+                    app(ArchiveBuildService::class)->renderCategoryArchiveHtml($site, $category, $page, $localePrefix),
+                    $site
+                );
+            }
+            abort(404, "Category not found: /{$path}");
         }
 
         $collection = $this->findCollectionByPrefix($site, $segments[0]);

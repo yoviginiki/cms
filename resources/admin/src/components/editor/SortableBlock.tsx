@@ -8,8 +8,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core';
 import { buildBlockWrapperStyle, buildAnimationStyle, buildBlockClasses, buildBackgroundFromData, buildOverlayFromData, safeDim } from '@/lib/blockStyles';
 import type { Breakpoint } from '@/lib/breakpoints';
-import { LAYOUT_GRID, type RowLayout } from '@/components/blocks/row/definition';
-import { spansToGridTemplate, normalizeSpans } from '@/lib/columnLayout';
+import { gridTemplateForColumns } from '@/lib/columnLayout';
 import { ModulePicker } from './ModulePicker';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -100,19 +99,24 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
   const levelAccent = LEVEL_ACCENTS[level] || '';
   const children = block.children ?? [];
 
-  // Row children render in CSS grid matching layout preset
+  // Row children render in CSS grid. The number of grid tracks ALWAYS matches
+  // the real column children — never a layout preset that implies more columns
+  // than actually exist. Otherwise a row with (say) one column but a
+  // "1/2+1/2" layout renders a second, empty, *undroppable* phantom column
+  // that nothing can be dragged into. The layout/col_spans only seed the track
+  // *widths*; the track *count* comes from the blocks that are really there.
   const isRow = block.type === 'row';
   const blockData = block.data ?? {};
-  const rowLayout = isRow ? ((blockData.layout as RowLayout) || '1/2+1/2') : undefined;
   const rowGap = isRow ? (safeDim(blockData.gap) || '16px') : undefined;
   const isMobileStack = isRow && canvasDevice === 'mobile';
-  // P5: explicit 12-grid widths override the preset when present.
-  const rowSpans =
-    isRow && Array.isArray(blockData.col_spans) && (blockData.col_spans as unknown[]).length >= 2
-      ? spansToGridTemplate(normalizeSpans(blockData.col_spans, (blockData.col_spans as unknown[]).length))
-      : undefined;
+  const columnCount = isRow
+    ? Math.max(1, children.filter((c) => (c.level ?? 'column') === 'column').length)
+    : 0;
+  const rowSpans = isRow
+    ? gridTemplateForColumns(blockData.col_spans, blockData.layout as string | undefined, columnCount)
+    : undefined;
   const childrenStyle: React.CSSProperties = isRow
-    ? { display: 'grid', gridTemplateColumns: isMobileStack ? '1fr' : (rowSpans || LAYOUT_GRID[rowLayout!] || '1fr 1fr'), gap: rowGap }
+    ? { display: 'grid', gridTemplateColumns: isMobileStack ? '1fr' : rowSpans!, gap: rowGap }
     : {};
 
   // Determine what the "+" button does for this level
@@ -137,7 +141,7 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group transition-all ${
+      className={`sp-block-node relative group transition-all ${
         allowsChildren && levelAccent ? `border-l-2 ${levelAccent}` : ''
       } ${
         isSelected
@@ -257,10 +261,16 @@ export function SortableBlock({ block, depth = 0 }: SortableBlockProps) {
         />
       )}
 
-      {/* Drag handle (visible on hover when not selected) */}
+      {/* Drag handle (visible on hover when not selected).
+          z-index rises with nesting depth so the INNERMOST block's handle wins
+          the pointer. Otherwise the first/top-left child (e.g. a post-image at
+          order 0) sits directly under its column/row/section handles — all at
+          the same corner — and grabbing it would grab an ancestor instead, so
+          that block "can't be moved". */}
       {!isSelected && (
         <div
-          className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 cursor-grab p-1 bg-base-100 rounded shadow text-base-content/30 hover:text-base-content/60 transition-opacity z-10"
+          style={{ zIndex: 40 + depth }}
+          className="sp-block-handle absolute top-2 left-2 opacity-0 group-hover:opacity-100 cursor-grab p-1 bg-base-100 rounded shadow text-base-content/30 hover:text-base-content/60 transition-opacity"
           {...attributes}
           {...listeners}
         >

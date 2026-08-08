@@ -443,3 +443,15 @@ button, a, input, select, textarea {
   object-fit: cover;
   display: block;
 }
+
+/* ─── Nested block drag handles ───
+   Each block (section/row/column/module) has its own drag handle at its
+   top-left corner. A first/top-left child sits directly under its container's
+   handle, so grabbing that child would grab the ancestor instead — the block
+   "can't be moved" (classic symptom: the FIRST block in a column won't drag).
+   Fix: when hovering a block, hide the drag handles of all its ANCESTOR blocks,
+   so only the innermost hovered block exposes a grabbable handle. */
+.sp-block-node:has(.sp-block-node:hover) > .sp-block-handle {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
