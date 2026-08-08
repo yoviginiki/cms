@@ -88,14 +88,17 @@ final class InlineEditRbacTest extends TestCase
 
     public function test_forged_site_from_another_tenant_is_blocked(): void
     {
-        // A second tenant with its own site + editor.
+        // A second tenant with its own site + editor. The other tenant's site
+        // must be created under the other tenant's RLS context — otherwise the
+        // FORCE row-level-security WITH CHECK on `sites` rejects the insert
+        // (the GUC is still our tenant from setUp).
         $otherTenant = Tenant::factory()->create();
-        $otherSite = Site::factory()->create(['tenant_id' => $otherTenant->id]);
         $intruder = User::factory()->create(['tenant_id' => $otherTenant->id, 'role' => 'editor']);
+        $this->setTenantScope($intruder);
+        $otherSite = Site::factory()->create(['tenant_id' => $otherTenant->id]);
 
         // Intruder points their OWN site id at OUR page id — must not cross over.
         $this->actingAs($intruder, 'sanctum');
-        $this->setTenantScope($intruder);
         $crossed = $this->postJson(
             "/api/v1/sites/{$otherSite->id}/pages/{$this->page->id}/inline/session",
             [], $this->apiHeaders()

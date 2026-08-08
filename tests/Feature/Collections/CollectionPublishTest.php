@@ -32,7 +32,10 @@ class CollectionPublishTest extends TestCase
     {
         parent::setUp();
         $this->setTenantScope($this->owner);
-        $this->site = Site::factory()->create(['tenant_id' => $this->tenant->id, 'settings' => ['auto_publish' => false]]);
+        // Root-hosted (custom_domain set) so RecordDisplay::sitePathBase() is '' —
+        // these assertions expect base-less URLs; slug-hosting base-prefixing has
+        // its own coverage in SlugHostingBaseRewriteTest.
+        $this->site = Site::factory()->create(['tenant_id' => $this->tenant->id, 'custom_domain' => 'books.test', 'settings' => ['auto_publish' => false]]);
         $this->authors = $this->createAuthorsCollection($this->site);
         $this->books = $this->createBooksCollection($this->site, $this->authors);
         $this->staging = storage_path('app/test-builds/' . uniqid());

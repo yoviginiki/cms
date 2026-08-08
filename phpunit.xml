@@ -12,6 +12,12 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+
+    <extensions>
+        <!-- Pop error/exception handlers leaked by third-party code (HTMLPurifier)
+             after each test, so a single leak can't cascade into "risky" flags. -->
+        <bootstrap class="Tests\Support\RestoreHandlersExtension"/>
+    </extensions>
     <source>
         <include>
             <directory>app</directory>

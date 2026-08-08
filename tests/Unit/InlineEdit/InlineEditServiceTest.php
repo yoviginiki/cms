@@ -32,7 +32,7 @@ final class InlineEditServiceTest extends TestCase
         $this->svc = app(InlineEditService::class);
     }
 
-    private function status(callable $fn): int
+    private function statusOf(callable $fn): int
     {
         try {
             $fn();
@@ -47,26 +47,26 @@ final class InlineEditServiceTest extends TestCase
     public function test_unknown_field_path_is_rejected_422(): void
     {
         $block = new Block(['type' => 'heading', 'data' => ['text' => 'Hi']]);
-        $this->assertSame(422, $this->status(fn () => $this->svc->sanitizeField($block, 'bogus', 'x')));
+        $this->assertSame(422, $this->statusOf(fn () => $this->svc->sanitizeField($block, 'bogus', 'x')));
     }
 
     public function test_reserved_key_is_rejected_422(): void
     {
         $block = new Block(['type' => 'heading', 'data' => ['text' => 'Hi']]);
-        $this->assertSame(422, $this->status(fn () => $this->svc->sanitizeField($block, '__style', ['x' => 1])));
+        $this->assertSame(422, $this->statusOf(fn () => $this->svc->sanitizeField($block, '__style', ['x' => 1])));
     }
 
     public function test_deep_dotted_path_is_rejected_422(): void
     {
         $block = new Block(['type' => 'heading', 'data' => ['text' => 'Hi']]);
-        $this->assertSame(422, $this->status(fn () => $this->svc->sanitizeField($block, 'text.inner', 'x')));
+        $this->assertSame(422, $this->statusOf(fn () => $this->svc->sanitizeField($block, 'text.inner', 'x')));
     }
 
     public function test_schema_invalid_value_is_rejected_422(): void
     {
         // heading.level must be h1..h6
         $block = new Block(['type' => 'heading', 'data' => ['text' => 'Hi']]);
-        $this->assertSame(422, $this->status(fn () => $this->svc->sanitizeField($block, 'level', 'h9')));
+        $this->assertSame(422, $this->statusOf(fn () => $this->svc->sanitizeField($block, 'level', 'h9')));
     }
 
     // ---- valid fields sanitize through the existing pipeline ---------------
@@ -100,14 +100,14 @@ final class InlineEditServiceTest extends TestCase
     {
         foreach (['slider_ref', 'global_ref', 'menu'] as $type) {
             $block = new Block(['type' => $type, 'data' => []]);
-            $this->assertSame(403, $this->status(fn () => $this->svc->assertPatchable($block)), $type);
+            $this->assertSame(403, $this->statusOf(fn () => $this->svc->assertPatchable($block)), $type);
         }
     }
 
     public function test_normal_block_is_patchable(): void
     {
         $block = new Block(['type' => 'heading', 'data' => []]);
-        $this->assertSame(0, $this->status(fn () => $this->svc->assertPatchable($block)));
+        $this->assertSame(0, $this->statusOf(fn () => $this->svc->assertPatchable($block)));
     }
 
     // ---- optimistic lock → 409 ---------------------------------------------
@@ -115,19 +115,19 @@ final class InlineEditServiceTest extends TestCase
     public function test_hash_mismatch_is_conflict_409(): void
     {
         $block = new Block(['type' => 'heading', 'data' => ['text' => 'current']]);
-        $this->assertSame(409, $this->status(fn () => $this->svc->assertHashMatches($block, 'stale-hash-from-session')));
+        $this->assertSame(409, $this->statusOf(fn () => $this->svc->assertHashMatches($block, 'stale-hash-from-session')));
     }
 
     public function test_matching_hash_passes(): void
     {
         $block = new Block(['type' => 'heading', 'data' => ['text' => 'current']]);
         $hash = $this->svc->blockHash($block);
-        $this->assertSame(0, $this->status(fn () => $this->svc->assertHashMatches($block, $hash)));
+        $this->assertSame(0, $this->statusOf(fn () => $this->svc->assertHashMatches($block, $hash)));
     }
 
     public function test_null_hash_skips_lock(): void
     {
         $block = new Block(['type' => 'heading', 'data' => ['text' => 'current']]);
-        $this->assertSame(0, $this->status(fn () => $this->svc->assertHashMatches($block, null)));
+        $this->assertSame(0, $this->statusOf(fn () => $this->svc->assertHashMatches($block, null)));
     }
 }

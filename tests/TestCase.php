@@ -22,6 +22,13 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        // Per-request static caches must not leak across tests in the long-lived
+        // test process. A build that sets a deploy target and then throws would
+        // otherwise leave it set, making later tests self-host fonts (breaking
+        // @import assertions) or resolve stale asset URLs. reset() clears both
+        // the publish cache and the deploy target.
+        \App\Domain\Publishing\Services\AssetPublisher::reset();
+
         $this->tenant = Tenant::factory()->create();
         $this->owner = User::factory()->owner()->create(['tenant_id' => $this->tenant->id]);
     }

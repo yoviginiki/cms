@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Policies\PagePolicy;
 use App\Policies\PostPolicy;
 use Illuminate\Contracts\Console\Kernel;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -57,9 +58,7 @@ final class PageInlinePolicyTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider matrix
-     */
+    #[DataProvider('matrix')]
     public function test_same_tenant_matrix(string $role, bool $edit, bool $publish): void
     {
         $page = $this->page('t1');
@@ -69,9 +68,7 @@ final class PageInlinePolicyTest extends TestCase
         $this->assertSame($publish, $this->policy->inlinePublish($user, $page), "$role inlinePublish");
     }
 
-    /**
-     * @dataProvider matrix
-     */
+    #[DataProvider('matrix')]
     public function test_cross_tenant_is_always_denied(string $role): void
     {
         $page = $this->page('t2'); // page's tenant differs from the user's
@@ -103,9 +100,7 @@ final class PageInlinePolicyTest extends TestCase
         $this->assertFalse($this->policy->inlineEdit($author, $crossTenantOwn), 'author owns but cross-tenant');
     }
 
-    /**
-     * @dataProvider matrix
-     */
+    #[DataProvider('matrix')]
     public function test_post_same_tenant_matrix(string $role, bool $edit, bool $publish): void
     {
         $policy = new PostPolicy();
