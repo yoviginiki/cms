@@ -20,6 +20,9 @@ use Illuminate\Support\Str;
  */
 class ArchiveBuildService
 {
+    /** Posts per page for category/tag/author archives (blog index has its own). */
+    private const ARCHIVE_PER_PAGE = 12;
+
     /**
      * Rebuild the blog index + all archives for a site into $stagingPath.
      * Returns lint warnings (never blocking) — e.g. an archive template that
@@ -138,14 +141,17 @@ class ArchiveBuildService
         $categories = $site->categories()->withCount('posts')->get();
         $buildService = app(BuildPageService::class);
         $isDefaultLocale = $prefix === '';
+        $catBase = LocalePaths::categoryBase($site);
         $localizeName = fn ($cat) => ($cat->settings['name_translations'][$locale] ?? null) ?: $cat->name;
 
         foreach ($categories as $category) {
-            // A real page owns its slug: category archives write to /{slug}/
-            // AFTER pages build, so a same-slug category (common after a WP
-            // import, e.g. a "Статии" category next to the Статии page) would
-            // silently overwrite the page. The page wins; skip the archive.
-            $pageOwnsSlug = \App\Models\Page::where('site_id', $site->id)
+            // A real page owns its slug: with a rootless category base the
+            // archive writes to /{slug}/ AFTER pages build, so a same-slug
+            // category (common after a WP import, e.g. a "Статии" category next
+            // to the Статии page) would silently overwrite the page. The page
+            // wins; skip the archive. With a category base (e.g.
+            // /category/{slug}/) there is no collision, so the skip is moot.
+            $pageOwnsSlug = $catBase === '' && \App\Models\Page::where('site_id', $site->id)
                 ->where('slug', $category->slug)
                 ->where('status', 'published')
                 ->exists();
@@ -166,7 +172,7 @@ class ArchiveBuildService
 
             if ($archiveTemplate) {
                 $html = $this->renderArchiveWithTemplate($archiveTemplate, $category, $posts, $site, $vars, $buildService,
-                    app(StructuredDataService::class)->generateArchiveGraph($site, $displayName, "/{$prefix}{$category->slug}/", $posts),
+                    app(StructuredDataService::class)->generateArchiveGraph($site, $displayName, "/{$prefix}{$catBase}{$category->slug}/", $posts),
                     $prefix, $locale, $displayName);
 
                 // An empty/misconfigured archive template fails completely
@@ -177,8 +183,10 @@ class ArchiveBuildService
                 if ($posts->isNotEmpty() && !str_contains($body, rtrim(LocalePaths::urlPath($site, $posts->first()), '/'))) {
                     $warnings[] = "Category '{$category->slug}': archive template '{$archiveTemplate->name}' renders none of the category's {$posts->count()} published posts (empty template or missing post-loop block?)";
                 }
+                $path = "{$prefix}{$catBase}{$category->slug}/index.html";
+                $this->write($stagingPath, $path, $html, $site);
             } else {
-                // Collect child categories with their posts
+                // Collect child categories with their posts (only shown page 1)
                 $children = $categories->where('parent_id', $category->id);
                 $childData = [];
                 foreach ($children as $child) {
@@ -189,21 +197,80 @@ class ArchiveBuildService
                     }
                 }
 
-                $html = View::make('publishing.category-archive', array_merge($vars, [
-                    'category' => $category,
-                    'displayName' => $displayName,
-                    'urlPrefix' => $prefix,
-                    'posts' => $posts,
-                    'childCategories' => $childData,
-                    'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $displayName, "/{$prefix}{$category->slug}/", $posts),
-                ]))->render();
+                // Paginate so a large category (thousands of posts) never renders
+                // one enormous archive page. page 1 at /{base}{slug}/, the rest at
+                // /{base}{slug}/page/{n}/.
+                $paginationBase = "/{$prefix}{$catBase}{$category->slug}";
+                $totalPages = max(1, (int) ceil($posts->count() / self::ARCHIVE_PER_PAGE));
+                for ($pg = 1; $pg <= $totalPages; $pg++) {
+                    $pagePosts = $posts->forPage($pg, self::ARCHIVE_PER_PAGE);
+                    $canonical = $pg === 1 ? "{$paginationBase}/" : "{$paginationBase}/page/{$pg}/";
+                    $html = View::make('publishing.category-archive', array_merge($vars, [
+                        'category' => $category,
+                        'displayName' => $displayName,
+                        'urlPrefix' => $prefix,
+                        'posts' => $pagePosts,
+                        'childCategories' => $pg === 1 ? $childData : [],
+                        'currentPage' => $pg,
+                        'totalPages' => $totalPages,
+                        'paginationBase' => $paginationBase,
+                        'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $displayName, $canonical, $pagePosts),
+                    ]))->render();
+                    $path = $pg === 1
+                        ? "{$prefix}{$catBase}{$category->slug}/index.html"
+                        : "{$prefix}{$catBase}{$category->slug}/page/{$pg}/index.html";
+                    $this->write($stagingPath, $path, $html, $site);
+                }
             }
-
-            $path = "{$prefix}{$category->slug}/index.html";
-            $this->write($stagingPath, $path, $html, $site);
         }
 
         return $warnings;
+    }
+
+    /**
+     * Render a single category archive page to HTML (no file write, no asset
+     * rewrite) — used by the dynamic preview so category URLs resolve the same
+     * way they do in a static build. Mirrors the non-template branch of
+     * buildCategoryArchives() for one category + page.
+     */
+    public function renderCategoryArchiveHtml(Site $site, $category, int $page = 1, string $prefix = '', ?string $locale = null): string
+    {
+        $locale ??= LocalePaths::defaultLanguage($site);
+        $vars = $this->getArchiveVars($site, $locale);
+        $catBase = LocalePaths::categoryBase($site);
+        $localizeName = fn ($cat) => ($cat->settings['name_translations'][$locale] ?? null) ?: $cat->name;
+        $categories = $site->categories()->get();
+
+        $posts = $category->posts()->with(['category', 'author'])->where('status', 'published')->orderByDesc('published_at')->get()
+            ->filter(fn ($p) => LocalePaths::contentLocale($p, $site) === $locale)->values();
+        $displayName = $localizeName($category);
+
+        $childData = [];
+        foreach ($categories->where('parent_id', $category->id) as $child) {
+            $childPosts = $child->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get()
+                ->filter(fn ($p) => LocalePaths::contentLocale($p, $site) === $locale)->values();
+            if ($childPosts->isNotEmpty()) {
+                $childData[] = ['category' => $child, 'posts' => $childPosts, 'displayName' => $localizeName($child)];
+            }
+        }
+
+        $paginationBase = "/{$prefix}{$catBase}{$category->slug}";
+        $totalPages = max(1, (int) ceil($posts->count() / self::ARCHIVE_PER_PAGE));
+        $page = max(1, min($page, $totalPages));
+        $pagePosts = $posts->forPage($page, self::ARCHIVE_PER_PAGE);
+        $canonical = $page === 1 ? "{$paginationBase}/" : "{$paginationBase}/page/{$page}/";
+
+        return View::make('publishing.category-archive', array_merge($vars, [
+            'category' => $category,
+            'displayName' => $displayName,
+            'urlPrefix' => $prefix,
+            'posts' => $pagePosts,
+            'childCategories' => $page === 1 ? $childData : [],
+            'currentPage' => $page,
+            'totalPages' => $totalPages,
+            'paginationBase' => $paginationBase,
+            'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $displayName, $canonical, $pagePosts),
+        ]))->render();
     }
 
     private function renderArchiveWithTemplate(
@@ -227,7 +294,7 @@ class ArchiveBuildService
             '__archivePostCount' => $posts->count(),
             '__archiveCurrentPage' => 1,
             '__archiveTotalPages' => 1,
-            '__archiveBaseUrl' => "/{$prefix}{$category->slug}",
+            '__archiveBaseUrl' => '/' . $prefix . LocalePaths::categoryBase($site) . $category->slug,
         ];
 
         // Render template blocks with archive context (safe try/finally inside)
@@ -267,19 +334,28 @@ class ArchiveBuildService
         $tags = $site->tags()->get();
 
         foreach ($tags as $tag) {
-            $posts = $tag->posts()->where('status', 'published')->orderByDesc('published_at')->get();
-            if ($posts->isEmpty()) {
+            $base = $tag->posts()->where('status', 'published');
+            $total = (clone $base)->count();
+            if ($total === 0) {
                 continue;
             }
+            $paginationBase = "/tag/{$tag->slug}";
+            $totalPages = max(1, (int) ceil($total / self::ARCHIVE_PER_PAGE));
 
-            $html = View::make('publishing.tag-archive', array_merge($vars, [
-                'tag' => $tag,
-                'posts' => $posts,
-                'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $tag->name, "/tag/{$tag->slug}/", $posts),
-            ]))->render();
-
-            $path = "tag/{$tag->slug}/index.html";
-            $this->write($stagingPath, $path, $html, $site);
+            for ($pg = 1; $pg <= $totalPages; $pg++) {
+                $pagePosts = (clone $base)->orderByDesc('published_at')->forPage($pg, self::ARCHIVE_PER_PAGE)->get();
+                $canonical = $pg === 1 ? "{$paginationBase}/" : "{$paginationBase}/page/{$pg}/";
+                $html = View::make('publishing.tag-archive', array_merge($vars, [
+                    'tag' => $tag,
+                    'posts' => $pagePosts,
+                    'currentPage' => $pg,
+                    'totalPages' => $totalPages,
+                    'paginationBase' => $paginationBase,
+                    'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $tag->name, $canonical, $pagePosts),
+                ]))->render();
+                $path = $pg === 1 ? "tag/{$tag->slug}/index.html" : "tag/{$tag->slug}/page/{$pg}/index.html";
+                $this->write($stagingPath, $path, $html, $site);
+            }
         }
     }
 
@@ -296,18 +372,30 @@ class ArchiveBuildService
                 continue;
             }
 
-            $posts = $site->posts()->where('status', 'published')->where('author_id', $authorId)
-                ->orderByDesc('published_at')->get();
-
-            $html = View::make('publishing.author-archive', array_merge($vars, [
-                'author' => $author,
-                'posts' => $posts,
-                'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $author->name, '/author/' . Str::slug($author->name) . '/', $posts),
-            ]))->render();
-
             $slug = Str::slug($author->name);
-            $path = "author/{$slug}/index.html";
-            $this->write($stagingPath, $path, $html, $site);
+            $paginationBase = "/author/{$slug}";
+            // Per-page queries (not one big ->get()) so a prolific author — e.g.
+            // an imported site where every post shares one owner — never loads
+            // thousands of posts into memory at once.
+            $base = $site->posts()->where('status', 'published')->where('author_id', $authorId);
+            $total = (clone $base)->count();
+            $totalPages = max(1, (int) ceil($total / self::ARCHIVE_PER_PAGE));
+
+            for ($pg = 1; $pg <= $totalPages; $pg++) {
+                $pagePosts = (clone $base)->orderByDesc('published_at')->forPage($pg, self::ARCHIVE_PER_PAGE)->get();
+                $canonical = $pg === 1 ? "{$paginationBase}/" : "{$paginationBase}/page/{$pg}/";
+                $html = View::make('publishing.author-archive', array_merge($vars, [
+                    'author' => $author,
+                    'posts' => $pagePosts,
+                    'postTotal' => $total,
+                    'currentPage' => $pg,
+                    'totalPages' => $totalPages,
+                    'paginationBase' => $paginationBase,
+                    'archiveJsonLd' => app(StructuredDataService::class)->generateArchiveGraph($site, $author->name, $canonical, $pagePosts),
+                ]))->render();
+                $path = $pg === 1 ? "author/{$slug}/index.html" : "author/{$slug}/page/{$pg}/index.html";
+                $this->write($stagingPath, $path, $html, $site);
+            }
         }
     }
 }
