@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Sparkles, Users, Archive, Download, X, PanelLeft, Wand2, BookMarked, Boxes, Database, LayoutTemplate, ListFilter, FileInput, Webhook } from 'lucide-react';
-import { publishing, staleContent, api } from '@/lib/api';
+import { publishing, staleContent, api, modules } from '@/lib/api';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -10,6 +10,17 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
+
+  // Module Framework access — drives the gated nav entries below.
+  const { data: moduleAccess } = useQuery({
+    queryKey: ['modules'],
+    queryFn: () => modules.list().then((r) => r.data),
+    staleTime: 60_000,
+  });
+  const canManageModules = !!moduleAccess?.abilities
+    && (moduleAccess.abilities.manage || moduleAccess.abilities.administer);
+  const cultureModule = moduleAccess?.modules.find((m) => m.key === 'culture-engine');
+  const showCulture = !!cultureModule?.effective_enabled && !!moduleAccess?.abilities.use;
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Close mobile sidebar on navigation
@@ -206,6 +217,28 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Users size={15} strokeWidth={1.5} />
             {!collapsed && 'Users'}
           </Link>
+          {canManageModules && (
+            <Link to="/modules"
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+                location.pathname.startsWith('/admin/modules')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
+              }`}>
+              <Boxes size={15} strokeWidth={1.5} />
+              {!collapsed && 'Modules'}
+            </Link>
+          )}
+          {showCulture && (
+            <Link to="/culture"
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+                location.pathname.startsWith('/admin/culture')
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
+              }`}>
+              <Sparkles size={15} strokeWidth={1.5} />
+              {!collapsed && 'Culture'}
+            </Link>
+          )}
 
           {mainNav.length > 0 && (
             <>

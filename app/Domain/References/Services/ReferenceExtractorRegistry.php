@@ -37,6 +37,12 @@ class ReferenceExtractorRegistry
             'slider' => $null, // root config only (height/swiper) — no references
             'shape' => $null,
 
+            // ── Culture module ─────────────────────────────────────────────
+            // Bulletin blocks reference no internal entities; their event URLs
+            // (ticket_url/official_url) are external, not internal edges.
+            'bulletin-section' => $null,
+            'event-card' => $null,
+
             // ── Global Sections (P2) ───────────────────────────────────────
             // page → global-section embed (drives stale-page republish exactly
             // like slider_ref; the generic staleness walk handles the cascade)

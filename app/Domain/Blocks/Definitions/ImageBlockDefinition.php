@@ -2,7 +2,11 @@
 
 namespace App\Domain\Blocks\Definitions;
 
-class ImageBlockDefinition implements BlockDefinition
+use App\Domain\Projection\Contracts\ProvidesProjection;
+use App\Domain\Projection\Descriptors\BlockProjection;
+use App\Domain\Projection\Descriptors\FieldType;
+
+class ImageBlockDefinition implements BlockDefinition, ProvidesProjection
 {
     public function type(): string { return 'image'; }
     public function category(): string { return 'media'; }
@@ -31,4 +35,34 @@ class ImageBlockDefinition implements BlockDefinition
 
     public function allowsChildren(): bool { return false; }
     public function maxChildren(): ?int { return null; }
+
+    public function projection(): ?BlockProjection
+    {
+        // schema.org ImageObject. Both asset_id and assetId casings are
+        // declared because the data uses either; the builder emits whichever
+        // is present. url/asset feed the asset inventory; alt/caption are
+        // searchable text.
+        return BlockProjection::make()
+            ->schemaType('ImageObject')
+            ->field('asset_id', 'image', FieldType::AssetRef, [
+                'schema' => true,
+                'inventory' => true,
+            ])
+            ->field('assetId', 'image', FieldType::AssetRef, [
+                'schema' => true,
+                'inventory' => true,
+            ])
+            ->field('url', 'contentUrl', FieldType::Url, [
+                'schema' => true,
+                'inventory' => true,
+            ])
+            ->field('alt', 'name', FieldType::Text, [
+                'schema' => true,
+                'rag' => true,
+            ])
+            ->field('caption', 'caption', FieldType::Text, [
+                'schema' => true,
+                'rag' => true,
+            ]);
+    }
 }

@@ -9,7 +9,7 @@ import type { CardEffects } from '@/lib/blockEffects';
 export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as {
     categoryId: string; limit: number; columns: number;
-    layout: string; orderBy: string; showImage: boolean;
+    layout: string; orderBy: string; showImage: boolean; linkImage: boolean;
     showContent: boolean; showExcerpt: boolean; excerptLength: number;
     showDate: boolean; showCategory: boolean; titleAlign: string;
   };
@@ -98,6 +98,12 @@ export const LatestpostsEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
           <input type="checkbox" className="checkbox checkbox-sm" checked={data.showImage !== false} onChange={(e) => update('showImage', e.target.checked)} />
           <span className="text-[11px] text-base-content/50">Show image</span>
         </label>
+        {data.showImage !== false && (
+          <label className="flex items-center gap-2 pl-6">
+            <input type="checkbox" className="checkbox checkbox-sm" checked={data.linkImage !== false} onChange={(e) => update('linkImage', e.target.checked)} />
+            <span className="text-[11px] text-base-content/50">Link image to post</span>
+          </label>
+        )}
         <label className="flex items-center gap-2">
           <input type="checkbox" className="checkbox checkbox-sm" checked={!!data.showContent} onChange={(e) => update('showContent', e.target.checked)} />
           <span className="text-[11px] text-base-content/50">Show full content</span>

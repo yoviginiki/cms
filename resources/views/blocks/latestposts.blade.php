@@ -46,6 +46,7 @@
     $excerptLength = $data['excerptLength'] ?? 120;
     $showDate = $data['showDate'] ?? true;
     $showCategory = $data['showCategory'] ?? true;
+    $linkImage = $data['linkImage'] ?? true;
     $titleAlign = in_array($data['titleAlign'] ?? '', ['left', 'center', 'right']) ? $data['titleAlign'] : 'left';
 
     // Query posts
@@ -62,7 +63,13 @@
             : $query->whereRaw("seo_meta->>'locale' = ?", [$__lpLocale]);
     }
     if ($categoryId) {
-        $query->where('category_id', $categoryId);
+        // Include posts from child categories too (WordPress-style: a parent
+        // category query returns its subcategories' posts). Leaf categories are
+        // unaffected (no children → just the exact match).
+        $__lpCatIds = \App\Models\Category::where('site_id', $site->id)
+            ->where('parent_id', $categoryId)->pluck('id')->all();
+        $__lpCatIds[] = $categoryId;
+        $query->whereIn('category_id', $__lpCatIds);
     }
     if ($showContent) {
         $query->with(['blocks' => fn($q) => $q->whereNull('parent_block_id')->orderBy('order')]);
@@ -71,6 +78,10 @@
         case 'oldest': $query->orderBy('published_at', 'asc'); break;
         case 'title': $query->orderBy('title', 'asc'); break;
         case 'random': $query->inRandomOrder(); break;
+        // Most read: rolling window signal (seo_meta.win_views from the daily
+        // popularity refresh), then the historical baseline (hist_views, seeded
+        // from the source site's all-time views), then recency.
+        case 'popular': $query->orderByRaw("COALESCE(NULLIF(seo_meta->>'win_views',''),'0')::bigint DESC, COALESCE(NULLIF(seo_meta->>'hist_views',''),'0')::bigint DESC")->orderByDesc('published_at'); break;
         default: $query->orderByDesc('published_at');
     }
     $posts = $query->limit($limit)->get();
@@ -83,6 +94,16 @@
             $html .= $buildService->renderBlock($block, $site);
         }
         return $html;
+    };
+
+    // Helper: render a featured image, optionally wrapped in a link to the post.
+    // The title already links to the article, so the image link is marked
+    // aria-hidden / tabindex=-1 to avoid a duplicate stop for keyboard/SR users.
+    $renderImg = function($post, $imgStyle, $wrapStyle = '') use ($linkImage, $site, $__imageFilter) {
+        $img = '<img class="img-filtered" src="' . e($post->featured_image) . '" alt="" loading="lazy" style="' . $imgStyle . $__imageFilter . '" />';
+        if (!$linkImage) return $img;
+        $url = \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post);
+        return '<a href="' . e($url) . '" aria-hidden="true" tabindex="-1" style="display:block;text-decoration:none;color:inherit;' . $wrapStyle . '">' . $img . '</a>';
     };
 
     // Helper: get excerpt text
@@ -114,11 +135,11 @@
         @foreach($posts as $post)
             <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--color-bg-alt,#f3f4f6);">
                 @if($showImage && $post->featured_image)
-                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;{{ $__imageFilter }}" />
+                    {!! $renderImg($post, 'width:80px;height:80px;object-fit:cover;border-radius:var(--border-radius-md,0.5rem);flex-shrink:0;', 'flex-shrink:0;') !!}
                 @endif
                 <div style="flex:1;">
                     @if($showCategory && $post->category)
-                        <a href="/{{ $__lpPrefix }}{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
+                        <a href="/{{ $__lpPrefix }}{{ ltrim($post->category->url_path, '/') }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:600;font-size:1rem;text-align:{{ $titleAlign }};">
                         <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post) }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $post->title }}</a>
@@ -142,11 +163,11 @@
         @php $first = $posts->shift(); @endphp
         <article style="margin-bottom:1.5rem;border:1px solid var(--color-border,#e2e8f0);border-radius:var(--border-radius-md,0.5rem);overflow:hidden;">
             @if($showImage && $first->featured_image)
-                <img class="img-filtered" src="{{ $first->featured_image }}" alt="" loading="lazy" style="width:100%;height:280px;object-fit:cover;{{ $__imageFilter }}" />
+                {!! $renderImg($first, 'width:100%;height:280px;object-fit:cover;') !!}
             @endif
             <div style="padding:1.25rem;">
                 @if($showCategory && $first->category)
-                    <a href="/{{ $__lpPrefix }}{{ $first->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $first->category->name }}</a>
+                    <a href="/{{ $__lpPrefix }}{{ ltrim($first->category->url_path, '/') }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $first->category->name }}</a>
                 @endif
                 <h2 style="margin:0.25rem 0;font-weight:700;font-size:1.5rem;text-align:{{ $titleAlign }};">
                     <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $first) }}" style="color:var(--color-text, #1e293b);text-decoration:none;">{{ $first->title }}</a>
@@ -167,13 +188,13 @@
         @foreach($posts as $post)
             <article style="{{ $showContent ? '' : 'border:var(--card-border,1px solid var(--color-border,#e2e8f0));border-radius:var(--border-radius-md,0.5rem);' }}overflow:hidden;">
                 @if($showImage && $post->featured_image)
-                    <img class="img-filtered" src="{{ $post->featured_image }}" alt="" loading="lazy" style="width:100%;height:160px;object-fit:cover;{{ $__imageFilter }}" />
+                    {!! $renderImg($post, 'width:100%;height:160px;object-fit:cover;') !!}
                 @elseif($showImage && !$showContent)
                     <div style="background:var(--color-bg-alt,#f3f4f6);height:160px;"></div>
                 @endif
                 <div style="{{ $showContent ? 'max-width:var(--prose-max-width,65ch);margin-left:auto;margin-right:auto;' : 'padding:1rem;' }}">
                     @if($showCategory && $post->category)
-                        <a href="/{{ $__lpPrefix }}{{ $post->category->slug }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
+                        <a href="/{{ $__lpPrefix }}{{ ltrim($post->category->url_path, '/') }}/" style="font-size:0.7rem;color:var(--color-primary, var(--color-primary,#3b82f6));font-weight:500;text-decoration:none;">{{ $post->category->name }}</a>
                     @endif
                     <h3 style="margin:0.25rem 0;font-weight:var(--heading-weight,600);font-family:var(--font-heading,inherit);letter-spacing:var(--letter-spacing-heading,0);text-align:{{ $titleAlign }};">
                         <a href="{{ \App\Domain\Publishing\Services\LocalePaths::urlPath($site, $post) }}" style="color:var(--color-heading, var(--color-text, #1e293b));text-decoration:none;">{{ $post->title }}</a>

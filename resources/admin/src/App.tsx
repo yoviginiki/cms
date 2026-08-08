@@ -74,6 +74,8 @@ const WebhooksPage = lazy(() => import('./pages/WebhooksPage'));
 const QueryEditor = lazy(() => import('./pages/queries/QueryEditor'));
 const FormWizardPage = lazy(() => import('./pages/forms/FormWizardPage'));
 const WizardHub = lazy(() => import('./pages/wizards/WizardHub'));
+const Modules = lazy(() => import('./pages/Modules'));
+const Culture = lazy(() => import('./pages/Culture'));
 const DatabaseWizard = lazy(() => import('./pages/wizards/DatabaseWizard'));
 const SearchWizard = lazy(() => import('./pages/wizards/SearchWizard'));
 
@@ -106,6 +108,8 @@ export default function App() {
 
           {/* Pages with sidebar layout */}
           <Route path="/dashboard" element={<LayoutRoute><Dashboard /></LayoutRoute>} />
+          <Route path="/modules" element={<LayoutRoute><Modules /></LayoutRoute>} />
+          <Route path="/culture" element={<LayoutRoute><Culture /></LayoutRoute>} />
           <Route path="/site-wizard" element={<LayoutRoute><SiteWizardPage /></LayoutRoute>} />
           <Route path="/site-wizard/:sessionId" element={<LayoutRoute><SiteWizardPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/pages" element={<LayoutRoute><PagesList /></LayoutRoute>} />

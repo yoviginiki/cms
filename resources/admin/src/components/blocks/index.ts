@@ -19,6 +19,8 @@ import './heading';
 import './button';
 import './row';
 import './section';
+import './bulletin-section';
+import './event-card';
 import './spacer';
 import './video';
 import './html-embed';

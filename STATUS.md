@@ -811,3 +811,52 @@ Additive layer over the page preview. Published output is byte-identical
 1. **Rich text се изпраща като sanitized HTML, НЕ през TipTap сериализатора.** Web-preview повърхността е vanilla (няма TipTap инстанция — той живее в React admin bundle-а). Съхраняваният формат е идентичен (HTML string на `block.data.content`, същия като TipTap) и минава през същия rich-text HTMLPurifier конфиг + клиентски whitelist (b/i/a/br/strong/em), така че allowed-tag set-ът е детерминистичен. Но не е буквално `WysiwygEditor.getHTML()`. Single-source-of-truth се пази на ниво storage формат, не на ниво serializer call.
 2. **`author` роля не може inline edit** — минималният RBAC вариант; изисква `pages.author_id` ownership колона за "author редактира собствените си страници" (брифът 4.3).
 3. **Няма тестова база** (`.env.testing` липсва, `.env` е production) — feature/integration тестовете (`tests/Feature/InlineEdit/*`) са CI-ready но не пуснати в тази сесия; логиката е доказана DB-free чрез unit тестове + standalone харнеси.
+
+---
+
+## MODULE FRAMEWORK + CULTURE ENGINE (session 2026-08-07)
+
+Generic on/off module framework (global × per-tenant) + the Culture Engine
+receiving surface (token-authed draft endpoint + `bulletin-section`/`event-card`
+blocks). Additive-only; no existing block, RBAC role, or RLS policy changed.
+Built and tested against `cms_saas_platform_test`; **no `php artisan migrate`
+was run against production** (`.env` = prod `cms_saas_platform`) — the 5
+migrations are a handoff.
+
+**Module suite: 40/40 passing (125 assertions).**
+
+| Subsystem | Rating | Tests / verification |
+|-----------|--------|----------------------|
+| Module framework (registry, `module:` middleware, RLS, job no-op, seeder) | 🟢 GREEN | `ModuleRegistryTest` (7), `ModuleFrameworkTest` (5) |
+| Module token auth + rate limit + `module_api_logs` audit | 🟢 GREEN | `ModuleTokenAuthTest` (7) |
+| RBAC gating (3 abilities → role thresholds) | 🟢 GREEN | `ModulePermissionsTest` (3), gating in `ModuleSettingsApiTest` |
+| Settings API (modules toggle + token CRUD) | 🟢 GREEN | `ModuleSettingsApiTest` (6) |
+| Culture receiving endpoint (idempotency, sanitize, 422/403, draft-only) | 🟢 GREEN | `CultureDraftEndpointTest` (7) |
+| Culture blocks — Blade output (flat static HTML, no `<script>`, null-safe) | 🟢 GREEN | `CultureBlockRenderTest` (5) |
+| Settings UI (React SPA: Modules screen, token manager, gated nav) | 🟢 GREEN | `tsc --noEmit` clean; backend gated + tested; **Playwright-verified** via a prod-safe scratch build (base `/`, tmp outDir — `public/admin-assets/` untouched) with mocked API: Modules screen + gated nav + token manager render correctly, normally (2.2s) and under **Slow-3G** (15.1s, no crash). See docs decision VISUAL-GATE. |
+| Culture blocks — React editor/preview | 🟡 YELLOW | typechecked + registered in `blockRegistry`; not exercised interactively in a running editor (block editing UI not screenshotted). |
+
+**Migrations pending production handoff (single-confirm, run in order):**
+`2026_08_07_000001_create_modules_table`,
+`…000002_create_module_tenant_table`,
+`…000003_create_module_tokens_table`,
+`…000004_create_module_api_logs_table`,
+`…000005_create_module_idempotency_keys_table`. All reversible; validated on the test DB via `RefreshDatabase`.
+
+**Decisions:** logged in `docs/projection-decisions.md` (DB-ENV, RBAC, RLS-TOKENS, AUDIT, VISUAL-GATE, ENTITY, TARGET-SITE, IDEMPOTENCY).
+
+### ⚠️ Pre-existing working-tree state (NOT this session's work)
+On arrival the working tree was already dirty with **51 uncommitted modified
+files** from a prior/concurrent session (publishing services & Blade views,
+`CloudflarePurger`, `SitemapGenerator`, `StructuredDataService`, `LocalePaths`,
+`Post`, `WysiwygEditor.tsx`, `public/admin-assets/*`, `DocsSiteSeeder`+test, …).
+The full suite (run minus one pre-existing PHPUnit-incompat file,
+`tests/Unit/InlineEdit/InlineEditServiceTest.php`, which fatals on a `final
+status()` collision) reports **1754 passed / 12 failed / 1 skipped**. All 12
+failures map to those pre-existing modified files (Collections publish/hierarchy,
+CloudflarePurge, SemanticHtml layout, SiteWizard/ThemeWizard build, InlineEdit
+RBAC) — **none are module/culture tests**. This session introduced exactly one
+regression (`ExtractorCoverageTest`, from the two new block types) which is
+fixed by registering their `NullExtractor` entries. The 12 pre-existing failures
+and the dirty tree were left untouched (concurrent-session hazard — reverting
+could destroy the other session's WIP).

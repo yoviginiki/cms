@@ -2,7 +2,11 @@
 
 namespace App\Domain\Blocks\Definitions;
 
-class HeadingBlockDefinition implements BlockDefinition
+use App\Domain\Projection\Contracts\ProvidesProjection;
+use App\Domain\Projection\Descriptors\BlockProjection;
+use App\Domain\Projection\Descriptors\FieldType;
+
+class HeadingBlockDefinition implements BlockDefinition, ProvidesProjection
 {
     public function type(): string { return 'heading'; }
     public function category(): string { return 'content'; }
@@ -29,4 +33,24 @@ class HeadingBlockDefinition implements BlockDefinition
 
     public function allowsChildren(): bool { return false; }
     public function maxChildren(): ?int { return null; }
+
+    public function projection(): ?BlockProjection
+    {
+        // A heading carries no standalone schema.org @type; it structures the
+        // page's heading outline and provides searchable text for RAG.
+        return BlockProjection::make()
+            ->schemaType(null)
+            ->field('text', 'headline', FieldType::Text, [
+                'rag' => true,
+            ])
+            ->headingLevel(fn (array $data): ?int => match ($data['level'] ?? 'h2') {
+                'h1' => 1,
+                'h2' => 2,
+                'h3' => 3,
+                'h4' => 4,
+                'h5' => 5,
+                'h6' => 6,
+                default => null,
+            });
+    }
 }

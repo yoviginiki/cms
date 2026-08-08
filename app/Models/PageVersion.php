@@ -14,6 +14,7 @@ class PageVersion extends Model
 
     protected $fillable = [
         'page_id', 'post_id', 'blocks_snapshot', 'seo_snapshot',
+        'projection_snapshot', 'projection_hash',
         'published_by', 'published_at', 'version_number',
     ];
 
@@ -22,6 +23,7 @@ class PageVersion extends Model
         return [
             'blocks_snapshot' => 'array',
             'seo_snapshot' => 'array',
+            'projection_snapshot' => 'array',
             'published_at' => 'datetime',
             'created_at' => 'datetime',
         ];

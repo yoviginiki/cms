@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\AiController;
 use App\Http\Controllers\Api\V1\PageController;
 use App\Http\Controllers\Api\V1\PostController;
 use App\Http\Controllers\Api\V1\PreviewController;
+use App\Http\Controllers\Api\V1\ProjectionExportController;
 use App\Http\Controllers\Api\V1\PublishController;
 use App\Http\Controllers\Api\V1\SiteCloneController;
 use App\Http\Controllers\Api\V1\SiteController;
@@ -214,6 +215,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/pages/{page}/blocks', [BlockController::class, 'indexForPage']);
         Route::put('sites/{site}/pages/{page}/blocks', [BlockController::class, 'syncForPage']);
         Route::get('sites/{site}/posts/{post}/blocks', [BlockController::class, 'indexForPost']);
+
+        // Content Projection Layer — read-only export (JSON / Markdown).
+        Route::get('sites/{site}/pages/{page}/projection', [ProjectionExportController::class, 'page']);
+        Route::get('sites/{site}/posts/{post}/projection', [ProjectionExportController::class, 'post']);
         Route::put('sites/{site}/posts/{post}/blocks', [BlockController::class, 'syncForPost']);
 
         // Inline edit — save / draft / export (additive; writes to live blocks)
@@ -294,6 +299,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/webhooks/{webhook}/deliveries', [\App\Http\Controllers\Api\V1\WebhookController::class, 'deliveries']);
         Route::post('sites/{site}/webhooks/{webhook}/test', [\App\Http\Controllers\Api\V1\WebhookController::class, 'test']);
         Route::apiResource('sites.webhooks', \App\Http\Controllers\Api\V1\WebhookController::class)->except(['show']);
+
+        // Module Framework — Settings → Modules. Read is open (powers nav
+        // gating + returns the caller's abilities); mutations are ability-gated
+        // inside the controllers (modules.administer / module.culture.manage).
+        Route::prefix('modules')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\V1\ModuleController::class, 'index']);
+            Route::patch('{module:key}/global', [\App\Http\Controllers\Api\V1\ModuleController::class, 'setGlobal']);
+            Route::patch('{module:key}/tenant', [\App\Http\Controllers\Api\V1\ModuleController::class, 'setTenant']);
+            Route::put('{module:key}/settings', [\App\Http\Controllers\Api\V1\ModuleController::class, 'updateSettings']);
+            Route::get('{module:key}/tokens', [\App\Http\Controllers\Api\V1\ModuleTokenController::class, 'index']);
+            Route::post('{module:key}/tokens', [\App\Http\Controllers\Api\V1\ModuleTokenController::class, 'store']);
+            Route::delete('{module:key}/tokens/{token}', [\App\Http\Controllers\Api\V1\ModuleTokenController::class, 'destroy']);
+        });
 
         // Saved queries (Track G-Q) — authoring is admin/owner only
         Route::middleware('role:admin')->group(function () {

@@ -136,6 +136,13 @@ class PublishSiteJob implements ShouldQueue
             $built = 0;
             $validationResults = [];
 
+            // Content Projection Layer: machine-readable sidecars. Gated behind
+            // the per-site crawler policy (default off) so a site that has not
+            // opted in publishes byte-for-byte as before.
+            $projection = app(\App\Domain\Projection\ProjectionPublisher::class);
+            $projectionOn = $projection->isEnabled($site);
+            $projectionEntries = [];
+
             // Build pages
             foreach ($pages as $page) {
                 $result = $buildService->buildAndValidate($page, $site->theme, $site);
@@ -147,7 +154,14 @@ class PublishSiteJob implements ShouldQueue
                 File::put("{$stagingPath}/{$pagePath}", $html);
 
                 // Create version snapshot
-                $this->createVersion($page, 'page');
+                $version = $this->createVersion($page, 'page');
+
+                if ($projectionOn) {
+                    $proj = $projection->build($site, $page, $projection->urlForPath($pagePath), (string) $version->id);
+                    $entry = $projection->writeSidecarFor($proj, $html, $stagingPath, $pagePath);
+                    $this->recordProjection($entry, "page:{$page->slug}", $projectionEntries, $validationResults);
+                    $this->storeProjectionSnapshot($version, $proj);
+                }
 
                 $built++;
                 $this->updateProgress($built, $totalItems, "Building page: {$page->title}");
@@ -162,7 +176,14 @@ class PublishSiteJob implements ShouldQueue
                 File::ensureDirectoryExists(dirname("{$stagingPath}/{$postPath}"));
                 File::put("{$stagingPath}/{$postPath}", $html);
 
-                $this->createVersion($post, 'post');
+                $version = $this->createVersion($post, 'post');
+
+                if ($projectionOn) {
+                    $proj = $projection->build($site, $post, $projection->urlForPath($postPath), (string) $version->id);
+                    $entry = $projection->writeSidecarFor($proj, $html, $stagingPath, $postPath);
+                    $this->recordProjection($entry, "post:{$post->slug}", $projectionEntries, $validationResults);
+                    $this->storeProjectionSnapshot($version, $proj);
+                }
 
                 $built++;
                 $this->updateProgress($built, $totalItems, "Building post: {$post->title}");
@@ -233,6 +254,11 @@ class PublishSiteJob implements ShouldQueue
 
             // Clean up static files for unpublished/draft posts
             $this->cleanUnpublishedPosts($site, $stagingPath);
+
+            // Site-level projection manifest (once all sidecars are written).
+            if ($projectionOn) {
+                $projection->writeManifest($site, $projectionEntries, $stagingPath);
+            }
 
             // F5 SEO lint — cross-page broken internal link check (warning-only)
             try {
@@ -330,14 +356,14 @@ class PublishSiteJob implements ShouldQueue
         }
     }
 
-    private function createVersion($content, string $type): void
+    private function createVersion($content, string $type): PageVersion
     {
         $blocks = $content->blocks()->orderBy('order')->get()->toArray();
         $lastVersion = PageVersion::where("{$type}_id", $content->id)
             ->orderByDesc('version_number')
             ->first();
 
-        PageVersion::create([
+        return PageVersion::create([
             "{$type}_id" => $content->id,
             'blocks_snapshot' => $blocks,
             'seo_snapshot' => $content->seo_meta ?? [],
@@ -345,6 +371,49 @@ class PublishSiteJob implements ShouldQueue
             'published_at' => now(),
             'version_number' => ($lastVersion?->version_number ?? 0) + 1,
         ]);
+    }
+
+    /**
+     * Phase 4.5 — persist the full internal projection alongside its version
+     * for the internal consumers (Sumi / Ledger / Export). Populated only when
+     * the site has opted into the projection, to avoid storage bloat.
+     */
+    private function storeProjectionSnapshot(PageVersion $version, \App\Domain\Projection\Projection $proj): void
+    {
+        $arr = $proj->toArray();
+        $version->update([
+            'projection_snapshot' => $arr,
+            'projection_hash' => $arr['source']['content_hash'],
+        ]);
+    }
+
+    /**
+     * Fold a projection publish result into the deploy state: a parity mismatch
+     * surfaces as a build error (and no sidecar shipped); success adds a
+     * manifest entry.
+     *
+     * @param array<string,mixed>       $entry
+     * @param list<array<string,mixed>> $entries
+     * @param array<string,mixed>       $validationResults
+     */
+    private function recordProjection(array $entry, string $key, array &$entries, array &$validationResults): void
+    {
+        if (! empty($entry['__parity_failed'])) {
+            $errors = array_map(
+                fn ($m) => 'Projection parity mismatch — ' . ($m['key'] ?? '?') . ': "' . ($m['text'] ?? '') . '" not found in rendered HTML',
+                $entry['missing'] ?? []
+            );
+            $validationResults["projection:{$key}"] = [
+                'passed' => false,
+                'warnings' => [],
+                'errors' => $errors,
+                'score_estimate' => 0,
+            ];
+
+            return;
+        }
+
+        $entries[] = $entry;
     }
 
     private function getPagePath($page): string
