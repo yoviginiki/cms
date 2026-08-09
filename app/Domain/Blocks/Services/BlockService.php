@@ -108,8 +108,20 @@ class BlockService
                 $data['__advanced'] = $blockData['advanced'];
             }
 
+            // Preserve the client-sent id on normal saves (this blockable's old
+            // blocks were just deleted, so reusing the id is fine). But an
+            // imported tree can carry ids that still exist elsewhere in the
+            // blocks table, or repeat within the payload — inserting a duplicate
+            // pkey aborts the whole transaction and loses the save. Mint a fresh
+            // id in that case. Child links stay intact: they use the created
+            // parent row's id ($block->id below), not the payload id.
+            $blockId = $blockData['id'] ?? null;
+            if (!$blockId || Block::whereKey($blockId)->exists()) {
+                $blockId = Str::uuid()->toString();
+            }
+
             $block = Block::create([
-                'id' => $blockData['id'] ?? Str::uuid()->toString(),
+                'id' => $blockId,
                 'blockable_type' => $blockable->getMorphClass(),
                 'blockable_id' => $blockable->getKey(),
                 'parent_block_id' => $parentId,
