@@ -4,8 +4,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye,
-  Calendar, FolderTree, Clock, History, Globe, ChevronDown,
+  Calendar, FolderTree, Clock, History, Globe, ChevronDown, Download, Upload,
 } from 'lucide-react';
+import { deepCloneWithNewIds } from '@/lib/builderHelpers';
+import { useToast } from '@/components/ui/Toast';
 import { usePostData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
@@ -65,6 +67,9 @@ export default function PostEditor() {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
   const updateBlock = useEditorStore((s) => s.updateBlock);
+  const { toast } = useToast();
+  // Hidden <input type=file> that the Import button clicks.
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const [editorMode, setEditorMode] = useState<EditorMode>('simple');
   const [simpleContent, setSimpleContent] = useState('');
@@ -355,6 +360,81 @@ export default function PostEditor() {
     }
   }
 
+  // ─── Export / Import content ───────────────────────────────────────────
+  // A post's content is a block tree. Export writes it to a JSON file with the
+  // block ids STRIPPED — ids identify a block within one post (stable anchors,
+  // theme overrides, grid positions), so a copy moved to another post must get
+  // fresh ids, never inherit the source's. Import regenerates ids on the way in.
+
+  function stripBlockIds(b: any): any {
+    // Drop the DB id; keep everything else (type/data/style/children).
+    const { id: _drop, ...rest } = b || {};
+    return { ...rest, children: (b?.children || []).map(stripBlockIds) };
+  }
+
+  function handleExportContent() {
+    const source = editorMode === 'canvas'
+      ? useCanvasStore.getState().toBlocks()
+      : useEditorStore.getState().blocks;
+    const blocks = (source || []).map(stripBlockIds);
+    if (blocks.length === 0) {
+      toast({ type: 'info', message: 'Няма съдържание за експорт.' });
+      return;
+    }
+    const payload = { __ensodo_content: 1, editor_mode: editorMode, exported_title: title, blocks };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug || 'post'}-content.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast({ type: 'success', message: 'Съдържанието е експортирано.' });
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-importing the same file
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const raw = Array.isArray(parsed) ? parsed : parsed?.blocks;
+      if (!Array.isArray(raw) || raw.length === 0) {
+        toast({ type: 'error', message: 'Невалиден файл: няма блокове.' });
+        return;
+      }
+      const existing = useEditorStore.getState().blocks;
+      if (existing.length > 0 && !window.confirm(
+        'Импортът ще замени текущото съдържание на тази публикация. Продължавате?'
+      )) return;
+
+      // Fresh ids so imported content never collides with the source post.
+      const imported = raw.map((b: any) => deepCloneWithNewIds(b));
+      setBlocks(imported as any);
+
+      // Re-derive per-mode editor state from the new tree.
+      if (editorMode === 'simple') {
+        const body = findContentBlock(imported);
+        simpleBlockIdRef.current = body?.id ?? null;
+        setSimpleContent((body?.data?.content as string) || '');
+      } else if (editorMode === 'canvas') {
+        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
+        useCanvasStore.getState().loadFromBlocks(imported as any, {
+          pageType: cv?.page_type === 'single' ? 'single' : 'website',
+          width: cv?.width,
+          mobileWidth: cv?.mobile_width,
+        });
+      }
+      setDirty(true);
+      toast({ type: 'success', message: `Импортирани ${imported.length} блока. Натиснете Save.` });
+    } catch {
+      toast({ type: 'error', message: 'Импортът се провали: файлът не е валиден JSON.' });
+    }
+  }
+
   function markMetaDirty() { setMetaDirty(true); }
 
   const canSave = isDirty || metaDirty;
@@ -420,6 +500,19 @@ export default function PostEditor() {
             <option value="none">Empty (no template)</option>
           </select>
 
+          <div className="w-px h-5 bg-base-300/30" />
+          {/* Export / Import content (block tree, ids stripped) — copy content
+              from one post into another without carrying source block ids. */}
+          <button onClick={handleExportContent}
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="Export this post's content to a JSON file">
+            <Download size={13} /> Export
+          </button>
+          <button onClick={() => importInputRef.current?.click()}
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="Import content from an exported JSON file (replaces current content)">
+            <Upload size={13} /> Import
+          </button>
+          <input ref={importInputRef} type="file" accept="application/json,.json"
+            onChange={handleImportFile} className="hidden" />
           <div className="w-px h-5 bg-base-300/30" />
           <a href={(() => {
               const cat = categoriesList?.find((c: any) => c.id === categoryId);
