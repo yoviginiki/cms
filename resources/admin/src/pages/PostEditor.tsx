@@ -28,6 +28,15 @@ import { slugify } from '@/lib/slugify';
 import '@/components/blocks';
 
 type EditorMode = 'simple' | 'block' | 'magazine' | 'canvas';
+
+// Human-readable page-builder names, shared by the toggle labels and the
+// "switch page builder" confirmation dialog.
+const MODE_LABELS: Record<EditorMode, string> = {
+  simple: 'Simple',
+  block: 'Blocks',
+  canvas: 'Canvas',
+  magazine: 'Magazine',
+};
 type RightTab = 'settings' | 'post' | 'layers' | 'blocks' | 'tree';
 
 // A Simple-mode post keeps its body in ONE rich-text/text block that lives in
@@ -61,6 +70,9 @@ export default function PostEditor() {
   const [simpleContent, setSimpleContent] = useState('');
   // Id of the block that holds Simple-mode body content (kept in sync with the store).
   const simpleBlockIdRef = useRef<string | null>(null);
+  // Set while we deliberately reload the page after switching page builder, so
+  // the beforeunload guard below doesn't throw a second "unsaved changes" prompt.
+  const bypassUnloadRef = useRef(false);
   const [rightTab, setRightTab] = useState<RightTab>('post');
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -184,7 +196,7 @@ export default function PostEditor() {
   }, [selectedBlockId]);
 
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (isDirty || metaDirty) e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent) => { if (!bypassUnloadRef.current && (isDirty || metaDirty)) e.preventDefault(); };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty, metaDirty]);
@@ -288,26 +300,36 @@ export default function PostEditor() {
     }
   }
 
-  function switchEditorMode(mode: EditorMode) {
-    setEditorMode(mode);
-    setStoreEditorMode(mode);
-    setMetaDirty(true);
-    // Entering Simple mode: re-derive the editor value from the live block tree
-    // so it reflects edits made in block mode (and targets the right block).
-    if (mode === 'simple') {
-      const body = findContentBlock(useEditorStore.getState().blocks);
-      simpleBlockIdRef.current = body?.id ?? null;
-      setSimpleContent((body?.data?.content as string) || '');
-    }
-    // Hydrate the canvas store from the live block tree when switching INTO
-    // canvas mid-session (non-section blocks carried as passthrough).
-    if (mode === 'canvas') {
-      const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
-      useCanvasStore.getState().loadFromBlocks(useEditorStore.getState().blocks, {
-        pageType: cv?.page_type === 'single' ? 'single' : 'website',
-        width: cv?.width,
-        mobileWidth: cv?.mobile_width,
-      });
+  // Switching page builder is destructive: each builder stores/reads the block
+  // tree differently, so we warn, persist the current work under the newly
+  // chosen builder, then hard-reload so the correct editor mounts cleanly.
+  async function switchEditorMode(mode: EditorMode) {
+    if (mode === editorMode || isSaving) return;
+    const confirmed = window.confirm(
+      `Смяна на page builder към „${MODE_LABELS[mode]}“?\n\n` +
+      `Различните page builder-и съхраняват съдържанието по различен начин. ` +
+      `Възможно е част от текущото съдържание да се загуби или да изглежда различно.\n\n` +
+      `Страницата ще се презареди с избрания page builder.`
+    );
+    if (!confirmed) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      // Persist the chosen builder together with whatever is currently in the
+      // editor, so the reload re-opens the correct editor over the saved content.
+      await postsApi.update(siteId, postId, { editor_mode: mode });
+      if (editorMode === 'canvas') {
+        await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
+      } else {
+        await blocksApi.sync(siteId, 'posts', postId, useEditorStore.getState().blocks);
+      }
+      // Reload into the new builder without the browser's unsaved-changes prompt.
+      bypassUnloadRef.current = true;
+      window.location.reload();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || (err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : err.message);
+      setSaveError(msg);
+      setSaving(false);
     }
   }
 
@@ -338,7 +360,8 @@ export default function PostEditor() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Editor mode toggle */}
+          {/* Page builder toggle */}
+          <span className="text-[11px] font-medium text-base-content/50 select-none">Pagebuilder:</span>
           <div className="flex bg-base-200/80 rounded-md p-0.5">
             <button onClick={() => switchEditorMode('simple')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${editorMode === 'simple' ? 'bg-base-100 text-base-content/90 shadow-sm' : 'text-base-content/40'}`}>
