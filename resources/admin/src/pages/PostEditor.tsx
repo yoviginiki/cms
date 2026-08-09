@@ -515,8 +515,13 @@ export default function PostEditor() {
             onChange={handleImportFile} className="hidden" />
           <div className="w-px h-5 bg-base-300/30" />
           {/* Preview = dynamic render from the DB (reflects unpublished edits).
-              View = the live published static page. */}
-          <a href={`/site/blog/${slug}`}
+              Live = the published static page. Post preview route is
+              /sites/{siteSlug}/{categorySlug}/{postSlug}. */}
+          <a href={(() => {
+              const cat = categoriesList?.find((c: any) => c.id === categoryId);
+              const siteSlug = siteData?.slug || '';
+              return `/sites/${siteSlug}/${cat?.slug ? cat.slug + '/' : ''}${slug}`;
+            })()}
             target="_blank" rel="noopener"
             className="btn btn-sm btn-ghost text-[12px] gap-1" title="Preview (dynamic — shows unpublished edits)">
             <Eye size={13} /> Preview
@@ -973,12 +978,22 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
       {/* Quick links */}
       <div className="border-t border-base-300/20 pt-3 space-y-1.5">
         {status === 'published' && slug && (
-          <a href={`/blog/${slug}`} target="_blank" rel="noopener"
+          <a href={(() => {
+              const cat = (categories as any[])?.find((c: any) => c.id === categoryId);
+              const s = site as any;
+              const base = s?.custom_domain ? `https://${s.custom_domain}` : `https://ensodo.eu/${s?.settings?.deploy_slug || s?.slug || ''}`;
+              return `${base}/${cat?.slug ? cat.slug + '/' : ''}${slug}`;
+            })()}
+            target="_blank" rel="noopener"
             className="btn btn-ghost btn-xs w-full text-[11px] gap-1 text-primary justify-start">
             <Eye size={11} /> View published post
           </a>
         )}
-        <a href={`/site/blog/${slug}`} target="_blank" rel="noopener"
+        <a href={(() => {
+            const cat = (categories as any[])?.find((c: any) => c.id === categoryId);
+            return `/sites/${(site as any)?.slug || ''}/${cat?.slug ? cat.slug + '/' : ''}${slug}`;
+          })()}
+          target="_blank" rel="noopener"
           className="btn btn-ghost btn-xs w-full text-[11px] gap-1 text-base-content/40 justify-start">
           <Eye size={11} /> Preview (dynamic)
         </a>
