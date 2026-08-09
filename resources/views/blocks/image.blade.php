@@ -52,7 +52,12 @@
     $objectFit = in_array($data['objectFit'] ?? '', ['cover','contain','fill','scale-down','none']) ? $data['objectFit'] : '';
     $objectPosition = in_array($data['objectPosition'] ?? '', ['top','bottom','left','right','left top','right top','left bottom','right bottom','center']) ? $data['objectPosition'] : '';
     $fitStyle = ($objectFit ? "object-fit:{$objectFit};" : '') . ($objectPosition ? "object-position:{$objectPosition};" : '');
-    $imgStyle = trim($fitStyle . ($__imageFilter ?: ''));
+    // When the block has an explicit layout width, the wrapper div carries it
+    // (e.g. width:600px). The editor always renders the <img> at width:100% so
+    // it fills that wrapper; match that here, otherwise the intrinsic width="…"
+    // attribute wins and the image renders smaller than the box the user sized.
+    $__fillWrapper = !empty(($__bs['layout']['width'] ?? '') );
+    $imgStyle = trim(($__fillWrapper ? 'width:100%;' : '') . $fitStyle . ($__imageFilter ?: ''));
 @endphp
 <figure{!! sp_editable($__blockId ?? '', 'url', 'image') !!} class="image-block"@if($size !== 'full') style="max-width: {{ $maxWidth }};"@endif>
     @if(!empty($url))
