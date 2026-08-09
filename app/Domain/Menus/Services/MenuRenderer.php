@@ -137,11 +137,21 @@ class MenuRenderer
         $mobileBg = self::safeCss($style['mobileBgColor'] ?? '') ?: ($bgColor ?: 'var(--color-bg,#ffffff)');
         $mobileFontSize = self::safeCss($style['mobileFontSize'] ?? '') ?: '16px';
         $mobileBreakpoint = in_array((string) ($style['mobileBreakpoint'] ?? '768'), ['480', '768', '1024', '9999']) ? ($style['mobileBreakpoint'] ?? '768') : '768';
+        // The open hamburger panel is a SOLID dropdown (bg = $mobileBg, defaults to
+        // the theme bg). Its links must read against that bg, NOT inherit the
+        // desktop resting colour — a transparent/overlay nav (e.g. white links over
+        // a hero) otherwise leaks white text onto the light panel (white-on-white).
+        // Force a readable colour (theme text by default, overridable) with
+        // !important + panel-scoped specificity so overlay overrides can't win.
+        $mobileTextColor = self::safeCss($style['mobileTextColor'] ?? '') ?: 'var(--color-text,#1a1a1a)';
 
         $css .= ".{$scopeClass} .menu-hamburger-panel{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;";
         $css .= "background:{$mobileBg};border-bottom:1px solid var(--color-border-light);padding:8px 0;gap:0;box-shadow:0 8px 32px rgba(0,0,0,0.1);}\n";
         $css .= ".{$scopeClass}.menu-open .menu-hamburger-panel{display:flex!important;}\n";
         $css .= ".{$scopeClass} .menu-hamburger-panel a{display:block;padding:12px 24px;font-size:{$mobileFontSize};border-bottom:1px solid var(--color-border-light,#eee);}\n";
+        // Colour only the nav links, not the CTA button (it keeps its own styling).
+        $css .= ".{$scopeClass} .menu-hamburger-panel a:not(.nav-cta-btn){color:{$mobileTextColor}!important;}\n";
+        $css .= ".{$scopeClass} .menu-hamburger-panel a:not(.nav-cta-btn):hover{color:{$hoverColor}!important;}\n";
         $css .= ".{$scopeClass} .menu-hamburger-panel a:last-child{border-bottom:none;}\n";
 
         $css .= "@media(max-width:{$mobileBreakpoint}px){.{$scopeClass} .menu-hamburger{display:flex!important;}.{$scopeClass} .menu-desktop{display:none!important;}}\n";

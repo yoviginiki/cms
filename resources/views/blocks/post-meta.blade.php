@@ -30,7 +30,7 @@
         $parts[] = '<span class="post-meta-author">' . e($post->author->name ?? '') . '</span>';
     }
     if ($showCategory && $post && $post->category) {
-        $catUrl = '/' . e($post->category->slug);
+        $catUrl = e($post->category->url_path);
         $parts[] = '<a href="' . $catUrl . '" class="post-meta-category">' . e($post->category->name) . '</a>';
     }
     $safeSep = e($separator);

@@ -13,7 +13,12 @@ class CategoryService
         $data['site_id'] = $site->id;
         $data['slug'] = $data['slug'] ?? $this->generateUniqueSlug($data['name'], $site);
 
-        return Category::create($data);
+        $category = new Category();
+        $category->site_id = $site->id;
+        $this->applyFeaturedImage($category, $data);
+        $category->fill($data)->save();
+
+        return $category;
     }
 
     public function updateCategory(Category $category, array $data): Category
@@ -26,9 +31,24 @@ class CategoryService
             $data['slug'] = $this->generateUniqueSlug($data['slug'], $category->site, $category->id);
         }
 
-        $category->update($data);
+        $this->applyFeaturedImage($category, $data);
+        $category->fill($data)->save();
 
         return $category->fresh();
+    }
+
+    /**
+     * Fold the flat featured_image_asset_id API field into the category's
+     * settings JSON (serve URL + asset id) so it needs no dedicated column.
+     */
+    private function applyFeaturedImage(Category $category, array &$data): void
+    {
+        if (array_key_exists('featured_image_asset_id', $data)) {
+            $category->setFeaturedImageAsset($data['featured_image_asset_id']);
+            unset($data['featured_image_asset_id']);
+            // keep the merged settings; don't let a stale settings key overwrite it
+            unset($data['settings']);
+        }
     }
 
     public function getCategoryTree(Site $site): array

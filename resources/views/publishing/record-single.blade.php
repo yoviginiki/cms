@@ -9,6 +9,17 @@
     $ancestors = $ancestors ?? [];
     $children = $children ?? collect();
 @endphp
+<style>
+/* The field list is a 2-column label|value grid on desktop; on phones the value
+   column gets too narrow (long text squished), so stack each label above its
+   value full-width. */
+@media (max-width: 600px) {
+    .record-single > dl { grid-template-columns: 1fr !important; gap: 0 !important; }
+    .record-single > dl dt { margin-top: 1rem; }
+    .record-single > dl dt:first-of-type { margin-top: 0; }
+    .record-single > dl dd { margin-top: .15rem; }
+}
+</style>
 <article class="record-single" style="padding:2.5rem 0;">
     <nav style="font-size:.85rem;margin-bottom:1.5rem;opacity:.7;" aria-label="Breadcrumb">
         <a href="/{{ RecordDisplay::pathPrefix($collection) }}/" style="color:inherit;">{{ $collection->name }}</a>

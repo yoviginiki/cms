@@ -29,7 +29,7 @@ class DocsSiteSeederTest extends TestCase
         $this->assertSame($this->tenant->id, $site->tenant_id);
 
         $slugs = $site->pages()->pluck('slug')->sort()->values()->all();
-        $this->assertSame(['collections', 'collections-v3', 'forms', 'home', 'importing-data', 'queries', 'wizards'], $slugs);
+        $this->assertSame(['collections', 'collections-v3', 'forms', 'home', 'importing-data', 'queries', 'search', 'wizards'], $slugs);
         $this->assertSame(0, $site->pages()->where('status', '!=', 'published')->count());
 
         // Homepage wired to the docs index
@@ -80,5 +80,21 @@ class DocsSiteSeederTest extends TestCase
         $this->assertStringContainsString('SQL constraints', $queries);
         $this->assertStringContainsString('3-second timeout', $queries);
         $this->assertStringContainsString('one hop', $queries);
+    }
+
+    public function test_search_page_renders_cross_site_search_island(): void
+    {
+        $this->seed(DocsSiteSeeder::class);
+        $site = Site::where('slug', 'docs')->first();
+
+        $html = app(BuildPageService::class)->build(
+            $site->pages()->where('slug', 'search')->first(), null, $site,
+        );
+
+        // '*' sentinel → island wired to the site-level manifest, which the
+        // publish pipeline emits for content-only sites from published pages.
+        $this->assertStringContainsString('data-cs-collection="_site"', $html);
+        $this->assertStringContainsString('search/index.json', $html);
+        $this->assertStringContainsString('data-cs-role="results"', $html);
     }
 }

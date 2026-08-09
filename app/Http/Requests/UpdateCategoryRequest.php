@@ -20,6 +20,7 @@ class UpdateCategoryRequest extends FormRequest
             'parent_id' => ['sometimes', 'nullable', 'uuid', 'exists:categories,id'],
             'is_public' => ['sometimes', 'boolean'],
             'grid_id' => ['sometimes', 'nullable', 'uuid', 'exists:grids,id'],
+            'featured_image_asset_id' => ['sometimes', 'nullable', 'uuid', 'exists:assets,id'],
         ];
     }
 }

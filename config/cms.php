@@ -90,6 +90,11 @@ return [
     // workspace above.
     'site_files_path' => env('SITE_FILES_PATH', ''),
 
+    // WebP encode quality (1-100) for generated image variants. 70 is a clean
+    // sweet spot for photos (~7% lighter than the old uncontrolled ~q75);
+    // lower = lighter pages, site-wide. Tune via WEBP_QUALITY.
+    'webp_quality' => env('WEBP_QUALITY', 70),
+
     'theme_wizard' => [
         // Opus does the vision analysis of a reference; Sonnet routes the chat.
         'vision_model' => env('THEME_WIZARD_VISION_MODEL', 'claude-opus-4-8'),

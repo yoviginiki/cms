@@ -148,13 +148,38 @@ class LocalePaths
         return $prefix . ($slug ? "{$slug}/" : '') . 'index.html';
     }
 
+    /**
+     * Per-site permalink structure. Default ('category') keeps the historical
+     * behaviour — posts publish under their category at /{category}/{slug}/.
+     * 'flat' publishes posts at the site root /{slug}/ (WordPress /%postname%/
+     * parity). Set via settings.permalink.post_structure.
+     */
+    public static function postIsFlat(Site $site): bool
+    {
+        return ($site->settings['permalink']['post_structure'] ?? 'category') === 'flat';
+    }
+
+    /**
+     * Per-site category-archive base segment, with a trailing slash (e.g.
+     * 'category/') or '' for the historical rootless base (/{slug}/). Set via
+     * settings.permalink.category_base (e.g. 'category' → /category/{slug}/,
+     * WordPress default). Pair with postIsFlat to avoid a post/category slug
+     * collision at the root.
+     */
+    public static function categoryBase(Site $site): string
+    {
+        $b = trim((string) ($site->settings['permalink']['category_base'] ?? ''), '/');
+
+        return $b === '' ? '' : "{$b}/";
+    }
+
     /** Relative file path for a post (e.g. 'portfolio/lamp/index.html', 'en/portfolio/lamp/index.html'). */
     public static function postPath(Site $site, Post $post): string
     {
         $locale = self::contentLocale($post, $site);
         $prefix = self::prefix($site, $locale);
         $slug = $prefix === '' ? $post->slug : self::baseSlug($post->slug, $locale);
-        $category = $post->category?->slug;
+        $category = self::postIsFlat($site) ? null : $post->category?->slug;
 
         return $prefix . ($category ? "{$category}/" : '') . "{$slug}/index.html";
     }

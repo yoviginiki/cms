@@ -22,6 +22,10 @@ class Category extends Model
         'settings' => 'array',
     ];
 
+    // Surface the settings-backed banner image on every serialization (the
+    // category tree endpoint uses toArray(), not CategoryResource).
+    protected $appends = ['featured_image', 'featured_image_asset_id'];
+
     public function site(): BelongsTo
     {
         return $this->belongsTo(Site::class);
@@ -45,5 +49,51 @@ class Category extends Model
     public function grid(): BelongsTo
     {
         return $this->belongsTo(Grid::class);
+    }
+
+    /**
+     * Public URL path for this category archive (e.g. /news or, with a
+     * per-site category base, /category/news). Locale prefix is applied at
+     * build time, not here. Mirrors ArchiveBuildService so links and the
+     * published archive path always agree.
+     */
+    public function getUrlPathAttribute(): string
+    {
+        $base = $this->site
+            ? \App\Domain\Publishing\Services\LocalePaths::categoryBase($this->site)
+            : '';
+
+        return "/{$base}{$this->slug}";
+    }
+
+    /**
+     * Category banner/featured image, stored in settings so it needs no schema
+     * change and works for every site. Value is a serve URL that the publisher
+     * rewrites to a static /assets/files path (and wraps in <picture> for WebP).
+     */
+    public function getFeaturedImageAttribute(): ?string
+    {
+        return $this->settings['featured_image'] ?? null;
+    }
+
+    public function getFeaturedImageAssetIdAttribute(): ?string
+    {
+        return $this->settings['featured_image_asset_id'] ?? null;
+    }
+
+    /**
+     * Set (or clear, with null) the category's featured image from an asset id.
+     * Keeps settings['featured_image'] (serve URL) and the asset id in sync.
+     */
+    public function setFeaturedImageAsset(?string $assetId): void
+    {
+        $settings = $this->settings ?? [];
+        if ($assetId) {
+            $settings['featured_image_asset_id'] = $assetId;
+            $settings['featured_image'] = "/api/v1/sites/{$this->site_id}/assets/{$assetId}/serve";
+        } else {
+            unset($settings['featured_image_asset_id'], $settings['featured_image']);
+        }
+        $this->settings = $settings;
     }
 }

@@ -226,6 +226,13 @@ class PositionRenderer
     {
         $config = $position->config_json ?? [];
 
+        // Opt-in rich footer (settings.rich_footer): the footer grid position
+        // renders the shared multi-column footer so grid-based pages/posts get
+        // the same footer as the archive pages. Gated + global (any site).
+        if ($position->area_name === 'footer' && !empty($site->settings['rich_footer'])) {
+            return View::make('publishing._rich-footer', ['site' => $site])->render();
+        }
+
         // If a blade partial is specified, render it
         if (!empty($config['blade_partial'])) {
             $viewName = 'positions.' . $config['blade_partial'];
@@ -352,10 +359,12 @@ class PositionRenderer
                 $title = $widget['title'] ?? 'Recent Posts';
                 $showDate = $widget['show_date'] ?? true;
                 $showCategory = $widget['show_category'] ?? false;
+                $showImage = $widget['show_image'] ?? false; // opt-in square thumbnail
                 $categoryId = $widget['category_id'] ?? null;
                 $includeChildren = $widget['include_children'] ?? false;
 
                 $query = \App\Models\Post::withoutGlobalScopes()->with('category')
+                    ->whereNull('deleted_at') // withoutGlobalScopes drops the SoftDeletes scope; keep trashed posts out
                     ->where('site_id', $site->id)
                     ->where('status', 'published')
                     ->orderByDesc('published_at')
@@ -391,9 +400,14 @@ class PositionRenderer
                 if ($posts->isEmpty()) {
                     $html .= '<p style="font-size:0.875rem;color:var(--color-text-muted,#9ca3af);">No posts yet</p>';
                 } else {
-                    $html .= '<ul style="list-style:none;padding:0;">';
+                    $html .= '<ul class="recent-posts-list" style="list-style:none;padding:0;margin:0;">';
                     foreach ($posts as $post) {
-                        $html .= '<li style="margin-bottom:0.75rem;padding-bottom:0.75rem;border-bottom:1px solid var(--color-border-light,#f1f5f9);">';
+                        $flex = $showImage ? 'display:flex;gap:0.7rem;align-items:flex-start;' : '';
+                        $html .= '<li style="margin-bottom:0.75rem;padding-bottom:0.75rem;border-bottom:1px solid var(--color-border-light,#f1f5f9);' . $flex . '">';
+                        if ($showImage && $post->featured_image) {
+                            $html .= '<a href="' . e($post->url_path) . '" aria-hidden="true" tabindex="-1" style="flex:0 0 auto;display:block;"><img src="' . e($post->featured_image) . '" alt="" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:3px;display:block;"></a>';
+                        }
+                        $html .= $showImage ? '<div style="flex:1;min-width:0;">' : '';
                         $html .= '<a href="' . e($post->url_path) . '" style="color:var(--color-text,#374151);text-decoration:none;font-size:0.875rem;font-weight:500;">' . e($post->title) . '</a>';
                         if ($showDate && $post->published_at) {
                             $html .= '<span style="display:block;font-size:0.75rem;color:var(--color-text-muted,#9ca3af);margin-top:0.125rem;">' . $post->published_at->format('M j, Y') . '</span>';
@@ -404,6 +418,7 @@ class PositionRenderer
                                 $html .= '<a href="/' . e($cat->slug) . '" style="font-size:0.75rem;color:var(--color-primary,#3b82f6);">' . e($cat->name) . '</a>';
                             }
                         }
+                        $html .= $showImage ? '</div>' : '';
                         $html .= '</li>';
                     }
                     $html .= '</ul>';

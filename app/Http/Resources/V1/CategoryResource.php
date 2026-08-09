@@ -16,6 +16,8 @@ class CategoryResource extends JsonResource
             'description' => $this->description,
             'sort_order' => $this->sort_order,
             'parent_id' => $this->parent_id,
+            'featured_image' => $this->featured_image,
+            'featured_image_asset_id' => $this->featured_image_asset_id,
             'children' => CategoryResource::collection($this->whenLoaded('children')),
             'posts_count' => $this->whenCounted('posts'),
             'created_at' => $this->created_at,

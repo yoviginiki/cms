@@ -225,7 +225,7 @@ class StructuredDataService
 
         if ($content instanceof Post) {
             if ($content->category) {
-                $items[] = ['@type' => 'ListItem', 'position' => 2, 'name' => $content->category->name, 'item' => $url . '/' . $content->category->slug];
+                $items[] = ['@type' => 'ListItem', 'position' => 2, 'name' => $content->category->name, 'item' => $url . $content->category->url_path];
             }
             $items[] = ['@type' => 'ListItem', 'position' => count($items) + 1, 'name' => $content->title, 'item' => $this->contentUrl($site, $content)];
         } else {

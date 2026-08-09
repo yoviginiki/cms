@@ -14,8 +14,16 @@
     @if(!empty($headScripts)){!! $headScripts !!}@endif
     {!! $archiveJsonLd ?? '' !!}
 </head>
-<body class="archive-page">
+<body class="archive-page{{ $category->featured_image ? ' has-cat-banner' : '' }}">
     <header role="banner">@if(!empty($navigation)){!! $navigation !!}@endif</header>
+    @if($category->featured_image)
+    <div class="cat-banner" style="position:relative;width:100%;height:clamp(150px,26vw,230px);overflow:hidden;">
+        <img src="{{ $category->featured_image }}" alt="{{ $displayName ?? $category->name }}" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="cat-banner__overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.5));">
+            <span class="cat-banner__title" style="color:#fff;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:clamp(1.5rem,3.4vw,2.6rem);text-shadow:0 2px 18px rgba(0,0,0,.55);">{{ $displayName ?? $category->name }}</span>
+        </div>
+    </div>
+    @endif
     <main role="main" class="archive-main" style="max-width:var(--container-width,1200px);margin:0 auto;padding:var(--space-8,2rem) var(--container-padding,1rem);">
         <h1 class="archive-title">{{ $displayName ?? $category->name }}</h1>
         @if($category->description)<p style="color:var(--color-text-muted,#6b7280);margin-bottom:var(--space-6,1.5rem);">{{ $category->description }}</p>@endif

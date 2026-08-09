@@ -92,6 +92,7 @@ class DocsSiteSeeder extends Seeder
             $this->formsGuide(),
             $this->wizardsGuide(),
             $this->collectionsV3Guide(),
+            $this->searchPage(),
         ];
     }
 
@@ -117,7 +118,7 @@ class DocsSiteSeeder extends Seeder
                                 'Forms — static-site forms with spam protection and stored submissions. See /forms/',
                                 'Wizards — scaffold collections, search pages and whole content apps without code. See /wizards/',
                             ]),
-                            $this->para('More guides land as features ship: queries, search, forms, and the app wizards.'),
+                            $this->para('Looking for something specific? <strong>/search/</strong> searches the full text of every guide.'),
                         ]),
                     ]),
                 ]),
@@ -438,6 +439,42 @@ class DocsSiteSeeder extends Seeder
                             ]),
 
                             $this->para('Full technical reference: <code>docs/COLLECTIONS-V3.md</code> in the repository.'),
+                        ]),
+                    ]),
+                ]),
+            ],
+        ];
+    }
+
+    // ─── Search page ────────────────────────────────────────────────────
+
+    /**
+     * Full-text docs search: the same cross-collection search blocks
+     * ('*' sentinel) tenant sites get. This site has no collections, so the
+     * search island runs entirely on the `_pages` source the publish
+     * pipeline emits at /search/index.json for content-only sites.
+     */
+    private function searchPage(): array
+    {
+        return [
+            'title' => 'Search',
+            'slug' => 'search',
+            'blocks' => [
+                $this->section([
+                    $this->row('1', [
+                        $this->column([
+                            $this->heading('Search the docs', 'h1'),
+                            $this->para('Full-text search over every guide on this site. It runs on the same static search index any published site gets — no server round-trips.'),
+                            $this->block('search-box', ['collectionId' => '*', 'placeholder' => 'Search the docs…']),
+                            // No facet-filter: pages are this site's only search
+                            // source, so the Type facet would be a single option.
+                            $this->block('results-grid', [
+                                'collectionId' => '*',
+                                'eager' => true,
+                                'columns' => 2,
+                                'showImage' => false,
+                                'emptyText' => 'No guides match — try a different term.',
+                            ]),
                         ]),
                     ]),
                 ]),

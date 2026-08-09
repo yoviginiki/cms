@@ -96,10 +96,10 @@ class RssFeedGenerator
             . '>' . "\n";
         $xml .= "  <channel>\n";
         $xml .= "    <title>" . e($category->name) . " | " . e($site->name) . "</title>\n";
-        $xml .= "    <link>{$baseUrl}/{$category->slug}</link>\n";
+        $xml .= "    <link>{$baseUrl}{$category->url_path}</link>\n";
         $xml .= "    <description>" . e($category->description ?: "Posts in {$category->name}") . "</description>\n";
         $xml .= "    <language>" . e($language) . "</language>\n";
-        $xml .= "    <atom:link href=\"{$baseUrl}/{$category->slug}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n";
+        $xml .= "    <atom:link href=\"{$baseUrl}{$category->url_path}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n";
 
         foreach ($posts as $post) {
             $xml .= $this->item($site, $post, $baseUrl, $fullContent);
