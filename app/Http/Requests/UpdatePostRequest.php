@@ -39,6 +39,10 @@ class UpdatePostRequest extends FormRequest
             'seo_meta.head_scripts' => ['sometimes', 'nullable', 'string', 'max:65536'],
             'seo_meta.body_scripts' => ['sometimes', 'nullable', 'string', 'max:65536'],
             'seo_meta.custom_css' => ['sometimes', 'nullable', 'string', 'max:65536'],
+            // Which post template renders this post: 'default' (site default
+            // template), 'none' (Empty — render the builder's own output with
+            // no template chrome), or a template UUID.
+            'seo_meta.template_id' => ['sometimes', 'nullable', 'string', 'max:64'],
         ];
     }
 
