@@ -47,6 +47,14 @@ const IMAGE_TYPES = ['image_frame', 'circular_image', 'polygon_image', 'fullblee
 type EditorMode = 'block' | 'magazine' | 'canvas';
 // RightTab removed — block mode uses BuilderSidebar, magazine mode uses magRightTab
 
+// Human-readable page-builder names, shared by the toggle labels and the
+// "switch page builder" confirmation dialog. Pages have no Simple builder.
+const MODE_LABELS: Record<EditorMode, string> = {
+  block: 'Blocks',
+  canvas: 'Canvas',
+  magazine: 'Magazine',
+};
+
 export default function PageEditor() {
   const { siteId = '', pageId = '' } = useParams();
   const navigate = useNavigate();
@@ -60,6 +68,9 @@ export default function PageEditor() {
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const pageMetaRef = useRef<Record<string, any> | null>(null);
+  // Set while we deliberately reload after switching page builder, so the
+  // beforeunload guard below doesn't throw a second "unsaved changes" prompt.
+  const bypassUnloadRef = useRef(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -218,7 +229,7 @@ export default function PageEditor() {
   }, [magStore.selectedIds]);
 
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (isDirty) e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent) => { if (!bypassUnloadRef.current && isDirty) e.preventDefault(); };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
@@ -228,20 +239,21 @@ export default function PageEditor() {
     if (isDirty && saveError) setSaveError(null);
   }, [isDirty, saveError]);
 
-  async function handleSave() {
-    setSaving(true);
-    try {
-      // Save page appearance FIRST (before block sync which may trigger refetch)
-      if (pageMetaRef.current) {
-        await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current });
-      }
+  // Persist page appearance + the current builder's content. Each builder
+  // serializes differently (canvas block tree / magazine elements / block tree),
+  // so this is shared by Save and by switching page builder.
+  async function persistCurrentContent() {
+    // Save page appearance FIRST (before block sync which may trigger refetch)
+    if (pageMetaRef.current) {
+      await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current });
+    }
 
-      if (editorMode === 'canvas' || page?.editor_mode === 'canvas') {
-        // Canvas mode saves the SAME block tree (sections + positioned children).
-        const rawHtml = useEditorStore.getState().rawHtml;
-        await blocksApi.sync(siteId, 'pages', pageId, useCanvasStore.getState().toBlocks(), rawHtml);
-        useCanvasStore.getState().markClean();
-      } else if (editorMode === 'magazine' || page?.editor_mode === 'magazine') {
+    if (editorMode === 'canvas' || page?.editor_mode === 'canvas') {
+      // Canvas mode saves the SAME block tree (sections + positioned children).
+      const rawHtml = useEditorStore.getState().rawHtml;
+      await blocksApi.sync(siteId, 'pages', pageId, useCanvasStore.getState().toBlocks(), rawHtml);
+      useCanvasStore.getState().markClean();
+    } else if (editorMode === 'magazine' || page?.editor_mode === 'magazine') {
         // Save magazine data
         const pages = magStore.pages.map(p => ({
           page_number: p.pageNumber,
@@ -277,11 +289,17 @@ export default function PageEditor() {
         );
         await magEditor.sync(siteId, pageId, { pages, elements });
         magStore.setDirty(false);
-      } else {
-        // Save block data + raw HTML
-        const rawHtml = useEditorStore.getState().rawHtml;
-        await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
-      }
+    } else {
+      // Save block data + raw HTML
+      const rawHtml = useEditorStore.getState().rawHtml;
+      await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await persistCurrentContent();
       setDirty(false);
       setLastSavedAt(new Date());
       setSaveError(null);
@@ -300,23 +318,33 @@ export default function PageEditor() {
     } catch { /* noop */ }
   }
 
+  // Switching page builder is destructive: each builder stores/reads content
+  // differently, so we warn, persist the current work under the newly chosen
+  // builder, then hard-reload so the correct editor mounts cleanly.
   async function switchEditorMode(mode: EditorMode) {
-    setEditorMode(mode);
-    setStoreEditorMode(mode);
-    // Hydrate the canvas store from the current block tree when switching INTO
-    // canvas mid-session (load effect only fires on page load). Non-section
-    // blocks are carried as passthrough, so switching never drops content.
-    if (mode === 'canvas') {
-      const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
-      useCanvasStore.getState().loadFromBlocks(useEditorStore.getState().blocks, {
-        pageType: cv?.page_type === 'single' ? 'single' : 'website',
-        width: cv?.width,
-        mobileWidth: cv?.mobile_width,
-      });
-    }
+    if (mode === editorMode || isSaving) return;
+    const confirmed = window.confirm(
+      `Смяна на page builder към „${MODE_LABELS[mode]}“?\n\n` +
+      `Различните page builder-и съхраняват съдържанието по различен начин. ` +
+      `Възможно е част от текущото съдържание да се загуби или да изглежда различно.\n\n` +
+      `Страницата ще се презареди с избрания page builder.`
+    );
+    if (!confirmed) return;
+    setSaving(true);
+    setSaveError(null);
     try {
+      // Persist the current builder's content, then record the chosen builder
+      // so the reload re-opens the correct editor over the saved content.
+      await persistCurrentContent();
       await pagesApi.update(siteId, pageId, { editor_mode: mode });
-    } catch { /* silently fail */ }
+      // Reload into the new builder without the browser's unsaved-changes prompt.
+      bypassUnloadRef.current = true;
+      window.location.reload();
+    } catch (err) {
+      console.error('Switch page builder failed:', err);
+      setSaveError('Смяната на page builder се провали');
+      setSaving(false);
+    }
   }
 
   if (isLoading) {
@@ -350,7 +378,8 @@ export default function PageEditor() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Editor mode toggle */}
+          {/* Page builder toggle */}
+          <span className="text-[11px] font-medium text-base-content/50 select-none">Pagebuilder:</span>
           <div className="flex bg-base-200/80 rounded-md p-0.5">
             <button onClick={() => switchEditorMode('block')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
