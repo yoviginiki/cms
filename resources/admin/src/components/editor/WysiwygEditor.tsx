@@ -24,7 +24,6 @@ function plainTextToHtml(text: string): string {
 
   while (i < lines.length) {
     const line = lines[i].trimEnd();
-    const nextLine = lines[i + 1]?.trimEnd() || '';
 
     // Skip empty lines
     if (!line.trim()) { i++; continue; }
@@ -64,32 +63,10 @@ function plainTextToHtml(text: string): string {
       continue;
     }
 
-    // Detect heading: short line (< 80 chars), not ending with common sentence punctuation,
-    // followed by empty line or longer content line
-    const isShort = line.trim().length < 80 && line.trim().length > 0;
-    const endsLikeTitle = !line.trim().match(/[\.!]\s*$/); // doesn't end with . or !
-    const nextIsEmpty = !nextLine.trim();
-    const nextIsLonger = nextLine.trim().length > line.trim().length;
-    const looksLikeHeading = isShort && endsLikeTitle && (nextIsEmpty || nextIsLonger);
-
-    // Main section headings (very short, standalone)
-    if (looksLikeHeading && line.trim().length < 40 && nextIsEmpty) {
-      // Check if it's a "Част X" / section-level heading
-      if (/^(Част|Part|Section|Глава|Chapter)\s/i.test(line.trim()) || line.trim().length < 25) {
-        result.push(`<h2>${esc(line.trim())}</h2>`);
-      } else {
-        result.push(`<h3>${esc(line.trim())}</h3>`);
-      }
-      i++;
-      continue;
-    }
-
-    // Sub-heading pattern: short line followed by content
-    if (looksLikeHeading && !nextIsEmpty && nextIsLonger) {
-      result.push(`<h3>${esc(line.trim())}</h3>`);
-      i++;
-      continue;
-    }
+    // No heading guessing: plain text pastes as paragraphs. The old heuristic
+    // (short line + no trailing period + blank line after) promoted ordinary
+    // label/price lines like "Цена: 0000лв" into <h2>/<h3>. Mark real headings
+    // with the H1/H2/H3 toolbar buttons instead.
 
     // Regular paragraph — collect consecutive non-empty lines
     const paraLines: string[] = [];
