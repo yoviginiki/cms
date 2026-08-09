@@ -18,7 +18,7 @@
     <header role="banner">@if(!empty($navigation)){!! $navigation !!}@endif</header>
     <main role="main" style="max-width: 800px; margin: 0 auto; padding: 2rem 1rem;">
         <h1 style="font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;">{{ $author->name }}</h1>
-        <p style="color: #6b7280; margin-bottom: 2rem;">{{ $posts->count() }} {{ $posts->count() === 1 ? 'post' : 'posts' }}</p>
+        <p style="color: #6b7280; margin-bottom: 2rem;">{{ $postTotal ?? $posts->count() }} {{ ($postTotal ?? $posts->count()) === 1 ? 'post' : 'posts' }}</p>
         <div class="post-list">
         @foreach($posts as $post)
             <article style="margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #e5e7eb;">
@@ -28,11 +28,12 @@
                 @if($post->excerpt)<p style="color: #4b5563; margin-bottom: 0.5rem;">{{ $post->excerpt }}</p>@endif
                 <div style="font-size: 0.875rem; color: #9ca3af;">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->format('M j, Y') }}</time>
-                    @if($post->category) &middot; <a href="/{{ $post->category->slug }}" style="color: #6b7280;">{{ $post->category->name }}</a>@endif
+                    @if($post->category) &middot; <a href="{{ $post->category->url_path }}" style="color: #6b7280;">{{ $post->category->name }}</a>@endif
                 </div>
             </article>
         @endforeach
         </div>
+        @include('publishing._pagination')
     </main>
     <footer role="contentinfo">@if(!empty($footerNavigation)){!! $footerNavigation !!}@endif</footer>
 </body>

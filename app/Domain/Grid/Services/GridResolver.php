@@ -87,7 +87,7 @@ class GridResolver
         if (!$pattern) return false;
 
         $slug = $content instanceof Post
-            ? '/' . ($content->category ? $content->category->slug . '/' : '') . $content->slug
+            ? $content->url_path
             : '/' . ($content->slug === 'home' ? '' : $content->slug);
 
         return fnmatch($pattern, $slug);

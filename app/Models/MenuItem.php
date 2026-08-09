@@ -79,7 +79,7 @@ class MenuItem extends Model
         }
 
         if ($this->category_id && $this->category) {
-            return $baseUrl . '/' . $this->category->slug;
+            return $baseUrl . $this->category->url_path;
         }
 
         return '#';

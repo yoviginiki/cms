@@ -6,6 +6,7 @@ import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
+import { promoteWordHeadings } from '@/lib/clipboardNormalizer';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Link as LinkIcon, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Heading3, Quote, Code, Undo, Redo, Minus,
@@ -136,9 +137,12 @@ export default function WysiwygEditor({ content, onChange, placeholder = 'Start 
         style: `min-height: ${minHeight}px; padding: 12px;`,
       },
       // Keep headings, bold, italic, lists, links, text colors.
-      // Only strip font-family, background-color, and class attributes.
+      // First promote Word/Docs "visual headings" (bold/enlarged paragraphs)
+      // to real <hN> — Word only emits <h1-6> for its built-in Heading styles,
+      // so hand-formatted titles would otherwise paste as body text.
+      // Then strip font-family, background-color, and class attributes.
       transformPastedHTML(html: string) {
-        return html
+        return promoteWordHeadings(html)
           .replace(/font-family\s*:\s*[^;"]+(;|")/gi, '$1')
           .replace(/background-color\s*:\s*[^;"]+(;|")/gi, '$1')
           .replace(/background\s*:\s*(?!none)[^;"]+(;|")/gi, '$1')

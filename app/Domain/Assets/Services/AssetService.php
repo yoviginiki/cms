@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 
 class AssetService
@@ -215,6 +216,11 @@ class AssetService
     {
         $variants = [];
         $disk = Storage::disk('assets');
+        // WebP quality is config-driven. intervention/image v4 IGNORES the
+        // positional quality arg to encodeUsingFileExtension('webp', N) — every
+        // variant silently shipped at the GD default (~q75). Use the explicit
+        // WebpEncoder so quality is actually applied. Lower = lighter, site-wide.
+        $wq = max(40, min(95, (int) config('cms.webp_quality', 72)));
 
         try {
             $image = $this->imageManager->decodePath($sourcePath);
@@ -230,7 +236,7 @@ class AssetService
             // including small ones (<=400px) that skip all the sized variants
             // below — those otherwise ship as the original PNG/JPG.
             $srcWebpPath = "{$basePath}/{$uuid}_webp.webp";
-            $disk->put($srcWebpPath, (clone $image)->encodeUsingFileExtension('webp', 82));
+            $disk->put($srcWebpPath, (clone $image)->encode(new WebpEncoder(quality: min(80, $wq + 6))));
             $variants['webp'] = $srcWebpPath;
 
             // medium_800: 800px wide, maintain aspect
@@ -243,7 +249,7 @@ class AssetService
 
                 // webp_800
                 $webpPath = "{$basePath}/{$uuid}_webp_800.webp";
-                $disk->put($webpPath, $medium->encodeUsingFileExtension('webp', 80));
+                $disk->put($webpPath, $medium->encode(new WebpEncoder(quality: $wq)));
                 $variants['webp_800'] = $webpPath;
             }
 
@@ -256,7 +262,7 @@ class AssetService
                 $variants['small_400'] = $smallPath;
 
                 $webp400Path = "{$basePath}/{$uuid}_webp_400.webp";
-                $disk->put($webp400Path, $small->encodeUsingFileExtension('webp', 75));
+                $disk->put($webp400Path, $small->encode(new WebpEncoder(quality: max(40, $wq - 4))));
                 $variants['webp_400'] = $webp400Path;
             }
 
@@ -269,7 +275,7 @@ class AssetService
                 $variants['large_1600'] = $largePath;
 
                 $webp1600Path = "{$basePath}/{$uuid}_webp_1600.webp";
-                $disk->put($webp1600Path, $large->encodeUsingFileExtension('webp', 80));
+                $disk->put($webp1600Path, $large->encode(new WebpEncoder(quality: $wq)));
                 $variants['webp_1600'] = $webp1600Path;
             }
         } catch (\Throwable $e) {

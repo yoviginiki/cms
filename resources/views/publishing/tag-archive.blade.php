@@ -29,7 +29,7 @@
                 <div style="font-size: 0.875rem; color: #9ca3af;">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->format('M j, Y') }}</time>
                     @if($post->author) &middot; {{ $post->author->name }}@endif
-                    @if($post->category) &middot; <a href="/{{ $post->category->slug }}" style="color: #6b7280;">{{ $post->category->name }}</a>@endif
+                    @if($post->category) &middot; <a href="{{ $post->category->url_path }}" style="color: #6b7280;">{{ $post->category->name }}</a>@endif
                 </div>
             </article>
         @endforeach
@@ -37,6 +37,7 @@
         @if(count($posts) === 0)
             <p style="color: #6b7280;">No posts with this tag yet.</p>
         @endif
+        @include('publishing._pagination')
     </main>
     <footer role="contentinfo">@if(!empty($footerNavigation)){!! $footerNavigation !!}@endif</footer>
 </body>

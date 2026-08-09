@@ -73,11 +73,14 @@ class Post extends Model
     }
 
     /**
-     * Get the public URL path for this post (e.g. /category-slug/post-slug).
+     * Get the public URL path for this post (e.g. /category-slug/post-slug, or
+     * /post-slug when the site uses a flat permalink structure). Mirrors
+     * LocalePaths::postPath so links and published file paths always agree.
      */
     public function getUrlPathAttribute(): string
     {
-        if ($this->category && $this->category->slug) {
+        $flat = $this->site && \App\Domain\Publishing\Services\LocalePaths::postIsFlat($this->site);
+        if (!$flat && $this->category && $this->category->slug) {
             return "/{$this->category->slug}/{$this->slug}";
         }
         return "/{$this->slug}";

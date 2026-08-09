@@ -107,7 +107,9 @@ class ArchiveBuildService
                 : $menuRenderer->renderByLocation($site, 'header', $locale),
             'footerNavigation' => $bareDesign
                 ? ($site->settings['chrome_footer_html'] ?? '')
-                : $menuRenderer->renderByLocation($site, 'footer', $locale),
+                : (!empty($site->settings['rich_footer'])
+                    ? \Illuminate\Support\Facades\View::make('publishing._rich-footer', ['site' => $site])->render()
+                    : $menuRenderer->renderByLocation($site, 'footer', $locale)),
             'rssUrl' => "{$baseUrl}/feed.xml",
         ];
     }

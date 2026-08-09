@@ -22,6 +22,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -32,7 +33,25 @@ class PublishSiteJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable;
 
     public int $tries = 3;
-    public int $timeout = 300;
+    // Large content sites (thousands of posts) build for many minutes; the old
+    // 300s cap timed out mid-build and retried from scratch. Sized well above
+    // the worst-case full build.
+    public int $timeout = 3600;
+
+    /**
+     * Prevent a second worker from running the SAME deployment concurrently.
+     * The redis queue's retry_after (90s) is far below this job's runtime, so a
+     * long build gets re-made-visible and re-popped; without this guard two
+     * workers would publish into the same staging dir. dontRelease() discards
+     * the duplicate rather than requeuing it. Sequential re-pops (after the job
+     * finishes) are caught by the terminal-status guard in handle().
+     */
+    public function middleware(): array
+    {
+        return [(new WithoutOverlapping($this->deploymentId))
+            ->dontRelease()
+            ->expireAfter($this->timeout + 120)];
+    }
 
     public string $deploymentId;
     public ?string $rollbackTargetId;
@@ -69,6 +88,15 @@ class PublishSiteJob implements ShouldQueue
         $this->restoreModels();
 
         $this->deployment = Deployment::findOrFail($this->deploymentId);
+
+        // Guard against a redis re-pop running an already-finished deployment a
+        // second time (retry_after < timeout). If this deployment is already in
+        // a terminal state, or a newer deployment exists for the site, this is a
+        // stale duplicate — do nothing.
+        if (in_array($this->deployment->status, ['live', 'failed', 'rolled_back', 'cancelled'], true)) {
+            return;
+        }
+
         $site = $this->deployment->site;
         $site->load('theme');
         // Via config, NOT a hardcoded storage_path: the test suite sandboxes
@@ -109,6 +137,7 @@ class PublishSiteJob implements ShouldQueue
             // on every deploy: copyDeploy prunes files absent from staging, and
             // the symlink strategy swaps the docroot away entirely.
             AssetPublisher::reset();
+            \App\Domain\Publishing\Services\WebpPictureEnricher::reset();
             AssetPublisher::setDeployTarget($stagingPath);
 
             // Compile theme CSS artifacts (before page rendering)
@@ -125,9 +154,13 @@ class PublishSiteJob implements ShouldQueue
 
             // Get publishable content
             $pages = $site->pages()->where('status', 'published')->orderBy('sort_order')->get();
-            $posts = $site->posts()->with('category')->where('status', 'published')->orderByDesc('published_at')->get();
+            // Stream posts in id-ordered batches (lazyById) so a site with
+            // thousands of posts never hydrates them all into the 128MB worker.
+            // Build order is irrelevant — each post is its own static file.
+            $postsQuery = $site->posts()->with('category')->where('status', 'published');
+            $postCount = (clone $postsQuery)->count();
 
-            $totalItems = $pages->count() + $posts->count();
+            $totalItems = $pages->count() + $postCount;
             $this->deployment->update(['metadata' => array_merge(
                 $this->deployment->metadata ?? [],
                 ['pages_total' => $totalItems, 'pages_built' => 0]
@@ -168,10 +201,14 @@ class PublishSiteJob implements ShouldQueue
             }
 
             // Build posts
-            foreach ($posts as $post) {
+            foreach ($postsQuery->lazyById(300) as $post) {
                 $result = $buildService->buildAndValidate($post, $site->theme, $site);
                 $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $post, $result['html']);
-                $validationResults["post:{$post->slug}"] = $result['validation'];
+                // Only retain non-clean validation — at thousands of posts, keeping
+                // every passing result would itself pressure worker memory.
+                if (empty($result['validation']['passed']) || !empty($result['validation']['warnings']) || !empty($result['validation']['errors'])) {
+                    $validationResults["post:{$post->slug}"] = $result['validation'];
+                }
                 $postPath = $this->getPostPath($post);
                 File::ensureDirectoryExists(dirname("{$stagingPath}/{$postPath}"));
                 File::put("{$stagingPath}/{$postPath}", $html);
@@ -213,7 +250,7 @@ class PublishSiteJob implements ShouldQueue
             $this->updateStatus('building', 'Built collections');
 
             // Generate blog index, archives, and RSS
-            if ($posts->isNotEmpty()) {
+            if ($postCount > 0) {
                 // Blog index + category/tag/author archives (shared with delta
                 // publish via ArchiveBuildService — §7 D1). Archive lint
                 // warnings surface in the deploy log like page warnings.
@@ -230,10 +267,11 @@ class PublishSiteJob implements ShouldQueue
                 $feedCategories = $site->categories()
                     ->whereHas('posts', fn ($q) => $q->where('status', 'published'))
                     ->get();
+                $catBase = \App\Domain\Publishing\Services\LocalePaths::categoryBase($site);
                 foreach ($feedCategories as $feedCategory) {
-                    File::ensureDirectoryExists("{$stagingPath}/{$feedCategory->slug}");
+                    File::ensureDirectoryExists("{$stagingPath}/{$catBase}{$feedCategory->slug}");
                     File::put(
-                        "{$stagingPath}/{$feedCategory->slug}/feed.xml",
+                        "{$stagingPath}/{$catBase}{$feedCategory->slug}/feed.xml",
                         $rssGenerator->generateForCategory($site, $feedCategory)
                     );
                 }
@@ -330,7 +368,7 @@ class PublishSiteJob implements ShouldQueue
                     (string) ($this->deployment->refresh()->artifact_path ?: $stagingPath)
                 );
                 if ($purged > 0) {
-                    $this->broadcast("Cloudflare cache purged ({$purged} URLs)");
+                    $this->broadcast('Cloudflare edge cache purged');
                 }
             } catch (\Throwable $e) {
                 logger()->warning("Cloudflare purge failed for site {$site->id}: {$e->getMessage()}");
@@ -618,8 +656,7 @@ class PublishSiteJob implements ShouldQueue
         // Build set of all valid published post paths
         $publishedPaths = [];
         $publishedSlugs = [];
-        $posts = $site->posts()->with('category')->where('status', 'published')->get();
-        foreach ($posts as $post) {
+        foreach ($site->posts()->with('category')->where('status', 'published')->lazyById(300) as $post) {
             $publishedPaths[] = $this->getPostPath($post);
             $publishedSlugs[] = $post->slug;
         }

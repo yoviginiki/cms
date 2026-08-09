@@ -114,8 +114,15 @@ class BuildPageService
         // preserved. Pages without sliders load nothing.
         if ($content->blocks()->whereIn('type', ['slider_ref', 'slider'])->exists()) {
             $runtime = \App\Support\Blocks\SliderRender::publishRuntime($site);
-            $headScripts .= "\n" . '<link rel="stylesheet" href="' . $runtime['swiperCss'] . '">'
-                . "\n" . '<link rel="stylesheet" href="' . $runtime['css'] . '">';
+            // Inline the slider's critical CSS (hero = LCP) to drop two
+            // render-blocking requests; fall back to <link> if the source is
+            // unreadable for any reason.
+            $headScripts .= "\n" . (!empty($runtime['swiperCssInline'])
+                ? '<style>' . $runtime['swiperCssInline'] . '</style>'
+                : '<link rel="stylesheet" href="' . $runtime['swiperCss'] . '">');
+            $headScripts .= "\n" . (!empty($runtime['cssInline'])
+                ? '<style>' . $runtime['cssInline'] . '</style>'
+                : '<link rel="stylesheet" href="' . $runtime['css'] . '">');
             $bodyScripts .= "\n" . '<script defer src="' . $runtime['swiperJs'] . '"></script>'
                 . "\n" . '<script defer src="' . $runtime['gsapJs'] . '"></script>'
                 . "\n" . '<script defer src="' . $runtime['js'] . '"></script>';
@@ -349,7 +356,12 @@ HTML;
             } else {
                 // Standard: check for template-based header/footer, fall back to menu
                 $headerHtml = $this->renderGlobalTemplate($site, 'header');
-                $footerHtml = $this->renderGlobalTemplate($site, 'footer');
+                // Opt-in rich multi-column footer (settings.rich_footer) beats
+                // the footer template/menu so posts & pages get the same footer
+                // as the archive pages.
+                $footerHtml = !empty($site->settings['rich_footer'])
+                    ? View::make('publishing._rich-footer', ['site' => $site])->render()
+                    : $this->renderGlobalTemplate($site, 'footer');
 
                 if (!$headerHtml) {
                     $headerHtml = $this->menuRenderer->renderByLocation($site, 'header', $this->templateContext['__locale'] ?? null) ?: ($themeConfig['navigation_html'] ?? '');
@@ -397,6 +409,9 @@ HTML;
             // exact-copy pages rebuilt as html-embed block trees).
             $html = SiteFilesPublisher::rewriteHtml($html, $site);
             $html = AssetPublisher::rewriteHtml($html);
+            // WebP delivery: wrap bare /assets/files/{hash}.{png,jpg} images in a
+            // <picture> before the slug rebase rewrites the new srcset too.
+            $html = WebpPictureEnricher::enrich($html);
             $html = self::rewriteBaseForSlugHosting($html, $site);
         }
 

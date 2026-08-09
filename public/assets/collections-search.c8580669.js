@@ -232,11 +232,7 @@
         if (!grid || !tpl) return;
 
         grid.textContent = '';
-        // Restore the grid's ORIGINAL display (from its inline style) when showing
-        // results — setting it to '' would drop the inline `display:grid`, collapse
-        // the container to `block` and kill the row gap (results looked squished).
-        if (grid.__d === undefined) grid.__d = grid.style.display || 'grid';
-        grid.style.display = active ? grid.__d : 'none';
+        grid.style.display = active ? '' : 'none';
         empty.hidden = !active || rows.length !== 0;
 
         if (active) {

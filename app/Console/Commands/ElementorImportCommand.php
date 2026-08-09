@@ -420,7 +420,9 @@ class ElementorImportCommand extends Command
                 body:has(.pos-main > section:first-child .sp-slider) .site-grid{position:relative}
                 body:has(.pos-main > section:first-child .sp-slider) .pos-nav{position:absolute;top:0;left:0;right:0;z-index:1000}
                 body:has(.pos-main > section:first-child .sp-slider) .pos-nav .site-nav{position:static!important;background:transparent!important;border-bottom:none!important;box-shadow:none!important;backdrop-filter:none!important}
-                body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-top-link,body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-custom-link{color:#fff!important}
+                body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-desktop .menu-top-link,body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-desktop .menu-custom-link,body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-desktop-links .menu-top-link,body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-desktop-links .menu-custom-link{color:#fff!important}
+                body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-hamburger span{background:#fff!important}
+                body:has(.pos-main > section:first-child .sp-slider) .pos-nav .menu-hamburger-btn{color:#fff!important}
                 .sp-slider .sp-slide .sp-layer:has(h1){width:60%!important}
 
                 CSS;

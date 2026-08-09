@@ -266,6 +266,7 @@ class DynamicSiteController extends Controller
     /** Preview response for publisher-rendered collection HTML (links rewritten to the /sites prefix). */
     private function respondCollectionHtml(string $html, Site $site): Response
     {
+        $html = $this->rewriteSiteFilesForPreview($html, $site);
         $html = $this->rewriteLinksForPreview($html, $site);
         $html = $this->rewritePreviewAssets($html, $site);
 
@@ -322,6 +323,9 @@ class DynamicSiteController extends Controller
 
         // Rewrite internal links for the dynamic preview prefix
         // /about → /sites/cytechno/about, / → /sites/cytechno/
+        // Swap /site-files/ → /api/v1/.../files/ BEFORE link rewriting so the
+        // resulting /api/ paths are skipped by rewriteLinksForPreview.
+        $html = $this->rewriteSiteFilesForPreview($html, $site);
         $html = $this->rewriteLinksForPreview($html, $site);
         $html = $this->rewritePreviewAssets($html, $site);
 
@@ -443,6 +447,23 @@ class DynamicSiteController extends Controller
             },
             $html
         );
+    }
+
+    /**
+     * Preview-only: rewrite exact-copy design paths (/site-files/{path}) to the
+     * auth-served /api/v1/sites/{id}/files/{path} route.
+     *
+     * design_fidelity=exact sites (built via MenRootRebuildCommand) bake the
+     * PUBLISHED /site-files/ URLs straight into settings.head/body_scripts and
+     * html-embed blocks. Those files only exist inside a published static build,
+     * so on the preview (app) domain they 404 and the page renders unstyled.
+     * This is the symmetric inverse of SiteFilesPublisher::rewriteHtml(), which
+     * swaps the other way at publish time. Only touches rendered preview HTML;
+     * stored content and published output are unaffected.
+     */
+    private function rewriteSiteFilesForPreview(string $html, Site $site): string
+    {
+        return str_replace('/site-files/', "/api/v1/sites/{$site->id}/files/", $html);
     }
 
     /**

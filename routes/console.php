@@ -41,3 +41,10 @@ Schedule::command('webhooks:retry')
 Schedule::command('site-wizard:prune')
     ->daily()
     ->withoutOverlapping();
+
+// "Most read" popularity refresh. Runs hourly but each site self-gates on its
+// own settings.popularity.cadence (daily/weekly) + last_run, so a daily site
+// refreshes once a day and republishes its homepage with the new ranking.
+Schedule::command('analytics:refresh-popular')
+    ->hourly()
+    ->withoutOverlapping();

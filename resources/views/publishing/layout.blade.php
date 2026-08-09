@@ -60,6 +60,15 @@
       /* (Section horizontal padding handled by the <=1024px rule above so
          backgrounds stay full-bleed.) */
 
+      /* <main> carries padding:0 var(--container-padding,24px) to centre its
+         1200px column on desktop. On phones the viewport is well below 1200px,
+         so that 24px is a pure gutter that DOUBLES with the section content
+         padding above (~40px total → content only ~75% of a 390px screen:
+         search boxes, result grids and product cards all look too thin). Drop
+         the main gutter on phones — the section padding is the single content
+         gutter; full-bleed sections still bleed via calc(50% - 50vw). */
+      main { padding-left: 0 !important; padding-right: 0 !important; }
+
       /* Ensure images don't overflow */
       img { max-width: 100% !important; height: auto !important; }
 

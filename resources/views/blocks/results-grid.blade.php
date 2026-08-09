@@ -39,7 +39,10 @@
     <p class="cs-status" role="status" aria-live="polite" style="font-size:.85rem;opacity:.6;margin:0 0 .8rem;"></p>
     @if($layout === 'list')
     {{-- LIST layout: one row per record — optional small thumbnail, title + fields --}}
-    <div class="cs-results" style="display:flex;flex-direction:column;gap:4px;"></div>
+    {{-- single-column grid; the row gap gives breathing room between records.
+         (collections-search.js restores this exact display when it shows results —
+         see its renderRows(); it used to blank the inline display and squish them.) --}}
+    <div class="cs-results" style="display:grid;grid-template-columns:1fr;gap:.85rem;"></div>
     <p class="cs-empty" hidden style="opacity:.6;padding:2rem 0;text-align:center;">{{ $emptyText }}</p>
     <template data-cs-card>
         <article class="record-row" style="display:flex;align-items:center;gap:1.15rem;padding:.5rem .9rem;border:1px solid var(--color-border,#e5e2dd);background:var(--color-surface,#fff);border-radius:12px;transition:border-color .18s ease,box-shadow .18s ease;"

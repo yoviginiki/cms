@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { slugify } from '@/lib/slugify';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { AssetField } from '@/components/ui/AssetPicker';
 
 interface Category {
   id: string;
@@ -15,6 +16,8 @@ interface Category {
   parent_id: string | null;
   is_public?: boolean;
   grid_id?: string | null;
+  featured_image?: string | null;
+  featured_image_asset_id?: string | null;
   posts_count?: number;
   children?: Category[];
 }
@@ -65,6 +68,8 @@ export default function Categories() {
   const [editParent, setEditParent] = useState<string>('');
   const [editPublic, setEditPublic] = useState(true);
   const [editGridId, setEditGridId] = useState<string>('');
+  const [editFeaturedUrl, setEditFeaturedUrl] = useState<string>('');
+  const [editFeaturedAssetId, setEditFeaturedAssetId] = useState<string>('');
   const [newName, setNewName] = useState('');
   const [newParent, setNewParent] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -124,6 +129,8 @@ export default function Categories() {
     setEditParent(cat.parent_id || '');
     setEditPublic(cat.is_public !== false);
     setEditGridId(cat.grid_id || '');
+    setEditFeaturedUrl(cat.featured_image || '');
+    setEditFeaturedAssetId(cat.featured_image_asset_id || '');
   };
 
   const saveEdit = () => {
@@ -137,6 +144,7 @@ export default function Categories() {
         slug: slugify(editName.trim()),
         is_public: editPublic,
         grid_id: editGridId || null,
+        featured_image_asset_id: editFeaturedAssetId || null,
         ...(newParentId !== (original?.parent_id ?? null) ? { parent_id: newParentId } : {}),
       },
     });
@@ -247,6 +255,14 @@ export default function Categories() {
                     className="rounded border-gray-300 text-blue-600 w-3.5 h-3.5" />
                   <span className="text-gray-500">Public</span>
                 </label>
+              </div>
+              <div className="max-w-xs">
+                <AssetField
+                  label="Banner / featured image"
+                  value={editFeaturedUrl}
+                  onChange={(url, assetId) => { setEditFeaturedUrl(url); setEditFeaturedAssetId(assetId || ''); }}
+                  accept="image"
+                />
               </div>
             </div>
           ) : (

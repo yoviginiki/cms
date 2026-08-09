@@ -30,6 +30,18 @@ import '@/components/blocks';
 type EditorMode = 'simple' | 'block' | 'magazine' | 'canvas';
 type RightTab = 'settings' | 'post' | 'layers' | 'blocks' | 'tree';
 
+// A Simple-mode post keeps its body in ONE rich-text/text block that lives in
+// the SAME block tree autosave/save/publish persist. Find it anywhere in the
+// tree (it may be nested inside a section/row/column skeleton).
+function findContentBlock(blocks: any[]): any | null {
+  for (const b of blocks || []) {
+    if (b?.type === 'rich-text' || b?.type === 'text') return b;
+    const nested = b?.children ? findContentBlock(b.children) : null;
+    if (nested) return nested;
+  }
+  return null;
+}
+
 export default function PostEditor() {
   const { siteId = '', postId = '' } = useParams();
   const navigate = useNavigate();
@@ -43,9 +55,12 @@ export default function PostEditor() {
   const setDirty = useEditorStore((s) => s.setDirty);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
+  const updateBlock = useEditorStore((s) => s.updateBlock);
 
   const [editorMode, setEditorMode] = useState<EditorMode>('simple');
   const [simpleContent, setSimpleContent] = useState('');
+  // Id of the block that holds Simple-mode body content (kept in sync with the store).
+  const simpleBlockIdRef = useRef<string | null>(null);
   const [rightTab, setRightTab] = useState<RightTab>('post');
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -116,8 +131,10 @@ export default function PostEditor() {
     if (fetchedBlocks && !blocksLoadedRef.current) {
       setBlocks(fetchedBlocks);
       blocksLoadedRef.current = true;
-      // Extract simple content from first text/rich-text block
-      const textBlock = fetchedBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
+      // Extract simple content from the body text/rich-text block — anywhere in
+      // the tree — and remember its id so Simple-mode edits update THAT block.
+      const textBlock = findContentBlock(fetchedBlocks);
+      simpleBlockIdRef.current = textBlock?.id ?? null;
       if (textBlock?.data?.content) {
         setSimpleContent(textBlock.data.content as string);
       }
@@ -192,23 +209,10 @@ export default function PostEditor() {
       if (editorMode === 'canvas') {
         await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
         useCanvasStore.getState().markClean();
-      } else if (editorMode === 'simple') {
-        // Find existing text/rich-text block to preserve its ID, keep all other blocks
-        const existingText = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
-        const otherBlocks = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
-        const textBlock = {
-          ...(existingText || {}),
-          id: existingText?.id || undefined,
-          type: 'text',
-          level: 'module',
-          data: { content: simpleContent },
-          style: existingText?.style || {},
-          order: 0,
-          children: existingText?.children || [],
-        };
-        const simpleBlocks = [textBlock, ...otherBlocks.map((b: any, i: number) => ({ ...b, order: i + 1 }))];
-        await blocksApi.sync(siteId, 'posts', postId, simpleBlocks);
       } else {
+        // Simple & block modes share ONE source of truth: the block store.
+        // (Simple-mode edits are written into the store via handleSimpleChange,
+        // so nothing lives only in `simpleContent` waiting to be lost.)
         await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
       }
       setDirty(false);
@@ -244,14 +248,8 @@ export default function PostEditor() {
       if (editorMode === 'canvas') {
         await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
         useCanvasStore.getState().markClean();
-      } else if (editorMode === 'simple') {
-        const existingText2 = editorBlocks.find((b: any) => b.type === 'text' || b.type === 'rich-text');
-        const otherBlocks2 = editorBlocks.filter((b: any) => b.type !== 'text' && b.type !== 'rich-text');
-        await blocksApi.sync(siteId, 'posts', postId, [
-          { ...(existingText2 || {}), id: existingText2?.id, type: 'text', level: 'module', data: { content: simpleContent }, style: existingText2?.style || {}, order: 0, children: existingText2?.children || [] },
-          ...otherBlocks2.map((b: any, i: number) => ({ ...b, order: i + 1 })),
-        ]);
       } else {
+        // Simple & block modes share ONE source of truth: the block store.
         await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
       }
       // Update local state to match what was saved
@@ -267,10 +265,40 @@ export default function PostEditor() {
     } finally { setSaving(false); }
   }
 
+  // Simple editor writes straight into the block store — the SINGLE source of
+  // truth that autosave/save/publish all persist. Previously the HTML lived
+  // only in `simpleContent` React state, so autosave shipped the empty block
+  // skeleton, cleared the dirty flag, and the typed content was silently lost.
+  function handleSimpleChange(html: string) {
+    setSimpleContent(html);
+    const blocks = useEditorStore.getState().blocks;
+    const existing = findContentBlock(blocks);
+    if (existing) {
+      simpleBlockIdRef.current = existing.id;
+      updateBlock(existing.id, { content: html }); // merges data + marks dirty
+    } else {
+      // Empty post: create the body block, preserving any layout skeleton.
+      const newId = (globalThis.crypto as { randomUUID?: () => string })?.randomUUID?.() ?? `blk-${Date.now()}`;
+      simpleBlockIdRef.current = newId;
+      setBlocks([
+        { id: newId, type: 'rich-text', level: 'module', data: { content: html }, style: {}, order: 0, children: [] },
+        ...blocks,
+      ] as any);
+      setDirty(true);
+    }
+  }
+
   function switchEditorMode(mode: EditorMode) {
     setEditorMode(mode);
     setStoreEditorMode(mode);
     setMetaDirty(true);
+    // Entering Simple mode: re-derive the editor value from the live block tree
+    // so it reflects edits made in block mode (and targets the right block).
+    if (mode === 'simple') {
+      const body = findContentBlock(useEditorStore.getState().blocks);
+      simpleBlockIdRef.current = body?.id ?? null;
+      setSimpleContent((body?.data?.content as string) || '');
+    }
     // Hydrate the canvas store from the live block tree when switching INTO
     // canvas mid-session (non-section blocks carried as passthrough).
     if (mode === 'canvas') {
@@ -364,7 +392,7 @@ export default function PostEditor() {
               <div className="max-w-3xl mx-auto">
                 <WysiwygEditor
                   content={simpleContent}
-                  onChange={(html) => { setSimpleContent(html); setDirty(true); }}
+                  onChange={handleSimpleChange}
                   placeholder="Start writing your post..."
                   minHeight={500}
                 />

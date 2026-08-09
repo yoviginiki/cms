@@ -232,11 +232,7 @@
         if (!grid || !tpl) return;
 
         grid.textContent = '';
-        // Restore the grid's ORIGINAL display (from its inline style) when showing
-        // results — setting it to '' would drop the inline `display:grid`, collapse
-        // the container to `block` and kill the row gap (results looked squished).
-        if (grid.__d === undefined) grid.__d = grid.style.display || 'grid';
-        grid.style.display = active ? grid.__d : 'none';
+        grid.style.display = active ? '' : 'none';
         empty.hidden = !active || rows.length !== 0;
 
         if (active) {
@@ -266,12 +262,6 @@
         document.querySelectorAll('.record-loop-block, .collection-categories-block').forEach(function (el) {
           el.style.display = active ? 'none' : '';
         });
-      }
-
-      // Scroll AFTER the browse grid collapses so we measure the final layout.
-      if (pendingScroll) {
-        pendingScroll = false;
-        requestAnimationFrame(function () { requestAnimationFrame(scrollToResults); });
       }
     }
 
@@ -351,23 +341,9 @@
 
     // Bring the results into view after an explicit filter/search (facet click or
     // Search button) — the facet list can be long, so jump back up to the top of
-    // the results with the search bar still in sight. Not on type-ahead.
-    // pendingScroll is honored inside renderRows() so the scroll runs AFTER the
-    // category grid collapses and results render (measuring the final layout,
-    // not the pre-collapse bottom position).
-    var pendingScroll = false;
+    // the results with the search bar still in sight. Not called on type-ahead.
     function scrollToResults() {
-      var res = resultRoots[0];
-      var el = searchInputs[0] || res || facetRoots[0];
-      // On a stacked layout (mobile: the facet panel renders ABOVE the results
-      // instead of as a side column) the search bar sits far above the results,
-      // so scrolling to it leaves the results below the fold. Detect that and
-      // aim at the results grid instead. On desktop's sidebar layout the results
-      // start alongside the facets, so keep the search bar in sight.
-      if (res && res.getBoundingClientRect) {
-        var fb = facetRoots[0] && facetRoots[0].getBoundingClientRect();
-        if (!el || !fb || res.getBoundingClientRect().top > fb.bottom - 20) el = res;
-      }
+      var el = resultRoots[0] || facetRoots[0];
       if (!el || !el.getBoundingClientRect) return;
       var top = el.getBoundingClientRect().top + (window.pageYOffset || 0) - 90;
       try { window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
@@ -407,8 +383,8 @@
         e.preventDefault();
         clearTimeout(debounceTimer);
         state.q = input.value.trim();
-        pendingScroll = true;
         apply();
+        scrollToResults();
       });
     });
 
@@ -418,8 +394,8 @@
         if (input.checked) { if (vals.indexOf(input.value) === -1) vals.push(input.value); }
         else vals = vals.filter(function (v) { return v !== input.value; });
         state.facets[key] = vals;
-        pendingScroll = true;
         apply();
+        scrollToResults();
       });
     }
 
@@ -445,11 +421,6 @@
     readUrl();
     if (hasFilter()) {
       searchInputs.forEach(function (i) { i.value = state.q; });
-      // Arriving on a filtered URL (e.g. a category link navigates to ?__cat=…):
-      // scroll down to the results once they render, otherwise on mobile — where
-      // the facet panel stacks above the results — the visitor lands on the
-      // filters and never sees that anything matched.
-      pendingScroll = true;
       isApi ? applyApi() : applyStatic();
     } else if (eager) {
       isApi ? applyApi() : loadIndex().then(applyStatic);
