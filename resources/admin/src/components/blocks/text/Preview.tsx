@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { resolveTextShadow } from '@/lib/blockStyles';
 
@@ -37,7 +37,11 @@ export const TextPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
   const ref = useRef<HTMLDivElement>(null);
   const focusedRef = useRef(false);
 
-  useEffect(() => {
+  // Sync the DOM from `content` ONLY while unfocused — before paint so there's
+  // no flash. Must NOT use dangerouslySetInnerHTML on the editable node below:
+  // React re-applies it on every render, and onInput re-renders on each
+  // keystroke, which would wipe and rebuild the text nodes and drop the caret.
+  useLayoutEffect(() => {
     const el = ref.current;
     if (el && !focusedRef.current && el.innerHTML !== content) {
       el.innerHTML = content || '';
@@ -56,7 +60,6 @@ export const TextPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
         onBlur={() => { focusedRef.current = false; }}
         onInput={e => onUpdate({ content: (e.target as HTMLElement).innerHTML })}
         onPointerDown={e => e.stopPropagation()}
-        dangerouslySetInnerHTML={{ __html: content }}
       />
     );
   }
