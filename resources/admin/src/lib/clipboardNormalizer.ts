@@ -264,6 +264,96 @@ export function plainTextToHtml(text: string): string {
     .join('');
 }
 
+// ── Word/Docs heading promotion ────────────────────────────────────────────
+// Word only emits real <h1-6> tags for its built-in "Heading 1/2/3" paragraph
+// styles. Titles that were merely made bold/larger by hand arrive as
+// <p class=MsoNormal><b><span style='font-size:16pt'>…</span></b></p> — plain
+// paragraphs. TipTap (and the human eye) then treat them as body text. This
+// promotes such "visual headings" back to real <hN> so pasted articles keep
+// their structure. Real <h1-6> from Word/Google Docs already survive untouched.
+
+const clampLevel = (n: number) => Math.max(2, Math.min(4, n)); // never a 2nd page-<h1>
+
+/** largest font-size found on the paragraph or its runs, in px (0 = none set) */
+function maxFontPx(el: Element): number {
+  let max = 0;
+  const scan = (node: Element) => {
+    const m = (node.getAttribute('style') || '').match(/font-size\s*:\s*([\d.]+)\s*(pt|px)/i);
+    if (m) {
+      const px = m[2].toLowerCase() === 'pt' ? parseFloat(m[1]) * (4 / 3) : parseFloat(m[1]);
+      if (px > max) max = px;
+    }
+    for (const c of Array.from(node.children)) scan(c);
+  };
+  scan(el);
+  return max;
+}
+
+/** true when every bit of visible text in the paragraph sits in a bold context */
+function textIsAllBold(p: Element): boolean {
+  let hasText = false;
+  let allBold = true;
+  const visit = (node: Node, bold: boolean) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if ((node.textContent || '').replace(/ /g, ' ').trim()) {
+        hasText = true;
+        if (!bold) allBold = false;
+      }
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as Element;
+    const st = (el.getAttribute('style') || '').toLowerCase();
+    let b = bold;
+    if (el.tagName === 'B' || el.tagName === 'STRONG') b = true;
+    // boundary avoids matching Word's <b style='mso-bidi-font-weight:normal'>
+    if (/(?:^|[;\s])font-weight\s*:\s*(bold|[6-9]00)/.test(st)) b = true;
+    else if (/(?:^|[;\s])font-weight\s*:\s*(normal|[1-5]00)\b/.test(st)) b = false;
+    for (const c of Array.from(el.childNodes)) visit(c, b);
+  };
+  visit(p, false);
+  return hasText && allBold;
+}
+
+/** heading level a <p> should become, or null to leave it a paragraph */
+function paragraphHeadingLevel(p: Element): number | null {
+  const cls = p.getAttribute('class') || '';
+  const st = (p.getAttribute('style') || '').toLowerCase();
+
+  // explicit Word style markers
+  if (/\bMsoTitle\b/i.test(cls)) return 2;
+  if (/\bMsoSubtitle\b/i.test(cls)) return 3;
+  let m = cls.match(/\bMsoHeading\s*([1-9])/i);
+  if (m) return clampLevel(parseInt(m[1], 10));
+  m = st.match(/mso-outline-level\s*:\s*([1-9])/);
+  if (m) return clampLevel(parseInt(m[1], 10));
+
+  // heuristic: a short, single-line, sentence-less run that is all bold or
+  // clearly larger than body text reads as a heading
+  const text = (p.textContent || '').replace(/ /g, ' ').trim();
+  if (!text || text.length > 100) return null;
+  if (/[.!?…]$/.test(text)) return null;              // ends like a sentence
+  if (p.querySelector('br, img, ul, ol, table, a')) return null;
+  const px = maxFontPx(p);
+  if (textIsAllBold(p)) return px >= 21 ? 2 : 3;       // ~16pt → h2, else h3
+  if (px >= 21) return 2;                              // big but not bold
+  return null;
+}
+
+/** promote Word/Docs "visual heading" paragraphs to real <hN> tags */
+export function promoteWordHeadings(html: string): string {
+  if (typeof DOMParser === 'undefined' || !/<p[\s>]/i.test(html)) return html;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.body.querySelectorAll('p').forEach((p) => {
+    const level = paragraphHeadingLevel(p);
+    if (!level) return;
+    const h = doc.createElement('h' + level);
+    h.textContent = (p.textContent || '').replace(/ /g, ' ').trim();
+    p.replaceWith(h);
+  });
+  return doc.body.innerHTML;
+}
+
 /** Session E large-paste: word count of normalized html */
 export function wordCount(html: string): number {
   return html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;

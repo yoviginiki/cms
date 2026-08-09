@@ -2,7 +2,7 @@
 // reduces to the magazine content model with zero styling residue.
 
 import { describe, it, expect } from 'vitest';
-import { normalizeClipboardHtml, plainTextToHtml } from './clipboardNormalizer';
+import { normalizeClipboardHtml, plainTextToHtml, promoteWordHeadings } from './clipboardNormalizer';
 
 // Representative (abridged) real-world payload shapes
 const WORD_HTML = `
@@ -78,6 +78,43 @@ describe('clipboard normalizer (W1-3)', () => {
     expect(out).toContain('cell one');
     expect(out).toContain('cell two');
     expect(out).not.toContain('<table'); // flattened (tables are a later track)
+  });
+
+  it('promoteWordHeadings: hand-bolded Word title becomes a real heading', () => {
+    const out = promoteWordHeadings(
+      `<p class=MsoNormal><b style='mso-bidi-font-weight:normal'><span style='font-size:16.0pt'>Практиката е патерица</span></b></p>` +
+      `<p class=MsoNormal>Ще го кажа направо, защото това е най-важното, което съм научил.</p>`
+    );
+    expect(out).toContain('<h2>Практиката е патерица</h2>');
+    expect(out).toContain('<p'); // body paragraph is left alone
+    expect(out).not.toMatch(/<h2>[^<]*най-важното/);
+  });
+
+  it('promoteWordHeadings: short bold line without a large font → h3', () => {
+    const out = promoteWordHeadings(`<p><b>Една проста практика</b></p>`);
+    expect(out).toContain('<h3>Една проста практика</h3>');
+  });
+
+  it('promoteWordHeadings: Mso style markers and outline levels map to headings', () => {
+    expect(promoteWordHeadings(`<p class=MsoTitle>Вътрешният храм преди външния</p>`))
+      .toContain('<h2>Вътрешният храм преди външния</h2>');
+    expect(promoteWordHeadings(`<p style='mso-outline-level:3'>Границите и милостта</p>`))
+      .toContain('<h3>Границите и милостта</h3>');
+  });
+
+  it('promoteWordHeadings: leaves ordinary and inline-emphasis paragraphs alone', () => {
+    // a bold word inside a full sentence must not be promoted
+    const sentence = `<p>Umъt <b>tича</b> напред, тялото изостава уморено, а духът стои забравен.</p>`;
+    expect(promoteWordHeadings(sentence)).toBe(sentence);
+    // an all-bold paragraph that ends like a sentence stays a paragraph
+    const emph = `<p><b>Това е важно изречение, което завършва с точка.</b></p>`;
+    expect(promoteWordHeadings(emph)).toContain('<p>');
+    expect(promoteWordHeadings(emph)).not.toContain('<h');
+  });
+
+  it('promoteWordHeadings: real Word <h1> tags pass through untouched', () => {
+    expect(promoteWordHeadings(`<h1>The Annual Report</h1><p>Body text ends here.</p>`))
+      .toBe(`<h1>The Annual Report</h1><p>Body text ends here.</p>`);
   });
 
   it('plain text: blank lines split paragraphs, newlines become <br>', () => {
