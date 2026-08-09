@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Typography plugin — powers the `.prose` class used by the editor canvas so
+   headings/lists/quotes render like the published document (the --tw-prose-*
+   overrides below feed it). Lost in the Tailwind v4 migration, which left
+   `.prose` inert and made block headings look like body text in the editor. */
+@plugin "@tailwindcss/typography";
+
 /* ─── Inter Variable ─── */
 @font-face {
   font-family: 'Inter';
