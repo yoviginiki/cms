@@ -4,9 +4,27 @@ import { api } from '@/lib/api';
 
 const SNAPSHOT_INTERVAL = 5; // Create a draft snapshot every N saves
 
+// Autosave delay is a per-browser preference (Site Settings → Editing).
+// Value is milliseconds; 0 disables autosave (manual Save/Publish only).
+export const AUTOSAVE_PREF_KEY = 'admin.autosaveIntervalMs';
+export const AUTOSAVE_DEFAULT_MS = 300000; // 5 min — was a fixed 3s
+
+export function getAutosaveIntervalMs(): number {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_PREF_KEY);
+    if (raw == null) return AUTOSAVE_DEFAULT_MS;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : AUTOSAVE_DEFAULT_MS;
+  } catch {
+    return AUTOSAVE_DEFAULT_MS;
+  }
+}
+
 /**
- * Auto-save blocks after 3s of inactivity when dirty.
- * Creates a draft version snapshot every 5th save.
+ * Auto-save blocks after a configurable idle delay when dirty (default 5 min,
+ * set in Site Settings → General → Editor autosave; 0 disables it). A draft
+ * version snapshot is
+ * created every 5th save.
  */
 export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts' | 'templates', blockableId: string) {
   const isDirty = useEditorStore((s) => s.isDirty);
@@ -19,6 +37,8 @@ export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts' | '
 
   useEffect(() => {
     if (!isDirty) return;
+    const intervalMs = getAutosaveIntervalMs();
+    if (intervalMs <= 0) return; // autosave disabled — rely on manual Save
 
     if (timerRef.current) clearTimeout(timerRef.current);
 
@@ -39,7 +59,7 @@ export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts' | '
       } finally {
         setSaving(false);
       }
-    }, 3000);
+    }, intervalMs);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

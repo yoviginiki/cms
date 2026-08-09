@@ -451,17 +451,17 @@ export default function PostEditor() {
   return (
     <div className="flex flex-col h-screen bg-base-200" data-theme={adminTheme}>
       {/* ─── Top toolbar ─── */}
-      <div className="flex items-center justify-between h-12 px-4 bg-base-100 border-b border-base-300/30 shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(`/sites/${siteId}/posts`)} className="btn btn-ghost btn-xs btn-square"><ArrowLeft size={16} /></button>
+      <div className="flex items-center justify-between gap-3 h-12 px-4 bg-base-100 border-b border-base-300/30 shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => navigate(`/sites/${siteId}/posts`)} className="btn btn-ghost btn-xs btn-square shrink-0"><ArrowLeft size={16} /></button>
           <input value={title} onChange={e => { setTitle(e.target.value); if (!slugManual) setSlug(slugify(e.target.value)); markMetaDirty(); }}
-            className="text-sm font-medium bg-transparent border-none outline-none text-base-content/90 w-48" placeholder="Post title" />
+            className="text-sm font-medium bg-transparent border-none outline-none text-base-content/90 w-48 min-w-0" placeholder="Post title" />
           <span className={`badge badge-sm ${status === 'published' ? 'badge-success' : 'badge-ghost'} badge-outline text-[10px]`}>{status}</span>
           {(isDirty || metaDirty) && <span className="text-[10px] text-warning font-medium">unsaved</span>}
           {saveError && <span className="text-[10px] text-error truncate max-w-xs">{saveError}</span>}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Page builder toggle */}
           <span className="text-[11px] font-medium text-base-content/50 select-none">Pagebuilder:</span>
           <div className="flex bg-base-200/80 rounded-md p-0.5">
@@ -514,13 +514,20 @@ export default function PostEditor() {
           <input ref={importInputRef} type="file" accept="application/json,.json"
             onChange={handleImportFile} className="hidden" />
           <div className="w-px h-5 bg-base-300/30" />
+          {/* Preview = dynamic render from the DB (reflects unpublished edits).
+              View = the live published static page. */}
+          <a href={`/site/blog/${slug}`}
+            target="_blank" rel="noopener"
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="Preview (dynamic — shows unpublished edits)">
+            <Eye size={13} /> Preview
+          </a>
           <a href={(() => {
               const cat = categoriesList?.find((c: any) => c.id === categoryId);
               return `${publicBase}/${cat?.slug ? cat.slug + '/' : ''}${slug}`;
             })()}
             target="_blank" rel="noopener"
-            className="btn btn-sm btn-ghost text-[12px] gap-1" title="View post">
-            <Eye size={13} /> View
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="View the live published page">
+            <Globe size={13} /> Live
           </a>
           <button onClick={handleSave} disabled={isSaving}
             className={`btn btn-sm text-[12px] gap-1 ${canSave ? 'btn-warning' : 'btn-ghost text-base-content/30'}`}>

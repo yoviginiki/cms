@@ -442,9 +442,9 @@ export default function PageEditor() {
   return (
     <div className="flex flex-col h-screen bg-base-200" data-theme={adminTheme}>
       {/* ─── Top toolbar ─── */}
-      <div className="flex items-center justify-between h-12 px-4 bg-base-100 border-b border-base-300/30 shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(`/sites/${siteId}/pages`)} className="btn btn-ghost btn-xs btn-square">
+      <div className="flex items-center justify-between gap-3 h-12 px-4 bg-base-100 border-b border-base-300/30 shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => navigate(`/sites/${siteId}/pages`)} className="btn btn-ghost btn-xs btn-square shrink-0">
             <ArrowLeft size={16} />
           </button>
           <div className="min-w-0">
@@ -459,7 +459,7 @@ export default function PageEditor() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Page builder toggle */}
           <span className="text-[11px] font-medium text-base-content/50 select-none">Pagebuilder:</span>
           <div className="flex bg-base-200/80 rounded-md p-0.5">

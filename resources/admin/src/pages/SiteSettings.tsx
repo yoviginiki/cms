@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { Loader2, Save, AlertTriangle, Code, Home, LayoutGrid } from 'lucide-react';
 import { api, sites, pages as pagesApi, grids as gridsApi } from '@/lib/api';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { getAutosaveIntervalMs, AUTOSAVE_PREF_KEY } from '@/hooks/useAutoSave';
 
 interface SiteData {
   id: string;
@@ -40,6 +41,8 @@ export default function SiteSettings() {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('');
   const [autoPublish, setAutoPublish] = useState(true);
+  // Editor autosave delay — per-browser preference (localStorage), applies to all editors.
+  const [autosaveMs, setAutosaveMs] = useState<number>(getAutosaveIntervalMs());
   const [deploySlug, setDeploySlug] = useState('');
   const [autoRepublishStale, setAutoRepublishStale] = useState(false);
 
@@ -459,6 +462,26 @@ export default function SiteSettings() {
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${autoRepublishStale ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Editor autosave</p>
+                <p className="text-xs text-gray-500 mt-0.5">How often the page/post editor auto-saves your draft while you work. Applies to this browser. Manual Save and Publish are always available.</p>
+              </div>
+              <select
+                value={autosaveMs}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  setAutosaveMs(v);
+                  try { localStorage.setItem(AUTOSAVE_PREF_KEY, String(v)); } catch { /* ignore */ }
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value={0}>Off (manual only)</option>
+                <option value={30000}>Every 30 seconds</option>
+                <option value={60000}>Every 1 minute</option>
+                <option value={120000}>Every 2 minutes</option>
+                <option value={300000}>Every 5 minutes</option>
+              </select>
             </div>
             <div className="pt-4 border-t border-gray-100">
               <button onClick={saveGeneral} disabled={updateMutation.isPending}
