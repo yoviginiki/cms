@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye, Globe, FileText, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye, Globe, FileText, LayoutGrid, Download, Upload } from 'lucide-react';
+import { deepCloneWithNewIds } from '@/lib/builderHelpers';
+import { useToast } from '@/components/ui/Toast';
 import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
@@ -71,6 +73,9 @@ export default function PageEditor() {
   // Set while we deliberately reload after switching page builder, so the
   // beforeunload guard below doesn't throw a second "unsaved changes" prompt.
   const bypassUnloadRef = useRef(false);
+  const { toast } = useToast();
+  // Hidden <input type=file> that the Import button clicks.
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -309,6 +314,83 @@ export default function PageEditor() {
     } finally { setSaving(false); }
   }
 
+  // ─── Export / Import content ───────────────────────────────────────────
+  // A page's content is a block tree. Export writes it to a JSON file with the
+  // block ids STRIPPED — ids identify a block within one page (stable anchors,
+  // theme overrides, grid positions), so a copy moved to another page/post must
+  // get fresh ids, never inherit the source's. Import regenerates ids on input.
+
+  function stripBlockIds(b: any): any {
+    const { id: _drop, ...rest } = b || {};
+    return { ...rest, children: (b?.children || []).map(stripBlockIds) };
+  }
+
+  function handleExportContent() {
+    if (editorMode === 'magazine') {
+      toast({ type: 'info', message: 'Export не се поддържа за Magazine.' });
+      return;
+    }
+    const source = editorMode === 'canvas'
+      ? useCanvasStore.getState().toBlocks()
+      : useEditorStore.getState().blocks;
+    const blocks = (source || []).map(stripBlockIds);
+    if (blocks.length === 0) {
+      toast({ type: 'info', message: 'Няма съдържание за експорт.' });
+      return;
+    }
+    const payload = { __ensodo_content: 1, editor_mode: editorMode, exported_title: page?.title, blocks };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${page?.slug || 'page'}-content.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast({ type: 'success', message: 'Съдържанието е експортирано.' });
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-importing the same file
+    if (!file) return;
+    if (editorMode === 'magazine') {
+      toast({ type: 'info', message: 'Import не се поддържа за Magazine.' });
+      return;
+    }
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const raw = Array.isArray(parsed) ? parsed : parsed?.blocks;
+      if (!Array.isArray(raw) || raw.length === 0) {
+        toast({ type: 'error', message: 'Невалиден файл: няма блокове.' });
+        return;
+      }
+      const existing = useEditorStore.getState().blocks;
+      if (existing.length > 0 && !window.confirm(
+        'Импортът ще замени текущото съдържание на тази страница. Продължавате?'
+      )) return;
+
+      // Fresh ids so imported content never collides with the source page.
+      const imported = raw.map((b: any) => deepCloneWithNewIds(b));
+      setBlocks(imported as any);
+
+      if (editorMode === 'canvas') {
+        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
+        useCanvasStore.getState().loadFromBlocks(imported as any, {
+          pageType: cv?.page_type === 'single' ? 'single' : 'website',
+          width: cv?.width,
+          mobileWidth: cv?.mobile_width,
+        });
+      }
+      setDirty(true);
+      toast({ type: 'success', message: `Импортирани ${imported.length} блока. Натиснете Save.` });
+    } catch {
+      toast({ type: 'error', message: 'Импортът се провали: файлът не е валиден JSON.' });
+    }
+  }
+
   async function togglePublishStatus() {
     const newStatus = page?.status === 'published' ? 'draft' : 'published';
     try {
@@ -456,6 +538,19 @@ export default function PageEditor() {
               <Eye size={13} /> Experience
             </a>
           )}
+
+          {/* Export / Import content (block tree, ids stripped) — copy content
+              between pages/posts without carrying source block ids. */}
+          <button onClick={handleExportContent}
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="Export this page's content to a JSON file">
+            <Download size={13} /> Export
+          </button>
+          <button onClick={() => importInputRef.current?.click()}
+            className="btn btn-sm btn-ghost text-[12px] gap-1" title="Import content from an exported JSON file (replaces current content)">
+            <Upload size={13} /> Import
+          </button>
+          <input ref={importInputRef} type="file" accept="application/json,.json"
+            onChange={handleImportFile} className="hidden" />
 
           <button onClick={handleSave} disabled={isSaving || (!isDirty && !magStore.isDirty)}
             className={`btn btn-sm text-[12px] gap-1 ${(isDirty || magStore.isDirty) ? 'btn-warning' : 'btn-ghost'}`}>
