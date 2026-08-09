@@ -297,9 +297,10 @@ HTML;
                 'lang' => $content->seo_meta['locale'] ?? $site->settings['default_language'] ?? $themeConfig['lang'] ?? 'en',
             ])->render();
         } else {
-            // Check for theme template (posts only)
+            // Check for theme template (posts only). Which template — or none —
+            // depends on the post's explicit choice and its page builder.
             $template = ($content instanceof Post)
-                ? ThemeTemplate::resolveForPost($content)
+                ? $this->resolvePostTemplate($content)
                 : null;
 
             if ($template) {
@@ -851,6 +852,43 @@ HTML;
      * Render a post using a theme template.
      * Template blocks are rendered with post data injected as context.
      */
+    /**
+     * Decide which post template (if any) wraps a post's content.
+     *
+     * The author's explicit choice lives in seo_meta.template_id:
+     *   - 'none'   → Empty: render the page builder's own output verbatim, with
+     *                no template chrome overriding the custom layout.
+     *   - <uuid>   → render inside that specific post template.
+     *   - 'default'→ render inside the site's default post template.
+     * When unset, only the Simple builder auto-applies the default template;
+     * Block/Canvas/Magazine build their own full layout, so they render Empty
+     * unless the author picks a template.
+     */
+    private function resolvePostTemplate(Post $post): ?ThemeTemplate
+    {
+        $choice = $post->seo_meta['template_id'] ?? null;
+
+        if ($choice === 'none') {
+            return null;
+        }
+
+        if (is_string($choice) && $choice !== '' && $choice !== 'default') {
+            $tpl = ThemeTemplate::where('site_id', $post->site_id)
+                ->where('type', 'post')
+                ->find($choice);
+            if ($tpl) {
+                return $tpl;
+            }
+            // Chosen template was deleted — fall through to the default below.
+        }
+
+        if ($choice === 'default' || $post->editor_mode === 'simple') {
+            return ThemeTemplate::resolveForPost($post);
+        }
+
+        return null;
+    }
+
     private function renderTemplatedPost(Post $post, ThemeTemplate $template, Site $site): string
     {
         // First render the post's own blocks as the "post content" HTML

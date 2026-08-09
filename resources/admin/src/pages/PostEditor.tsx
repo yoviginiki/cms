@@ -19,7 +19,7 @@ import { BlockSettings } from '@/components/editor/BlockSettings';
 import { LayersPanel } from '@/components/editor/LayersPanel';
 import { StructurePanel } from '@/components/editor/StructurePanel';
 import { BlockPicker } from '@/components/editor/BlockPicker';
-import { api, blocks as blocksApi, posts as postsApi, categories as categoriesApi, versions as versionsApi, publishing, sites } from '@/lib/api';
+import { api, blocks as blocksApi, posts as postsApi, categories as categoriesApi, versions as versionsApi, publishing, sites, themeTemplates } from '@/lib/api';
 import { AssetField } from '@/components/ui/AssetPicker';
 import { SeoPanel } from '@/components/editor/SeoPanel';
 import WysiwygEditor from '@/components/editor/WysiwygEditor';
@@ -90,6 +90,9 @@ export default function PostEditor() {
   const [publishedAt, setPublishedAt] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [layoutId, setLayoutId] = useState('');
+  // Which post template renders this post: 'default' (site default template),
+  // 'none' (Empty — render the builder's own output), or a template UUID.
+  const [templateId, setTemplateId] = useState<string>('default');
   const [metaDirty, setMetaDirty] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
   const [authorId, setAuthorId] = useState('');
@@ -110,6 +113,15 @@ export default function PostEditor() {
     queryFn: () => api.get(`/sites/${siteId}/layouts`).then((r: any) => {
       const d = r.data?.data;
       return Array.isArray(d) ? d : [];
+    }),
+  });
+
+  // Post templates (from the site's Templates page) — used by the Template picker.
+  const { data: postTemplates } = useQuery<any[]>({
+    queryKey: ['post-templates', siteId],
+    queryFn: () => themeTemplates.list(siteId).then((r: any) => {
+      const d = r.data?.data ?? r.data;
+      return Array.isArray(d) ? d.filter((t: any) => t.type === 'post') : [];
     }),
   });
 
@@ -188,6 +200,11 @@ export default function PostEditor() {
       setEditorMode(post.editor_mode as EditorMode);
       setStoreEditorMode(post.editor_mode as EditorMode);
     }
+    // Template choice: explicit if stored, otherwise the builder's default
+    // (Simple → default template, other builders → Empty) — matching how the
+    // publisher resolves an unset choice.
+    const storedTpl = (post.seo_meta as { template_id?: string } | undefined)?.template_id;
+    setTemplateId(storedTpl ?? (post.editor_mode === 'simple' ? 'default' : 'none'));
   }, [post]);
 
   useEffect(() => {
@@ -214,7 +231,7 @@ export default function PostEditor() {
         video_url: videoUrl || null, thumbnail: thumbnail || null, post_format: postFormat,
         editor_mode: editorMode, author_id: authorId || null,
         published_at: publishedAt || null, scheduled_at: scheduledAt || null,
-        ...(Object.keys(seoPatch).length ? { seo_meta: seoPatch } : {}),
+        seo_meta: { ...seoPatch, template_id: templateId },
       });
       setMetaDirty(false);
       // Save blocks — in simple mode, wrap content in a single text block
@@ -254,7 +271,7 @@ export default function PostEditor() {
         excerpt: excerpt || null, featured_image: featuredImage || null,
         editor_mode: editorMode, author_id: authorId || null,
         published_at: pubDate, scheduled_at: scheduledAt || null,
-        ...(Object.keys(seoPatch).length ? { seo_meta: seoPatch } : {}),
+        seo_meta: { ...seoPatch, template_id: templateId },
       });
       // Save blocks
       if (editorMode === 'canvas') {
@@ -317,7 +334,12 @@ export default function PostEditor() {
     try {
       // Persist the chosen builder together with whatever is currently in the
       // editor, so the reload re-opens the correct editor over the saved content.
-      await postsApi.update(siteId, postId, { editor_mode: mode });
+      // Reset the template to the new builder's default (Simple → default
+      // template, others → Empty) so a template can't override a custom layout.
+      await postsApi.update(siteId, postId, {
+        editor_mode: mode,
+        seo_meta: { template_id: mode === 'simple' ? 'default' : 'none' },
+      });
       if (editorMode === 'canvas') {
         await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
       } else {
@@ -382,6 +404,22 @@ export default function PostEditor() {
               <Paintbrush size={12} /> Magazine
             </button>
           </div>
+
+          {/* Template — which post template wraps the content ('Empty' = the
+              builder's own output, no template chrome overriding it). */}
+          <span className="text-[11px] font-medium text-base-content/50 select-none">Template:</span>
+          <select
+            value={templateId}
+            onChange={e => { setTemplateId(e.target.value); markMetaDirty(); }}
+            title="Which template renders this post. 'Empty' keeps your builder's own layout."
+            className="select select-bordered select-xs text-[11px] max-w-[9rem]">
+            <option value="default">Default</option>
+            {(postTemplates || []).map((t: any) => (
+              <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>
+            ))}
+            <option value="none">Empty (no template)</option>
+          </select>
+
           <div className="w-px h-5 bg-base-300/30" />
           <a href={(() => {
               const cat = categoriesList?.find((c: any) => c.id === categoryId);
