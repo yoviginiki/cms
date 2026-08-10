@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Modules\CultureDraftController;
+use App\Http\Controllers\Api\Modules\CultureEventSyncController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -16,5 +17,14 @@ Route::post('culture-engine/drafts', [CultureDraftController::class, 'store'])
     ->middleware([
         'throttle:module-api',
         'module.token:drafts:create',
+        'module:culture-engine',
+    ]);
+
+// POST /api/modules/culture-engine/events — sync approved events into the
+// tenant's cultural-events collection (Track G).
+Route::post('culture-engine/events', [CultureEventSyncController::class, 'store'])
+    ->middleware([
+        'throttle:module-api',
+        'module.token:events:sync',
         'module:culture-engine',
     ]);
