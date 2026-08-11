@@ -24,6 +24,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Bus\Batch;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\View;
@@ -179,6 +181,19 @@ class PublishSiteJob implements ShouldQueue
             $projection = app(\App\Domain\Projection\ProjectionPublisher::class);
             $projectionOn = $projection->isEnabled($site);
             $projectionEntries = [];
+
+            // PARALLEL FAN-OUT (opt-in; config publishing.parallel_posts). For a
+            // large site, render the posts across worker processes instead of the
+            // serial loop below, then re-enter this job to build pages + finalize
+            // + deploy. The resumable posts loop makes that re-run skip everything
+            // the chunks already rendered. Gated to projection-off sites (a
+            // projection site must emit every sidecar in one pass) and skipped on
+            // the re-run itself (metadata.parallel_rendered) so it doesn't loop.
+            if ($this->shouldRenderPostsInParallel($postCount, $projectionOn)) {
+                $this->dispatchParallelPostBuild($postsQuery, $totalItems);
+
+                return; // finalize runs via the batch's completion callback
+            }
 
             // Build pages
             foreach ($pages as $page) {
@@ -410,6 +425,82 @@ class PublishSiteJob implements ShouldQueue
             $this->broadcast("Build failed: {$e->getMessage()}");
             throw $e;
         }
+    }
+
+    /**
+     * Whether to fan the posts render out across workers instead of the serial
+     * loop. Opt-in; async only; projection-off only (a projection site must emit
+     * every sidecar in one pass); above the chunk-size threshold; and never on
+     * the finalize re-run (metadata.parallel_rendered) so it can't loop.
+     */
+    protected function shouldRenderPostsInParallel(int $postCount, bool $projectionOn): bool
+    {
+        return (bool) config('publishing.parallel_posts')
+            && config('queue.default') !== 'sync'
+            && ! $projectionOn
+            && $postCount > (int) config('publishing.parallel_chunk_size')
+            && ! ($this->deployment->metadata['parallel_rendered'] ?? false);
+    }
+
+    /**
+     * Fan post rendering out across worker processes. Each chunk builds its
+     * posts into the shared staging dir; when ALL chunks succeed the batch
+     * callback re-dispatches this job (same deployment) to build pages +
+     * finalize + deploy — the resumable posts loop skips the rendered posts.
+     * A chunk failure fails the deployment (the partial staging dir is never
+     * deployed). Runs in the initial job's worker, so RLS context is already set.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $postsQuery
+     */
+    protected function dispatchParallelPostBuild($postsQuery, int $totalItems): void
+    {
+        $ids = (clone $postsQuery)->orderBy('id')->pluck('id')->all();
+        $chunks = array_chunk($ids, (int) config('publishing.parallel_chunk_size'));
+
+        // Mark rendered BEFORE dispatch so the finalize re-run skips this branch.
+        $this->deployment->update(['metadata' => array_merge($this->deployment->metadata ?? [], [
+            'parallel_rendered' => true,
+            'parallel_chunks' => count($chunks),
+            'current_step' => 'building',
+        ])]);
+
+        $jobs = [];
+        foreach ($chunks as $i => $chunkIds) {
+            $jobs[] = new BuildPostsChunkJob($this->deploymentId, $this->tenantId, array_values($chunkIds), $i);
+        }
+
+        // Only scalars in the callbacks (they serialize onto the queue); restore
+        // RLS context inside them before touching tenant-scoped rows.
+        $deploymentId = $this->deploymentId;
+        $tenantId = $this->tenantId;
+        $type = $this->type;
+
+        Bus::batch($jobs)
+            ->name("publish-posts-{$this->deploymentId}")
+            ->allowFailures(false)
+            ->then(function (Batch $batch) use ($deploymentId, $tenantId, $type) {
+                $tid = preg_replace('/[^a-f0-9\-]/', '', $tenantId);
+                DB::unprepared("SET app.current_tenant_id = '{$tid}'");
+                $deployment = Deployment::find($deploymentId);
+                if ($deployment && ! in_array($deployment->status, ['live', 'failed', 'rolled_back', 'cancelled'], true)) {
+                    PublishSiteJob::dispatch($deployment, $type);
+                }
+            })
+            ->catch(function (Batch $batch, \Throwable $e) use ($deploymentId, $tenantId) {
+                $tid = preg_replace('/[^a-f0-9\-]/', '', $tenantId);
+                DB::unprepared("SET app.current_tenant_id = '{$tid}'");
+                $deployment = Deployment::find($deploymentId);
+                if ($deployment && ! in_array($deployment->status, ['live', 'failed', 'rolled_back', 'cancelled'], true)) {
+                    $deployment->update([
+                        'status' => 'failed',
+                        'error_log' => 'Parallel post render failed: ' . $e->getMessage(),
+                        'completed_at' => now(),
+                    ]);
+                }
+            })
+            ->dispatch();
+
+        $this->updateStatus('building', "Rendering {$totalItems} items across " . count($chunks) . ' parallel chunks');
     }
 
     private function createVersion($content, string $type): PageVersion
