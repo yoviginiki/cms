@@ -32,7 +32,11 @@ class PublishSiteJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    public int $tries = 3;
+    // Retries are the convergence mechanism for very large sites: each try
+    // resumes where the last left off (posts already rendered this deployment
+    // are skipped), so a build that can't finish in one timeout window still
+    // completes across a few passes instead of restarting forever.
+    public int $tries = 8;
     // Large content sites (thousands of posts) build for many minutes; the old
     // 300s cap timed out mid-build and retried from scratch. Sized well above
     // the worst-case full build.
@@ -202,6 +206,21 @@ class PublishSiteJob implements ShouldQueue
 
             // Build posts
             foreach ($postsQuery->lazyById(300) as $post) {
+                $postPath = $this->getPostPath($post);
+                $dest = "{$stagingPath}/{$postPath}";
+
+                // Resumable build: if the job timed out mid-build and was retried,
+                // the staging dir already holds the posts rendered on the prior
+                // pass. Skip them so the build CONVERGES across retries instead of
+                // restarting from scratch (the root cause of the large-site stall).
+                // Projection-on sites must re-emit every sidecar for the manifest,
+                // so they rebuild fully each pass (projection is opt-in / rare).
+                if (! $projectionOn && is_file($dest)) {
+                    $built++;
+                    $this->updateProgress($built, $totalItems, "Skipping already-built post: {$post->title}");
+                    continue;
+                }
+
                 $result = $buildService->buildAndValidate($post, $site->theme, $site);
                 $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $post, $result['html']);
                 // Only retain non-clean validation — at thousands of posts, keeping
@@ -209,9 +228,8 @@ class PublishSiteJob implements ShouldQueue
                 if (empty($result['validation']['passed']) || !empty($result['validation']['warnings']) || !empty($result['validation']['errors'])) {
                     $validationResults["post:{$post->slug}"] = $result['validation'];
                 }
-                $postPath = $this->getPostPath($post);
-                File::ensureDirectoryExists(dirname("{$stagingPath}/{$postPath}"));
-                File::put("{$stagingPath}/{$postPath}", $html);
+                File::ensureDirectoryExists(dirname($dest));
+                File::put($dest, $html);
 
                 $version = $this->createVersion($post, 'post');
 
