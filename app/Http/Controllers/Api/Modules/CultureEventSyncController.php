@@ -94,6 +94,13 @@ class CultureEventSyncController extends Controller
             }
         });
 
+        // Re-bake the ArtDay calendar page's inline event data so it stays in
+        // sync (the widget reads baked data, to work on the editor preview too).
+        // Queued — the CMS workers publish it; no-op if the site has no calendar.
+        if ($created + $updated > 0) {
+            \App\Domain\Culture\RefreshEventCalendarJob::dispatch($site->id, $collection->id, $tenant->id);
+        }
+
         return response()->json([
             'collection' => $collection->slug,
             'synced' => $created + $updated,
