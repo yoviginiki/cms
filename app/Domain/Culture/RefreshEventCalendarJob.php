@@ -11,6 +11,7 @@ use App\Models\Record;
 use App\Models\Site;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -29,12 +30,19 @@ use Illuminate\Support\Facades\DB;
  *
  * No-op (safe) when the tenant has no page carrying the widget marker.
  */
-class RefreshEventCalendarJob implements ShouldQueue
+class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
     public int $tries = 1;
     public int $timeout = 600;
+
+    /**
+     * A sync sends events in chunks, so the controller dispatches one refresh per
+     * chunk. ShouldBeUnique collapses them to a single job; dispatched with a
+     * short delay, it runs once after the whole sync has landed.
+     */
+    public int $uniqueFor = 300;
 
     private const MARKER_OPEN = '/*ADC-DATA*/';
     private const MARKER_CLOSE = '/*/ADC-DATA*/';
@@ -44,6 +52,11 @@ class RefreshEventCalendarJob implements ShouldQueue
         public string $collectionId,
         public string $tenantId,
     ) {
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->siteId . ':' . $this->collectionId;
     }
 
     public function handle(BuildPageService $build, DeployService $deploy): void

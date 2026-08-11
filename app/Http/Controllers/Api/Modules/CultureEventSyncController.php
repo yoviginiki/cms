@@ -98,7 +98,10 @@ class CultureEventSyncController extends Controller
         // sync (the widget reads baked data, to work on the editor preview too).
         // Queued — the CMS workers publish it; no-op if the site has no calendar.
         if ($created + $updated > 0) {
-            \App\Domain\Culture\RefreshEventCalendarJob::dispatch($site->id, $collection->id, $tenant->id);
+            // Delay + ShouldBeUnique: chunked syncs collapse to one refresh that
+            // runs once the whole batch has landed.
+            \App\Domain\Culture\RefreshEventCalendarJob::dispatch($site->id, $collection->id, $tenant->id)
+                ->delay(now()->addSeconds(20));
         }
 
         return response()->json([
