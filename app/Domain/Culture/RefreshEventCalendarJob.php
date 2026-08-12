@@ -89,7 +89,7 @@ class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
         // Re-bake upcoming, dated events (past + undated are excluded — a calendar
         // looks forward, and this keeps the inline payload well within limits).
         $today = now()->toDateString();
-        $data = [];
+        $rows = [];
         foreach ($collection->records()->where('status', 'published')->get() as $r) {
             $d = is_array($r->data) ? $r->data : json_decode($r->data, true);
             $sd = $d['start_date'] ?? null;
@@ -100,11 +100,31 @@ class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
             if ($day < $today) {
                 continue;
             }
-            $data[] = [$r->slug, $d['title'] ?? '', $day, $d['city'] ?? '', $d['venue'] ?? '', $d['time'] ?? '', empty($d['is_free']) ? 0 : 1];
+            $link = (string) ($d['official_url'] ?? '');
+            if (preg_match('/\.(xlsx|xls|csv)(\?|$)/i', $link)) {
+                $link = ''; // the source spreadsheet is not a usable event link
+            }
+            // [slug, title, date, city, venue, time, is_free, image, link, description]
+            $rows[] = [
+                $r->slug, $d['title'] ?? '', $day, $d['city'] ?? '', $d['venue'] ?? '',
+                $d['time'] ?? '', empty($d['is_free']) ? 0 : 1,
+                (string) ($d['image_url'] ?? ''), $link,
+                mb_substr(trim((string) ($d['description'] ?? '')), 0, 140, 'UTF-8'),
+            ];
         }
-        usort($data, fn ($a, $b) => strcmp($a[2], $b[2]));
-        // HEX_TAG so a stray "</script>" or "<" in a title can never break the page.
-        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+        usort($rows, fn ($a, $b) => strcmp($a[2], $b[2]));
+
+        $encode = fn ($r) => json_encode($r, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
+        $json = $encode($rows);
+        // Inline embed has a hard size cap; if descriptions push it over, drop them
+        // (they remain on the record pages) and keep image + link on the cards.
+        if (strlen($json) > 49000) {
+            foreach ($rows as &$r) {
+                $r[9] = '';
+            }
+            unset($r);
+            $json = $encode($rows);
+        }
 
         $pattern = '/' . preg_quote(self::MARKER_OPEN, '/') . '.*?' . preg_quote(self::MARKER_CLOSE, '/') . '/s';
         $new = preg_replace($pattern, self::MARKER_OPEN . $json . self::MARKER_CLOSE, $html, 1);
