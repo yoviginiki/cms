@@ -6,6 +6,13 @@
     $titleField = $collection->titleField();
     $imageKey = RecordDisplay::firstImageField($collection);
     $heroSrc = $imageKey ? RecordDisplay::assetUrl($site, is_string($record->data[$imageKey] ?? null) ? $record->data[$imageKey] : null) : null;
+    // Fallback: an external image URL stored in a plain 'image_url' field
+    // (e.g. an enriched og:image from the event's source page).
+    $heroFromUrl = null;
+    if (! $heroSrc && is_string($u = $record->data['image_url'] ?? null) && str_starts_with($u, 'http')) {
+        $heroSrc = $u;
+        $heroFromUrl = 'image_url';
+    }
     $ancestors = $ancestors ?? [];
     $children = $children ?? collect();
 @endphp
@@ -37,7 +44,7 @@
     @endif
     <dl style="display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:.6rem 1.5rem;margin:0;">
         @foreach($collection->fields() as $field)
-            @continue($field['key'] === $titleField || $field['key'] === $imageKey)
+            @continue($field['key'] === $titleField || $field['key'] === $imageKey || $field['key'] === $heroFromUrl)
             @php $valueHtml = RecordDisplay::display($site, $collection, $record, $field['key']); @endphp
             @if($valueHtml !== '')
                 <dt style="font-weight:600;">{{ $field['label'] }}</dt>

@@ -90,6 +90,7 @@ class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
         // looks forward, and this keeps the inline payload well within limits).
         $today = now()->toDateString();
         $rows = [];
+        $recordIds = [];
         foreach ($collection->records()->where('status', 'published')->get() as $r) {
             $d = is_array($r->data) ? $r->data : json_decode($r->data, true);
             $sd = $d['start_date'] ?? null;
@@ -100,31 +101,17 @@ class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
             if ($day < $today) {
                 continue;
             }
-            $link = (string) ($d['official_url'] ?? '');
-            if (preg_match('/\.(xlsx|xls|csv)(\?|$)/i', $link)) {
-                $link = ''; // the source spreadsheet is not a usable event link
-            }
-            // [slug, title, date, city, venue, time, is_free, image, link, description]
+            // Minimal card data: [slug, title, date, city, venue, time, is_free, image].
+            // The card opens the record's own page, which carries the full
+            // description + official-source link — so nothing large is inlined here.
             $rows[] = [
                 $r->slug, $d['title'] ?? '', $day, $d['city'] ?? '', $d['venue'] ?? '',
-                $d['time'] ?? '', empty($d['is_free']) ? 0 : 1,
-                (string) ($d['image_url'] ?? ''), $link,
-                mb_substr(trim((string) ($d['description'] ?? '')), 0, 140, 'UTF-8'),
+                $d['time'] ?? '', empty($d['is_free']) ? 0 : 1, (string) ($d['image_url'] ?? ''),
             ];
+            $recordIds[] = $r->id;
         }
         usort($rows, fn ($a, $b) => strcmp($a[2], $b[2]));
-
-        $encode = fn ($r) => json_encode($r, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
-        $json = $encode($rows);
-        // Inline embed has a hard size cap; if descriptions push it over, drop them
-        // (they remain on the record pages) and keep image + link on the cards.
-        if (strlen($json) > 49000) {
-            foreach ($rows as &$r) {
-                $r[9] = '';
-            }
-            unset($r);
-            $json = $encode($rows);
-        }
+        $json = json_encode($rows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
 
         $pattern = '/' . preg_quote(self::MARKER_OPEN, '/') . '.*?' . preg_quote(self::MARKER_CLOSE, '/') . '/s';
         $new = preg_replace($pattern, self::MARKER_OPEN . $json . self::MARKER_CLOSE, $html, 1);
@@ -145,7 +132,7 @@ class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
             'status' => 'queued',
             'triggered_by' => $userId,
             'metadata' => [
-                'targets' => ['pages' => [$page->id], 'posts' => [], 'records' => []],
+                'targets' => ['pages' => [$page->id], 'posts' => [], 'records' => $recordIds],
                 'source' => 'culture-calendar-refresh',
                 'events' => count($data),
             ],
