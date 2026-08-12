@@ -45,6 +45,7 @@
     <dl style="display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:.6rem 1.5rem;margin:0;">
         @foreach($collection->fields() as $field)
             @continue($field['key'] === $titleField || $field['key'] === $imageKey || $field['key'] === $heroFromUrl)
+            @continue(in_array($field['key'], ['external_id', 'source'], true))
             @php $valueHtml = RecordDisplay::display($site, $collection, $record, $field['key']); @endphp
             @if($valueHtml !== '')
                 <dt style="font-weight:600;">{{ $field['label'] }}</dt>
