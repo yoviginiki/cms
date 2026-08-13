@@ -312,6 +312,74 @@ class AppServiceProvider extends ServiceProvider
             return $pos !== false ? substr($html, 0, $pos) . $section . substr($html, $pos) : $html;
         });
 
+        // Right-column sidebar on single posts (banner + ПОСЛЕДНО + category lists) —
+        // opt-in via settings.post_sidebar.enabled. Injected before </main>; a client
+        // script re-arranges it into a two-column layout below the hero.
+        app(HookDispatcher::class)->addFilter('page_render', function (string $html, $content, $site): string {
+            if (!($content instanceof Post)) return $html;
+            $cfg = $site->settings['post_sidebar'] ?? null;
+            if (empty($cfg['enabled'])) return $html;
+
+            $latest = Post::where('site_id', $site->id)
+                ->where('status', 'published')
+                ->where('id', '!=', $content->id)
+                ->orderByDesc('published_at')
+                ->limit((int) ($cfg['latest_limit'] ?? 6))
+                ->get();
+
+            $catGroups = [];
+            $slugs = $cfg['category_slugs'] ?? null;
+            $cats = $slugs
+                ? Category::where('site_id', $site->id)->whereIn('slug', $slugs)->get()
+                    ->sortBy(fn ($c) => array_search($c->slug, $slugs))->values()
+                : Category::where('site_id', $site->id)->withCount('posts')
+                    ->orderByDesc('posts_count')->limit((int) ($cfg['category_groups'] ?? 4))->get();
+            foreach ($cats as $c) {
+                $posts = Post::where('site_id', $site->id)
+                    ->where('status', 'published')
+                    ->where('category_id', $c->id)
+                    ->orderByDesc('published_at')
+                    ->limit((int) ($cfg['per_category'] ?? 4))
+                    ->get();
+                if ($posts->count()) {
+                    $catGroups[] = [
+                        'name' => $c->name,
+                        'url' => '/' . \App\Domain\Publishing\Services\LocalePaths::categoryBase($site) . $c->slug . '/',
+                        'posts' => $posts,
+                    ];
+                }
+            }
+
+            $bannerUrl = $cfg['banner_url'] ?? 'https://picsum.photos/seed/creativeeurope/300/240';
+            $bannerLink = $cfg['banner_link'] ?? 'https://creativeeurope.bg';
+
+            $aside = view('publishing._post-sidebar', compact('latest', 'catGroups', 'bannerUrl', 'bannerLink', 'site'))->render();
+            $pos = strripos($html, '</main>');
+            if ($pos !== false) $html = substr($html, 0, $pos) . $aside . substr($html, $pos);
+
+            // Match the front-page footer: inject the homepage's footer html-embed
+            // blocks (settings.post_sidebar.footer_block_ids) at page bottom; the
+            // default rich footer is hidden on posts via CSS (body.has-hero .site-footer).
+            $footerIds = $cfg['footer_block_ids'] ?? [];
+            if (!empty($footerIds)) {
+                $footHtml = '';
+                foreach ($footerIds as $bid) {
+                    $blk = Block::find($bid);
+                    if ($blk) {
+                        $d = is_array($blk->data) ? $blk->data : (array) $blk->data;
+                        $footHtml .= $d['html'] ?? $d['content'] ?? '';
+                    }
+                }
+                if ($footHtml !== '') {
+                    $footHtml = '<div class="post-home-footer">' . $footHtml . '</div>';
+                    $bpos = strripos($html, '</body>');
+                    $html = $bpos !== false ? substr($html, 0, $bpos) . $footHtml . substr($html, $bpos) : $html . $footHtml;
+                }
+            }
+
+            return $html;
+        });
+
         // Explicit route model bindings for non-standard model locations
         Route::model('themeTemplate', ThemeTemplate::class);
         Route::model('issue', \App\Domain\IssueComposer\Models\MagazineIssue::class);
