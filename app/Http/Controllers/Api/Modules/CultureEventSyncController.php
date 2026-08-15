@@ -32,7 +32,7 @@ class CultureEventSyncController extends Controller
     private const FIELDS = [
         'external_id', 'start_date', 'time', 'category', 'city', 'venue',
         'price', 'is_free', 'ticket_url', 'official_url', 'image_url',
-        'description', 'source',
+        'description', 'source', 'venue_slug',
     ];
 
     public function __construct(private RecordService $records)
@@ -64,6 +64,7 @@ class CultureEventSyncController extends Controller
             'events.*.price' => ['sometimes', 'nullable', 'string', 'max:120'],
             'events.*.description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'events.*.source' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'events.*.venue_slug' => ['sometimes', 'nullable', 'string', 'max:64'],
             'events.*.ticket_url' => ['sometimes', 'nullable', 'url', 'max:600'],
             'events.*.official_url' => ['sometimes', 'nullable', 'url', 'max:600'],
             'events.*.image_url' => ['sometimes', 'nullable', 'url', 'max:600'],
