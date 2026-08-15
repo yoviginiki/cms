@@ -53,6 +53,42 @@
             @endif
         @endforeach
     </dl>
+    @if($collection->slug === 'obekti')
+        @php
+            // Venue object → list its programme: upcoming events in this site's
+            // events collection whose venue_slug matches this venue's external_id.
+            $venueKey = $record->data['external_id'] ?? null;
+            $programme = collect();
+            $eventsCollection = null;
+            if ($venueKey) {
+                $eventsCollection = \App\Models\ContentCollection::where('site_id', $site->id)
+                    ->where('slug', 'kulturni-sabitiya')->first();
+                if ($eventsCollection) {
+                    $todayStr = now('Europe/Sofia')->toDateString();
+                    $programme = \App\Models\Record::where('collection_id', $eventsCollection->id)
+                        ->where('status', 'published')
+                        ->whereField('venue_slug', $venueKey)
+                        ->get()
+                        ->filter(fn ($r) => ($r->data['start_date'] ?? '') >= $todayStr)
+                        ->sortBy(fn ($r) => ($r->data['start_date'] ?? '').($r->data['time'] ?? ''))
+                        ->values();
+                }
+            }
+        @endphp
+        @if($programme->isNotEmpty())
+            <section class="venue-programme" style="margin-top:2.5rem;">
+                <h2 style="font-size:1.3rem;margin:0 0 1rem;">Програма ({{ $programme->count() }})</h2>
+                <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.5rem;">
+                    @foreach($programme as $ev)
+                        <li style="display:flex;gap:1rem;align-items:baseline;padding:.6rem 0;border-bottom:1px solid var(--color-border,#eee);">
+                            <time style="font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;">{{ \Illuminate\Support\Carbon::parse($ev->data['start_date'])->translatedFormat('j M') }}@if(!empty($ev->data['time'])) · {{ $ev->data['time'] }}@endif</time>
+                            <a href="{{ RecordDisplay::recordUrl($eventsCollection, $ev) }}" style="color:inherit;text-decoration:none;">{{ $ev->title }}</a>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+    @endif
     @if($children->isNotEmpty())
         <nav class="record-children" aria-label="Subcategories" style="margin-top:2.5rem;">
             <h2 style="font-size:1.1rem;margin:0 0 .8rem;">In {{ $record->title }}</h2>
