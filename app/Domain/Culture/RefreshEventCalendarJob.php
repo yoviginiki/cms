@@ -134,7 +134,7 @@ class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
             'metadata' => [
                 'targets' => ['pages' => [$page->id], 'posts' => [], 'records' => $recordIds],
                 'source' => 'culture-calendar-refresh',
-                'events' => count($data),
+                'events' => count($rows),
             ],
         ]);
         (new RepublishStaleJob($deployment))->handle($build);
