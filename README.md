@@ -25,7 +25,7 @@ Multi-tenant, block-based content management system with static site generation,
 | State | Zustand (editor), TanStack Query (API) |
 | Database | PostgreSQL with RLS policies |
 | Queue | Redis / database driver |
-| Testing | PHPUnit (backend only — no frontend tests) |
+| Testing | PHPUnit (PostgreSQL + RLS) and Vitest (admin SPA); both run in CI |
 
 ## Repository Structure
 
@@ -65,8 +65,8 @@ resources/
     docs/              # Documentation viewer layout
 
 tests/
-  Feature/Api/         # 25 API feature test files
-  Feature/             # DynamicSiteTest, Security tests
+  Feature/             # ~300 feature test files (Api, Security, Publishing, Blocks, …)
+  Unit/                # block validation rules, services, hooks
 
 docs/                  # 16 markdown documentation files
 ```
@@ -145,8 +145,8 @@ php artisan queue:work       # For publish jobs
 |------|-------|-------|
 | Frontend block folders | 68 | All have definition.ts, Editor.tsx, Preview.tsx, index.ts |
 | Blade block templates | 69 | 1 orphan (`quote.blade.php` — frontend uses `pullquote`) |
-| PHP BlockDefinition classes | 19 concrete + 1 base | **50 blocks lack server-side validation** |
-| Feature test files | 41 | Backend only, ~180+ passing assertions |
+| PHP BlockDefinition classes | 104 concrete + 1 base | every picker block has one; enforced on save (BlockTreeValidator) |
+| Test files | 300+ PHP, 49 Vitest | see `docs/CMS_STABILIZATION_PROGRESS.md` for the current suite status |
 | API controllers | 32 | |
 | Documentation files | 16 | |
 | Shared editor field components | 7 | ColorField, ImageField, NumberField, SelectField, TextArea, TextField, ToggleField |
@@ -158,7 +158,7 @@ php artisan queue:work       # For publish jobs
 |-------|-------|---------|
 | Frontend (React) | 68 | 100% |
 | Rendering (Blade) | 68 | 100% (excluding orphan) |
-| Backend (PHP Definition) | 19 (18 match frontend) | **26%** |
+| Backend (PHP Definition) | 104 (102 user-facing + 2 internal) | **100%** |
 
 ## Block System
 
@@ -175,7 +175,7 @@ components/blocks/hero/   Domain/Blocks/Defs/     views/blocks/hero.blade.php
 
 **68 block types** across 11 categories: Typography, Content, Layout, Navigation, Media, Blog, Interactive, Data, Commerce, Forms, Embeds.
 
-**Important:** While all 68 blocks have frontend components and Blade templates, only 19 have PHP backend definitions with validation rules (and one of those, `QuoteBlockDefinition`, maps to an orphan blade with no frontend component). The remaining 50 frontend blocks accept any JSON payload without server-side schema enforcement.
+**Status (2026-09-22):** all 102 user-facing blocks have a frontend component, a Blade template and a PHP definition; `slide`/`slider` are internal (declared in `scripts/block-manifest.json`). `BlockService::syncBlocks` validates every node against its definition before writing. Run `node scripts/audit-blocks.mjs` (or `bash scripts/block-audit.sh`, a wrapper) — it is the single authoritative audit and runs in CI.
 
 **Registration:** Each block's `index.ts` calls `blockRegistry.register(definition, Preview, Editor)`. All blocks are imported in `components/blocks/index.ts`.
 
@@ -195,7 +195,7 @@ Every block should have (currently not all do):
 
 **Backend** (`app/Domain/Blocks/Definitions/`):
 - `{Type}BlockDefinition.php` — validation rules, sanitization config, allowed keys
-- *Currently only 19 of 68 blocks have this*
+- *Every picker block has this since 2026-09-22 (audit F14/F31)*
 
 **Rendering**:
 - `resources/views/blocks/{type}.blade.php` — server-side HTML
@@ -263,9 +263,9 @@ ZIP download always available at: `GET /api/v1/sites/{id}/download-zip`
 3. **Inconsistent editor field controls** — 7 shared fields exist but many blocks use inline `<input>` elements instead.
 4. **Raw URL inputs** — 6 blocks use text/url inputs where AssetPicker should be used (button, ctabanner, customform, newsletter, socialembed, video).
 5. **VisualPanel limitations** — BackgroundEditor exists but gradient/background-image controls need visual builders.
-6. **Block audit exists but not in CI** — `scripts/block-audit.sh` verifies all layers (run via `composer audit-blocks`) but is not integrated into any CI pipeline.
+6. **Block audit** — `node scripts/audit-blocks.mjs` (manifest-driven) runs in CI; `scripts/block-audit.sh` is a wrapper around it.
 7. **Missing frontend tests** — 0 React component tests. Backend has ~180+ passing assertions.
-8. **No CI/CD** — no automated pipeline for test + build + deploy.
+8. **CI** — `.github/workflows/ci.yml` runs PHPUnit on PostgreSQL 16 + pgvector with a restricted (non-superuser) role, the TypeScript gate, Vitest, the Vite build and the block audit. Deployment is still manual (see docs/DEPLOYMENT.md).
 9. **TypeScript errors in wizard module** — `npm run build` fails; must use `npx vite build` to skip type checking.
 10. **User role enum mismatch** — controller validates `['viewer','author','editor','admin']` but DB enum is `['owner','admin','editor']`.
 
@@ -280,7 +280,7 @@ See [Project Recovery Plan](docs/PROJECT-RECOVERY-PLAN.md) for full details.
 5. **Refactor VisualPanel/ImageField** — use shared controls consistently
 6. **Complete backend definitions** — add PHP definitions for 50 missing blocks
 7. **Improve blocks by category** — audit and fix each group
-8. **Add CI** — GitHub Actions for test + build + block audit
+8. ~~Add CI~~ — done (2026-09-22); next: a slower job for queue/concurrency scenarios
 
 ## Documentation
 

@@ -58,27 +58,63 @@ class FormController extends Controller
     {
         $this->authorize('view', $site);
         $formKey = (string) $request->input('form_key', '');
+        // F30: `raw=1` keeps cell values verbatim (machine-readable); the
+        // default export neutralises spreadsheet formula triggers.
+        $raw = $request->boolean('raw');
 
-        return response()->streamDownload(function () use ($site, $formKey) {
+        $base = FormSubmission::where('site_id', $site->id)
+            ->when($formKey !== '', fn ($q) => $q->where('form_key', $formKey));
+
+        // F30: columns are the UNION of every submission's fields (in first-seen
+        // order), not the keys of the first row — schema changes or a multi-form
+        // export no longer drop fields.
+        $columns = [];
+        (clone $base)->orderBy('created_at')->select(['id', 'data'])->chunk(500, function ($rows) use (&$columns) {
+            foreach ($rows as $row) {
+                foreach (array_keys($row->data ?? []) as $key) {
+                    $columns[$key] = true;
+                }
+            }
+        });
+        $columns = array_keys($columns);
+
+        return response()->streamDownload(function () use ($base, $columns, $raw) {
             $out = fopen('php://output', 'w');
-            $columns = null;
-            FormSubmission::where('site_id', $site->id)
-                ->when($formKey !== '', fn ($q) => $q->where('form_key', $formKey))
-                ->orderBy('created_at')
-                ->chunk(200, function ($rows) use ($out, &$columns) {
-                    foreach ($rows as $row) {
-                        if ($columns === null) {
-                            $columns = array_keys($row->data ?? []);
-                            fputcsv($out, array_merge(['submitted_at', 'form'], $columns));
-                        }
-                        fputcsv($out, array_merge(
-                            [$row->created_at?->toDateTimeString(), $row->form_key],
-                            array_map(fn ($c) => is_bool($v = $row->data[$c] ?? '') ? ($v ? 'yes' : 'no') : (string) $v, $columns),
-                        ));
+            fputcsv($out, array_merge(['submitted_at', 'form'], $columns));
+            (clone $base)->orderBy('created_at')->chunk(200, function ($rows) use ($out, $columns, $raw) {
+                foreach ($rows as $row) {
+                    $cells = [$row->created_at?->toDateTimeString(), $row->form_key];
+                    foreach ($columns as $c) {
+                        $v = $row->data[$c] ?? '';
+                        $v = is_bool($v) ? ($v ? 'yes' : 'no') : (is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : (string) $v);
+                        $cells[] = $raw ? $v : self::csvSafe($v);
                     }
-                });
+                    fputcsv($out, $cells);
+                }
+            });
             fclose($out);
         }, "form-submissions-{$site->slug}.csv", ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Neutralise CSV/formula injection: a cell starting with = + - @ or a
+     * tab/CR gets a leading apostrophe (opened as text by Excel/Sheets).
+     * Ordinary negative numbers stay numbers.
+     */
+    public static function csvSafe(string $value): string
+    {
+        if ($value === '') {
+            return $value;
+        }
+        if (is_numeric($value)) {
+            return $value; // -12.5 is a number, not a formula
+        }
+        $first = $value[0];
+        if (in_array($first, ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 
     /**

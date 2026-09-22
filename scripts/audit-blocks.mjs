@@ -17,6 +17,12 @@ const BLADE_DIR = join(ROOT, 'resources/views/blocks');
 const PHP_DIR = join(ROOT, 'app/Domain/Blocks/Definitions');
 const FRONTEND_INDEX = join(FRONTEND_DIR, 'index.ts');
 const OUTPUT_PATH = join(ROOT, 'storage/app/block-audit.json');
+const MANIFEST_PATH = join(ROOT, 'scripts/block-manifest.json');
+// F31: declared helpers/internal types come from ONE machine-readable manifest.
+const MANIFEST = existsSync(MANIFEST_PATH) ? JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) : {};
+const HELPER_DIRS = new Set(MANIFEST.helper_dirs ?? []);
+const HELPER_PHP = new Set(MANIFEST.helper_php_files ?? ['BlockDefinition.php']);
+const INTERNAL_TYPES = new Set(Object.keys(MANIFEST.internal_types ?? {}));
 
 const args = process.argv.slice(2);
 const JSON_ONLY = args.includes('--json-only');
@@ -59,10 +65,12 @@ function getPhpDefinitions() {
   if (!existsSync(PHP_DIR)) return defs;
 
   for (const file of readdirSync(PHP_DIR)) {
-    if (!file.endsWith('.php') || file === 'BlockDefinition.php') continue;
+    if (!file.endsWith('.php') || file === 'BlockDefinition.php' || HELPER_PHP.has(file)) continue;
     const className = file.replace('.php', '');
     const filePath = join(PHP_DIR, file);
     const content = readFileSync(filePath, 'utf8');
+    // Only real definitions (helpers living in the same folder are not block types).
+    if (!/implements\s+BlockDefinition/.test(content)) continue;
 
     // Extract type() return value
     const typeMatch = content.match(/function\s+type\(\).*?return\s+['"]([^'"]+)['"]/s);
@@ -94,7 +102,7 @@ function getFrontendBlocks() {
   const blocks = [];
   if (!existsSync(FRONTEND_DIR)) return blocks;
   for (const entry of readdirSync(FRONTEND_DIR, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
+    if (entry.isDirectory() && !HELPER_DIRS.has(entry.name)) {
       blocks.push(entry.name);
     }
   }
@@ -106,6 +114,7 @@ function determineStatus(entry) {
   const { hasFrontendFolder, importedInFrontendIndex, hasDefinitionTs, hasEditorTsx, hasPreviewTsx, hasIndexTs, hasBladeTemplate, hasBackendDefinition } = entry;
 
   if (!hasFrontendFolder && hasBladeTemplate && !hasBackendDefinition) return 'ORPHAN_BLADE';
+  if (!hasFrontendFolder && hasBackendDefinition && INTERNAL_TYPES.has(entry.type)) return 'INTERNAL';
   if (!hasFrontendFolder && hasBackendDefinition) return 'ORPHAN_BACKEND';
   if (!hasFrontendFolder) return 'UNKNOWN';
 
@@ -169,7 +178,7 @@ function audit() {
   const summary = {
     total: results.length,
     complete: results.filter(r => r.status === 'COMPLETE').length,
-    incomplete: results.filter(r => r.status !== 'COMPLETE').length,
+    incomplete: results.filter(r => r.status !== 'COMPLETE' && r.status !== 'INTERNAL').length,
     byStatus: {},
   };
 

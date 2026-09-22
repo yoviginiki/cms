@@ -8,6 +8,7 @@ import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { saveContent, reloadSessionFromServer, sessionKeyFor, SaveConflictError } from '@/lib/saveCoordinator';
 import { hydrateEditorSession } from '@/lib/editorHydration';
+import { toLocalInputValue, fromLocalInputValue } from '@/lib/dateTimeLocal';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useThemeFonts } from '@/hooks/useThemeFonts';
 import DOMPurify from 'dompurify';
@@ -1194,9 +1195,9 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
       {/* Scheduled publish */}
       <div>
         <label className="text-[11px] text-gray-500 mb-1 block">Schedule Publish</label>
-        <input type="datetime-local" defaultValue={page?.scheduled_at ? new Date(page.scheduled_at).toISOString().slice(0, 16) : ''}
+        <input type="datetime-local" defaultValue={toLocalInputValue(page?.scheduled_at)}
           className="input input-bordered input-sm w-full text-[12px]"
-          onBlur={e => saveSetting('scheduled_at', e.target.value || null)} />
+          onBlur={e => saveSetting('scheduled_at', fromLocalInputValue(e.target.value))} />
         <p className="text-[10px] text-gray-400 mt-0.5">Set a date to auto-publish this page.</p>
       </div>
 

@@ -7,9 +7,39 @@ on:
     branches: [master]
 
 jobs:
-  build-and-test:
+  # ── Backend: PHPUnit on PostgreSQL with RLS (audit 2026-09-22, F26) ──────
+  # The previous workflow never installed Composer, started a database or ran
+  # PHPUnit. This job runs the whole suite against PostgreSQL 16 + pgvector
+  # with a RESTRICTED runtime role (no superuser, no BYPASSRLS — the same shape
+  # as production, so RLS regressions fail here) and sandboxed deploy/staging
+  # paths (phpunit.xml). Nothing here can reach a live docroot.
+  backend:
     runs-on: ubuntu-latest
-
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cms_saas
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: cms_saas_platform_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U cms_saas"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: cms_saas_platform_test
+      DB_USERNAME: cms_saas
+      DB_PASSWORD: ci-only-password
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      REDIS_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v4
 
@@ -17,9 +47,34 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          extensions: pdo_pgsql, pgsql, gd, intl, zip, sodium, pcntl, bcmath
+          coverage: none
 
       - name: Validate composer
         run: composer validate --strict
+
+      - name: Install PHP dependencies (lockfile)
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare app
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          psql "postgresql://cms_saas:ci-only-password@127.0.0.1:5432/cms_saas_platform_test" -c "CREATE EXTENSION IF NOT EXISTS vector"
+          # Runtime role must NOT be a superuser / BYPASSRLS: RLS is under test.
+          psql "postgresql://cms_saas:ci-only-password@127.0.0.1:5432/cms_saas_platform_test" -c "ALTER ROLE cms_saas NOSUPERUSER NOBYPASSRLS"
+
+      - name: Migrations (fresh, non-superuser role)
+        run: php artisan migrate:fresh --force
+
+      - name: PHPUnit
+        run: php artisan test --no-ansi
+
+  # ── Frontend: TypeScript gate, Vitest, Vite build ────────────────────────
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -31,11 +86,15 @@ jobs:
       - name: Install admin dependencies
         run: cd resources/admin && npm ci
 
-      - name: TypeScript + Vite build
-        run: cd resources/admin && npm run build
+      - name: TypeScript gate
+        run: cd resources/admin && npx tsc --noEmit -p tsconfig.json
 
-      - name: Run frontend tests
+      - name: Frontend tests
         run: cd resources/admin && npm run test:run
 
+      - name: Vite build
+        run: cd resources/admin && npx vite build
+
+      # One authoritative block audit (scripts/block-manifest.json drives it).
       - name: Block audit
-        run: bash scripts/block-audit.sh
+        run: node scripts/audit-blocks.mjs --no-color

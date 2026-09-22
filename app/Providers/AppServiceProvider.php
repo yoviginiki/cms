@@ -180,6 +180,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new TocBlockDefinition());
             $registry->register(new MenuBlockDefinition());
             $registry->register(new LangSwitcherBlockDefinition());
+            $registry->register(new \App\Domain\Blocks\Definitions\CollectionCategoriesBlockDefinition());
             $registry->register(new ReadingprogressBlockDefinition());
             $registry->register(new FeaturegridBlockDefinition());
             $registry->register(new FeaturecomparisonBlockDefinition());
@@ -274,13 +275,23 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by('module-api:' . $key);
         });
 
+        // Redis fallback (F26): only replace drivers that are actually set to
+        // redis. The old unconditional override turned the test suite's
+        // array/array/sync into file/database/database — a FILE cache that
+        // outlives test runs (stale entries) and a real DB session table.
         if (!config('cms.redis_enabled')) {
-            config([
-                'cache.default' => 'file',
-                'session.driver' => 'database',
-                'queue.default' => 'database',
-                'broadcasting.default' => null,
-            ]);
+            if (config('cache.default') === 'redis') {
+                config(['cache.default' => 'file']);
+            }
+            if (config('session.driver') === 'redis') {
+                config(['session.driver' => 'database']);
+            }
+            if (config('queue.default') === 'redis') {
+                config(['queue.default' => 'database']);
+            }
+            if (config('broadcasting.default') === 'reverb') {
+                config(['broadcasting.default' => null]);
+            }
         }
 
         Relation::enforceMorphMap([

@@ -1,0 +1,9 @@
+{
+  "$comment": "Machine-readable block inventory (audit 2026-09-22, F31). The audits read this instead of guessing from folder names.",
+  "helper_dirs": ["collections-shared"],
+  "helper_php_files": ["GalleryImageRules.php", "BlockDefinition.php"],
+  "internal_types": {
+    "slide": "child of slider — edited inside the slider editor, no picker entry",
+    "slider": "library slider — edited in the Sliders section, placed via slider_ref"
+  }
+}

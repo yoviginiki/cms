@@ -28,6 +28,7 @@ import { AssetField } from '@/components/ui/AssetPicker';
 import { SeoPanel } from '@/components/editor/SeoPanel';
 import WysiwygEditor from '@/components/editor/WysiwygEditor';
 import { slugify } from '@/lib/slugify';
+import { toLocalInputValue, fromLocalInputValue } from '@/lib/dateTimeLocal';
 
 import '@/components/blocks';
 
@@ -199,8 +200,9 @@ export default function PostEditor() {
     setThumbnail(post.thumbnail || '');
     setPostFormat(post.post_format || 'standard');
     setAuthorId(post.author_id || '');
-    setPublishedAt(post.published_at ? new Date(post.published_at).toISOString().slice(0, 16) : '');
-    setScheduledAt(post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '');
+    // F29: datetime-local holds WALL-CLOCK time — convert explicitly (no UTC drift)
+    setPublishedAt(toLocalInputValue(post.published_at));
+    setScheduledAt(toLocalInputValue(post.scheduled_at));
     setSlugManual(!!post.slug);
     if (['simple', 'block', 'magazine', 'canvas'].includes(post.editor_mode)) {
       setEditorMode(post.editor_mode as EditorMode);
@@ -237,7 +239,7 @@ export default function PostEditor() {
         excerpt: excerpt || null, featured_image: featuredImage || null,
         video_url: videoUrl || null, thumbnail: thumbnail || null, post_format: postFormat,
         editor_mode: editorMode, author_id: authorId || null,
-        published_at: publishedAt || null, scheduled_at: scheduledAt || null,
+        published_at: fromLocalInputValue(publishedAt), scheduled_at: fromLocalInputValue(scheduledAt),
         seo_meta: { ...seoPatch, template_id: templateId },
       });
       setMetaDirty(false);
@@ -272,12 +274,12 @@ export default function PostEditor() {
     try {
       // Set published and save all metadata
       const pubStatus = 'published';
-      const pubDate = publishedAt || new Date().toISOString();
+      const pubDate = fromLocalInputValue(publishedAt) ?? new Date().toISOString();
       await postsApi.update(siteId, postId, {
         title, slug, status: pubStatus, category_id: categoryId || null, layout_id: layoutId || null,
         excerpt: excerpt || null, featured_image: featuredImage || null,
         editor_mode: editorMode, author_id: authorId || null,
-        published_at: pubDate, scheduled_at: scheduledAt || null,
+        published_at: pubDate, scheduled_at: fromLocalInputValue(scheduledAt),
         seo_meta: { ...seoPatch, template_id: templateId },
       });
       // Save blocks (coordinator) — publish only proceeds after THIS version is stored
@@ -285,7 +287,7 @@ export default function PostEditor() {
       if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
       // Update local state to match what was saved
       setStatus(pubStatus);
-      setPublishedAt(new Date(pubDate).toISOString().slice(0, 16));
+      setPublishedAt(toLocalInputValue(pubDate));
       setMetaDirty(false);
       queryClient.invalidateQueries({ queryKey: ['post', siteId, postId] });
       // Trigger publish in background

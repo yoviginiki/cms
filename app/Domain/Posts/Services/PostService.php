@@ -28,7 +28,20 @@ class PostService
         $tagIds = $data['tag_ids'] ?? null;
         unset($data['tag_ids']);
 
-        $post = Post::create($data);
+        // F28: two concurrent creates can pick the same free slug — the unique
+        // index decides; retry with the next suffix instead of a raw 500.
+        $post = null;
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            try {
+                $post = \Illuminate\Support\Facades\DB::transaction(fn () => Post::create($data));
+                break;
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                $data['slug'] = $this->generateUniqueSlug($data['slug'] . '-' . ($attempt + 1), $site);
+                if ($attempt === 4) {
+                    throw $e;
+                }
+            }
+        }
 
         if ($tagIds !== null) {
             $post->tags()->sync($tagIds);
@@ -81,14 +94,16 @@ class PostService
         $original = $slug;
         $count = 1;
 
-        $query = Post::where('site_id', $site->id)->where('slug', $slug);
+        // F28: the unique index (site_id, slug) also covers soft-deleted posts,
+        // so the generator must see them too or the insert crashes.
+        $query = Post::withTrashed()->where('site_id', $site->id)->where('slug', $slug);
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);
         }
 
         while ($query->exists()) {
             $slug = $original . '-' . $count++;
-            $query = Post::where('site_id', $site->id)->where('slug', $slug);
+            $query = Post::withTrashed()->where('site_id', $site->id)->where('slug', $slug);
             if ($excludeId) {
                 $query->where('id', '!=', $excludeId);
             }
