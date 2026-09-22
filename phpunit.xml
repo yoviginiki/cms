@@ -26,7 +26,9 @@
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_DATABASE" value="cms_saas_platform_test"/>
         <env name="DB_USERNAME" value="cms_saas"/>
-        <env name="DB_PASSWORD" value="sXsWYnydmRf2jXXrDl3r2mxTwib9RWf+86lc+eY0K7I="/>
+        <!-- DB_PASSWORD comes from .env / the CI environment. It was a literal
+             here until 2026-09-22 (audit F08) — the same value as production,
+             and this file ships in the "Download CMS" export. -->
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

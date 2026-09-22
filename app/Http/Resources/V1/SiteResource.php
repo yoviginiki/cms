@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V1;
 
+use App\Domain\Sites\Support\SiteSecrets;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +17,8 @@ class SiteResource extends JsonResource
             'custom_domain' => $this->custom_domain,
             'status' => $this->status,
             'seo_defaults' => $this->seo_defaults,
-            'settings' => $this->settings,
+            // F08: credentials never leave the server — masked on every read.
+            'settings' => SiteSecrets::mask($this->settings ?? []),
             'active_theme' => $this->whenLoaded('theme'),
             'pages_count' => $this->whenCounted('pages'),
             'posts_count' => $this->whenCounted('posts'),

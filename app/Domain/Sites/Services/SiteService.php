@@ -3,6 +3,7 @@
 namespace App\Domain\Sites\Services;
 
 use App\Domain\Grid\Services\GridPresetSeeder;
+use App\Domain\Sites\Support\SiteSecrets;
 use App\Models\Category;
 use App\Models\Site;
 use App\Models\Tenant;
@@ -81,7 +82,9 @@ class SiteService
         // Merge settings rather than replace — prevents tabs from overwriting each other
         if (isset($data['settings']) && is_array($data['settings'])) {
             $existing = $site->settings ?? [];
-            $incoming = $data['settings'];
+            // F08: the SPA reads masked secrets and spreads them back —
+            // a mask means "keep what is stored", never a new value.
+            $incoming = SiteSecrets::mergeIncoming($existing, $data['settings']);
             $data['settings'] = array_merge($existing, $incoming);
         }
 

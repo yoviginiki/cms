@@ -109,6 +109,11 @@ class Site extends Model
         return $this->hasMany(Tag::class);
     }
 
+    public function redirects(): HasMany
+    {
+        return $this->hasMany(Redirect::class);
+    }
+
     public function menus(): HasMany
     {
         return $this->hasMany(Menu::class);

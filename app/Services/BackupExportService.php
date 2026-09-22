@@ -48,7 +48,8 @@ class BackupExportService
                     'level' => $b->level,
                     'order' => $b->order,
                     'data' => $b->data,
-                    'parent_id' => $b->parent_id,
+                    'id' => $b->id,
+                    'parent_id' => $b->parent_block_id,
                 ])->toArray(),
                 'deleted_at' => $p->deleted_at?->toIso8601String(),
             ])->toArray(),
@@ -67,7 +68,8 @@ class BackupExportService
                     'level' => $b->level,
                     'order' => $b->order,
                     'data' => $b->data,
-                    'parent_id' => $b->parent_id,
+                    'id' => $b->id,
+                    'parent_id' => $b->parent_block_id,
                 ])->toArray(),
             ])->toArray(),
             'menus' => $site->menus()->get()->map(fn($m) => [
@@ -149,7 +151,7 @@ class BackupExportService
 
     private function sanitizeSettings(array $settings): array
     {
-        $forbidden = ['anthropic_api_key', 'openai_api_key', 'deploy_ssh_key'];
-        return array_diff_key($settings, array_flip($forbidden));
+        // F08: recursive — nested integration credentials too.
+        return \App\Domain\Sites\Support\SiteSecrets::strip($settings);
     }
 }
