@@ -4,6 +4,7 @@ import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoin
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH, CANVAS_W_MIN, CANVAS_W_MAX, MOBILE_W_MIN, MOBILE_W_MAX } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 import { invertOp } from '@/lib/collabOps';
+import { stepZ } from '@/lib/canvasZ';
 
 const MAX_UNDO = 50;
 
@@ -15,6 +16,7 @@ interface CanvasState {
   sections: CanvasSection[];
   passthrough: BlockData[];   // non-section top-level blocks, carried verbatim
   selectedIds: string[];      // selected element ids
+  editingId: string | null;   // element whose content is being edited in place (typing, picking an image…)
   activeSectionId: string | null;
   activeBreakpoint: Breakpoint;
   mobileWidth: number;
@@ -48,6 +50,9 @@ interface CanvasState {
   // elements
   addElement: (sectionId: string, blockType: string, x: number, y: number, w?: number, h?: number) => string;
   updateElement: (id: string, patch: Partial<CanvasElement>) => void;
+  // Merge a block-editor data patch (as block Editors emit it) into an element:
+  // plain keys go to data, __style/__animation/__responsive/__advanced to their fields.
+  updateElementData: (id: string, patch: Record<string, unknown>) => void;
   updateElements: (updates: Array<{ id: string; patch: Partial<CanvasElement> }>) => void;
   // Breakpoint-aware position write: desktop → base, mobile → bp.mobile override.
   updateElementLayout: (id: string, patch: BreakpointLayout, bp: Breakpoint) => void;
@@ -59,10 +64,13 @@ interface CanvasState {
   duplicateElements: (ids: string[]) => void;
   bringToFront: (ids: string[]) => void;
   sendToBack: (ids: string[]) => void;
+  bringForward: (ids: string[]) => void;
+  sendBackward: (ids: string[]) => void;
 
   // selection
   select: (id: string | null, add?: boolean) => void;
   clearSelection: () => void;
+  setEditing: (id: string | null) => void;
   setActiveSection: (id: string | null) => void;
 
   // undo / view
@@ -82,6 +90,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   sections: [],
   passthrough: [],
   selectedIds: [],
+  editingId: null,
   activeSectionId: null,
   activeBreakpoint: 'desktop',
   mobileWidth: DEFAULT_MOBILE_WIDTH,
@@ -120,6 +129,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       sections = s.sections.map(sec => ({ ...sec, elements: sec.elements.filter(e => !ids.has(e.id)) }));
     } else if (op.t === 'z') {
       sections = s.sections.map(sec => {
+        if (op.mode === 'forward' || op.mode === 'backward') {
+          return sec.elements.some(e => op.ids.includes(e.id)) ? { ...sec, elements: stepZ(sec.elements, op.ids, op.mode) } : sec;
+        }
         const zs = sec.elements.map(e => e.zIndex);
         const val = op.mode === 'front' ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
         return { ...sec, elements: sec.elements.map(e => op.ids.includes(e.id) ? { ...e, zIndex: val } : e) };
@@ -175,6 +187,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       gridSize: doc.width / 12,
       mobileWidth,
       selectedIds: [],
+      editingId: null,
       activeSectionId: doc.sections[0]?.id ?? null,
       activeBreakpoint: 'desktop',
       undoStack: [],
@@ -265,6 +278,31 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }));
   },
 
+  updateElementData: (id, patch) => {
+    const { __style, __animation, __responsive, __advanced, ...data } = patch as Record<string, unknown> & {
+      __style?: Record<string, unknown>; __animation?: Record<string, unknown>; __responsive?: Record<string, unknown>; __advanced?: Record<string, unknown>;
+    };
+    set(s => ({
+      sections: s.sections.map(sec => {
+        if (!sec.elements.some(e => e.id === id)) return sec;
+        return {
+          ...sec,
+          elements: sec.elements.map(e => {
+            if (e.id !== id) return e;
+            // Block Editors may re-send the full data object or just the changed keys — merge either way.
+            const next: CanvasElement = { ...e, data: { ...e.data, ...data } };
+            if (__style) next.style = { ...e.style, ...__style, ...(e.style.layout ? { layout: e.style.layout } : {}) };
+            if (__animation) next.animation = __animation;
+            if (__responsive) next.responsive = __responsive;
+            if (__advanced) next.advanced = __advanced;
+            return next;
+          }),
+        };
+      }),
+      isDirty: true,
+    }));
+  },
+
   updateElements: (updates) => {
     const map = new Map(updates.map(u => [u.id, u.patch]));
     set(s => ({
@@ -349,7 +387,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     get()._localOp?.(op, inverse);
   },
 
-  setBreakpoint: (bp) => set({ activeBreakpoint: bp, selectedIds: [] }),
+  setBreakpoint: (bp) => set({ activeBreakpoint: bp, selectedIds: [], editingId: null }),
 
   deleteElements: (ids) => {
     get().pushSnapshot();
@@ -359,6 +397,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set(s => ({
       sections: s.sections.map(sec => ({ ...sec, elements: sec.elements.filter(e => !set2.has(e.id)) })),
       selectedIds: s.selectedIds.filter(id => !set2.has(id)),
+      editingId: s.editingId && set2.has(s.editingId) ? null : s.editingId,
       isDirty: true,
     }));
     get()._localOp?.(op, inverse);
@@ -421,15 +460,41 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     get()._localOp?.(op, inverse);
   },
 
+  bringForward: (ids) => {
+    get().pushSnapshot();
+    const op: CanvasOp = { t: 'z', ids, mode: 'forward' };
+    const inverse = invertOp(op, get().sections);
+    set(s => ({
+      sections: s.sections.map(sec => sec.elements.some(e => ids.includes(e.id)) ? { ...sec, elements: stepZ(sec.elements, ids, 'forward') } : sec),
+      isDirty: true,
+    }));
+    get()._localOp?.(op, inverse);
+  },
+
+  sendBackward: (ids) => {
+    get().pushSnapshot();
+    const op: CanvasOp = { t: 'z', ids, mode: 'backward' };
+    const inverse = invertOp(op, get().sections);
+    set(s => ({
+      sections: s.sections.map(sec => sec.elements.some(e => ids.includes(e.id)) ? { ...sec, elements: stepZ(sec.elements, ids, 'backward') } : sec),
+      isDirty: true,
+    }));
+    get()._localOp?.(op, inverse);
+  },
+
   select: (id, add = false) => set(s => {
-    if (id === null) return { selectedIds: [] };
+    if (id === null) return { selectedIds: [], editingId: null };
     const sec = findSectionOf(s.sections, id);
+    const selectedIds = add ? (s.selectedIds.includes(id) ? s.selectedIds.filter(x => x !== id) : [...s.selectedIds, id]) : [id];
     return {
-      selectedIds: add ? (s.selectedIds.includes(id) ? s.selectedIds.filter(x => x !== id) : [...s.selectedIds, id]) : [id],
+      selectedIds,
+      // leave edit mode when the selection moves off the edited element
+      editingId: s.editingId && selectedIds.length === 1 && selectedIds[0] === s.editingId ? s.editingId : null,
       activeSectionId: sec?.id ?? s.activeSectionId,
     };
   }),
-  clearSelection: () => set({ selectedIds: [] }),
+  clearSelection: () => set({ selectedIds: [], editingId: null }),
+  setEditing: (id) => set(s => (id === null ? { editingId: null } : { editingId: id, selectedIds: [id], activeSectionId: findSectionOf(s.sections, id)?.id ?? s.activeSectionId })),
   setActiveSection: (id) => set({ activeSectionId: id }),
 
   pushSnapshot: () => set(s => {
@@ -446,6 +511,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       undoStack: s.undoStack.slice(0, -1),
       redoStack: [...s.redoStack, { sections: JSON.parse(JSON.stringify(s.sections)) }],
       selectedIds: [],
+      editingId: null,
       isDirty: true,
     };
   }),
@@ -458,6 +524,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       redoStack: s.redoStack.slice(0, -1),
       undoStack: [...s.undoStack, { sections: JSON.parse(JSON.stringify(s.sections)) }],
       selectedIds: [],
+      editingId: null,
       isDirty: true,
     };
   }),

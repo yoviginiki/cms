@@ -37,6 +37,7 @@ export interface BreakpointLayout {
   height?: number;
   rotation?: number;
   zIndex?: number;
+  opacity?: number;   // 0..1; undefined = inherit (base: opaque)
   hidden?: boolean;
 }
 
@@ -52,6 +53,8 @@ export interface CanvasElement {
   rotation: number;
   zIndex: number;
   locked: boolean;
+  // Element opacity 0..1 (undefined = 1, kept out of the JSON when opaque).
+  opacity?: number;
   // Horizontal anchor used in fluid sections (default 'left').
   pinX?: PinX;
   // Scroll-triggered entrance animation.
@@ -68,11 +71,11 @@ export interface CanvasElement {
 
 /** The effective position of an element at a given breakpoint. */
 export interface EffectiveLayout {
-  x: number; y: number; width: number; height: number; rotation: number; zIndex: number; hidden: boolean;
+  x: number; y: number; width: number; height: number; rotation: number; zIndex: number; opacity: number; hidden: boolean;
 }
 
 export function effectiveLayout(el: CanvasElement, bp: Breakpoint): EffectiveLayout {
-  const base = { x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation, zIndex: el.zIndex, hidden: false };
+  const base = { x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation, zIndex: el.zIndex, opacity: el.opacity ?? 1, hidden: false };
   if (bp === 'mobile' && el.bp?.mobile) return { ...base, ...el.bp.mobile } as EffectiveLayout;
   return base;
 }
@@ -108,7 +111,9 @@ export type CanvasOp =
   | { t: 'layout'; id: string; patch: BreakpointLayout; bp: Breakpoint }
   | { t: 'add'; sectionId: string; element: CanvasElement }
   | { t: 'del'; ids: string[] }
-  | { t: 'z'; ids: string[]; mode: 'front' | 'back' }
+  // front/back jump past everything; forward/backward swap with the nearest
+  // neighbour in the section's z-order (see lib/canvasZ.ts).
+  | { t: 'z'; ids: string[]; mode: 'front' | 'back' | 'forward' | 'backward' }
   | { t: 'pin'; id: string; pinX: PinX }
   | { t: 'anim'; id: string; anim: CanvasAnim }
   | { t: 'mobileClear'; id: string }

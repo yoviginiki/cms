@@ -1,4 +1,5 @@
 import type { CanvasOp, CanvasSection, StampedOp } from '@/types/canvas';
+import { changedZ, stepZ } from './canvasZ';
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 
@@ -32,8 +33,19 @@ export function invertOp(op: CanvasOp, sections: CanvasSection[]): CanvasOp[] {
     case 'pin':
     case 'anim':
     case 'mobileClear':
-    case 'z':
       return restoreTouched();
+    case 'z': {
+      if (op.mode === 'front' || op.mode === 'back') return restoreTouched();
+      // A step also renumbers neighbours — restore every element whose z moves.
+      const out: CanvasOp[] = [];
+      for (const sec of sections) {
+        if (!sec.elements.some((e) => op.ids.includes(e.id))) continue;
+        for (const e of changedZ(sec.elements, stepZ(sec.elements, op.ids, op.mode))) {
+          out.push({ t: 'restoreElement', sectionId: sec.id, element: clone(e) });
+        }
+      }
+      return out;
+    }
     case 'secAdd': return [{ t: 'secDel', id: op.section.id }];
     case 'secDel': {
       const idx = sections.findIndex((s) => s.id === op.id);

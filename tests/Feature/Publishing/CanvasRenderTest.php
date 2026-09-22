@@ -72,7 +72,7 @@ class CanvasRenderTest extends TestCase
         // Desktop: positioning context + absolutely-positioned elements
         $this->assertStringContainsString('class="cv-page"', $html);
         $this->assertStringContainsString('class="cv-section"', $html);
-        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" style="left:80px;top:40px;width:600px;height:90px;transform:rotate\(-3deg\);/', $html);
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" data-cv-type="[^"]*" style="left:80px;top:40px;width:600px;height:90px;transform:rotate\(-3deg\);/', $html);
         $this->assertStringContainsString('height:600px', $html); // fixed section height
 
         // Full-bleed section wraps a content column
@@ -91,6 +91,54 @@ class CanvasRenderTest extends TestCase
         $this->assertNotFalse($posFirst);
         $this->assertNotFalse($posSecond);
         $this->assertLessThan($posSecond, $posFirst, 'canvas children must be emitted in y,x source order for SEO/a11y + mobile stack');
+    }
+
+    public function test_element_opacity_is_emitted_on_the_wrapper_and_in_the_mobile_override(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = $this->createSiteWithPages(0);
+        $page = Page::factory()->create([
+            'site_id' => $site->id, 'editor_mode' => 'canvas', 'status' => 'published',
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200]],
+        ]);
+        $s = Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 0,
+            'data' => ['canvas' => ['height' => 400, 'bleed' => false, 'background' => '']],
+        ]);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'text', 'order' => 0,
+            'data' => ['content' => 'FADED'],
+            'style' => ['layout' => ['x' => 10, 'y' => 20, 'width' => 300, 'height' => 100, 'opacity' => 0.35, 'bp' => ['mobile' => ['opacity' => 0.8]]]],
+        ]);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'text', 'order' => 1,
+            'data' => ['content' => 'SOLID'],
+            'style' => ['layout' => ['x' => 10, 'y' => 200, 'width' => 300, 'height' => 100, 'opacity' => 'garbage']],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page->fresh(), $site->fresh()->theme, $site->fresh());
+
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" data-cv-type="[^"]*" style="left:10px;top:20px;width:300px;height:100px;opacity:0.35;"/', $html);
+        $this->assertStringContainsString('opacity:0.8!important', $html);
+        // opaque (default / invalid) elements get no opacity rule at all
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" data-cv-type="[^"]*" style="left:10px;top:200px;width:300px;height:100px;"/', $html);
+    }
+
+    public function test_elements_carry_their_block_type_and_media_fills_the_box(): void
+    {
+        [$site, $page] = $this->canvasPage();
+        $html = app(BuildPageService::class)->build($page, $site->theme, $site);
+
+        // the wrapper is keyed by block type so the fill rules can target it
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" data-cv-type="heading" style="/', $html);
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" data-cv-type="text" style="/', $html);
+        // intrinsic-size blocks follow the box the user resized
+        $this->assertStringContainsString('.cv-el[data-cv-type=image] figure.image-block>img{flex:1 1 0;min-height:0;width:100%;height:100%;object-fit:cover}', $html);
+        $this->assertStringContainsString('.cv-el[data-cv-type=video] video,.cv-el[data-cv-type=video] iframe{width:100%;height:100%;object-fit:cover;display:block}', $html);
+        $this->assertStringContainsString('.cv-el[data-cv-type=button] .btn{width:100%;height:100%;', $html);
     }
 
     public function test_auto_height_section_fits_lowest_child(): void
@@ -195,7 +243,7 @@ class CanvasRenderTest extends TestCase
         ]);
         $html = app(BuildPageService::class)->build($post->fresh(), $site->theme, $site);
         $this->assertStringContainsString('class="cv-page"', $html);
-        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" style="left:60px;top:30px;/', $html);
+        $this->assertMatchesRegularExpression('/class="cv-el" id="cve-[^"]*" data-cv-type="[^"]*" style="left:60px;top:30px;/', $html);
     }
 
     public function test_mobile_override_emits_a_phone_media_query(): void

@@ -14,6 +14,9 @@ use App\Domain\Blocks\Enums\BlockLevel;
  * - Module has no children
  * - Only Sections can be at root level (no parent)
  * - Module blocks at root are allowed for backward compatibility (legacy flat blocks)
+ * - A CANVAS section (a section whose data carries a `canvas` settings array —
+ *   what the canvas editor saves) holds freeform-positioned Modules directly:
+ *   Section → Module, no Row/Column. See lib/canvasAdapter.ts + CanvasRoundTripTest.
  */
 class HierarchyValidator
 {
@@ -26,11 +29,19 @@ class HierarchyValidator
     public static function validate(array $blocks): ValidationResult
     {
         $errors = [];
-        self::validateLevel($blocks, null, $errors, '');
+        self::validateLevel($blocks, null, null, $errors, '');
         return new ValidationResult(empty($errors), $errors);
     }
 
-    private static function validateLevel(array $blocks, ?BlockLevel $parentLevel, array &$errors, string $path): void
+    /** A section block saved by the canvas editor (freeform children, no rows). */
+    public static function isCanvasSection(array $block): bool
+    {
+        return ($block['type'] ?? null) === 'section'
+            && is_array($block['data'] ?? null)
+            && is_array($block['data']['canvas'] ?? null);
+    }
+
+    private static function validateLevel(array $blocks, ?BlockLevel $parentLevel, ?array $parentBlock, array &$errors, string $path): void
     {
         foreach ($blocks as $i => $block) {
             $blockPath = $path ? "{$path}.children[{$i}]" : "blocks[{$i}]";
@@ -58,6 +69,9 @@ class HierarchyValidator
             // Check parent-child containment
             if ($parentLevel !== null) {
                 $allowedChildren = $parentLevel->allowedChildLevels();
+                if ($parentLevel === BlockLevel::Section && $parentBlock !== null && self::isCanvasSection($parentBlock)) {
+                    $allowedChildren[] = BlockLevel::Module;
+                }
                 if (!in_array($level, $allowedChildren)) {
                     $allowedLabels = implode(', ', array_map(fn(BlockLevel $l) => $l->label(), $allowedChildren));
                     $errors[] = [
@@ -76,7 +90,7 @@ class HierarchyValidator
                         'message' => "Module '{$type}' cannot have children. Modules are leaf nodes.",
                     ];
                 } else {
-                    self::validateLevel($children, $level, $errors, $blockPath);
+                    self::validateLevel($children, $level, $block, $errors, $blockPath);
                 }
             }
         }

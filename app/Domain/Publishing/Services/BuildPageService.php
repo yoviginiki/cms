@@ -43,7 +43,7 @@ class BuildPageService
      * shows an "edit in Page Editor" affordance instead of doing nothing.
      */
     private const INLINE_LOCKED_TYPES = [
-        'html-embed', 'code', 'gallery', 'flipbook', 'audio', 'map', 'beforeafter',
+        'html-embed', 'code', 'gallery', 'linear-gallery', 'flipbook', 'audio', 'map', 'beforeafter',
         'table', 'catalog', 'logostrip', 'socialembed', 'sharebuttons', 'icon',
         'slider_ref', 'global_ref', 'menu',
     ];
@@ -423,6 +423,7 @@ HTML;
             // WebP delivery: wrap bare /assets/files/{hash}.{png,jpg} images in a
             // <picture> before the slug rebase rewrites the new srcset too.
             $html = WebpPictureEnricher::enrich($html);
+            $html = WebpPictureEnricher::enrichCssUrls($html);
             $html = self::rewriteBaseForSlugHosting($html, $site);
         }
 
@@ -637,6 +638,7 @@ HTML;
             . '.cv-el{position:absolute;box-sizing:border-box}'
             . '.cv-anim{display:block;width:100%;height:100%}'
             . '.cv-el>*,.cv-anim>*{width:100%;height:100%}'
+            . self::canvasFillCss()
             // Scroll-reveal: paused until in view (only once JS marks the page
             // ready — no-JS falls back to an on-load entrance); honor reduced-motion.
             . '.cv-page.cv-ready .cv-anim{animation-play-state:paused}'
@@ -706,6 +708,7 @@ HTML;
             }
             $t = $l['rotation'] !== 0.0 ? "transform:rotate({$l['rotation']}deg);" : '';
             $z = $l['zIndex'] !== 0 ? "z-index:{$l['zIndex']};" : '';
+            $op = $l['opacity'] < 1.0 ? "opacity:{$l['opacity']};" : '';
             // Scroll-triggered entrance animation wraps the block (separate from
             // the cv-el rotate transform so the two never fight).
             $animCss = $this->childAnimCss($child);
@@ -718,8 +721,9 @@ HTML;
             $pos = $fluid
                 ? $this->pinHorizontalCss($l, $canvasWidth) . "top:{$l['y']}px;height:{$l['h']}px;"
                 : "left:{$l['x']}px;top:{$l['y']}px;width:{$l['w']}px;height:{$l['h']}px;";
-            $els .= '<div class="cv-el" id="' . $eid . '" style="'
-                . $pos . $t . $z
+            $ctype = preg_replace('/[^a-z0-9\-_]/i', '', (string) $child->type);
+            $els .= '<div class="cv-el" id="' . $eid . '" data-cv-type="' . $ctype . '" style="'
+                . $pos . $t . $z . $op
                 . '">' . $inner . '</div>';
 
             // Mobile override for this element (base merged with layout.bp.mobile).
@@ -731,8 +735,9 @@ HTML;
                     $mobRules .= "#{$eid}{display:none!important}";
                 } else {
                     $mt = "transform:rotate({$m['rotation']}deg)!important;";
+                    $mo = "opacity:{$m['opacity']}!important;";
                     $mobRules .= "#{$eid}{left:{$m['x']}px!important;top:{$m['y']}px!important;right:auto!important;margin-left:0!important;"
-                        . "width:{$m['w']}px!important;height:{$m['h']}px!important;{$mt}z-index:{$m['zIndex']}!important}";
+                        . "width:{$m['w']}px!important;height:{$m['h']}px!important;{$mt}{$mo}z-index:{$m['zIndex']}!important}";
                     $mobBottom = max($mobBottom, $m['y'] + $m['h']);
                 }
             }
@@ -806,6 +811,7 @@ HTML;
             isset($bp['zIndex']) ? (int) $bp['zIndex'] : $base['zIndex'],
         );
         $m['hidden'] = ! empty($bp['hidden']);
+        $m['opacity'] = isset($bp['opacity']) ? $this->layoutOpacity($bp['opacity']) : $base['opacity'];
 
         return $m;
     }
@@ -830,8 +836,49 @@ HTML;
             (int) ($lay['zIndex'] ?? 0),
         );
         $l['pinX'] = $pin;
+        $l['opacity'] = $this->layoutOpacity($lay['opacity'] ?? 1);
 
         return $l;
+    }
+
+    /**
+     * Blocks with an intrinsic size (image, video, icon, button, map, before/
+     * after, divider, audio) follow their canvas element box instead of their
+     * natural size — the box IS the design. Keyed by the wrapper's data-cv-type.
+     * Mirrors the editor rules in resources/admin/src/index.css (.cv-fill).
+     */
+    public static function canvasFillCss(): string
+    {
+        $e = '.cv-el[data-cv-type=';
+
+        return $e . 'image] figure.image-block{height:100%;margin:0;display:flex;flex-direction:column}'
+            . $e . 'image] figure.image-block>img{flex:1 1 0;min-height:0;width:100%;height:100%;object-fit:cover}'
+            . $e . 'imagecaption] figure.image-caption{height:100%;margin:0}'
+            . $e . 'imagecaption] figure.image-caption--below{display:flex;flex-direction:column}'
+            . $e . 'imagecaption] figure.image-caption img{flex:1 1 0;min-height:0;width:100%;height:100%;object-fit:cover}'
+            . $e . 'video] .video-block{height:100%;margin:0!important}'
+            . $e . 'video] video,' . $e . 'video] iframe{width:100%;height:100%;object-fit:cover;display:block}'
+            . $e . 'audio] .audio-block{height:100%;display:flex;align-items:center}'
+            . $e . 'icon]{container-type:size}'
+            . $e . 'icon] .icon-block{width:100%!important;height:100%!important;font-size:min(50cqw,50cqh)!important;display:flex!important;align-items:center;justify-content:center}'
+            . $e . 'icon] svg{width:100%;height:100%}'
+            . $e . 'button] .btn{width:100%;height:100%;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}'
+            . $e . 'map] .map-block>div{height:100%!important}'
+            . $e . 'map] iframe{width:100%;height:100%!important}'
+            . $e . 'beforeafter] .beforeafter-block{height:100%}'
+            . $e . 'beforeafter] img{width:100%;height:100%;object-fit:cover}'
+            . $e . 'divider] .divider-block{height:100%;display:flex;align-items:center}'
+            . $e . 'divider] hr{width:100%}';
+    }
+
+    /** Element opacity 0..1 (1 = opaque, the default); non-numeric → 1. */
+    private function layoutOpacity(mixed $v): float
+    {
+        if (! is_numeric($v)) {
+            return 1.0;
+        }
+
+        return max(0.0, min(1.0, round((float) $v, 2)));
     }
 
     /** Parse a raw layout value (strips px/units) to an int; empty → default. */
@@ -1280,6 +1327,18 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-heading,inherit);font-weight:var(--head
 .prose p{margin:0 0 1em}
 .prose h2,.prose h3,.prose h4{margin:1.5em 0 0.5em}
 .prose ul,.prose ol{padding-left:1.5em}
+.rt-figure{margin:1em 0;max-width:100%}
+.rt-figure img{display:block;width:100%;height:auto}
+.rt-figure figcaption{font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#666);text-align:center;margin-top:0.5em;line-height:1.4}
+.rt-figure[data-align="center"]{margin-left:auto;margin-right:auto}
+.rt-figure[data-align="left"]{margin-right:auto}
+.rt-figure[data-align="right"]{margin-left:auto}
+.rt-figure[data-align="full"]{width:100%!important}
+.rt-figure[data-align="float-left"]{float:left;margin:0.25em 1.5em 1em 0}
+.rt-figure[data-align="float-right"]{float:right;margin:0.25em 0 1em 1.5em}
+.rt-figure[data-align="float-left"]:not([style*="width"]),.rt-figure[data-align="float-right"]:not([style*="width"]){max-width:50%}
+.rich-text-block::after{content:"";display:block;clear:both}
+@media (max-width:600px){.rt-figure[data-align="float-left"],.rt-figure[data-align="float-right"]{float:none;margin:1em auto;max-width:100%;width:100%!important}}
 .columns-block{margin-bottom:1.5rem}
 .image-block{margin-bottom:1.5rem}
 figure.image-block{margin:0}
@@ -1339,6 +1398,9 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
 @media(max-width:1024px){
 .section-block{padding-left:clamp(1rem,4vw,2rem)!important;padding-right:clamp(1rem,4vw,2rem)!important}
 .section-block .section-block{padding-left:0!important;padding-right:0!important}
+/* width_mode:full means edge-to-edge — padding its content back in would
+   contradict the setting, so full-bleed sections opt out of the gutter. */
+.section-block.section-flush{padding-left:0!important;padding-right:0!important}
 }
 @media(max-width:768px){
 /* Kill CSS-grid/flex track blowout: let items shrink below their content
@@ -1355,6 +1417,20 @@ footer[role="contentinfo"] a:hover{color:var(--color-primary,#3b82f6);opacity:1}
 .section-block .section-block{padding-left:0!important;padding-right:0!important}
 /* Images and media never overflow. */
 img,video,iframe{max-width:100%!important;height:auto}
+/* A block sized in absolute px (e.g. an image pinned to 600px for a desktop
+   composition) is wider than the phone column and spills out of the page.
+   Cap every block at its container; desktop keeps the authored width. */
+main [class*="-block"]{max-width:100%!important}
+/* Negative margins on a block are a desktop composition trick from the
+   page author: pull a caption up over an image, nudge a column past the
+   gutter. Stacked into one phone column they drag blocks on top of each
+   other or off the screen edge, so flatten them. (Full-bleed here comes from edge-to-edge
+   section backgrounds + inner content padding, never from negative margins,
+   so nothing legitimate depends on these.) */
+[class*="-block"][style*="margin-top:-"]{margin-top:0!important}
+[class*="-block"][style*="margin-bottom:-"]{margin-bottom:0!important}
+[class*="-block"][style*="margin-left:-"]{margin-left:0!important}
+[class*="-block"][style*="margin-right:-"]{margin-right:0!important}
 /* Sticky sidebar stacks under content. */
 .stickysidebar-block>div{flex-direction:column!important}
 .stickysidebar-block aside{width:100%!important;position:static!important}

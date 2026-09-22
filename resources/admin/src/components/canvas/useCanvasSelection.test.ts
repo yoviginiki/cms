@@ -39,6 +39,36 @@ describe('useCanvasSelection', () => {
     expect([el().x, el().y]).toEqual([160, 130]);
   });
 
+  it('moves freely with snapping on — no grid snap, only soft edge guides', () => {
+    const id = el().id;
+    useCanvasStore.setState({ snapEnabled: true });
+    const { result } = renderHook(() => useCanvasSelection('s1', 1200, 400));
+    act(() => result.current.onElementPointerDown(down(0, 0), id));
+    act(() => winMove(7, 13)); // far from any sibling edge / centre → exact delta
+    expect([el().x, el().y]).toEqual([107, 113]);
+    act(() => winUp());
+  });
+
+  it('a second click (no drag) on the selected element enters edit mode; a drag does not', () => {
+    const id = el().id;
+    const { result } = renderHook(() => useCanvasSelection('s1', 1200, 400));
+    act(() => useCanvasStore.getState().clearSelection()); // addElement pre-selects; start unselected
+    // first click: selects only
+    act(() => result.current.onElementPointerDown(down(0, 0), id));
+    act(() => winUp());
+    expect(useCanvasStore.getState().selectedIds).toEqual([id]);
+    expect(useCanvasStore.getState().editingId).toBeNull();
+    // drag while selected: still no edit mode
+    act(() => result.current.onElementPointerDown(down(0, 0), id));
+    act(() => winMove(30, 0));
+    act(() => winUp());
+    expect(useCanvasStore.getState().editingId).toBeNull();
+    // click again without moving → edit
+    act(() => result.current.onElementPointerDown(down(0, 0), id));
+    act(() => winUp());
+    expect(useCanvasStore.getState().editingId).toBe(id);
+  });
+
   it('divides the delta by zoom', () => {
     const id = el().id;
     useCanvasStore.setState({ zoom: 0.5 });

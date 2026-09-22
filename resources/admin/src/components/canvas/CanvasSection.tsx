@@ -8,7 +8,13 @@ import { useCanvasSelection } from './useCanvasSelection';
 import { CanvasElement } from './CanvasElement';
 import { CanvasPalette } from './CanvasPalette';
 import { CHROME, CHROME_Z } from './chrome';
+import { CANVAS_DRAG_MIME, defaultSize, dropPosition } from '@/lib/canvasBlocks';
 import type { PeerCursor, PresenceMember } from './useCanvasCollab';
+
+const AUTO_MIN_H = 480;   // an auto section never shows smaller than this in the editor (room to work)
+const AUTO_PAD = 120;     // auto: breathing room below the lowest element so you can drop under it
+const OVER_PAD = 40;      // fixed: how much of the overflow area to reveal below the section edge
+const MIN_SECTION_H = 100;
 
 interface Props {
   section: Section;
@@ -26,24 +32,68 @@ interface Props {
 
 function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMoveDown, singleMode, peerCursors = [], members = [], onCursorMove, lockedIds }: Props) {
   const selectedIds = useCanvasStore(s => s.selectedIds);
+  const editingId = useCanvasStore(s => s.editingId);
   const bp = useCanvasStore(s => s.activeBreakpoint);
   const mobileWidth = useCanvasStore(s => s.mobileWidth);
   // Actions are stable refs — read once (getState) rather than subscribing the
   // whole store, which re-rendered every section on every op.
-  const { updateSectionSettings, deleteSection, moveSection, addElement, clearSelection, setActiveSection } = useCanvasStore.getState();
+  const { updateSectionSettings, deleteSection, moveSection, addElement, clearSelection, setActiveSection, pushSnapshot } = useCanvasStore.getState();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [dropHover, setDropHover] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Palette drag-and-drop: a block tile dropped here lands centred under the pointer.
+  const isBlockDrag = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes(CANVAS_DRAG_MIME);
+  const onDragOver = (e: React.DragEvent) => {
+    if (!isBlockDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!dropHover) setDropHover(true);
+  };
+  const onDrop = (e: React.DragEvent) => {
+    if (!isBlockDrag(e) || !canvasRef.current) return;
+    e.preventDefault();
+    setDropHover(false);
+    const blockType = e.dataTransfer.getData(CANVAS_DRAG_MIME);
+    if (!blockType) return;
+    const size = defaultSize(blockType);
+    const { x, y } = dropPosition(e.clientX, e.clientY, canvasRef.current.getBoundingClientRect(), zoom, size);
+    addElement(section.id, blockType, x, y, size.width, size.height);
+  };
 
   const effWidth = bp === 'mobile' ? mobileWidth : width;
   // Effective layout / height / z-sort recompute only when this section's
   // elements, height, or the active breakpoint change (not on every parent render).
-  const { displayHeight, sorted } = useMemo(() => {
+  // The canvas always shows ALL content: an auto section grows with its lowest
+  // element (plus room to drop below it); a fixed section reveals anything that
+  // overflows its edge as a marked "outside the section" strip instead of clipping.
+  const { displayHeight, fixedHeight, sorted } = useMemo(() => {
     const laid = section.elements.map(el => ({ el, eff: effectiveLayout(el, bp) })).filter(x => !x.eff.hidden);
     const maxBottom = laid.reduce((m, { eff }) => Math.max(m, eff.y + eff.height), 0);
-    const displayHeight = section.settings.height === 'auto' ? Math.max(200, maxBottom) : section.settings.height;
+    const fixedHeight = section.settings.height === 'auto' ? null : section.settings.height;
+    const displayHeight = fixedHeight === null
+      ? Math.max(AUTO_MIN_H, maxBottom + AUTO_PAD)
+      : Math.max(fixedHeight, maxBottom > fixedHeight ? maxBottom + OVER_PAD : 0);
     const sorted = [...laid].sort((a, b) => a.eff.zIndex - b.eff.zIndex);
-    return { displayHeight, sorted };
+    return { displayHeight, fixedHeight, sorted };
   }, [section.elements, section.settings.height, bp]);
+
+  // Bottom edge handle: drag to set the section height (an auto section becomes fixed).
+  const onHeightHandleDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    pushSnapshot();
+    const startY = e.clientY;
+    const startH = fixedHeight ?? displayHeight;
+    const z = zoom || 1;
+    const move = (ev: PointerEvent) => {
+      updateSectionSettings(section.id, { height: Math.max(MIN_SECTION_H, Math.round(startH + (ev.clientY - startY) / z)) });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  const edgeY = fixedHeight ?? displayHeight;   // where the section really ends
 
   const { guides, onElementPointerDown, onResizePointerDown, onRotatePointerDown } =
     useCanvasSelection(section.id, effWidth, displayHeight);
@@ -51,13 +101,14 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
   const addBlock = (blockType: string) => {
     // drop near the top-left, offset so successive adds don't fully overlap
     const n = section.elements.length;
-    addElement(section.id, blockType, 40 + (n % 5) * 24, 40 + (n % 5) * 24, 260, 120);
+    const { width, height } = defaultSize(blockType);
+    addElement(section.id, blockType, 40 + (n % 5) * 24, 40 + (n % 5) * 24, width, height);
   };
 
   return (
     <div className={`cv-section-wrap border-b border-base-200 ${isActive ? 'ring-1 ring-primary/40' : ''}`}>
-      {/* controls bar */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-base-200/60 text-xs">
+      {/* controls bar — its inputs must not clear the canvas selection */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-base-200/60 text-xs" onPointerDown={(e) => e.stopPropagation()}>
         <span className="font-medium text-base-content/60">Section</span>
         <label className="flex items-center gap-1">
           H
@@ -105,6 +156,11 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
           <div
             ref={canvasRef}
             className="cv-canvas relative shadow-sm"
+            data-testid="canvas-drop-target"
+            onDragOver={onDragOver}
+            onDragEnter={onDragOver}
+            onDragLeave={(e) => { if (!canvasRef.current?.contains(e.relatedTarget as Node)) setDropHover(false); }}
+            onDrop={onDrop}
             onPointerDown={() => { clearSelection(); setActiveSection(section.id); }}
             onPointerMove={(e) => {
               if (!onCursorMove || !canvasRef.current) return;
@@ -115,9 +171,11 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
               width: effWidth, height: displayHeight,
               transform: `scale(${zoom})`, transformOrigin: 'top left',
               background: section.settings.background || '#ffffff',
-              backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
-              backgroundSize: `${effWidth / 12}px ${effWidth / 12}px`,
-              outline: bp === 'mobile' ? `2px solid ${CHROME.mobileOutline}` : undefined,
+              // faint dot grid — orientation only; movement is free-flow (no grid snap)
+              backgroundImage: 'radial-gradient(rgba(0,0,0,0.12) 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+              outline: dropHover ? `2px dashed ${CHROME.selection}` : bp === 'mobile' ? `2px solid ${CHROME.mobileOutline}` : undefined,
+              outlineOffset: dropHover ? -2 : undefined,
             }}
           >
             {sorted.map(({ el, eff }) => (
@@ -126,6 +184,7 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
                 el={el}
                 eff={eff}
                 selected={selectedIds.includes(el.id)}
+                editing={editingId === el.id}
                 peerLocked={lockedIds?.has(el.id)}
                 zoom={zoom}
                 onPointerDown={onElementPointerDown}
@@ -133,6 +192,36 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
                 onRotateDown={onRotatePointerDown}
               />
             ))}
+            {/* overflow strip: content below a fixed section's edge is outside the section */}
+            {fixedHeight !== null && displayHeight > fixedHeight && (
+              <div
+                aria-hidden
+                style={{
+                  position: 'absolute', left: 0, right: 0, top: fixedHeight, bottom: 0, pointerEvents: 'none',
+                  backgroundImage: 'repeating-linear-gradient(135deg, rgba(220,38,38,0.08) 0 6px, transparent 6px 14px)',
+                  zIndex: CHROME_Z.peerCursor - 1,
+                }}
+              >
+                <span style={{ position: 'absolute', left: 8, top: 4, fontSize: 10 / (zoom || 1), color: '#b91c1c', background: 'rgba(255,255,255,0.85)', padding: '1px 6px', borderRadius: 4 }}>
+                  Outside the section — drag the bar down or set height to auto
+                </span>
+              </div>
+            )}
+            {/* section height handle (bottom edge) */}
+            <div
+              role="separator"
+              aria-label="Section height — drag to resize"
+              title={fixedHeight === null ? 'Auto height — drag to set a fixed height' : `Height ${fixedHeight}px — drag to resize`}
+              data-testid="section-height-handle"
+              onPointerDown={onHeightHandleDown}
+              style={{
+                position: 'absolute', left: 0, right: 0, top: edgeY - 5 / (zoom || 1), height: 10 / (zoom || 1),
+                cursor: 'ns-resize', zIndex: CHROME_Z.peerCursor, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderTop: `${1 / (zoom || 1)}px ${fixedHeight === null ? 'dashed' : 'solid'} ${CHROME.selection}`,
+              }}
+            >
+              <span style={{ width: 44 / (zoom || 1), height: 6 / (zoom || 1), borderRadius: 3, background: CHROME.selection, boxShadow: '0 0 0 1px #fff' }} />
+            </div>
             {/* smart guides */}
             {guides.map((g, i) => (
               <div

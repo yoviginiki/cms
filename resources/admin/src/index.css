@@ -471,3 +471,49 @@ button, a, input, select, textarea {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* ── Rich-text inline images (RichImage node) ─────────────────────────
+   Mirrors the published-site rules in BuildPageService so the canvas shows
+   the same alignment / width / caption the visitor will get. */
+.rt-figure { margin: 1em 0; max-width: 100%; }
+.rt-figure img { display: block; width: 100%; height: auto; }
+.rt-figure figcaption { font-size: 0.875em; color: #6b7280; text-align: center; margin-top: 0.5em; line-height: 1.4; }
+.rt-figure[data-align="center"] { margin-left: auto; margin-right: auto; }
+.rt-figure[data-align="left"] { margin-right: auto; }
+.rt-figure[data-align="right"] { margin-left: auto; }
+.rt-figure[data-align="full"] { width: 100% !important; }
+.rt-figure[data-align="float-left"] { float: left; margin: 0.25em 1.5em 1em 0; }
+.rt-figure[data-align="float-right"] { float: right; margin: 0.25em 0 1em 1.5em; }
+.rt-figure[data-align="float-left"]:not([style*="width"]),
+.rt-figure[data-align="float-right"]:not([style*="width"]) { max-width: 50%; }
+.ProseMirror::after, .rich-text-block::after { content: ''; display: block; clear: both; }
+.ProseMirror .rt-figure { cursor: pointer; }
+.ProseMirror .rt-figure.ProseMirror-selectednode { outline: 2px solid #3b82f6; outline-offset: 3px; border-radius: 2px; }
+
+/* ── Canvas editor: block content fills its element box ─────────────────
+   A canvas element is a fixed box the user resizes by its handles. Blocks
+   with an intrinsic size (image, video, icon, button, map, before/after,
+   divider, audio) must follow the box — otherwise resizing looks broken.
+   Mirrors the published rules in BuildPageService::canvasFillCss() — keep
+   both in sync (published markup differs slightly, hence two copies). */
+.cv-fill > * { width: 100%; height: 100%; box-sizing: border-box; }
+.cv-fill[data-cv-type="image"] figure { display: flex; flex-direction: column; margin: 0; }
+.cv-fill[data-cv-type="image"] figure > img { flex: 1 1 0; min-height: 0; width: 100%; height: 100%; object-fit: cover; }
+.cv-fill[data-cv-type="imagecaption"] figure { margin: 0; }
+.cv-fill[data-cv-type="imagecaption"] figure.relative { display: flex; flex-direction: column; }
+.cv-fill[data-cv-type="imagecaption"] figure.relative > img { flex: 1 1 0; min-height: 0; object-fit: cover; }
+.cv-fill[data-cv-type="imagecaption"] figure.flex-row > img,
+.cv-fill[data-cv-type="imagecaption"] figure.flex-row-reverse > img { height: 100%; object-fit: cover; }
+.cv-fill[data-cv-type="video"] video, .cv-fill[data-cv-type="video"] iframe { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv-fill[data-cv-type="icon"] { container-type: size; }
+.cv-fill[data-cv-type="icon"] > div { padding: 0 !important; font-size: min(50cqw, 50cqh) !important; }
+.cv-fill[data-cv-type="icon"] svg { width: 100%; height: 100%; }
+.cv-fill[data-cv-type="button"] > div { padding: 0 !important; display: flex; align-items: center; justify-content: center; }
+.cv-fill[data-cv-type="button"] a, .cv-fill[data-cv-type="button"] button { width: 100%; height: 100%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.cv-fill[data-cv-type="map"] > div { display: flex; align-items: center; justify-content: center; }
+.cv-fill[data-cv-type="map"] iframe { width: 100%; height: 100% !important; }
+.cv-fill[data-cv-type="beforeafter"] > div { height: 100% !important; }
+.cv-fill[data-cv-type="divider"] > div { padding: 0 !important; display: flex; align-items: center; }
+.cv-fill[data-cv-type="divider"] hr { width: 100%; }
+.cv-fill[data-cv-type="audio"] > div { display: flex; flex-direction: column; justify-content: center; }
+.cv-fill[data-cv-type="shape"] > div { min-height: 0; }

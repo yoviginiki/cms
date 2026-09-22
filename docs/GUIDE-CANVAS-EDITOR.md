@@ -11,14 +11,25 @@ A canvas page is **not** one giant canvas. It is a vertical stack of **Sections*
 
 ## Working on the canvas
 
-- **Add sections** and set each one's height (fixed pixels or auto), bleed, and background.
-- **Insert blocks** from the palette, then **drag, resize, rotate, and layer** them freely. The same blocks and the same JSON as the block editor — nothing proprietary.
-- **Snapping**: blocks snap to the 12-column grid and to sibling edges. Nudge with the arrow keys; multi-select with shift or a drag rectangle.
+- **Add sections** and set each one's height (fixed pixels or auto), bleed, and background — in the section bar or in the right-hand panel when nothing is selected.
+- **Insert blocks** from the palette on the left: **drag a tile onto any section** (it lands centred under the pointer, at a sensible starting size) or click it to add to the active section — on an empty page a click also creates the first section. Then **drag, resize, rotate, and layer** blocks freely. The same blocks and the same JSON as the block editor — nothing proprietary.
+- **Edit in place**: click a block to select it, click it again (or double-click) to edit its content — type straight into text and headings, pick an image on image blocks. Escape steps back out to the selection. Every block's full settings form is always in the right-hand panel under *Content*.
+- **Movement is free-flow**: there is no grid snapping. With snapping on, edges and centres softly attract to sibling edges and the section centre (a few px); hold **Alt** while dragging to bypass. Nudge with the arrow keys (Shift = 10px); multi-select with shift-click.
+- **Layers**: *Back / Down / Up / Front* in the panel, or Ctrl+[ / Ctrl+] one step and with Shift all the way. **Opacity** is a slider in the same group and publishes on the element (also per phone override).
+- **Right-hand panel**: one element → Content, Layer & opacity, Position & size (X/Y/W/H/rotation, pin in fluid sections), Phone (hide on phones, reset phone layout), Animation. Several elements → layer and duplicate/delete. Nothing → Page (type, design width, phone width) and the active Section.
 - **Preview**: the split-pane preview renders through the real static-publish endpoint, with a mobile-width toggle — what you see is exactly what publishes.
 
 ## Mobile behavior
 
 Below the theme's mobile breakpoint, published canvas sections **auto-stack**: children flow vertically in reading order (top-to-bottom, left-to-right), full width, natural heights. The stacking is computed at publish into real markup order — good for SEO and screen readers — while desktop positions apply via CSS at wide viewports.
+
+## Which blocks are in the palette
+
+Deliberately a small, verified set — galleries and the basics: **Text** (heading, text, paragraph, pullquote, list), **Media** (image, image + caption, gallery, linear gallery, logo strip, before/after, video, audio, icon), **Elements** (button, divider, shape, testimonial, stats, map, social embed, HTML embed — admins only). The list lives in `resources/admin/src/lib/canvasBlocks.ts`; two tests keep it honest — every entry must render its Preview + Editor (`canvasBlocks.render.test.tsx`) and publish inside a canvas section (`CanvasPaletteBlocksTest.php`, which also asserts its list mirrors the TS one). Structural blocks, post/collection-bound blocks and page chrome (menus, breadcrumbs…) are left out on purpose.
+
+## Storage & validation
+
+A canvas section is a normal `section` block whose `data.canvas` holds the section settings; its children are ordinary module blocks carrying `style.layout` (`x, y, width, height, rotation, zIndex, opacity, locked, pinX, anim, bp.mobile`). The 4-level hierarchy validator recognises a canvas section by that `data.canvas` key and lets it hold modules directly (Section → Module, no Row/Column); a plain section still requires rows.
 
 ## Switching modes
 

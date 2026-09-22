@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
 import type { BlockData } from '@/types/blocks';
@@ -25,6 +25,7 @@ interface Props {
   el: El;
   eff: EffectiveLayout;   // position for the active breakpoint
   selected: boolean;
+  editing?: boolean;      // in-place content editing: the block's own UI receives the pointer
   peerLocked?: boolean;   // another editor is actively moving this element
   zoom: number;
   onPointerDown: (e: React.PointerEvent, id: string) => void;
@@ -32,10 +33,29 @@ interface Props {
   onRotateDown: (e: React.PointerEvent, id: string, center: { cx: number; cy: number }) => void;
 }
 
-export function CanvasElement({ el, eff, selected, peerLocked, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
+export function CanvasElement({ el, eff, selected, editing = false, peerLocked, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const updateElement = useCanvasStore(s => s.updateElement);
+  const updateElementData = useCanvasStore(s => s.updateElementData);
+  const setEditing = useCanvasStore(s => s.setEditing);
   const reg = blockRegistry.get(el.blockType);
+
+  // Entering edit mode: put the caret into the block's editable (text blocks
+  // are contentEditable while selected; headings expose an inline field).
+  useEffect(() => {
+    if (!editing) return;
+    const t = window.setTimeout(() => {
+      const target = ref.current?.querySelector<HTMLElement>('[contenteditable="true"], input, textarea');
+      if (target && document.activeElement !== target) {
+        target.focus();
+        // caret at the end, not the start
+        if (target.isContentEditable && target.childNodes.length) {
+          const sel = window.getSelection(); const range = document.createRange();
+          range.selectNodeContents(target); range.collapse(false); sel?.removeAllRanges(); sel?.addRange(range);
+        }
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [editing]);
 
   // Counter-scale editing chrome by 1/zoom so handles/outlines stay a constant
   // on-screen size regardless of the canvas scale.
@@ -58,7 +78,14 @@ export function CanvasElement({ el, eff, selected, peerLocked, zoom, onPointerDo
     <div
       ref={ref}
       className="cv-editor-el"
-      onPointerDown={(e) => onPointerDown(e, el.id)}
+      data-editing={editing || undefined}
+      onPointerDown={(e) => {
+        // While editing, clicks belong to the block's own UI — never start a drag
+        // and never let the canvas underneath clear the selection.
+        if (editing) { e.stopPropagation(); return; }
+        onPointerDown(e, el.id);
+      }}
+      onDoubleClick={(e) => { e.stopPropagation(); if (!el.locked && !peerLocked && !editing) setEditing(el.id); }}
       style={{
         position: 'absolute',
         left: eff.x, top: eff.y, width: eff.width, height: eff.height,
@@ -67,17 +94,18 @@ export function CanvasElement({ el, eff, selected, peerLocked, zoom, onPointerDo
         display: eff.hidden ? 'none' : undefined,
         opacity: peerLocked ? 0.55 : 1,
         pointerEvents: peerLocked ? 'none' : undefined,   // soft lock: can't grab while a peer edits
-        outline: peerLocked ? `${outlineW * 1.5}px solid ${CHROME.peerLock}` : (selected ? `${outlineW}px solid ${CHROME.selection}` : `${outlineW}px dashed ${CHROME.idleOutline}`),
-        cursor: el.locked ? 'default' : 'move',
+        outline: peerLocked ? `${outlineW * 1.5}px solid ${CHROME.peerLock}` : (selected ? `${outlineW * (editing ? 1.5 : 1)}px solid ${CHROME.selection}` : `${outlineW}px dashed ${CHROME.idleOutline}`),
+        cursor: el.locked ? 'default' : editing ? 'text' : 'move',
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ width: '100%', height: '100%', overflow: 'hidden', pointerEvents: 'none' }}>
+      {/* cv-fill + data-cv-type: index.css makes intrinsic-size blocks (image, video, icon…) follow the box */}
+      <div className="cv-fill" data-cv-type={el.blockType} style={{ width: '100%', height: '100%', overflow: 'hidden', pointerEvents: editing ? 'auto' : 'none', opacity: eff.opacity }}>
         {reg ? (
           <reg.Preview
             block={block}
             isSelected={selected}
-            onUpdate={(data) => updateElement(el.id, { data })}
+            onUpdate={(data) => updateElementData(el.id, data)}
             onSelect={() => { /* selection handled by wrapper pointerdown */ }}
           />
         ) : (
@@ -85,7 +113,7 @@ export function CanvasElement({ el, eff, selected, peerLocked, zoom, onPointerDo
         )}
       </div>
 
-      {selected && !el.locked && !peerLocked && (
+      {selected && !editing && !el.locked && !peerLocked && (
         <>
           {/* rotate handle */}
           <div

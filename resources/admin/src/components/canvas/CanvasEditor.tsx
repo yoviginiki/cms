@@ -5,10 +5,12 @@ import { useCanvasStore } from '@/stores/canvasStore';
 import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi } from '@/lib/api';
 import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
+import { CanvasInspector } from './CanvasInspector';
+import { CanvasBlockPalette } from './CanvasBlockPalette';
 import { useCanvasCollab, type PeerCursor } from './useCanvasCollab';
 import { isCollabEnabled } from '@/lib/echo';
-import { effectiveLayout, MOBILE_W_MIN, MOBILE_W_MAX } from '@/types/canvas';
-import type { CanvasPageType, CanvasAnim } from '@/types/canvas';
+import { effectiveLayout } from '@/types/canvas';
+import type { CanvasPageType } from '@/types/canvas';
 
 const NO_CURSORS: PeerCursor[] = [];   // stable empty ref so cursorless sections skip re-render
 const NUDGE_IDLE_MS = 600;             // arrow-key nudges within this gap = one undo entry
@@ -31,7 +33,6 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const snapEnabled = useCanvasStore(s => s.snapEnabled);
   const activeSectionId = useCanvasStore(s => s.activeSectionId);
   const activeBreakpoint = useCanvasStore(s => s.activeBreakpoint);
-  const mobileWidth = useCanvasStore(s => s.mobileWidth);
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const isDirty = useCanvasStore(s => s.isDirty);
   const undoLen = useCanvasStore(s => s.undoStack.length);   // local-mode undo availability
@@ -40,17 +41,9 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   // subscribing to the whole store, which re-rendered the editor on every op.
   const {
     addSection, undo, redo, toggleSnap, setZoom, deleteElements,
-    duplicateElements, bringToFront, sendToBack, clearSelection, pushSnapshot,
-    setPageType, setWidth, setMobileWidth, setBreakpoint, clearMobileOverride, setElementPin, setElementAnim,
+    duplicateElements, bringToFront, sendToBack, bringForward, sendBackward, clearSelection, pushSnapshot,
+    setBreakpoint, setEditing,
   } = useCanvasStore.getState();
-
-  // Pin controls apply to a single selected element in a fluid section.
-  const selSection = selectedIds.length === 1
-    ? sections.find(s => s.elements.some(e => e.id === selectedIds[0]))
-    : undefined;
-  const selEl = selSection?.elements.find(e => e.id === selectedIds[0]);
-  const pinnable = !!(selSection?.settings.fluid && selEl);
-  const currentPin = selEl?.pinX ?? 'left';
 
   // Persist page-type + design width to seo_meta.canvas (merged, non-clobbering).
   const persistCanvasMeta = (patch: { page_type?: CanvasPageType; width?: number; mobile_width?: number }) => {
@@ -123,10 +116,12 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       if (!sel.length) { if (e.key === 'Escape') { endNudge(); clearSelection(); } return; }
 
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); endNudge(); deleteElements(sel); return; }
-      if (e.key === 'Escape') { endNudge(); clearSelection(); return; }
+      // Escape steps out of in-place editing first (keeps the selection), then deselects.
+      if (e.key === 'Escape') { endNudge(); if (st.editingId) setEditing(null); else clearSelection(); return; }
       if (meta && e.key.toLowerCase() === 'd') { e.preventDefault(); endNudge(); duplicateElements(sel); return; }
-      if (meta && e.key === ']') { e.preventDefault(); endNudge(); bringToFront(sel); return; }
-      if (meta && e.key === '[') { e.preventDefault(); endNudge(); sendToBack(sel); return; }
+      // Layer order: Ctrl+] / Ctrl+[ one step; with Shift all the way.
+      if (meta && (e.key === ']' || e.key === '}')) { e.preventDefault(); endNudge(); e.shiftKey ? bringToFront(sel) : bringForward(sel); return; }
+      if (meta && (e.key === '[' || e.key === '{')) { e.preventDefault(); endNudge(); e.shiftKey ? sendToBack(sel) : sendBackward(sel); return; }
 
       const step = e.shiftKey ? 10 : 1;
       const delta = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key];
@@ -144,13 +139,16 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); endNudge(); };
-  }, [doUndo, doRedo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, pushSnapshot]);
+  }, [doUndo, doRedo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, bringForward, sendBackward, pushSnapshot, setEditing]);
 
   const previewUrl = `/api/v1/sites/${siteId}/${contentType}/${pageId}/preview`;
   const refreshPreview = () => { if (iframeRef.current) iframeRef.current.src = `${previewUrl}?t=${Date.now()}`; };
 
   return (
     <div className="flex flex-1 overflow-hidden">
+      {/* block palette: drag tiles onto a section, or click to add */}
+      <CanvasBlockPalette />
+
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* toolbar */}
         <div className="flex items-center gap-1 px-3 py-1.5 border-b border-base-200 bg-base-100 text-sm">
@@ -173,104 +171,12 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
             <button className={`btn btn-xs ${activeBreakpoint === 'desktop' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('desktop')} title="Desktop layout" aria-label="Edit desktop layout" aria-pressed={activeBreakpoint === 'desktop'}><Monitor size={13} /></button>
             <button className={`btn btn-xs ${activeBreakpoint === 'mobile' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setBreakpoint('mobile')} title="Mobile layout override" aria-label="Edit mobile layout override" aria-pressed={activeBreakpoint === 'mobile'}><Smartphone size={13} /></button>
           </div>
-          {activeBreakpoint === 'mobile' && (
-            <label className="flex items-center gap-1 text-[10px] text-base-content/50" title="Phone canvas width (px) — also the publish phone-layout width">
-              W
-              <input
-                type="number"
-                className="input input-xs input-bordered w-14"
-                value={mobileWidth}
-                min={MOBILE_W_MIN}
-                max={MOBILE_W_MAX}
-                onChange={(e) => setMobileWidth(Number(e.target.value))}
-                onBlur={(e) => persistCanvasMeta({ mobile_width: Number(e.target.value) })}
-                aria-label="Phone canvas width"
-              />
-            </label>
-          )}
-          {activeBreakpoint === 'mobile' && selectedIds.length === 1 && (
-            <button className="btn btn-xs btn-ghost" onClick={() => clearMobileOverride(selectedIds[0])} title="Reset this element to inherit the desktop position">reset</button>
-          )}
-          {pinnable && (
-            <>
-              <div className="w-px h-4 bg-base-300 mx-1" />
-              <span className="text-[10px] text-base-content/40">pin</span>
-              {([['left', 'L'], ['center', 'C'], ['right', 'R'], ['stretch', '↔']] as const).map(([p, label]) => (
-                <button
-                  key={p}
-                  className={`btn btn-xs ${currentPin === p ? 'btn-primary' : 'btn-ghost'}`}
-                  title={`Pin ${p}`}
-                  onClick={() => setElementPin(selectedIds[0], p)}
-                >{label}</button>
-              ))}
-            </>
-          )}
-          {selEl && (
-            <>
-              <div className="w-px h-4 bg-base-300 mx-1" />
-              <label className="flex items-center gap-1 text-[10px] text-base-content/40" title="Scroll-in animation">
-                anim
-                <select
-                  className="select select-xs select-bordered"
-                  value={selEl.anim?.type ?? 'none'}
-                  onChange={(e) => setElementAnim(selectedIds[0], { ...selEl.anim, type: e.target.value as CanvasAnim['type'] })}
-                >
-                  {(['none', 'fade', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'zoom', 'scale-in'] as const).map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </label>
-              {selEl.anim && selEl.anim.type !== 'none' && (
-                <>
-                  <input
-                    type="number"
-                    className="input input-xs input-bordered w-14"
-                    title="Delay (ms)"
-                    aria-label="Animation delay (ms)"
-                    min={0}
-                    max={5000}
-                    step={50}
-                    value={selEl.anim.delay ?? 0}
-                    onChange={(e) => setElementAnim(selectedIds[0], { ...selEl.anim!, delay: Number(e.target.value) })}
-                  />
-                  <input
-                    type="number"
-                    className="input input-xs input-bordered w-14"
-                    title="Duration (ms)"
-                    aria-label="Animation duration (ms)"
-                    min={50}
-                    max={3000}
-                    step={50}
-                    value={selEl.anim.duration ?? 600}
-                    onChange={(e) => setElementAnim(selectedIds[0], { ...selEl.anim!, duration: Number(e.target.value) })}
-                  />
-                </>
-              )}
-            </>
-          )}
           <div className="flex-1" />
-          <label className="flex items-center gap-1 text-[10px] text-base-content/50" title="Page type">
-            <select
-              className="select select-xs select-bordered"
-              value={pageType}
-              onChange={(e) => { const t = e.target.value as CanvasPageType; setPageType(t); persistCanvasMeta({ page_type: t }); }}
-            >
-              <option value="website">Website (stack + scroll)</option>
-              <option value="single">Single (one canvas)</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-1 text-[10px] text-base-content/50 mr-2" title="Design width (px)">
-            W
-            <input
-              type="number"
-              className="input input-xs input-bordered w-16"
-              value={width}
-              min={320}
-              max={3000}
-              onChange={(e) => setWidth(Number(e.target.value))}
-              onBlur={(e) => persistCanvasMeta({ width: Number(e.target.value) })}
-            />
-          </label>
+          {selectedIds.length > 0 && (
+            <span className="text-[10px] text-base-content/40 mr-2 hidden xl:inline" aria-hidden>
+              drag to move · click again to type · Alt = no snapping
+            </span>
+          )}
           {presence.length > 0 && (
             <div className="flex items-center -space-x-1.5 mr-2" title={`Editing now: ${presence.map(p => p.name).join(', ')}`}>
               {presence.slice(0, 5).map(p => (
@@ -301,6 +207,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
             <div className="flex flex-col items-center justify-center h-full text-base-content/40 gap-3">
               <p>This canvas page is empty.</p>
               <button className="btn btn-sm btn-primary gap-1" onClick={() => addSection()}><Plus size={14} /> Add a section</button>
+              <p className="text-xs">…or click a block on the left to start.</p>
             </div>
           )}
           {sections.map((section, i) => (
@@ -321,6 +228,9 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
           ))}
         </div>
       </div>
+
+      {/* properties panel (content, layer order, opacity, position, phone, animation) */}
+      <CanvasInspector persistCanvasMeta={persistCanvasMeta} />
 
       {/* live preview split-pane */}
       {previewOpen && (

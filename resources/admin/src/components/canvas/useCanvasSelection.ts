@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { MagElement } from '@/types/magazine';
-import { calculateSmartGuides, snapToGrid } from '@/lib/smartGuides';
+import { calculateSmartGuides } from '@/lib/smartGuides';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { effectiveLayout } from '@/types/canvas';
 
@@ -17,6 +17,7 @@ interface DragState {
   orig: Map<string, Rect>;
   primaryId: string;
   snapshotted: boolean; // undo snapshot taken on the FIRST real move, not on down
+  reclick: boolean;     // pointer went down on an already (solely) selected element
   cx?: number; cy?: number; startAngle?: number;
 }
 
@@ -25,6 +26,11 @@ interface DragState {
  * Ported from the Magazine editor's MagSelectionEngine but bound to the canvas
  * store (keeps the Magazine editor untouched); reuses the shared smartGuides.
  * Reads live state via getState() so listeners never go stale.
+ *
+ * Movement is free-flow: no grid snapping. With snapping on, edges/centres
+ * softly attract to sibling edges and the section centre (4px); hold Alt to
+ * bypass. Clicking (no drag) an element that is already selected enters
+ * in-place edit mode (typing into text, picking an image…).
  */
 export function useCanvasSelection(sectionId: string, sectionWidth: number, sectionHeight: number) {
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -32,6 +38,12 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
   const handlers = useRef<{ move?: (e: PointerEvent) => void; up?: () => void }>({});
 
   const stop = useCallback(() => {
+    const d = drag.current;
+    // click-through: down + up with no movement on the selected element → edit its content
+    if (d && d.mode === 'move' && !d.snapshotted && d.reclick && d.ids.length === 1) {
+      const st = useCanvasStore.getState();
+      if (st.selectedIds.length === 1 && st.selectedIds[0] === d.primaryId) st.setEditing(d.primaryId);
+    }
     drag.current = null;
     setGuides([]);
     if (handlers.current.move) window.removeEventListener('pointermove', handlers.current.move);
@@ -57,9 +69,7 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
       let nx = primary.x + dx;
       let ny = primary.y + dy;
       const active: Guide[] = [];
-      if (st.snapEnabled) {
-        nx = snapToGrid(nx, st.gridSize);
-        ny = snapToGrid(ny, st.gridSize);
+      if (st.snapEnabled && !e.altKey) {
         const others = elements.filter(el => !d.ids.includes(el.id)).map(el => effectiveLayout(el, bp)) as unknown as MagElement[];
         const snap = calculateSmartGuides({ x: nx, y: ny, width: primary.width, height: primary.height }, others, sectionWidth, sectionHeight, { top: 0, right: 0, bottom: 0, left: 0 });
         nx = snap.x; ny = snap.y;
@@ -142,24 +152,25 @@ export function useCanvasSelection(sectionId: string, sectionWidth: number, sect
     if (el?.locked) return;
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
     const alreadySelected = st.selectedIds.includes(id);
+    const reclick = !additive && alreadySelected && st.selectedIds.length === 1;
     // Keep an existing multi-selection when grabbing one of its members without
     // a modifier — so the whole group drags. Only reset when clicking outside it.
     if (additive) st.select(id, true);
     else if (!alreadySelected) st.select(id, false);
     const sel = useCanvasStore.getState().selectedIds;
     const ids = sel.includes(id) ? sel : [id];
-    begin({ mode: 'move', ids, primaryId: id, snapshotted: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor(ids) });
+    begin({ mode: 'move', ids, primaryId: id, snapshotted: false, reclick, startClientX: e.clientX, startClientY: e.clientY, orig: origFor(ids) });
   }, [sectionId, begin, origFor]);
 
   const onResizePointerDown = useCallback((e: React.PointerEvent, id: string, handle: ResizeHandle) => {
     e.stopPropagation();
-    begin({ mode: 'resize', ids: [id], primaryId: id, handle, snapshotted: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]) });
+    begin({ mode: 'resize', ids: [id], primaryId: id, handle, snapshotted: false, reclick: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]) });
   }, [begin, origFor]);
 
   const onRotatePointerDown = useCallback((e: React.PointerEvent, id: string, elCenter: { cx: number; cy: number }) => {
     e.stopPropagation();
     const startAngle = Math.atan2(e.clientY - elCenter.cy, e.clientX - elCenter.cx) * 180 / Math.PI;
-    begin({ mode: 'rotate', ids: [id], primaryId: id, snapshotted: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]), cx: elCenter.cx, cy: elCenter.cy, startAngle });
+    begin({ mode: 'rotate', ids: [id], primaryId: id, snapshotted: false, reclick: false, startClientX: e.clientX, startClientY: e.clientY, orig: origFor([id]), cx: elCenter.cx, cy: elCenter.cy, startAngle });
   }, [begin, origFor]);
 
   return { guides, onElementPointerDown, onResizePointerDown, onRotatePointerDown };

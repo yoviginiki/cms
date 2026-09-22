@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
-
-// Common leaf blocks that make sense as freeform canvas elements. (Structural
-// blocks — section/row/column/grid — are not offered inside a canvas section.)
-const CANVAS_BLOCKS = ['heading', 'text', 'paragraph', 'image', 'button', 'video', 'icon', 'divider', 'gallery', 'html-embed', 'pullquote', 'stats', 'code'];
+import { CANVAS_BLOCKS, CANVAS_DRAG_MIME } from '@/lib/canvasBlocks';
 
 interface Props {
   onPick: (blockType: string) => void;
@@ -48,6 +45,8 @@ export function CanvasPalette({ onPick, onClose }: Props) {
           <button
             key={t}
             className="btn btn-xs btn-ghost justify-start capitalize"
+            draggable
+            onDragStart={(e) => { e.dataTransfer.setData(CANVAS_DRAG_MIME, t); e.dataTransfer.setData('text/plain', t); e.dataTransfer.effectAllowed = 'copy'; onClose(); }}
             onClick={() => { onPick(t); onClose(); }}
           >
             {t.replace('-', ' ')}
