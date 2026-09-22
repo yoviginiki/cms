@@ -4,6 +4,30 @@ return [
 
     'version' => env('CMS_VERSION', '1.0.0'),
 
+    // Self-update (F02). Applying a release through the HTTP API is OFF by
+    // default: the installation operator deploys from the release pipeline.
+    // When explicitly enabled, only the OWNER of the operator tenant may call
+    // it, the package must come from the update server over https, and the
+    // release checksum must carry an Ed25519 signature verifiable with the
+    // public key below (base64, 32 bytes) — the requester's URL/checksum are
+    // never a basis for trust.
+    'updates' => [
+        'server' => env('CMS_UPDATE_SERVER', 'https://updates.ensodo.eu'),
+        'check_interval' => 86400, // 24 hours
+        'web_apply_enabled' => (bool) env('CMS_UPDATES_WEB_APPLY', false),
+        'operator_tenant_id' => env('CMS_UPDATES_OPERATOR_TENANT'),
+        'public_key' => env('CMS_UPDATES_PUBLIC_KEY'),
+        'max_package_bytes' => (int) env('CMS_UPDATES_MAX_BYTES', 200 * 1024 * 1024),
+        // Top-level paths a release package may write to. Anything else in
+        // the archive rejects the whole package before a byte is copied.
+        'allowed_paths' => [
+            'app/', 'bootstrap/app.php', 'bootstrap/providers.php', 'config/', 'database/',
+            'lang/', 'public/', 'resources/', 'routes/', 'vendor/', 'modules/', 'docs/', 'scripts/',
+            'artisan', 'composer.json', 'composer.lock', 'README.md', 'CHANGELOG.md', 'THIRD-PARTY-LICENSES.md',
+        ],
+        'protected_paths' => ['.env', 'storage/', 'public/admin-assets/', 'public/sites/', 'bootstrap/cache/'],
+    ],
+
     'redis_enabled' => env('REDIS_ENABLED', false),
 
     'redis' => [
@@ -114,11 +138,6 @@ return [
     'database' => [
         'rls_enabled' => env('DB_CONNECTION') === 'pgsql',
         'driver' => env('DB_CONNECTION', 'mysql'),
-    ],
-
-    'updates' => [
-        'server' => env('CMS_UPDATE_SERVER', 'https://updates.ensodo.eu'),
-        'check_interval' => 86400, // 24 hours
     ],
 
     // Edge-cache purge after deploys (see CloudflarePurger). Token needs only

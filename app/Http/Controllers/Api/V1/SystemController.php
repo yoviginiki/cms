@@ -31,30 +31,56 @@ class SystemController extends Controller
         ]);
     }
 
+    /**
+     * Apply a release package (F02). OFF unless the installation operator
+     * enables web-applied updates; then limited to the OWNER of the operator
+     * tenant, an allow-listed https source, a strict version token and an
+     * Ed25519 signature over the checksum — all checked before any download.
+     */
     public function applyUpdate(Request $request): JsonResponse
     {
-        if (!$request->user()?->hasMinimumRole('admin')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        $user = $request->user();
+        $operatorTenant = (string) config('cms.updates.operator_tenant_id', '');
+
+        if (!config('cms.updates.web_apply_enabled')
+            || !$user
+            || !$user->isOwner()
+            || $operatorTenant === ''
+            || (string) $user->tenant_id !== $operatorTenant
+            || (string) config('cms.updates.public_key', '') === '') {
+            return response()->json([
+                'message' => 'System updates are applied by the installation operator, not through the tenant API.',
+            ], 403);
         }
 
+        $svc = $this->updateService;
         $request->validate([
-            'version' => ['required', 'string'],
-            'download_url' => ['required', 'url'],
-            'checksum' => ['required', 'string'],
+            'version' => ['required', 'string', 'max:64', fn ($a, $v, $fail) => $svc->isValidVersion((string) $v) ?: $fail('The version is not a valid release version.')],
+            'download_url' => ['required', 'string', 'max:2048', fn ($a, $v, $fail) => $svc->isAllowedSource((string) $v) ?: $fail('The download URL must be an https URL on the configured update server.')],
+            'checksum' => ['required', 'string', 'max:128', fn ($a, $v, $fail) => $svc->isValidChecksum((string) $v) ?: $fail('The checksum must be sha256:<hex>.')],
+            'signature' => ['required', 'string', 'max:256'],
         ]);
+        if (!$svc->verifySignature($request->input('checksum'), $request->input('signature'))) {
+            return response()->json([
+                'message' => 'The release signature could not be verified.',
+                'errors' => ['signature' => ['The release signature does not verify with the configured release key.']],
+            ], 422);
+        }
 
         try {
-            $zipPath = $this->updateService->downloadUpdate(
+            $zipPath = $svc->downloadUpdate(
                 $request->input('version'),
                 $request->input('download_url'),
                 $request->input('checksum')
             );
 
-            $result = $this->updateService->applyUpdate($zipPath);
+            $result = $svc->applyUpdate($zipPath);
 
             return response()->json(['data' => $result]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => $e->getMessage()], 500);
+            report($e);
+
+            return response()->json(['message' => 'Update failed: ' . $e->getMessage()], 500);
         }
     }
 
