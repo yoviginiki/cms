@@ -2,6 +2,8 @@
 
 namespace App\Domain\Publishing\Jobs;
 
+use App\Domain\Publishing\Support\RedirectRules;
+use Illuminate\Support\Facades\Log;
 use App\Domain\Grid\Services\GridRenderer;
 use App\Domain\Publishing\Services\AssetPublisher;
 use App\Domain\Publishing\Services\BuildPageService;
@@ -652,10 +654,23 @@ class PublishSiteJob implements ShouldQueue
             // static host (nginx ignores .htaccess; _redirects is
             // Netlify/CF-Pages-only). Written for simple path sources; regex
             // sources beyond a trailing '/?' can't map to a single file.
+            // Containment at WRITE time (F04): the stub path must resolve
+            // inside the staging tree, the target must be a safe destination,
+            // and a stub never replaces a real page the build produced.
             foreach ($redirects as $r) {
-                $sourcePath = preg_replace('~/\?$~', '', trim($r->source_path));
-                $sourcePath = trim($sourcePath, '/');
-                if ($sourcePath === '' || preg_match('~[\^$*+()\[\]{}|\\?]~', $sourcePath)) {
+                if (!RedirectRules::isSafeTarget((string) $r->target_url)) {
+                    Log::warning("Redirect {$r->id}: unsafe target skipped");
+                    continue;
+                }
+                $stubPath = RedirectRules::stubPath($stagingPath, (string) $r->source_path);
+                if ($stubPath === null) {
+                    if (!$r->is_regex) {
+                        Log::warning("Redirect {$r->id}: source '{$r->source_path}' cannot map to a stub inside the build — skipped");
+                    }
+                    continue;
+                }
+                if (is_file($stubPath)) {
+                    Log::warning("Redirect {$r->id}: '{$r->source_path}' collides with a published page — page kept, stub skipped");
                     continue;
                 }
                 $target = e($r->target_url);
@@ -665,24 +680,32 @@ class PublishSiteJob implements ShouldQueue
                     . '<meta name="robots" content="noindex">'
                     . '<title>Redirecting…</title></head>'
                     . '<body><a href="' . $target . '">Redirecting…</a>'
-                    . '<script>location.replace(' . json_encode($r->target_url) . ');</script>'
+                    . '<script>location.replace(' . json_encode($r->target_url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) . ');</script>'
                     . '</body></html>';
-                File::ensureDirectoryExists("{$stagingPath}/{$sourcePath}");
-                File::put("{$stagingPath}/{$sourcePath}/index.html", $stub);
+                File::ensureDirectoryExists(dirname($stubPath));
+                File::put($stubPath, $stub);
             }
+
+            // Line-based formats: one row per line, so a row that contains
+            // whitespace/control characters or an unsafe target is dropped
+            // rather than allowed to forge extra rules.
+            $safe = $redirects->filter(fn ($r) => RedirectRules::isSafeForLineOutput(
+                (string) $r->source_path, (string) $r->target_url, (bool) $r->is_regex
+            ));
 
             // _redirects file (Netlify/Cloudflare Pages format)
             $lines = [];
-            foreach ($redirects as $r) {
+            foreach ($safe as $r) {
                 $lines[] = "{$r->source_path} {$r->target_url} {$r->status_code}";
             }
             File::put("{$stagingPath}/_redirects", implode("\n", $lines));
 
             // .htaccess RewriteRules for Apache
             $htaccess .= "\n# CMS Redirects\nRewriteEngine On\n";
-            foreach ($redirects as $r) {
-                $flag = $r->status_code === 301 ? 'R=301,L' : 'R=302,L';
-                $htaccess .= "RewriteRule ^" . ltrim($r->source_path, '/') . "$ {$r->target_url} [{$flag}]\n";
+            foreach ($safe as $r) {
+                $flag = (int) $r->status_code === 301 ? 'R=301,L' : 'R=302,L';
+                $pattern = $r->is_regex ? ltrim($r->source_path, '/') : preg_quote(ltrim($r->source_path, '/'), '~');
+                $htaccess .= "RewriteRule ^" . $pattern . "/?$ {$r->target_url} [{$flag}]\n";
             }
         }
 
