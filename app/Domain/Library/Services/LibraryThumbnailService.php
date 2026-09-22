@@ -95,7 +95,7 @@ class LibraryThumbnailService
                 'slug' => '__thumb_' . Str::random(10),
                 'status' => 'draft',
             ]);
-            $this->blocks->syncBlocks($page, $tree);
+            $this->blocks->syncTrusted($page, $tree);
 
             $roots = Block::where('blockable_type', $page->getMorphClass())
                 ->where('blockable_id', $page->id)

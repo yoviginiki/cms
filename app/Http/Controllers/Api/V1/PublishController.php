@@ -71,6 +71,9 @@ class PublishController extends Controller
 
     public function status(Site $site, Deployment $deployment): JsonResponse
     {
+        $this->authorize('view', $site);
+        abort_unless($deployment->site_id === $site->id, 404);
+
         return response()->json(['data' => $deployment]);
     }
 
@@ -133,6 +136,8 @@ class PublishController extends Controller
     public function rollback(Request $request, Site $site, Deployment $deployment): JsonResponse
     {
         $this->authorize('update', $site);
+        // The rollback target must be one of THIS site's deployments (F07).
+        abort_unless($deployment->site_id === $site->id, 404);
 
         if ($deployment->status !== 'live') {
             return response()->json(['message' => 'Can only rollback to a live deployment.'], 422);

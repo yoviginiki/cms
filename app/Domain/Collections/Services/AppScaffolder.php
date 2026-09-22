@@ -147,7 +147,7 @@ class AppScaffolder
     public function buildSearchPage(Site $site, ContentCollection $collection, string $title, array $facets, array $cardFields): Page
     {
         $page = $this->pages->createPage(['title' => $title, 'status' => 'draft'], $site);
-        $this->blocks->syncBlocks($page, [
+        $this->blocks->syncTrusted($page, [
             $this->section([
                 $this->module('search-box', ['collectionId' => $collection->id, 'placeholder' => "Search {$collection->name}…"]),
                 $facets !== [] ? $this->module('facet-filter', ['collectionId' => $collection->id, 'fields' => $facets, 'style' => 'checkbox']) : null,
@@ -168,7 +168,7 @@ class AppScaffolder
     public function buildCrossSearchPage(Site $site, string $title): Page
     {
         $page = $this->pages->createPage(['title' => $title, 'status' => 'draft'], $site);
-        $this->blocks->syncBlocks($page, [
+        $this->blocks->syncTrusted($page, [
             $this->section([
                 $this->module('search-box', ['collectionId' => '*', 'placeholder' => 'Search the whole site…']),
                 $this->module('facet-filter', ['collectionId' => '*', 'style' => 'checkbox']),
@@ -213,7 +213,7 @@ class AppScaffolder
      */
     public function seedArchiveBlocks(ThemeTemplate $template, ContentCollection $collection): void
     {
-        $this->blocks->syncBlocks($template, [
+        $this->blocks->syncTrusted($template, [
             $this->section([
                 $this->module('heading', ['text' => $collection->name, 'level' => 'h1']),
                 // No collectionId → inherits the archive's paginated $__archiveRecords.

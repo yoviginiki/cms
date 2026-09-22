@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Blocks\Services\BlockRegistry;
 use App\Domain\Blocks\Services\BlockService;
+use App\Domain\Blocks\Support\TrustedHtml;
 use App\Domain\Publishing\Services\AutoPublishService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SyncBlocksRequest;
@@ -24,17 +25,19 @@ class BlockController extends Controller
     }
 
     /**
-     * Opt-in optimistic concurrency (FIX-C11a). If the client sends the
-     * `expected_version` it captured on load and the blocks changed since,
-     * reject with 409 instead of silently clobbering the other editor. No
-     * version sent → previous last-write-wins behaviour (backwards compatible).
+     * Optimistic concurrency (F13). The interactive API must send the
+     * `expected_version` it captured on load; the compare happens inside the
+     * write transaction (BlockService::bumpRevision). A programmatic client
+     * that really wants last-write-wins says so with `overwrite: true`.
      */
-    private function guardBlocksVersion(SyncBlocksRequest $request, $blockable): void
+    private function expectedVersion(SyncBlocksRequest $request): ?string
     {
         $expected = $request->input('expected_version');
-        if ($expected !== null && (string) $expected !== (string) $this->blockService->blocksVersion($blockable)) {
-            abort(409, 'These blocks were modified by someone else since you loaded them. Reload to get the latest version.');
+        if ($expected === null && !$request->boolean('overwrite')) {
+            abort(422, 'expected_version is required (send the version returned by the blocks GET, or overwrite: true to force).');
         }
+
+        return $expected === null ? null : (string) $expected;
     }
 
     public function indexForPage(Site $site, Page $page): JsonResponse
@@ -50,9 +53,16 @@ class BlockController extends Controller
     public function syncForPage(SyncBlocksRequest $request, Site $site, Page $page): JsonResponse
     {
         $this->authorize('update', $page);
-        $this->guardBlocksVersion($request, $page);
+        $expected = $this->expectedVersion($request);
 
-        $tree = $this->blockService->syncBlocks($page, $request->validated('blocks'));
+        // Trusted-HTML capability (F05): editors may not introduce/change
+        // html-embed blocks or raw_html through this path.
+        TrustedHtml::assertMayWriteTree($request->user(), $request->validated('blocks'), $this->blockService->getBlockTree($page));
+        if ($request->has('raw_html')) {
+            TrustedHtml::assertMayWriteRaw($request->user(), $request->input('raw_html'), $page->raw_html);
+        }
+
+        $tree = $this->blockService->syncBlocks($page, $request->validated('blocks'), $expected);
 
         // Real content change — stamp content_modified_at without firing model
         // events (updated_at stays untouched by design; see F4 migration note).
@@ -98,9 +108,10 @@ class BlockController extends Controller
     public function syncForPost(SyncBlocksRequest $request, Site $site, Post $post): JsonResponse
     {
         $this->authorize('update', $post);
-        $this->guardBlocksVersion($request, $post);
+        $expected = $this->expectedVersion($request);
+        TrustedHtml::assertMayWriteTree($request->user(), $request->validated('blocks'), $this->blockService->getBlockTree($post));
 
-        $tree = $this->blockService->syncBlocks($post, $request->validated('blocks'));
+        $tree = $this->blockService->syncBlocks($post, $request->validated('blocks'), $expected);
 
         // Real content change — stamp content_modified_at (F4)
         Post::whereKey($post->id)->toBase()->update(['content_modified_at' => now()]);
@@ -116,6 +127,7 @@ class BlockController extends Controller
     public function indexForTemplate(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
         abort_if($themeTemplate->site_id !== $site->id, 404);
+        $this->authorize('view', $themeTemplate);
         return response()->json([
             'data' => $this->blockService->getBlockTree($themeTemplate),
             'version' => $this->blockService->blocksVersion($themeTemplate),
@@ -125,8 +137,12 @@ class BlockController extends Controller
     public function syncForTemplate(SyncBlocksRequest $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
         abort_if($themeTemplate->site_id !== $site->id, 404);
-        $this->guardBlocksVersion($request, $themeTemplate);
-        $tree = $this->blockService->syncBlocks($themeTemplate, $request->validated('blocks'));
+        // F07: template writes carry the same role gate as the template itself
+        // (admin+); the site-ownership check above is not authorization.
+        $this->authorize('update', $themeTemplate);
+        $expected = $this->expectedVersion($request);
+        TrustedHtml::assertMayWriteTree($request->user(), $request->validated('blocks'), $this->blockService->getBlockTree($themeTemplate));
+        $tree = $this->blockService->syncBlocks($themeTemplate, $request->validated('blocks'), $expected);
 
         // Auto-publish — regenerate all pages/posts using this template
         $this->autoPublish->triggerIfEnabled($site, $request->user(), 'template_updated', $themeTemplate->id);

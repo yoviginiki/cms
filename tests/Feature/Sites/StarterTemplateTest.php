@@ -71,7 +71,7 @@ class StarterTemplateTest extends TestCase
                 ->where('blockable_id', $page->id)->where('type', $type)->exists();
         };
 
-        $this->assertTrue($hasBlock('features', 'feature-grid'));
+        $this->assertTrue($hasBlock('features', 'featuregrid'));
         $this->assertTrue($hasBlock('catalog', 'catalog'));
         $this->assertTrue($hasBlock('portfolio', 'gallery'));
         $this->assertTrue($hasBlock('contact', 'contact-form'));

@@ -59,7 +59,7 @@ class CanvasSyncRequestTest extends TestCase
 
         $res = $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$page->id}/blocks",
-            ['blocks' => $this->canvasTree()],
+            ['overwrite' => true, 'blocks' => $this->canvasTree()],
             $this->apiHeaders(),
         );
 
@@ -76,7 +76,7 @@ class CanvasSyncRequestTest extends TestCase
 
         $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/posts/{$post->id}/blocks",
-            ['blocks' => $this->canvasTree()],
+            ['overwrite' => true, 'blocks' => $this->canvasTree()],
             $this->apiHeaders(),
         )->assertOk();
     }
@@ -89,7 +89,7 @@ class CanvasSyncRequestTest extends TestCase
 
         $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$page->id}/blocks",
-            ['blocks' => $tree],
+            ['overwrite' => true, 'blocks' => $tree],
             $this->apiHeaders(),
         )->assertStatus(422)
           ->assertJsonFragment(['message' => 'Module cannot be inside Section. Section can only contain: Row. (and 1 more error)']);

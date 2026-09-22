@@ -461,7 +461,7 @@ class WordPressImporter
                     $blocks = $this->gutenbergParser->parse($pageData['content']);
                     $blocks = $this->contentRewriter->rewrite($blocks, $attachmentMap, $baseUrl);
                     if (!empty($blocks)) {
-                        $this->blockService->syncBlocks($page, $blocks);
+                        $this->blockService->syncTrusted($page, $blocks);
                     }
                 }
 
@@ -530,7 +530,7 @@ class WordPressImporter
                     $blocks = $this->gutenbergParser->parse($postData['content']);
                     $blocks = $this->contentRewriter->rewrite($blocks, $attachmentMap, $baseUrl);
                     if (!empty($blocks)) {
-                        $this->blockService->syncBlocks($post, $blocks);
+                        $this->blockService->syncTrusted($post, $blocks);
                     }
                 }
 

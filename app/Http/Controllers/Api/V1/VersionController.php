@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Blocks\Services\BlockService;
+use App\Domain\Blocks\Support\TrustedHtml;
 use App\Http\Controllers\Controller;
 use App\Models\Page;
 use App\Models\PageVersion;
@@ -55,6 +56,10 @@ class VersionController extends Controller
     public function restoreForPage(Site $site, Page $page, PageVersion $version): JsonResponse
     {
         $this->authorize('update', $page);
+        abort_unless($version->page_id === $page->id, 404);
+        if (!empty($version->blocks_snapshot)) {
+            TrustedHtml::assertMayWriteTree(auth()->user(), $version->blocks_snapshot, $this->blockService->getBlockTree($page));
+        }
 
         // P4: snapshot the CURRENT state first, so a restore is itself undoable.
         $this->snapshotCurrent($page, 'page_id');
@@ -75,6 +80,10 @@ class VersionController extends Controller
     public function restoreForPost(Site $site, Post $post, PageVersion $version): JsonResponse
     {
         $this->authorize('update', $post);
+        abort_unless($version->post_id === $post->id, 404);
+        if (!empty($version->blocks_snapshot)) {
+            TrustedHtml::assertMayWriteTree(auth()->user(), $version->blocks_snapshot, $this->blockService->getBlockTree($post));
+        }
 
         $this->snapshotCurrent($post, 'post_id');
 

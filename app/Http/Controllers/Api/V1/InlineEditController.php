@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Blocks\Support\TrustedHtml;
 use App\Domain\Blocks\Services\BlockService;
 use App\Domain\InlineEdit\Services\InlineEditService;
 use App\Domain\Publishing\Services\BuildPageService;
@@ -125,15 +126,18 @@ class InlineEditController extends Controller
             'patches.*.block_hash' => ['nullable', 'string'],
         ]);
 
-        // Whole-tree optimistic lock (reuses the FIX-C11a blocksVersion token).
-        $expected = $data['expected_version'] ?? null;
-        if ($expected !== null && $expected !== $this->blockService->blocksVersion($content)) {
+        // Whole-tree optimistic lock — same content revision as the blocks
+        // sync (F13), compared-and-incremented inside the transaction below.
+        $expected = isset($data['expected_version']) ? (string) $data['expected_version'] : null;
+        if ($expected !== null && !$this->blockService->isRevisioned($content)
+            && $expected !== $this->blockService->blocksVersion($content)) {
             abort(409, 'These blocks were modified by someone else since you loaded them. Reload to get the latest version.');
         }
 
         $byBlock = collect($data['patches'])->groupBy('block');
 
-        $updated = DB::transaction(function () use ($content, $byBlock) {
+        $updated = DB::transaction(function () use ($content, $byBlock, $expected) {
+            $this->blockService->bumpRevision($content, $expected);
             $result = [];
 
             foreach ($byBlock as $blockId => $patches) {
@@ -148,6 +152,11 @@ class InlineEditController extends Controller
 
                 // Shared-entity blocks are read-only here (403).
                 $this->inline->assertPatchable($block);
+
+                // Trusted-HTML blocks are admin-only on every write path (F05).
+                if (TrustedHtml::isTrustedType($block->type) && !TrustedHtml::mayAuthor(auth()->user())) {
+                    abort(403, 'Only an admin can change a raw HTML embed block.');
+                }
 
                 // Per-block optimistic lock via the session hash (409).
                 $this->inline->assertHashMatches($block, $patches->first()['block_hash'] ?? null);

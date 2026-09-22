@@ -17,6 +17,8 @@ class SyncBlocksRequest extends FormRequest
     {
         return [
             'raw_html' => ['sometimes', 'nullable', 'string', 'max:1048576'],
+            'expected_version' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'overwrite' => ['sometimes', 'boolean'],
             'create_snapshot' => ['sometimes', 'boolean'],
             'blocks' => ['required', 'array'],
             'blocks.*.type' => ['required', 'string'],
@@ -96,13 +98,9 @@ class SyncBlocksRequest extends FormRequest
                     }
                 }
 
-                // FIX-A4 (html-embed hardening): html-embed renders raw HTML/JS
-                // at publish (no sanitization), so it is a trusted-HTML surface —
-                // only admins/owners may author it.
-                if ($this->hasBlockType($blocks, 'html-embed')
-                    && !$this->user()?->hasMinimumRole('admin')) {
-                    $validator->errors()->add('blocks', 'Only an admin can add or edit a raw HTML embed block.');
-                }
+                // html-embed / raw_html authorization lives in
+                // App\Domain\Blocks\Support\TrustedHtml (F05) and is enforced
+                // by every write path in the controllers (403), not here.
             },
         ];
     }

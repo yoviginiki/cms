@@ -69,7 +69,7 @@ class DocsSiteSeeder extends Seeder
                 $page->update(['title' => $def['title'], 'status' => 'published']);
                 $this->command?->info("  Updated: {$def['title']}");
             }
-            $this->blockService->syncBlocks($page, $def['blocks']);
+            $this->blockService->syncTrusted($page, $def['blocks']);
         }
 
         $home = $site->pages()->where('slug', 'home')->first();

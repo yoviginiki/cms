@@ -50,6 +50,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // F13 / F14: block-write domain errors as clean API responses.
+        $exceptions->render(function (\App\Domain\Blocks\Exceptions\StaleContentRevisionException $e, $request) {
+            return response()->json(['message' => $e->getMessage(), 'current_version' => $e->current], 409);
+        });
+        $exceptions->render(function (\App\Domain\Blocks\Exceptions\InvalidBlockTreeException $e, $request) {
+            return response()->json(['message' => 'The block tree is invalid.', 'errors' => $e->errors], 422);
+        });
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);

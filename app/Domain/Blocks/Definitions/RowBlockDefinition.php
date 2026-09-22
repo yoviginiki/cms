@@ -9,7 +9,7 @@ class RowBlockDefinition implements BlockDefinition
 
     public function validationRules(): array
     {
-        $cssDim = 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/';
+        $cssDim = 'regex:/^(0|\d+(\.\d+)?(px|rem|em|%|vh|vw))$/';
 
         return [
             'layout' => ['sometimes', 'nullable', 'in:1,1/2+1/2,1/3+2/3,2/3+1/3,1/3+1/3+1/3,1/4+1/4+1/4+1/4,1/4+3/4,3/4+1/4'],

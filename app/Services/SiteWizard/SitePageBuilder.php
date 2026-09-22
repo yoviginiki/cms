@@ -72,7 +72,7 @@ class SitePageBuilder
             'status' => 'draft',
         ], $site);
 
-        $this->blocks->syncBlocks($page, $tree);
+        $this->blocks->syncTrusted($page, $tree);
 
         return ['page' => $page, 'links' => $extracted['links'], 'title' => $title];
     }

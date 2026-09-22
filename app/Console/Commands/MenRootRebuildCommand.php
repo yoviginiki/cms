@@ -87,7 +87,7 @@ class MenRootRebuildCommand extends Command
 
             if ($dry) { continue; }
 
-            $blocks->syncBlocks($page, $tree);
+            $blocks->syncTrusted($page, $tree);
             $page->editor_mode = 'block';
             $page->raw_html = null;
             $page->save();

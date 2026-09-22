@@ -71,7 +71,7 @@ class SeedStilloPressCommand extends Command
             ], $site);
 
             if (!empty($def['blocks'])) {
-                $blockService->syncBlocks($page, $def['blocks']);
+                $blockService->syncTrusted($page, $def['blocks']);
             }
 
             if ($def['slug'] === 'home') {

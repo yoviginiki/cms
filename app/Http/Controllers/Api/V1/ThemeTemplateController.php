@@ -35,13 +35,14 @@ class ThemeTemplateController extends Controller
     public function show(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
         $this->assertOwnership($site, $themeTemplate);
+        $this->authorize('view', $themeTemplate);
         $themeTemplate->load('category:id,name,slug');
         return response()->json(['data' => $themeTemplate]);
     }
 
     public function store(Request $request, Site $site): JsonResponse
     {
-        $this->authorize('update', $site);
+        $this->authorize('create', [ThemeTemplate::class, $site]);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:post,archive,header,footer,404,search,record-single,record-archive'],
@@ -95,7 +96,8 @@ class ThemeTemplateController extends Controller
 
     public function update(Request $request, Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
-        $this->authorize('update', $site);
+        $this->assertOwnership($site, $themeTemplate);
+        $this->authorize('update', $themeTemplate);
         $this->assertOwnership($site, $themeTemplate);
 
         $data = $request->validate([
@@ -122,7 +124,8 @@ class ThemeTemplateController extends Controller
 
     public function destroy(Site $site, ThemeTemplate $themeTemplate): JsonResponse
     {
-        $this->authorize('update', $site);
+        $this->assertOwnership($site, $themeTemplate);
+        $this->authorize('delete', $themeTemplate);
         $this->assertOwnership($site, $themeTemplate);
         $themeTemplate->blocks()->delete();
         $themeTemplate->delete();

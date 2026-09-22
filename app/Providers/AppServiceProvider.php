@@ -394,6 +394,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Asset::class, AssetPolicy::class);
         Gate::policy(Block::class, BlockPolicy::class);
         Gate::policy(Tag::class, TagPolicy::class);
+        Gate::policy(ThemeTemplate::class, \App\Policies\ThemeTemplatePolicy::class);
 
         // Module Framework abilities → role-hierarchy thresholds (docs: RBAC).
         \App\Domain\Modules\Support\ModulePermissions::registerGates();

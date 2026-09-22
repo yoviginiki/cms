@@ -212,7 +212,7 @@ class PageWizardService
             $page->update(['title' => mb_substr($title, 0, 255)]);
         }
 
-        $this->blocks->syncBlocks($page, $tree);
+        $this->blocks->syncTrusted($page, $tree);
 
         $transcript ??= $session->transcript ?? [];
         $transcript[] = ['role' => 'assistant', 'text' => $manifest['design_read'] ?? 'Here is your page.', 'at' => now()->toIso8601String()];

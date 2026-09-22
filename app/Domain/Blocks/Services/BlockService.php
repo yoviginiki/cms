@@ -2,6 +2,7 @@
 
 namespace App\Domain\Blocks\Services;
 
+use App\Domain\Blocks\Support\BlockTreeValidator;
 use App\Models\Block;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -9,9 +10,41 @@ use Illuminate\Support\Str;
 
 class BlockService
 {
-    public function syncBlocks(Model $blockable, array $blocksData): array
+    /** Tables carrying an explicit content_revision (F13). */
+    private const REVISIONED_TABLES = ['pages', 'posts', 'theme_templates'];
+
+    public function __construct(private BlockTreeValidator $validator = new BlockTreeValidator(new BlockRegistry()))
     {
-        return DB::transaction(function () use ($blockable, $blocksData) {
+        // Container-resolved callers get the app registry; the default keeps
+        // `new BlockService()` working for existing programmatic callers.
+        if (app()->bound(BlockRegistry::class)) {
+            $this->validator = new BlockTreeValidator(app(BlockRegistry::class));
+        }
+    }
+
+    /**
+     * Replace a blockable's whole block tree.
+     *
+     * @param  string|null  $expectedRevision  F13: the content revision the caller
+     *         loaded. When given, the write only happens if it still matches —
+     *         compared-and-incremented in this transaction (row lock), so two
+     *         concurrent saves from the same revision yield one success and one
+     *         StaleContentRevisionException. Null = programmatic/legacy writer
+     *         (still increments the revision, so interactive clients notice).
+     * @param  bool  $trusted  F14: trusted importers/seeders skip the per-field
+     *         shape rules; unknown types are refused for everyone.
+     *
+     * @throws \App\Domain\Blocks\Exceptions\StaleContentRevisionException
+     * @throws \App\Domain\Blocks\Exceptions\InvalidBlockTreeException
+     */
+    public function syncBlocks(Model $blockable, array $blocksData, ?string $expectedRevision = null, bool $trusted = false): array
+    {
+        // Validate BEFORE the transaction: nothing is touched on invalid input.
+        $this->validator->assertValid($blocksData, rules: !$trusted);
+
+        return DB::transaction(function () use ($blockable, $blocksData, $expectedRevision) {
+            $this->bumpRevision($blockable, $expectedRevision);
+
             $existingBlockIds = Block::where('blockable_type', $blockable->getMorphClass())
                 ->where('blockable_id', $blockable->getKey())
                 ->pluck('id')->all();
@@ -64,17 +97,70 @@ class BlockService
     }
 
     /**
-     * A version token for a blockable's current block tree (FIX-C11a opt-in
-     * optimistic concurrency). Changes whenever the blocks are re-saved, so a
-     * client that captured it on load can detect a concurrent edit on save.
+     * Trusted programmatic write (seeders, importers, wizards, clones): the
+     * tree comes from code or from content that already lived in this CMS,
+     * so per-field shape rules are skipped. Unknown types are still refused
+     * and the content revision still advances.
+     */
+    public function syncTrusted(Model $blockable, array $blocksData): array
+    {
+        return $this->syncBlocks($blockable, $blocksData, null, true);
+    }
+
+    /**
+     * The content version token a client must send back as expected_version.
+     * Revisioned tables (F13) expose their content_revision; other blockables
+     * keep the legacy count:max(updated_at) token.
      */
     public function blocksVersion(Model $blockable): ?string
     {
+        if ($this->isRevisioned($blockable)) {
+            $rev = DB::table($blockable->getTable())->where('id', $blockable->getKey())->value('content_revision');
+
+            return (string) ((int) $rev);
+        }
+
         $q = Block::where('blockable_type', $blockable->getMorphClass())
             ->where('blockable_id', $blockable->getKey());
         $latest = (clone $q)->max('updated_at');
 
         return $latest ? $q->count() . ':' . $latest : '0:';
+    }
+
+    /**
+     * Compare-and-increment the owning record's content revision (F13). Must
+     * run inside the caller's transaction: the UPDATE takes the row lock, a
+     * concurrent writer waits, re-evaluates the WHERE against the committed
+     * value and fails the compare. Returns the new revision token.
+     *
+     * @throws \App\Domain\Blocks\Exceptions\StaleContentRevisionException
+     */
+    public function bumpRevision(Model $blockable, ?string $expectedRevision = null): ?string
+    {
+        if (!$this->isRevisioned($blockable)) {
+            return null;
+        }
+        $q = DB::table($blockable->getTable())->where('id', $blockable->getKey());
+        if ($expectedRevision !== null) {
+            if (!preg_match('/^\d{1,18}$/', $expectedRevision)) {
+                throw new \App\Domain\Blocks\Exceptions\StaleContentRevisionException($expectedRevision);
+            }
+            $q->where('content_revision', (int) $expectedRevision);
+        }
+        $affected = $q->update(['content_revision' => DB::raw('content_revision + 1')]);
+        if ($affected === 0) {
+            throw new \App\Domain\Blocks\Exceptions\StaleContentRevisionException(
+                (string) $expectedRevision,
+                $this->blocksVersion($blockable),
+            );
+        }
+
+        return $this->blocksVersion($blockable);
+    }
+
+    public function isRevisioned(Model $blockable): bool
+    {
+        return in_array($blockable->getTable(), self::REVISIONED_TABLES, true);
     }
 
     public function getBlockTree(Model $blockable): array

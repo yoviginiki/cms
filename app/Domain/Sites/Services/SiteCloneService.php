@@ -162,7 +162,7 @@ class SiteCloneService
             $pageMap[$pageData['slug']] = $page->id;
 
             if (!empty($pageData['blocks'])) {
-                $this->blockService->syncBlocks($page, $this->stripBlockIds($pageData['blocks']));
+                $this->blockService->syncTrusted($page, $this->stripBlockIds($pageData['blocks']));
             }
 
             $result->pages++;
@@ -186,7 +186,7 @@ class SiteCloneService
             ], $targetSite);
 
             if (!empty($postData['blocks'])) {
-                $this->blockService->syncBlocks($post, $this->stripBlockIds($postData['blocks']));
+                $this->blockService->syncTrusted($post, $this->stripBlockIds($postData['blocks']));
             }
 
             $result->posts++;

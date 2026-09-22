@@ -9,7 +9,7 @@ class ColumnBlockDefinition implements BlockDefinition
 
     public function validationRules(): array
     {
-        $cssDim = 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/';
+        $cssDim = 'regex:/^(0|\d+(\.\d+)?(px|rem|em|%|vh|vw))$/';
 
         return [
             'padding' => ['sometimes', 'nullable', 'string', 'max:20', $cssDim],

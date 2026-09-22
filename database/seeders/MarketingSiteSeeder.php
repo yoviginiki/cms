@@ -66,7 +66,7 @@ class MarketingSiteSeeder extends Seeder
                 $page->update(['title' => $def['title']]);
                 $this->command->info("  Updated: {$def['title']}");
             }
-            $this->blockService->syncBlocks($page, $def['blocks']);
+            $this->blockService->syncTrusted($page, $def['blocks']);
         }
 
         // Set homepage

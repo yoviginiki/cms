@@ -31,7 +31,7 @@ class BlockTest extends TestCase
         $response = $this->actingAsOwner()
             ->putJson(
                 "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-                ['blocks' => $blocks],
+                ['overwrite' => true, 'blocks' => $blocks],
                 $this->apiHeaders(),
             );
 
@@ -49,7 +49,7 @@ class BlockTest extends TestCase
         // First sync
         $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-            ['blocks' => [
+            ['overwrite' => true, 'blocks' => [
                 ['type' => 'hero', 'data' => ['title' => 'Old'], 'order' => 0],
                 ['type' => 'text', 'data' => ['content' => 'Old text'], 'order' => 1],
             ]],
@@ -59,7 +59,7 @@ class BlockTest extends TestCase
         // Second sync — should replace all
         $response = $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-            ['blocks' => [
+            ['overwrite' => true, 'blocks' => [
                 ['type' => 'heading', 'data' => ['text' => 'New heading', 'level' => 'h1'], 'order' => 0],
             ]],
             $this->apiHeaders(),
@@ -91,7 +91,7 @@ class BlockTest extends TestCase
 
         $response = $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-            ['blocks' => $blocks],
+            ['overwrite' => true, 'blocks' => $blocks],
             $this->apiHeaders(),
         );
 
@@ -113,7 +113,7 @@ class BlockTest extends TestCase
 
         $response = $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-            ['blocks' => $blocks],
+            ['overwrite' => true, 'blocks' => $blocks],
             $this->apiHeaders(),
         );
 
@@ -156,7 +156,7 @@ class BlockTest extends TestCase
 
         $response = $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-            ['blocks' => $blocks],
+            ['overwrite' => true, 'blocks' => $blocks],
             $this->apiHeaders(),
         );
 
@@ -168,7 +168,7 @@ class BlockTest extends TestCase
         // Sync some blocks first
         $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-            ['blocks' => [
+            ['overwrite' => true, 'blocks' => [
                 ['type' => 'hero', 'data' => ['title' => 'Hello'], 'order' => 0],
                 ['type' => 'text', 'data' => ['content' => 'World'], 'order' => 1],
             ]],
@@ -189,7 +189,7 @@ class BlockTest extends TestCase
     {
         $response = $this->actingAsEditor()->putJson(
             "/api/v1/sites/{$this->site->id}/pages/{$this->page->id}/blocks",
-            ['blocks' => [['type' => 'text', 'data' => ['content' => 'Editor'], 'order' => 0]]],
+            ['overwrite' => true, 'blocks' => [['type' => 'text', 'data' => ['content' => 'Editor'], 'order' => 0]]],
             $this->apiHeaders(),
         );
 

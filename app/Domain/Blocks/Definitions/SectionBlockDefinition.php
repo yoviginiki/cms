@@ -9,7 +9,7 @@ class SectionBlockDefinition implements BlockDefinition
 
     public function validationRules(): array
     {
-        $cssDim = 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/';
+        $cssDim = 'regex:/^(0|\d+(\.\d+)?(px|rem|em|%|vh|vw))$/';
 
         return [
             'background_color' => ['sometimes', 'nullable', 'string', 'max:30', 'regex:/^[#a-zA-Z0-9(),.\s]*$/'],

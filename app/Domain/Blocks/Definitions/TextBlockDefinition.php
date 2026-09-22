@@ -13,7 +13,7 @@ class TextBlockDefinition implements BlockDefinition
             'content'       => ['sometimes', 'string'],
             'textAlign'     => ['sometimes', 'nullable', 'in:,left,center,right,justify'],
             'textColor'     => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/'],
-            'fontSize'      => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\d+(\.\d+)?(px|rem|em|%|vh|vw)$/'],
+            'fontSize'      => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^(0|\d+(\.\d+)?(px|rem|em|%|vh|vw))$/'],
             'fontWeight'    => ['sometimes', 'nullable', 'in:,300,400,500,600,700'],
             'fontStyle'     => ['sometimes', 'nullable', 'in:,italic'],
             'lineHeight'    => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^-?\d+(\.\d+)?(px|rem|em|%)?$/'],

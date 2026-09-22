@@ -147,7 +147,7 @@ class StarterTemplateService
 
             // Create blocks for this page
             if (!empty($def['blocks'])) {
-                $this->blockService->syncBlocks($page, $def['blocks']);
+                $this->blockService->syncTrusted($page, $def['blocks']);
             }
 
             $created++;
@@ -460,7 +460,7 @@ class StarterTemplateService
                 ], ['padding_top' => '90px', 'padding_bottom' => '50px', 'max_width' => '820px']),
                 // Feature highlights
                 $this->section([
-                    $this->row('1', [$this->column([$this->block('feature-grid', ['columns' => 3, 'style' => 'icon-top', 'items' => $this->featureItems($features)])])]),
+                    $this->row('1', [$this->column([$this->block('featuregrid', ['columns' => 3, 'style' => 'icon-top', 'items' => $this->featureItems($features)])])]),
                 ], ['padding_top' => '20px', 'padding_bottom' => '50px', 'max_width' => '1100px']),
                 // Closing CTA
                 $this->section([
@@ -546,13 +546,13 @@ class StarterTemplateService
                         $this->block('heading', ['text' => $c['heading'] ?? 'Features', 'level' => 'h1', 'fontSize' => '2rem']),
                         $this->block('paragraph', ['content' => '<p>' . ($c['intro'] ?? 'Everything the product does, at a glance.') . '</p>']),
                     ])]),
-                    $this->row('1', [$this->column([$this->block('feature-grid', ['columns' => 3, 'style' => 'icon-top', 'items' => $this->featureItems($features)])])]),
+                    $this->row('1', [$this->column([$this->block('featuregrid', ['columns' => 3, 'style' => 'icon-top', 'items' => $this->featureItems($features)])])]),
                 ], ['padding_top' => '60px', 'padding_bottom' => '60px', 'max_width' => '1100px']),
             ],
         ];
     }
 
-    /** Normalize AI/generic feature rows to the feature-grid item shape. */
+    /** Normalize AI/generic feature rows to the featuregrid item shape (the type was misspelled 'feature-grid' — unregistered — until audit F14). */
     private function featureItems(array $rows): array
     {
         return array_map(fn ($r) => [
@@ -606,7 +606,7 @@ class StarterTemplateService
             }
             if ($body) {
                 $paras = array_map(fn ($t) => $this->block('paragraph', ['content' => '<p>' . $t . '</p>']), $body);
-                $this->blockService->syncBlocks($post, [
+                $this->blockService->syncTrusted($post, [
                     $this->section([$this->row('1', [$this->column($paras)])], ['padding_top' => '40px', 'padding_bottom' => '40px', 'max_width' => '760px']),
                 ]);
             }

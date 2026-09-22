@@ -193,7 +193,7 @@ class ElementorImportCommand extends Command
                 $site, $slug, $tree, $sliders, (bool) $this->option('publish'), $sliderCount,
             );
 
-            $blocks->syncBlocks($page, $tree);
+            $blocks->syncTrusted($page, $tree);
             if ($this->option('publish')) {
                 $page->update(['status' => 'published', 'published_at' => now()]);
             }
@@ -267,7 +267,7 @@ class ElementorImportCommand extends Command
                         ]],
                     ]],
                 ]];
-                $blocks->syncBlocks($post, $tree);
+                $blocks->syncTrusted($post, $tree);
                 $imported++;
                 $this->line("post: {$wpPost->post_title}");
             }

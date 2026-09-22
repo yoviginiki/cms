@@ -314,7 +314,7 @@ class ArtdayImportCommand extends Command
                 }
 
                 if (!empty($tree)) {
-                    $blocks->syncBlocks($post, $tree);
+                    $blocks->syncTrusted($post, $tree);
                 }
 
                 $this->state['done_posts'][$r->ID] = $post->id;

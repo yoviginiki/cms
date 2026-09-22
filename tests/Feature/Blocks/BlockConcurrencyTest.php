@@ -7,8 +7,8 @@ use App\Models\Site;
 use Tests\TestCase;
 
 /**
- * FIX-C11a — opt-in optimistic concurrency on the block save endpoint. A stale
- * expected_version is rejected with 409; omitting it keeps the old behaviour.
+ * FIX-C11a / F13 — optimistic concurrency on the block save endpoint. A stale
+ * expected_version is rejected with 409; omitting it is a 422 unless overwrite.
  */
 class BlockConcurrencyTest extends TestCase
 {
@@ -41,10 +41,16 @@ class BlockConcurrencyTest extends TestCase
             $this->apiHeaders(),
         )->assertStatus(409);
 
-        // Save without a version -> allowed (backwards compatible)
+        // Save without a version -> refused since F13 (audit 2026-09-22);
+        // programmatic last-write-wins must be explicit.
         $this->actingAsOwner()->putJson(
             "/api/v1/sites/{$site->id}/pages/{$page->id}/blocks",
             $blocks,
+            $this->apiHeaders(),
+        )->assertStatus(422);
+        $this->actingAsOwner()->putJson(
+            "/api/v1/sites/{$site->id}/pages/{$page->id}/blocks",
+            $blocks + ['overwrite' => true],
             $this->apiHeaders(),
         )->assertOk();
     }
