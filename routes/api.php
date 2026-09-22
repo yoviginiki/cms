@@ -57,30 +57,30 @@ Route::post('/sites/{site}/forms/{formKey}/submit', [\App\Http\Controllers\Api\V
 Route::post('/sites/{site}/search-beacon', [\App\Http\Controllers\Api\V1\SearchBeaconController::class, 'store'])
     ->middleware(['public.site', 'public.cors', 'throttle:60,1']);
 
-// Public comments (rate-limited)
-Route::get('/sites/{site}/comments/{postSlug}', function (\App\Models\Site $site, string $postSlug) {
-    $path = storage_path("app/comments/{$site->id}/" . preg_replace('/[^a-z0-9\-]/', '', $postSlug) . '.json');
-    if (!file_exists($path)) return response()->json(['data' => []]);
-    $comments = json_decode(file_get_contents($path), true) ?: [];
-    // Only return approved comments
-    return response()->json(['data' => array_values(array_filter($comments, fn($c) => ($c['status'] ?? 'pending') === 'approved'))]);
+// Public comments (rate-limited). F24: DB-published post required, public
+// projection only (no email/IP), locked file writes, exact-slug keys.
+$commentSlug = fn (string $slug) => mb_strlen($slug) <= 200 && !preg_match('/[\x00-\x1f\x7f\/\\\\]/u', $slug);
+$publishedPost = fn (\App\Models\Site $site, string $slug) => \App\Models\Post::where('site_id', $site->id)
+    ->where('slug', $slug)->where('status', 'published')->exists();
+
+Route::get('/sites/{site}/comments/{postSlug}', function (\App\Models\Site $site, string $postSlug) use ($commentSlug, $publishedPost) {
+    abort_unless($commentSlug($postSlug) && $publishedPost($site, $postSlug), 404);
+
+    return response()->json(['data' => app(\App\Domain\Comments\CommentStore::class)->approvedPublic($site, $postSlug)]);
 })->middleware(['public.site', 'throttle:60,1']);
 
-Route::post('/sites/{site}/comments/{postSlug}', function (\Illuminate\Http\Request $request, \App\Models\Site $site, string $postSlug) {
+Route::post('/sites/{site}/comments/{postSlug}', function (\Illuminate\Http\Request $request, \App\Models\Site $site, string $postSlug) use ($commentSlug, $publishedPost) {
     $request->validate(['name' => 'required|string|max:100', 'email' => 'required|email|max:200', 'body' => 'required|string|max:2000']);
     if (!empty($request->input('_honeypot'))) return response()->json(['success' => true]);
-    $safeSlug = preg_replace('/[^a-z0-9\-]/', '', $postSlug);
-    $dir = storage_path("app/comments/{$site->id}");
-    \Illuminate\Support\Facades\File::ensureDirectoryExists($dir);
-    $path = "{$dir}/{$safeSlug}.json";
-    $comments = file_exists($path) ? (json_decode(file_get_contents($path), true) ?: []) : [];
-    $comments[] = [
-        'id' => uniqid('cmt_'), 'name' => $request->input('name'), 'email' => $request->input('email'),
-        'body' => strip_tags($request->input('body')), 'status' => 'pending',
-        'created_at' => now()->toIso8601String(), 'ip' => $request->ip(),
-    ];
-    if (count($comments) > 500) $comments = array_slice($comments, -500);
-    file_put_contents($path, json_encode($comments, JSON_PRETTY_PRINT));
+    abort_unless($commentSlug($postSlug) && $publishedPost($site, $postSlug), 404);
+
+    app(\App\Domain\Comments\CommentStore::class)->append($site, $postSlug, [
+        'name' => strip_tags((string) $request->input('name')),
+        'email' => $request->input('email'),
+        'body' => strip_tags((string) $request->input('body')),
+        'ip' => $request->ip(),
+    ]);
+
     return response()->json(['success' => true, 'message' => 'Comment submitted for moderation.']);
 })->middleware(['public.site', 'throttle:5,1']);
 
