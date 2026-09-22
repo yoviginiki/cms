@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Publishing\Services\DeployTargetResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateSiteRequest extends FormRequest
 {
@@ -106,6 +108,25 @@ class UpdateSiteRequest extends FormRequest
             'settings.cursor_ring_color' => ['sometimes', 'nullable', 'string', 'max:50'],
             'settings.cursor_blend' => ['sometimes', 'string', 'in:normal,difference,exclusion'],
             'settings.cursor_size' => ['sometimes', 'string', 'in:sm,md,lg'],
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator) {
+                // Same reserved-name policy as CreateSiteRequest (F03): an
+                // UPDATE could previously point a site at the admin host.
+                $targets = app(DeployTargetResolver::class);
+                $domain = $this->input('custom_domain');
+                if ($domain && $targets->isReservedDomain($domain)) {
+                    $validator->errors()->add('custom_domain', 'This domain is reserved for the admin panel.');
+                }
+                $deploySlug = $this->input('settings.deploy_slug');
+                if ($deploySlug && $targets->isReservedSlug($deploySlug)) {
+                    $validator->errors()->add('settings.deploy_slug', 'This folder is reserved and cannot be used.');
+                }
+            },
         ];
     }
 

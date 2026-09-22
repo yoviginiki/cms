@@ -124,9 +124,7 @@ class SiteService
             }
             $path = $publicPath . '/' . $entry;
             if (is_link($path)) {
-                $deploymentId = basename((string) readlink($path));
-                $owner = \App\Models\Deployment::whereKey($deploymentId)->value('site_id');
-                if ($owner === $site->id) {
+                if (app(\App\Domain\Publishing\Services\DeployTargetResolver::class)->linkOwner($path) === (string) $site->id) {
                     unlink($path);
                 }
             } elseif ($entry === $site->deploySlug() && is_dir($path)) {

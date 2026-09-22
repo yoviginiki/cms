@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Publishing\Services\DeployTargetResolver;
 use App\Domain\Publishing\Services\PublishOrchestrator;
+use App\Services\ActivityLogService;
 use App\Http\Controllers\Controller;
 use App\Models\Deployment;
 use App\Models\Site;
@@ -39,31 +41,32 @@ class PublishController extends Controller
     }
 
     /**
-     * Clear all published static files (wipe the public site).
+     * Clear this site's published static output (F01, audit 2026-09-22).
+     *
+     * Separate, admin-only permission and an activity-log entry: this is
+     * destructive. Scope is resolved by DeployTargetResolver — only output
+     * OWNED by this site is removed; the shared public root, other sites'
+     * folders/builds and anything behind a symlink are never touched.
      */
-    public function clear(Request $request, Site $site): JsonResponse
+    public function clear(Request $request, Site $site, DeployTargetResolver $targets): JsonResponse
     {
-        $this->authorize('publish', $site);
+        $this->authorize('clearPublished', $site);
 
-        $publicPath = config('publishing.public_path');
-        if (!$publicPath || !is_dir($publicPath)) {
-            return response()->json(['message' => 'No published content to clear.']);
+        $result = $targets->clearLiveOutput($site);
+
+        app(ActivityLogService::class)->log(
+            'site.published_output_cleared',
+            $site->id,
+            'site',
+            $site->id,
+            ['removed' => $result['removed'], 'target' => $result['target']],
+        );
+
+        if ($result['removed'] === 0) {
+            return response()->json(['message' => 'No published content to clear.', 'data' => $result]);
         }
 
-        // Remove all generated content but keep vendor/ and other non-CMS dirs
-        $keep = ['vendor', 'assets', '.htaccess'];
-        foreach (scandir($publicPath) as $entry) {
-            if ($entry === '.' || $entry === '..') continue;
-            if (in_array($entry, $keep)) continue;
-            $path = $publicPath . '/' . $entry;
-            if (is_dir($path)) {
-                \Illuminate\Support\Facades\File::deleteDirectory($path);
-            } else {
-                unlink($path);
-            }
-        }
-
-        return response()->json(['message' => 'Published content cleared.']);
+        return response()->json(['message' => 'Published content cleared.', 'data' => $result]);
     }
 
     public function status(Site $site, Deployment $deployment): JsonResponse

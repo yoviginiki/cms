@@ -17,16 +17,9 @@ class StaticCleaner
     /** Live docroot for a site — same resolution as DeployService::deployLocal(). */
     public static function docroot(Site $site): ?string
     {
-        if ($site->custom_domain) {
-            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
-            if (!$safeDomain || str_contains($safeDomain, '..')) return null;
-            $path = $tenantBase . '/' . $safeDomain . '/public_html';
-        } else {
-            $path = config('publishing.public_path') . '/' . $site->deploySlug();
-        }
+        $path = app(DeployTargetResolver::class)->tryLiveDocroot($site);
 
-        return is_dir($path) ? $path : null;
+        return $path !== null && is_dir($path) ? $path : null;
     }
 
     /** Remove the published static file(s) of a page/post from the live site. */

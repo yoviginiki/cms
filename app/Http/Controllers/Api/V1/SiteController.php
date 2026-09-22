@@ -8,6 +8,8 @@ use App\Http\Requests\CreateSiteRequest;
 use App\Http\Requests\UpdateSiteRequest;
 use App\Http\Resources\V1\SiteResource;
 use App\Models\Site;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -42,10 +44,17 @@ class SiteController extends Controller
     {
         $this->authorize('create', Site::class);
 
-        $site = $this->siteService->createSite(
-            $request->validated(),
-            $request->user()->tenant
-        );
+        try {
+            // Savepoint-wrapped so a unique violation leaves the connection usable.
+            $site = DB::transaction(fn () => $this->siteService->createSite(
+                $request->validated(),
+                $request->user()->tenant
+            ));
+        } catch (UniqueConstraintViolationException) {
+            // sites.custom_domain / slug are unique across ALL tenants, but the
+            // RLS-scoped validator only sees this tenant's rows (F03).
+            return $this->domainTakenResponse();
+        }
 
         $site->loadCount(['pages', 'posts']);
 
@@ -63,7 +72,11 @@ class SiteController extends Controller
         // old index.html stays live and stale indefinitely.
         $before = collect($site->settings ?? [])->only(['homepage_id', 'homepage_type', 'homepage_grid_id'])->all();
 
-        $site = $this->siteService->updateSite($site, $request->validated());
+        try {
+            $site = DB::transaction(fn () => $this->siteService->updateSite($site, $request->validated()));
+        } catch (UniqueConstraintViolationException) {
+            return $this->domainTakenResponse();
+        }
 
         $after = collect($site->settings ?? [])->only(['homepage_id', 'homepage_type', 'homepage_grid_id'])->all();
         if ($before !== $after) {
@@ -85,6 +98,14 @@ class SiteController extends Controller
         $site->loadCount(['pages', 'posts']);
 
         return (new SiteResource($site))->response();
+    }
+
+    private function domainTakenResponse(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'The custom domain (or slug) is already in use by another site.',
+            'errors' => ['custom_domain' => ['This domain is already in use by another site.']],
+        ], 422);
     }
 
     public function destroy(Site $site): JsonResponse

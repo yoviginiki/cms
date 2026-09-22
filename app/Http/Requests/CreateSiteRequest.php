@@ -2,14 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Publishing\Services\DeployTargetResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 class CreateSiteRequest extends FormRequest
 {
-    private array $reservedDomains = ['sys.ensodo.eu', 'admin.ensodo.eu', 'api.ensodo.eu'];
-    private array $reservedSlugs = ['sys', 'admin', 'api', 'login', 'register'];
-
     public function authorize(): bool
     {
         return $this->user()->hasMinimumRole('admin');
@@ -33,14 +31,16 @@ class CreateSiteRequest extends FormRequest
     {
         return [
             function (Validator $validator) {
+                // One reserved-name policy for create/update/deploy (F03).
+                $targets = app(DeployTargetResolver::class);
                 $slug = $this->input('slug');
                 $domain = $this->input('custom_domain');
 
-                if ($slug && in_array(strtolower($slug), $this->reservedSlugs)) {
+                if ($slug && $targets->isReservedSlug($slug)) {
                     $validator->errors()->add('slug', 'This slug is reserved and cannot be used.');
                 }
 
-                if ($domain && in_array(strtolower($domain), $this->reservedDomains)) {
+                if ($domain && $targets->isReservedDomain($domain)) {
                     $validator->errors()->add('custom_domain', 'This domain is reserved for the admin panel.');
                 }
             },

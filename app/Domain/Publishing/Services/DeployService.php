@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\File;
 
 class DeployService
 {
+    public function __construct(private DeployTargetResolver $targets = new DeployTargetResolver())
+    {
+    }
+
     public function deploy(Deployment $deployment, string $stagingPath): void
     {
         $site = $deployment->site;
@@ -40,17 +44,12 @@ class DeployService
         }
 
         if ($site->custom_domain) {
-            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
-            if (!$safeDomain || str_contains($safeDomain, '..')) {
-                throw new \RuntimeException("Invalid custom domain: {$site->custom_domain}");
-            }
-            $targetPath = $tenantBase . '/' . $safeDomain . '/public_html';
-            if (!is_dir($targetPath)) {
-                throw new \RuntimeException("Deploy target does not exist: {$targetPath}.");
-            }
+            // Reserved-domain, containment and ownership checks live in ONE
+            // place (F03) — the FormRequest is not the only way a domain
+            // reaches the deploy layer.
+            $targetPath = $this->targets->authorizeCustomDomainTarget($site);
         } else {
-            $targetPath = config('publishing.public_path') . '/' . $site->deploySlug();
+            $targetPath = $this->targets->slugDocroot($site);
             // If the docroot is currently a symlink to a full build, per-file
             // writes would mutate that build's directory — still correct
             // content-wise, but resolve it so paths land where they're served
@@ -82,23 +81,14 @@ class DeployService
         $site = $deployment->site;
 
         if ($site->custom_domain) {
-            // Deploy to the domain's own public_html directory
-            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-            // Sanitize domain — prevent path traversal
-            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
-            if (!$safeDomain || str_contains($safeDomain, '..')) {
-                throw new \RuntimeException("Invalid custom domain: {$site->custom_domain}");
-            }
-            $domainPath = $tenantBase . '/' . $safeDomain . '/public_html';
-
-            if (!is_dir($domainPath)) {
-                throw new \RuntimeException("Deploy target does not exist: {$domainPath}. Create the domain in Hestia first.");
-            }
+            // Deploy to the domain's own public_html directory. The target
+            // must be provisioned (exists under tenant_base), not reserved,
+            // and unclaimed or claimed by THIS site (F03).
+            $domainPath = $this->targets->authorizeCustomDomainTarget($site);
 
             $this->copyDeploy($stagingPath, $domainPath, $deployment);
         } else {
-            $basePath = config('publishing.public_path');
-            $publicPath = $basePath . '/' . $site->deploySlug();
+            $publicPath = $this->targets->slugDocroot($site);
             $strategy = $this->resolveLocalStrategy();
             $strategy->deploy($stagingPath, $publicPath, $deployment);
 
@@ -130,9 +120,7 @@ class DeployService
             if (!is_link($link)) {
                 continue;
             }
-            $deploymentId = basename((string) readlink($link));
-            $owner = \App\Models\Deployment::whereKey($deploymentId)->value('site_id');
-            if ($owner === $site->id) {
+            if ($this->targets->linkOwner($link) === (string) $site->id) {
                 unlink($link);
             }
         }
@@ -238,6 +226,13 @@ class DeployService
             }
             $path = $dir . '/' . $entry;
             $relative = ltrim(str_replace($root, '', $path), '/');
+
+            // A symlink inside the docroot is another site's folder (the
+            // shared root hosts every slug site that way) or operator infra:
+            // never descend into it and never remove it (F01/F03).
+            if (is_link($path)) {
+                continue;
+            }
 
             if (is_dir($path)) {
                 $this->pruneStale($root, $path, $keep);

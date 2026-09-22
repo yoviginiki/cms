@@ -69,13 +69,21 @@ class StalePathCleaner
 
     public function liveDocroot(Site $site): string
     {
-        if ($site->custom_domain) {
-            $tenantBase = rtrim(config('publishing.tenant_base', '/home/cytechno/web'), '/');
-            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
+        $resolver = app(DeployTargetResolver::class);
 
-            return "{$tenantBase}/{$safeDomain}/public_html";
+        // Same authority as the deploy layer (F03). An unresolvable/unowned
+        // target yields a path nothing exists at, so callers' is_file()
+        // checks simply find nothing to clean.
+        $owned = $resolver->tryLiveDocroot($site);
+        if ($owned !== null) {
+            return $owned;
         }
-
-        return config('publishing.public_path') . '/' . $site->deploySlug();
+        try {
+            return $site->custom_domain ? $resolver->customDomainDocroot($site) : $resolver->slugDocroot($site);
+        } catch (\RuntimeException) {
+            // Reserved/malformed target: point at a path that never exists so
+            // nothing is cleaned (and nothing outside our output is touched).
+            return rtrim((string) config('publishing.public_path'), '/') . '/.unresolved/' . $site->id;
+        }
     }
 }

@@ -20,6 +20,18 @@ return [
     // Pattern: {tenant_base}/{domain}/public_html
     'tenant_base' => env('TENANT_BASE_PATH', '/home/cytechno/web'),
 
+    // Host names / shared-root folders that can never become a site's deploy
+    // target (F03). The admin host (APP_URL) and Sanctum stateful domains are
+    // always added by DeployTargetResolver on top of this list.
+    'reserved_domains' => array_values(array_filter(array_map('trim', explode(',',
+        (string) env('PUBLISH_RESERVED_DOMAINS', 'sys.ensodo.eu,admin.ensodo.eu,api.ensodo.eu')
+    )))),
+    'reserved_slugs' => ['sys', 'admin', 'api', 'login', 'register'],
+
+    // Relative paths inside a custom-domain docroot that a full deploy's
+    // prune must never remove (they live outside the CMS build).
+    'preserve_paths' => ['themes'],
+
     // Parallel post rendering (opt-in). When enabled, a full publish of a site
     // with more than parallel_chunk_size posts fans the post rendering out across
     // worker processes (Bus::batch), then re-enters PublishSiteJob to build

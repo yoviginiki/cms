@@ -241,12 +241,10 @@ class SliderRender
         // PREVIOUS build. Use the in-flight build target when one is set.
         if (\App\Domain\Publishing\Services\AssetPublisher::deployTarget()) {
             $target = \App\Domain\Publishing\Services\AssetPublisher::deployTarget();
-        } elseif ($site->custom_domain) {
-            $tenantBase = config('publishing.tenant_base', '/home/cytechno/web');
-            $safeDomain = preg_replace('/[^a-zA-Z0-9.\-]/', '', $site->custom_domain);
-            $target = $tenantBase . '/' . $safeDomain . '/public_html';
         } else {
-            $target = config('publishing.public_path') . '/' . $site->slug;
+            // Outside a build: write to the site's OWN live docroot only (F03).
+            // (null = no owned live target: only the CMS's own public dir is written).
+            $target = app(\App\Domain\Publishing\Services\DeployTargetResolver::class)->tryLiveDocroot($site);
         }
 
         $files = [
@@ -262,7 +260,7 @@ class SliderRender
         // Copy to the tenant docroot AND to the CMS's own public dir — the
         // dynamic-site render + preview iframe run on the Laravel origin
         // (sys.ensodo.eu) and load the same '/assets/…' paths from there.
-        foreach ([$target, public_path()] as $base) {
+        foreach (array_filter([$target, public_path()]) as $base) {
             try {
                 File::ensureDirectoryExists("{$base}/assets/vendor");
                 foreach ($files as [$name, $source]) {

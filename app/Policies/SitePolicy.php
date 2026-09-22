@@ -39,4 +39,10 @@ class SitePolicy
     {
         return $user->hasMinimumRole('editor') && $this->sameTenant($user, $site);
     }
+
+    /** Wiping the live output is destructive — admin+, never the publish role. */
+    public function clearPublished(User $user, Site $site): bool
+    {
+        return $user->hasMinimumRole('admin') && $this->sameTenant($user, $site);
+    }
 }
