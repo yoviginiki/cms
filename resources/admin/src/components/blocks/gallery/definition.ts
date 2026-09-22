@@ -10,6 +10,9 @@ export const galleryDefinition: BlockDefinition = {
     layout: 'grid',
     columns: 3,
     gap: '8px',
+    aspect: 'square',
+    lightbox: true,
+    captions: false,
   },
   allowsChildren: false,
 };

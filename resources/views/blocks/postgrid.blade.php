@@ -24,6 +24,10 @@
     // into view (IntersectionObserver below; reduced-motion shows them instantly).
     $cardReveal = !empty($data['cardReveal']);
     $__revealScope = $cardReveal ? 'pgr-' . substr(md5($__htmlId ?: uniqid('', true)), 0, 8) : '';
+    // Stable per-block scope for the responsive rules below. Without it two post
+    // grids on one page fight over the same unscoped .pg-grid/.pg-img selectors
+    // and the last one rendered wins for both.
+    $__pgScope = 'pgs-' . substr(md5($__htmlId ?: (string) ($__blockId ?? uniqid('', true))), 0, 8);
 
     // Content meta toggles
     $showDate = !empty($data['showDate']);
@@ -38,6 +42,18 @@
     if (!preg_match('/^(auto|\d{1,3}%)$/', $imageWidth)) $imageWidth = '100%';
     $imageHeight = 'clamp(' . round($imageHeightPx * 0.4) . 'px, ' . round($imageHeightPx / 10, 1) . 'vw, ' . $imageHeightPx . 'px)';
     $imageObjectFit = in_array($data['imageObjectFit'] ?? 'cover', ['cover','contain','fill','scale-down','none']) ? ($data['imageObjectFit'] ?? 'cover') : 'cover';
+    // The image box carried a hardcoded #f3f4f6 — fine as a loading placeholder
+    // behind object-fit:cover, but with `contain` it shows as letterbox bars on
+    // both sides and the tile reads as a boxed thumbnail. Now overridable.
+    $imageBg = preg_match('/^(#[0-9a-fA-F]{3,8}|transparent)$/', $data['imageBg'] ?? '') ? $data['imageBg'] : '#f3f4f6';
+    // Square tiles: the image box is driven by aspect-ratio instead of a height
+    // clamp, so a tile is a true square at every width — full-bleed on a phone,
+    // a fixed size on desktop.
+    $imageSquare = !empty($data['imageSquare']);
+    // Desktop tile edge in px. With square tiles this also switches the grid from
+    // stretch-to-fill to fixed columns centred in the container, so N columns
+    // group as one block rather than spreading across the full width.
+    $tileSizePx = max(0, min(600, intval($data['tileSize'] ?? 0)));
 
     // Gap
     $gapPx = max(0, min(64, intval($data['gap'] ?? 24)));
@@ -115,8 +131,26 @@
         No posts found{{ $categoryId ? ' in this category' : '' }}.
     </div>
 @else
-@if($columns > 1)<style>@media(max-width:640px){.pg-grid{grid-template-columns:1fr!important}}@media(min-width:641px) and (max-width:900px){.pg-grid{grid-template-columns:repeat(2,1fr)!important}}</style>@endif
-@if($isHorizontal)<style>@media(max-width:640px){.pg-grid>article{flex-direction:column!important}.pg-himg{width:100%!important}}</style>@endif
+@if($columns > 1)<style>@media(max-width:640px){.{{ $__pgScope }}{grid-template-columns:1fr!important}}@media(min-width:641px) and (max-width:900px){.{{ $__pgScope }}{grid-template-columns:repeat(2,1fr)!important}}</style>@endif
+{{-- The image box height is a vw-based clamp tuned for the authored column
+     count. Once the grid collapses each card is several times wider, yet the vw
+     term keeps shrinking the box — a 150px image lands at 60px on a phone, so
+     the picture reads as a thumbnail in a full-width card. Below the collapse
+     breakpoints, hold the authored height. --}}
+<style>@media(max-width:900px){.{{ $__pgScope }} .pg-img{height:{{ $imageHeightPx }}px!important}}</style>
+@if($imageSquare)
+{{-- Square tiles override the height clamp above (and its <=900px companion) at
+     every width; aspect-ratio does the sizing instead. --}}
+<style>.{{ $__pgScope }} .pg-img{aspect-ratio:1!important;height:auto!important}@media(max-width:900px){.{{ $__pgScope }} .pg-img{height:auto!important}}</style>
+@if($tileSizePx > 0)
+{{-- Fixed-size columns centred in the container: the grid becomes a compact
+     block of tiles instead of stretching each column to fill the row. Below the
+     column-collapse breakpoint the tiles go back to 1fr so a phone gets one
+     full-width square per row. --}}
+<style>@media(min-width:901px){.{{ $__pgScope }}{grid-template-columns:repeat({{ $columns }},{{ $tileSizePx }}px)!important;justify-content:center}}</style>
+@endif
+@endif
+@if($isHorizontal)<style>@media(max-width:640px){.{{ $__pgScope }}>article{flex-direction:column!important}.{{ $__pgScope }} .pg-himg{width:100%!important}}</style>@endif
 @if($cardReveal)
 <style>
 .{{ $__revealScope }}>article{opacity:0;transform:perspective(1500px) rotateX(85deg);transform-origin:50% 50%;transition:opacity .55s ease,transform .85s cubic-bezier(.2,.72,.24,1);will-change:opacity,transform;backface-visibility:hidden}
@@ -124,7 +158,11 @@
 @media(prefers-reduced-motion:reduce){.{{ $__revealScope }}>article{opacity:1!important;transform:none!important;transition:none!important}}
 </style>
 @endif
-<div class="pg-grid {{ $__revealScope }}" @if($cardReveal) data-pg-reveal @endif style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
+{{-- width:100% — the grid is often a child of a column-flex wrapper whose
+     alignment setting (align-items:center/flex-start) makes cross-size
+     shrink-to-fit; without it the whole grid collapses to its content width
+     and the cards render as thumbnails in a sliver of the column. --}}
+<div class="pg-grid {{ $__pgScope }} {{ $__revealScope }}" @if($cardReveal) data-pg-reveal @endif style="display:grid;width:100%;grid-template-columns:repeat({{ $columns }},1fr);gap:{{ $gap }};">
     @foreach($posts as $post)
         @php $__postUrl = '/' . ($post->category?->slug ?? 'uncategorized') . '/' . $post->slug; @endphp
         <article class="{{ $__effectScope }}" style="{{ $cardBorder ? 'border:' . $cardBorderWidth . 'px ' . $cardBorderStyle . ' ' . $cardBorderColor . ';' : 'border:none;' }}border-radius:{{ $cardBorderRadius !== null ? $cardBorderRadius . 'px' : 'var(--border-radius-md,0.5rem)' }};overflow:{{ $__effectsEnabled ? 'visible' : 'hidden' }};box-shadow:{{ $cardShadow }};{{ $cardBg ? 'background-color:' . $cardBg . ';' : '' }}{{ $cardPadding !== '0' ? 'padding:' . $cardPadding . ';' : '' }}{{ $__cardBaseStyle }}{{ $isHorizontal ? 'display:flex;' : '' }}{{ $isVerticalHeading ? 'display:flex;flex-direction:row;' : '' }}">
@@ -151,15 +189,15 @@
             </div>
             @endif
             @if($showImage)
-            <div class="{{ $isHorizontal ? 'pg-himg' : '' }}" style="background:#f3f4f6;position:relative;overflow:hidden;{{ $isVerticalHeading ? 'flex:1;height:' . $imageHeight . ';' : ($isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';') }}{{ $imageWidth !== '100%' && !$isHorizontal && !$isVerticalHeading ? 'margin:0 auto;' : '' }}">
+            <div class="pg-img {{ $isHorizontal ? 'pg-himg' : '' }}" style="background:{{ $imageBg }};position:relative;overflow:hidden;{{ $isVerticalHeading ? 'flex:1;height:' . $imageHeight . ';' : ($isHorizontal ? 'width:33%;height:' . $imageHeight . ';' : 'width:' . $imageWidth . ';height:' . $imageHeight . ';') }}{{ $imageWidth !== '100%' && !$isHorizontal && !$isVerticalHeading ? 'margin:0 auto;' : '' }}">
                 @if($post->featured_image)
                     @if($__revealEnabled && !$__isFadeReveal)
                         {{-- Clip-path mode: two layers — original below, filtered on top --}}
-                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" loading="lazy" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};" />
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" loading="{{ $loop->first ? 'eager" fetchpriority="high' : 'lazy' }}" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};" />
                         <img src="{{ $post->featured_image }}" alt="" aria-hidden="true" class="img-reveal-filtered" loading="lazy" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};" />
                     @else
                         {{-- Fade mode or no reveal: single image with filter --}}
-                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" loading="lazy" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};{{ $__imageFilter }}" />
+                        <img src="{{ $post->featured_image }}" alt="{{ $post->title ?? '' }}" class="{{ $__revealEnabled ? 'img-filtered' : '' }}" loading="{{ $loop->first ? 'eager" fetchpriority="high' : 'lazy' }}" style="width:100%;height:100%;object-fit:{{ $imageObjectFit }};{{ $__imageFilter }}" />
                     @endif
                 @endif
                 {!! $__overlayHtml !!}

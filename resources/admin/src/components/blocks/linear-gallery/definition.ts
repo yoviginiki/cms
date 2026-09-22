@@ -1,0 +1,52 @@
+import type { BlockDefinition } from '@/types/blocks';
+
+export const linearGalleryDefinition: BlockDefinition = {
+  type: 'linear-gallery',
+  category: 'media',
+  label: 'Linear Gallery',
+  icon: 'GalleryHorizontalEnd',
+  description: 'Draggable horizontal strip of overlapping images — hover to highlight, click for lightbox.',
+  defaultData: {
+    images: [],
+    // composition
+    height: 360,
+    mobileHeight: 220,
+    stripHeight: 0,
+    sizeVariation: 'strong',
+    overlap: 22,
+    scatter: 24,
+    align: 'start',
+    width: 'contained',
+    offsetStart: 24,
+    offsetEnd: 24,
+    padding: 40,
+    radius: 3,
+    // look
+    blend: 'multiply',
+    opacity: 92,
+    background: '',
+    borderColor: '',
+    borderWidth: 0,
+    shadow: 'none',
+    // hover
+    hoverBorderColor: '#ffffff',
+    hoverBorderWidth: 2,
+    hoverGlow: true,
+    hoverShadow: 'strong',
+    hoverLift: true,
+    // controls
+    arrows: true,
+    arrowsShow: 'hover',
+    arrowsPosition: 'sides',
+    arrowsSize: 'md',
+    arrowsColor: '',
+    arrowsBg: '',
+    arrowsMobile: false,
+    drag: true,
+    scrollbar: false,
+    autoplay: 0,
+    lightbox: true,
+    openOn: 'click',
+  },
+  allowsChildren: false,
+};

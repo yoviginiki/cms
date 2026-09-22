@@ -42,14 +42,29 @@ class GridRenderer
                 'main', 'content' => $mainEmitted ? 'div' : 'main',
                 default => 'div',
             };
+            // A position's content can already carry that landmark itself — a
+            // footer-location menu renders its own <footer>, a fullscreen embed
+            // its own <main>. Wrapping it again nests the same landmark, which
+            // is invalid HTML and leaves assistive tech with two ambiguous
+            // contentinfo/main regions. Grid CSS is class-based (.pos-*), so
+            // degrading the wrapper to a <div> changes nothing visually.
+            $nested = $tag !== 'div' && preg_match('#<' . $tag . '[\s>]#i', $posHtml) === 1;
+
             $idAttr = '';
             if ($tag === 'main') {
                 $mainEmitted = true;
+                // The skip link targets this id; it stays on the wrapper whether
+                // or not the wrapper had to degrade to a div.
                 $idAttr = ' id="main-content"';
-                // Posts publish inside an <article> landmark (F3)
-                if ($content instanceof Post) {
+                // Posts publish inside an <article> landmark (F3) — but not when
+                // the content already brought its own <main> to sit inside.
+                if ($content instanceof Post && !$nested) {
                     $posHtml = '<article>' . $posHtml . '</article>';
                 }
+            }
+
+            if ($nested) {
+                $tag = 'div';
             }
 
             $positionsHtml .= "  <{$tag} class=\"pos-{$position->area_name}{$extraClass}\"{$idAttr}>{$posHtml}</{$tag}>\n";

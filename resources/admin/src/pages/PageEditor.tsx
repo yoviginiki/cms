@@ -572,7 +572,8 @@ export default function PageEditor() {
         ) : page?.editor_mode !== 'magazine' ? (
           <BuilderDndProvider>
             <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
-              <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start overflow-y-auto">
+              {/* flex-col + overflow-hidden so BuilderCanvas's own scroll container gets a bounded height and becomes the real scroller (sticky canvas header / rich-text toolbar depend on it) */}
+              <div className="w-full min-w-full lg:min-w-0 lg:flex-1 snap-start flex flex-col overflow-hidden">
                 <BuilderCanvas pageStyle={page?.seo_meta?.pageStyle} />
               </div>
               <PageEditorSidebar page={page} siteId={siteId} pageId={pageId}

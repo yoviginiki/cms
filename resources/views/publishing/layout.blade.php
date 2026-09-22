@@ -60,7 +60,7 @@
       /* (Section horizontal padding handled by the <=1024px rule above so
          backgrounds stay full-bleed.) */
 
-      /* <main> carries padding:0 var(--container-padding,24px) to centre its
+      /* The main element carries padding:0 var(--container-padding,24px) to centre its
          1200px column on desktop. On phones the viewport is well below 1200px,
          so that 24px is a pure gutter that DOUBLES with the section content
          padding above (~40px total → content only ~75% of a 390px screen:

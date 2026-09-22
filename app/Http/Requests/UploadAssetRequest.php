@@ -63,6 +63,7 @@ class UploadAssetRequest extends FormRequest
         return [
             'file' => ['required', 'file', 'max:102400'], // 100MB max
             'alt_text' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'folder' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 

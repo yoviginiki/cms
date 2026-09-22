@@ -29,6 +29,9 @@ class WebpPictureEnricher
     /** checksum → ['srcset'=>?string, 'w'=>?int, 'h'=>?int] */
     private static array $cache = [];
 
+    /** checksum → largest existing WebP url, or null (CSS url() pass) */
+    private static array $cssCache = [];
+
     public static function enrich(string $html): string
     {
         // Alternate on whole <picture> blocks so images already wrapped (slider
@@ -97,7 +100,10 @@ class WebpPictureEnricher
 
         $candidates = [];
         // Sized WebP derivatives = real responsive width candidates.
-        foreach (['webp_400' => 400, 'webp_800' => 800] as $variant => $width) {
+        // webp_1600 is part of the standard derivative set; leaving it out capped
+        // every srcset at 800w, so a full-width hero on a desktop or a 3x phone
+        // got an upscaled 800px image.
+        foreach (['webp_400' => 400, 'webp_800' => 800, 'webp_1600' => 1600] as $variant => $width) {
             if (!empty($variants[$variant]) && ($url = $webpUrl($variant))) {
                 $candidates[] = "{$url} {$width}w";
             }
@@ -122,9 +128,63 @@ class WebpPictureEnricher
         ];
     }
 
+    /**
+     * CSS background images bypass the <img> pass entirely — a `url()` inside an
+     * inline <style> is never a tag, so a full-bleed texture or hero backdrop
+     * shipped as raw JPG/PNG no matter what the asset pipeline had derived for
+     * it ("Serve images in next-gen formats" on every page that used one).
+     *
+     * Rewrites url(/assets/files/{checksum}.{jpg|png}) inside <style> blocks to
+     * the largest WebP derivative that actually exists on disk. There is no
+     * fallback mechanism in plain CSS, so this only fires when resolveUrl hands
+     * back a real .webp — a missing derivative leaves the original untouched.
+     */
+    public static function enrichCssUrls(string $html): string
+    {
+        return preg_replace_callback(
+            '#<style\b[^>]*>[\s\S]*?</style>#i',
+            static fn (array $m): string => preg_replace_callback(
+                '#/assets/files/([a-f0-9]{64})\.(?:jpe?g|png)#i',
+                static function (array $u): string {
+                    return self::bestWebp(strtolower($u[1])) ?? $u[0];
+                },
+                $m[0]
+            ) ?? $m[0],
+            $html
+        ) ?? $html;
+    }
+
+    /** Largest existing WebP derivative for a checksum, or null. */
+    private static function bestWebp(string $hash): ?string
+    {
+        if (array_key_exists($hash, self::$cssCache)) {
+            return self::$cssCache[$hash];
+        }
+
+        $asset = Asset::where('checksum', $hash)->first();
+        $variants = $asset ? (array) ($asset->variants ?? []) : [];
+
+        $best = null;
+        foreach (['webp_1600', 'webp_800', 'webp_400', 'webp'] as $variant) {
+            if (empty($variants[$variant])) {
+                continue;
+            }
+            $url = AssetPublisher::resolveUrl($asset->id, null, $variant);
+            // resolveUrl falls back to the original when the derivative file is
+            // missing — only a genuine .webp is safe to hand to CSS.
+            if ($url && str_ends_with($url, '.webp')) {
+                $best = $url;
+                break;
+            }
+        }
+
+        return self::$cssCache[$hash] = $best;
+    }
+
     /** Reset the per-run resolve cache (mirrors AssetPublisher::reset). */
     public static function reset(): void
     {
         self::$cache = [];
+        self::$cssCache = [];
     }
 }

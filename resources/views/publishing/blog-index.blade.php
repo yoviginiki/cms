@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blog | {{ $site->name }}</title>
-    <meta name="description" content="Latest posts from {{ $site->name }}">
+    <meta name="description" content="{{ \Illuminate\Support\Str::limit($site->seo_defaults['description'] ?? ('Latest posts from ' . $site->name), 160) }}">
     <link rel="canonical" href="{{ $baseUrl }}/blog">
     <meta property="og:title" content="Blog | {{ $site->name }}">
     <meta property="og:type" content="website">

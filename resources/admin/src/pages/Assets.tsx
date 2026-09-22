@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { Upload, Trash2, Image, File, Loader2, X, Download, Search, Copy, Check, AlertTriangle, Link2 } from 'lucide-react';
-import { assets, references, api } from '@/lib/api';
+import { Upload, Trash2, Image, File, Loader2, X, Download, Search, Copy, Check, AlertTriangle, Link2, FolderPlus } from 'lucide-react';
+import { assets, assetFolders, references, api } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
@@ -14,6 +14,7 @@ interface UsageSource {
 }
 
 interface Asset {
+  folder?: string | null;
   id: string;
   filename: string;
   original_name: string;
@@ -47,11 +48,33 @@ export default function Assets() {
   const [isDragging, setIsDragging] = useState(false);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
+  // Folder scope: 'all' = every file, '' = root, 'a/b' = that folder
+  const [folder, setFolder] = useState<string>('all');
+
+  const { data: folderData } = useQuery({
+    queryKey: ['asset-folders', siteId],
+    queryFn: () => assetFolders.list(siteId).then(r => r.data),
+  });
+  const folderList = folderData?.data ?? [];
+
+  const createFolder = useMutation({
+    mutationFn: (name: string) => assetFolders.create(siteId, name, folder === 'all' ? null : folder),
+    onSuccess: (r) => { queryClient.invalidateQueries({ queryKey: ['asset-folders', siteId] }); setFolder(r.data.data.path); },
+  });
+  const deleteFolder = useMutation({
+    mutationFn: (path: string) => assetFolders.delete(siteId, path),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['asset-folders', siteId] }); queryClient.invalidateQueries({ queryKey: ['assets', siteId] }); setFolder('all'); },
+  });
+  const moveAsset = useMutation({
+    mutationFn: ({ id, to }: { id: string; to: string }) => assets.update(siteId, id, { folder: to }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['assets', siteId] }); queryClient.invalidateQueries({ queryKey: ['asset-folders', siteId] }); },
+  });
 
   const { data, isLoading, error } = useQuery<Asset[]>({
-    queryKey: ['assets', siteId, filter],
+    queryKey: ['assets', siteId, filter, folder],
     queryFn: () => {
-      const params: Record<string, unknown> = {};
+      const params: Record<string, unknown> = { per_page: 500 };
+      if (folder !== 'all') params.folder = folder;
       if (filter === 'images') params.type = 'image';
       if (filter === 'documents') params.type = 'document';
       if (filter === 'video') params.type = 'video';
@@ -61,9 +84,10 @@ export default function Assets() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => assets.upload(siteId, file),
+    mutationFn: (file: File) => assets.upload(siteId, file, folder === 'all' ? '' : folder),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets', siteId] });
+      queryClient.invalidateQueries({ queryKey: ['asset-folders', siteId] });
     },
   });
 
@@ -193,6 +217,30 @@ export default function Assets() {
         )}
       </div>
 
+      {/* Folder bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
+        <label className="text-base-content/50">Folder</label>
+        <select value={folder} onChange={e => setFolder(e.target.value)} className="select select-bordered select-sm text-[13px] min-w-[220px]">
+          <option value="all">All files</option>
+          <option value="">Root{typeof folderData?.root_count === 'number' ? ` (${folderData.root_count})` : ''}</option>
+          {folderList.map(f => (
+            <option key={f.path} value={f.path}>{'\u00a0\u00a0'.repeat(f.path.split('/').length - 1)}{f.name} ({f.count})</option>
+          ))}
+        </select>
+        <button type="button" className="btn btn-ghost btn-sm text-[12px] gap-1"
+          onClick={() => { const name = prompt(folder !== 'all' && folder !== '' ? `New folder inside "${folder}":` : 'New folder name:'); if (name?.trim()) createFolder.mutate(name.trim()); }}>
+          <FolderPlus className="h-3.5 w-3.5" /> New folder
+        </button>
+        {folder !== 'all' && folder !== '' && (
+          <button type="button" className="btn btn-ghost btn-sm text-[12px] text-error gap-1"
+            onClick={() => { if (confirm(`Delete folder "${folder}"?\nFiles inside are kept and moved to the parent folder.`)) deleteFolder.mutate(folder); }}>
+            <Trash2 className="h-3.5 w-3.5" /> Delete folder
+          </button>
+        )}
+        {createFolder.isError && <span className="text-xs text-error">{(createFolder.error as any)?.response?.data?.message || 'Could not create folder'}</span>}
+        <span className="text-xs text-base-content/40">Uploads go to: {folder === 'all' || folder === '' ? 'Root' : folder}</span>
+      </div>
+
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-6 bg-base-200 rounded-lg p-1 w-fit">
         {(['all', 'images', 'documents', 'video', 'audio'] as FilterType[]).map((f) => (
@@ -262,7 +310,14 @@ export default function Assets() {
                 </p>
                 <p className="text-xs text-base-content/50 mt-0.5">{formatFileSize(asset.size)}</p>
               </div>
-              <div className="px-3 pb-3 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="px-3 pb-3 opacity-0 group-hover:opacity-100 transition-opacity space-y-1">
+                <select value={asset.folder ?? ''} title="Move to folder"
+                  onClick={e => e.stopPropagation()}
+                  onChange={e => { e.stopPropagation(); moveAsset.mutate({ id: asset.id, to: e.target.value }); }}
+                  className="select select-bordered select-xs w-full text-[11px]">
+                  <option value="">Root</option>
+                  {folderList.map(f => <option key={f.path} value={f.path}>{f.path}</option>)}
+                </select>
                 <button
                   onClick={(e) => { e.stopPropagation(); setDeleteTarget(asset); }}
                   className="w-full px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"

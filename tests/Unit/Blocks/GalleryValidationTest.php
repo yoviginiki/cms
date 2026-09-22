@@ -48,6 +48,15 @@ class GalleryValidationTest extends TestCase
         $this->assertTrue($this->validate(['images' => 'not-array'])->fails());
     }
 
+    public function test_images_accepts_legacy_strings_and_objects(): void
+    {
+        $this->assertTrue($this->validate(['images' => ['/a.jpg', ['id' => 'u', 'src' => '/b.jpg', 'alt' => 'B', 'caption' => 'cap', 'link' => 'https://x.y/', 'width' => 10, 'height' => 5]]])->passes());
+        $this->assertTrue($this->validate(['images' => [['src' => 'javascript:alert(1)']]])->fails());
+        $this->assertTrue($this->validate(['images' => [42]])->fails());
+        $this->assertTrue($this->validate(['aspect' => '4:3', 'lightbox' => true, 'captions' => false])->passes());
+        $this->assertTrue($this->validate(['aspect' => 'oval'])->fails());
+    }
+
     public function test_valid_layout_passes(): void
     {
         $this->assertTrue($this->validate(['layout' => 'grid'])->passes());
@@ -61,13 +70,13 @@ class GalleryValidationTest extends TestCase
     public function test_columns_in_range(): void
     {
         $this->assertTrue($this->validate(['columns' => 1])->passes());
-        $this->assertTrue($this->validate(['columns' => 6])->passes());
+        $this->assertTrue($this->validate(['columns' => 8])->passes());
     }
 
     public function test_columns_out_of_range(): void
     {
         $this->assertTrue($this->validate(['columns' => 1 - 1])->fails());
-        $this->assertTrue($this->validate(['columns' => 6 + 1])->fails());
+        $this->assertTrue($this->validate(['columns' => 8 + 1])->fails());
     }
 
     public function test_gap_rejects_overlength(): void

@@ -163,8 +163,10 @@ class DesignTokenGenerator
             $tokens = array_merge($tokens, $docTokens);
         }
 
-        // Google Font @import must come first per CSS spec
-        $css = $this->generateFontImports($tokens);
+        // Google Font @import must come first per CSS spec. Families the site
+        // self-hosts as uploaded files are excluded — asking Google for a font
+        // only this site has (e.g. "doklad") returns a render-blocking 404.
+        $css = $this->generateFontImports($tokens, $this->customFontFamilies($site));
 
         // Custom font @font-face rules (after @import, before :root)
         $css .= $this->generateCustomFontFaces($site);
@@ -328,15 +330,34 @@ class DesignTokenGenerator
             $css .= "  font-weight: {$weight};\n";
             $css .= "  font-style: {$fontStyle};\n";
             $fontSlug = pathinfo($filename, PATHINFO_FILENAME); // no extension = bypasses nginx static catch
-            // /serve-font/ for admin preview, /fonts/ for published static site
-            $css .= "  src: url('/serve-font/{$siteId}/{$fontSlug}') format('{$format}'), url('/fonts/{$filename}') format('{$format}');\n";
+            // /serve-font/ is an app route (admin preview); /fonts/ is the copy
+            // that lands in the published docroot. Listing both unconditionally
+            // costs the published site a guaranteed 404 on every page load, so
+            // lead with the one that exists in the context we're rendering for.
+            // A build has a deploy target set; preview does not.
+            $src = \App\Domain\Publishing\Services\AssetPublisher::deployTarget() !== null
+                ? "url('/fonts/{$filename}') format('{$format}')"
+                : "url('/serve-font/{$siteId}/{$fontSlug}') format('{$format}'), url('/fonts/{$filename}') format('{$format}')";
+            $css .= "  src: {$src};\n";
             $css .= "  font-display: swap;\n";
             $css .= "}\n";
         }
         return $css;
     }
 
-    private function generateFontImports(array $tokens): string
+    /** Family names this site ships itself as uploaded font files. */
+    private function customFontFamilies(\App\Models\Site $site): array
+    {
+        $names = [];
+        foreach ($site->settings['custom_fonts'] ?? [] as $font) {
+            $family = trim(preg_replace('/[^a-zA-Z0-9\s\-]/', '', $font['family'] ?? ''));
+            if ($family !== '') $names[strtolower($family)] = true;
+        }
+
+        return $names;
+    }
+
+    private function generateFontImports(array $tokens, array $selfHosted = []): string
     {
         // Collect all font token keys and their values
         $fontKeys = ['font-heading', 'font-body', 'font-mono',
@@ -356,6 +377,7 @@ class DesignTokenGenerator
             // token was skipped if 'system-ui' appeared anywhere in the stack).
             $clean = trim(explode(',', $val)[0], "' \"");
             if ($clean === '' || in_array(strtolower($clean), $genericFamilies, true)) continue;
+            if (isset($selfHosted[strtolower($clean)])) continue; // already @font-face'd from our own files
             if (isset($uniqueFonts[$clean])) continue;
             $uniqueFonts[$clean] = true;
         }

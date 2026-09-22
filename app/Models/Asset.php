@@ -12,7 +12,7 @@ class Asset extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'site_id', 'original_name', 'storage_path', 'mime_type',
+        'site_id', 'folder', 'original_name', 'storage_path', 'mime_type',
         'file_size', 'dimensions', 'variants', 'checksum', 'alt_text',
     ];
 

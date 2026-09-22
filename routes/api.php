@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AssetController;
+use App\Http\Controllers\Api\V1\AssetFolderController;
 use App\Http\Controllers\Api\V1\AssetServeController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BlockController;
@@ -234,6 +235,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('sites/{site}/posts/{post}/inline/export', [InlineEditController::class, 'exportPost']);
 
         // Assets
+        Route::get('sites/{site}/asset-folders', [AssetFolderController::class, 'index']);
+        Route::post('sites/{site}/asset-folders', [AssetFolderController::class, 'store']);
+        Route::delete('sites/{site}/asset-folders', [AssetFolderController::class, 'destroy']);
         Route::apiResource('sites.assets', AssetController::class);
         Route::get('sites/{site}/assets/{asset}/serve/{variant?}', [AssetServeController::class, 'serve']);
 

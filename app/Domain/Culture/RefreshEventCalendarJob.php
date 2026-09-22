@@ -101,12 +101,19 @@ class RefreshEventCalendarJob implements ShouldQueue, ShouldBeUnique
             if ($day < $today) {
                 continue;
             }
-            // Minimal card data: [slug, title, date, city, venue, time, is_free, image].
+            // National observances from the Ministry of Culture calendar have no
+            // single host city — they are marked (9th field = 1) so the widget
+            // lists them under the "Национални" category across EVERY city filter.
+            $src = (string) ($d['source'] ?? '');
+            $isNational = str_starts_with($src, 'mk-kulturen-kalendar') && empty($d['city']);
+
+            // Minimal card data: [slug, title, date, city, venue, time, is_free, image, national].
             // The card opens the record's own page, which carries the full
             // description + official-source link — so nothing large is inlined here.
             $rows[] = [
                 $r->slug, $d['title'] ?? '', $day, $d['city'] ?? '', $d['venue'] ?? '',
                 $d['time'] ?? '', empty($d['is_free']) ? 0 : 1, (string) ($d['image_url'] ?? ''),
+                $isNational ? 1 : 0,
             ];
             $recordIds[] = $r->id;
         }

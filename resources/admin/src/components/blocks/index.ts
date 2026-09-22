@@ -42,6 +42,7 @@ import './list';
 import './imagecaption';
 import './fullbleed';
 import './gallery';
+import './linear-gallery';
 import './beforeafter';
 import './slider_ref';
 import './global_ref';

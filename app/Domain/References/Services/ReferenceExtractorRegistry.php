@@ -104,7 +104,8 @@ class ReferenceExtractorRegistry
             'results-grid' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
 
             // ── URL-bearing media/CTA blocks ───────────────────────────────
-            'gallery' => new FieldMapExtractor(urlFields: ['images.*']),
+            'gallery' => new FieldMapExtractor(urlFields: ['images.*', 'images.*.link']),
+            'linear-gallery' => new FieldMapExtractor(urlFields: ['images.*', 'images.*.link']),
             'logostrip' => new FieldMapExtractor(urlFields: ['logos.*']),
             'catalog' => new FieldMapExtractor(
                 urlFields: ['items.*.images.*'],

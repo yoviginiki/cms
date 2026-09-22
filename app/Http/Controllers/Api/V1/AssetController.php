@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UploadAssetRequest;
 use App\Http\Resources\V1\AssetResource;
 use App\Models\Asset;
+use App\Models\AssetFolder;
 use App\Models\Site;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,17 @@ class AssetController extends Controller
         $this->authorize('viewAny', Asset::class);
 
         $query = $site->assets()->orderByDesc('created_at');
+
+        // Folder scoping: `folder=` (empty) → root only; `folder=a/b` → that
+        // folder only; absent → everything (legacy callers keep a flat list).
+        if ($request->has('folder')) {
+            $folder = AssetFolder::normalizePath($request->query('folder'));
+            $folder === null ? $query->whereNull('folder') : $query->where('folder', $folder);
+        }
+
+        if ($q = trim((string) $request->query('q', ''))) {
+            $query->where('original_name', 'ilike', '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%');
+        }
 
         $typeFilter = $request->query('type') ?? $request->query('mime_type');
         if ($typeFilter) {
@@ -59,10 +71,25 @@ class AssetController extends Controller
     {
         $this->authorize('upload', [Asset::class, $site]);
 
+        try {
+            $folder = AssetFolder::normalizePath($request->validated('folder'));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => ['folder' => [$e->getMessage()]]], 422);
+        }
+
         $asset = $this->assetService->upload($site, $request->file('file'));
 
+        $patch = [];
         if ($altText = $request->validated('alt_text')) {
-            $asset->update(['alt_text' => $altText]);
+            $patch['alt_text'] = $altText;
+        }
+        // Dedup by checksum may hand back an existing asset; the caller chose a
+        // folder for this upload, so the (possibly existing) asset moves there.
+        if ($request->has('folder')) {
+            $patch['folder'] = $folder;
+        }
+        if ($patch) {
+            $asset->update($patch);
         }
 
         return (new AssetResource($asset))
@@ -76,11 +103,20 @@ class AssetController extends Controller
 
         $validated = $request->validate([
             'alt_text' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'folder' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
+
+        if (array_key_exists('folder', $validated)) {
+            try {
+                $validated['folder'] = AssetFolder::normalizePath($validated['folder']);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['message' => $e->getMessage(), 'errors' => ['folder' => [$e->getMessage()]]], 422);
+            }
+        }
 
         $asset->update($validated);
 
-        return response()->json(['data' => $asset->fresh()]);
+        return (new AssetResource($asset->fresh()))->response();
     }
 
     public function destroy(Request $request, Site $site, Asset $asset): JsonResponse

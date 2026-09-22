@@ -361,10 +361,11 @@ export function BuilderCanvas({ pageStyle }: { pageStyle?: Record<string, any> }
       <FindReplacePanel open={findOpen} onClose={() => setFindOpen(false)} />
       <div
         className="flex-1 overflow-y-auto bg-base-200/50"
+        data-canvas-scroll
         onClick={() => selectBlock(null)}
       >
         {/* Toolbar: Mode toggle + Responsive device toggle */}
-        <div className="flex items-center justify-between py-2 px-4 bg-base-200/50 border-b border-base-300/30 sticky top-0 z-20">
+        <div className="flex items-center justify-between py-2 px-4 bg-base-200/50 border-b border-base-300/30 sticky top-0 z-20" data-canvas-toolbar>
           {/* Left: Editor mode toggle */}
           <div className="flex items-center gap-1 bg-base-300/30 rounded-lg p-0.5">
             <button

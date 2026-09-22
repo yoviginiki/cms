@@ -150,13 +150,26 @@ export const magazines = {
 
 export const assets = {
   list: (siteId: string, params?: Record<string, unknown>) => api.get(`/sites/${siteId}/assets`, { params }),
-  upload: (siteId: string, file: File) => {
+  /** `folder`: undefined = leave where the server puts it (root), '' = root, 'a/b' = that folder. */
+  upload: (siteId: string, file: File, folder?: string | null) => {
     const fd = new FormData();
     fd.append('file', file);
+    if (folder !== undefined && folder !== null) fd.append('folder', folder);
     return api.post(`/sites/${siteId}/assets`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
+  update: (siteId: string, assetId: string, patch: { alt_text?: string | null; folder?: string | null }) =>
+    api.patch(`/sites/${siteId}/assets/${assetId}`, patch),
   delete: (siteId: string, assetId: string, force = false) =>
     api.delete(`/sites/${siteId}/assets/${assetId}`, { params: force ? { force: 1 } : {} }),
+};
+
+export interface AssetFolderInfo { path: string; name: string; parent: string | null; count: number }
+
+export const assetFolders = {
+  list: (siteId: string) => api.get<{ data: AssetFolderInfo[]; root_count: number }>(`/sites/${siteId}/asset-folders`),
+  create: (siteId: string, name: string, parent?: string | null) =>
+    api.post<{ data: AssetFolderInfo }>(`/sites/${siteId}/asset-folders`, { name, parent: parent || null }),
+  delete: (siteId: string, path: string) => api.delete(`/sites/${siteId}/asset-folders`, { data: { path } }),
 };
 
 export const references = {

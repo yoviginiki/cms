@@ -20,6 +20,20 @@ class MenuRenderer
         return preg_replace("/[^a-zA-Z0-9#(),.'\\s%\\/-]/", '', $v);
     }
 
+    /**
+     * Is this CSS colour see-through? Covers the keyword, the shorthand for
+     * "nothing", and rgba()/hsla() with a zero alpha — the forms a colour
+     * picker or a hand-written theme setting actually produce.
+     */
+    private static function isTransparentCss(string $v): bool
+    {
+        $v = strtolower(trim($v));
+        if ($v === '' || $v === 'transparent' || $v === 'none') return true;
+        if (preg_match('/^(?:rgba|hsla)\([^)]*,\s*0*(?:\.0+)?\s*\)$/', $v)) return true;
+
+        return false;
+    }
+
     /** Sanitize a URL — only allow http/https/mailto/data schemes. */
     private static function safeUrl(string $v): string
     {
@@ -127,14 +141,26 @@ class MenuRenderer
         $css .= ".{$scopeClass} .menu-submenu a:hover{background:var(--color-bg-alt,#f5f5f0);}\n";
 
         // Hamburger
-        $css .= ".{$scopeClass} .menu-hamburger{display:none;background:none;border:none;cursor:pointer;padding:8px;flex-direction:column;gap:5px;}\n";
+        // 44px box: the bars themselves are 20x1.5px, so without a minimum the
+        // button rendered as a ~36x31 touch target on phones — the one control
+        // that has to be hittable on every page.
+        $css .= ".{$scopeClass} .menu-hamburger{display:none;background:none;border:none;cursor:pointer;padding:8px;min-width:44px;min-height:44px;align-items:center;justify-content:center;flex-direction:column;gap:5px;}\n";
         $css .= ".{$scopeClass} .menu-hamburger span{display:block;width:20px;height:1.5px;background:" . ($textColor ?: 'var(--color-text)') . ";transition:transform 0.3s,opacity 0.3s;}\n";
         $css .= ".{$scopeClass}.menu-open .menu-hamburger span:nth-child(1){transform:translateY(6.5px) rotate(45deg);}\n";
         $css .= ".{$scopeClass}.menu-open .menu-hamburger span:nth-child(2){opacity:0;}\n";
         $css .= ".{$scopeClass}.menu-open .menu-hamburger span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg);}\n";
 
-        // Mobile panel — uses dedicated mobile settings
-        $mobileBg = self::safeCss($style['mobileBgColor'] ?? '') ?: ($bgColor ?: 'var(--color-bg,#ffffff)');
+        // Mobile panel — uses dedicated mobile settings.
+        // The dropdown MUST be opaque: it floats over page content, so a
+        // transparent bg (either an explicit mobileBgColor or, far more often,
+        // a nav configured transparent so it can sit over a hero) shows the
+        // article text straight through the menu links and makes both
+        // unreadable. Inherit the nav bg only when that bg is actually solid;
+        // otherwise fall back to the theme surface.
+        $mobileBgSetting = self::safeCss($style['mobileBgColor'] ?? '');
+        $navBgIsSolid = $bgColor && !$isTransparent && !self::isTransparentCss($bgColor);
+        $mobileBg = (($mobileBgSetting && !self::isTransparentCss($mobileBgSetting)) ? $mobileBgSetting : null)
+            ?? ($navBgIsSolid ? $bgColor : 'var(--color-bg,#ffffff)');
         $mobileFontSize = self::safeCss($style['mobileFontSize'] ?? '') ?: '16px';
         $mobileBreakpoint = in_array((string) ($style['mobileBreakpoint'] ?? '768'), ['480', '768', '1024', '9999']) ? ($style['mobileBreakpoint'] ?? '768') : '768';
         // The open hamburger panel is a SOLID dropdown (bg = $mobileBg, defaults to
@@ -145,7 +171,7 @@ class MenuRenderer
         // !important + panel-scoped specificity so overlay overrides can't win.
         $mobileTextColor = self::safeCss($style['mobileTextColor'] ?? '') ?: 'var(--color-text,#1a1a1a)';
 
-        $css .= ".{$scopeClass} .menu-hamburger-panel{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;";
+        $css .= ".{$scopeClass} .menu-hamburger-panel{display:none;position:absolute;top:100%;left:0;right:0;z-index:1001;flex-direction:column;";
         $css .= "background:{$mobileBg};border-bottom:1px solid var(--color-border-light);padding:8px 0;gap:0;box-shadow:0 8px 32px rgba(0,0,0,0.1);}\n";
         $css .= ".{$scopeClass}.menu-open .menu-hamburger-panel{display:flex!important;}\n";
         $css .= ".{$scopeClass} .menu-hamburger-panel a{display:block;padding:12px 24px;font-size:{$mobileFontSize};border-bottom:1px solid var(--color-border-light,#eee);}\n";
@@ -190,9 +216,9 @@ class MenuRenderer
             if (!empty($settings['logo_show_name'])) {
                 $nameSpan = "<span style=\"font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);\">" . $siteName . '</span>';
             }
-            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"flex-shrink:0;display:flex;align-items:center;gap:10px;text-decoration:none;\"><img src=\"" . e($logoUrl) . "\" alt=\"" . $siteName . "\"" . self::assetDimsAttr($logoUrl) . " style=\"height:" . ($height ? 'calc(' . $height . ' - 16px)' : '40px') . ";max-height:48px;width:auto;\" />{$nameSpan}</a>\n";
+            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"flex-shrink:0;display:flex;align-items:center;min-height:44px;gap:10px;text-decoration:none;\"><img src=\"" . e($logoUrl) . "\" alt=\"" . $siteName . "\"" . self::assetDimsAttr($logoUrl) . " style=\"height:" . ($height ? 'calc(' . $height . ' - 16px)' : '40px') . ";max-height:48px;width:auto;\" />{$nameSpan}</a>\n";
         } else {
-            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";text-decoration:none;letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);flex-shrink:0;\">" . $siteName . "</a>\n";
+            $html .= "    <a href=\"/\" class=\"nav-logo\" style=\"display:inline-flex;align-items:center;min-height:44px;font-family:var(--font-heading,sans-serif);font-size:var(--nav-logo-size,14px);font-weight:var(--nav-logo-weight,600);color:" . ($textColor ?: 'var(--color-text)') . ";text-decoration:none;letter-spacing:var(--nav-logo-tracking,0.1em);text-transform:var(--nav-logo-transform,none);flex-shrink:0;\">" . $siteName . "</a>\n";
         }
 
         // Hamburger
@@ -282,7 +308,7 @@ class MenuRenderer
         // give them >=24px height + spacing on every viewport (desktop flags this
         // too), scoped to this footer so nothing else is affected.
         $tap = ".{$scopeClass} a[href^=\"tel:\"],.{$scopeClass} a[href^=\"mailto:\"]{display:inline-block;min-height:24px;padding:6px 0;line-height:1.5;}.{$scopeClass} nav a{display:inline-block;padding:6px 4px;}";
-        $html = "<style>.{$scopeClass}{--footer-muted:color-mix(in srgb, {$textColor} 78%, {$bgColor});}.{$scopeClass} a{color:{$textColor};transition:color 0.2s;}.{$scopeClass} a:hover{color:{$hoverColor};}{$tap}</style>\n";
+        $html = "<style>.{$scopeClass}{--footer-muted:color-mix(in srgb, {$textColor} 88%, {$bgColor});}.{$scopeClass} a{color:{$textColor};transition:color 0.2s;}.{$scopeClass} a:hover{color:{$hoverColor};}{$tap}</style>\n";
         $html .= "<footer class=\"{$scopeClass}\" style=\"background:{$bgColor};color:{$textColor};padding:var(--space-16,80px) var(--container-padding,30px);\" aria-label=\"" . e($ariaLabel) . "\">\n";
         $html .= "  <div style=\"max-width:var(--container-width,1080px);margin:0 auto;text-align:center;\">\n";
 
@@ -290,7 +316,7 @@ class MenuRenderer
         if ($logoUrl) {
             $html .= "    <a href=\"/\"><img src=\"" . e($logoUrl) . "\" alt=\"{$siteName}\"" . self::assetDimsAttr($logoUrl) . " style=\"height:32px;width:auto;margin:0 auto 1.5rem;display:block;opacity:0.8;\" /></a>\n";
         } else {
-            $html .= "    <a href=\"/\" style=\"font-family:var(--font-heading);font-size:1.25rem;color:{$textColor};text-decoration:none;display:block;margin-bottom:1rem;\">{$siteName}</a>\n";
+            $html .= "    <a href=\"/\" style=\"font-family:var(--font-heading);font-size:1.25rem;color:{$textColor};text-decoration:none;display:flex;align-items:center;justify-content:center;min-height:44px;margin-bottom:1rem;\">{$siteName}</a>\n";
         }
 
         // Footer text
@@ -335,7 +361,7 @@ class MenuRenderer
             foreach ($items as $item) {
                 $url = e($item->resolveUrl($this->menuBaseUrl));
                 $label = e($item->label);
-                $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;font-size:var(--font-size-sm,0.875rem);color:var(--footer-muted,var(--color-text-muted,#888));transition:color 0.2s;\">{$label}</a></li>\n";
+                $html .= "        <li><a href=\"{$url}\" style=\"text-decoration:none;display:inline-flex;align-items:center;min-height:44px;font-size:var(--font-size-sm,0.875rem);color:var(--footer-muted,var(--color-text-muted,#888));transition:color 0.2s;\">{$label}</a></li>\n";
             }
             $html .= "      </ul>\n";
             $html .= "    </nav>\n";
@@ -347,7 +373,7 @@ class MenuRenderer
         }
 
         // Copyright
-        $html .= "    <p style=\"font-size:0.75rem;color:var(--footer-muted,var(--color-text-muted,#888));margin-top:1.5rem;\">" . e($footerCopyright) . "</p>\n";
+        $html .= "    <p style=\"font-size:0.8125rem;color:var(--footer-muted,var(--color-text-muted,#888));margin-top:1.5rem;\">" . e($footerCopyright) . "</p>\n";
 
         $html .= "  </div>\n";
         $html .= "</footer>\n";

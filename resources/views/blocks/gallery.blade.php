@@ -40,22 +40,45 @@
 @php
     $images = $data['images'] ?? [];
     $layout = $data['layout'] ?? 'grid';
-    $columns = $data['columns'] ?? 3;
+    $columns = max(1, min(8, (int) ($data['columns'] ?? 3)));
     $gap = preg_match('/^\d+(\.\d+)?(px|rem|em|%)$/', $data['gap'] ?? '') ? $data['gap'] : '8px';
+    $lightbox = ($data['lightbox'] ?? true) !== false;
+    $captions = ($data['captions'] ?? false) === true;
+    $ratioMap = ['square' => '1 / 1', '4:3' => '4 / 3', '3:2' => '3 / 2', '16:9' => '16 / 9', 'natural' => null];
+    $aspect = array_key_exists($data['aspect'] ?? '', $ratioMap) ? $ratioMap[$data['aspect']] : '1 / 1';
+    $items = [];
+    foreach ($images as $img) {
+        $src = is_array($img) ? ($img['src'] ?? $img['url'] ?? '') : (string) $img;
+        if ($src === '') continue;
+        $items[] = [
+            'src' => $src,
+            'alt' => is_array($img) ? (string) ($img['alt'] ?? '') : '',
+            'caption' => is_array($img) ? trim((string) ($img['caption'] ?? '')) : '',
+            'link' => is_array($img) ? trim((string) ($img['link'] ?? '')) : '',
+            'w' => is_array($img) ? ($img['width'] ?? null) : null,
+            'h' => is_array($img) ? ($img['height'] ?? null) : null,
+        ];
+    }
 @endphp
-<div class="gallery-block gallery-block--{{ $layout }}" style="display:grid;grid-template-columns:repeat({{ (int)$columns }}, 1fr);gap:{{ e($gap) }};">
-    @foreach($images as $img)
+@if($lightbox && $items)
+@include('blocks.partials.lightbox')
+@once('gallery-item-css')<style>.gallery-item{display:block;margin:0;min-width:0}.gallery-item a{display:block;cursor:zoom-in}.gallery-item figcaption{font-size:var(--font-size-sm,0.875rem);color:var(--color-text-muted,#666);margin-top:0.4em;text-align:center;line-height:1.4}</style>@endonce
+@endif
+<div class="gallery-block gallery-block--{{ $layout }}" data-lightbox="{{ $lightbox ? '1' : '0' }}" style="display:grid;grid-template-columns:repeat({{ $columns }}, 1fr);gap:{{ e($gap) }};">
+    @foreach($items as $i => $it)
         @php
-            $src = is_array($img) ? ($img['src'] ?? $img['url'] ?? '') : (string) $img;
-            $alt = is_array($img) ? ($img['alt'] ?? '') : '';
-            $imgW = is_array($img) ? ($img['width'] ?? null) : null;
-            $imgH = is_array($img) ? ($img['height'] ?? null) : null;
+            $imgStyle = 'width:100%;height:auto;display:block;border-radius:4px;' . ($aspect ? "aspect-ratio:{$aspect};object-fit:cover;" : '') . $__imageFilter;
+            $href = $it['link'] !== '' ? $it['link'] : $it['src'];
+            $isLightbox = $lightbox && $it['link'] === '';
         @endphp
-        @if(!empty($src))
-            <span class="gallery-item" style="border-radius:4px;">
-            <img class="img-filtered" src="{{ e($src) }}" alt="{{ e($alt) }}"@if($imgW) width="{{ (int) $imgW }}"@endif @if($imgH)height="{{ (int) $imgH }}"@endif loading="lazy" decoding="async" style="width:100%;height:auto;object-fit:cover;border-radius:4px;{{ $__imageFilter }}">
-            </span>
-        @endif
+        <figure class="gallery-item" style="border-radius:4px;">
+            <a href="{{ e($href) }}" @if($isLightbox) data-glb-item data-caption="{{ e($it['caption']) }}" @endif @if($it['link'] !== '' && preg_match('#^https?://#', $it['link'])) target="_blank" rel="noopener" @endif aria-label="{{ e($it['caption'] !== '' ? $it['caption'] : ($it['alt'] !== '' ? $it['alt'] : 'Image ' . ($i + 1))) }}">
+            <img class="img-filtered" src="{{ e($it['src']) }}" alt="{{ e($it['alt']) }}"@if($it['w']) width="{{ (int) $it['w'] }}"@endif @if($it['h'])height="{{ (int) $it['h'] }}"@endif loading="{{ $i < 3 ? 'eager' : 'lazy' }}" decoding="async" style="{{ $imgStyle }}">
+            </a>
+            @if($captions && $it['caption'] !== '')
+            <figcaption>{{ $it['caption'] }}</figcaption>
+            @endif
+        </figure>
     @endforeach
 </div>
 

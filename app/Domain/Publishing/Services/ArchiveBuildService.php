@@ -67,9 +67,13 @@ class ArchiveBuildService
     {
         $html = AssetPublisher::rewriteHtml($html);
         if ($site !== null) {
-            // Slug-hosted sites serve under /{slug}/ — root-absolute links in
-            // archive chrome/head (e.g. /site-files/...) need the base prefix,
-            // exactly as BuildPageService applies it to pages.
+            // Same WebP/dimensions pass pages get. Archives were shipping the
+            // raw JPG/PNG for every card thumbnail and no intrinsic width or
+            // height (so the grid reflowed as images arrived). Must run after
+            // the serve URLs are static and before the slug rebase, which then
+            // rewrites the srcset it produced — the order BuildPageService uses.
+            $html = WebpPictureEnricher::enrich($html);
+            $html = WebpPictureEnricher::enrichCssUrls($html);
             $html = SiteFilesPublisher::rewriteHtml($html, $site);
             $html = BuildPageService::rewriteBaseForSlugHosting($html, $site);
         }
@@ -309,7 +313,7 @@ class ArchiveBuildService
         $renderedBlocks = $buildService->renderBlocksWithContext($templateBlocks, $site, $archiveContext);
 
         $themeConfig = $site->theme?->config ?? [];
-        $description = trim((string) ($category->description ?: "Posts in {$displayName} — {$site->name}"));
+        $description = trim((string) ($category->description ?: ($site->seo_defaults['description'] ?? "Posts in {$displayName} — {$site->name}")));
         $headContent = '<title>' . e($displayName) . ' | ' . e($site->name) . '</title>'
             . '<meta name="description" content="' . e(mb_substr($description, 0, 160)) . '">'
             . app(FaviconGenerator::class)->headLink()

@@ -252,17 +252,19 @@ class LocalePaths
         foreach (self::languages($site) as $lang) {
             $label = strtoupper($lang);
             if ($lang === $current) {
-                $links .= '<span style="font-weight:700;color:var(--color-text,#1f2937);">' . e($label) . '</span>';
+                $links .= '<span style="font-weight:700;color:var(--color-text,#1f2937);display:inline-flex;align-items:center;min-height:44px;padding:0 4px;">' . e($label) . '</span>';
                 continue;
             }
             $href = $urls[$lang] ?? ('/' . self::prefix($site, $lang));
-            $links .= '<a href="' . e($href) . '" style="color:var(--color-text-muted,#6b7280);text-decoration:none;" hreflang="' . e($lang) . '">' . e($label) . '</a>';
+            // min-width/height + flex centring: the bare two-letter label was a
+            // ~17x19px touch target, well under the WCAG 2.5.8 / platform minimum.
+            $links .= '<a href="' . e($href) . '" style="color:var(--color-text-muted,#6b7280);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 4px;" hreflang="' . e($lang) . '">' . e($label) . '</a>';
         }
 
         return '<div class="lang-switcher" style="position:fixed;bottom:16px;right:16px;z-index:9000;display:flex;gap:10px;align-items:center;'
-            . 'padding:7px 14px;border-radius:999px;background:color-mix(in srgb, var(--color-bg,#ffffff) 85%, transparent);'
+            . 'padding:4px 10px;border-radius:999px;background:color-mix(in srgb, var(--color-bg,#ffffff) 85%, transparent);'
             . 'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--color-border,#e5e7eb);'
-            . 'box-shadow:0 2px 8px rgba(0,0,0,0.08);font-size:12px;letter-spacing:0.05em;">'
+            . 'box-shadow:0 2px 8px rgba(0,0,0,0.08);font-size:13px;letter-spacing:0.05em;">'
             . $links . '</div>';
     }
 

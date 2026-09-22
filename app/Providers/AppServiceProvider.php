@@ -89,6 +89,7 @@ use App\Domain\Blocks\Definitions\CustomformBlockDefinition;
 use App\Domain\Blocks\Definitions\PaywallBlockDefinition;
 use App\Domain\Blocks\Definitions\SharebuttonsBlockDefinition;
 use App\Domain\Blocks\Definitions\BeforeafterBlockDefinition;
+use App\Domain\Blocks\Definitions\LinearGalleryBlockDefinition;
 use App\Domain\Blocks\Definitions\PostTitleBlockDefinition;
 use App\Domain\Blocks\Definitions\PostContentBlockDefinition;
 use App\Domain\Blocks\Definitions\PostImageBlockDefinition;
@@ -203,6 +204,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new PaywallBlockDefinition());
             $registry->register(new SharebuttonsBlockDefinition());
             $registry->register(new BeforeafterBlockDefinition());
+            $registry->register(new LinearGalleryBlockDefinition());
 
             // Dynamic content blocks (for theme builder templates)
             $registry->register(new PostTitleBlockDefinition());
