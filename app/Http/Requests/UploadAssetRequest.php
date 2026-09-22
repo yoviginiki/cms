@@ -42,6 +42,27 @@ class UploadAssetRequest extends FormRequest
         'jsp', 'asp', 'aspx',
     ];
 
+    /** Cheap content sniff for text uploads: HTML/XML/SVG/script openers. */
+    public static function looksLikeMarkup(string $head): bool
+    {
+        $head = ltrim($head, "\xEF\xBB\xBF \t\r\n");
+
+        return (bool) preg_match('/^(<!doctype\s+html|<html|<\?xml|<svg|<script|<iframe|<object|<embed)\b/i', $head)
+            || (bool) preg_match('/<script\b|<iframe\b|<object\b|<embed\b|javascript:/i', $head);
+    }
+
+    /** MIME types that a browser would execute or parse as active markup. */
+    public static function isActiveContentMime(string $mime): bool
+    {
+        $mime = strtolower(trim(explode(';', $mime)[0]));
+
+        return in_array($mime, [
+            'text/html', 'application/xhtml+xml', 'text/xml', 'application/xml',
+            'text/javascript', 'application/javascript', 'application/x-javascript', 'application/ecmascript',
+            'text/vbscript', 'application/x-shockwave-flash', 'text/x-php', 'application/x-httpd-php',
+        ], true) || str_ends_with($mime, '+xml') && $mime !== 'image/svg+xml';
+    }
+
     private function getAllowedExtensions(): array
     {
         $site = $this->route('site');
@@ -95,10 +116,26 @@ class UploadAssetRequest extends FormRequest
                     // Any real image MIME is OK with any image extension
                 } elseif ($extension === 'svg' && $mime === 'image/svg+xml') {
                     // SVG matches
+                } elseif (self::isActiveContentMime($mime)) {
+                    // F06: HTML/XML/JS under an allowed extension (.txt/.md) would be
+                    // stored with the sniffed MIME and could be served from the CMS
+                    // origin — refused regardless of extension.
+                    $validator->errors()->add('file', 'Active content (HTML, XML, scripts) cannot be uploaded as a text file.');
+                    return;
+                } elseif (in_array($extension, ['txt', 'md'], true)) {
+                    // Text extensions: only genuine plain text / markdown.
+                    if (!in_array($mime, ['text/plain', 'text/markdown', 'text/x-markdown'], true)) {
+                        $validator->errors()->add('file', 'File MIME type does not match extension.');
+                        return;
+                    }
+                    if (self::looksLikeMarkup((string) @file_get_contents($file->getRealPath(), false, null, 0, 4096))) {
+                        $validator->errors()->add('file', 'Active content (HTML, XML, scripts) cannot be uploaded as a text file.');
+                        return;
+                    }
                 } elseif (str_starts_with($mime, 'video/') || str_starts_with($mime, 'audio/') ||
-                          str_starts_with($mime, 'text/') || $mime === 'application/octet-stream' ||
+                          $mime === 'application/octet-stream' ||
                           str_starts_with($mime, 'application/zip') || str_starts_with($mime, 'application/x-rar')) {
-                    // Permissive for media, text, and archives — extension check is sufficient
+                    // Permissive for media and archives — extension check is sufficient
                 } else {
                     $allowedExts = $this->mimeToExtension[$mime] ?? null;
                     if (!$allowedExts || !in_array($extension, $allowedExts)) {
