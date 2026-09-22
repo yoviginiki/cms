@@ -75,6 +75,7 @@ class MagazineViewController extends Controller
         $page = Page::where('site_id', $site->id)
             ->where('slug', $slug)
             ->where('editor_mode', 'magazine')
+            ->where('status', 'published') // F23: drafts/archived are never public
             ->firstOrFail();
 
         $magPages = MagPage::where('page_id', $page->id)->orderBy('page_number')->get();
