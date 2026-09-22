@@ -102,6 +102,7 @@ class ReferenceExtractorRegistry
             'search-box' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
             'facet-filter' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
             'results-grid' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
+            'collection-categories' => new FieldMapExtractor(idFields: ['collectionId' => ['collection', 'lists']]),
 
             // ── URL-bearing media/CTA blocks ───────────────────────────────
             'gallery' => new FieldMapExtractor(urlFields: ['images.*', 'images.*.link']),

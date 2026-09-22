@@ -520,3 +520,10 @@ claims corrected.
 - Frontend: `vitest run` **48 files / 460 tests passed**; `tsc --noEmit` **0 errors**.
 - Block audit: 102 COMPLETE, 2 INTERNAL, exit 0 (both entry points).
 - Not executed: GitHub workflow, browser tests, Lighthouse, load tests, production deploy.
+
+### Final full suite (branch head)
+
+`php artisan test` on PostgreSQL 16 / restricted role: **770 passed, 1146 risky, 19 failed** (10 188 assertions,
+after adding the reference extractor for the new `collection-categories` definition). The 19 failures are
+exactly the pre-existing baseline set listed above; every test added in this cycle passes. "Risky" is
+PHPUnit 12's "test code or tested code removed error handlers" flag (pre-existing, harmless, not silenced).
