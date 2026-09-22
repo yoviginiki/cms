@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
+use App\Support\Http\OutboundHttpPolicy;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -45,10 +46,15 @@ class DeliverWebhookJob implements ShouldQueue
 
         $code = null;
         try {
-            if (!$this->hostAllowed($hook->url)) {
-                throw new \RuntimeException('Webhook host resolves to a private address.');
+            // F25: one outbound policy — A+AAAA range check, pinned address,
+            // no redirects. The test bypass only skips DNS; redirects stay off.
+            $policy = app(OutboundHttpPolicy::class);
+            $target = config('collections.import_skip_dns_guard') ? null : $policy->resolvePublic($hook->url);
+            if (!config('collections.import_skip_dns_guard') && $target === null) {
+                throw new \RuntimeException('Webhook destination is not an allowed public https host.');
             }
             $response = Http::timeout(10)->connectTimeout(5)
+                ->withOptions($policy->guzzleOptions($target))
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-Cms-Event' => $delivery->event,
@@ -85,28 +91,5 @@ class DeliverWebhookJob implements ShouldQueue
             'response_code' => $code,
             'next_attempt_at' => now()->addMinutes(5 * (2 ** ($attempts - 1))),
         ]);
-    }
-
-    private function hostAllowed(string $url): bool
-    {
-        if (config('collections.import_skip_dns_guard')) {
-            return true; // tests
-        }
-        $scheme = mb_strtolower((string) parse_url($url, PHP_URL_SCHEME));
-        if ($scheme !== 'https') {
-            return false;
-        }
-        $host = (string) parse_url($url, PHP_URL_HOST);
-        $ips = @gethostbynamel($host) ?: [];
-        if ($ips === []) {
-            return false;
-        }
-        foreach ($ips as $ip) {
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

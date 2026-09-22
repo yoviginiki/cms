@@ -75,14 +75,17 @@ class CollectionsFetchImportsCommand extends Command
     {
         $url = $collection->settings['import_url'];
 
-        if (!$this->hostAllowed($url)) {
-            $this->warn("{$collection->slug}: import URL host resolves to a private address — skipped.");
+        $policy = app(\App\Support\Http\OutboundHttpPolicy::class);
+        $target = config('collections.import_skip_dns_guard') ? null : $policy->resolvePublic($url);
+        if (!config('collections.import_skip_dns_guard') && $target === null) {
+            $this->warn("{$collection->slug}: import URL is not an allowed public https host — skipped.");
 
             return;
         }
 
         try {
             $response = Http::timeout(60)->connectTimeout(10)
+                ->withOptions($policy->guzzleOptions($target))
                 ->withUserAgent('Stillopress-Importer/1.0')
                 ->get($url);
         } catch (\Throwable $e) {
@@ -149,28 +152,5 @@ class CollectionsFetchImportsCommand extends Command
         $collection->save();
 
         $this->info("{$collection->slug}: import {$importId} queued.");
-    }
-
-    /** SSRF guard: the URL host must not resolve to private/reserved space. */
-    private function hostAllowed(string $url): bool
-    {
-        if (config('collections.import_skip_dns_guard')) {
-            return true; // tests: Http::fake hosts don't resolve
-        }
-        $host = (string) parse_url($url, PHP_URL_HOST);
-        if ($host === '') {
-            return false;
-        }
-        $ips = @gethostbynamel($host) ?: [];
-        if ($ips === []) {
-            return false;
-        }
-        foreach ($ips as $ip) {
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
