@@ -36,7 +36,7 @@ class SiteCloneService
             'meta' => [
                 'name' => $site->name,
                 'seo_defaults' => $site->seo_defaults,
-                'settings' => $site->settings,
+                'settings' => \App\Domain\Sites\Support\SiteSecrets::strip($site->settings ?? []), // F08: never export credentials
                 'theme_config' => $site->theme?->config ?? [],
             ],
             'categories' => $site->categories->map(fn($c) => [
