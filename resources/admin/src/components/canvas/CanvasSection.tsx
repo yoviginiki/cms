@@ -12,7 +12,7 @@ import { CANVAS_DRAG_MIME, defaultSize, dropPosition } from '@/lib/canvasBlocks'
 import type { PeerCursor, PresenceMember } from './useCanvasCollab';
 
 const AUTO_MIN_H = 480;   // an auto section never shows smaller than this in the editor (room to work)
-const AUTO_PAD = 120;     // auto: breathing room below the lowest element so you can drop under it
+const AUTO_PAD = 60;      // auto: breathing room below the lowest element so you can drop under it
 const OVER_PAD = 40;      // fixed: how much of the overflow area to reveal below the section edge
 const MIN_SECTION_H = 100;
 
@@ -150,9 +150,9 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
         )}
       </div>
 
-      {/* the canvas */}
-      <div className="flex justify-center bg-base-300/30 py-4 overflow-hidden">
-        <div style={{ width: effWidth * zoom, height: displayHeight * zoom }}>
+      {/* the canvas — never clipped: wider than the pane → the pane scrolls sideways; narrower → centred */}
+      <div className="bg-base-300/30 py-4 px-4" style={{ minWidth: 'max-content' }}>
+        <div style={{ width: effWidth * zoom, height: displayHeight * zoom, margin: '0 auto' }}>
           <div
             ref={canvasRef}
             className="cv-canvas relative shadow-sm"
@@ -185,6 +185,7 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
                 eff={eff}
                 selected={selectedIds.includes(el.id)}
                 editing={editingId === el.id}
+                breakpoint={bp}
                 peerLocked={lockedIds?.has(el.id)}
                 zoom={zoom}
                 onPointerDown={onElementPointerDown}

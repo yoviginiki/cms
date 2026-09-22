@@ -6,6 +6,12 @@
 
 export type CanvasPageType = 'website' | 'single';
 
+// How the design-width canvas meets the visitor's screen (published):
+//  scale  — the canvas IS the screen: sections scale to the viewport width,
+//           up and down, breaking out of the theme container (default);
+//  center — a fixed design-width column, centred; stacks below it (legacy).
+export type CanvasFit = 'scale' | 'center';
+
 // Horizontal anchor for an element in a fluid section: which edge it holds as
 // the container width flexes below the design width. Default 'left'.
 export type PinX = 'left' | 'center' | 'right' | 'stretch';

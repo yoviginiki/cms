@@ -19,9 +19,16 @@ A canvas page is **not** one giant canvas. It is a vertical stack of **Sections*
 - **Right-hand panel**: one element → Content, Layer & opacity, Position & size (X/Y/W/H/rotation, pin in fluid sections), Phone (hide on phones, reset phone layout), Animation. Several elements → layer and duplicate/delete. Nothing → Page (type, design width, phone width) and the active Section.
 - **Preview**: the split-pane preview renders through the real static-publish endpoint, with a mobile-width toggle — what you see is exactly what publishes.
 
+## How the canvas meets the visitor's screen
+
+Page setting **Screen** (right panel, nothing selected; stored in `seo_meta.canvas.fit`):
+
+- **Scale to screen width** (default) — the canvas *is* the screen. Each section breaks out of the theme container and scales to the viewport width, up and down, so a block placed at the left edge of the canvas sits at the left edge of the browser and the page looks exactly like the editor at any window size. Implemented by a `.cv-fit` box per section (holds the scaled layout height) + a tiny script publishing `--cv-vw` / `--cv-s`; without JS it degrades to a centred column.
+- **Centred column** — legacy: a fixed design-width column centred in the container; below the design width the blocks auto-stack.
+
 ## Mobile behavior
 
-Below the theme's mobile breakpoint, published canvas sections **auto-stack**: children flow vertically in reading order (top-to-bottom, left-to-right), full width, natural heights. The stacking is computed at publish into real markup order — good for SEO and screen readers — while desktop positions apply via CSS at wide viewports.
+On phones (≤767px) sections **auto-stack** in both modes: children flow vertically in reading order (top-to-bottom, left-to-right), full width, natural heights. The stacking is computed at publish into real markup order — good for SEO and screen readers — while desktop positions apply via CSS at wide viewports. A per-element phone layout (phone view in the editor) replaces the stack for that section.
 
 ## Which blocks are in the palette
 

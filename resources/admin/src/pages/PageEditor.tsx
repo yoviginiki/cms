@@ -206,11 +206,12 @@ export default function PageEditor() {
       }
       // Canvas mode reads the SAME block tree into the canvas store.
       if (page?.editor_mode === 'canvas') {
-        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
+        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
         useCanvasStore.getState().loadFromBlocks(fetchedBlocks || [], {
           pageType: cv?.page_type === 'single' ? 'single' : 'website',
           width: cv?.width,
           mobileWidth: cv?.mobile_width,
+          fit: cv?.fit,
         });
       }
       blocksLoadedRef.current = true;
@@ -377,11 +378,12 @@ export default function PageEditor() {
       setBlocks(imported as any);
 
       if (editorMode === 'canvas') {
-        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
+        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
         useCanvasStore.getState().loadFromBlocks(imported as any, {
           pageType: cv?.page_type === 'single' ? 'single' : 'website',
           width: cv?.width,
           mobileWidth: cv?.mobile_width,
+          fit: cv?.fit,
         });
       }
       setDirty(true);

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BlockData } from '@/types/blocks';
-import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, Breakpoint, BreakpointLayout, PinX, CanvasAnim, CanvasOp } from '@/types/canvas';
+import type { CanvasDoc, CanvasElement, CanvasSection, CanvasPageType, CanvasFit, Breakpoint, BreakpointLayout, PinX, CanvasAnim, CanvasOp } from '@/types/canvas';
 import { DEFAULT_CANVAS_WIDTH, DEFAULT_MOBILE_WIDTH, CANVAS_W_MIN, CANVAS_W_MAX, MOBILE_W_MIN, MOBILE_W_MAX } from '@/types/canvas';
 import { blockToCanvas, canvasToBlocks, createElement, createSection, extractPassthrough } from '@/lib/canvasAdapter';
 import { invertOp } from '@/lib/collabOps';
@@ -13,6 +13,7 @@ interface Snapshot { sections: CanvasSection[]; }
 interface CanvasState {
   width: number;
   pageType: CanvasPageType;
+  fit: CanvasFit;             // published screen fit (persisted in seo_meta.canvas.fit)
   sections: CanvasSection[];
   passthrough: BlockData[];   // non-section top-level blocks, carried verbatim
   selectedIds: string[];      // selected element ids
@@ -34,10 +35,11 @@ interface CanvasState {
   applyOp: (op: CanvasOp) => void;
 
   // lifecycle
-  loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number; mobileWidth?: number }) => void;
+  loadFromBlocks: (blocks: BlockData[], meta: { pageType?: CanvasPageType; width?: number; mobileWidth?: number; fit?: string }) => void;
   toBlocks: () => BlockData[];
   markClean: () => void;
   setPageType: (t: CanvasPageType) => void;
+  setFit: (f: CanvasFit) => void;
   setWidth: (w: number) => void;
   setMobileWidth: (w: number) => void;
 
@@ -87,6 +89,7 @@ const findSectionOf = (sections: CanvasSection[], elId: string): CanvasSection |
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   width: DEFAULT_CANVAS_WIDTH,
   pageType: 'website',
+  fit: 'scale',
   sections: [],
   passthrough: [],
   selectedIds: [],
@@ -182,6 +185,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set({
       width: doc.width,
       pageType: doc.pageType,
+      fit: meta.fit === 'center' ? 'center' : 'scale',
       sections: doc.sections,
       passthrough: extractPassthrough(blocks),
       gridSize: doc.width / 12,
@@ -199,6 +203,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   toBlocks: () => canvasToBlocks({ pageType: get().pageType, width: get().width, sections: get().sections }, get().passthrough),
   markClean: () => set({ isDirty: false }),
   setPageType: (t) => set({ pageType: t, isDirty: true }),
+  setFit: (f) => set({ fit: f }),
   setWidth: (w) => { const width = Math.max(CANVAS_W_MIN, Math.min(CANVAS_W_MAX, Math.round(w) || DEFAULT_CANVAS_WIDTH)); set({ width, gridSize: width / 12, isDirty: true }); },
   setMobileWidth: (w) => { const mobileWidth = Math.max(MOBILE_W_MIN, Math.min(MOBILE_W_MAX, Math.round(w) || DEFAULT_MOBILE_WIDTH)); set({ mobileWidth, isDirty: true }); },
 

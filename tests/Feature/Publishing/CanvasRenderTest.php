@@ -25,7 +25,7 @@ class CanvasRenderTest extends TestCase
             'site_id' => $site->id,
             'editor_mode' => 'canvas',
             'status' => 'published',
-            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200]],
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200, 'fit' => 'center']],
         ]);
 
         // Section 1 (contained, fixed height) with two elements.
@@ -139,6 +139,95 @@ class CanvasRenderTest extends TestCase
         $this->assertStringContainsString('.cv-el[data-cv-type=image] figure.image-block>img{flex:1 1 0;min-height:0;width:100%;height:100%;object-fit:cover}', $html);
         $this->assertStringContainsString('.cv-el[data-cv-type=video] video,.cv-el[data-cv-type=video] iframe{width:100%;height:100%;object-fit:cover;display:block}', $html);
         $this->assertStringContainsString('.cv-el[data-cv-type=button] .btn{width:100%;height:100%;', $html);
+    }
+
+    public function test_shared_block_style_publishes_on_canvas_elements(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = $this->createSiteWithPages(0);
+        $page = Page::factory()->create([
+            'site_id' => $site->id, 'editor_mode' => 'canvas', 'status' => 'published',
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200]],
+        ]);
+        $s = Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 0,
+            'data' => ['canvas' => ['height' => 400, 'bleed' => false, 'background' => '']],
+        ]);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'text', 'order' => 0,
+            'data' => ['content' => 'STYLED'],
+            'style' => [
+                'layout' => ['x' => 10, 'y' => 20, 'width' => 300, 'height' => 100],
+                'visual' => ['backgroundColor' => '#ff0000', 'borderWidth' => '2px', 'borderColor' => '#000000', 'borderRadius' => '8px', 'boxShadow' => 'md'],
+                'spacing' => ['paddingTop' => '12px'],
+                'typography' => ['fontSize' => '20px', 'textAlign' => 'center'],
+            ],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page->fresh(), $site->fresh()->theme, $site->fresh());
+        $body = substr($html, (int) strpos($html, 'class="cv-page"'));
+
+        // the inspector's Background / Border & shadow / Spacing / Typography reach the published block
+        // (BlockStyle::buildStyle emits them on the block wrapper inside .cv-el)
+        $this->assertStringContainsString('background-color:#ff0000', $body);
+        $this->assertStringContainsString('border:2px solid #000000', $body);
+        $this->assertStringContainsString('border-radius:8px', $body);
+        $this->assertStringContainsString('box-shadow:', $body);
+        $this->assertStringContainsString('padding-top:12px', $body);
+        $this->assertStringContainsString('font-size:20px', $body);
+        $this->assertStringContainsString('text-align:center', $body);
+    }
+
+    public function test_scale_fit_is_the_default_and_scales_sections_to_the_viewport(): void
+    {
+        $this->setTenantScope($this->owner);
+        $site = $this->createSiteWithPages(0);
+        $page = Page::factory()->create([
+            'site_id' => $site->id, 'editor_mode' => 'canvas', 'status' => 'published',
+            'seo_meta' => ['canvas' => ['page_type' => 'website', 'width' => 1200]],   // no fit → scale
+        ]);
+        $s = Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 0,
+            'data' => ['canvas' => ['height' => 606, 'bleed' => false, 'background' => '']],
+        ]);
+        Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => $s->id, 'type' => 'text', 'order' => 0, 'data' => ['content' => 'X'],
+            'style' => ['layout' => ['x' => 61, 'y' => 7, 'width' => 1078, 'height' => 541]],
+        ]);
+        $b = Block::create([
+            'blockable_type' => $page->getMorphClass(), 'blockable_id' => $page->id,
+            'parent_block_id' => null, 'type' => 'section', 'level' => 'section', 'order' => 1,
+            'data' => ['canvas' => ['height' => 300, 'bleed' => true, 'background' => '#111111']],
+        ]);
+
+        $html = app(BuildPageService::class)->build($page->fresh(), $site->fresh()->theme, $site->fresh());
+        $body = substr($html, (int) strpos($html, 'class="cv-page"'));
+
+        // each section sits in a .cv-fit box carrying its design height (also inside a bleed wrapper)
+        $this->assertStringContainsString('<div class="cv-fit" style="--cv-h:606px"><section class="cv-section" style="height:606px;">', $body);
+        $this->assertStringContainsString('<section class="cv-bleed" style="background:#111111;"><div class="cv-fit" style="--cv-h:300px"><div class="cv-section"', $body);
+        // the page breaks out of the theme container and scales by --cv-s
+        $this->assertStringContainsString('.cv-page{--cv-s:1;width:var(--cv-vw,100%);margin-left:calc(50% - var(--cv-vw,100%)/2);overflow-x:clip}', $body);
+        $this->assertStringContainsString('.cv-fit>.cv-section{position:absolute;left:0;top:0;margin:0;width:var(--cv-w)!important;max-width:none!important;transform:scale(var(--cv-s));transform-origin:top left}', $body);
+        $this->assertStringContainsString('p.style.setProperty("--cv-s",(v/w).toFixed(4))', $body);
+        $this->assertStringContainsString('w=1200;', $body);
+        // no tablet auto-stack any more — stacking only on phones
+        $this->assertStringNotContainsString('@media(max-width:1200px)', $body);
+        $this->assertStringContainsString('@media(max-width:767px){.cv-fit{width:100%!important;height:auto!important;overflow:visible}', $body);
+        $this->assertStringContainsString('position:static!important', $body);
+    }
+
+    public function test_center_fit_keeps_the_legacy_centred_column_and_tablet_stack(): void
+    {
+        [$site, $page] = $this->canvasPage();   // fixture uses fit=center
+        $html = app(BuildPageService::class)->build($page, $site->theme, $site);
+        $this->assertStringNotContainsString('cv-fit', $html);
+        $this->assertStringNotContainsString('--cv-vw', $html);
+        $this->assertStringContainsString('@media(max-width:1200px)', $html);
     }
 
     public function test_auto_height_section_fits_lowest_child(): void

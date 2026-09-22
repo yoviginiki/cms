@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
-import type { BlockData } from '@/types/blocks';
-import type { CanvasElement as El, EffectiveLayout } from '@/types/canvas';
+import type { BlockData, BlockStyleProps, ResponsiveOverrides } from '@/types/blocks';
+import type { Breakpoint, CanvasElement as El, EffectiveLayout } from '@/types/canvas';
+import { buildBlockWrapperStyle } from '@/lib/blockStyles';
 import { useCanvasStore } from '@/stores/canvasStore';
 import type { ResizeHandle } from './useCanvasSelection';
 import { CHROME } from './chrome';
@@ -24,6 +25,7 @@ const posFor = (o: number): Record<ResizeHandle, React.CSSProperties> => ({
 interface Props {
   el: El;
   eff: EffectiveLayout;   // position for the active breakpoint
+  breakpoint?: Breakpoint; // for responsive style overrides in the preview
   selected: boolean;
   editing?: boolean;      // in-place content editing: the block's own UI receives the pointer
   peerLocked?: boolean;   // another editor is actively moving this element
@@ -33,7 +35,7 @@ interface Props {
   onRotateDown: (e: React.PointerEvent, id: string, center: { cx: number; cy: number }) => void;
 }
 
-export function CanvasElement({ el, eff, selected, editing = false, peerLocked, zoom, onPointerDown, onResizeDown, onRotateDown }: Props) {
+export function CanvasElement({ el, eff, selected, editing = false, peerLocked, zoom, breakpoint = 'desktop', onPointerDown, onResizeDown, onRotateDown }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const updateElementData = useCanvasStore(s => s.updateElementData);
   const setEditing = useCanvasStore(s => s.setEditing);
@@ -68,6 +70,14 @@ export function CanvasElement({ el, eff, selected, editing = false, peerLocked, 
 
   const block: BlockData = { id: el.id, type: el.blockType, data: el.data, children: [], order: 0, style: el.style };
 
+  // Shared block style (background / border / shadow / spacing / typography from
+  // the inspector) applied to the content box — same resolver as the block
+  // editor, so the canvas shows what BlockStyleResolver publishes. `layout` is
+  // the canvas position itself, never a CSS width/height here.
+  const { layout: _layout, ...styleSansLayout } = (el.style ?? {}) as BlockStyleProps & { layout?: unknown };
+  const wrapperStyle = buildBlockWrapperStyle(styleSansLayout, el.responsive as ResponsiveOverrides | undefined, breakpoint);
+  const visualOpacity = typeof wrapperStyle.opacity === 'number' ? wrapperStyle.opacity : 1;
+
   const rotateDown = (e: React.PointerEvent) => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
@@ -100,7 +110,7 @@ export function CanvasElement({ el, eff, selected, editing = false, peerLocked, 
       }}
     >
       {/* cv-fill + data-cv-type: index.css makes intrinsic-size blocks (image, video, icon…) follow the box */}
-      <div className="cv-fill" data-cv-type={el.blockType} style={{ width: '100%', height: '100%', overflow: 'hidden', pointerEvents: editing ? 'auto' : 'none', opacity: eff.opacity }}>
+      <div className="cv-fill" data-cv-type={el.blockType} style={{ ...wrapperStyle, width: '100%', height: '100%', overflow: 'hidden', boxSizing: 'border-box', pointerEvents: editing ? 'auto' : 'none', opacity: eff.opacity * visualOpacity }}>
         {reg ? (
           <reg.Preview
             block={block}

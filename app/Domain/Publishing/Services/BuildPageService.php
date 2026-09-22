@@ -608,6 +608,13 @@ HTML;
         $canvasWidth = CanvasBounds::canvasWidth((int) ($cfg['width'] ?? CanvasBounds::CANVAS_W_DEFAULT));
         $mobileWidth = CanvasBounds::mobileWidth((int) ($cfg['mobile_width'] ?? CanvasBounds::MOBILE_W_DEFAULT));
         $isSingle = (($cfg['page_type'] ?? 'website') === 'single');
+        // How the design-width canvas meets the visitor's screen:
+        //  scale  — (default) the canvas IS the screen: sections break out of the
+        //           theme container and scale to the viewport width, up and down,
+        //           so the page looks exactly like the editor at every size;
+        //  center — fixed design width centred, auto-stack below it (legacy).
+        // Phones (≤767px) always stack (or use the per-element phone layout).
+        $fit = (($cfg['fit'] ?? 'scale') === 'center') ? 'center' : 'scale';
 
         $sections = $content->blocks()
             ->whereNull('parent_block_id')
@@ -622,7 +629,7 @@ HTML;
         $hasAnim = false;
         $out = '';
         foreach ($sections as $section) {
-            $out .= $this->renderCanvasSection($section, $site, $canvasWidth, $mobileWidth, $mobileCss, $hasAnim);
+            $out .= $this->renderCanvasSection($section, $site, $canvasWidth, $mobileWidth, $mobileCss, $hasAnim, $fit);
             if ($isSingle) {
                 break; // single: one fixed canvas, no scroll/stack
             }
@@ -643,18 +650,36 @@ HTML;
             // ready — no-JS falls back to an on-load entrance); honor reduced-motion.
             . '.cv-page.cv-ready .cv-anim{animation-play-state:paused}'
             . '.cv-page.cv-ready .cv-anim.cv-in{animation-play-state:running}'
-            . '@media(prefers-reduced-motion:reduce){.cv-anim{animation:none!important}}'
-            // Zone 2 — tablet/below-design-width: auto-stack (non-fluid only).
-            . '@media(max-width:' . $canvasWidth . 'px){'
-            . '.cv-section:not(.cv-fluid){width:100%!important;height:auto!important;min-height:0!important}'
+            . '@media(prefers-reduced-motion:reduce){.cv-anim{animation:none!important}}';
+
+        // The auto-stack rules: every element in source order, full width.
+        $stack = '.cv-section:not(.cv-fluid){width:100%!important;height:auto!important;min-height:0!important}'
             . '.cv-bleed .cv-section:not(.cv-fluid){padding-left:1rem;padding-right:1rem}'
             . '.cv-section:not(.cv-fluid) .cv-el{position:static!important;width:100%!important;height:auto!important;'
             . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
             . '.cv-section:not(.cv-fluid) .cv-anim{height:auto!important}'
-            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto}'
-            . '}'
-            // Zone 3 — phone: sections with a custom mobile layout un-stack.
-            . ($mobileCss !== '' ? '@media(max-width:767px){' . $mobileCss . '}' : '')
+            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto}';
+
+        if ($fit === 'scale') {
+            // --cv-vw / --cv-s are set by the script below (viewport width and
+            // viewport÷design scale). Without JS they fall back to 100% / 1: the
+            // canvas stays a centred design-width column inside the container.
+            $css .= '.cv-page{--cv-s:1;width:var(--cv-vw,100%);margin-left:calc(50% - var(--cv-vw,100%)/2);overflow-x:clip}'
+                . '.cv-fit{position:relative;width:calc(var(--cv-w)*var(--cv-s));height:calc(var(--cv-h)*var(--cv-s));margin:0 auto;overflow:hidden}'
+                . '.cv-fit>.cv-section{position:absolute;left:0;top:0;margin:0;width:var(--cv-w)!important;max-width:none!important;'
+                . 'transform:scale(var(--cv-s));transform-origin:top left}'
+                // Phone: drop the scaling and stack (a custom phone layout, below, wins).
+                . '@media(max-width:767px){'
+                . '.cv-fit{width:100%!important;height:auto!important;overflow:visible}'
+                . '.cv-fit>.cv-section{position:relative!important;transform:none!important;width:100%!important}'
+                . $stack
+                . '}';
+        } else {
+            // Zone 2 — tablet/below-design-width: auto-stack (non-fluid only).
+            $css .= '@media(max-width:' . $canvasWidth . 'px){' . $stack . '}';
+        }
+        // Zone 3 — phone: sections with a custom mobile layout un-stack.
+        $css .= ($mobileCss !== '' ? '@media(max-width:767px){' . $mobileCss . '}' : '')
             . '</style>';
 
         // ~12-line vanilla reveal observer, emitted only when animations are used.
@@ -665,10 +690,18 @@ HTML;
                 . 'p.querySelectorAll("[data-cv-anim]").forEach(function(e){o.observe(e);});})();</script>'
             : '';
 
+        if ($fit === 'scale') {
+            // Viewport-fit: measure the real viewport (clientWidth excludes the
+            // scrollbar, unlike 100vw) and publish it as --cv-vw / --cv-s.
+            $script .= '<script>(function(){var p=document.currentScript.parentNode,w=' . $canvasWidth . ';'
+                . 'function f(){var v=document.documentElement.clientWidth;p.style.setProperty("--cv-vw",v+"px");p.style.setProperty("--cv-s",(v/w).toFixed(4));}'
+                . 'f();addEventListener("resize",f);})();</script>';
+        }
+
         return '<div class="cv-page">' . $css . $out . $script . '</div>';
     }
 
-    private function renderCanvasSection(Block $section, Site $site, int $canvasWidth, int $mobileWidth, string &$mobileCss, bool &$hasAnim): string
+    private function renderCanvasSection(Block $section, Site $site, int $canvasWidth, int $mobileWidth, string &$mobileCss, bool &$hasAnim, string $fit = 'center'): string
     {
         $data = is_array($section->data) ? $section->data : [];
         $canvas = $data['canvas'] ?? [];
@@ -754,13 +787,18 @@ HTML;
                 . $mobRules;
         }
 
+        // Scale mode: a .cv-fit box holds the scaled section's layout size
+        // (--cv-h × --cv-s) so the page flows correctly; fluid sections opt out.
+        $fitOpen = ($fit === 'scale' && ! $fluid) ? '<div class="cv-fit" style="--cv-h:' . $sectionH . 'px">' : '';
+        $fitClose = $fitOpen !== '' ? '</div>' : '';
+
         if ($bleed) {
-            return '<section class="cv-bleed" style="' . $bgStyle . '">'
+            return '<section class="cv-bleed" style="' . $bgStyle . '">' . $fitOpen
                 . '<div class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px">' . $els . '</div>'
-                . '</section>';
+                . $fitClose . '</section>';
         }
 
-        return '<section class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>';
+        return $fitOpen . '<section class="cv-section' . $fluidClass . $mobClass . '" style="height:' . $sectionH . 'px;' . $bgStyle . '">' . $els . '</section>' . $fitClose;
     }
 
     /** Entrance-animation CSS for a canvas element, or '' when none/invalid. */

@@ -63,6 +63,6 @@ describe('CanvasSection height handle', () => {
     useCanvasStore.getState().addElement(id, 'text', 0, 900, 200, 100); // bottom at 1000 > 480
     const { getByTestId } = renderSection();
     const canvas = getByTestId('canvas-drop-target') as HTMLElement;
-    expect(parseInt(canvas.style.height, 10)).toBe(1120); // 1000 + 120 room below
+    expect(parseInt(canvas.style.height, 10)).toBe(1060); // 1000 + 60 room below
   });
 });

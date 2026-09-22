@@ -169,11 +169,12 @@ export default function PostEditor() {
       }
       // Canvas mode reads the SAME block tree into the canvas store.
       if (post?.editor_mode === 'canvas') {
-        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
+        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
         useCanvasStore.getState().loadFromBlocks(fetchedBlocks, {
           pageType: cv?.page_type === 'single' ? 'single' : 'website',
           width: cv?.width,
           mobileWidth: cv?.mobile_width,
+          fit: cv?.fit,
         });
       }
     }
@@ -421,11 +422,12 @@ export default function PostEditor() {
         simpleBlockIdRef.current = body?.id ?? null;
         setSimpleContent((body?.data?.content as string) || '');
       } else if (editorMode === 'canvas') {
-        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number } } | undefined)?.canvas;
+        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
         useCanvasStore.getState().loadFromBlocks(imported as any, {
           pageType: cv?.page_type === 'single' ? 'single' : 'website',
           width: cv?.width,
           mobileWidth: cv?.mobile_width,
+          fit: cv?.fit,
         });
       }
       setDirty(true);

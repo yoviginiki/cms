@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
+import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Maximize2, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi } from '@/lib/api';
@@ -10,12 +10,19 @@ import { CanvasBlockPalette } from './CanvasBlockPalette';
 import { useCanvasCollab, type PeerCursor } from './useCanvasCollab';
 import { isCollabEnabled } from '@/lib/echo';
 import { effectiveLayout } from '@/types/canvas';
-import type { CanvasPageType } from '@/types/canvas';
+import type { CanvasFit, CanvasPageType } from '@/types/canvas';
 
 const NO_CURSORS: PeerCursor[] = [];   // stable empty ref so cursorless sections skip re-render
 const NUDGE_IDLE_MS = 600;             // arrow-key nudges within this gap = one undo entry
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 2;
+const FIT_GUTTER = 48;                 // px of pane left free either side when zooming to fit
+
+/** Zoom that shows the whole design width inside a pane of `paneWidth` px (never above 1:1). */
+export function fitZoom(paneWidth: number, designWidth: number): number {
+  if (!(paneWidth > 0) || !(designWidth > 0)) return 1;
+  return Math.max(ZOOM_MIN, Math.min(1, Math.floor(((paneWidth - FIT_GUTTER) / designWidth) * 100) / 100));
+}
 
 interface Props {
   siteId: string;
@@ -29,10 +36,12 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const sections = useCanvasStore(s => s.sections);
   const pageType = useCanvasStore(s => s.pageType);
   const width = useCanvasStore(s => s.width);
+  const fit = useCanvasStore(s => s.fit);
   const zoom = useCanvasStore(s => s.zoom);
   const snapEnabled = useCanvasStore(s => s.snapEnabled);
   const activeSectionId = useCanvasStore(s => s.activeSectionId);
   const activeBreakpoint = useCanvasStore(s => s.activeBreakpoint);
+  const mobileWidth = useCanvasStore(s => s.mobileWidth);
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const isDirty = useCanvasStore(s => s.isDirty);
   const undoLen = useCanvasStore(s => s.undoStack.length);   // local-mode undo availability
@@ -46,10 +55,10 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   } = useCanvasStore.getState();
 
   // Persist page-type + design width to seo_meta.canvas (merged, non-clobbering).
-  const persistCanvasMeta = (patch: { page_type?: CanvasPageType; width?: number; mobile_width?: number }) => {
+  const persistCanvasMeta = (patch: { page_type?: CanvasPageType; width?: number; mobile_width?: number; fit?: CanvasFit }) => {
     const prev = (seoMeta?.canvas ?? {}) as Record<string, unknown>;
     const st = useCanvasStore.getState();
-    const canvas = { page_type: st.pageType, width: st.width, mobile_width: st.mobileWidth, ...prev, ...patch };
+    const canvas = { page_type: st.pageType, width: st.width, mobile_width: st.mobileWidth, fit: st.fit, ...prev, ...patch };
     const apiFor = contentType === 'posts' ? postsApi : pagesApi;
     apiFor.update(siteId, pageId, { seo_meta: { ...(seoMeta ?? {}), canvas } }).catch(() => { /* soft */ });
   };
@@ -69,8 +78,8 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   // Reconnect reseed: re-hydrate from the last saved tree after a dropped socket.
   const onReseed = useCallback(() => {
     blocksApi.get(siteId, contentType, pageId).then((r) => {
-      const cv = (seoMeta?.canvas ?? {}) as { page_type?: string; width?: number; mobile_width?: number };
-      useCanvasStore.getState().loadFromBlocks(r.data.data, { pageType: cv.page_type === 'single' ? 'single' : 'website', width: cv.width, mobileWidth: cv.mobile_width });
+      const cv = (seoMeta?.canvas ?? {}) as { page_type?: string; width?: number; mobile_width?: number; fit?: string };
+      useCanvasStore.getState().loadFromBlocks(r.data.data, { pageType: cv.page_type === 'single' ? 'single' : 'website', width: cv.width, mobileWidth: cv.mobile_width, fit: cv.fit });
     }).catch(() => { /* soft */ });
   }, [siteId, contentType, pageId, seoMeta]);
   const { members: presence, cursors, broadcastCursor, lockedIds, undo: collabUndo, redo: collabRedo, canUndo, canRedo } = useCanvasCollab(pageId, contentType, me?.id, autosave, onReseed);
@@ -89,7 +98,23 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMobile, setPreviewMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);           // the scrolling canvas pane
   const singleMode = pageType === 'single';
+
+  // Zoom to fit: the whole design width visible in the pane. Applied once when
+  // the pane first has a size (jsdom/tests have none → untouched), and on the
+  // toolbar "Fit" button / Ctrl+0. Manual ± zoom is left alone after that.
+  const effWidth = activeBreakpoint === 'mobile' ? mobileWidth : width;
+  const zoomToFit = useCallback(() => {
+    const w = paneRef.current?.clientWidth ?? 0;
+    if (w > 0) setZoom(fitZoom(w, effWidth));
+  }, [effWidth, setZoom]);
+  const fittedOnce = useRef(false);
+  useEffect(() => {
+    if (fittedOnce.current) return;
+    const w = paneRef.current?.clientWidth ?? 0;
+    if (w > 0 && sections.length > 0) { fittedOnce.current = true; setZoom(fitZoom(w, effWidth)); }
+  }, [sections.length, effWidth, setZoom]);
   // A run of arrow-key nudges collapses into one undo entry: snapshot on the
   // first nudge, then again only after a short idle gap or another action.
   const nudgeActive = useRef(false);
@@ -113,6 +138,8 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       // Per-client op-inverse undo in collab; local snapshot undo otherwise.
       if (meta && e.key.toLowerCase() === 'z') { e.preventDefault(); endNudge(); e.shiftKey ? doRedo() : doUndo(); return; }
       if (meta && e.key.toLowerCase() === 'y') { e.preventDefault(); endNudge(); doRedo(); return; }
+      if (meta && e.key === '0') { e.preventDefault(); zoomToFit(); return; }
+      if (meta && e.key === '1') { e.preventDefault(); setZoom(1); return; }
       if (!sel.length) { if (e.key === 'Escape') { endNudge(); clearSelection(); } return; }
 
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); endNudge(); deleteElements(sel); return; }
@@ -139,7 +166,7 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
     };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); endNudge(); };
-  }, [doUndo, doRedo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, bringForward, sendBackward, pushSnapshot, setEditing]);
+  }, [doUndo, doRedo, clearSelection, deleteElements, duplicateElements, bringToFront, sendToBack, bringForward, sendBackward, pushSnapshot, setEditing, zoomToFit, setZoom]);
 
   const previewUrl = `/api/v1/sites/${siteId}/${contentType}/${pageId}/preview`;
   const refreshPreview = () => { if (iframeRef.current) iframeRef.current.src = `${previewUrl}?t=${Date.now()}`; };
@@ -165,6 +192,8 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
           <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= ZOOM_MIN} title="Zoom out" aria-label="Zoom out"><ZoomOut size={14} /></button>
           <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
           <button className="btn btn-xs btn-ghost" onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= ZOOM_MAX} title="Zoom in" aria-label="Zoom in"><ZoomIn size={14} /></button>
+          <button className="btn btn-xs btn-ghost gap-1" onClick={zoomToFit} title="Fit the whole width in view (Ctrl+0)" aria-label="Zoom to fit"><Maximize2 size={13} /> Fit</button>
+          <button className="btn btn-xs btn-ghost" onClick={() => setZoom(1)} title="Actual size (Ctrl+1) — wider than the pane? scroll sideways" aria-label="Zoom 100%">1:1</button>
           <div className="w-px h-4 bg-base-300 mx-1" />
           {/* breakpoint switcher — edit desktop base or the mobile override */}
           <div className="flex bg-base-200 rounded p-0.5">
@@ -201,8 +230,15 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
           </button>
         </div>
 
-        {/* section stack */}
-        <div className="flex-1 overflow-y-auto bg-base-300/20" onPointerDown={() => clearSelection()}>
+        {/* what the visitor gets — so the centred design-width canvas isn't mistaken for the screen */}
+        <div className="px-3 py-1 text-[10px] text-base-content/50 bg-base-200/40 border-b border-base-200" data-testid="canvas-fit-hint">
+          {fit === 'scale'
+            ? <>Design width {width}px · <b>scales to the visitor's screen</b>: the canvas edge is the screen edge, the whole design grows or shrinks with the window. Phones stack the blocks (or use the phone layout).</>
+            : <>Design width {width}px · <b>centred column</b>: on wider screens there is empty space either side; below {width}px the blocks stack.</>}
+        </div>
+
+        {/* section stack — scrolls both ways, so a canvas wider than the pane is never cut off */}
+        <div ref={paneRef} className="flex-1 overflow-auto bg-base-300/20" onPointerDown={() => clearSelection()}>
           {sections.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-base-content/40 gap-3">
               <p>This canvas page is empty.</p>

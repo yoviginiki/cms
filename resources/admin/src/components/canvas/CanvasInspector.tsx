@@ -6,17 +6,20 @@ import {
 import { blockRegistry } from '@/components/blocks/registry';
 import '@/components/blocks';
 import { BlockIcon } from '@/components/editor/BlockIcon';
+import { VisualPanel } from '@/components/editor/properties/VisualPanel';
+import { SpacingPanel } from '@/components/editor/properties/SpacingPanel';
+import { TypographyPanel } from '@/components/editor/properties/TypographyPanel';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { effectiveLayout, MOBILE_W_MIN, MOBILE_W_MAX, CANVAS_W_MIN, CANVAS_W_MAX } from '@/types/canvas';
-import type { BlockData } from '@/types/blocks';
-import type { CanvasAnim, CanvasPageType, PinX } from '@/types/canvas';
+import type { BlockData, BlockStyleProps, ResponsiveOverrides } from '@/types/blocks';
+import type { CanvasAnim, CanvasFit, CanvasPageType, PinX } from '@/types/canvas';
 
 const ANIMS: CanvasAnim['type'][] = ['none', 'fade', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'zoom', 'scale-in'];
 
 interface Props {
   // Page-level canvas meta (type / design width / phone width) is persisted on
   // the page, not in the block tree — the editor owns that write.
-  persistCanvasMeta: (patch: { page_type?: CanvasPageType; width?: number; mobile_width?: number }) => void;
+  persistCanvasMeta: (patch: { page_type?: CanvasPageType; width?: number; mobile_width?: number; fit?: CanvasFit }) => void;
 }
 
 function Group({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -66,13 +69,14 @@ export function CanvasInspector({ persistCanvasMeta }: Props) {
   const activeSectionId = useCanvasStore(s => s.activeSectionId);
   const bp = useCanvasStore(s => s.activeBreakpoint);
   const pageType = useCanvasStore(s => s.pageType);
+  const fit = useCanvasStore(s => s.fit);
   const width = useCanvasStore(s => s.width);
   const mobileWidth = useCanvasStore(s => s.mobileWidth);
   const {
     updateElementData, updateElementLayout, updateElement, pushSnapshot,
     deleteElements, duplicateElements,
     setElementPin, setElementAnim, clearMobileOverride, clearSelection,
-    updateSectionSettings, setPageType, setWidth, setMobileWidth,
+    updateSectionSettings, setPageType, setFit, setWidth, setMobileWidth,
   } = useCanvasStore.getState();
 
   const section = selectedIds.length
@@ -110,6 +114,11 @@ export function CanvasInspector({ persistCanvasMeta }: Props) {
       ...(el.advanced ? { advanced: el.advanced } : {}),
     } as BlockData;
     const setL = (patch: Parameters<typeof updateElementLayout>[1]) => updateElementLayout(el.id, patch, bp);
+    // Shared block style (published by BlockStyleResolver, previewed via buildBlockWrapperStyle).
+    const style = (el.style ?? {}) as BlockStyleProps;
+    const setStyle = (section: keyof BlockStyleProps, value: unknown) => updateElementData(el.id, { __style: { [section]: value } });
+    const responsive = el.responsive as ResponsiveOverrides | undefined;
+    const setResponsive = (v: ResponsiveOverrides) => updateElementData(el.id, { __responsive: v });
     const hasMobileOverride = !!el.bp?.mobile && Object.keys(el.bp.mobile).length > 0;
     const hiddenOnPhone = !!el.bp?.mobile?.hidden;
 
@@ -155,6 +164,18 @@ export function CanvasInspector({ persistCanvasMeta }: Props) {
               />
               <span className="w-9 text-right tabular-nums">{Math.round(L.opacity * 100)}%</span>
             </label>
+          </Group>
+
+          <Group title="Background, border & shadow" defaultOpen={false}>
+            <VisualPanel value={style.visual || {}} onChange={(v) => setStyle('visual', v)} hideOpacity />
+          </Group>
+
+          <Group title="Spacing" defaultOpen={false}>
+            <SpacingPanel value={style.spacing || {}} onChange={(v) => setStyle('spacing', v)} style={style} responsive={responsive} onResponsiveChange={setResponsive} />
+          </Group>
+
+          <Group title="Typography" defaultOpen={false}>
+            <TypographyPanel value={style.typography || {}} onChange={(v) => setStyle('typography', v)} style={style} responsive={responsive} onResponsiveChange={setResponsive} />
           </Group>
 
           <Group title="Position & size">
@@ -237,6 +258,14 @@ export function CanvasInspector({ persistCanvasMeta }: Props) {
               onChange={(e) => { const t = e.target.value as CanvasPageType; setPageType(t); persistCanvasMeta({ page_type: t }); }} aria-label="Page type">
               <option value="website">Website (sections scroll)</option>
               <option value="single">Single (one canvas)</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-[11px] text-base-content/60" title="How the canvas meets the visitor's screen">
+            <span className="w-14 shrink-0">Screen</span>
+            <select className="select select-xs select-bordered flex-1" value={fit}
+              onChange={(e) => { const f = e.target.value as CanvasFit; setFit(f); persistCanvasMeta({ fit: f }); }} aria-label="Screen fit">
+              <option value="scale">Scale to screen width</option>
+              <option value="center">Centred column (fixed width)</option>
             </select>
           </label>
           <label className="flex items-center gap-2 text-[11px] text-base-content/60">

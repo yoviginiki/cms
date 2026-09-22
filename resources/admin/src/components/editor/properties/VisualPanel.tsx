@@ -8,9 +8,11 @@ interface Props {
   value: VisualProps;
   onChange: (v: VisualProps) => void;
   hideBg?: boolean;
+  /** Hide the block-opacity slider (the canvas editor has its own, on the element layer). */
+  hideOpacity?: boolean;
 }
 
-export function VisualPanel({ value, onChange, hideBg }: Props) {
+export function VisualPanel({ value, onChange, hideBg, hideOpacity }: Props) {
   const update = (key: string, v: unknown) => onChange({ ...value, [key]: v || undefined });
 
   return (
@@ -117,14 +119,14 @@ export function VisualPanel({ value, onChange, hideBg }: Props) {
       </div>
 
       {/* ── Opacity ── */}
-      <div>
+      {!hideOpacity && <div>
         <label className="text-[10px] text-base-content/40">Block Opacity</label>
         <input type="range" min={0} max={100} value={(value.opacity ?? 1) * 100}
           onChange={e => update('opacity', Number(e.target.value) / 100)}
           className="range range-xs w-full" />
         <span className="text-[10px] text-base-content/30">{Math.round((value.opacity ?? 1) * 100)}%</span>
         <p className="text-[9px] text-warning/60 mt-0.5">Affects entire block including text. For background-only opacity, use the block&apos;s own overlay controls.</p>
-      </div>
+      </div>}
 
       {/* ── Overflow ── */}
       <div>
