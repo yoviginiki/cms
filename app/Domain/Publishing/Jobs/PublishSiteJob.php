@@ -7,7 +7,10 @@ use Illuminate\Support\Facades\Log;
 use App\Domain\Grid\Services\GridRenderer;
 use App\Domain\Publishing\Services\AssetPublisher;
 use App\Domain\Publishing\Services\BuildPageService;
+use App\Domain\Publishing\Exceptions\NonRetryableBuildException;
+use App\Domain\Publishing\Services\AutoPublishService;
 use App\Domain\Publishing\Services\DeployService;
+use App\Domain\Publishing\Services\DeploymentGate;
 use App\Domain\Publishing\Services\SeoService;
 use App\Domain\Publishing\Services\RssFeedGenerator;
 use App\Domain\Publishing\Services\SitemapGenerator;
@@ -45,6 +48,8 @@ class PublishSiteJob implements ShouldQueue
     // 300s cap timed out mid-build and retried from scratch. Sized well above
     // the worst-case full build.
     public int $timeout = 3600;
+    // F16: transient failures wait before the next pass (seconds).
+    public array $backoff = [30, 90, 180];
 
     /**
      * Prevent a second worker from running the SAME deployment concurrently.
@@ -75,6 +80,9 @@ class PublishSiteJob implements ShouldQueue
         $this->deploymentId = $deployment->id;
         $this->rollbackTargetId = $rollbackTarget?->id;
         $this->tenantId = $deployment->site->tenant_id;
+        // F16: long builds run on the connection whose retry_after exceeds
+        // this job's timeout (config/queue.php 'builds').
+        $this->onConnection('builds');
     }
 
     /**
@@ -112,17 +120,27 @@ class PublishSiteJob implements ShouldQueue
         // production builds dir (and retention then pruned live builds).
         $stagingPath = rtrim(config('publishing.staging_path'), '/') . "/{$this->deployment->id}";
 
+        // F15/F16: the worker is alive — heartbeat + attempt bookkeeping. The
+        // reaper looks at the heartbeat, not the row's age.
+        $this->deployment->update(['started_at' => $this->deployment->started_at ?? now()]);
+        DeploymentGate::heartbeat($this->deployment, ['attempt' => $this->attempts()]);
+
         try {
             // Rollback (FIX-B6b): re-point the live site to a prior deployment's
             // build instead of rebuilding current DB content. Previously the job
             // ignored the target and republished today's content (a silent no-op).
             if ($this->type === 'rollback' && $this->rollbackTargetId) {
                 $target = Deployment::find($this->rollbackTargetId);
-                $targetBuild = rtrim(config('publishing.staging_path'), '/') . "/{$this->rollbackTargetId}";
-                if (!$target || !is_dir($targetBuild)) {
-                    throw new \RuntimeException('Rollback target build no longer exists (pruned); cannot roll back to this deployment.');
+                // F18: the target's ARTIFACT (a full release view — for a delta
+                // deployment that is {id}-release, never its partial staging dir).
+                $targetBuild = $target?->artifact_path ?: rtrim(config('publishing.staging_path'), '/') . "/{$this->rollbackTargetId}";
+                if (!$target || $target->site_id !== $site->id || !is_dir($targetBuild)) {
+                    throw new NonRetryableBuildException('Rollback target build no longer exists (pruned); cannot roll back to this deployment.');
                 }
                 $this->updateStatus('deploying', 'Rolling back...');
+                if (!app(DeploymentGate::class)->mayGoLive($this->deployment)) {
+                    throw new NonRetryableBuildException('Deployment superseded or reaped before the live swap; nothing was changed.');
+                }
                 $deployService->deploy($this->deployment, $targetBuild);
                 $this->deployment->update([
                     'status' => 'rolled_back',
@@ -204,8 +222,7 @@ class PublishSiteJob implements ShouldQueue
                 $validationResults["page:{$page->slug}"] = $result['validation'];
 
                 $pagePath = $this->getPagePath($page);
-                File::ensureDirectoryExists(dirname("{$stagingPath}/{$pagePath}"));
-                File::put("{$stagingPath}/{$pagePath}", $html);
+                self::writeAtomic("{$stagingPath}/{$pagePath}", $html);
 
                 // Create version snapshot
                 $version = $this->createVersion($page, 'page');
@@ -245,8 +262,10 @@ class PublishSiteJob implements ShouldQueue
                 if (empty($result['validation']['passed']) || !empty($result['validation']['warnings']) || !empty($result['validation']['errors'])) {
                     $validationResults["post:{$post->slug}"] = $result['validation'];
                 }
-                File::ensureDirectoryExists(dirname($dest));
-                File::put($dest, $html);
+                // Atomic (tmp + rename): a worker killed mid-write leaves no
+                // half file, so "is_file() → already built" is a safe resume
+                // criterion on the next attempt (F16).
+                self::writeAtomic($dest, $html);
 
                 $version = $this->createVersion($post, 'post');
 
@@ -352,6 +371,21 @@ class PublishSiteJob implements ShouldQueue
                 logger()->warning("Internal link check failed for site {$site->id}: {$e->getMessage()}");
             }
 
+            // F27: hard integrity errors block the release — before the swap.
+            $hardErrors = collect($validationResults)
+                ->filter(fn ($v) => !empty($v['errors']))
+                ->map(fn ($v, $k) => $k . ': ' . implode('; ', $v['errors']))
+                ->merge((array) ($this->deployment->fresh()->metadata['hard_errors'] ?? []))
+                ->values();
+            if ($hardErrors->isNotEmpty()) {
+                throw new NonRetryableBuildException("Build produced invalid output — not deployed:\n" . $hardErrors->implode("\n"));
+            }
+
+            // F15 fence: a reaped/superseded worker must not swap the live site.
+            if (!app(DeploymentGate::class)->mayGoLive($this->deployment)) {
+                throw new NonRetryableBuildException('Deployment superseded or reaped before the live swap; nothing was changed.');
+            }
+
             // Deploy
             $this->updateStatus('deploying', 'Deploying files...');
             $deployService->deploy($this->deployment, $stagingPath);
@@ -385,7 +419,10 @@ class PublishSiteJob implements ShouldQueue
                 'metadata' => array_merge($this->deployment->metadata ?? [], [
                     'current_step' => 'live',
                     'pages_built' => $totalItems,
+                    // Kept under the historical key for the admin UI; these are
+                    // heuristic output checks (F27), NOT Lighthouse measurements.
                     'lighthouse_checks' => [
+                        'kind' => 'heuristic',
                         'all_passed' => $allPassed,
                         'total_warnings' => $totalWarnings,
                         'results' => $validationResults,
@@ -409,23 +446,103 @@ class PublishSiteJob implements ShouldQueue
                 logger()->warning("Cloudflare purge failed for site {$site->id}: {$e->getMessage()}");
             }
 
-            // A successful FULL rebuild covers every page — clear staleness flags
+            // A successful FULL rebuild covers every page that existed when it
+            // STARTED — flags raised since then survive (F17) …
             try {
-                app(\App\Domain\References\Services\StalenessResolver::class)->clearForSite($site);
+                app(\App\Domain\References\Services\StalenessResolver::class)->clearForSite($site, $this->deployment->started_at);
             } catch (\Throwable $e) {
                 logger()->warning("Staleness clear failed for site {$site->id}: {$e->getMessage()}");
             }
 
-            // Clean old builds (keep last 3)
+            // Clean old builds (state-aware retention)
             $this->cleanOldBuilds();
+
+            // … and are republished in one coalesced follow-up batch.
+            try {
+                app(AutoPublishService::class)->followUp($site, $this->deployment->fresh());
+            } catch (\Throwable $e) {
+                logger()->warning("Auto-publish follow-up failed for site {$site->id}: {$e->getMessage()}");
+            }
         } catch (\Throwable $e) {
+            $this->handleFailure($e);
+        }
+    }
+
+    /**
+     * F16 retry policy. A NonRetryableBuildException (hard output errors,
+     * superseded deployment, missing rollback target) is terminal at once.
+     * Anything else is retryable while attempts remain: the deployment stays
+     * `building` (resumable staging dir), the error is recorded, and the
+     * queue re-runs the job after the backoff. The LAST attempt — or a sync
+     * run, which has no retries — ends in `failed`.
+     */
+    protected function handleFailure(\Throwable $e): void
+    {
+        $retryable = !($e instanceof NonRetryableBuildException)
+            && $this->job !== null
+            && $this->attempts() < $this->tries;
+
+        if ($retryable) {
             $this->deployment->update([
-                'status' => 'failed',
-                'error_log' => $e->getMessage() . "\n" . $e->getTraceAsString(),
-                'completed_at' => now(),
+                'status' => 'building',
+                'error_log' => "Attempt {$this->attempts()} failed (will retry): {$e->getMessage()}",
+                'metadata' => array_merge($this->deployment->metadata ?? [], [
+                    'current_step' => 'building',
+                    'retry_attempt' => $this->attempts(),
+                    'last_error' => $e->getMessage(),
+                    'heartbeat_at' => now()->toIso8601String(),
+                ]),
             ]);
-            $this->broadcast("Build failed: {$e->getMessage()}");
-            throw $e;
+            $this->broadcast("Build attempt {$this->attempts()} failed — retrying: {$e->getMessage()}");
+            throw $e; // let the queue schedule the next attempt
+        }
+
+        $this->markFailed($e);
+        if ($e instanceof NonRetryableBuildException && $this->job !== null) {
+            $this->fail($e); // terminal now — no further attempts
+
+            return;
+        }
+        throw $e;
+    }
+
+    /** Queue hook: max attempts exceeded / timeout on the last attempt. */
+    public function failed(\Throwable $e): void
+    {
+        try {
+            $this->restoreModels();
+            $this->deployment = Deployment::find($this->deploymentId) ?? $this->deployment;
+            if ($this->deployment && !in_array($this->deployment->status, ['live', 'failed', 'rolled_back'], true)) {
+                $this->markFailed($e);
+            }
+        } catch (\Throwable) {
+            // nothing more to do
+        }
+    }
+
+    private function markFailed(\Throwable $e): void
+    {
+        if (in_array($this->deployment->status, ['live', 'rolled_back'], true)) {
+            return;
+        }
+        $this->deployment->update([
+            'status' => 'failed',
+            'error_log' => $e->getMessage() . "\n" . $e->getTraceAsString(),
+            'completed_at' => now(),
+            'metadata' => array_merge($this->deployment->metadata ?? [], ['current_step' => 'failed']),
+        ]);
+        $this->broadcast("Build failed: {$e->getMessage()}");
+    }
+
+    /** Write a file atomically (tmp + rename on the same filesystem). */
+    public static function writeAtomic(string $path, string $contents): void
+    {
+        File::ensureDirectoryExists(dirname($path));
+        $tmp = $path . '.tmp-' . getmypid() . '-' . bin2hex(random_bytes(3));
+        File::put($tmp, $contents);
+        if (!@rename($tmp, $path)) {
+            @unlink($tmp);
+            throw new \RuntimeException("Could not write {$path}");
         }
     }
 
@@ -479,6 +596,8 @@ class PublishSiteJob implements ShouldQueue
 
         Bus::batch($jobs)
             ->name("publish-posts-{$this->deploymentId}")
+            ->onConnection('builds')
+            ->onQueue(config('queue.connections.builds.queue', 'builds'))
             ->allowFailures(false)
             ->then(function (Batch $batch) use ($deploymentId, $tenantId, $type) {
                 $tid = preg_replace('/[^a-f0-9\-]/', '', $tenantId);
@@ -582,7 +701,7 @@ class PublishSiteJob implements ShouldQueue
         $this->deployment->update([
             'status' => $status,
             'started_at' => $this->deployment->started_at ?? now(),
-            'metadata' => array_merge($this->deployment->metadata ?? [], ['current_step' => $status]),
+            'metadata' => array_merge($this->deployment->metadata ?? [], ['current_step' => $status, 'heartbeat_at' => now()->toIso8601String()]),
         ]);
         $this->broadcast($message);
     }
@@ -593,6 +712,7 @@ class PublishSiteJob implements ShouldQueue
             'metadata' => array_merge($this->deployment->metadata ?? [], [
                 'pages_built' => $built,
                 'pages_total' => $total,
+                'heartbeat_at' => now()->toIso8601String(),
             ]),
         ]);
         $this->broadcast($message);

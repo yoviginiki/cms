@@ -50,11 +50,17 @@ class DeployService
             $targetPath = $this->targets->authorizeCustomDomainTarget($site);
         } else {
             $targetPath = $this->targets->slugDocroot($site);
-            // If the docroot is currently a symlink to a full build, per-file
-            // writes would mutate that build's directory — still correct
-            // content-wise, but resolve it so paths land where they're served
+            // F18 — immutable releases. A symlinked docroot points at a FULL
+            // build; writing into it would mutate that historical artifact
+            // (a later rollback to it would return content it never had).
+            // Instead: hard-link copy of the live release → merge the delta
+            // into the copy → atomic symlink swap. The old release keeps its
+            // inodes untouched (per-file tmp+rename replaces directory
+            // entries, never file contents).
             if (is_link($targetPath)) {
-                $targetPath = readlink($targetPath);
+                $this->deployPartialAsRelease($deployment, $stagingPath, $targetPath);
+
+                return;
             }
         }
 
@@ -62,6 +68,52 @@ class DeployService
         // against it would delete the rest of the live site. Stale files from
         // slug renames are StalePathCleaner's job, not the deploy's.
         $this->copyDeploy($stagingPath, $targetPath, $deployment, prune: false);
+    }
+
+    /** Delta onto a symlink-served site: new full release view + atomic swap. */
+    private function deployPartialAsRelease(Deployment $deployment, string $stagingPath, string $publicPath): void
+    {
+        $current = readlink($publicPath);
+        if ($current === false || !is_dir($current)) {
+            throw new \RuntimeException("Live symlink {$publicPath} has no valid target; run a full publish.");
+        }
+        $release = rtrim((string) config('publishing.staging_path'), '/') . "/{$deployment->id}-release";
+        if (is_dir($release)) {
+            File::deleteDirectory($release); // a previous attempt of this same deployment
+        }
+        self::linkTree($current, $release);
+        $this->copyDeploy($stagingPath, $release, $deployment, prune: false);
+
+        // Atomic swap (+ previous_build for rollback, retention).
+        (new SymlinkDeployStrategy())->deploy($release, $publicPath, $deployment);
+    }
+
+    /**
+     * Replicate $src into $dst using hard links for files (same filesystem),
+     * falling back to copies; directories are created, symlinks re-created.
+     */
+    public static function linkTree(string $src, string $dst): void
+    {
+        File::ensureDirectoryExists($dst);
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($items as $item) {
+            /** @var \SplFileInfo $item */
+            $rel = ltrim(substr($item->getPathname(), strlen($src)), '/');
+            $target = "{$dst}/{$rel}";
+            if ($item->isLink()) {
+                @symlink((string) readlink($item->getPathname()), $target);
+            } elseif ($item->isDir()) {
+                File::ensureDirectoryExists($target);
+            } else {
+                File::ensureDirectoryExists(dirname($target));
+                if (!@link($item->getPathname(), $target)) {
+                    File::copy($item->getPathname(), $target);
+                }
+            }
+        }
     }
 
     public function rollback(Deployment $deployment): void

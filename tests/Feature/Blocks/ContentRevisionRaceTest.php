@@ -108,7 +108,7 @@ class ContentRevisionRaceTest extends BaseTestCase
         Block::where('blockable_id', $page->id)->delete();
         $page->forceDelete();
         $site->forceDelete();
-        $owner->delete();
-        $tenant->delete();
+        $owner->forceDelete();
+        $tenant->forceDelete();
     }
 }

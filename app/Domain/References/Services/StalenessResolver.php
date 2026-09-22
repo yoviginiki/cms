@@ -203,20 +203,29 @@ class StalenessResolver
     /**
      * A successful FULL publish covers everything: clear all flags.
      */
-    public function clearForSite(Site $site): void
+    public function clearForSite(Site $site, ?\DateTimeInterface $builtBefore = null): void
     {
-        Page::where('site_id', $site->id)->where('needs_republish', true)
+        // F17: a full build covers what existed when it STARTED. Flags raised
+        // after that (updated_at newer than $builtBefore) survive so the
+        // follow-up batch republishes them.
+        $scope = fn ($q) => $builtBefore ? $q->where('updated_at', '<=', $builtBefore) : $q;
+
+        $scope(Page::where('site_id', $site->id)->where('needs_republish', true))
             ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
-        Post::where('site_id', $site->id)->where('needs_republish', true)
+        $scope(Post::where('site_id', $site->id)->where('needs_republish', true))
             ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
-        \App\Models\Record::where('site_id', $site->id)->where('needs_republish', true)
+        $scope(\App\Models\Record::where('site_id', $site->id)->where('needs_republish', true))
             ->update(['needs_republish' => false, 'needs_republish_reason' => null]);
 
+        $site->refresh();
         $settings = $site->settings ?? [];
         if (isset($settings['stale'])) {
-            unset($settings['stale']);
-            $site->settings = $settings;
-            $site->save();
+            $flaggedAt = isset($settings['stale']['at']) ? \Illuminate\Support\Carbon::parse($settings['stale']['at']) : null;
+            if (!$builtBefore || !$flaggedAt || $flaggedAt->lte($builtBefore)) {
+                unset($settings['stale']);
+                $site->settings = $settings;
+                $site->save();
+            }
         }
     }
 

@@ -41,6 +41,7 @@ class RepublishStaleJob implements ShouldQueue
         // Store IDs instead of models to avoid RLS issues during deserialization
         $this->deploymentId = $deployment->id;
         $this->tenantId = $deployment->site->tenant_id;
+        $this->onConnection('builds'); // F16: retry_after > timeout
     }
 
     public function handle(BuildPageService $buildService): void
@@ -68,6 +69,11 @@ class RepublishStaleJob implements ShouldQueue
             AssetPublisher::setDeployTarget($stagingPath);
 
             $targets = $deployment->metadata['targets'] ?? ['pages' => [], 'posts' => []];
+            // F17: a batch whose targets were unpublished/deleted builds no page
+            // but MUST still regenerate sitemap/feeds/archives so the removed
+            // URLs leave the indexes.
+            $hadTargets = !empty($targets['pages']) || !empty($targets['posts']) || !empty($targets['records']);
+            $hadPostTargets = !empty($targets['posts']);
             $built = [];
             $failed = [];
 
@@ -77,14 +83,18 @@ class RepublishStaleJob implements ShouldQueue
                 ->get();
             foreach ($pages as $page) {
                 try {
-                    $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $page, $buildService->buildAndValidate($page, $site->theme, $site)['html']);
+                    $result = $buildService->buildAndValidate($page, $site->theme, $site);
+                    if (!empty($result['validation']['errors'])) {
+                        throw new \RuntimeException('Invalid output: ' . implode('; ', $result['validation']['errors']));
+                    }
+                    $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $page, $result['html']);
                     $path = $this->getPagePath($site, $page);
-                    File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
-                    File::put("{$stagingPath}/{$path}", $html);
+                    PublishSiteJob::writeAtomic("{$stagingPath}/{$path}", $html);
                     $built[] = ['type' => 'page', 'id' => $page->id, 'title' => $page->title, 'path' => $path, 'stamp' => optional($page->updated_at)->toIso8601String()];
                 } catch (\Throwable $e) {
                     $failed[] = ['type' => 'page', 'id' => $page->id, 'title' => $page->title, 'error' => $e->getMessage()];
                 }
+                \App\Domain\Publishing\Services\DeploymentGate::heartbeat($deployment);
             }
 
             $posts = Post::with('category')
@@ -94,14 +104,18 @@ class RepublishStaleJob implements ShouldQueue
                 ->get();
             foreach ($posts as $post) {
                 try {
-                    $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $post, $buildService->buildAndValidate($post, $site->theme, $site)['html']);
+                    $result = $buildService->buildAndValidate($post, $site->theme, $site);
+                    if (!empty($result['validation']['errors'])) {
+                        throw new \RuntimeException('Invalid output: ' . implode('; ', $result['validation']['errors']));
+                    }
+                    $html = \App\Domain\Publishing\Services\LocalePaths::localizeHtml($site, $post, $result['html']);
                     $path = $this->getPostPath($site, $post);
-                    File::ensureDirectoryExists(dirname("{$stagingPath}/{$path}"));
-                    File::put("{$stagingPath}/{$path}", $html);
+                    PublishSiteJob::writeAtomic("{$stagingPath}/{$path}", $html);
                     $built[] = ['type' => 'post', 'id' => $post->id, 'title' => $post->title, 'path' => $path, 'stamp' => optional($post->updated_at)->toIso8601String()];
                 } catch (\Throwable $e) {
                     $failed[] = ['type' => 'post', 'id' => $post->id, 'title' => $post->title, 'error' => $e->getMessage()];
                 }
+                \App\Domain\Publishing\Services\DeploymentGate::heartbeat($deployment);
             }
 
             // Collections (Track G2): stale records rebuild their own detail
@@ -144,7 +158,7 @@ class RepublishStaleJob implements ShouldQueue
             // FIX-B7a: regenerate sitemap.xml / feed.xml / robots.txt so a delta
             // publish doesn't leave them pointing at old/dead URLs until the next
             // full publish. Cheap + deterministic; merged live by deployPartial.
-            if ($built !== []) {
+            if ($built !== [] || $hadTargets) {
                 try {
                     File::put("{$stagingPath}/sitemap.xml", app(\App\Domain\Publishing\Services\SitemapGenerator::class)->generate($site));
                     File::put("{$stagingPath}/robots.txt", app(\App\Domain\Publishing\Services\RobotsGenerator::class)->generate($site));
@@ -163,7 +177,7 @@ class RepublishStaleJob implements ShouldQueue
             // §7 D1: a changed post alters every archive that lists it — rebuild
             // the blog index + category/tag/author archives and per-category
             // feeds in the same batch (pages don't affect archives; skipped).
-            if (array_filter($built, fn ($b) => $b['type'] === 'post') !== []) {
+            if ($hadPostTargets || array_filter($built, fn ($b) => $b['type'] === 'post') !== []) {
                 try {
                     $archiveWarnings = app(\App\Domain\Publishing\Services\ArchiveBuildService::class)->buildAll($site, $stagingPath);
                     foreach ($archiveWarnings as $w) {
@@ -200,7 +214,7 @@ class RepublishStaleJob implements ShouldQueue
 
             // Auto-republish (Phase 4.1b): the entity publish click was the
             // confirmation — promote immediately, log every page
-            if (($deployment->metadata['auto_promote'] ?? false) === true && $built !== []) {
+            if (($deployment->metadata['auto_promote'] ?? false) === true && ($built !== [] || $hadTargets)) {
                 $this->autoPromote($deployment, $site, $stagingPath, $built);
             }
         } catch (\Throwable $e) {
@@ -221,9 +235,15 @@ class RepublishStaleJob implements ShouldQueue
     private function autoPromote(Deployment $deployment, $site, string $stagingPath, array $built): void
     {
         try {
+            // F15 fence: never swap for a batch that was reaped/superseded.
+            if (!app(\App\Domain\Publishing\Services\DeploymentGate::class)->mayGoLive($deployment)) {
+                throw new \RuntimeException('Batch superseded or reaped before promotion.');
+            }
+            $deployment->update(['status' => 'deploying', 'metadata' => array_merge($deployment->metadata ?? [], ['current_step' => 'deploying', 'heartbeat_at' => now()->toIso8601String()])]);
             app(\App\Domain\Publishing\Services\DeployService::class)
                 ->deployPartial($deployment, $stagingPath);
         } catch (\Throwable $e) {
+            $deployment->update(['status' => 'staged', 'metadata' => array_merge($deployment->metadata ?? [], ['current_step' => 'staged', 'promote_error' => $e->getMessage()])]);
             \Illuminate\Support\Facades\Log::warning(
                 "Auto-republish promote failed for site {$site->id}: {$e->getMessage()} — batch left staged for manual promotion."
             );
@@ -260,6 +280,13 @@ class RepublishStaleJob implements ShouldQueue
             'completed_at' => now(),
             'metadata' => array_merge($deployment->fresh()->metadata ?? [], ['current_step' => 'live']),
         ]);
+
+        // F17: changes flagged while this batch ran get their own follow-up.
+        try {
+            app(\App\Domain\Publishing\Services\AutoPublishService::class)->followUp($site, $deployment->fresh());
+        } catch (\Throwable $e) {
+            logger()->warning("Auto-publish follow-up failed for site {$site->id}: {$e->getMessage()}");
+        }
     }
 
 

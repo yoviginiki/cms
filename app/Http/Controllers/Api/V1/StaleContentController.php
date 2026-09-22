@@ -94,30 +94,19 @@ class StaleContentController extends Controller
         }
 
         // Same guard as PublishOrchestrator: no concurrent builds per site
-        $active = Deployment::where('site_id', $site->id)
-            ->whereIn('status', ['queued', 'building', 'deploying'])
-            ->exists();
-        if ($active) {
-            return response()->json(['message' => 'A deployment is already in progress for this site.'], 409);
-        }
-
-        $deployment = Deployment::create([
-            'site_id' => $site->id,
-            'type' => 'stale_batch',
-            'status' => 'queued',
-            'triggered_by' => $request->user()->id,
-            'metadata' => [
-                'current_step' => 'queued',
+        try {
+            $deployment = app(\App\Domain\Publishing\Services\DeploymentGate::class)->open($site, 'stale_batch', $request->user(), [
                 'targets' => ['pages' => $pageIds, 'posts' => $postIds, 'records' => $recordIds],
                 'pages_total' => count($pageIds) + count($postIds) + count($recordIds),
-                'pages_built' => 0,
-            ],
-        ]);
-
-        if (config('queue.default') !== 'sync') {
-            RepublishStaleJob::dispatch($deployment);
-        } else {
-            RepublishStaleJob::dispatchSync($deployment);
+            ], function (Deployment $deployment) {
+                if (config('queue.default') !== 'sync') {
+                    RepublishStaleJob::dispatch($deployment);
+                } else {
+                    RepublishStaleJob::dispatchSync($deployment);
+                }
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         }
 
         return response()->json(['data' => $deployment->fresh()], 201);
@@ -141,18 +130,16 @@ class StaleContentController extends Controller
             ], 410);
         }
 
-        $active = Deployment::where('site_id', $site->id)
-            ->whereIn('status', ['queued', 'building', 'deploying'])
-            ->exists();
-        if ($active) {
-            return response()->json(['message' => 'A deployment is already in progress for this site.'], 409);
-        }
-
+        // F15: promotion runs under the site lock, refuses when a deployment is
+        // active, and refuses a batch built on an older live generation.
         try {
-            $deployService->deployPartial($deployment, $stagingPath);
+            app(\App\Domain\Publishing\Services\DeploymentGate::class)->promote($site, $deployment, function (Deployment $d) use ($deployService, $stagingPath) {
+                $deployService->deployPartial($d, $stagingPath);
+            });
         } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage()], str_contains($e->getMessage(), 'in progress') || str_contains($e->getMessage(), 'rebuilt') ? 409 : 422);
         }
+        $deployment->refresh();
 
         // Clear flags ONLY for successfully built sources that haven't been
         // re-flagged since the build (§7 D2 lost-update race).

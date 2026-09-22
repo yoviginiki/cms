@@ -47,6 +47,7 @@ class BuildPostsChunkJob implements ShouldQueue
         public array $postIds,
         public int $chunkIndex,
     ) {
+        $this->onConnection('builds');
     }
 
     public function middleware(): array
@@ -94,11 +95,21 @@ class BuildPostsChunkJob implements ShouldQueue
                 }
 
                 $result = $buildService->buildAndValidate($post, $site->theme, $site);
+                if (!empty($result['validation']['errors'])) {
+                    // F27: record the hard error for the finalize run; never
+                    // write invalid output into the staging tree.
+                    $fresh = Deployment::find($this->deploymentId);
+                    $errors = (array) ($fresh?->metadata['hard_errors'] ?? []);
+                    $errors[] = "post:{$post->slug}: " . implode('; ', $result['validation']['errors']);
+                    $fresh?->update(['metadata' => array_merge($fresh->metadata ?? [], ['hard_errors' => $errors])]);
+
+                    return;
+                }
                 $html = LocalePaths::localizeHtml($site, $post, $result['html']);
-                File::ensureDirectoryExists(dirname($dest));
-                File::put($dest, $html);
+                PublishSiteJob::writeAtomic($dest, $html);
 
                 $this->createVersion($post, $deployment->triggered_by);
+                \App\Domain\Publishing\Services\DeploymentGate::heartbeat($deployment);
             });
     }
 

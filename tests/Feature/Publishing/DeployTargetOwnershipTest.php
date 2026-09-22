@@ -57,6 +57,9 @@ class DeployTargetOwnershipTest extends TestCase
 
     private function deployment(Site $site): Deployment
     {
+        // One active deployment per site (F15 index): retire any earlier one.
+        Deployment::where('site_id', $site->id)->whereIn('status', ['queued', 'building', 'deploying'])->update(['status' => 'failed']);
+
         return Deployment::create([
             'site_id' => $site->id, 'type' => 'full', 'status' => 'deploying',
             'triggered_by' => $this->owner->id, 'metadata' => [],

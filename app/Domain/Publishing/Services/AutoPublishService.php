@@ -20,6 +20,7 @@ class AutoPublishService
 
     public function __construct(
         private PublishOrchestrator $orchestrator,
+        private DeploymentGate $gate,
     ) {}
 
     /**
@@ -44,18 +45,89 @@ class AutoPublishService
             return;
         }
 
+        $entityScoped = $changeId !== null && in_array($changeType, self::ENTITY_SCOPED, true);
+        // Delta (per-file merge) is a LOCAL-docroot capability; SSH/zip sites
+        // get the full build they can actually deploy (F17).
+        $deltaCapable = (($site->settings ?? [])['deploy_method'] ?? 'local') === 'local';
+
         try {
-            if ($changeId !== null && in_array($changeType, self::ENTITY_SCOPED, true)) {
+            if ($entityScoped && $deltaCapable) {
                 $this->deltaPublish($site, $user, $changeType, $changeId);
             } else {
                 $this->orchestrator->publish($site, $user, 'full');
                 Log::info("Auto-publish queued for {$site->name} (trigger: {$changeType})");
             }
         } catch (\RuntimeException $e) {
-            // A deployment is already in progress — skip silently
-            Log::debug("Auto-publish skipped: {$e->getMessage()}");
+            // A deployment is in progress: the change must NOT be lost (F17).
+            // Record it durably — the running deployment's finish hook picks
+            // up everything flagged after it started (coalesced follow-up).
+            $this->recordPending($site, $changeType, $changeId);
+            Log::debug("Auto-publish deferred (deployment in progress): {$e->getMessage()}");
         } catch (\Throwable $e) {
             Log::warning("Auto-publish failed: {$e->getMessage()}");
+        }
+    }
+
+    /** Durable "publish this again after the current build" marker. */
+    private function recordPending(Site $site, string $changeType, ?string $changeId): void
+    {
+        try {
+            $resolver = app(\App\Domain\References\Services\StalenessResolver::class);
+            if ($changeId !== null && in_array($changeType, self::ENTITY_SCOPED, true)) {
+                $model = $changeType === 'post_updated' ? \App\Models\Post::find($changeId) : \App\Models\Page::find($changeId);
+                $model?->forceFill(['needs_republish' => true, 'needs_republish_reason' => 'Edited while a deployment was running'])->save();
+            } else {
+                $resolver->markSiteStale($site, "Changed ({$changeType}) while a deployment was running");
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Auto-publish could not record the pending change: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * After a deployment finished: anything flagged since it started is
+     * republished in ONE follow-up delta batch (F17). Called by the jobs.
+     */
+    public function followUp(Site $site, Deployment $finished): ?Deployment
+    {
+        if (!$this->isEnabled($site)) {
+            return null;
+        }
+        $since = $finished->started_at ?? $finished->created_at;
+        $pages = \App\Models\Page::where('site_id', $site->id)->where('needs_republish', true)
+            ->where('status', 'published')->where('updated_at', '>', $since)->pluck('id')->all();
+        $posts = \App\Models\Post::where('site_id', $site->id)->where('needs_republish', true)
+            ->where('status', 'published')->where('updated_at', '>', $since)->pluck('id')->all();
+        $siteStale = isset(($site->fresh()->settings ?? [])['stale']);
+        if ($pages === [] && $posts === [] && !$siteStale) {
+            return null;
+        }
+        $user = User::find($finished->triggered_by);
+        if (!$user) {
+            return null;
+        }
+        try {
+            if ($siteStale || (($site->settings ?? [])['deploy_method'] ?? 'local') !== 'local') {
+                return $this->orchestrator->publish($site, $user, 'full');
+            }
+
+            return $this->gate->open($site, 'stale_batch', $user, [
+                'targets' => ['pages' => $pages, 'posts' => $posts, 'records' => []],
+                'auto_promote' => true,
+                'source' => 'auto-publish-followup',
+                'reason' => 'Edited during deployment ' . $finished->id,
+                'pages_total' => count($pages) + count($posts),
+            ], function (Deployment $deployment) {
+                if (config('queue.default') !== 'sync') {
+                    RepublishStaleJob::dispatch($deployment);
+                } else {
+                    RepublishStaleJob::dispatchSync($deployment);
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::warning("Auto-publish follow-up failed for {$site->name}: {$e->getMessage()}");
+
+            return null;
         }
     }
 
@@ -67,17 +139,6 @@ class AutoPublishService
      */
     private function deltaPublish(Site $site, User $user, string $changeType, string $changeId): void
     {
-        // Same guard as PublishOrchestrator / StaleContentController: never race
-        // a build in progress. Skip silently — the entity keeps its edits and a
-        // later publish (or the next edit) will carry them.
-        $active = Deployment::where('site_id', $site->id)
-            ->whereIn('status', ['queued', 'building', 'deploying'])
-            ->exists();
-        if ($active) {
-            Log::debug("Auto-publish delta skipped for {$site->name}: a deployment is already in progress.");
-            return;
-        }
-
         $targets = ['pages' => [], 'posts' => [], 'records' => []];
         if ($changeType === 'post_updated') {
             $targets['posts'] = [$changeId];
@@ -85,27 +146,20 @@ class AutoPublishService
             $targets['pages'] = [$changeId];
         }
 
-        $deployment = Deployment::create([
-            'site_id' => $site->id,
-            'type' => 'stale_batch',
-            'status' => 'queued',
-            'triggered_by' => $user->id,
-            'metadata' => [
-                'current_step' => 'queued',
-                'targets' => $targets,
-                'auto_promote' => true,
-                'source' => 'auto-publish-delta',
-                'reason' => $changeType,
-                'pages_total' => 1,
-                'pages_built' => 0,
-            ],
-        ]);
-
-        if (config('queue.default') !== 'sync') {
-            RepublishStaleJob::dispatch($deployment);
-        } else {
-            RepublishStaleJob::dispatchSync($deployment);
-        }
+        // Same gate as every other deployment kind (F15): throws when one is active.
+        $this->gate->open($site, 'stale_batch', $user, [
+            'targets' => $targets,
+            'auto_promote' => true,
+            'source' => 'auto-publish-delta',
+            'reason' => $changeType,
+            'pages_total' => 1,
+        ], function (Deployment $deployment) {
+            if (config('queue.default') !== 'sync') {
+                RepublishStaleJob::dispatch($deployment);
+            } else {
+                RepublishStaleJob::dispatchSync($deployment);
+            }
+        });
 
         Log::info("Auto-publish DELTA queued for {$site->name} ({$changeType} {$changeId})");
     }

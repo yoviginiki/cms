@@ -11,13 +11,19 @@ use App\Models\Site;
 class OutputValidator
 {
     /**
-     * Validate built HTML output against Lighthouse 100 constraints.
-     * Returns warnings (non-blocking) and errors (blocking).
+     * Validate built HTML output. Returns warnings (non-blocking quality
+     * hints) and errors (hard integrity failures that block the release).
+     * `score_estimate` is a constant heuristic (100/95/80) — NOT a Lighthouse score.
      */
     public function validate(string $html, Page|Post $content, Site $site): array
     {
         $warnings = [];
         $errors = [];
+
+        // Hard integrity errors (F27): these BLOCK the release. Everything
+        // below is a quality warning; score_estimate is a heuristic, not a
+        // Lighthouse measurement.
+        $this->checkIntegrity($html, $errors);
 
         // Performance checks
         $this->checkPerformance($html, $content, $warnings, $errors);
@@ -39,6 +45,23 @@ class OutputValidator
             'errors' => $errors,
             'score_estimate' => $passed && empty($warnings) ? 100 : ($passed ? 95 : 80),
         ];
+    }
+
+    /** Empty or truncated output must never replace a live page. */
+    private function checkIntegrity(string $html, array &$errors): void
+    {
+        $trimmed = trim($html);
+        if ($trimmed === '') {
+            $errors[] = 'Rendered output is empty';
+
+            return;
+        }
+        if (!preg_match('/<html[\s>]/i', $trimmed)) {
+            $errors[] = 'Rendered output has no <html> element';
+        }
+        if (!preg_match('/<\/html>\s*$/i', $trimmed)) {
+            $errors[] = 'Rendered output is truncated (no closing </html>)';
+        }
     }
 
     private function checkPerformance(string $html, Page|Post $content, array &$warnings, array &$errors): void

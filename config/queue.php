@@ -64,6 +64,30 @@ return [
             'after_commit' => false,
         ],
 
+        // F16: long builds (PublishSiteJob 3600s, chunks 1800s) must run on a
+        // connection whose retry_after EXCEEDS the job timeout, or the queue
+        // re-delivers a running job (Laravel requires timeout < retry_after).
+        // Mirrors the default driver; 'sync' stays 'sync' (tests/CLI).
+        'builds' => match (env('QUEUE_CONNECTION', 'database')) {
+            'sync' => ['driver' => 'sync'],
+            'redis' => [
+                'driver' => 'redis',
+                'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+                'queue' => env('BUILDS_QUEUE', 'builds'),
+                'retry_after' => (int) env('BUILDS_QUEUE_RETRY_AFTER', 3900),
+                'block_for' => null,
+                'after_commit' => false,
+            ],
+            default => [
+                'driver' => 'database',
+                'connection' => env('DB_QUEUE_CONNECTION'),
+                'table' => env('DB_QUEUE_TABLE', 'jobs'),
+                'queue' => env('BUILDS_QUEUE', 'builds'),
+                'retry_after' => (int) env('BUILDS_QUEUE_RETRY_AFTER', 3900),
+                'after_commit' => false,
+            ],
+        },
+
         'redis' => [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),

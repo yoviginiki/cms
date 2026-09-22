@@ -31,6 +31,9 @@ class ParallelPostBuildTest extends TestCase
 
     private function deployment(Site $site, array $metadata = []): Deployment
     {
+        // One active deployment per site (F15 index): retire any earlier one.
+        Deployment::where('site_id', $site->id)->whereIn('status', ['queued', 'building', 'deploying'])->update(['status' => 'failed']);
+
         return Deployment::create([
             'site_id' => $site->id,
             'type' => 'partial',

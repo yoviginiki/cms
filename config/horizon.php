@@ -210,6 +210,21 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        // F16: site builds. Own connection (retry_after 3900 > 3600 timeout),
+        // own queue, worker timeout sized for the longest job. Restart Horizon
+        // (`php artisan horizon:terminate`) after deploying this config.
+        'supervisor-builds' => [
+            'connection' => 'builds',
+            'queue' => ['builds'],
+            'balance' => 'simple',
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 3700,
+            'nice' => 5,
+        ],
     ],
 
     'environments' => [
