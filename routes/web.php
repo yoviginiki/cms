@@ -28,19 +28,15 @@ Route::middleware(['auth', \App\Http\Middleware\SetTenantFromAuth::class])->pref
 // ─── Public asset serve (for magazine viewer images) ───
 Route::get('/media/{siteId}/{assetId}/{variant?}', function (string $siteId, string $assetId, ?string $variant = null) {
     try {
-        // Set tenant context for RLS
-        $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
-        if ($tenant) {
-            $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
-            \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
-        }
-        // Validate UUIDs to prevent injection
-        if (!preg_match('/^[0-9a-f\-]{36}$/', $siteId) || !preg_match('/^[0-9a-f\-]{36}$/', $assetId)) {
+        // F22: tenant context from the site id (any tenant), never "the first tenant".
+        $site = app(\App\Domain\Tenancy\PublicTenantResolver::class)->siteById($siteId);
+        if (!$site || !preg_match('/^[0-9a-f\-]{36}$/', $assetId)) {
             abort(404);
         }
-        $site = \App\Models\Site::findOrFail($siteId);
         $asset = \App\Models\Asset::where('site_id', $site->id)->findOrFail($assetId);
         return app(\App\Http\Controllers\Api\V1\AssetServeController::class)->serve($site, $asset, $variant);
+    } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        throw $e;
     } catch (\Throwable $e) {
         \Illuminate\Support\Facades\Log::error('Public asset serve failed: ' . $e->getMessage());
         abort(404);
@@ -57,21 +53,17 @@ Route::get('/library-thumbnails/{id}', [\App\Http\Controllers\Api\V1\LibraryThum
 // ─── Public font serve (nginx catches .ttf/.woff, so no extension in URL) ───
 Route::get('/serve-font/{siteId}/{fontSlug}', function (string $siteId, string $fontSlug) {
     try {
-        $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
-        if ($tenant) {
-            $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
-            \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
-        }
-        $site = \App\Models\Site::findOrFail($siteId);
-        // fontSlug is filename without extension — find matching font
+        $site = app(\App\Domain\Tenancy\PublicTenantResolver::class)->siteById($siteId); // F22
+        if (!$site) abort(404);
         $fonts = $site->settings['custom_fonts'] ?? [];
         $font = collect($fonts)->first(fn($f) => pathinfo($f['filename'] ?? '', PATHINFO_FILENAME) === $fontSlug);
         if (!$font) abort(404);
         return app(\App\Http\Controllers\Api\V1\CustomFontController::class)->serve($site, $font['filename']);
+    } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        throw $e;
     } catch (\Throwable) { abort(404); }
 });
 
-// ─── Magazine viewer (public) ───
 Route::get('/magazine', [MagazineViewController::class, 'index'])->name('magazine.index');
 Route::get('/magazines', [MagazineViewController::class, 'index']); // alias
 Route::get('/magazine/dtp/{issueId}', [MagazineViewController::class, 'showDtpIssue'])->name('magazine.dtp');
@@ -92,27 +84,18 @@ Route::get('/admin/{any?}', function () {
 
 // ─── Fallback: resolve /{slug} to a site page/category (for menu links on sys.ensodo.eu) ───
 Route::get('/{slug}', function (string $slug) {
-    // Try to find a page or category with this slug across all sites
     try {
-        $tenant = \Illuminate\Support\Facades\DB::selectOne("SELECT id FROM tenants LIMIT 1");
-        if ($tenant) {
-            $tid = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
-            \Illuminate\Support\Facades\DB::statement("SET app.current_tenant_id = '{$tid}'");
-        }
-        // Site slug → dynamic preview home (e.g. /artday → /sites/artday/)
-        $site = \App\Models\Site::where('slug', $slug)->first();
+        // F22: only meaningful on a site's own host; resolve THAT site's tenant.
+        $site = app(\App\Domain\Tenancy\PublicTenantResolver::class)->siteByHost(request()->getHost());
         if ($site) {
-            return redirect("/sites/{$slug}/");
-        }
-        // Find page
-        $page = \App\Models\Page::where('slug', $slug)->where('status', 'published')->first();
-        if ($page) {
-            return redirect("/sites/{$page->site_id}/{$slug}");
-        }
-        // Find category
-        $category = \App\Models\Category::where('slug', $slug)->first();
-        if ($category) {
-            return redirect("/sites/{$category->site_id}/{$slug}");
+            $page = \App\Models\Page::where('site_id', $site->id)->where('slug', $slug)->where('status', 'published')->first();
+            if ($page) {
+                return redirect("/sites/{$page->site_id}/{$slug}");
+            }
+            $category = \App\Models\Category::where('site_id', $site->id)->where('slug', $slug)->first();
+            if ($category) {
+                return redirect("/sites/{$category->site_id}/{$slug}");
+            }
         }
     } catch (\Throwable $e) {
         \Illuminate\Support\Facades\Log::debug("Fallback slug resolve failed for /{$slug}: " . $e->getMessage());

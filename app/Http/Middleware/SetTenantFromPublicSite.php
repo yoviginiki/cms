@@ -27,29 +27,13 @@ class SetTenantFromPublicSite
     public function handle(Request $request, Closure $next): Response
     {
         $siteId = (string) $request->route('site');
-        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $siteId)) {
-            abort(404);
-        }
-
-        $tenantId = Cache::get("site_tenant:{$siteId}");
-        if ($tenantId === null) {
-            foreach (Tenant::pluck('id') as $candidate) {
-                $safe = preg_replace('/[^a-f0-9\-]/', '', $candidate);
-                DB::unprepared("SET app.current_tenant_id = '{$safe}'");
-                if (Site::where('id', $siteId)->exists()) {
-                    $tenantId = $candidate;
-                    Cache::forever("site_tenant:{$siteId}", $tenantId);
-                    break;
-                }
-            }
-        }
-
+        // F22: shared resolver — cached mapping, GUC cleared on a miss.
+        $tenantId = app(\App\Domain\Tenancy\PublicTenantResolver::class)->tenantForSite($siteId);
         if (!$tenantId) {
+            \App\Domain\Tenancy\PublicTenantResolver::clear();
             abort(404);
         }
-
-        $safe = preg_replace('/[^a-f0-9\-]/', '', $tenantId);
-        DB::unprepared("SET app.current_tenant_id = '{$safe}'");
+        \App\Domain\Tenancy\PublicTenantResolver::set($tenantId);
 
         return $next($request);
     }

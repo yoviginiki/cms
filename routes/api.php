@@ -33,7 +33,7 @@ Route::post('/auth/login', [AuthController::class, 'login'])
     ->name('auth.login');
 
 // Public preview via token
-Route::get('/preview/{token}', [PreviewController::class, 'publicPreview']);
+Route::get('/preview/{token}', [PreviewController::class, 'publicPreview'])->name('preview.public')->middleware('throttle:60,1');
 
 // Public read-only collections API (Track G3 — Tier 2 dynamic search).
 // GET-only namespace; a security test asserts no write route ever appears here.
@@ -116,6 +116,10 @@ Route::post('/sites/{site}/t', [\App\Http\Controllers\Api\V1\AnalyticsController
 Route::post('/auth/forgot-password', [\App\Http\Controllers\Api\V1\PasswordResetController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/auth/reset-password', [\App\Http\Controllers\Api\V1\PasswordResetController::class, 'resetPassword'])->middleware('throttle:5,1');
 
+// Invitation acceptance (public, rate-limited) — F10
+Route::get('/auth/invite/{token}', [\App\Http\Controllers\Api\V1\InviteController::class, 'show'])->middleware('throttle:20,1');
+Route::post('/auth/invite/{token}/accept', [\App\Http\Controllers\Api\V1\InviteController::class, 'accept'])->middleware('throttle:5,1');
+
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
@@ -124,6 +128,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // User management (admin+)
     Route::get('/users', [\App\Http\Controllers\Api\V1\UserController::class, 'index']);
     Route::post('/users/invite', [\App\Http\Controllers\Api\V1\UserController::class, 'invite']);
+    Route::post('/users/{user}/invite/resend', [\App\Http\Controllers\Api\V1\UserController::class, 'resendInvite']);
+    Route::delete('/users/{user}/invite', [\App\Http\Controllers\Api\V1\UserController::class, 'revokeInvite']);
     Route::put('/users/{user}/role', [\App\Http\Controllers\Api\V1\UserController::class, 'updateRole']);
     Route::delete('/users/{user}', [\App\Http\Controllers\Api\V1\UserController::class, 'destroy']);
 
@@ -398,8 +404,9 @@ Route::middleware('auth:sanctum')->group(function () {
             return response()->json(['data' => $logs]);
         });
 
-        // Backup Export
+        // Backup Export (F19: admin+ only — it is a full content dump)
         Route::get('sites/{site}/backup', function (\App\Models\Site $site) {
+            \Illuminate\Support\Facades\Gate::authorize('update', $site);
             $service = app(\App\Services\BackupExportService::class);
             $manifest = $service->export($site);
             return response()->json(['data' => $manifest]);
@@ -407,9 +414,23 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Backup Restore Dry-Run
         Route::post('sites/{site}/backup/validate', function (\Illuminate\Http\Request $request, \App\Models\Site $site) {
+            \Illuminate\Support\Facades\Gate::authorize('update', $site);
             $request->validate(['manifest' => ['required', 'array']]);
             $service = app(\App\Services\BackupExportService::class);
             $result = $service->validateForRestore($request->input('manifest'));
+            return response()->json(['data' => $result]);
+        });
+
+        // Backup Restore into an EMPTY site (F19) — owner only
+        Route::post('sites/{site}/backup/restore', function (\Illuminate\Http\Request $request, \App\Models\Site $site) {
+            abort_unless($request->user()->isOwner(), 403);
+            \Illuminate\Support\Facades\Gate::authorize('update', $site);
+            $request->validate(['manifest' => ['required', 'array']]);
+            try {
+                $result = app(\App\Services\BackupExportService::class)->restore($request->input('manifest'), $site);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
             return response()->json(['data' => $result]);
         });
 

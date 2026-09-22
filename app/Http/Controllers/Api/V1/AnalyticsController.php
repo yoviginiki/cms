@@ -16,15 +16,8 @@ class AnalyticsController extends Controller
      */
     public function track(Request $request, string $site): JsonResponse
     {
-        // Resolve site bypassing RLS — public tracking endpoint called from custom domains
-        $safeId = preg_replace('/[^a-f0-9\-]/', '', $site);
-        $siteModel = null;
-        // Try each tenant until we find the site (tenants table has no RLS)
-        foreach (DB::select("SELECT id FROM tenants") as $tenant) {
-            DB::statement("SET app.current_tenant_id = '{$tenant->id}'");
-            $siteModel = Site::find($safeId);
-            if ($siteModel) break;
-        }
+        // F22: cached site→tenant mapping; a miss clears the context.
+        $siteModel = app(\App\Domain\Tenancy\PublicTenantResolver::class)->siteById($site);
         if (!$siteModel) return response()->json(['ok' => false], 404);
         $site = $siteModel;
 

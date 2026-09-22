@@ -91,54 +91,77 @@ class PreviewController extends Controller
     }
 
     /**
-     * Generate a temporary shareable preview token.
+     * Generate a temporary shareable preview token (F21). The token is bound
+     * to tenant + site + content type + content id, and the content must
+     * belong to this site; the URL is the named public route.
      */
     public function createPreviewToken(Request $request, Site $site, string $contentType, string $contentId): JsonResponse
     {
         $this->authorize('update', $site);
 
-        $token = Str::random(64);
-        $key = "preview_token:{$token}";
+        $type = match ($contentType) {
+            'page', 'pages' => 'page',
+            'post', 'posts' => 'post',
+            default => null,
+        };
+        if ($type === null || !Str::isUuid($contentId)) {
+            return response()->json(['message' => 'Unknown content type or id.'], 422);
+        }
+        $content = $type === 'page'
+            ? Page::where('site_id', $site->id)->find($contentId)
+            : Post::where('site_id', $site->id)->find($contentId);
+        if (!$content) {
+            return response()->json(['message' => 'Content not found on this site.'], 404);
+        }
 
-        Cache::put($key, [
+        $token = Str::random(64);
+        $expires = now()->addHours(24);
+        Cache::put("preview_token:" . hash('sha256', $token), [
+            'tenant_id' => $site->tenant_id,
             'site_id' => $site->id,
-            'content_type' => $contentType,
-            'content_id' => $contentId,
-        ], now()->addHours(24));
+            'content_type' => $type,
+            'content_id' => $content->id,
+        ], $expires);
 
         return response()->json([
             'data' => [
                 'token' => $token,
-                'url' => url("/preview/{$token}"),
-                'expires_at' => now()->addHours(24)->toISOString(),
+                'url' => route('preview.public', ['token' => $token]),
+                'expires_at' => $expires->toISOString(),
             ],
         ]);
     }
 
     /**
-     * Public preview via token (no auth required).
+     * Public preview via token (no auth required). Read-only render in the
+     * token's tenant context — no editor message listener, no edit mode.
      */
     public function publicPreview(string $token): Response
     {
-        $key = "preview_token:{$token}";
-        $data = Cache::get($key);
-
-        if (!$data) {
+        if (!preg_match('/^[A-Za-z0-9]{64}$/', $token)) {
+            abort(404);
+        }
+        $data = Cache::get("preview_token:" . hash('sha256', $token));
+        if (!$data || empty($data['tenant_id'])) {
             abort(404);
         }
 
-        $site = Site::findOrFail($data['site_id']);
+        return \App\Domain\Tenancy\PublicTenantResolver::withTenant((string) $data['tenant_id'], function () use ($data) {
+            $site = Site::find($data['site_id']);
+            $content = $data['content_type'] === 'page'
+                ? ($site ? Page::where('site_id', $site->id)->find($data['content_id']) : null)
+                : ($site ? Post::where('site_id', $site->id)->find($data['content_id']) : null);
+            if (!$site || !$content) {
+                abort(404);
+            }
 
-        $content = $data['content_type'] === 'page'
-            ? Page::findOrFail($data['content_id'])
-            : Post::findOrFail($data['content_id']);
+            $html = $this->renderPreview($content, $site, false, liveUpdates: false);
 
-        $html = $this->renderPreview($content, $site);
-
-        return response($html, 200)
-            ->header('Content-Type', 'text/html')
-            ->header('X-Robots-Tag', 'noindex')
-            ->header('Cache-Control', 'no-store');
+            return response($html, 200)
+                ->header('Content-Type', 'text/html')
+                ->header('X-Robots-Tag', 'noindex')
+                ->header('Cache-Control', 'no-store');
+        });
     }
 
     /**
@@ -156,7 +179,12 @@ class PreviewController extends Controller
         return request()->query('sp_edit') === '1' && Gate::allows('inlineEdit', $content);
     }
 
-    private function renderPreview(Page|Post $content, Site $site, bool $editMode = false): string
+    /**
+     * @param  bool  $liveUpdates  authenticated editor previews get the
+     *         postMessage listener (parent = admin origin only); the shared
+     *         public preview is read-only and gets none (F21).
+     */
+    private function renderPreview(Page|Post $content, Site $site, bool $editMode = false, bool $liveUpdates = true): string
     {
         $site->load('theme');
 
@@ -170,33 +198,28 @@ class PreviewController extends Controller
             )
             : $this->buildService->build($content, $site->theme, $site);
 
-        // Inject preview script for live updates via postMessage
-        $previewScript = <<<'JS'
-<script>
-(function() {
-    window.addEventListener('message', function(event) {
-        if (!event.data || event.data.type !== 'cms-preview-update') return;
-        var blockId = event.data.blockId;
-        var html = event.data.html;
-        if (blockId && html !== undefined) {
-            var el = document.querySelector('[data-block-id="' + blockId + '"]');
-            if (el) {
-                el.innerHTML = html;
-            }
-        }
-        if (event.data.type === 'cms-preview-reload') {
-            window.location.reload();
-        }
-    });
-})();
-</script>
-JS;
+        if ($liveUpdates) {
+            // Live-update listener: only messages from the admin origin AND from
+            // the embedding window are honoured; both message kinds are
+            // reachable (the old early return made reload dead code); block
+            // targets use the renderer's own ids (data-sp-block / data-block-id).
+            $origin = json_encode(rtrim((string) config('app.url'), '/'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+            $previewScript = '<script>(function(){var ORIGIN=' . $origin . ';'
+                . 'window.addEventListener("message",function(event){'
+                . 'if(event.origin!==ORIGIN)return;'
+                . 'if(window.parent===window||event.source!==window.parent)return;'
+                . 'var d=event.data;if(!d||typeof d!=="object"||typeof d.type!=="string")return;'
+                . 'if(d.type==="cms-preview-reload"){window.location.reload();return;}'
+                . 'if(d.type!=="cms-preview-update")return;'
+                . 'if(typeof d.blockId!=="string"||typeof d.html!=="string"||!/^[A-Za-z0-9-]{1,64}$/.test(d.blockId))return;'
+                . 'var el=document.querySelector(\'[data-sp-block="\'+d.blockId+\'"],[data-block-id="\'+d.blockId+\'"]\');'
+                . 'if(el){el.innerHTML=d.html;}'
+                . '});})();</script>';
 
-        // Add data-block-id attributes to rendered blocks
-        $html = $this->addBlockIds($html, $content);
-
-        // Insert preview script before </body>
-        $html = str_replace('</body>', $previewScript . '</body>', $html);
+            // Add data-block-id attributes to rendered blocks
+            $html = $this->addBlockIds($html, $content);
+            $html = str_replace('</body>', $previewScript . '</body>', $html);
+        }
 
         // Inline-edit overlay — lazily injected only in edit mode, from the
         // admin origin. Nothing here on the plain preview/view path.
@@ -233,42 +256,28 @@ JS;
     }
 
     /**
-     * Add data-block-id attributes to block wrappers for live preview targeting.
+     * Add data-block-id attributes to top-level block wrappers for live
+     * preview targeting. Deterministic (F21): blocks are walked in render
+     * order with a moving cursor, so two blocks of the same type each get
+     * THEIR id (the old class-name heuristic always hit the first match).
+     * Wrappers already addressed by the renderer (data-sp-block) are kept.
      */
     private function addBlockIds(string $html, Page|Post $content): string
     {
         $blocks = $content->blocks()->whereNull('parent_block_id')->orderBy('order')->get();
-        $blockTypes = [
-            'text-block' => 'div',
-            'image-block' => 'figure',
-            'hero-section' => 'section',
-            'columns-block' => 'div',
-            'quote-block' => 'blockquote',
-            'divider-block' => 'hr',
-        ];
-
-        // Simple approach: wrap each top-level rendered block section with data attribute
-        // This works because blocks render in order
+        $cursor = 0;
         foreach ($blocks as $block) {
-            $viewName = "blocks.{$block->type}";
-            // Add data-block-id to the first tag of each rendered block
-            $patterns = [
-                "class=\"text-block" => "data-block-id=\"{$block->id}\" class=\"text-block",
-                "class=\"image-block" => "data-block-id=\"{$block->id}\" class=\"image-block",
-                "class=\"hero-section" => "data-block-id=\"{$block->id}\" class=\"hero-section",
-                "class=\"columns-block" => "data-block-id=\"{$block->id}\" class=\"columns-block",
-                "class=\"quote-block" => "data-block-id=\"{$block->id}\" class=\"quote-block",
-                "class=\"divider-block" => "data-block-id=\"{$block->id}\" class=\"divider-block",
-            ];
-
-            foreach ($patterns as $search => $replace) {
-                // Only replace the first occurrence for this block
-                $pos = strpos($html, $search);
-                if ($pos !== false && !str_contains(substr($html, max(0, $pos - 100), 100), "data-block-id=\"{$block->id}\"")) {
-                    $html = substr_replace($html, $replace, $pos, strlen($search));
-                    break;
-                }
+            if (str_contains($html, 'data-sp-block="' . $block->id . '"') || str_contains($html, 'data-block-id="' . $block->id . '"')) {
+                continue;
             }
+            $needle = 'class="' . $block->type . '-block';
+            $pos = strpos($html, $needle, $cursor);
+            if ($pos === false) {
+                continue; // block type renders without the conventional wrapper
+            }
+            $insert = 'data-block-id="' . $block->id . '" ';
+            $html = substr_replace($html, $insert . $needle, $pos, strlen($needle));
+            $cursor = $pos + strlen($insert) + strlen($needle);
         }
 
         return $html;

@@ -313,23 +313,15 @@ class MagazineViewController extends Controller
 
     private function resolveSite(): Site
     {
-        // Tenants table has no RLS — get tenant ID first, then set context
-        $tenant = DB::selectOne("SELECT id FROM tenants LIMIT 1");
-
-        if (!$tenant) {
-            abort(404, 'No tenant found.');
+        // F22: the site is the one whose custom domain matches the request
+        // host (or the trusted proxy's X-Original-Host), in ANY tenant — the
+        // old code only looked inside the first tenant.
+        $resolver = app(\App\Domain\Tenancy\PublicTenantResolver::class);
+        $site = null;
+        if (request()->isFromTrustedProxy() && ($orig = request()->header('X-Original-Host'))) {
+            $site = $resolver->siteByHost($orig);
         }
-
-        $tenantId = preg_replace('/[^a-f0-9\-]/', '', $tenant->id);
-        DB::statement("SET app.current_tenant_id = '{$tenantId}'");
-
-        // Now RLS is satisfied — resolve site by domain
-        $host = request()->getHost();
-        $originalHost = request()->header('X-Original-Host', $host);
-
-        $site = Site::where('custom_domain', $originalHost)
-            ->orWhere('custom_domain', $host)
-            ->first();
+        $site ??= $resolver->siteByHost(request()->getHost());
 
         if (!$site) {
             abort(404, 'No site found for this domain.');
