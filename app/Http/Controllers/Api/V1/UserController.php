@@ -17,13 +17,15 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // F10: the (hashed) invitation token never leaves the server — only the status.
         $users = User::where('tenant_id', $request->user()->tenant_id)
-            ->select(['id', 'name', 'email', 'role', 'last_login_at', 'invitation_token', 'created_at'])
+            ->select(['id', 'name', 'email', 'role', 'last_login_at', 'invitation_token', 'invitation_expires_at', 'created_at'])
             ->orderBy('name')
             ->get()
             ->map(fn($u) => [
-                ...$u->toArray(),
+                ...collect($u->toArray())->except(['invitation_token'])->all(),
                 'status' => $u->invitation_token ? 'pending' : 'active',
+                'invitation_expired' => (bool) ($u->invitation_token && $u->invitation_expires_at?->isPast()),
             ]);
 
         return response()->json(['data' => $users]);
@@ -56,6 +58,7 @@ class UserController extends Controller
         }
 
         $token = Str::random(64);
+        $expires = now()->addHours(48);
 
         $user = User::create([
             'tenant_id' => $request->user()->tenant_id,
@@ -63,21 +66,57 @@ class UserController extends Controller
             'email' => $request->input('email'),
             'password' => Hash::make(Str::random(32)), // Placeholder until they set their own
             'role' => $request->input('role'),
-            'invitation_token' => $token,
-            'invitation_expires_at' => now()->addHours(48),
+            'invitation_token' => InviteController::hashToken($token), // F10: hashed at rest
+            'invitation_expires_at' => $expires,
             'invited_by' => $request->user()->id,
         ]);
 
-        // In production, this would send an email with the invite link
-        // For now, return the token so admin can share the link
-        $inviteUrl = config('app.url') . '/admin/invite/' . $token;
+        // F10: the invitation is really sent; the raw link is returned ONCE to
+        // the admin who created it (so it can be handed over out-of-band).
+        $user->notify(new \App\Notifications\UserInvitation($token, $request->user()->name, $expires->toDayDateTimeString()));
+        $inviteUrl = rtrim((string) config('app.url'), '/') . '/admin/invite/' . $token;
 
         return response()->json([
             'data' => [
                 'user' => $user->only(['id', 'name', 'email', 'role']),
                 'invite_url' => $inviteUrl,
+                'expires_at' => $expires->toISOString(),
             ],
         ], 201);
+    }
+
+    /** F10: new token + expiry for a pending invitation; the old link stops working. */
+    public function resendInvite(Request $request, User $user): JsonResponse
+    {
+        if (!$request->user()->hasMinimumRole('admin') || $user->tenant_id !== $request->user()->tenant_id) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+        if (!$user->invitation_token) {
+            return response()->json(['message' => 'This user has already accepted their invitation.'], 422);
+        }
+        $token = Str::random(64);
+        $expires = now()->addHours(48);
+        $user->forceFill(['invitation_token' => InviteController::hashToken($token), 'invitation_expires_at' => $expires])->save();
+        $user->notify(new \App\Notifications\UserInvitation($token, $request->user()->name, $expires->toDayDateTimeString()));
+
+        return response()->json(['data' => [
+            'invite_url' => rtrim((string) config('app.url'), '/') . '/admin/invite/' . $token,
+            'expires_at' => $expires->toISOString(),
+        ]]);
+    }
+
+    /** F10: revoke a pending invitation — the placeholder account is removed. */
+    public function revokeInvite(Request $request, User $user): JsonResponse
+    {
+        if (!$request->user()->hasMinimumRole('admin') || $user->tenant_id !== $request->user()->tenant_id) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+        if (!$user->invitation_token) {
+            return response()->json(['message' => 'This user has already accepted their invitation.'], 422);
+        }
+        $user->forceDelete(); // a never-used placeholder — hard delete so the email can be re-invited
+
+        return response()->json(null, 204);
     }
 
     public function updateRole(Request $request, User $user): JsonResponse

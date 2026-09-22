@@ -46,6 +46,16 @@ export default function Users() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
 
+  // F10: pending invitations can be re-sent (new link, old one dies) or revoked.
+  const resendMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/users/${id}/invite/resend`),
+    onSuccess: (res) => { setInviteUrl(res.data.data.invite_url); queryClient.invalidateQueries({ queryKey: ['users'] }); },
+  });
+  const revokeMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}/invite`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: () => {
@@ -133,7 +143,13 @@ export default function Users() {
                     </span>
                   </td>
                   <td className="px-6 py-3 text-right">
-                    {user.role !== 'owner' && (
+                    {user.status === 'pending' && (
+                      <>
+                        <button onClick={() => resendMutation.mutate(user.id)} disabled={resendMutation.isPending} className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded" title="Send a new invitation link">Resend</button>
+                        <button onClick={() => { if (window.confirm(`Revoke the invitation for ${user.email}?`)) revokeMutation.mutate(user.id); }} className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded" title="Revoke the invitation">Revoke</button>
+                      </>
+                    )}
+                    {user.role !== 'owner' && user.status !== 'pending' && (
                       <button onClick={() => setDeleteTarget(user)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </td>

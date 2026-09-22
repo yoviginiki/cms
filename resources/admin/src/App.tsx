@@ -9,6 +9,8 @@ import { Loader2 } from 'lucide-react';
 // Eagerly loaded (critical path)
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import InviteAccept from './pages/InviteAccept';
+import ResetPassword from './pages/ResetPassword';
 
 // Lazy loaded (route-level code splitting)
 const PagesList = lazy(() => import('./pages/PagesList'));
@@ -105,6 +107,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/invite/:token" element={<InviteAccept />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Pages with sidebar layout */}
           <Route path="/dashboard" element={<LayoutRoute><Dashboard /></LayoutRoute>} />

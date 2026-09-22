@@ -7,6 +7,23 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.get('/sanctum/csrf-cookie', { baseURL: '/' });
+      await api.post('/auth/forgot-password', { email });
+      setForgotSent(true);
+    } catch (err: any) {
+      setError(err.response?.status === 429 ? 'Too many attempts. Please wait a minute.' : 'Could not send the reset link. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,6 +61,30 @@ export default function Login() {
           <p className="mt-1 text-[13px] text-base-content/40">sign in to your account</p>
         </div>
 
+        {forgot ? (
+          <form onSubmit={handleForgot} className="card bg-base-100 border border-base-300/40 shadow-elev-2">
+            <div className="card-body p-5 gap-4">
+              {error && <div className="alert alert-error text-[12px] py-2 px-3">{error}</div>}
+              {forgotSent ? (
+                <p className="text-[13px] text-base-content/70">If an account exists for that email, a reset link has been sent. It is valid for 60 minutes.</p>
+              ) : (
+                <>
+                  <fieldset className="fieldset">
+                    <label className="fieldset-label text-[12px] text-base-content/50 mb-1">Email</label>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus autoComplete="email" className="input input-bordered input-sm w-full text-[13px]" />
+                  </fieldset>
+                  <button type="submit" disabled={loading} className="btn btn-primary btn-sm w-full text-[12px]">
+                    {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {loading ? 'sending...' : 'send reset link'}
+                  </button>
+                </>
+              )}
+              <button type="button" onClick={() => { setForgot(false); setForgotSent(false); setError(''); }} className="text-[11px] text-base-content/40 hover:text-base-content/70 text-center">
+                back to sign in
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="card bg-base-100 border border-base-300/40 shadow-elev-2">
           <div className="card-body p-5 gap-4">
             {error && (
@@ -87,8 +128,12 @@ export default function Login() {
               {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {loading ? 'signing in...' : 'sign in'}
             </button>
+            <button type="button" onClick={() => { setForgot(true); setError(''); }} className="text-[11px] text-base-content/40 hover:text-base-content/70 text-center">
+              forgot your password?
+            </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
