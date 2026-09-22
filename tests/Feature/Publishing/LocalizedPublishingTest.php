@@ -81,6 +81,20 @@ class LocalizedPublishingTest extends TestCase
         $this->assertSame(1, substr_count($out2, 'lang-switcher'));
     }
 
+    public function test_floating_switcher_can_be_turned_off_per_site(): void
+    {
+        $site = $this->site(['default_language' => 'bg', 'languages' => ['en'], 'language_switcher' => 'none']);
+        $page = Page::where('site_id', $site->id)->where('status', 'published')->firstOrFail();
+
+        $html = "<html><head><title>x</title></head><body><p>hi</p></body></html>";
+        $out = LocalePaths::localizeHtml($site, $page, $html);
+
+        $this->assertStringContainsString('hreflang="bg"', $out);        // SEO alternates stay
+        $this->assertStringContainsString('hreflang="x-default"', $out);
+        $this->assertStringNotContainsString('lang-switcher', $out);      // no fallback pill
+        $this->assertSame('', LocalePaths::switcherHtmlFor($site, ['en' => '/en/'], 'bg'));   // collections path too
+    }
+
     public function test_static_cleaner_removes_file_and_prunes_empty_dirs(): void
     {
         $site = $this->site();

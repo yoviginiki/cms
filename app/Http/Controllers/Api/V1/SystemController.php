@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\System\Services\CmsExportService;
 use App\Domain\System\Services\UpdateService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -74,8 +75,8 @@ class SystemController extends Controller
         // Mark as generating
         File::put($lockFile, (string) time());
 
-        // Build in the same request (fast enough for ~1.5MB)
-        $this->buildExportZip();
+        // Build in the same request (a few seconds for the whole source tree)
+        app(CmsExportService::class)->build();
 
         // Remove lock
         @unlink($lockFile);
@@ -128,53 +129,5 @@ class SystemController extends Controller
         return response()->download($zipPath, 'cms-platform-' . date('Y-m-d') . '.zip', [
             'Content-Type' => 'application/zip',
         ]);
-    }
-
-    private function buildExportZip(): void
-    {
-        $zipPath = storage_path('app/cms-export.zip');
-        $tmpPath = storage_path('app/tmp/cms-export-build.zip');
-        File::ensureDirectoryExists(dirname($tmpPath));
-
-        $zip = new \ZipArchive();
-        if ($zip->open($tmpPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-            throw new \RuntimeException('Failed to create ZIP');
-        }
-
-        $basePath = base_path();
-        // NOTE: public/admin-assets is intentionally omitted — it is compiled
-        // Vite build output (regenerated from resources/admin via `npm run
-        // build`), not source. It also accumulates months of stale hashed
-        // chunks across deploys, which used to dominate the export size.
-        $include = ['app', 'config', 'database', 'resources', 'routes', 'docs', 'tests'];
-        $rootFiles = ['composer.json', 'composer.lock', 'package.json', 'artisan', '.env.example', 'README.md', 'phpunit.xml'];
-
-        foreach ($rootFiles as $file) {
-            $full = $basePath . '/' . $file;
-            if (file_exists($full)) {
-                $zip->addFile($full, $file);
-            }
-        }
-
-        foreach ($include as $dir) {
-            $dirPath = $basePath . '/' . $dir;
-            if (!is_dir($dirPath)) continue;
-
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($dirPath, \FilesystemIterator::SKIP_DOTS),
-                \RecursiveIteratorIterator::LEAVES_ONLY
-            );
-
-            foreach ($iterator as $file) {
-                $relative = substr($file->getPathname(), strlen($basePath) + 1);
-                if (preg_match('#(vendor|node_modules|\.git)/#', $relative)) continue;
-                $zip->addFile($file->getPathname(), $relative);
-            }
-        }
-
-        $zip->close();
-
-        // Atomic replace
-        rename($tmpPath, $zipPath);
     }
 }

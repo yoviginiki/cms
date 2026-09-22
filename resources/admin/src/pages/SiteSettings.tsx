@@ -72,6 +72,7 @@ export default function SiteSettings() {
 
   // Languages
   const [siteLanguages, setSiteLanguages] = useState<string[]>([]);
+  const [floatingSwitcher, setFloatingSwitcher] = useState(true);   // settings.language_switcher !== 'none'
   const [defaultLanguage, setDefaultLanguage] = useState('en');
 
   // Analytics
@@ -171,6 +172,7 @@ export default function SiteSettings() {
       setVerificationGoogle((site.seo_defaults?.verification_google as string) ?? '');
       setVerificationBing((site.seo_defaults?.verification_bing as string) ?? '');
       setSiteLanguages((site.settings?.languages as string[]) ?? []);
+      setFloatingSwitcher((site.settings?.language_switcher as string | undefined) !== 'none');
       setDefaultLanguage((site.settings?.default_language as string) ?? 'en');
       setGaId((site.settings?.google_analytics_id as string) ?? '');
       setHeadScripts((site.settings?.head_scripts as string) ?? '');
@@ -303,6 +305,7 @@ export default function SiteSettings() {
       ...(site?.settings || {}),
       languages: siteLanguages,
       default_language: defaultLanguage,
+      language_switcher: floatingSwitcher ? 'floating' : 'none',
     },
   });
 
@@ -1197,6 +1200,16 @@ export default function SiteSettings() {
                 <p className="text-xs text-blue-700 font-medium mb-1">Enabled: {defaultLanguage.toUpperCase()} (default) + {siteLanguages.map(c => c.toUpperCase()).join(', ')}</p>
                 <p className="text-[10px] text-blue-500">To translate a page: open the page editor → Page tab → set the language and link to the original page.</p>
               </div>
+            )}
+
+            {siteLanguages.length > 0 && (
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={floatingSwitcher} onChange={e => setFloatingSwitcher(e.target.checked)} />
+                <span>
+                  <span className="text-xs text-gray-700 font-medium block">Floating language switcher</span>
+                  <span className="text-[10px] text-gray-400 block">Adds a small BG / EN pill fixed at the bottom-right of every page that has no language switcher block. Turn it off if your menu already links the languages.</span>
+                </span>
+              </label>
             )}
 
             <div className="pt-4 border-t border-gray-100">

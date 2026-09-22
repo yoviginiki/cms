@@ -95,6 +95,17 @@ class LocalePaths
         return count(self::languages($site)) > 1;
     }
 
+    /**
+     * Site setting `language_switcher`: 'floating' (default) injects the
+     * fixed bottom-right pill on pages that render no switcher of their own;
+     * 'none' turns the pill off everywhere (e.g. when the menu already links
+     * the languages). hreflang alternates are emitted either way.
+     */
+    public static function floatingSwitcherEnabled(Site $site): bool
+    {
+        return ($site->settings['language_switcher'] ?? 'floating') !== 'none';
+    }
+
     /** Locale of a piece of content (falls back to the site default). */
     public static function contentLocale(Page|Post $content, Site $site): string
     {
@@ -246,7 +257,7 @@ class LocalePaths
      */
     public static function switcherHtmlFor(Site $site, array $urls, string $current): string
     {
-        if (!self::isMultilingual($site)) return '';
+        if (!self::isMultilingual($site) || !self::floatingSwitcherEnabled($site)) return '';
 
         $links = '';
         foreach (self::languages($site) as $lang) {
