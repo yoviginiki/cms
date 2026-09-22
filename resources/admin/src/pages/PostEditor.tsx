@@ -10,6 +10,8 @@ import { deepCloneWithNewIds } from '@/lib/builderHelpers';
 import { useToast } from '@/components/ui/Toast';
 import { usePostData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { saveContent, reloadSessionFromServer, sessionKeyFor, SaveConflictError } from '@/lib/saveCoordinator';
+import { hydrateEditorSession } from '@/lib/editorHydration';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useThemeFonts } from '@/hooks/useThemeFonts';
 import { useEditorStore } from '@/stores/editorStore';
@@ -21,7 +23,7 @@ import { BlockSettings } from '@/components/editor/BlockSettings';
 import { LayersPanel } from '@/components/editor/LayersPanel';
 import { StructurePanel } from '@/components/editor/StructurePanel';
 import { BlockPicker } from '@/components/editor/BlockPicker';
-import { api, blocks as blocksApi, posts as postsApi, categories as categoriesApi, versions as versionsApi, publishing, sites, themeTemplates } from '@/lib/api';
+import { api, posts as postsApi, categories as categoriesApi, versions as versionsApi, publishing, sites, themeTemplates } from '@/lib/api';
 import { AssetField } from '@/components/ui/AssetPicker';
 import { SeoPanel } from '@/components/editor/SeoPanel';
 import WysiwygEditor from '@/components/editor/WysiwygEditor';
@@ -57,9 +59,8 @@ export default function PostEditor() {
   const { siteId = '', postId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { post, blocks: fetchedBlocks, isLoading, error } = usePostData(siteId, postId);
+  const { post, blocks: fetchedBlocks, blocksVersion, isLoading, error } = usePostData(siteId, postId);
   const setBlocks = useEditorStore((s) => s.setBlocks);
-  const editorBlocks = useEditorStore((s) => s.blocks);
   const isDirty = useEditorStore((s) => s.isDirty);
   const isSaving = useEditorStore((s) => s.isSaving);
   const setSaving = useEditorStore((s) => s.setSaving);
@@ -67,6 +68,8 @@ export default function PostEditor() {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
   const updateBlock = useEditorStore((s) => s.updateBlock);
+  const hydrated = useEditorStore((s) => s.hydrated);
+  const conflict = useEditorStore((s) => s.conflict);
   const { toast } = useToast();
   // Hidden <input type=file> that the Import button clicks.
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -151,34 +154,31 @@ export default function PostEditor() {
   });
 
   useAutoSave(siteId, 'posts', postId);
-  useEditorShortcuts(siteId, 'posts', postId);
+  useEditorShortcuts(siteId, 'posts', postId, () => handleSave());
   useThemeFonts(siteId);
 
-  // Load blocks only on initial fetch — never overwrite after user starts editing
-  const blocksLoadedRef = useRef(false);
+  // One editor session per post (F12): reset on postId change (the old code
+  // never reset its loaded flag, so a reused component kept the previous
+  // post's tree), hydrate once when BOTH metadata and blocks are here.
+  const sessionKey = sessionKeyFor({ siteId, type: 'posts', id: postId });
   useEffect(() => {
-    if (fetchedBlocks && !blocksLoadedRef.current) {
-      setBlocks(fetchedBlocks);
-      blocksLoadedRef.current = true;
+    useEditorStore.getState().beginSession(sessionKey);
+    useCanvasStore.getState().loadFromBlocks([], { pageType: 'website' });
+    simpleBlockIdRef.current = null;
+    setSimpleContent('');
+  }, [sessionKey]);
+  useEffect(() => {
+    const done = hydrateEditorSession({ sessionKey, contentId: postId, meta: post, blocks: fetchedBlocks as any, blocksVersion });
+    if (done && fetchedBlocks) {
       // Extract simple content from the body text/rich-text block — anywhere in
       // the tree — and remember its id so Simple-mode edits update THAT block.
-      const textBlock = findContentBlock(fetchedBlocks);
+      const textBlock = findContentBlock(fetchedBlocks as any);
       simpleBlockIdRef.current = textBlock?.id ?? null;
       if (textBlock?.data?.content) {
         setSimpleContent(textBlock.data.content as string);
       }
-      // Canvas mode reads the SAME block tree into the canvas store.
-      if (post?.editor_mode === 'canvas') {
-        const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
-        useCanvasStore.getState().loadFromBlocks(fetchedBlocks, {
-          pageType: cv?.page_type === 'single' ? 'single' : 'website',
-          width: cv?.width,
-          mobileWidth: cv?.mobile_width,
-          fit: cv?.fit,
-        });
-      }
     }
-  }, [fetchedBlocks, setBlocks, post]);
+  }, [sessionKey, postId, post, fetchedBlocks, blocksVersion]);
 
   const initializedPost = useRef(false);
   useEffect(() => {
@@ -226,6 +226,7 @@ export default function PostEditor() {
 
   // Save — always saves metadata + blocks (keeps current status)
   async function handleSave() {
+    if (!hydrated) return;
     const previousStatus = post?.status;
     setSaving(true);
     setSaveError('');
@@ -240,17 +241,10 @@ export default function PostEditor() {
         seo_meta: { ...seoPatch, template_id: templateId },
       });
       setMetaDirty(false);
-      // Save blocks — in simple mode, wrap content in a single text block
-      if (editorMode === 'canvas') {
-        await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
-        useCanvasStore.getState().markClean();
-      } else {
-        // Simple & block modes share ONE source of truth: the block store.
-        // (Simple-mode edits are written into the store via handleSimpleChange,
-        // so nothing lives only in `simpleContent` waiting to be lost.)
-        await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
-      }
-      setDirty(false);
+      // Save blocks through the coordinator (serializes by builder: canvas
+      // tree or the block store — Simple mode writes into the block store).
+      const r = await saveContent({ siteId, type: 'posts', id: postId });
+      if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
       queryClient.invalidateQueries({ queryKey: ['post', siteId, postId] });
       // If status changed (e.g. published→draft), trigger republish so front page
       // and static files update (draft posts get removed from public site)
@@ -258,14 +252,21 @@ export default function PostEditor() {
         publishing.publish(siteId).catch(() => {});
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || (err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : err.message);
+      const msg = err instanceof SaveConflictError ? 'Конфликт: публикацията е променена от друг редактор' : (err.response?.data?.message || (err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : err.message));
       setSaveError(msg);
       console.error('Save failed:', err.response?.data || err);
     } finally { setSaving(false); }
   }
 
+  async function reloadAfterConflict() {
+    const cv = (post?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
+    await reloadSessionFromServer({ siteId, type: 'posts', id: postId }, { pageType: cv?.page_type === 'single' ? 'single' : 'website', width: cv?.width, mobileWidth: cv?.mobile_width, fit: cv?.fit });
+    setSaveError('');
+  }
+
   // Publish — saves all metadata + blocks, sets status to published, triggers deploy
   async function handlePublish() {
+    if (!hydrated) return;
     setSaving(true);
     setSaveError('');
     try {
@@ -279,18 +280,12 @@ export default function PostEditor() {
         published_at: pubDate, scheduled_at: scheduledAt || null,
         seo_meta: { ...seoPatch, template_id: templateId },
       });
-      // Save blocks
-      if (editorMode === 'canvas') {
-        await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
-        useCanvasStore.getState().markClean();
-      } else {
-        // Simple & block modes share ONE source of truth: the block store.
-        await blocksApi.sync(siteId, 'posts', postId, editorBlocks);
-      }
+      // Save blocks (coordinator) — publish only proceeds after THIS version is stored
+      const r = await saveContent({ siteId, type: 'posts', id: postId });
+      if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
       // Update local state to match what was saved
       setStatus(pubStatus);
       setPublishedAt(new Date(pubDate).toISOString().slice(0, 16));
-      setDirty(false);
       setMetaDirty(false);
       queryClient.invalidateQueries({ queryKey: ['post', siteId, postId] });
       // Trigger publish in background
@@ -346,11 +341,8 @@ export default function PostEditor() {
         editor_mode: mode,
         seo_meta: { template_id: mode === 'simple' ? 'default' : 'none' },
       });
-      if (editorMode === 'canvas') {
-        await blocksApi.sync(siteId, 'posts', postId, useCanvasStore.getState().toBlocks());
-      } else {
-        await blocksApi.sync(siteId, 'posts', postId, useEditorStore.getState().blocks);
-      }
+      const r = await saveContent({ siteId, type: 'posts', id: postId });
+      if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
       // Reload into the new builder without the browser's unsaved-changes prompt.
       bypassUnloadRef.current = true;
       window.location.reload();
@@ -460,7 +452,12 @@ export default function PostEditor() {
             className="text-sm font-medium bg-transparent border-none outline-none text-base-content/90 w-48 min-w-0" placeholder="Post title" />
           <span className={`badge badge-sm ${status === 'published' ? 'badge-success' : 'badge-ghost'} badge-outline text-[10px]`}>{status}</span>
           {(isDirty || metaDirty) && <span className="text-[10px] text-warning font-medium">unsaved</span>}
-          {saveError && <span className="text-[10px] text-error truncate max-w-xs">{saveError}</span>}
+          {conflict && (
+            <button onClick={reloadAfterConflict} className="btn btn-xs btn-error text-[10px]" title="Discard local edits and load the latest saved version">
+              Конфликт — презареди
+            </button>
+          )}
+          {saveError && !conflict && <span className="text-[10px] text-error truncate max-w-xs">{saveError}</span>}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">

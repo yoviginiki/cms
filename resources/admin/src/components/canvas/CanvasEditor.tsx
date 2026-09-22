@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Maximize2, Monitor, Smartphone, Eye, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCanvasStore } from '@/stores/canvasStore';
+import { saveContent } from '@/lib/saveCoordinator';
 import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi } from '@/lib/api';
 import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
@@ -71,8 +72,10 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
   const [saveError, setSaveError] = useState(false);
   // Autosave path used by the collab leader (same lossless sync as manual save).
   const autosave = useCallback(() => {
-    blocksApi.sync(siteId, contentType, pageId, useCanvasStore.getState().toBlocks())
-      .then(() => { useCanvasStore.getState().markClean(); setSaveError(false); })
+    // F11: same coordinator as Save (revision-aware, dirty cleared only when
+    // nothing changed meanwhile, ignored if the session moved on).
+    saveContent({ siteId, type: contentType, id: pageId })
+      .then(() => setSaveError(false))
       .catch(() => setSaveError(true));   // surface it — collaborators can lose work silently otherwise
   }, [siteId, contentType, pageId]);
   // Reconnect reseed: re-hydrate from the last saved tree after a dropped socket.

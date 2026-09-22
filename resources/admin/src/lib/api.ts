@@ -76,8 +76,15 @@ export const pages = {
 export const blocks = {
   get: (siteId: string, type: 'pages' | 'posts' | 'templates', id: string) =>
     api.get(`/sites/${siteId}/${type}/${id}/blocks`),
-  sync: (siteId: string, type: 'pages' | 'posts' | 'templates', id: string, data: unknown[], rawHtml?: string) =>
-    api.put(`/sites/${siteId}/${type}/${id}/blocks`, { blocks: data, raw_html: rawHtml ?? '' }),
+  // F11/F13: raw_html is only sent when the caller owns it (omitting it
+  // leaves the stored value untouched); expected_version is the content
+  // revision captured on load — the server refuses a stale one with 409.
+  sync: (siteId: string, type: 'pages' | 'posts' | 'templates', id: string, data: unknown[], rawHtml?: string, extra?: { expected_version?: string | null; overwrite?: boolean; create_snapshot?: boolean }) =>
+    api.put(`/sites/${siteId}/${type}/${id}/blocks`, {
+      blocks: data,
+      ...(rawHtml !== undefined ? { raw_html: rawHtml } : {}),
+      ...(extra ?? {}),
+    }),
   render: (siteId: string, blockType: string, blockData: Record<string, unknown>) =>
     api.post(`/sites/${siteId}/blocks/render`, { type: blockType, data: blockData }),
 };

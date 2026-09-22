@@ -6,6 +6,8 @@ import { deepCloneWithNewIds } from '@/lib/builderHelpers';
 import { useToast } from '@/components/ui/Toast';
 import { usePageData } from '@/hooks/usePageData';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { saveContent, reloadSessionFromServer, sessionKeyFor, SaveConflictError } from '@/lib/saveCoordinator';
+import { hydrateEditorSession } from '@/lib/editorHydration';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useThemeFonts } from '@/hooks/useThemeFonts';
 import DOMPurify from 'dompurify';
@@ -39,7 +41,7 @@ import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
-import { api, blocks as blocksApi, pages as pagesApi, magEditor, sites, themeEngine, grids as gridsApi } from '@/lib/api';
+import { api, pages as pagesApi, magEditor, sites, themeEngine, grids as gridsApi } from '@/lib/api';
 import type { MagElement, MagPageData, MagElementStyle, TextFrameData, ImageFrameData } from '@/types/magazine';
 import '@/components/blocks';
 
@@ -60,15 +62,16 @@ const MODE_LABELS: Record<EditorMode, string> = {
 export default function PageEditor() {
   const { siteId = '', pageId = '' } = useParams();
   const navigate = useNavigate();
-  const { page, blocks: fetchedBlocks, isLoading, error } = usePageData(siteId, pageId);
+  const { page, blocks: fetchedBlocks, blocksVersion, isLoading, error } = usePageData(siteId, pageId);
   const setBlocks = useEditorStore((s) => s.setBlocks);
-  const editorBlocks = useEditorStore((s) => s.blocks);
   const isDirty = useEditorStore((s) => s.isDirty);
   const isSaving = useEditorStore((s) => s.isSaving);
   const setSaving = useEditorStore((s) => s.setSaving);
   const setDirty = useEditorStore((s) => s.setDirty);
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
+  const hydrated = useEditorStore((s) => s.hydrated);
+  const conflict = useEditorStore((s) => s.conflict);
   const pageMetaRef = useRef<Record<string, any> | null>(null);
   // Set while we deliberately reload after switching page builder, so the
   // beforeunload guard below doesn't throw a second "unsaved changes" prompt.
@@ -185,38 +188,20 @@ export default function PageEditor() {
   }, [magData]);
 
   useAutoSave(siteId, 'pages', pageId);
-  useEditorShortcuts(siteId, 'pages', pageId);
+  useEditorShortcuts(siteId, 'pages', pageId, () => handleSave());
   useThemeFonts(siteId);
 
-  // Clear store on mount / pageId change — prevents old page content showing
-  const blocksLoadedRef = useRef(false);
+  // One editor session per page (F12): reset every document store on pageId
+  // change, then hydrate exactly once — only when BOTH the page metadata and
+  // the blocks for THIS page have arrived (either order).
+  const sessionKey = sessionKeyFor({ siteId, type: 'pages', id: pageId });
   useEffect(() => {
-    blocksLoadedRef.current = false;
-    setBlocks([]);
-    setDirty(false);
-    useEditorStore.setState({ rawHtml: '' });
-  }, [pageId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load blocks when fetch completes
+    useEditorStore.getState().beginSession(sessionKey);
+    useCanvasStore.getState().loadFromBlocks([], { pageType: 'website' });
+  }, [sessionKey]);
   useEffect(() => {
-    if (fetchedBlocks !== undefined && !blocksLoadedRef.current) {
-      setBlocks(fetchedBlocks || []);
-      if (page?.raw_html) {
-        useEditorStore.setState({ rawHtml: page.raw_html });
-      }
-      // Canvas mode reads the SAME block tree into the canvas store.
-      if (page?.editor_mode === 'canvas') {
-        const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
-        useCanvasStore.getState().loadFromBlocks(fetchedBlocks || [], {
-          pageType: cv?.page_type === 'single' ? 'single' : 'website',
-          width: cv?.width,
-          mobileWidth: cv?.mobile_width,
-          fit: cv?.fit,
-        });
-      }
-      blocksLoadedRef.current = true;
-    }
-  }, [fetchedBlocks, setBlocks, page]);
+    hydrateEditorSession({ sessionKey, contentId: pageId, meta: page, blocks: fetchedBlocks as any, blocksVersion });
+  }, [sessionKey, pageId, page, fetchedBlocks, blocksVersion]);
 
   // Read editor_mode from page data
   useEffect(() => {
@@ -255,10 +240,10 @@ export default function PageEditor() {
     }
 
     if (editorMode === 'canvas' || page?.editor_mode === 'canvas') {
-      // Canvas mode saves the SAME block tree (sections + positioned children).
-      const rawHtml = useEditorStore.getState().rawHtml;
-      await blocksApi.sync(siteId, 'pages', pageId, useCanvasStore.getState().toBlocks(), rawHtml);
-      useCanvasStore.getState().markClean();
+      // Canvas mode saves the SAME block tree (sections + positioned children)
+      // — through the coordinator, which serializes by the session's builder.
+      const r = await saveContent({ siteId, type: 'pages', id: pageId });
+      if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
     } else if (editorMode === 'magazine' || page?.editor_mode === 'magazine') {
         // Save magazine data
         const pages = magStore.pages.map(p => ({
@@ -296,23 +281,31 @@ export default function PageEditor() {
         await magEditor.sync(siteId, pageId, { pages, elements });
         magStore.setDirty(false);
     } else {
-      // Save block data + raw HTML
-      const rawHtml = useEditorStore.getState().rawHtml;
-      await blocksApi.sync(siteId, 'pages', pageId, editorBlocks, rawHtml);
+      // Save block data + raw HTML (coordinator: revision-aware, clears
+      // "dirty" only if nothing changed while the request was out)
+      const r = await saveContent({ siteId, type: 'pages', id: pageId });
+      if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
     }
   }
 
   async function handleSave() {
+    if (!hydrated) return;
     setSaving(true);
     try {
       await persistCurrentContent();
-      setDirty(false);
+      if (editorMode === 'magazine' || page?.editor_mode === 'magazine') setDirty(false);
       setLastSavedAt(new Date());
       setSaveError(null);
     } catch (err) {
       console.error('Save failed:', err);
-      setSaveError('Save failed');
+      setSaveError(err instanceof SaveConflictError ? 'Конфликт: страницата е променена от друг редактор' : 'Save failed');
     } finally { setSaving(false); }
+  }
+
+  async function reloadAfterConflict() {
+    const cv = (page?.seo_meta as { canvas?: { page_type?: string; width?: number; mobile_width?: number; fit?: string } } | undefined)?.canvas;
+    await reloadSessionFromServer({ siteId, type: 'pages', id: pageId }, { pageType: cv?.page_type === 'single' ? 'single' : 'website', width: cv?.width, mobileWidth: cv?.mobile_width, fit: cv?.fit });
+    setSaveError(null);
   }
 
   // ─── Export / Import content ───────────────────────────────────────────
@@ -453,7 +446,12 @@ export default function PageEditor() {
             <h1 className="text-sm font-medium text-base-content/90 truncate">{page?.title ?? 'Page'}</h1>
             <span className="text-[10px] text-base-content/30">/{page?.slug}</span>
           </div>
-          {saveError && <span className="text-[10px] text-error font-medium">{saveError}</span>}
+          {conflict && (
+            <button onClick={reloadAfterConflict} className="btn btn-xs btn-error text-[10px]" title="Discard local edits and load the latest saved version">
+              Конфликт — презареди
+            </button>
+          )}
+          {saveError && !conflict && <span className="text-[10px] text-error font-medium">{saveError}</span>}
           {!saveError && isSaving && <span className="text-[10px] text-base-content/40 font-medium flex items-center gap-1"><Loader2 size={10} className="animate-spin" />Saving...</span>}
           {!saveError && !isSaving && (isDirty || magStore.isDirty) && <span className="text-[10px] text-warning font-medium">Unsaved changes</span>}
           {!saveError && !isSaving && !isDirty && !magStore.isDirty && lastSavedAt && (
@@ -554,12 +552,13 @@ export default function PageEditor() {
           <input ref={importInputRef} type="file" accept="application/json,.json"
             onChange={handleImportFile} className="hidden" />
 
-          <button onClick={handleSave} disabled={isSaving || (!isDirty && !magStore.isDirty)}
+          <button onClick={handleSave} disabled={isSaving || !hydrated || (!isDirty && !magStore.isDirty)}
             className={`btn btn-sm text-[12px] gap-1 ${(isDirty || magStore.isDirty) ? 'btn-warning' : 'btn-ghost'}`}>
             {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save
             {(isDirty || magStore.isDirty) && <span className="w-1.5 h-1.5 rounded-full bg-warning-content" />}
           </button>
-          <PublishButton siteId={siteId} publicBase={publicBase} />
+          <PublishButton siteId={siteId} publicBase={publicBase}
+            onBeforePublish={async () => { if (isDirty || magStore.isDirty) { await persistCurrentContent(); setLastSavedAt(new Date()); } }} />
           <a href={`${publicBase}${livePath}`} target="_blank" rel="noopener"
             className="btn btn-sm btn-ghost text-[12px] gap-1" title="View published page">
             <Globe size={13} /> Live

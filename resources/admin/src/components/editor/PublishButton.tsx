@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 interface PublishButtonProps {
   siteId: string;
   publicBase?: string;
+  /** F11: publish must wait for a successful save of the CURRENT edit. */
+  onBeforePublish?: () => Promise<void>;
 }
 
 interface Deployment {
@@ -21,7 +23,7 @@ interface Deployment {
   created_at: string;
 }
 
-export function PublishButton({ siteId, publicBase }: PublishButtonProps) {
+export function PublishButton({ siteId, publicBase, onBeforePublish }: PublishButtonProps) {
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -50,6 +52,14 @@ export function PublishButton({ siteId, publicBase }: PublishButtonProps) {
     setError(null);
     setMenuOpen(false);
     try {
+      if (onBeforePublish) {
+        try {
+          await onBeforePublish();
+        } catch (e) {
+          setError('Save failed — nothing was published');
+          return;
+        }
+      }
       const res = await api.post(`/sites/${siteId}/publish`, { type });
       setDeploymentId(res.data.data.id);
       setTimeout(() => refetchHistory(), 3000);

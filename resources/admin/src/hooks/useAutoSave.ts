@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
-import { api } from '@/lib/api';
+import { saveContent, type ContentType } from '@/lib/saveCoordinator';
 
 const SNAPSHOT_INTERVAL = 5; // Create a draft snapshot every N saves
 
@@ -21,48 +21,43 @@ export function getAutosaveIntervalMs(): number {
 }
 
 /**
- * Auto-save blocks after a configurable idle delay when dirty (default 5 min,
+ * Auto-save content after a configurable idle delay when dirty (default 5 min,
  * set in Site Settings → General → Editor autosave; 0 disables it). A draft
- * version snapshot is
- * created every 5th save.
+ * version snapshot is created every 5th save.
+ *
+ * F11: goes through the save coordinator — same serializer as Save (canvas
+ * tree in canvas mode, raw_html for pages), same revision handling, and the
+ * dirty flag is only cleared when nothing changed while the request was out.
  */
-export function useAutoSave(siteId: string, blockableType: 'pages' | 'posts' | 'templates', blockableId: string) {
+export function useAutoSave(siteId: string, blockableType: ContentType, blockableId: string) {
   const isDirty = useEditorStore((s) => s.isDirty);
   const blocks = useEditorStore((s) => s.blocks);
   const rawHtml = useEditorStore((s) => s.rawHtml);
-  const setDirty = useEditorStore((s) => s.setDirty);
-  const setSaving = useEditorStore((s) => s.setSaving);
+  const conflict = useEditorStore((s) => s.conflict);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const saveCountRef = useRef(0);
 
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty || conflict) return; // a conflict needs a human decision, not a retry loop
     const intervalMs = getAutosaveIntervalMs();
     if (intervalMs <= 0) return; // autosave disabled — rely on manual Save
 
     if (timerRef.current) clearTimeout(timerRef.current);
 
     timerRef.current = setTimeout(async () => {
-      setSaving(true);
+      saveCountRef.current++;
       try {
-        saveCountRef.current++;
-        const createSnapshot = saveCountRef.current % SNAPSHOT_INTERVAL === 0;
-
-        await api.put(`/sites/${siteId}/${blockableType}/${blockableId}/blocks`, {
-          blocks,
-          raw_html: rawHtml || '',
-          create_snapshot: createSnapshot,
-        });
-        setDirty(false);
+        await saveContent(
+          { siteId, type: blockableType, id: blockableId },
+          { createSnapshot: saveCountRef.current % SNAPSHOT_INTERVAL === 0 },
+        );
       } catch (err) {
         console.error('Auto-save failed:', err);
-      } finally {
-        setSaving(false);
       }
     }, intervalMs);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isDirty, blocks, rawHtml, siteId, blockableType, blockableId, setDirty, setSaving]);
+  }, [isDirty, conflict, blocks, rawHtml, siteId, blockableType, blockableId]);
 }

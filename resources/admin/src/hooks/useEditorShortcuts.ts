@@ -1,11 +1,17 @@
 import { useEffect } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
-import { api } from '@/lib/api';
+import { saveContent, type ContentType } from '@/lib/saveCoordinator';
 
+/**
+ * @param onSave  F11: Ctrl/⌘+S must do exactly what the Save button does.
+ *                Editors pass their handleSave; without it the content-only
+ *                coordinator save is used (same serializer/revision rules).
+ */
 export function useEditorShortcuts(
   siteId: string,
-  blockableType: 'pages' | 'posts' | 'templates',
+  blockableType: ContentType,
   blockableId: string,
+  onSave?: () => void | Promise<unknown>,
 ) {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -75,21 +81,12 @@ export function useEditorShortcuts(
         return;
       }
 
-      // Ctrl/⌘+S: force save
+      // Ctrl/⌘+S: save — the SAME action as the Save button (F11)
       if (mod && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
-        if (state.isDirty) {
-          useEditorStore.getState().setSaving(true);
-          api
-            .put(`/sites/${siteId}/${blockableType}/${blockableId}/blocks`, {
-              blocks: state.blocks,
-            })
-            .then(() => {
-              useEditorStore.getState().setDirty(false);
-            })
-            .finally(() => {
-              useEditorStore.getState().setSaving(false);
-            });
+        if (state.isDirty && !state.isSaving) {
+          const p = onSave ? onSave() : saveContent({ siteId, type: blockableType, id: blockableId });
+          Promise.resolve(p).catch((err) => console.error('Save failed:', err));
         }
         return;
       }
@@ -121,5 +118,5 @@ export function useEditorShortcuts(
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [siteId, blockableType, blockableId, undo, redo, selectBlock, copyBlock, pasteBlock, copyStyle, removeSelected, duplicateSelected, pasteStyleToSelected]);
+  }, [siteId, blockableType, blockableId, onSave, undo, redo, selectBlock, copyBlock, pasteBlock, copyStyle, removeSelected, duplicateSelected, pasteStyleToSelected]);
 }

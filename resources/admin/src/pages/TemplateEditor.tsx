@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
+import { saveContent, reloadSessionFromServer, sessionKeyFor, SaveConflictError } from '@/lib/saveCoordinator';
+import { hydrateEditorSession } from '@/lib/editorHydration';
 import { BuilderCanvas, BuilderDndProvider } from '@/components/editor/BuilderCanvas';
 import { BlockSettings } from '@/components/editor/BlockSettings';
 import { LayersPanel } from '@/components/editor/LayersPanel';
@@ -23,12 +25,9 @@ export default function TemplateEditor() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const setBlocks = useEditorStore((s) => s.setBlocks);
-  const editorBlocks = useEditorStore((s) => s.blocks);
   const isDirty = useEditorStore((s) => s.isDirty);
   const isSaving = useEditorStore((s) => s.isSaving);
   const setSaving = useEditorStore((s) => s.setSaving);
-  const setDirty = useEditorStore((s) => s.setDirty);
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
 
   const [rightTab, setRightTab] = useState<RightTab>('blocks');
@@ -43,21 +42,23 @@ export default function TemplateEditor() {
   });
 
   // Fetch template blocks
-  const { data: fetchedBlocks, isLoading: blocksLoading } = useQuery<any[]>({
+  const { data: fetched, isLoading: blocksLoading } = useQuery<{ data: any[]; version: string | null }>({
     queryKey: ['template-blocks', siteId, templateId],
-    queryFn: () => blocksApi.get(siteId, 'templates', templateId).then((r: any) => r.data?.data || []),
+    queryFn: () => blocksApi.get(siteId, 'templates', templateId).then((r: any) => ({ data: r.data?.data || [], version: r.data?.version ?? null })),
   });
+  const fetchedBlocks = fetched?.data;
 
-  useEditorShortcuts(siteId, 'templates', templateId);
+  useEditorShortcuts(siteId, 'templates', templateId, () => handleSave());
 
-  // Load blocks once
-  const blocksLoadedRef = useRef(false);
+  // One session per template (F12): reset on id change, hydrate once when
+  // both the template metadata and its blocks are here.
+  const sessionKey = sessionKeyFor({ siteId, type: 'templates', id: templateId });
+  const hydrated = useEditorStore((s) => s.hydrated);
+  const conflict = useEditorStore((s) => s.conflict);
+  useEffect(() => { useEditorStore.getState().beginSession(sessionKey); }, [sessionKey]);
   useEffect(() => {
-    if (fetchedBlocks && !blocksLoadedRef.current) {
-      setBlocks(fetchedBlocks);
-      blocksLoadedRef.current = true;
-    }
-  }, [fetchedBlocks, setBlocks]);
+    hydrateEditorSession({ sessionKey, contentId: templateId, meta: template, blocks: fetchedBlocks, blocksVersion: fetched?.version });
+  }, [sessionKey, templateId, template, fetchedBlocks, fetched?.version]);
 
   // Load template name
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function TemplateEditor() {
   }, [isDirty, nameDirty]);
 
   async function handleSave() {
+    if (!hydrated) return;
     setSaving(true);
     setSaveError('');
     try {
@@ -86,11 +88,11 @@ export default function TemplateEditor() {
         await themeTemplates.update(siteId, templateId, { name });
         setNameDirty(false);
       }
-      await blocksApi.sync(siteId, 'templates', templateId, editorBlocks);
-      setDirty(false);
+      const r = await saveContent({ siteId, type: 'templates', id: templateId });
+      if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
       queryClient.invalidateQueries({ queryKey: ['template', siteId, templateId] });
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message;
+      const msg = err instanceof SaveConflictError ? 'Конфликт: шаблонът е променен от друг редактор — презареди' : (err.response?.data?.message || err.message);
       setSaveError(msg);
     } finally {
       setSaving(false);
@@ -145,7 +147,12 @@ export default function TemplateEditor() {
             {(isDirty || nameDirty) && (
               <span className="text-[10px] text-warning mr-1">Unsaved</span>
             )}
-            <button onClick={handleSave} disabled={isSaving || (!isDirty && !nameDirty)}
+            {conflict && (
+              <button onClick={() => reloadSessionFromServer({ siteId, type: 'templates', id: templateId }).then(() => setSaveError(''))} className="btn btn-xs btn-error text-[10px]">
+                Конфликт — презареди
+              </button>
+            )}
+            <button onClick={handleSave} disabled={isSaving || !hydrated || (!isDirty && !nameDirty)}
               className="btn btn-primary btn-sm gap-1">
               {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               Save

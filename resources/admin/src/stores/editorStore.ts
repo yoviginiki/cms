@@ -113,6 +113,19 @@ interface EditorState {
   redoStack: BlockData[][];
   maxUndoSteps: number;
 
+  // ─── Editor session (F11/F12) ───
+  // One session per open content (siteId/type/id). Nothing may be saved
+  // before the session is hydrated from BOTH the metadata and the blocks of
+  // that exact content; the server content revision travels with every save.
+  sessionKey: string | null;
+  hydrated: boolean;
+  serverVersion: string | null;
+  conflict: boolean;
+  beginSession: (key: string) => void;
+  markHydrated: (serverVersion: string | null) => void;
+  setServerVersion: (version: string | null) => void;
+  setConflict: (conflict: boolean) => void;
+
   setRawHtml: (html: string) => void;
   setBlocks: (blocks: BlockData[]) => void;
   setEditorMode: (mode: 'simple' | 'block' | 'magazine' | 'canvas') => void;
@@ -225,6 +238,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   undoStack: [],
   redoStack: [],
   maxUndoSteps: 50,
+
+  sessionKey: null,
+  hydrated: false,
+  serverVersion: null,
+  conflict: false,
+  beginSession: (key) => {
+    set({
+      sessionKey: key, hydrated: false, serverVersion: null, conflict: false,
+      blocks: [], rawHtml: '', isDirty: false, isSaving: false,
+      selectedBlockId: null, selectedBlockIds: [], undoStack: [], redoStack: [],
+    });
+  },
+  markHydrated: (serverVersion) => set({ hydrated: true, serverVersion, conflict: false }),
+  setServerVersion: (version) => set({ serverVersion: version }),
+  setConflict: (conflict) => set({ conflict }),
 
   setRawHtml: (html) => {
     set({ rawHtml: html, isDirty: true });

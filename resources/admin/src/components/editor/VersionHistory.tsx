@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { History, RotateCcw, Loader2, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useEditorStore } from '@/stores/editorStore';
+import { reloadSessionFromServer } from '@/lib/saveCoordinator';
 
 interface Version {
   id: string;
@@ -20,7 +20,6 @@ interface VersionHistoryProps {
 }
 
 export function VersionHistory({ siteId, pageId, type }: VersionHistoryProps) {
-  const setBlocks = useEditorStore((s) => s.setBlocks);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [restored, setRestored] = useState<string | null>(null);
 
@@ -35,9 +34,9 @@ export function VersionHistory({ siteId, pageId, type }: VersionHistoryProps) {
     setRestoring(version.id);
     try {
       await api.post(`/sites/${siteId}/${type}/${pageId}/versions/${version.id}/restore`);
-      // Reload blocks from server
-      const blocksRes = await api.get(`/sites/${siteId}/${type}/${pageId}/blocks`);
-      setBlocks(blocksRes.data.data);
+      // Reload blocks + content revision from the server (F13): a save after a
+      // restore must carry the restored revision, not the pre-restore one.
+      await reloadSessionFromServer({ siteId, type, id: pageId });
       setRestored(version.id);
       setTimeout(() => setRestored(null), 2000);
     } catch (err) {
