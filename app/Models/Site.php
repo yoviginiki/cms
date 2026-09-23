@@ -46,7 +46,7 @@ class Site extends Model
     {
         return [
             'seo_defaults' => 'array',
-            'settings' => 'array',
+            'settings' => \App\Casts\SiteSettings::class, // F08: secrets encrypted at rest
         ];
     }
 

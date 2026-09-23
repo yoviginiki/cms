@@ -81,6 +81,42 @@ final class SiteSecrets
         return $incoming;
     }
 
+    public const ENC_PREFIX = 'enc:v1:';
+
+    /** Encrypt every configured secret value (idempotent: already-encrypted values stay). */
+    public static function encryptAll(array $settings): array
+    {
+        foreach ($settings as $key => $value) {
+            if (is_array($value)) {
+                $settings[$key] = self::encryptAll($value);
+            } elseif (self::isSecretKey($key) && self::isConfigured($value) && $value !== self::MASK
+                && !str_starts_with((string) $value, self::ENC_PREFIX)) {
+                $settings[$key] = self::ENC_PREFIX . \Illuminate\Support\Facades\Crypt::encryptString((string) $value);
+            }
+        }
+
+        return $settings;
+    }
+
+    /** Decrypt every encrypted secret value; plaintext (legacy) values pass through. */
+    public static function decryptAll(array $settings): array
+    {
+        foreach ($settings as $key => $value) {
+            if (is_array($value)) {
+                $settings[$key] = self::decryptAll($value);
+            } elseif (is_string($value) && str_starts_with($value, self::ENC_PREFIX)) {
+                try {
+                    $settings[$key] = \Illuminate\Support\Facades\Crypt::decryptString(substr($value, strlen(self::ENC_PREFIX)));
+                } catch (\Throwable $e) {
+                    logger()->warning("Site setting '{$key}' could not be decrypted (APP_KEY changed?) — treated as unset.");
+                    $settings[$key] = null;
+                }
+            }
+        }
+
+        return $settings;
+    }
+
     private static function isConfigured(mixed $value): bool
     {
         return is_scalar($value) && (string) $value !== '';
