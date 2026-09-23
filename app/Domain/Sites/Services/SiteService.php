@@ -29,7 +29,9 @@ class SiteService
             'slug' => 'default',
             'version' => '1.0.0',
             'config' => [
-                'colors' => ['primary' => '#3b82f6', 'secondary' => '#64748b'],
+                // #1b6df5: 4.61:1 with white (AA). The old #3b82f6 was 3.68:1 — every
+                // new site shipped failing button contrast (measured with Lighthouse, H04).
+                'colors' => ['primary' => '#1b6df5', 'secondary' => '#64748b'],
                 'fonts' => ['heading' => 'Inter', 'body' => 'Inter'],
             ],
             'manifest_json' => [],
@@ -38,7 +40,7 @@ class SiteService
                 '$metadata' => ['name' => 'Default', 'version' => '1.0.0', 'modes' => ['light']],
                 'primitive' => [
                     'color' => [
-                        'blue' => ['500' => ['$type' => 'color', '$value' => '#3b82f6']],
+                        'blue' => ['500' => ['$type' => 'color', '$value' => '#1b6df5']],
                         'neutral' => [
                             '50' => ['$type' => 'color', '$value' => '#fafafa'],
                             '700' => ['$type' => 'color', '$value' => '#374151'],

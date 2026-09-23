@@ -602,3 +602,42 @@ edits). Frontend unchanged this round (48 files / 460 tests, tsc 0 errors at the
 need a running environment; backup scope still excludes collections, magazines/DTP, grids, sliders, global
 sections, forms, users and versions; F17 metadata+blocks remain two requests (nothing is lost, the follow-up
 publishes the second).
+
+
+## Round 3 (2026-09-23)
+
+### F17 residual · metadata + blocks in ONE deployment — **fixed**
+
+The editor's metadata PUT sends `defer_publish: true`; the post/page is only flagged (`needs_republish`, durable)
+and the following blocks save triggers the single build containing both. Callers without the flag keep the
+immediate auto-publish. Test: `tests/Feature/Publishing/MetadataBlocksSinglePublishTest.php` (2).
+
+### H03 · Measured and fixed (test DB, same server; `scripts/bench/blocks-bench.php`)
+
+| Operation | Before | After |
+|---|---|---|
+| save 50 blocks | 0.76 s / 70 queries | 0.08 s / 12 |
+| save 200 blocks | 2.8 s / 241 | 0.14 s / 13 |
+| save 500 blocks | 7.6 s / 586 | 0.28 s / 14 |
+| render 500 blocks | 4.9 s / 589 queries | 0.64 s / 14 |
+| full publish, 100 posts | 15.9 s | 11.0 s |
+
+Causes: per-node `exists()+create()` (→ one collision lookup + chunked INSERTs), quadratic `buildTree`
+(→ group by parent once), one Validator per node with every rule (→ rules cached per type, only rules for fields
+present; all shape rules are `sometimes`), one children query per rendered block (→ `Block::preloadTree()`).
+Published bytes unchanged (pinned inline-edit snapshots pass). Not measured: imports/large uploads, worker memory
+under concurrent builds.
+
+### H04 · Real Lighthouse measurement (Lighthouse 12.8.2, mobile preset)
+
+Sample site published from this branch (`scripts/bench/publish-sample.php`, served locally by `php -S`):
+first run **Accessibility 90** — the button on every NEW site failed contrast: `SiteService::createSite` seeded
+primary `#3b82f6` (3.68:1 with white), although `DesignTokenGenerator` had already moved its fallback to
+`#1b6df5` (4.61:1). Seed aligned (existing themes untouched); test `tests/Feature/Sites/DefaultThemeContrastTest.php`.
+After: **Performance 99, Accessibility 100, Best Practices 96, SEO 100** (LCP 1.8 s, CLS 0.002, TBT 40 ms). The
+96 is the sample's analytics beacon hitting the production API for a site that only exists in the test DB;
+compression/cache-TTL hints come from `php -S`, not from production hosting.
+
+Live reference (read-only): monikcreations.eu 100/100/100/**92** (homepage has no meta description — content);
+ensodo.eu 100/**97**/96/100 (heading-order: an `<h3>` without a preceding `<h2>` in page content; one console
+error). Content fixes, not code. Screenshot/visual parity of block/canvas/DTP fixtures is still not automated.
