@@ -82,35 +82,40 @@ class BuildPostsChunkJob implements ShouldQueue
         WebpPictureEnricher::reset();
         AssetPublisher::setDeployTarget($stagingPath);
 
-        Post::with('category')
-            ->whereIn('id', $this->postIds)
-            ->where('status', 'published')
-            ->lazyById(100)
-            ->each(function (Post $post) use ($buildService, $site, $stagingPath, $deployment) {
-                $path = LocalePaths::postPath($site, $post);
-                $dest = "{$stagingPath}/{$path}";
-                // Resumable across this chunk's own retries.
-                if (is_file($dest)) {
-                    return;
-                }
+        try {
 
-                $result = $buildService->buildAndValidate($post, $site->theme, $site);
-                if (!empty($result['validation']['errors'])) {
-                    // F27: record the hard error for the finalize run; never
-                    // write invalid output into the staging tree.
-                    $fresh = Deployment::find($this->deploymentId);
-                    $errors = (array) ($fresh?->metadata['hard_errors'] ?? []);
-                    $errors[] = "post:{$post->slug}: " . implode('; ', $result['validation']['errors']);
-                    $fresh?->update(['metadata' => array_merge($fresh->metadata ?? [], ['hard_errors' => $errors])]);
+            Post::with('category')
+                ->whereIn('id', $this->postIds)
+                ->where('status', 'published')
+                ->lazyById(100)
+                ->each(function (Post $post) use ($buildService, $site, $stagingPath, $deployment) {
+                    $path = LocalePaths::postPath($site, $post);
+                    $dest = "{$stagingPath}/{$path}";
+                    // Resumable across this chunk's own retries.
+                    if (is_file($dest)) {
+                        return;
+                    }
 
-                    return;
-                }
-                $html = LocalePaths::localizeHtml($site, $post, $result['html']);
-                PublishSiteJob::writeAtomic($dest, $html);
+                    $result = $buildService->buildAndValidate($post, $site->theme, $site);
+                    if (!empty($result['validation']['errors'])) {
+                        // F27: record the hard error for the finalize run; never
+                        // write invalid output into the staging tree.
+                        $fresh = Deployment::find($this->deploymentId);
+                        $errors = (array) ($fresh?->metadata['hard_errors'] ?? []);
+                        $errors[] = "post:{$post->slug}: " . implode('; ', $result['validation']['errors']);
+                        $fresh?->update(['metadata' => array_merge($fresh->metadata ?? [], ['hard_errors' => $errors])]);
 
-                $this->createVersion($post, $deployment->triggered_by);
-                \App\Domain\Publishing\Services\DeploymentGate::heartbeat($deployment);
-            });
+                        return;
+                    }
+                    $html = LocalePaths::localizeHtml($site, $post, $result['html']);
+                    PublishSiteJob::writeAtomic($dest, $html);
+
+                    $this->createVersion($post, $deployment->triggered_by);
+                    \App\Domain\Publishing\Services\DeploymentGate::heartbeat($deployment);
+                });
+        } finally {
+            AssetPublisher::reset(); // never leak the deploy target into the next job
+        }
     }
 
     /** Mirrors PublishSiteJob::createVersion for posts. */

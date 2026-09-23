@@ -224,6 +224,8 @@ class RepublishStaleJob implements ShouldQueue
                 'completed_at' => now(),
             ]);
             throw $e;
+        } finally {
+            AssetPublisher::reset(); // never leak the deploy target into the next job
         }
     }
 

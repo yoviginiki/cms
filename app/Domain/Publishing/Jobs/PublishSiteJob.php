@@ -465,6 +465,10 @@ class PublishSiteJob implements ShouldQueue
             }
         } catch (\Throwable $e) {
             $this->handleFailure($e);
+        } finally {
+            // Static state must not outlive the job: a long-lived worker would
+            // otherwise write later assets/fonts into THIS (old) build dir.
+            AssetPublisher::reset();
         }
     }
 
