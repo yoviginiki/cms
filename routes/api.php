@@ -45,10 +45,10 @@ Route::middleware(['public.site', 'public.cors', 'throttle:60,1'])->prefix('publ
 
 // Public form submission (rate-limited, no auth). Deliberately OUTSIDE the
 // GET-only public/{site} namespace (a security test pins that invariant).
-Route::post('/sites/{site}/forms/submit', [\App\Http\Controllers\Api\V1\FormController::class, 'submit'])
+Route::match(['POST', 'OPTIONS'], '/sites/{site}/forms/submit', [\App\Http\Controllers\Api\V1\FormController::class, 'submit'])
     ->middleware(['public.site', 'public.cors', 'throttle:10,1']);
 // S5 Forms v2 — generic receiver: the block named by formKey is the schema.
-Route::post('/sites/{site}/forms/{formKey}/submit', [\App\Http\Controllers\Api\V1\FormController::class, 'submitPublic'])
+Route::match(['POST', 'OPTIONS'], '/sites/{site}/forms/{formKey}/submit', [\App\Http\Controllers\Api\V1\FormController::class, 'submitPublic'])
     ->middleware(['public.site', 'public.cors', 'throttle:10,1'])
     ->where('formKey', '[a-z0-9\-_]{1,80}');
 
@@ -67,9 +67,9 @@ Route::get('/sites/{site}/comments/{postSlug}', function (\App\Models\Site $site
     abort_unless($commentSlug($postSlug) && $publishedPost($site, $postSlug), 404);
 
     return response()->json(['data' => app(\App\Domain\Comments\CommentStore::class)->approvedPublic($site, $postSlug)]);
-})->middleware(['public.site', 'throttle:60,1']);
+})->middleware(['public.site', 'public.cors', 'throttle:60,1']);
 
-Route::post('/sites/{site}/comments/{postSlug}', function (\Illuminate\Http\Request $request, \App\Models\Site $site, string $postSlug) use ($commentSlug, $publishedPost) {
+Route::match(['POST', 'OPTIONS'], '/sites/{site}/comments/{postSlug}', function (\Illuminate\Http\Request $request, \App\Models\Site $site, string $postSlug) use ($commentSlug, $publishedPost) {
     $request->validate(['name' => 'required|string|max:100', 'email' => 'required|email|max:200', 'body' => 'required|string|max:2000']);
     if (!empty($request->input('_honeypot'))) return response()->json(['success' => true]);
     abort_unless($commentSlug($postSlug) && $publishedPost($site, $postSlug), 404);
@@ -82,7 +82,7 @@ Route::post('/sites/{site}/comments/{postSlug}', function (\Illuminate\Http\Requ
     ]);
 
     return response()->json(['success' => true, 'message' => 'Comment submitted for moderation.']);
-})->middleware(['public.site', 'throttle:5,1']);
+})->middleware(['public.site', 'public.cors', 'throttle:5,1']);
 
 // Public site search (no auth, rate-limited)
 Route::get('/sites/{site}/search', function (\Illuminate\Http\Request $request, \App\Models\Site $site) {
@@ -106,7 +106,7 @@ Route::get('/sites/{site}/search', function (\Illuminate\Http\Request $request, 
         ->map(fn($p) => ['type' => 'post', 'title' => $p->title, 'url' => '/' . ($p->category?->slug ?? 'uncategorized') . '/' . $p->slug]);
 
     return response()->json(['data' => $pages->concat($posts)->take(15)]);
-})->middleware(['public.site', 'throttle:30,1']);
+})->middleware(['public.site', 'public.cors', 'throttle:30,1']);
 
 // Analytics tracking pixel (public, rate-limited)
 Route::post('/sites/{site}/t', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'track'])

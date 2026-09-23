@@ -24,6 +24,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
+        // H02: public per-site endpoints get their CORS from PublicSiteCors.
+        $middleware->replace(\Illuminate\Http\Middleware\HandleCors::class, \App\Http\Middleware\HandleCors::class);
+
         $middleware->alias([
             'tenant.scope' => \App\Http\Middleware\TenantScope::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
