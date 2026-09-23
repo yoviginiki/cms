@@ -527,3 +527,78 @@ claims corrected.
 after adding the reference extractor for the new `collection-categories` definition). The 19 failures are
 exactly the pre-existing baseline set listed above; every test added in this cycle passes. "Risky" is
 PHPUnit 12's "test code or tested code removed error handlers" flag (pre-existing, harmless, not silenced).
+
+
+## Round 2 (2026-09-23)
+
+### Pre-existing failures (19) — **fixed**, none by weakening the guarded behaviour
+
+| Test | Cause | Fix |
+|---|---|---|
+| `PageInlinePolicyTest` ×3, `SpEditableRenderTest` ×4 | `@dataProvider` docblocks are ignored by PHPUnit 12 → ArgumentCountError | attributes; `cross_tenant` got its own `roles()` provider (arity warning) |
+| `SpEditableRenderTest` (heading) | pinned snapshot predates the deliberate `0.4em` heading margin | re-pinned after review (`SP_UPDATE_SNAPSHOTS=1` switch); "no artifacts" now asserts no inline-edit **overlay** instead of no `<script>` (timers/decks ship their own runtime) |
+| `InlineEditRbacTest` | other tenant's site inserted under the wrong RLS context | fixture sets that tenant's context |
+| `CollectionPublishTest` ×4, `CollectionHierarchyTest` ×2 | URLs/shards now carry the slug-hosting base path | base-aware assertions |
+| `InspectorRoundTripTest` | asserted no `url(` anywhere — the theme's Google Fonts import is legitimate; the payload itself was already stripped (verified) | asserts the injected payload is absent |
+| `CloudflarePurgeTest` | purger deliberately moved to `purge_everything` (documented in the class) | test follows the documented contract |
+| `RowColumnLayoutTest` | presets are 12-grid spans (`1/3+2/3` → `4fr 8fr`, same ratio) | expectation updated |
+| `SiteWizardFlowTest`, `TokenProfileTest` | order-dependent | root cause below |
+
+**Real bug found by the order-dependent tests:** `AssetPublisher::$deployTarget` is static and the build jobs
+never cleared it — a long-lived worker kept the previous build's directory, so a later job/preview could write
+assets and self-hosted fonts into an OLD build. All three build jobs now reset it in `finally`
+(`tests/Feature/Publishing/DeployTargetLeakTest.php`).
+
+### H01 · SSH deploy shell construction — **confirmed reachable, fixed**
+
+`CreateSiteRequest` validated `settings` only as an array, so a tenant admin could create a site with
+`deploy_ssh_port = "22; …"`; it was interpolated unescaped into a shell string on the next publish (command
+execution as the web user). Also: a user starting with `-` became an rsync option, `deploy_ssh_key` could name
+any server file (e.g. the platform's own SSH identity), an empty path became `/` under `rsync --delete`.
+`App\Domain\Publishing\Services\Deploy\SshTarget` validates host/user/port/path/key on create, update
+(after resolving the masked key) and right before the deploy; rsync runs as an argument vector (no shell);
+keys only from `publishing.ssh_keys_path` (`PUBLISH_SSH_KEYS_PATH`, default `storage/app/ssh-keys`); `/` and
+system directories refused. No production site uses SSH deploy (checked read-only), so nothing to migrate.
+Tests: `tests/Feature/Publishing/SshDeployHardeningTest.php` (17).
+
+### H02 · CORS for public forms on custom domains — **confirmed, fixed**
+
+The published `contact-form` posts FormData with `X-Requested-With` (not a simple request → preflight). The
+global credentialed CORS handler answered that preflight **without** `Access-Control-Allow-Origin` for a
+custom domain, so browsers blocked the form on every custom-domain site. `App\Http\Middleware\HandleCors`
+now skips the public per-site endpoints (exact per-segment patterns — admin routes such as
+`sites/{site}/wizard/search` are not affected); `PublicSiteCors` answers OPTIONS for the site's own origins
+(custom domain, www, slug subdomain, CMS origin), advertises GET/HEAD/POST only and never allows credentials.
+Tests: `tests/Feature/Security/PublicCorsTest.php` (4). Not browser-tested on a live domain.
+
+### F08 · Encryption at rest — **fixed**
+
+`App\Casts\SiteSettings` replaces the `array` cast on `sites.settings`: values under secret keys (any depth)
+are stored as `enc:v1:<Crypt payload>` and decrypted on read, so the GA/Cloudflare readers are unchanged;
+legacy plaintext reads fine and is encrypted on the next save; an undecryptable value (APP_KEY changed) reads
+as null and is logged. No production site currently stores such a secret (checked read-only), so no data
+migration is required. **Rotating APP_KEY now requires re-entering site credentials.**
+Tests: `tests/Feature/Security/SiteSecretsAtRestTest.php` (3).
+
+### F19 · Asset bytes — **fixed**
+
+`App\Services\BackupBundleService`: bundle = `manifest.json` + `assets/{id}.{ext}`. Restore (empty target, one
+transaction) accepts only allow-listed entry names/extensions, verifies sha256 per file, refuses active content,
+sanitizes SVG, creates assets with **new ids**, rewrites asset ids and the source site id in every reference
+(blocks, serve URLs, featured images), and deletes written files if the DB restore fails. Admin download
+`GET sites/{site}/backup/bundle`; `php artisan cms:backup:export {site}` and `cms:backup:restore {zip} {site}`
+(regenerates WebP variants). Tests: `tests/Feature/Sites/BackupBundleTest.php` (4). Still excluded from the
+backup scope: collections/records, magazines/DTP, grids, sliders, global sections, forms, users, versions.
+
+### Round 2 verification
+
+Clean full run on the branch head: **905 passed, 0 failed, exit 0** (10 605 assertions). The 1 188 "risky"
+entries are PHPUnit 12's "test code or tested code removed error handlers" notice — pre-existing, not silenced.
+The one `AssetVariantsTest` failure seen in an intermediate run did not reproduce (that run overlapped with code
+edits). Frontend unchanged this round (48 files / 460 tests, tsc 0 errors at the previous check).
+
+**Remaining open (by decision, not oversight):** merge/deploy to production and the operator actions above
+(DB password rotation, public zip removal, SMTP); H03 load/memory measurements and H04 Lighthouse/visual parity
+need a running environment; backup scope still excludes collections, magazines/DTP, grids, sliders, global
+sections, forms, users and versions; F17 metadata+blocks remain two requests (nothing is lost, the follow-up
+publishes the second).

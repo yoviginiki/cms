@@ -172,8 +172,6 @@ final class SpEditableRenderTest extends TestCase
         ];
     }
 
-    /**
-     */
     #[\PHPUnit\Framework\Attributes\DataProvider('pilotBlocks')]
     public function test_publish_output_is_byte_identical_to_pinned_snapshot(string $type): void
     {
@@ -193,8 +191,6 @@ final class SpEditableRenderTest extends TestCase
         );
     }
 
-    /**
-     */
     #[\PHPUnit\Framework\Attributes\DataProvider('pilotBlocks')]
     public function test_publish_emits_no_inline_edit_artifacts(string $type): void
     {
@@ -208,8 +204,6 @@ final class SpEditableRenderTest extends TestCase
         $this->assertStringNotContainsString('inline-edit/overlay', $html, "'$type' injected the inline-edit overlay on the publish path.");
     }
 
-    /**
-     */
     #[\PHPUnit\Framework\Attributes\DataProvider('pilotBlocks')]
     public function test_edit_mode_emits_addressing_contract(string $type): void
     {

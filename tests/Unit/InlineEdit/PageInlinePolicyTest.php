@@ -45,6 +45,11 @@ final class PageInlinePolicyTest extends TestCase
         return new User(['role' => $role, 'tenant_id' => $tenantId]);
     }
 
+    public static function roles(): array
+    {
+        return array_map(fn (array $row) => [$row[0]], self::matrix());
+    }
+
     public static function matrix(): array
     {
         return [
@@ -57,8 +62,6 @@ final class PageInlinePolicyTest extends TestCase
         ];
     }
 
-    /**
-     */
     #[\PHPUnit\Framework\Attributes\DataProvider('matrix')]
     public function test_same_tenant_matrix(string $role, bool $edit, bool $publish): void
     {
@@ -69,9 +72,7 @@ final class PageInlinePolicyTest extends TestCase
         $this->assertSame($publish, $this->policy->inlinePublish($user, $page), "$role inlinePublish");
     }
 
-    /**
-     */
-    #[\PHPUnit\Framework\Attributes\DataProvider('matrix')]
+    #[\PHPUnit\Framework\Attributes\DataProvider('roles')]
     public function test_cross_tenant_is_always_denied(string $role): void
     {
         $page = $this->page('t2'); // page's tenant differs from the user's
@@ -103,8 +104,6 @@ final class PageInlinePolicyTest extends TestCase
         $this->assertFalse($this->policy->inlineEdit($author, $crossTenantOwn), 'author owns but cross-tenant');
     }
 
-    /**
-     */
     #[\PHPUnit\Framework\Attributes\DataProvider('matrix')]
     public function test_post_same_tenant_matrix(string $role, bool $edit, bool $publish): void
     {
