@@ -641,3 +641,7 @@ compression/cache-TTL hints come from `php -S`, not from production hosting.
 Live reference (read-only): monikcreations.eu 100/100/100/**92** (homepage has no meta description — content);
 ensodo.eu 100/**97**/96/100 (heading-order: an `<h3>` without a preceding `<h2>` in page content; one console
 error). Content fixes, not code. Screenshot/visual parity of block/canvas/DTP fixtures is still not automated.
+
+### Round 3 verification
+
+Full PHP suite: **0 failed**, exit 0 (905 passed + 1 191 "risky" = PHPUnit 12 error-handler notice, 10 628 assertions). Frontend: 460/460 on three consecutive reruns and tsc 0 errors. One Vitest run failed while the PHP suite was running in parallel and did not reproduce under the same load; the failing test was not captured.
