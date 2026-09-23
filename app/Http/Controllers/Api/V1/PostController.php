@@ -121,7 +121,15 @@ class PostController extends Controller
                 );
             }
 
-            $this->autoPublish->triggerIfEnabled($site, $request->user(), 'post_updated', $post->id);
+            // F17: the editor saves metadata, then blocks. With defer_publish
+            // the build waits for the blocks save (which triggers it), so ONE
+            // deployment carries both; the flag keeps the request durable if
+            // the blocks save never comes.
+            if ($request->boolean('defer_publish')) {
+                $post->forceFill(['needs_republish' => true, 'needs_republish_reason' => 'Metadata saved; content save pending'])->saveQuietly();
+            } else {
+                $this->autoPublish->triggerIfEnabled($site, $request->user(), 'post_updated', $post->id);
+            }
         }
 
         return (new PostResource($post->load('category')))->response();

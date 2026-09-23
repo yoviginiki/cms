@@ -241,6 +241,7 @@ export default function PostEditor() {
         editor_mode: editorMode, author_id: authorId || null,
         published_at: fromLocalInputValue(publishedAt), scheduled_at: fromLocalInputValue(scheduledAt),
         seo_meta: { ...seoPatch, template_id: templateId },
+        defer_publish: true, // F17: the blocks save below triggers ONE publish for both
       });
       setMetaDirty(false);
       // Save blocks through the coordinator (serializes by builder: canvas
@@ -281,6 +282,7 @@ export default function PostEditor() {
         editor_mode: editorMode, author_id: authorId || null,
         published_at: pubDate, scheduled_at: fromLocalInputValue(scheduledAt),
         seo_meta: { ...seoPatch, template_id: templateId },
+        defer_publish: true, // F17: the blocks save below triggers ONE publish for both
       });
       // Save blocks (coordinator) — publish only proceeds after THIS version is stored
       const r = await saveContent({ siteId, type: 'posts', id: postId });

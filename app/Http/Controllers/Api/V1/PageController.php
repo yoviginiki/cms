@@ -140,7 +140,11 @@ class PageController extends Controller
         }
 
         if ($page->status === 'published' || $oldStatus === 'published') {
-            $this->autoPublish->triggerIfEnabled($site, $request->user(), 'page_updated', $page->id);
+            if ($request->boolean('defer_publish')) { // F17 — see PostController::update
+                $page->forceFill(['needs_republish' => true, 'needs_republish_reason' => 'Metadata saved; content save pending'])->saveQuietly();
+            } else {
+                $this->autoPublish->triggerIfEnabled($site, $request->user(), 'page_updated', $page->id);
+            }
         }
 
         return (new PageResource($page))->response();

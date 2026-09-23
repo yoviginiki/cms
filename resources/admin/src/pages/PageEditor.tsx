@@ -237,7 +237,9 @@ export default function PageEditor() {
   async function persistCurrentContent() {
     // Save page appearance FIRST (before block sync which may trigger refetch)
     if (pageMetaRef.current) {
-      await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current });
+      // F17: block/canvas saves follow and trigger the publish for both.
+      const followedByBlocks = !(editorMode === 'magazine' || page?.editor_mode === 'magazine');
+      await pagesApi.update(siteId, pageId, { seo_meta: pageMetaRef.current, ...(followedByBlocks ? { defer_publish: true } : {}) });
     }
 
     if (editorMode === 'canvas' || page?.editor_mode === 'canvas') {
