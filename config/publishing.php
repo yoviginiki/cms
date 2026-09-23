@@ -28,6 +28,10 @@ return [
     )))),
     'reserved_slugs' => ['sys', 'admin', 'api', 'login', 'register'],
 
+    // SSH deploy keys (H01): a site may only reference key files inside this
+    // operator-managed directory — never an arbitrary server path.
+    'ssh_keys_path' => env('PUBLISH_SSH_KEYS_PATH', storage_path('app/ssh-keys')),
+
     // Relative paths inside a custom-domain docroot that a full deploy's
     // prune must never remove (they live outside the CMS build).
     'preserve_paths' => ['themes'],

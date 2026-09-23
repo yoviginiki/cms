@@ -183,16 +183,7 @@ class DeployService
      */
     private function deploySsh(Deployment $deployment, string $stagingPath, array $settings): void
     {
-        $sshConfig = [
-            'host' => $settings['deploy_ssh_host'] ?? '',
-            'user' => $settings['deploy_ssh_user'] ?? '',
-            'path' => $settings['deploy_ssh_path'] ?? '',
-            'port' => $settings['deploy_ssh_port'] ?? 22,
-            'key_path' => $settings['deploy_ssh_key'] ?? null,
-        ];
-
-        $strategy = new SshDeployStrategy();
-        $strategy->deploy($stagingPath, $sshConfig, $deployment);
+        (new SshDeployStrategy())->deploy($stagingPath, $settings, $deployment);
     }
 
     /**

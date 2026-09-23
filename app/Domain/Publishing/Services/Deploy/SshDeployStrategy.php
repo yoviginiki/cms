@@ -8,36 +8,19 @@ use Illuminate\Support\Facades\Process;
 class SshDeployStrategy
 {
     /**
-     * Deploy via rsync over SSH.
+     * Deploy via rsync over SSH (H01, audit 2026-09-22): every field is
+     * validated by SshTarget and the command runs as an argument vector — no
+     * shell, so no value can change how the command is interpreted.
      */
-    public function deploy(string $stagingPath, array $sshConfig, Deployment $deployment): void
+    public function deploy(string $stagingPath, array $settings, Deployment $deployment): void
     {
-        $host = $sshConfig['host'] ?? '';
-        $user = $sshConfig['user'] ?? '';
-        $path = rtrim($sshConfig['path'] ?? '', '/') . '/';
-        $port = $sshConfig['port'] ?? 22;
-        $keyPath = $sshConfig['key_path'] ?? null;
-
-        if (!$host || !$user || !$path) {
-            throw new \RuntimeException('SSH deploy: host, user, and path are required.');
+        try {
+            $target = SshTarget::fromSettings($settings);
+        } catch (\InvalidArgumentException $e) {
+            throw new \RuntimeException('SSH deploy refused: ' . $e->getMessage(), 0, $e);
         }
 
-        $sshOpts = "-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p {$port}";
-        if ($keyPath && file_exists($keyPath)) {
-            $sshOpts .= " -i " . escapeshellarg($keyPath);
-        }
-
-        $source = rtrim($stagingPath, '/') . '/';
-        $dest = escapeshellarg("{$user}@{$host}:{$path}");
-
-        $cmd = sprintf(
-            'rsync -azv --delete --chmod=D2775,F664 -e "ssh %s" %s %s',
-            $sshOpts,
-            escapeshellarg($source),
-            $dest
-        );
-
-        $result = Process::timeout(120)->run($cmd);
+        $result = Process::timeout(120)->run($target->rsyncCommand($stagingPath));
 
         if (!$result->successful()) {
             throw new \RuntimeException('SSH deploy failed: ' . $result->errorOutput());
@@ -47,8 +30,8 @@ class SshDeployStrategy
             'artifact_path' => $stagingPath,
             'metadata' => array_merge($deployment->metadata ?? [], [
                 'deploy_method' => 'ssh',
-                'deploy_host' => $host,
-                'deploy_path' => $path,
+                'deploy_host' => $target->host,
+                'deploy_path' => $target->path,
                 'rsync_output' => substr($result->output(), -500),
             ]),
         ]);

@@ -118,6 +118,15 @@ class UpdateSiteRequest extends FormRequest
                 // Same reserved-name policy as CreateSiteRequest (F03): an
                 // UPDATE could previously point a site at the admin host.
                 $targets = app(DeployTargetResolver::class);
+                // H01: SSH deploy fields are validated as a unit whenever the
+                // resulting settings use the ssh method (create has no per-key rules).
+                $existing = $this->route('site') instanceof \App\Models\Site ? ($this->route('site')->settings ?? []) : [];
+                $merged = array_merge($existing, \App\Domain\Sites\Support\SiteSecrets::mergeIncoming($existing, (array) $this->input('settings', [])));
+                if (($merged['deploy_method'] ?? 'local') === 'ssh') {
+                    foreach (\App\Domain\Publishing\Services\Deploy\SshTarget::errors($merged) as $key => $msg) {
+                        $validator->errors()->add("settings.{$key}", "The {$key} {$msg}");
+                    }
+                }
                 $domain = $this->input('custom_domain');
                 if ($domain && $targets->isReservedDomain($domain)) {
                     $validator->errors()->add('custom_domain', 'This domain is reserved for the admin panel.');

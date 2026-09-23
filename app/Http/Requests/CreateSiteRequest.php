@@ -33,6 +33,15 @@ class CreateSiteRequest extends FormRequest
             function (Validator $validator) {
                 // One reserved-name policy for create/update/deploy (F03).
                 $targets = app(DeployTargetResolver::class);
+                // H01: SSH deploy fields are validated as a unit whenever the
+                // resulting settings use the ssh method (create has no per-key rules).
+                $existing = $this->route('site') instanceof \App\Models\Site ? ($this->route('site')->settings ?? []) : [];
+                $merged = array_merge($existing, \App\Domain\Sites\Support\SiteSecrets::mergeIncoming($existing, (array) $this->input('settings', [])));
+                if (($merged['deploy_method'] ?? 'local') === 'ssh') {
+                    foreach (\App\Domain\Publishing\Services\Deploy\SshTarget::errors($merged) as $key => $msg) {
+                        $validator->errors()->add("settings.{$key}", "The {$key} {$msg}");
+                    }
+                }
                 $slug = $this->input('slug');
                 $domain = $this->input('custom_domain');
 
