@@ -173,69 +173,109 @@ class BlockService
         return $this->buildTree($blocks);
     }
 
+    /**
+     * Insert a block tree with a bounded number of queries (H03, audit
+     * 2026-09-22): one lookup for id collisions, then chunked multi-row
+     * INSERTs — the old per-node exists()+create() cost ~1 query per block
+     * (7.6 s for a 500-block save). Semantics unchanged: client ids are kept
+     * unless they still exist elsewhere or repeat inside the payload; sibling
+     * order is the array position; __style/__animation/__responsive/
+     * __advanced are merged into data.
+     */
     private function insertBlocks(Model $blockable, array $blocksData, ?string $parentId = null): void
     {
-        foreach (array_values($blocksData) as $index => $blockData) {
-            $children = $blockData['children'] ?? [];
+        // Ids already used by OTHER rows (this blockable's rows were deleted).
+        $payloadIds = [];
+        $collect = function (array $nodes) use (&$collect, &$payloadIds) {
+            foreach ($nodes as $n) {
+                if (!empty($n['id']) && is_string($n['id']) && Str::isUuid($n['id'])) {
+                    $payloadIds[] = $n['id'];
+                }
+                if (!empty($n['children']) && is_array($n['children'])) {
+                    $collect($n['children']);
+                }
+            }
+        };
+        $collect($blocksData);
+        $taken = [];
+        foreach (array_chunk(array_unique($payloadIds), 1000) as $chunk) {
+            foreach (Block::whereIn('id', $chunk)->pluck('id') as $id) {
+                $taken[(string) $id] = true;
+            }
+        }
 
-            // Merge style/animation/responsive/advanced into data if present
-            $data = $blockData['data'] ?? [];
-            $style = $blockData['style'] ?? null;
-            if ($style) {
-                $data['__style'] = $style;
-            }
-            if (!empty($blockData['animation'])) {
-                $data['__animation'] = $blockData['animation'];
-            }
-            if (!empty($blockData['responsive'])) {
-                $data['__responsive'] = $blockData['responsive'];
-            }
-            if (!empty($blockData['advanced'])) {
-                $data['__advanced'] = $blockData['advanced'];
-            }
+        $rows = [];
+        $now = now();
+        $type = $blockable->getMorphClass();
+        $ownerId = $blockable->getKey();
+        $flatten = function (array $nodes, ?string $parent) use (&$flatten, &$rows, &$taken, $now, $type, $ownerId) {
+            foreach (array_values($nodes) as $index => $blockData) {
+                $data = $blockData['data'] ?? [];
+                $style = $blockData['style'] ?? null;
+                if ($style) {
+                    $data['__style'] = $style;
+                }
+                foreach (['animation' => '__animation', 'responsive' => '__responsive', 'advanced' => '__advanced'] as $k => $dk) {
+                    if (!empty($blockData[$k])) {
+                        $data[$dk] = $blockData[$k];
+                    }
+                }
 
-            // Preserve the client-sent id on normal saves (this blockable's old
-            // blocks were just deleted, so reusing the id is fine). But an
-            // imported tree can carry ids that still exist elsewhere in the
-            // blocks table, or repeat within the payload — inserting a duplicate
-            // pkey aborts the whole transaction and loses the save. Mint a fresh
-            // id in that case. Child links stay intact: they use the created
-            // parent row's id ($block->id below), not the payload id.
-            $blockId = $blockData['id'] ?? null;
-            if (!$blockId || Block::whereKey($blockId)->exists()) {
-                $blockId = Str::uuid()->toString();
-            }
+                $blockId = $blockData['id'] ?? null;
+                if (!$blockId || !is_string($blockId) || !Str::isUuid($blockId) || isset($taken[$blockId])) {
+                    $blockId = Str::uuid()->toString();
+                }
+                $taken[$blockId] = true; // a repeat inside the payload gets a fresh id
 
-            $block = Block::create([
-                'id' => $blockId,
-                'blockable_type' => $blockable->getMorphClass(),
-                'blockable_id' => $blockable->getKey(),
-                'parent_block_id' => $parentId,
-                'type' => $blockData['type'],
-                'level' => $blockData['level'] ?? 'module',
-                'preset_id' => $blockData['preset_id'] ?? null,
-                'data' => $data,
-                'style' => $style,
-                // Array position is the source of truth for sibling order: the
-                // editor sends blocks in visual order, and programmatic callers
-                // routinely pass a constant 'order' (all 0) — which left the
-                // final ordering to the database's whim and pages could render
-                // with sections shuffled after a republish.
-                'order' => $index,
-            ]);
+                $rows[] = [
+                    'id' => $blockId,
+                    'blockable_type' => $type,
+                    'blockable_id' => $ownerId,
+                    'parent_block_id' => $parent,
+                    'type' => $blockData['type'],
+                    'level' => $blockData['level'] ?? 'module',
+                    'preset_id' => $blockData['preset_id'] ?? null,
+                    'data' => json_encode($data),
+                    'style' => $style === null ? null : json_encode($style),
+                    'order' => $index,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
 
-            if (!empty($children)) {
-                $this->insertBlocks($blockable, $children, $block->id);
+                if (!empty($blockData['children'])) {
+                    $flatten($blockData['children'], $blockId);
+                }
             }
+        };
+        $flatten($blocksData, $parentId);
+
+        // Parents precede children in $rows (depth-first), so FK order holds per chunk.
+        foreach (array_chunk($rows, 200) as $chunk) {
+            Block::insert($chunk);
         }
     }
 
+    /**
+     * Nest a flat, order-sorted block collection. Groups by parent ONCE
+     * (H03: the old per-node where() made this quadratic — 2.7 s for 575
+     * blocks, on every load and after every save). Output is unchanged.
+     */
     private function buildTree($blocks, ?string $parentId = null): array
     {
-        $tree = [];
+        $byParent = [];
+        foreach ($blocks as $block) {
+            $byParent[(string) ($block->parent_block_id ?? '')][] = $block;
+        }
 
-        foreach ($blocks->where('parent_block_id', $parentId) as $block) {
+        return $this->nest($byParent, (string) ($parentId ?? ''));
+    }
+
+    private function nest(array $byParent, string $parentKey): array
+    {
+        $tree = [];
+        foreach ($byParent[$parentKey] ?? [] as $block) {
             $data = $block->data ?? [];
+            $style = $block->style;
 
             $node = [
                 'id' => $block->id,
@@ -244,12 +284,12 @@ class BlockService
                 'preset_id' => $block->preset_id,
                 'data' => $data,
                 'order' => $block->order,
-                'children' => $this->buildTree($blocks, $block->id),
+                'children' => $this->nest($byParent, (string) $block->id),
             ];
 
             // Restore style/animation/responsive/advanced from data or style column
-            if ($block->style) {
-                $node['style'] = $block->style;
+            if ($style) {
+                $node['style'] = $style;
             } elseif (!empty($data['__style'])) {
                 $node['style'] = $data['__style'];
             }

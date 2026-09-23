@@ -325,8 +325,8 @@ HTML;
                 $blocks = $content->blocks()
                     ->whereNull('parent_block_id')
                     ->orderBy('order')
-                    ->with('children')
                     ->get();
+                Block::preloadTree($blocks); // H03: one query for the whole tree
 
                 $renderedBlocks = '';
                 foreach ($blocks as $block) {
@@ -476,7 +476,7 @@ HTML;
         $childrenHtml = '';
         $childrenArray = [];
 
-        $childBlocks = $block->children()->orderBy('order')->get();
+        $childBlocks = $block->childrenOrdered();
         $slideIndex = 0;
         $slideTotal = $block->type === 'slider' ? $childBlocks->where('type', 'slide')->count() : 0;
         foreach ($childBlocks as $child) {
@@ -621,6 +621,7 @@ HTML;
             ->orderBy('order')
             ->with(['children' => fn ($q) => $q->orderBy('order')])
             ->get();
+        Block::preloadTree($sections);
 
         // Per-breakpoint overrides for phone width are collected per section and
         // emitted in one ≤767px media query AFTER the tablet-stack rule so the
@@ -990,8 +991,8 @@ HTML;
         $postBlocks = $post->blocks()
             ->whereNull('parent_block_id')
             ->orderBy('order')
-            ->with('children')
             ->get();
+        Block::preloadTree($postBlocks);
 
         $postContentHtml = '';
         foreach ($postBlocks as $block) {
@@ -1032,8 +1033,8 @@ HTML;
             $templateBlocks = $template->blocks()
                 ->whereNull('parent_block_id')
                 ->orderBy('order')
-                ->with('children')
                 ->get();
+            Block::preloadTree($templateBlocks);
 
             $html = '';
             foreach ($templateBlocks as $block) {
@@ -1074,8 +1075,8 @@ HTML;
         $blocks = $template->blocks()
             ->whereNull('parent_block_id')
             ->orderBy('order')
-            ->with('children')
             ->get();
+        Block::preloadTree($blocks);
 
         if ($blocks->isEmpty()) return null;
 
@@ -1295,6 +1296,7 @@ HTML;
             ->whereNull('parent_block_id')
             ->orderBy('order')
             ->get();
+        Block::preloadTree($roots);
         if ($roots->isEmpty()) {
             return $data;
         }

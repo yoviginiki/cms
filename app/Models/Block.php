@@ -45,4 +45,52 @@ class Block extends Model
     {
         return $this->hasMany(Block::class, 'parent_block_id')->orderBy('order');
     }
+
+    /**
+     * Children in render order. Uses the tree preloaded by preloadTree()
+     * when present (H03: the renderer used to issue one query per block —
+     * 575 queries for a 500-block page), else queries as before.
+     */
+    public function childrenOrdered(): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($this->relationLoaded('childrenTree')) {
+            return $this->getRelation('childrenTree');
+        }
+
+        return $this->children()->orderBy('order')->get();
+    }
+
+    /**
+     * Load every block of the roots' owners in ONE query per owner and attach
+     * each node's ordered children as the 'childrenTree' relation.
+     *
+     * @param  iterable<Block>  $roots
+     */
+    public static function preloadTree(iterable $roots): void
+    {
+        $owners = [];
+        foreach ($roots as $root) {
+            $owners[$root->blockable_type . '|' . $root->blockable_id][] = $root;
+        }
+        foreach ($owners as $key => $ownerRoots) {
+            [$type, $id] = explode('|', $key, 2);
+            $all = static::where('blockable_type', $type)->where('blockable_id', $id)->orderBy('order')->get();
+            $byParent = [];
+            foreach ($all as $b) {
+                if ($b->parent_block_id !== null) {
+                    $byParent[(string) $b->parent_block_id][] = $b;
+                }
+            }
+            $attach = function (Block $node) use (&$attach, $byParent): void {
+                $kids = new \Illuminate\Database\Eloquent\Collection($byParent[(string) $node->id] ?? []);
+                $node->setRelation('childrenTree', $kids);
+                foreach ($kids as $kid) {
+                    $attach($kid);
+                }
+            };
+            foreach ($ownerRoots as $root) {
+                $attach($root);
+            }
+        }
+    }
 }

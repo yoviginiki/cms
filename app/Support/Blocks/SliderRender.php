@@ -60,12 +60,12 @@ class SliderRender
         ];
 
         $slides = [];
-        foreach ($sliderBlock->children()->orderBy('order')->get() as $slide) {
+        foreach ($sliderBlock->childrenOrdered() as $slide) {
             if ($slide->type !== 'slide') {
                 continue;
             }
             $layers = [];
-            foreach ($slide->children()->orderBy('order')->get() as $layer) {
+            foreach ($slide->childrenOrdered() as $layer) {
                 $layers[] = [
                     'id' => $layer->id,
                     'type' => $layer->type,
