@@ -173,14 +173,18 @@ final class SpEditableRenderTest extends TestCase
     }
 
     /**
-     * @dataProvider pilotBlocks
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('pilotBlocks')]
     public function test_publish_output_is_byte_identical_to_pinned_snapshot(string $type): void
     {
-        $expected = file_get_contents(__DIR__ . "/snapshots/$type.publish.html");
 
         app(RenderContext::class)->set(RenderMode::Publish);
         $actual = $this->render($type);
+        if (getenv('SP_UPDATE_SNAPSHOTS') === '1') {
+            // Re-pin after an INTENTIONAL block change (review the diff in git).
+            file_put_contents(__DIR__ . "/snapshots/$type.publish.html", $actual);
+        }
+        $expected = file_get_contents(__DIR__ . "/snapshots/$type.publish.html");
 
         $this->assertSame(
             $expected,
@@ -190,20 +194,23 @@ final class SpEditableRenderTest extends TestCase
     }
 
     /**
-     * @dataProvider pilotBlocks
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('pilotBlocks')]
     public function test_publish_emits_no_inline_edit_artifacts(string $type): void
     {
         app(RenderContext::class)->set(RenderMode::Publish);
         $html = $this->render($type);
 
         $this->assertStringNotContainsString('data-sp-', $html, "'$type' leaked a data-sp-* attribute on the publish path.");
-        $this->assertStringNotContainsString('<script', $html, "'$type' injected a <script> on the publish path.");
+        // Interactive blocks (timers, decks, stats counters) ship their own
+        // runtime <script>; what must never appear is the inline-edit overlay.
+        $this->assertStringNotContainsString('__SP_EDIT', $html, "'$type' injected the inline-edit overlay on the publish path.");
+        $this->assertStringNotContainsString('inline-edit/overlay', $html, "'$type' injected the inline-edit overlay on the publish path.");
     }
 
     /**
-     * @dataProvider pilotBlocks
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('pilotBlocks')]
     public function test_edit_mode_emits_addressing_contract(string $type): void
     {
         app(RenderContext::class)->set(RenderMode::Edit);
@@ -221,8 +228,8 @@ final class SpEditableRenderTest extends TestCase
      * more: stripping every data-sp-* attribute must return the byte-identical
      * publish snapshot.
      *
-     * @dataProvider pilotBlocks
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('pilotBlocks')]
     public function test_edit_mode_is_publish_plus_only_sp_attributes(string $type): void
     {
         app(RenderContext::class)->set(RenderMode::Edit);

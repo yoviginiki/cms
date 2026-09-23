@@ -59,7 +59,8 @@ class RowColumnLayoutTest extends TestCase
     public function test_missing_col_spans_falls_back_to_preset(): void
     {
         $html = $this->renderRow(['layout' => '1/3+2/3'], 2);
-        $this->assertStringContainsString('grid-template-columns:1fr 2fr', $html);
+        // presets are expressed as 12-grid spans (1/3+2/3 = 4+8 → same 1:2 ratio)
+        $this->assertStringContainsString('grid-template-columns:4fr 8fr', $html);
     }
 
     public function test_invalid_col_spans_are_ignored(): void

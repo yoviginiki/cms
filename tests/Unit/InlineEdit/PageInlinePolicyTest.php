@@ -58,8 +58,8 @@ final class PageInlinePolicyTest extends TestCase
     }
 
     /**
-     * @dataProvider matrix
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('matrix')]
     public function test_same_tenant_matrix(string $role, bool $edit, bool $publish): void
     {
         $page = $this->page('t1');
@@ -70,8 +70,8 @@ final class PageInlinePolicyTest extends TestCase
     }
 
     /**
-     * @dataProvider matrix
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('matrix')]
     public function test_cross_tenant_is_always_denied(string $role): void
     {
         $page = $this->page('t2'); // page's tenant differs from the user's
@@ -104,8 +104,8 @@ final class PageInlinePolicyTest extends TestCase
     }
 
     /**
-     * @dataProvider matrix
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('matrix')]
     public function test_post_same_tenant_matrix(string $role, bool $edit, bool $publish): void
     {
         $policy = new PostPolicy();

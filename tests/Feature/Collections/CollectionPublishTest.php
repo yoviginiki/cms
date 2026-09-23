@@ -98,11 +98,11 @@ class CollectionPublishTest extends TestCase
         $this->assertSame('books', $manifest['collection']);
         $this->assertCount(1, $manifest['shards']);
 
-        $shardPath = $this->staging . str_replace('/books/', '/books/', $manifest['shards'][0]);
+        $shardPath = $this->staging . $this->stripBase($manifest['shards'][0]);
         $shard = json_decode(File::get($shardPath), true);
         $this->assertCount(5, $shard);
         $row = collect($shard)->firstWhere('t', 'Book 1');
-        $this->assertSame('/books/book-1/', $row['u']);
+        $this->assertSame(\App\Support\Blocks\RecordDisplay::sitePathBase($this->site) . '/books/book-1/', $row['u']);
         $this->assertStringContainsString('robots', $row['s']);           // searchable rich text, lowercased
         $this->assertStringContainsString('pub-0001', $row['s']);         // searchable SKU
         $this->assertStringContainsString('isaac asimov', $row['s']);     // searchable relation → related titles
@@ -169,7 +169,7 @@ class CollectionPublishTest extends TestCase
         // Every shard resolves and row counts add up
         $total = 0;
         foreach ($manifest['shards'] as $url) {
-            $path = $this->staging . $url;
+            $path = $this->staging . $this->stripBase($url); // manifest URLs are public (site base included)
             $this->assertFileExists($path);
             $total += count(json_decode(File::get($path), true));
         }
@@ -199,7 +199,7 @@ class CollectionPublishTest extends TestCase
         $this->assertNotEmpty(glob("{$this->staging}/assets/collections-search.*.js"));
 
         $this->assertStringContainsString('data-cs-role="search-box"', $html);
-        $this->assertStringContainsString('data-cs-source="/books/index.json"', $html);
+        $this->assertStringContainsString('data-cs-source="' . \App\Support\Blocks\RecordDisplay::sitePathBase($this->site) . '/books/index.json"', $html);
         $this->assertStringContainsString('data-cs-facet="genre"', $html);
         $this->assertStringContainsString('data-cs-card', $html);          // client card template
         $this->assertStringContainsString('collections-search.', $html);   // hashed runtime script
@@ -269,8 +269,16 @@ class CollectionPublishTest extends TestCase
 
         // Index regenerated with the new price
         $manifest = json_decode(File::get("{$staging}/books/index.json"), true);
-        $shard = json_decode(File::get($staging . $manifest['shards'][0]), true);
+        $shard = json_decode(File::get($staging . $this->stripBase($manifest['shards'][0])), true);
         $row = collect($shard)->firstWhere('t', 'Book 2');
         $this->assertSame(99.5, $row['d']['price']);
+    }
+
+    /** Shard URLs in the manifest are public URLs; on slug-hosted sites they carry the docroot base. */
+    private function stripBase(string $url): string
+    {
+        $base = \App\Support\Blocks\RecordDisplay::sitePathBase($this->site);
+
+        return $base !== '' && str_starts_with($url, $base) ? substr($url, strlen($base)) : $url;
     }
 }

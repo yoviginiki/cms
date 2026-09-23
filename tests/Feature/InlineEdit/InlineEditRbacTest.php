@@ -90,8 +90,9 @@ final class InlineEditRbacTest extends TestCase
     {
         // A second tenant with its own site + editor.
         $otherTenant = Tenant::factory()->create();
-        $otherSite = Site::factory()->create(['tenant_id' => $otherTenant->id]);
         $intruder = User::factory()->create(['tenant_id' => $otherTenant->id, 'role' => 'editor']);
+        $this->setTenantScope($intruder); // RLS: the other tenant's site must be inserted under ITS context
+        $otherSite = Site::factory()->create(['tenant_id' => $otherTenant->id]);
 
         // Intruder points their OWN site id at OUR page id — must not cross over.
         $this->actingAs($intruder, 'sanctum');

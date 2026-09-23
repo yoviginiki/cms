@@ -179,20 +179,24 @@ class CollectionHierarchyTest extends TestCase
 
         // Leaf page: breadcrumb links every ancestor
         $leafHtml = File::get("{$this->staging}/categories/painting/oil/impasto/index.html");
-        $this->assertStringContainsString('href="/categories/painting/"', $leafHtml);
-        $this->assertStringContainsString('href="/categories/painting/oil/"', $leafHtml);
+        // Slug-hosted sites carry the docroot base in root-absolute links.
+        $base = \App\Support\Blocks\RecordDisplay::sitePathBase($this->site);
+        $this->assertStringContainsString('href="' . $base . '/categories/painting/"', $leafHtml);
+        $this->assertStringContainsString('href="' . $base . '/categories/painting/oil/"', $leafHtml);
         $this->assertStringContainsString('aria-label="Breadcrumb"', $leafHtml);
 
         // Root page: children nav lists Oil
         $rootHtml = File::get("{$this->staging}/categories/painting/index.html");
-        $this->assertStringContainsString('href="/categories/painting/oil/"', $rootHtml);
+        $this->assertStringContainsString('href="' . $base . '/categories/painting/oil/"', $rootHtml);
         $this->assertStringContainsString('In Painting', $rootHtml);
 
         // Search index rows carry nested URLs
         $index = json_decode(File::get("{$this->staging}/categories/index.json"), true);
-        $shard = json_decode(File::get($this->staging . parse_url($index['shards'][0], PHP_URL_PATH)), true);
+        $shardUrl = parse_url($index['shards'][0], PHP_URL_PATH);
+        $shardUrl = $base !== '' && str_starts_with($shardUrl, $base) ? substr($shardUrl, strlen($base)) : $shardUrl;
+        $shard = json_decode(File::get($this->staging . $shardUrl), true);
         $urls = array_column($shard, 'u');
-        $this->assertContains('/categories/painting/oil/impasto/', $urls);
+        $this->assertContains($base . '/categories/painting/oil/impasto/', $urls);
 
         // Sitemap
         $sitemapUrls = array_column($publisher->sitemapUrls($this->site), 'path');
@@ -281,7 +285,7 @@ class CollectionHierarchyTest extends TestCase
         $html = File::get("{$this->staging}/categories/prints/index.html");
         $this->assertStringContainsString('Etching</a>', $html);                 // children source
         $this->assertStringContainsString('Harbor Etching No. 4', $html);        // related source
-        $this->assertStringContainsString('href="/categories/prints/etching/"', $html);
+        $this->assertStringContainsString('href="' . \App\Support\Blocks\RecordDisplay::sitePathBase($this->site) . '/categories/prints/etching/"', $html);
     }
 
     // ─── Admin list API ─────────────────────────────────────────────────

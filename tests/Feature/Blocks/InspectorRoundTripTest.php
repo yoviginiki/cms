@@ -52,7 +52,10 @@ class InspectorRoundTripTest extends TestCase
         ]]);
 
         $this->assertStringNotContainsString('javascript', $html);
-        $this->assertStringNotContainsString('url(', $html);
+        // The theme's Google Fonts @import legitimately contains url(); what must
+        // not survive is anything from the injected value.
+        $this->assertStringNotContainsString('var(--x);', $html);
+        $this->assertStringNotContainsString('background:url(', $html);
     }
 
     public function test_block_opacity_is_emitted(): void

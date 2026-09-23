@@ -40,28 +40,21 @@ class CloudflarePurgeTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_purges_build_urls_when_configured(): void
+    public function test_purges_the_zone_when_configured(): void
     {
+        // Contract since 2026-08 (see CloudflarePurger doc): ONE purge_everything
+        // call — per-URL purge never reached the cached, content-hashed assets.
         config(['cms.cloudflare.api_token' => 'test-token', 'cms.cloudflare.zone_id' => 'zone123']);
         Http::fake([
             'api.cloudflare.com/*' => Http::response(['success' => true]),
         ]);
 
         $site = Site::factory()->create(['tenant_id' => $this->tenant->id]);
-        $purged = CloudflarePurger::purgeSite($site, $this->build);
-
-        // 2 pages + sitemap.xml
-        $this->assertSame(3, $purged);
-        Http::assertSent(function ($request) use ($site) {
-            $files = $request['files'] ?? [];
-            $base = rtrim($site->publicBaseUrl(), '/');
-
-            return str_contains($request->url(), '/zones/zone123/purge_cache')
-                && $request->hasHeader('Authorization', 'Bearer test-token')
-                && in_array("{$base}/", $files, true)
-                && in_array("{$base}/about/", $files, true)
-                && in_array("{$base}/sitemap.xml", $files, true);
-        });
+        $this->assertSame(1, CloudflarePurger::purgeSite($site, $this->build));
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/zones/zone123/purge_cache')
+            && $request->hasHeader('Authorization', 'Bearer test-token')
+            && ($request['purge_everything'] ?? null) === true);
     }
 
     public function test_failed_batches_do_not_throw(): void
