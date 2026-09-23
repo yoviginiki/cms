@@ -412,6 +412,15 @@ Route::middleware('auth:sanctum')->group(function () {
             return response()->json(['data' => $manifest]);
         });
 
+        // Backup bundle download: manifest + asset files (F19) — admin+
+        Route::get('sites/{site}/backup/bundle', function (\App\Models\Site $site) {
+            \Illuminate\Support\Facades\Gate::authorize('update', $site);
+            $path = storage_path('app/tmp/backup-' . $site->slug . '-' . now()->format('Ymd-His') . '-' . \Illuminate\Support\Str::random(6) . '.zip');
+            \Illuminate\Support\Facades\File::ensureDirectoryExists(dirname($path));
+            app(\App\Services\BackupBundleService::class)->export($site, $path);
+            return response()->download($path, basename($path), ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
+        });
+
         // Backup Restore Dry-Run
         Route::post('sites/{site}/backup/validate', function (\Illuminate\Http\Request $request, \App\Models\Site $site) {
             \Illuminate\Support\Facades\Gate::authorize('update', $site);

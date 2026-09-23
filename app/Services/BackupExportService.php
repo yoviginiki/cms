@@ -34,7 +34,7 @@ class BackupExportService
         'pages (tree, raw_html, editor_mode, status, dates, seo_meta)', 'posts (tree, status, dates, seo_meta, category, tags)',
         'menus + items', 'redirects', 'section templates', 'asset metadata + checksums'];
 
-    public const EXCLUDED = ['asset files (bytes)', 'collections/records', 'magazines/issues', 'grids', 'sliders',
+    public const EXCLUDED = ['asset files (bytes) — use the bundle (BackupBundleService / cms:backup:export)', 'collections/records', 'magazines/issues', 'grids', 'sliders',
         'global sections', 'forms/submissions', 'users', 'deployments/versions', 'translations'];
 
     public function __construct(
@@ -61,6 +61,7 @@ class BackupExportService
             'exported_at' => now()->toIso8601String(),
             'scope' => ['included' => self::INCLUDED, 'excluded' => self::EXCLUDED],
             'site' => [
+                'id' => $site->id, // source id — lets a bundle restore remap references
                 'name' => $site->name,
                 'slug' => $site->slug,
                 'status' => $site->status,
@@ -128,8 +129,11 @@ class BackupExportService
                 'name' => $t->name, 'category' => $t->category, 'blocks_data' => $t->blocks_data,
             ])->values()->all(),
             'assets' => $site->assets->map(fn ($a) => [
-                'original_name' => $a->original_name, 'mime_type' => $a->mime_type,
+                'id' => $a->id,
+                'original_name' => $a->original_name, 'mime_type' => $a->mime_type, 'folder' => $a->folder,
                 'checksum' => $a->checksum, 'file_size' => $a->file_size, 'alt_text' => $a->alt_text,
+                'dimensions' => $a->dimensions,
+                'extension' => strtolower(pathinfo((string) $a->storage_path, PATHINFO_EXTENSION)),
             ])->values()->all(),
             'stats' => [
                 'pages_count' => $pages->count(),
