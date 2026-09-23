@@ -1,7 +1,7 @@
 <?php
 // Run: sudo -u cytechno env APP_ENV=testing DB_DATABASE=<TEST DB> CACHE_STORE=array QUEUE_CONNECTION=sync REDIS_ENABLED=false php scripts/bench/blocks-bench.php
 // NEVER against the production database (it creates tenants/sites).
-if (getenv('APP_ENV') !== 'testing') { fwrite(STDERR, "APP_ENV=testing required\n"); exit(1); }
+if (getenv('APP_ENV') !== 'testing' || in_array(getenv('DB_DATABASE'), [false, '', 'cms_saas_platform'], true)) { fwrite(STDERR, "APP_ENV=testing and a non-production DB_DATABASE required\n"); exit(1); }
 require __DIR__ . '/../../vendor/autoload.php';
 $app = require __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
