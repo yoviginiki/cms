@@ -645,3 +645,11 @@ error). Content fixes, not code. Screenshot/visual parity of block/canvas/DTP fi
 ### Round 3 verification
 
 Full PHP suite: **0 failed**, exit 0 (905 passed + 1 191 "risky" = PHPUnit 12 error-handler notice, 10 628 assertions). Frontend: 460/460 on three consecutive reruns and tsc 0 errors. One Vitest run failed while the PHP suite was running in parallel and did not reproduce under the same load; the failing test was not captured.
+
+## Production deploy (2026-09-24)
+
+- Fast-forwarded the production checkout to the branch; DB backup `/root/backups/cms_saas_platform-predeploy-20260923T181911Z.dump`.
+- Ran only the two new migrations (the older pgvector HNSW migration stays pending by design).
+- New systemd units `cms-builds-worker@1/2` consume the `builds` queue (the CMS uses systemd workers, not Horizon; the Horizon supervisor added earlier is inert).
+- Found during deploy: the migration's reap UPDATE saw no rows (the `deployments` table is under RLS and migrations have no tenant context). The stuck artday deployment is reaped by `DeploymentGate` on the next artday publish (no heartbeat → stuck).
+- Found during deploy: php-fpm runs under `open_basedir`; the resolver's read path now treats any filesystem error as "no owned target" (`OpenBasedirResolverTest`, runs in a separate process with a real open_basedir).

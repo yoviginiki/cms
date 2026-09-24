@@ -144,7 +144,9 @@ final class DeployTargetResolver
             $path = $this->slugDocroot($site);
 
             return $this->ownsSlugFolder($site, $path) ? $path : null;
-        } catch (\RuntimeException) {
+        } catch (\Throwable) {
+            // Includes ErrorException from open_basedir: the web (php-fpm)
+            // process may not stat other domains' docroots — "no owned target".
             return null;
         }
     }
