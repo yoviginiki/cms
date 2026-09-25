@@ -139,6 +139,34 @@ class UpdateSiteRequest extends FormRequest
         ];
     }
 
+    /**
+     * Server-owned settings keys: written by the publisher / font upload, never
+     * by the Settings form. The SPA spreads its cached settings object back on
+     * every save, so accepting these would resurrect a cleared stale flag or
+     * drop fonts uploaded since the page loaded.
+     */
+    private const SERVER_OWNED_SETTINGS = ['stale', 'custom_fonts'];
+
+    /**
+     * Laravel's excludeUnvalidatedArrayKeys keeps only settings keys that have
+     * a rule above, which silently dropped everything else the Settings tabs
+     * write (branding, footer text, languages, analytics, …). Ruled keys are
+     * still validated; the rest pass through, minus server-owned keys.
+     */
+    public function validated($key = null, $default = null)
+    {
+        $data = parent::validated();
+
+        if (is_array($this->input('settings'))) {
+            $data['settings'] = array_diff_key(
+                $this->input('settings'),
+                array_flip(self::SERVER_OWNED_SETTINGS)
+            );
+        }
+
+        return data_get($data, $key, $default);
+    }
+
     protected function prepareForValidation(): void
     {
         if ($this->user() && !$this->user()->hasMinimumRole('admin')) {

@@ -65,6 +65,40 @@ class SiteTest extends TestCase
         $this->assertSame('New Name', $site->fresh()->name);
     }
 
+    public function test_settings_tabs_keys_without_a_rule_are_saved(): void
+    {
+        // Branding / Languages / Custom Code keys have no per-key rule; Laravel's
+        // excludeUnvalidatedArrayKeys used to drop them silently (200, nothing saved).
+        $site = Site::factory()->create(['tenant_id' => $this->tenant->id, 'settings' => [
+            'stale' => ['flag' => true, 'reason' => 'x'], 'custom_fonts' => [['family' => 'Kept']],
+        ]]);
+
+        $this->actingAsOwner()->putJson("/api/v1/sites/{$site->id}", ['settings' => [
+            'footer_text' => 'Hello', 'logo_url' => '/logo.png', 'languages' => ['en'],
+            'google_analytics_id' => 'G-TEST', 'auto_publish' => false,
+            // SPA echoes server-owned keys back from its cache — must not overwrite
+            'stale' => null, 'custom_fonts' => [],
+        ]], $this->apiHeaders())->assertOk();
+
+        $settings = $site->fresh()->settings;
+        $this->assertSame('Hello', $settings['footer_text']);
+        $this->assertSame('/logo.png', $settings['logo_url']);
+        $this->assertSame(['en'], $settings['languages']);
+        $this->assertSame('G-TEST', $settings['google_analytics_id']);
+        $this->assertFalse($settings['auto_publish']);
+        $this->assertTrue($settings['stale']['flag']);
+        $this->assertSame([['family' => 'Kept']], $settings['custom_fonts']);
+    }
+
+    public function test_ruled_settings_keys_are_still_validated(): void
+    {
+        $site = Site::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $this->actingAsOwner()->putJson("/api/v1/sites/{$site->id}", ['settings' => [
+            'deploy_slug' => 'Bad Folder!',
+        ]], $this->apiHeaders())->assertStatus(422)->assertJsonValidationErrors(['settings.deploy_slug']);
+    }
+
     public function test_changing_homepage_flags_it_stale(): void
     {
         // FIX-B7a: changing the homepage must mark it for republish so the

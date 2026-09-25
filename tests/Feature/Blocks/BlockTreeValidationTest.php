@@ -125,4 +125,19 @@ class BlockTreeValidationTest extends TestCase
         $this->assertStringContainsString('кавички', $col['children'][1]['data']['content']);
         $this->assertSame('top', $loaded[0]['data']['anchor']);
     }
+
+    /** The editor wraps the first block of an empty page in a '1/1' row (editorStore addBlock). */
+    public function test_editor_single_column_row_layout_is_accepted(): void
+    {
+        $this->putTree([[
+            'type' => 'section', 'level' => 'section', 'order' => 0, 'data' => [],
+            'children' => [[
+                'type' => 'row', 'level' => 'row', 'order' => 0, 'data' => ['layout' => '1/1'],
+                'children' => [[
+                    'type' => 'column', 'level' => 'column', 'order' => 0, 'data' => [],
+                    'children' => [['type' => 'heading', 'level' => 'module', 'order' => 0, 'data' => ['text' => 'Hi', 'level' => 'h1']]],
+                ]],
+            ]],
+        ]])->assertOk();
+    }
 }
