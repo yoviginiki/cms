@@ -46,6 +46,36 @@ class ThemeTemplate extends Model
      * Resolve the best template for a given post.
      * Priority: post_format+category > category > post_format > default
      */
+    /**
+     * The template a post is published with: its explicit choice, else the
+     * best-matching default (only for 'default' choice or Simple posts).
+     * Null means the post renders its builder output as-is.
+     */
+    public static function chosenForPost(Post $post): ?self
+    {
+        $choice = $post->seo_meta['template_id'] ?? null;
+
+        if ($choice === 'none') {
+            return null;
+        }
+
+        if (is_string($choice) && $choice !== '' && $choice !== 'default') {
+            $tpl = static::where('site_id', $post->site_id)
+                ->where('type', 'post')
+                ->find($choice);
+            if ($tpl) {
+                return $tpl;
+            }
+            // Chosen template was deleted — fall through to the default below.
+        }
+
+        if ($choice === 'default' || $post->editor_mode === 'simple') {
+            return static::resolveForPost($post);
+        }
+
+        return null;
+    }
+
     public static function resolveForPost(Post $post): ?self
     {
         $siteId = $post->site_id;

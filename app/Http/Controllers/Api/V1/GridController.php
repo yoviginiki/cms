@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Grid\Services\EffectiveGridResolver;
 use App\Domain\Grid\Services\GridPresetSeeder;
+use App\Domain\Publishing\Services\AutoPublishService;
+use App\Domain\References\Services\StalenessResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Grid;
 use App\Models\GridAssignment;
@@ -12,6 +15,7 @@ use App\Models\Site;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class GridController extends Controller
 {
@@ -145,6 +149,55 @@ class GridController extends Controller
         }
 
         return response()->json(['data' => $grid->load('positions')]);
+    }
+
+    /**
+     * What each grid is used by — pages/posts that publish with it (same rule
+     * as the publisher), categories pointing at it, and which is the default.
+     */
+    public function usage(Site $site, EffectiveGridResolver $grids): JsonResponse
+    {
+        $this->authorize('view', $site);
+
+        return response()->json(['data' => (object) $grids->usage($site)]);
+    }
+
+    /**
+     * Set (or clear, with grid_id null) the site-wide default grid: the one
+     * every page/post uses unless it or its category picks another.
+     */
+    public function setDefault(Request $request, Site $site, AutoPublishService $autoPublish, StalenessResolver $staleness): JsonResponse
+    {
+        $this->authorize('update', $site);
+
+        $data = $request->validate([
+            'grid_id' => ['present', 'nullable', 'uuid', Rule::exists('grids', 'id')->where('site_id', $site->id)],
+        ]);
+
+        $assignment = GridAssignment::where('site_id', $site->id)
+            ->where('assignable_type', 'default')
+            ->orderBy('priority')
+            ->first();
+
+        if ($data['grid_id']) {
+            $assignment
+                ? $assignment->update(['grid_id' => $data['grid_id'], 'is_active' => true])
+                : GridAssignment::create([
+                    'site_id' => $site->id,
+                    'grid_id' => $data['grid_id'],
+                    'assignable_type' => 'default',
+                    'assignable_id' => null,
+                    'priority' => 9999,
+                ]);
+        } elseif ($assignment) {
+            $assignment->update(['is_active' => false]);
+        }
+
+        // Every page without its own grid changes chrome — rebuild the site.
+        $staleness->markSiteStale($site, 'Default grid changed');
+        $autoPublish->triggerIfEnabled($site, $request->user(), 'full');
+
+        return response()->json(['data' => (object) app(EffectiveGridResolver::class)->usage($site)]);
     }
 
     // ─── ASSIGNMENTS ───

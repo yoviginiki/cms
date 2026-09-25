@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Grid\Services\EffectiveGridResolver;
 use App\Domain\Posts\Services\PostService;
 use App\Domain\Publishing\Services\AutoPublishService;
 use App\Domain\References\Services\StalenessResolver;
@@ -52,7 +53,11 @@ class PostController extends Controller
             $query->orderByDesc('created_at');
         }
 
-        return PostResource::collection($query->paginate($request->integer('per_page', 50)))->response();
+        $posts = $query->paginate($request->integer('per_page', 50));
+        $grids = app(EffectiveGridResolver::class);
+        $posts->getCollection()->each(fn (Post $p) => $p->setAttribute('effective_grid', $grids->forContent($p, $site)));
+
+        return PostResource::collection($posts)->response();
     }
 
     public function show(Site $site, Post $post): JsonResponse

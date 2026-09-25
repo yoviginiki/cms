@@ -1088,7 +1088,9 @@ function GridSettingsBlock({ page, siteId, pageId, saveSetting }: {
       </select>
       {resolved && (
         <p className="text-[10px] text-gray-400 mt-0.5">
-          Рендерира се с <strong>{resolved.grid?.name || '—'}</strong> · {SOURCE_LABELS[resolved.source] || resolved.source}
+          {resolved.source === 'skipped'
+            ? <>Без грид · {resolved.label}</>
+            : <>Рендерира се с <strong>{resolved.grid?.name || '—'}</strong> · {SOURCE_LABELS[resolved.source] || resolved.source}</>}
         </p>
       )}
       {resolved?.grid && (

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Loader2, LayoutGrid, Edit2, Copy } from 'lucide-react';
+import { Plus, Trash2, Loader2, LayoutGrid, Edit2, Copy, Star } from 'lucide-react';
 import { grids } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -15,6 +15,13 @@ interface GridData {
   areas: string;
   is_preset: boolean;
   positions_count: number;
+}
+
+interface GridUsage {
+  pages: { id: string; title: string }[];
+  posts: number;
+  categories: { id: string; name: string }[];
+  is_default: boolean;
 }
 
 const THUMB_PALETTE = ['#34d399', '#60a5fa', '#c084fc', '#fbbf24', '#fb923c', '#f472b6', '#2dd4bf', '#a3e635'];
@@ -46,6 +53,23 @@ function GridThumb({ areas }: { areas: string }) {
   );
 }
 
+function GridUsageSummary({ usage }: { usage?: GridUsage }) {
+  if (!usage) return null;
+  const { pages, posts, categories } = usage;
+  if (!pages.length && !posts && !categories.length) {
+    return <p className="mb-3 text-xs text-base-content/35">Not used by any page or post</p>;
+  }
+  const shown = pages.slice(0, 4).map(p => p.title).join(', ');
+  return (
+    <div className="mb-3 space-y-0.5 text-xs text-base-content/60" title={pages.map(p => p.title).join('\n')}>
+      <p className="font-medium text-base-content/70">Used by</p>
+      {pages.length > 0 && <p className="truncate">{pages.length} {pages.length === 1 ? 'page' : 'pages'}: {shown}{pages.length > 4 ? '…' : ''}</p>}
+      {posts > 0 && <p>{posts} {posts === 1 ? 'post' : 'posts'}</p>}
+      {categories.length > 0 && <p className="truncate">Categories: {categories.map(c => c.name).join(', ')}</p>}
+    </div>
+  );
+}
+
 export default function Grids() {
   const { siteId = '' } = useParams();
   const navigate = useNavigate();
@@ -55,6 +79,22 @@ export default function Grids() {
   const { data, isLoading, error } = useQuery<GridData[]>({
     queryKey: ['grids', siteId],
     queryFn: () => grids.list(siteId).then(r => r.data.data),
+  });
+
+  const { data: usage } = useQuery<Record<string, GridUsage>>({
+    queryKey: ['grids-usage', siteId],
+    queryFn: () => grids.usage(siteId).then(r => r.data.data),
+  });
+  const defaultGridId = Object.entries(usage || {}).find(([, u]) => u.is_default)?.[0] ?? '';
+
+  const defaultMutation = useMutation({
+    mutationFn: (gridId: string | null) => grids.setDefault(siteId, gridId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grids-usage', siteId] });
+      queryClient.invalidateQueries({ queryKey: ['pages', siteId] });
+      queryClient.invalidateQueries({ queryKey: ['posts', siteId] });
+    },
+    onError: (e: any) => alert(e?.response?.data?.message || 'Failed to change the default grid'),
   });
 
   const createMutation = useMutation({
@@ -115,6 +155,24 @@ export default function Grids() {
         </div>
       </div>
 
+      {data && data.length > 0 && usage && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-base-300 bg-base-100 p-4">
+          <Star className="h-4 w-4 text-amber-500" />
+          <label htmlFor="default-grid" className="text-sm font-medium text-base-content">Site default grid</label>
+          <select id="default-grid" className="select select-sm select-bordered min-w-56"
+            value={defaultGridId} disabled={defaultMutation.isPending}
+            onChange={e => defaultMutation.mutate(e.target.value || null)}>
+            <option value="">No grid — standard layout</option>
+            {data.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          {defaultMutation.isPending && <Loader2 className="h-4 w-4 animate-spin text-base-content/40" />}
+          <p className="basis-full text-xs text-base-content/50">
+            Every page and post uses this grid unless it picks its own (page editor → Page tab → Grid) or its category sets one.
+            Changing it rebuilds the whole site (automatically when auto-publish is on, otherwise click Publish).
+          </p>
+        </div>
+      )}
+
       {isLoading && <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-base-content/30" /></div>}
       {error && <div className="rounded-lg bg-error/10 border border-error/30 p-4 text-sm text-error">Failed to load grids.</div>}
 
@@ -134,6 +192,7 @@ export default function Grids() {
                   {grid.description && <p className="text-xs text-base-content/50 mt-0.5 line-clamp-2">{grid.description}</p>}
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  {usage?.[grid.id]?.is_default && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">Default</span>}
                   {grid.is_preset && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-accent/15 text-accent">Preset</span>}
                   {!grid.is_preset && (
                     <button onClick={e => { e.stopPropagation(); setDeleteTarget(grid); }}
@@ -147,6 +206,8 @@ export default function Grids() {
                 <GridThumb areas={grid.areas} />
                 <div className="text-[10px] text-base-content/35 font-mono mt-2 truncate">{grid.col_tracks}</div>
               </div>
+
+              <GridUsageSummary usage={usage?.[grid.id]} />
 
               <div className="flex items-center justify-between">
                 <span className="text-xs text-base-content/40">{grid.positions_count} positions</span>
@@ -163,7 +224,7 @@ export default function Grids() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete grid"
-        message={`Delete "${deleteTarget?.name}"? Pages using this grid will fall back to the default layout.`}
+        message={`Delete "${deleteTarget?.name}"? ${usage?.[deleteTarget?.id ?? '']?.pages.length ? ` ${usage[deleteTarget!.id].pages.length} page(s) use it and` : ' Pages using it'} will fall back to the site default grid.`}
         confirmText="Delete"
         variant="danger"
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}

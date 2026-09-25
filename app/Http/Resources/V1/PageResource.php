@@ -26,6 +26,8 @@ class PageResource extends JsonResource
             'published_at' => $this->published_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            // Set by list endpoints (EffectiveGridResolver): what it publishes with.
+            'effective_grid' => $this->when($this->resource->offsetExists('effective_grid'), fn () => $this->resource->getAttribute('effective_grid')),
         ];
     }
 }

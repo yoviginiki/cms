@@ -82,7 +82,11 @@ class PositionRenderer
         // Check for ThemeTemplate — if a template exists for this post,
         // render template blocks with post context (Grid layout + Template content)
         if ($content instanceof Post) {
-            $template = ThemeTemplate::resolveForPost($content);
+            // Unified sites honour the post's own template choice ("none" =
+            // just its blocks); legacy sites keep applying the default match.
+            $template = EffectiveGridResolver::postsUseGrid($site)
+                ? ThemeTemplate::chosenForPost($content)
+                : ThemeTemplate::resolveForPost($content);
             if ($template) {
                 return $this->renderTemplatedCanvas($template, $content, $site);
             }

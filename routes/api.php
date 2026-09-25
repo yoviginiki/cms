@@ -179,6 +179,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('sites/{site}/redirects/{redirect}', [\App\Http\Controllers\Api\V1\RedirectController::class, 'destroy']);
 
         // Grid System
+        // Before the resource so "usage"/"default" aren't taken as a {grid} id.
+        Route::get('sites/{site}/grids/usage', [\App\Http\Controllers\Api\V1\GridController::class, 'usage']);
+        Route::put('sites/{site}/grids/default', [\App\Http\Controllers\Api\V1\GridController::class, 'setDefault']);
         Route::apiResource('sites.grids', \App\Http\Controllers\Api\V1\GridController::class);
         Route::put('sites/{site}/grids/{grid}/positions', [\App\Http\Controllers\Api\V1\GridController::class, 'syncPositions']);
         Route::get('sites/{site}/grid-assignments', [\App\Http\Controllers\Api\V1\GridController::class, 'assignments']);

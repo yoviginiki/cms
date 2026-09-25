@@ -20,6 +20,10 @@ class SiteService
     {
         $data['tenant_id'] = $tenant->id;
         $data['slug'] = $data['slug'] ?? $this->generateUniqueSlug($data['name']);
+        // New sites render posts inside the grid like pages (one header/footer
+        // for the whole site). Sites created before 2026-09-25 lack the key and
+        // keep the legacy post rendering — see EffectiveGridResolver::postsUseGrid.
+        $data['settings'] = array_merge(['post_grid' => 'unified'], $data['settings'] ?? []);
 
         $site = Site::create($data);
 

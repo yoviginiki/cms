@@ -6,6 +6,7 @@ import { pages, sites, publishing, api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { GridBadge, type EffectiveGrid } from '@/components/ui/GridBadge';
 
 interface Page {
   id: string;
@@ -13,6 +14,7 @@ interface Page {
   slug: string;
   status: string;
   updated_at: string;
+  effective_grid?: EffectiveGrid | null;
 }
 
 interface SiteData {
@@ -128,6 +130,7 @@ export default function PagesList() {
                   <div className="flex items-center gap-2 mt-1">
                     <StatusBadge status={page.status} />
                     <span className="text-[11px] text-base-content/40 font-mono">/{page.slug}</span>
+                    <GridBadge siteId={siteId} effective={page.effective_grid} />
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -159,6 +162,7 @@ export default function PagesList() {
               <tr className="border-b border-base-300 bg-base-200">
                 <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Title</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">URL</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Grid</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Status</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Updated</th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Actions</th>
@@ -181,6 +185,7 @@ export default function PagesList() {
                   <td className="px-6 py-4 text-sm text-base-content/50 font-mono">
                     {isHomepage(page) ? <span className="text-blue-600 font-medium">/</span> : <>/{page.slug}</>}
                   </td>
+                  <td className="px-6 py-4"><GridBadge siteId={siteId} effective={page.effective_grid} /></td>
                   <td className="px-6 py-4"><StatusBadge status={page.status} /></td>
                   <td className="px-6 py-4 text-sm text-base-content/50">{new Date(page.updated_at).toLocaleDateString()}</td>
                   <td className="px-6 py-4 text-right">

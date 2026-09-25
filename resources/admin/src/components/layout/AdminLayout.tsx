@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Sparkles, Users, Archive, Download, X, PanelLeft, Wand2, BookMarked, Boxes, Database, LayoutTemplate, ListFilter, FileInput, Webhook } from 'lucide-react';
+import { LayoutDashboard, FileText, FileWarning, GalleryHorizontalEnd, Newspaper, FolderTree, Hash, Menu as MenuIcon, LayoutGrid, Palette, Settings, ChevronLeft, ChevronRight, LogOut, Upload, Bug, GitBranch, BarChart3, Rocket, Loader2, CheckCircle, XCircle, Sun, Moon, BookOpen, Sparkles, Users, Archive, Download, X, PanelLeft, Wand2, BookMarked, Boxes, Database, LayoutTemplate, ListFilter, FileInput, Webhook, Paintbrush } from 'lucide-react';
 import { publishing, staleContent, api, modules } from '@/lib/api';
 
 interface AdminLayoutProps {
@@ -121,48 +121,57 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     refetchInterval: 60_000,
   });
 
-  const mainNav = siteId
+  // Site navigation, grouped by what you are doing: write content, shape the
+  // site's structure (header/footer/layout), style it, use tools, publish.
+  type NavItem = { to: string; icon: typeof FileText; label: string; badge?: number };
+  const siteNav: { label: string; items: NavItem[] }[] = siteId
     ? [
-        { to: `/sites/${siteId}/pages`, icon: FileText, label: 'Pages' },
-        { to: `/sites/${siteId}/posts`, icon: Newspaper, label: 'Posts' },
-        ...(staleCount > 0
-          ? [{ to: `/sites/${siteId}/stale-pages`, icon: FileWarning, label: 'Stale pages', badge: staleCount }]
-          : []),
-        { to: `/sites/${siteId}/collections`, icon: Database, label: 'Collections' },
-        { to: `/sites/${siteId}/queries`, icon: ListFilter, label: 'Queries' },
-        { to: `/sites/${siteId}/wizards`, icon: Sparkles, label: 'Wizards' },
-        { to: `/sites/${siteId}/webhooks`, icon: Webhook, label: 'Webhooks' },
-        { to: `/sites/${siteId}/assets`, icon: Archive, label: 'Media' },
-        { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
-        { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
-        { to: `/sites/${siteId}/theme-wizard`, icon: Wand2, label: 'Theme Wizard' },
-        { to: `/sites/${siteId}/page-wizard`, icon: LayoutTemplate, label: 'Page Wizard' },
-        { to: `/sites/${siteId}/form-wizard`, icon: FileInput, label: 'Form Wizard' },
-        { to: `/sites/${siteId}/library`, icon: BookMarked, label: 'Library' },
-        { to: `/sites/${siteId}/global-sections`, icon: Boxes, label: 'Global Sections' },
-        { to: `/sites/${siteId}/style-presets`, icon: Palette, label: 'Style Presets' },
-        { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
-        { to: `/sites/${siteId}/settings`, icon: Settings, label: 'Settings' },
+        { label: 'Content', items: [
+          { to: `/sites/${siteId}/pages`, icon: FileText, label: 'Pages' },
+          { to: `/sites/${siteId}/posts`, icon: Newspaper, label: 'Posts' },
+          { to: `/sites/${siteId}/categories`, icon: FolderTree, label: 'Categories' },
+          { to: `/sites/${siteId}/tags`, icon: Hash, label: 'Tags' },
+          { to: `/sites/${siteId}/assets`, icon: Archive, label: 'Media' },
+          { to: `/sites/${siteId}/collections`, icon: Database, label: 'Collections' },
+          { to: `/sites/${siteId}/magazines`, icon: BookOpen, label: 'Magazines' },
+        ] },
+        { label: 'Structure', items: [
+          { to: `/sites/${siteId}/menus`, icon: MenuIcon, label: 'Menus' },
+          { to: `/sites/${siteId}/grids`, icon: LayoutGrid, label: 'Grids' },
+          { to: `/sites/${siteId}/templates`, icon: Rocket, label: 'Templates' },
+          { to: `/sites/${siteId}/global-sections`, icon: Boxes, label: 'Global Sections' },
+          { to: `/sites/${siteId}/library`, icon: BookMarked, label: 'Library' },
+          { to: `/sites/${siteId}/sliders`, icon: GalleryHorizontalEnd, label: 'Sliders' },
+        ] },
+        { label: 'Design', items: [
+          { to: `/sites/${siteId}/theme-engine`, icon: Palette, label: 'Themes' },
+          { to: `/sites/${siteId}/style-presets`, icon: Paintbrush, label: 'Style Presets' },
+        ] },
+        { label: 'Tools', items: [
+          { to: `/sites/${siteId}/page-wizard`, icon: LayoutTemplate, label: 'Page Wizard' },
+          { to: `/sites/${siteId}/form-wizard`, icon: FileInput, label: 'Form Wizard' },
+          { to: `/sites/${siteId}/wizards`, icon: Sparkles, label: 'Wizards' },
+          { to: `/sites/${siteId}/import`, icon: Upload, label: 'Import' },
+          { to: `/sites/${siteId}/migration`, icon: Download, label: 'Migration' },
+          { to: `/sites/${siteId}/queries`, icon: ListFilter, label: 'Queries' },
+          { to: `/sites/${siteId}/webhooks`, icon: Webhook, label: 'Webhooks' },
+          { to: `/sites/${siteId}/issue-studio`, icon: Wand2, label: 'Issue Studio' },
+        ] },
+        { label: 'Publish & insights', items: [
+          ...(staleCount > 0
+            ? [{ to: `/sites/${siteId}/stale-pages`, icon: FileWarning, label: 'Stale pages', badge: staleCount }]
+            : []),
+          { to: `/sites/${siteId}/analytics`, icon: BarChart3, label: 'Analytics' },
+          { to: `/sites/${siteId}/graph`, icon: GitBranch, label: 'Graph' },
+        ] },
+        { label: '', items: [
+          { to: `/sites/${siteId}/settings`, icon: Settings, label: 'Settings' },
+        ] },
       ]
     : [];
 
-  const advancedNav = siteId
-    ? [
-        { to: `/sites/${siteId}/sliders`, icon: GalleryHorizontalEnd, label: 'Sliders' },
-        { to: `/sites/${siteId}/magazines`, icon: BookOpen, label: 'Magazines' },
-        { to: `/sites/${siteId}/issue-studio`, icon: Sparkles, label: 'Issue Studio' },
-        { to: `/sites/${siteId}/categories`, icon: FolderTree, label: 'Categories' },
-        { to: `/sites/${siteId}/tags`, icon: Hash, label: 'Tags' },
-        { to: `/sites/${siteId}/grids`, icon: LayoutGrid, label: 'Grids' },
-        { to: `/sites/${siteId}/templates`, icon: Rocket, label: 'Templates' },
-        { to: `/sites/${siteId}/graph`, icon: GitBranch, label: 'Graph' },
-        { to: `/sites/${siteId}/import`, icon: Upload, label: 'Import' },
-        { to: `/sites/${siteId}/migration`, icon: Download, label: 'Migration' },
-      ]
-    : [];
-
-
-  const isActive = (path: string) => location.pathname.startsWith('/admin' + path);
+  // Router paths are relative to the /admin basename.
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
     <div className="flex h-screen bg-base-200" data-theme={adminTheme}>
@@ -201,16 +210,46 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <nav className="flex-1 py-2 px-1.5 overflow-y-auto space-y-0.5">
           <Link to="/dashboard"
             className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-              location.pathname === '/admin/dashboard'
+              location.pathname === '/dashboard'
                 ? 'bg-primary/10 text-primary'
                 : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
             }`}>
             <LayoutDashboard size={15} strokeWidth={1.5} />
             {!collapsed && 'Dashboard'}
           </Link>
+          {siteNav.map((group, gi) => (
+            <div key={gi}>
+              {group.label
+                ? (!collapsed
+                    ? <div className="px-2.5 pt-4 pb-1 text-[10px] font-medium text-base-content/30 uppercase tracking-wider">{group.label}</div>
+                    : <div className="border-t border-base-300/20 my-1.5" />)
+                : <div className="border-t border-base-300/20 my-2" />}
+              {group.items.map((item) => (
+                <Link key={item.to} to={item.to}
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+                    isActive(item.to)
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
+                  }`}>
+                  <item.icon size={15} strokeWidth={1.5} />
+                  {!collapsed && item.label}
+                  {item.badge != null && (
+                    <span className={`badge badge-warning badge-xs font-semibold ${collapsed ? '-ml-1' : 'ml-auto'}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          ))}
+
+          {/* Account-wide */}
+          {!collapsed
+            ? <div className="px-2.5 pt-4 pb-1 text-[10px] font-medium text-base-content/30 uppercase tracking-wider">Account</div>
+            : <div className="border-t border-base-300/20 my-1.5" />}
           <Link to="/users"
             className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-              location.pathname.startsWith('/admin/users')
+              location.pathname.startsWith('/users')
                 ? 'bg-primary/10 text-primary'
                 : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
             }`}>
@@ -220,7 +259,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           {canManageModules && (
             <Link to="/modules"
               className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                location.pathname.startsWith('/admin/modules')
+                location.pathname.startsWith('/modules')
                   ? 'bg-primary/10 text-primary'
                   : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
               }`}>
@@ -231,7 +270,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           {showCulture && (
             <Link to="/culture"
               className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                location.pathname.startsWith('/admin/culture')
+                location.pathname.startsWith('/culture')
                   ? 'bg-primary/10 text-primary'
                   : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
               }`}>
@@ -240,44 +279,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Link>
           )}
 
-          {mainNav.length > 0 && (
-            <>
-              {mainNav.map((item) => (
-                <Link key={item.to} to={item.to}
-                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                    isActive(item.to)
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
-                  }`}>
-                  <item.icon size={15} strokeWidth={1.5} />
-                  {!collapsed && item.label}
-                  {'badge' in item && item.badge != null && (
-                    <span className={`badge badge-warning badge-xs font-semibold ${collapsed ? '-ml-1' : 'ml-auto'}`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              ))}
-
-              {advancedNav.length > 0 && (
-                <>
-                  {!collapsed && <div className="px-2.5 pt-4 pb-1 text-[10px] font-medium text-base-content/25 uppercase tracking-wider">Advanced</div>}
-                  {collapsed && <div className="border-t border-base-300/20 my-1.5" />}
-                  {advancedNav.map((item) => (
-                    <Link key={item.to} to={item.to}
-                      className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                        isActive(item.to)
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/30'
-                      }`}>
-                      <item.icon size={15} strokeWidth={1.5} />
-                      {!collapsed && item.label}
-                    </Link>
-                  ))}
-                </>
-              )}
-            </>
-          )}
         </nav>
 
         {/* Bottom */}
@@ -299,8 +300,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 {exportState === 'generating' ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} strokeWidth={1.5} />}
                 {exportState === 'generating' ? 'Generating...' : 'Generate Export'}
               </button>
+              {/* `download` attr: the browser saves straight to a file. A plain
+                  navigation fired the editors' unsaved-changes prompt first (Chrome
+                  asks before it knows the response is a download) and "Stay"
+                  silently cancelled the download. */}
               {exportState === 'ready' && (
-                <a href="/api/v1/cms-export/download"
+                <a href="/api/v1/cms-export/download" download="cms-platform.zip"
                   className="flex items-center gap-2 w-full px-2 py-1 rounded-md text-[11px] text-success hover:bg-success/10 transition-colors">
                   <Download size={12} strokeWidth={1.5} />
                   Download ({exportInfo.size ? (exportInfo.size / 1024 / 1024).toFixed(1) + ' MB' : '...'})
@@ -322,7 +327,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </button>
           <Link to="/debug"
             className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-              location.pathname.startsWith('/admin/debug')
+              location.pathname.startsWith('/debug')
                 ? 'bg-warning/10 text-warning'
                 : 'text-base-content/30 hover:text-base-content/50 hover:bg-base-300/30'
             }`}>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Palette, Copy, Loader2, Check, Upload, Eye, Power, Trash2, Type } from 'lucide-react';
+import { Palette, Copy, Loader2, Check, Upload, Eye, Power, Trash2, Type, Wand2 } from 'lucide-react';
 import { themeEngine, customFonts } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -82,6 +82,11 @@ export default function ThemeEngine() {
           <p className="mt-1 text-sm text-base-content/50">W3C Design Tokens-based theme system</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => navigate(`/sites/${siteId}/theme-wizard`)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-base-300 text-base-content/70 hover:bg-base-200"
+            title="Create a theme from a website, a screenshot or a description">
+            <Wand2 className="h-3.5 w-3.5" /> Theme Wizard
+          </button>
           <button onClick={() => setShowImport(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-base-300 text-base-content/70 hover:bg-base-200">
             <Upload className="h-3.5 w-3.5" /> Import JSON

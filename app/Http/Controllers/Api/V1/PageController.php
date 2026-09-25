@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Grid\Services\EffectiveGridResolver;
 use App\Domain\Pages\Services\PageService;
 use App\Domain\Publishing\Services\AutoPublishService;
 use App\Domain\References\Services\StalenessResolver;
@@ -44,7 +45,11 @@ class PageController extends Controller
             $query->where('editor_mode', $editorMode);
         }
 
-        return PageResource::collection($query->paginate($request->integer('per_page', 15)))->response();
+        $pages = $query->paginate($request->integer('per_page', 15));
+        $grids = app(EffectiveGridResolver::class);
+        $pages->getCollection()->each(fn (Page $p) => $p->setAttribute('effective_grid', $grids->forContent($p, $site)));
+
+        return PageResource::collection($pages)->response();
     }
 
     public function show(Site $site, Page $page): JsonResponse
@@ -60,20 +65,11 @@ class PageController extends Controller
      * Which grid will this page actually render with, and why.
      * Powers the "Grid" info panel in the page editor.
      */
-    public function resolvedGrid(Site $site, Page $page, \App\Domain\Grid\Services\GridResolver $resolver): JsonResponse
+    public function resolvedGrid(Site $site, Page $page, EffectiveGridResolver $grids): JsonResponse
     {
         $this->authorize('view', $page);
 
-        $result = $resolver->resolveDetailed($page, $site);
-
-        return response()->json(['data' => [
-            'grid' => $result['grid'] ? [
-                'id' => $result['grid']->id,
-                'name' => $result['grid']->name,
-                'slug' => $result['grid']->slug,
-            ] : null,
-            'source' => $result['source'],
-        ]]);
+        return response()->json(['data' => $grids->forContent($page, $site)]);
     }
 
     public function store(CreatePageRequest $request, Site $site): JsonResponse

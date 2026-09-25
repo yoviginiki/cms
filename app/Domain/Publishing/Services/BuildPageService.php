@@ -263,27 +263,15 @@ HTML;
             return $this->minifier->minify($html);
         }
 
-        // Check if content has an explicit non-standard layout — if so, skip grid
         $explicitLayout = $content->layout_id ? \App\Models\Layout::find($content->layout_id) : null;
-        $useLayout = $explicitLayout && $explicitLayout->slug !== 'standard';
 
-        // Try grid-based rendering (only if no explicit layout override).
-        // A page carrying raw_html is an explicit document (imported apps,
-        // custom HTML) — a site-default grid must not swallow it. Same for
-        // exact-fidelity design sites: every page is self-contained, so the
-        // theme's grid scaffolding must not wrap it.
-        $hasRawHtml = $content instanceof Page && $content->raw_html;
-
-        // A post that resolves to the "Empty" template renders its page builder's
-        // own output verbatim. The site-default grid (a single-post scaffold with
-        // a post-content placeholder) must NOT wrap it — otherwise the grid and
-        // the builder content render together and visually collide.
-        $postRawOutput = $content instanceof Post
-            && $this->resolvePostTemplate($content) === null
-            && (($content->seo_meta['template_id'] ?? null) === 'none'
-                || in_array($content->editor_mode, ['block', 'canvas', 'magazine'], true));
-
-        $grid = (!$useLayout && !$hasRawHtml && !$bareDesign && !$postRawOutput) ? ($gridOverride ?? $this->gridResolver->resolve($content, $site)) : null;
+        // Grids are bypassed for explicit non-standard layouts, raw-HTML pages,
+        // exact-copy design sites and posts that render their builder output
+        // verbatim — one rule, shared with the admin's "Grid" labels
+        // (EffectiveGridResolver), so what the admin shows is what publishes.
+        $grid = app(\App\Domain\Grid\Services\EffectiveGridResolver::class)->skipReason($content, $site) === null
+            ? ($gridOverride ?? $this->gridResolver->resolve($content, $site))
+            : null;
 
         if ($grid) {
             $gridResult = $this->gridRenderer->render($grid, $content, $site);
@@ -962,27 +950,7 @@ HTML;
      */
     private function resolvePostTemplate(Post $post): ?ThemeTemplate
     {
-        $choice = $post->seo_meta['template_id'] ?? null;
-
-        if ($choice === 'none') {
-            return null;
-        }
-
-        if (is_string($choice) && $choice !== '' && $choice !== 'default') {
-            $tpl = ThemeTemplate::where('site_id', $post->site_id)
-                ->where('type', 'post')
-                ->find($choice);
-            if ($tpl) {
-                return $tpl;
-            }
-            // Chosen template was deleted — fall through to the default below.
-        }
-
-        if ($choice === 'default' || $post->editor_mode === 'simple') {
-            return ThemeTemplate::resolveForPost($post);
-        }
-
-        return null;
+        return ThemeTemplate::chosenForPost($post);
     }
 
     private function renderTemplatedPost(Post $post, ThemeTemplate $template, Site $site): string

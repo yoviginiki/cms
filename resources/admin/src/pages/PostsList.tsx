@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Newspaper, Loader2, Search, ArrowUpDown, ArrowUp, ArrowDown, Copy, Check, ExternalLink } from 'lucide-react';
 import { posts, categories as categoriesApi, sites, api } from '@/lib/api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { GridBadge, type EffectiveGrid } from '@/components/ui/GridBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
@@ -16,6 +17,7 @@ interface Post {
   category?: { id: string; name: string; slug?: string };
   grid_id?: string | null;
   grid?: { id: string; name: string; slug: string } | null;
+  effective_grid?: EffectiveGrid | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;
@@ -283,13 +285,7 @@ export default function PostsList() {
                     {post.category?.name ?? <span className="text-base-content/20">--</span>}
                   </td>
                   <td>
-                    {post.grid ? (
-                      <span className="badge badge-sm badge-ghost text-[10px] font-medium" title={`Grid: ${post.grid.name}`}>
-                        {post.grid.name}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-base-content/20">default</span>
-                    )}
+                    <GridBadge siteId={siteId} effective={post.effective_grid} />
                   </td>
                   <td><StatusBadge status={post.status} /></td>
                   <td className="text-[13px] text-base-content/40">
