@@ -25,7 +25,7 @@ import { useEditorStore } from '@/stores/editorStore';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { blocks as blocksApi } from '@/lib/api';
 
-export type ContentType = 'pages' | 'posts' | 'templates';
+export type ContentType = 'pages' | 'posts' | 'templates' | 'global-sections';
 
 export interface SaveTarget {
   siteId: string;

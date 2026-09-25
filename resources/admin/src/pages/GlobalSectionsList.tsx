@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Boxes, BookMarked, Rocket, Undo2, Trash2, Loader2, X, Check } from 'lucide-react';
+import { Boxes, BookMarked, Rocket, Undo2, Trash2, Loader2, X, Check, Plus, Pencil } from 'lucide-react';
 import { globalSections, library, type GlobalSectionSummary, type LibraryItem } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -25,6 +25,19 @@ export default function GlobalSectionsList() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['global-sections', siteId] });
+  const navigate = useNavigate();
+
+  const createBlank = async () => {
+    const name = window.prompt('Section name (e.g. Site footer):');
+    if (!name?.trim()) return;
+    try {
+      const r = await globalSections.create(siteId, name.trim());
+      invalidate();
+      navigate(`/sites/${siteId}/sections/${r.data.data.id}/edit`);
+    } catch (e) {
+      toast({ type: 'error', message: apiErr(e) });
+    }
+  };
 
   const publish = useMutation({
     mutationFn: (id: string) => globalSections.publish(siteId, id),
@@ -62,13 +75,18 @@ export default function GlobalSectionsList() {
           <Boxes className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-base-content">Global Sections</h1>
         </div>
-        <button onClick={() => setPromoting(true)} className="btn btn-primary btn-sm gap-1.5">
-          <BookMarked size={14} /> New from Library
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setPromoting(true)} className="btn btn-ghost btn-sm gap-1.5 border border-base-300">
+            <BookMarked size={14} /> New from Library
+          </button>
+          <button onClick={createBlank} className="btn btn-primary btn-sm gap-1.5">
+            <Plus size={14} /> New section
+          </button>
+        </div>
       </div>
       <p className="text-sm text-base-content/50 mb-6">
-        Edit once, updates everywhere. Embed a global on any page with the “Global Section” block;
-        publishing flags every embedding page for republish.
+        Edit once, updates everywhere. Use a section as a grid area (site header, footer, sidebar — Grids → area type “Section”)
+        or embed it in a page with the “Global Section” block. Publishing rebuilds every page that uses it.
       </p>
 
       {isLoading && <div className="flex items-center gap-2 text-sm text-base-content/50 py-12 justify-center"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
@@ -92,6 +110,7 @@ export default function GlobalSectionsList() {
                   <span className="text-[11px] text-base-content/40">embedded on {s.used_on} page{s.used_on === 1 ? '' : 's'}</span>
                 </div>
               </div>
+              <button onClick={() => navigate(`/sites/${siteId}/sections/${s.id}/edit`)} className="btn btn-ghost btn-xs gap-1" title="Edit"><Pencil size={12} /> Edit</button>
               {s.status === 'published' ? (
                 <button onClick={() => unpublish.mutate(s.id)} className="btn btn-ghost btn-xs gap-1" title="Unpublish"><Undo2 size={12} /> Unpublish</button>
               ) : (

@@ -277,7 +277,10 @@ Route::middleware('auth:sanctum')->group(function () {
         $gs = \App\Http\Controllers\Api\V1\GlobalSectionController::class;
         Route::apiResource('sites.global-sections', $gs)->parameters(['global-sections' => 'globalSection']);
         Route::post('sites/{site}/global-sections/promote', [$gs, 'promote']);
-        Route::put('sites/{site}/global-sections/{globalSection}/blocks', [$gs, 'syncBlocks']);
+        // Blocks go through BlockController: same validation, TrustedHtml gate and
+        // expected_version protocol as pages/templates (the section editor).
+        Route::get('sites/{site}/global-sections/{globalSection}/blocks', [BlockController::class, 'indexForGlobalSection']);
+        Route::put('sites/{site}/global-sections/{globalSection}/blocks', [BlockController::class, 'syncForGlobalSection']);
         Route::post('sites/{site}/global-sections/{globalSection}/publish', [$gs, 'publish']);
         Route::post('sites/{site}/global-sections/{globalSection}/unpublish', [$gs, 'unpublish']);
 

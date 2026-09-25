@@ -94,6 +94,26 @@ class ReferenceRecorder
             $edges[] = ['target_type' => 'menu', 'target_id' => $menu->id, 'kind' => 'site_scope'];
         }
 
+        // Grid areas whose content is a global section (header/footer/sidebar
+        // on every page) and per-page overrides pointing at one.
+        $sectionIds = \App\Models\GridPosition::query()
+            ->join('grids', 'grids.id', '=', 'grid_positions.grid_id')
+            ->where('grids.site_id', $site->id)
+            ->where('grid_positions.type', 'section')
+            ->pluck('grid_positions.config_json')
+            ->map(fn ($c) => (is_string($c) ? json_decode($c, true) : $c)['section_id'] ?? null)
+            ->merge(\App\Models\PositionOverride::query()
+                ->join('grid_positions', 'grid_positions.id', '=', 'position_overrides.grid_position_id')
+                ->join('grids', 'grids.id', '=', 'grid_positions.grid_id')
+                ->where('grids.site_id', $site->id)
+                ->pluck('position_overrides.content_json')
+                ->map(fn ($c) => (is_string($c) ? json_decode($c, true) : $c)['section_id'] ?? null))
+            ->filter(fn ($id) => is_string($id) && \Illuminate\Support\Str::isUuid($id))
+            ->unique();
+        foreach ($sectionIds as $id) {
+            $edges[] = ['target_type' => 'global_section', 'target_id' => $id, 'kind' => 'site_scope'];
+        }
+
         return $edges;
     }
 

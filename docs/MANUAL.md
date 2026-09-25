@@ -59,6 +59,8 @@ The location cannot be changed later from the admin, so type it correctly the fi
 
 ## Step 6 — Add a footer
 
+**Best way (blocks):** Structure → **Grids** → **Full Width** → click the **Footer** area → type **section** → **+ Нова секция** → build the footer with blocks in the editor that opens → **Publish** → save the grid. Use the same section for the other grids' footer areas. The steps below are the older menu-based way.
+
 On a new site the footer comes from the grid, so it takes two places:
 
 1. **Menus** → **Create** → name `Footer`, location `footer` → add links (Contact, Privacy…) → **Save**.

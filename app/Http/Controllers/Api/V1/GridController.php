@@ -120,7 +120,7 @@ class GridController extends Controller
             'positions' => ['required', 'array'],
             'positions.*.area_name' => ['required', 'string', 'max:50'],
             'positions.*.label' => ['required', 'string', 'max:100'],
-            'positions.*.type' => ['required', 'in:canvas,menu,query,fixed,widget,static'],
+            'positions.*.type' => ['required', 'in:canvas,menu,query,fixed,widget,static,section'],
             'positions.*.config_json' => ['sometimes', 'nullable', 'array'],
             'positions.*.scope' => ['sometimes', 'in:site,page,grid'],
             'positions.*.is_overridable' => ['sometimes', 'boolean'],
@@ -138,6 +138,12 @@ class GridController extends Controller
             'positions.*.full_bleed' => ['sometimes', 'boolean'],
         ]);
 
+        foreach ($request->input('positions') as $i => $posData) {
+            if (($posData['type'] ?? null) === 'section') {
+                $this->assertSiteSection($site, $posData['config_json']['section_id'] ?? null, "positions.{$i}.config_json.section_id", required: false);
+            }
+        }
+
         // Delete existing positions and re-create
         GridPosition::where('grid_id', $grid->id)->delete();
 
@@ -147,6 +153,10 @@ class GridController extends Controller
                 ...$posData,
             ]);
         }
+
+        // Section areas are site-scope references: publishing the section
+        // must flag the whole site (header/footer are on every page).
+        app(\App\Domain\References\Services\ReferenceRecorder::class)->recomputeSiteScope($site);
 
         return response()->json(['data' => $grid->load('positions')]);
     }
@@ -266,12 +276,17 @@ class GridController extends Controller
     public function storeOverride(Request $request, Site $site, GridPosition $position): JsonResponse
     {
         $this->authorize('update', $site);
+        abort_unless($position->grid()->where('site_id', $site->id)->exists(), 404);
 
         $request->validate([
-            'page_id' => ['sometimes', 'uuid'],
-            'post_id' => ['sometimes', 'uuid'],
+            'page_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('pages', 'id')->where('site_id', $site->id)],
+            'post_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('posts', 'id')->where('site_id', $site->id)],
             'content_json' => ['required', 'array'],
+            'content_json.hidden' => ['sometimes', 'boolean'],
         ]);
+        if ($sectionId = $request->input('content_json.section_id')) {
+            $this->assertSiteSection($site, $sectionId, 'content_json.section_id');
+        }
 
         $override = PositionOverride::updateOrCreate(
             [
@@ -282,14 +297,44 @@ class GridController extends Controller
             ['content_json' => $request->input('content_json')]
         );
 
+        $this->overrideChanged($request, $site, $override);
+
         return response()->json(['data' => $override], 201);
     }
 
-    public function destroyOverride(Site $site, PositionOverride $override): JsonResponse
+    /** An override changes one page's chrome: record the edge, republish that page. */
+    private function overrideChanged(Request $request, Site $site, PositionOverride $override): void
+    {
+        app(\App\Domain\References\Services\ReferenceRecorder::class)->recomputeSiteScope($site);
+        $autoPublish = app(AutoPublishService::class);
+        if ($override->page_id) {
+            \App\Models\Page::whereKey($override->page_id)->update(['needs_republish' => true, 'needs_republish_reason' => 'Grid area override changed']);
+            $autoPublish->triggerIfEnabled($site, $request->user(), 'page_updated', $override->page_id);
+        } elseif ($override->post_id) {
+            \App\Models\Post::whereKey($override->post_id)->update(['needs_republish' => true, 'needs_republish_reason' => 'Grid area override changed']);
+            $autoPublish->triggerIfEnabled($site, $request->user(), 'post_updated', $override->post_id);
+        }
+    }
+
+    private function assertSiteSection(Site $site, ?string $sectionId, string $field, bool $required = true): void
+    {
+        if (!$sectionId && !$required) {
+            return;
+        }
+        $ok = $sectionId && \Illuminate\Support\Str::isUuid($sectionId)
+            && \App\Models\GlobalSection::where('site_id', $site->id)->whereKey($sectionId)->exists();
+        if (!$ok) {
+            throw \Illuminate\Validation\ValidationException::withMessages([$field => 'Choose a global section of this site.']);
+        }
+    }
+
+    public function destroyOverride(Request $request, Site $site, PositionOverride $override): JsonResponse
     {
         $this->authorize('update', $site);
+        abort_unless(GridPosition::whereKey($override->grid_position_id)->whereHas('grid', fn ($q) => $q->where('site_id', $site->id))->exists(), 404);
 
         $override->delete();
+        $this->overrideChanged($request, $site, $override);
 
         return response()->json(null, 204);
     }

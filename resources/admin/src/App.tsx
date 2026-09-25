@@ -58,6 +58,7 @@ const ThemeEditorPage = lazy(() => import('./pages/ThemeEditor'));
 const ThemeStudio = lazy(() => import('./pages/ThemeStudio'));
 const Templates = lazy(() => import('./pages/Templates'));
 const TemplateEditor = lazy(() => import('./pages/TemplateEditor'));
+const SectionEditor = lazy(() => import('./pages/SectionEditor'));
 const DtpPrototypeShell = lazy(() => import('./components/magazine/prototypes/dtp/DtpPrototypeShell'));
 const DtpEditorBeta = lazy(() => import('./pages/DtpEditorBeta'));
 const IssueStudioListPage = lazy(() => import('./pages/issue-studio/IssueStudioListPage'));
@@ -136,6 +137,7 @@ export default function App() {
           <Route path="/sites/:siteId/asset-picker" element={<AssetPickerPopup />} />
           <Route path="/sites/:siteId/templates" element={<LayoutRoute><Templates /></LayoutRoute>} />
           <Route path="/sites/:siteId/templates/:templateId/edit" element={<TemplateEditor />} />
+          <Route path="/sites/:siteId/sections/:sectionId/edit" element={<SectionEditor />} />
           <Route path="/sites/:siteId/theme-engine" element={<LayoutRoute><ThemeEngine /></LayoutRoute>} />
           <Route path="/sites/:siteId/theme-wizard" element={<LayoutRoute><ThemeWizardPage /></LayoutRoute>} />
           <Route path="/sites/:siteId/page-wizard" element={<LayoutRoute><PageWizardPage /></LayoutRoute>} />

@@ -7,9 +7,9 @@ import {
   Undo2, Redo2, Sparkles, AlertTriangle, Check, X, ArrowUp, ArrowDown,
   Tablet, RefreshCw, ExternalLink, PencilRuler,
 } from 'lucide-react';
-import { grids, categories as categoriesApi, publishing, sites, pages as pagesApi } from '@/lib/api';
+import { grids, categories as categoriesApi, publishing, sites, pages as pagesApi, globalSections } from '@/lib/api';
 
-type PositionType = 'canvas' | 'menu' | 'query' | 'fixed' | 'widget' | 'static';
+type PositionType = 'section' | 'canvas' | 'menu' | 'query' | 'fixed' | 'widget' | 'static';
 type RightTab = 'grid-settings' | 'area-config';
 
 interface Position {
@@ -34,11 +34,11 @@ interface Position {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  canvas: '#34d399', menu: '#60a5fa', query: '#c084fc',
+  section: '#f472b6', canvas: '#34d399', menu: '#60a5fa', query: '#c084fc',
   fixed: '#94a3b8', widget: '#fbbf24', static: '#fb923c', '': '#6b7280',
 };
 const TYPE_LABELS: Record<string, string> = {
-  canvas: 'Блоково съдържание (per page)', menu: 'Навигационно меню', query: 'Динамичен списък постове',
+  section: 'Обща секция от блокове (header, footer, sidebar)', canvas: 'Блоково съдържание (per page)', menu: 'Навигационно меню', query: 'Динамичен списък постове',
   fixed: 'Фиксирано (еднакво навсякъде)', widget: 'Уиджет колона', static: 'Авто-генерирано',
 };
 
@@ -1080,7 +1080,7 @@ export default function GridEditor() {
                   <Input value={sel.label} onChange={v => updatePosition(selectedArea!, { label: v })} />
                 </Field>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {(['canvas','menu','query','fixed','widget','static'] as PositionType[]).map(t => (
+                  {(['section','canvas','menu','query','fixed','widget','static'] as PositionType[]).map(t => (
                     <button key={t} onClick={() => updatePosition(selectedArea!, { type: t })}
                       title={TYPE_LABELS[t]}
                       className={`text-left px-2.5 py-2 rounded-lg border transition-all ${sel.type === t ? 'bg-base-200/60' : 'border-base-300 hover:border-base-content/25'}`}
@@ -1255,6 +1255,14 @@ export default function GridEditor() {
                 </Section>
               )}
 
+              {sel.type === 'section' && (
+                <Section title="Секция" defaultOpen={true}>
+                  <SectionAreaConfig siteId={siteId}
+                    sectionId={(sel.config_json as any).section_id || ''}
+                    onChange={id => updatePosition(selectedArea!, { config_json: { ...sel.config_json, section_id: id || undefined } })} />
+                </Section>
+              )}
+
               {sel.type === 'static' && (
                 <Section title="Авто-съдържание" defaultOpen={true}>
                   <Field label="Какво да покаже">
@@ -1280,7 +1288,8 @@ export default function GridEditor() {
                     <p>Тази зона показва едно и също съдържание на всяка страница.</p>
                     <p>Можеш да зададеш Blade partial:</p>
                     <Input value={(sel.config_json as any).blade_partial || ''} onChange={v => updatePosition(selectedArea!, { config_json: { ...sel.config_json, blade_partial: v } })}
-                      placeholder="напр. header, footer" />
+                      placeholder="напр. breadcrumb" />
+                    <p className="text-[10px] text-base-content/40">За header/footer/sidebar избери тип „section" — съдържанието се прави с блокове.</p>
                   </div>
                 </Section>
               )}
@@ -1776,6 +1785,45 @@ function WidgetConfigurator({ widgets, sticky, onChange }: {
           + Добави Widget
         </button>
       )}
+    </div>
+  );
+}
+
+/** Section area: pick the global section whose blocks fill this area; edit it in a new tab. */
+function SectionAreaConfig({ siteId, sectionId, onChange }: { siteId: string; sectionId: string; onChange: (id: string) => void }) {
+  const queryClient = useQueryClient();
+  const { data: sections = [] } = useQuery<Array<{ id: string; name: string; status: string }>>({
+    queryKey: ['global-sections', siteId],
+    queryFn: () => globalSections.list(siteId).then((r: any) => r.data.data),
+  });
+  const current = sections.find(s => s.id === sectionId);
+  const openEditor = (id: string) => window.open(`/admin/sites/${siteId}/sections/${id}/edit`, '_blank');
+
+  const createNew = async () => {
+    const name = window.prompt('Име на секцията (напр. Site footer):');
+    if (!name?.trim()) return;
+    const r = await globalSections.create(siteId, name.trim());
+    queryClient.invalidateQueries({ queryKey: ['global-sections', siteId] });
+    onChange(r.data.data.id);
+    openEditor(r.data.data.id);
+  };
+
+  return (
+    <div className="space-y-2 text-xs">
+      <select value={sectionId} onChange={e => onChange(e.target.value)} className="select select-bordered select-sm w-full text-xs">
+        <option value="">Избери секция…</option>
+        {sections.map(s => <option key={s.id} value={s.id}>{s.name}{s.status !== 'published' ? ' (draft)' : ''}</option>)}
+      </select>
+      {current && current.status !== 'published' && (
+        <p className="text-warning">Секцията е чернова — зоната е празна, докато не я публикуваш.</p>
+      )}
+      <div className="flex gap-1.5">
+        <button type="button" disabled={!sectionId} onClick={() => openEditor(sectionId)} className="btn btn-xs btn-primary flex-1">Редактирай</button>
+        <button type="button" onClick={createNew} className="btn btn-xs btn-ghost border border-base-300 flex-1">+ Нова секция</button>
+      </div>
+      <p className="text-[10px] text-base-content/40 leading-relaxed">
+        Една секция може да се ползва от няколко грида — напр. един „Site footer" за страници и постове. Редакторът се отваря в нов таб; запиши грида, за да влезе изборът в сила.
+      </p>
     </div>
   );
 }

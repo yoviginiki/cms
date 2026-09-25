@@ -90,7 +90,22 @@ class GlobalSectionController extends Controller
             'section' => $globalSection,
             'blocks' => $this->blocks->getBlockTree($globalSection),
             'usage' => $this->usage->usage($site, 'global_section', $globalSection->id),
+            'grid_areas' => self::gridAreasUsing($site, $globalSection->id),
         ]]);
+    }
+
+    /** Grid areas (grid name + area) whose content is this section. */
+    public static function gridAreasUsing(Site $site, string $sectionId): array
+    {
+        return \App\Models\GridPosition::query()
+            ->join('grids', 'grids.id', '=', 'grid_positions.grid_id')
+            ->where('grids.site_id', $site->id)
+            ->where('grid_positions.type', 'section')
+            ->where('grid_positions.config_json->section_id', $sectionId)
+            ->orderBy('grids.name')
+            ->get(['grids.id as grid_id', 'grids.name as grid_name', 'grid_positions.area_name', 'grid_positions.label'])
+            ->map(fn ($r) => ['grid_id' => $r->grid_id, 'grid_name' => $r->grid_name, 'area' => $r->area_name, 'label' => $r->label])
+            ->all();
     }
 
     public function update(Request $request, Site $site, GlobalSection $globalSection): JsonResponse
@@ -104,18 +119,6 @@ class GlobalSectionController extends Controller
         return response()->json(['data' => $globalSection->fresh()]);
     }
 
-    /** Sync the full block tree (any blocks — a global section is a free chunk). */
-    public function syncBlocks(Request $request, Site $site, GlobalSection $globalSection): JsonResponse
-    {
-        $this->authorize('update', $site);
-        abort_unless($globalSection->site_id === $site->id, 404);
-        $request->validate(['blocks' => ['required', 'array']]);
-
-        $tree = $this->sections->syncBlocks($globalSection, $request->input('blocks'));
-
-        return response()->json(['data' => $tree]);
-    }
-
     /** Publish: flips status + flags dependents via the staleness engine. */
     public function publish(Request $request, Site $site, GlobalSection $globalSection): JsonResponse
     {
@@ -123,6 +126,7 @@ class GlobalSectionController extends Controller
         abort_unless($globalSection->site_id === $site->id, 404);
 
         $affected = $this->sections->publish($globalSection);
+        $this->sections->republishDependents($globalSection, $affected, $request->user());
 
         return response()->json(['data' => $globalSection->fresh(), 'meta' => ['stale' => $affected]]);
     }
@@ -133,6 +137,7 @@ class GlobalSectionController extends Controller
         abort_unless($globalSection->site_id === $site->id, 404);
 
         $affected = $this->sections->unpublish($globalSection);
+        $this->sections->republishDependents($globalSection, $affected, $request->user());
 
         return response()->json(['data' => $globalSection->fresh(), 'meta' => ['stale' => $affected]]);
     }

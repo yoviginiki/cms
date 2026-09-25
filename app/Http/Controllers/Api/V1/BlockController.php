@@ -150,6 +150,35 @@ class BlockController extends Controller
         return response()->json(['data' => $tree, 'version' => $this->blockService->blocksVersion($themeTemplate)]);
     }
 
+    public function indexForGlobalSection(Site $site, \App\Models\GlobalSection $globalSection): JsonResponse
+    {
+        abort_if($globalSection->site_id !== $site->id, 404);
+        $this->authorize('view', $site);
+
+        return response()->json([
+            'data' => $this->blockService->getBlockTree($globalSection),
+            'version' => $this->blockService->blocksVersion($globalSection),
+        ]);
+    }
+
+    /**
+     * Same protocol as pages/templates (validated tree, TrustedHtml gate,
+     * expected_version). A published section's save republishes its
+     * dependents — for grid header/footer areas that is the whole site.
+     */
+    public function syncForGlobalSection(SyncBlocksRequest $request, Site $site, \App\Models\GlobalSection $globalSection): JsonResponse
+    {
+        abort_if($globalSection->site_id !== $site->id, 404);
+        $this->authorize('update', $site);
+        $expected = $this->expectedVersion($request);
+        TrustedHtml::assertMayWriteTree($request->user(), $request->validated('blocks'), $this->blockService->getBlockTree($globalSection));
+        $tree = $this->blockService->syncBlocks($globalSection, $request->validated('blocks'), $expected);
+
+        app(\App\Domain\GlobalSections\Services\GlobalSectionService::class)->contentChanged($globalSection->fresh(), $request->user());
+
+        return response()->json(['data' => $tree, 'version' => $this->blockService->blocksVersion($globalSection)]);
+    }
+
     public function types(): JsonResponse
     {
         return response()->json([

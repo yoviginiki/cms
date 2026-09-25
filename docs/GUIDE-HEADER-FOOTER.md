@@ -20,6 +20,17 @@ To see it: the **Grid** column in **Pages** and **Posts** shows what each item i
 
 A category's **Grid** (Categories screen) applies to its posts that go through a grid.
 
+## Recommended: a footer made of blocks (section area)
+
+Since 2026-09-25 a grid area can be of type **Section**: its content is a **Global Section** — ordinary blocks, edited in the block editor, shared by every grid that points at it (one footer for pages and posts).
+
+1. **Grids** → the grid → click the **Footer** area → type **section** → **+ Нова секция** (e.g. "Site footer"). The section editor opens in a new tab.
+2. Build the footer with blocks (columns, menu, text, image…) → **Save** → **Publish**.
+3. Back in the grid editor → **Save** the grid.
+4. Other grids (e.g. Single Post) → Footer area → type **section** → pick the same "Site footer".
+
+Per page (e.g. a landing page): page editor → **Page** tab → **Grid** → under the grid, "Footer на тази страница": inherit, **hide**, or another section. Publishing a section rebuilds every page that uses it (automatic when auto-publish is on). All sections: **Structure → Global Sections**.
+
 ## Quick answer: a footer on a new site
 
 A new site has **no footer** out of the box: the Full Width grid's footer area is of type *Fixed* with nothing in it. Footer menus and Global Footer templates are ignored on grid pages. To get a footer:

@@ -51,6 +51,7 @@ class PositionRenderer
             'fixed' => $this->renderFixed($position, $site),
             'widget' => $this->renderWidget($position, $site),
             'static' => $this->renderStatic($position, $content, $site),
+            'section' => $this->renderSection($position->config_json['section_id'] ?? null, $content, $site),
             default => "<!-- Unknown position type: {$position->type} -->",
         };
     }
@@ -313,9 +314,32 @@ class PositionRenderer
         ])->render();
     }
 
+    /**
+     * Section area: a Global Section's published blocks, shared by every grid
+     * that points at it (one site footer for pages and posts alike).
+     */
+    private function renderSection(?string $sectionId, Page|Post $content, Site $site): string
+    {
+        if (!$sectionId) {
+            return '<!-- grid area: no section selected -->';
+        }
+        $builder = app(\App\Domain\Publishing\Services\BuildPageService::class);
+        $html = $builder->renderGlobalSection($sectionId, $site, $content instanceof Post ? ['__post' => $content] : []);
+
+        return $html ?? '<!-- grid area: section not published -->';
+    }
+
     private function renderOverride($override, GridPosition $position, Page|Post $content, Site $site): string
     {
         $overrideData = $override->content_json ?? [];
+
+        // Per-page choice for a section area: hide it, or show another section
+        if (!empty($overrideData['hidden'])) {
+            return '';
+        }
+        if (!empty($overrideData['section_id'])) {
+            return $this->renderSection($overrideData['section_id'], $content, $site);
+        }
 
         // For canvas overrides, the content_json contains block data
         if ($position->type === 'canvas' && !empty($overrideData['blocks'])) {

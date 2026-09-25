@@ -69,7 +69,28 @@ class PageController extends Controller
     {
         $this->authorize('view', $page);
 
-        return response()->json(['data' => $grids->forContent($page, $site)]);
+        $result = $grids->forContent($page, $site);
+
+        // Section areas of that grid, with this page's override (hide / other section)
+        $result['areas'] = [];
+        if ($gridId = $result['grid']['id'] ?? null) {
+            $positions = \App\Models\GridPosition::where('grid_id', $gridId)->where('type', 'section')->orderBy('mobile_order')->get();
+            $overrides = \App\Models\PositionOverride::whereIn('grid_position_id', $positions->pluck('id'))->where('page_id', $page->id)->get()->keyBy('grid_position_id');
+            $names = \App\Models\GlobalSection::where('site_id', $site->id)->pluck('name', 'id');
+            foreach ($positions as $p) {
+                $sectionId = $p->config_json['section_id'] ?? null;
+                $o = $overrides[$p->id] ?? null;
+                $result['areas'][] = [
+                    'position_id' => $p->id,
+                    'area' => $p->area_name,
+                    'label' => $p->label,
+                    'section' => $sectionId ? ['id' => $sectionId, 'name' => $names[$sectionId] ?? null] : null,
+                    'override' => $o ? ['id' => $o->id, 'hidden' => (bool) ($o->content_json['hidden'] ?? false), 'section_id' => $o->content_json['section_id'] ?? null] : null,
+                ];
+            }
+        }
+
+        return response()->json(['data' => $result]);
     }
 
     public function store(CreatePageRequest $request, Site $site): JsonResponse

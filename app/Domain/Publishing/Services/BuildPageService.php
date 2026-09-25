@@ -1033,6 +1033,49 @@ HTML;
     }
 
     /**
+     * A grid area's content: the PUBLISHED global section's tree, rendered
+     * inside the current page's context (locale, current post) so dynamic
+     * blocks — menus, breadcrumbs, related posts — resolve for this page.
+     * Null when the section is missing, unpublished or empty.
+     */
+    public function renderGlobalSection(string $sectionId, Site $site, array $context = []): ?string
+    {
+        if (isset($this->renderingGlobalSections[$sectionId])) {
+            return null; // a section embedding itself
+        }
+        $section = \App\Models\GlobalSection::where('site_id', $site->id)
+            ->where('status', 'published')
+            ->find($sectionId);
+        if (!$section) {
+            return null;
+        }
+        $roots = Block::where('blockable_type', 'global_section')
+            ->where('blockable_id', $section->id)
+            ->whereNull('parent_block_id')
+            ->orderBy('order')
+            ->get();
+        if ($roots->isEmpty()) {
+            return null;
+        }
+        Block::preloadTree($roots);
+
+        $previous = $this->templateContext;
+        $this->templateContext = array_merge($previous, $context);
+        $this->renderingGlobalSections[$sectionId] = true;
+        try {
+            $html = '';
+            foreach ($roots as $root) {
+                $html .= $this->renderBlock($root, $site);
+            }
+
+            return $html;
+        } finally {
+            unset($this->renderingGlobalSections[$sectionId]);
+            $this->templateContext = $previous;
+        }
+    }
+
+    /**
      * Render a global header or footer template if one exists.
      */
     private function renderGlobalTemplate(Site $site, string $type): ?string

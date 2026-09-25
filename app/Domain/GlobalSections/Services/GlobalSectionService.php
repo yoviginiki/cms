@@ -87,6 +87,42 @@ class GlobalSectionService
         );
     }
 
+    /**
+     * A PUBLISHED section's content changed (blocks saved, published,
+     * unpublished): flag its dependents and let auto-publish rebuild them.
+     * Grid areas reference sections site-wide (header/footer on every page),
+     * so those become a full rebuild; page embeds ride a delta.
+     *
+     * @param array{pages:int, posts:int, site_wide:bool} $affected
+     */
+    public function republishDependents(GlobalSection $section, array $affected, ?\App\Models\User $user): void
+    {
+        $site = $section->site;
+        $autoPublish = app(\App\Domain\Publishing\Services\AutoPublishService::class);
+
+        if ($affected['site_wide']) {
+            $autoPublish->triggerIfEnabled($site, $user, 'full');
+
+            return;
+        }
+        if ($affected['pages'] > 0 || $affected['posts'] > 0) {
+            $pageId = \App\Models\Page::where('site_id', $site->id)->where('needs_republish', true)->value('id');
+            $pageId
+                ? $autoPublish->triggerIfEnabled($site, $user, 'page_updated', $pageId)
+                : $autoPublish->triggerIfEnabled($site, $user, 'full');
+        }
+    }
+
+    /** Blocks of a published section were saved — same as a republish. */
+    public function contentChanged(GlobalSection $section, ?\App\Models\User $user): void
+    {
+        if ($section->status !== 'published') {
+            return; // drafts affect nothing live
+        }
+        $affected = $this->staleness->markStale($section->site, 'global_section', $section->id, "Global section '{$section->name}' updated");
+        $this->republishDependents($section, $affected, $user);
+    }
+
     public function unpublish(GlobalSection $section): array
     {
         $section->update(['status' => 'draft']);

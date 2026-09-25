@@ -42,7 +42,7 @@ import EffectsPanel from '@/components/magazine/properties/EffectsPanel';
 import PagePanel from '@/components/magazine/properties/PagePanel';
 import TextFramePanel from '@/components/magazine/properties/TextFramePanel';
 import ImagePanel from '@/components/magazine/properties/ImagePanel';
-import { api, pages as pagesApi, magEditor, sites, themeEngine, grids as gridsApi } from '@/lib/api';
+import { api, pages as pagesApi, magEditor, sites, themeEngine, grids as gridsApi, globalSections as globalSectionsApi } from '@/lib/api';
 import type { MagElement, MagPageData, MagElementStyle, TextFrameData, ImageFrameData } from '@/types/magazine';
 import '@/components/blocks';
 
@@ -1099,6 +1099,51 @@ function GridSettingsBlock({ page, siteId, pageId, saveSetting }: {
           Редактирай грида „{resolved.grid.name}“ →
         </button>
       )}
+      {(resolved?.areas?.length ?? 0) > 0 && (
+        <SectionAreaOverrides siteId={siteId} pageId={pageId} areas={resolved.areas}
+          onChanged={() => queryClient.invalidateQueries({ queryKey: ['resolved-grid', siteId, pageId] })} />
+      )}
+    </div>
+  );
+}
+
+/** Per-page choice for the grid's shared section areas: inherit, hide, or another section. */
+function SectionAreaOverrides({ siteId, pageId, areas, onChanged }: {
+  siteId: string; pageId: string; onChanged: () => void;
+  areas: Array<{ position_id: string; area: string; label: string; section: { id: string; name: string | null } | null; override: { id: string; hidden: boolean; section_id: string | null } | null }>;
+}) {
+  const { data: sections = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['global-sections', siteId],
+    queryFn: () => globalSectionsApi.list(siteId).then((r: any) => r.data.data),
+  });
+
+  const change = async (area: (typeof areas)[number], value: string) => {
+    if (value === 'inherit') {
+      if (area.override) await api.delete(`/sites/${siteId}/position-overrides/${area.override.id}`);
+    } else {
+      await api.post(`/sites/${siteId}/grid-positions/${area.position_id}/override`, {
+        page_id: pageId,
+        content_json: value === 'hidden' ? { hidden: true } : { section_id: value },
+      });
+    }
+    onChanged();
+  };
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {areas.map(a => {
+        const value = a.override ? (a.override.hidden ? 'hidden' : a.override.section_id || 'inherit') : 'inherit';
+        return (
+          <div key={a.position_id}>
+            <label className="text-[10px] text-gray-400 block">{a.label || a.area} на тази страница</label>
+            <select value={value} onChange={e => change(a, e.target.value)} className="select select-bordered select-xs w-full text-[11px]">
+              <option value="inherit">Наследено{a.section?.name ? `: ${a.section.name}` : ''}</option>
+              <option value="hidden">Скрий на тази страница</option>
+              {sections.filter(s => s.id !== a.section?.id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        );
+      })}
     </div>
   );
 }
