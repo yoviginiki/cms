@@ -23,8 +23,11 @@ class SiteController extends Controller
     {
         $this->authorize('viewAny', Site::class);
 
+        $allowed = $request->user()->accessibleSiteIds();
+
         $sites = Site::withCount(['pages', 'posts'])
             ->with('theme')
+            ->when($allowed !== null, fn ($q) => $q->whereIn('id', $allowed))
             ->orderBy('name')
             ->paginate($request->integer('per_page', 15));
 

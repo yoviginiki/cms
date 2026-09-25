@@ -34,7 +34,18 @@ class Site extends Model
             $query->where('tenant_id', $user->tenant_id);
         }
 
-        return $query->first();
+        $site = $query->first();
+
+        // Per-site access: a restricted user gets the same 404 for a site they
+        // were not granted, and acts with their per-site role on the ones they were.
+        if ($site && $user instanceof User) {
+            if (!$user->canAccessSite($site->getKey())) {
+                return null;
+            }
+            $user->actOnSite($site->getKey());
+        }
+
+        return $site;
     }
 
     protected $fillable = [
@@ -48,6 +59,12 @@ class Site extends Model
             'seo_defaults' => 'array',
             'settings' => \App\Casts\SiteSettings::class, // F08: secrets encrypted at rest
         ];
+    }
+
+    /** Users explicitly granted this site (restricted users only). */
+    public function members(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'site_user')->withPivot('role')->withTimestamps();
     }
 
     public function tenant(): BelongsTo

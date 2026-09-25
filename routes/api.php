@@ -127,6 +127,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // User management (admin+)
     Route::get('/users', [\App\Http\Controllers\Api\V1\UserController::class, 'index']);
+    Route::post('/users', [\App\Http\Controllers\Api\V1\UserController::class, 'store']);
+    Route::put('/users/{user}', [\App\Http\Controllers\Api\V1\UserController::class, 'update']);
     Route::post('/users/invite', [\App\Http\Controllers\Api\V1\UserController::class, 'invite']);
     Route::post('/users/{user}/invite/resend', [\App\Http\Controllers\Api\V1\UserController::class, 'resendInvite']);
     Route::delete('/users/{user}/invite', [\App\Http\Controllers\Api\V1\UserController::class, 'revokeInvite']);

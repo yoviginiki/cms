@@ -625,7 +625,7 @@ HTML;
             ->where('slug', $siteSlug)
             ->first();
 
-        if (!$site) {
+        if (!$site || !$user->canAccessSite($site->id)) {
             abort(404, "Site not found: {$siteSlug}");
         }
 

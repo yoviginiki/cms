@@ -55,7 +55,7 @@ class PostPolicy
             return true;
         }
 
-        return $user->role === 'author'
+        return $user->effectiveRole() === 'author'
             && $post->author_id !== null
             && $post->author_id === $user->id;
     }

@@ -59,7 +59,7 @@ class PagePolicy
             return true;
         }
 
-        return $user->role === 'author'
+        return $user->effectiveRole() === 'author'
             && $page->author_id !== null
             && $page->author_id === $user->id;
     }

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Concerns;
 
+use App\Models\Site;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
@@ -11,7 +12,36 @@ trait AuthorizesWithTenant
     {
         $tenantId = $this->resolveTenantId($model);
 
-        return $tenantId && $user->tenant_id === $tenantId;
+        if (!$tenantId || $user->tenant_id !== $tenantId) {
+            return false;
+        }
+
+        // Per-site access: a user restricted to some sites must not reach
+        // content of the others, even through a mismatched URL.
+        if ($user->isRestrictedToSites()) {
+            $siteId = $this->resolveSiteId($model);
+
+            return $siteId !== null && $user->canAccessSite($siteId);
+        }
+
+        return true;
+    }
+
+    protected function resolveSiteId(Model $model): ?string
+    {
+        if ($model instanceof Site) {
+            return $model->getKey();
+        }
+
+        if (isset($model->site_id)) {
+            return $model->site_id;
+        }
+
+        if (method_exists($model, 'blockable') && $model->blockable) {
+            return $this->resolveSiteId($model->blockable);
+        }
+
+        return null;
     }
 
     protected function resolveTenantId(Model $model): ?string
