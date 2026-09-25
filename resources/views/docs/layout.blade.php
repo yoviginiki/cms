@@ -63,15 +63,46 @@
         }
         .docs-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: oklch(0.55 0.01 260); text-decoration: none; margin-bottom: 24px; }
         .docs-back:hover { color: oklch(0.8 0.01 260); }
+        .docs-search { margin: 0 0 8px; }
+        .docs-search input {
+            width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 13px; font-family: inherit;
+            background: oklch(0.18 0.01 260); color: oklch(0.9 0.01 260);
+            border: 1px solid oklch(0.3 0.01 260 / 0.6); border-radius: 6px; outline: none;
+        }
+        .docs-search input:focus { border-color: oklch(0.62 0.16 270); }
+        .docs-search-hint { font-size: 11px; color: oklch(0.45 0.01 260); padding: 4px 2px 0; }
+        .docs-content mark { background: oklch(0.8 0.15 90 / 0.35); color: inherit; border-radius: 2px; padding: 0 1px; }
+        .docs-search-count { color: oklch(0.55 0.01 260) !important; }
+        .docs-result { margin: 0 0 22px; }
+        .docs-result-title { font-size: 16px; font-weight: 500; }
+        .docs-result-file { font-size: 11px; color: oklch(0.45 0.01 260); margin-left: 8px; }
+        .docs-content a.docs-hit { display: block; margin: 6px 0 0 12px; padding: 6px 10px; border-left: 2px solid oklch(0.3 0.01 260 / 0.6); color: oklch(0.7 0.01 260); font-size: 13px; line-height: 1.6; }
+        .docs-content a.docs-hit:hover { text-decoration: none; background: oklch(0.25 0.01 260 / 0.25); }
+        .docs-hit-heading { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: oklch(0.55 0.01 260); }
+        .docs-content :target { scroll-margin-top: 16px; }
+        @media (max-width: 720px) {
+            .docs-layout { flex-direction: column; }
+            .docs-sidebar { width: auto; height: auto; position: static; border-right: 0; border-bottom: 1px solid oklch(0.25 0.01 260 / 0.3); max-height: 45vh; }
+            .docs-content { padding: 24px 16px; }
+        }
     </style>
 </head>
 <body style="margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased;">
     <div class="docs-layout">
         <nav class="docs-sidebar">
             <a href="/admin/dashboard" class="docs-back">&larr; Back to CMS</a>
+            <form class="docs-search" action="/docs/search" method="get" role="search">
+                <input type="search" name="q" id="docs-q" value="{{ $query ?? '' }}" placeholder="Search docs…  ( / )" aria-label="Search documentation" autocomplete="off">
+                <div class="docs-search-hint">Enter = search inside all docs · typing filters titles</div>
+            </form>
+            @if(collect($docs)->contains('slug', 'MANUAL'))
+                <h3>Start here</h3>
+                <a href="/docs/MANUAL" class="{{ ($current ?? '') === 'MANUAL' ? 'active' : '' }}">Manual: Build Your First Site</a>
+                <a href="/docs/GUIDE-HEADER-FOOTER" class="{{ ($current ?? '') === 'GUIDE-HEADER-FOOTER' ? 'active' : '' }}">Header &amp; Footer</a>
+            @endif
             <h3>Documentation</h3>
             @foreach($docs as $doc)
-                <a href="/docs/{{ $doc['slug'] }}" class="{{ ($current ?? '') === $doc['slug'] ? 'active' : '' }}">{{ $doc['title'] }}</a>
+                <a data-doc-title="{{ mb_strtolower($doc['title'] . ' ' . $doc['slug']) }}" href="/docs/{{ $doc['slug'] }}" class="{{ ($current ?? '') === $doc['slug'] ? 'active' : '' }}">{{ $doc['title'] }}</a>
             @endforeach
             <div style="margin-top:24px;padding-top:16px;border-top:1px solid oklch(0.25 0.01 260 / 0.3);">
                 <a href="/docs/download" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:oklch(0.25 0.01 260);border-radius:6px;font-size:12px;color:oklch(0.7 0.01 260);text-decoration:none;">
@@ -83,5 +114,50 @@
             {!! $content !!}
         </main>
     </div>
+    <script>
+    (function () {
+        var input = document.getElementById('docs-q');
+        var links = document.querySelectorAll('[data-doc-title]');
+        // Typing filters the sidebar titles; Enter runs the full-text search.
+        input.addEventListener('input', function () {
+            var q = input.value.trim().toLowerCase();
+            links.forEach(function (a) {
+                a.style.display = !q || a.getAttribute('data-doc-title').indexOf(q) !== -1 ? '' : 'none';
+            });
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === '/' && document.activeElement !== input) { e.preventDefault(); input.focus(); input.select(); }
+        });
+
+        // ?hl=… (from a search result) → highlight the words in the open doc.
+        var hl = new URLSearchParams(location.search).get('hl');
+        var main = document.querySelector('.docs-content');
+        if (!hl || !main || main.querySelector('.docs-result')) return;
+        var terms = hl.toLowerCase().split(/\s+/).filter(function (t) { return t.length >= 2; });
+        if (!terms.length) return;
+        var re = new RegExp('(' + terms.map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'gi');
+        var walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+        var nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        var first = null;
+        nodes.forEach(function (node) {
+            if (!re.test(node.nodeValue)) return;
+            re.lastIndex = 0;
+            var frag = document.createDocumentFragment();
+            node.nodeValue.split(re).forEach(function (part, i) {
+                if (i % 2) {
+                    var m = document.createElement('mark');
+                    m.textContent = part;
+                    first = first || m;
+                    frag.appendChild(m);
+                } else if (part) {
+                    frag.appendChild(document.createTextNode(part));
+                }
+            });
+            node.parentNode.replaceChild(frag, node);
+        });
+        if (first && !location.hash) first.scrollIntoView({ block: 'center' });
+    })();
+    </script>
 </body>
 </html>

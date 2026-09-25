@@ -21,4 +21,4 @@ Promote a Library item to **Global** and it becomes *referenced, not copied*: pa
 
 ## Headers & footers
 
-Your site header and footer are global sections assigned in **Site Settings**. Pages can override (use a different one, or none — useful for landing pages). Editing a header republishes the whole site as a calm, batched job with visible progress.
+The site header and footer are **not** Library globals — they are **Global Header / Global Footer templates** created under **Templates** and marked *Default*. There is no per-page override. See [Header & Footer](/docs/GUIDE-HEADER-FOOTER) for the full resolution order (rich footer → template → menu) and the archive/grid special cases.
