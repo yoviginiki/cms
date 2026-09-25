@@ -205,6 +205,14 @@ class DeployService
      */
     private function copyDeploy(string $stagingPath, string $targetPath, Deployment $deployment, bool $prune = true): void
     {
+        // A pruning deploy must never target a build directory: those are the
+        // live content of symlink-served sites. Before the F01 symlink guard,
+        // ensodo.eu's full publish pruned into them and emptied vioiv,
+        // heikotera-com, men-root and docs (Aug 2026) — keep this a hard stop.
+        if ($prune && $this->isInsideBuilds($targetPath)) {
+            throw new \RuntimeException("Refusing to prune-deploy into a build directory: {$targetPath}");
+        }
+
         File::ensureDirectoryExists($targetPath);
 
         // Copy new content and record every relative path the build defines.
@@ -247,10 +255,103 @@ class DeployService
         // a partial batch's keep-list would condemn the rest of the site.
         // Dot-entries (.well-known for SSL, other infra) are preserved.
         if ($prune) {
-            $this->pruneStale($targetPath, $targetPath, $keep);
+            if ($this->isSharedPublicRoot($targetPath)) {
+                // The shared docroot (ensodo.eu/public_html) also hosts every
+                // slug site. Remove only what THIS site's previous build put
+                // there — never anything we can't prove is ours.
+                $this->pruneOwned($deployment, $targetPath, $keep);
+            } else {
+                $this->pruneStale($targetPath, $targetPath, $keep);
+            }
         }
 
         $deployment->update(['artifact_path' => $stagingPath]);
+    }
+
+    private function isSharedPublicRoot(string $targetPath): bool
+    {
+        $public = (string) config('publishing.public_path');
+        $a = realpath($targetPath);
+        $b = $public !== '' ? realpath($public) : false;
+
+        return $a !== false && $b !== false && $a === $b;
+    }
+
+    private function isInsideBuilds(string $targetPath): bool
+    {
+        $builds = realpath((string) config('publishing.staging_path'));
+        $target = realpath($targetPath);
+
+        return $builds !== false && $target !== false && str_starts_with($target . '/', $builds . '/');
+    }
+
+    /**
+     * Prune for the shared docroot: delete only files the site's previous
+     * live build defined and the new one no longer does (deleted pages).
+     * Symlinks, dot-entries, other sites' folders and operator files are
+     * never touched. Without the previous build's manifest nothing is
+     * deleted — a stale page left live beats wiping someone else's site.
+     */
+    private function pruneOwned(Deployment $deployment, string $targetPath, array $keep): void
+    {
+        $previous = Deployment::where('site_id', $deployment->site_id)
+            ->where('id', '!=', $deployment->id)
+            ->where('status', 'live')
+            ->whereNotNull('artifact_path')
+            ->orderByDesc('completed_at')
+            ->orderByDesc('created_at')
+            ->first();
+        $artifact = $previous?->artifact_path;
+        if (!$artifact || !is_dir($artifact) || realpath($artifact) === realpath($targetPath)) {
+            logger()->info("Shared-root deploy {$deployment->id}: no previous build manifest — skipping prune.");
+
+            return;
+        }
+
+        $files = [];
+        $dirs = [];
+        $it = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($artifact, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($it as $item) {
+            $rel = ltrim(substr($item->getPathname(), strlen($artifact)), '/');
+            if ($rel === '' || str_starts_with($rel, '.') || str_contains($rel, '/.') || isset($keep[$rel])) {
+                continue;
+            }
+            $item->isDir() ? $dirs[] = $rel : $files[] = $rel;
+        }
+
+        foreach ($files as $rel) {
+            $live = "{$targetPath}/{$rel}";
+            if ($this->crossesLink($targetPath, $rel) || !is_file($live)) {
+                continue;
+            }
+            @unlink($live);
+        }
+        foreach ($dirs as $rel) {
+            $live = "{$targetPath}/{$rel}";
+            if ($this->crossesLink($targetPath, $rel) || !is_dir($live)) {
+                continue;
+            }
+            if (count(scandir($live) ?: []) <= 2) {
+                @rmdir($live);
+            }
+        }
+    }
+
+    /** True when any segment of $rel under $root is a symlink (another site's folder). */
+    private function crossesLink(string $root, string $rel): bool
+    {
+        $path = $root;
+        foreach (explode('/', $rel) as $segment) {
+            $path .= '/' . $segment;
+            if (is_link($path)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Delete files/dirs under $dir that aren't in $keep (relative to $root); never touch dot-entries. */
