@@ -23,6 +23,8 @@ interface StagedBatch {
     built?: { type: string; id: string; title: string; path: string }[];
     failed?: { type: string; id: string; title: string; error: string }[];
     pages_total?: number;
+    current_step?: string;
+    promote_error?: string;
   };
 }
 
@@ -46,8 +48,9 @@ export default function StalePages() {
     queryFn: () => staleContent.list(siteId).then(r => r.data.data),
     // Poll while a batch is queued/building so the staged panel appears on its own
     refetchInterval: (query) => {
-      const status = query.state.data?.staged_batch?.status;
-      return status === 'queued' || status === 'building' ? 2000 : false;
+      const batch = query.state.data?.staged_batch;
+      const busy = batch && (['queued', 'building', 'deploying'].includes(batch.status) || batch.metadata.current_step === 'promoting');
+      return busy ? 2000 : false;
     },
   });
 
@@ -86,7 +89,7 @@ export default function StalePages() {
     mutationFn: (deploymentId: string) => staleContent.promote(siteId, deploymentId),
     onSuccess: (r) => {
       const promoted = r.data.data?.promoted ?? 0;
-      toast({ type: 'success', message: `Promoted ${promoted} page(s) to live.` });
+      toast({ type: 'info', message: `Promoting ${promoted} page(s) to live — this takes a few seconds.` });
       queryClient.invalidateQueries({ queryKey: ['stale', siteId] });
     },
     onError: (e: any) => toast({ type: 'error', message: e?.response?.data?.message || 'Promote failed' }),
@@ -164,6 +167,14 @@ export default function StalePages() {
               </button>
             )}
           </div>
+          {batch.metadata.current_step === 'promoting' && (
+            <div className="mt-3 text-sm text-base-content/60 flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Promoting to live…
+            </div>
+          )}
+          {batch.metadata.promote_error && batch.metadata.current_step !== 'promoting' && (
+            <div className="mt-3 text-sm text-error">Last promote failed: {batch.metadata.promote_error}</div>
+          )}
           {batch.status === 'staged' && (
             <div className="mt-3 text-sm text-base-content/60 space-y-1">
               <div>{batch.metadata.built?.length ?? 0} page(s) rebuilt and staged. Review, then promote — nothing is live yet.</div>

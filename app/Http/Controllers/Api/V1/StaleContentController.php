@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Publishing\Jobs\RepublishStaleJob;
-use App\Domain\Publishing\Services\DeployService;
 use App\Http\Controllers\Controller;
 use App\Models\Deployment;
 use App\Models\Page;
@@ -112,7 +111,7 @@ class StaleContentController extends Controller
         return response()->json(['data' => $deployment->fresh()], 201);
     }
 
-    public function promote(Request $request, Site $site, Deployment $deployment, DeployService $deployService): JsonResponse
+    public function promote(Request $request, Site $site, Deployment $deployment): JsonResponse
     {
         $this->authorize('publish', $site);
 
@@ -130,32 +129,22 @@ class StaleContentController extends Controller
             ], 410);
         }
 
-        // F15: promotion runs under the site lock, refuses when a deployment is
-        // active, and refuses a batch built on an older live generation.
-        try {
-            app(\App\Domain\Publishing\Services\DeploymentGate::class)->promote($site, $deployment, function (Deployment $d) use ($deployService, $stagingPath) {
-                $deployService->deployPartial($d, $stagingPath);
-            });
-        } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], str_contains($e->getMessage(), 'in progress') || str_contains($e->getMessage(), 'rebuilt') ? 409 : 422);
+        if (app(\App\Domain\Publishing\Services\DeploymentGate::class)->active($site)) {
+            return response()->json(['message' => 'A deployment is already in progress for this site.'], 409);
         }
-        $deployment->refresh();
 
-        // Clear flags ONLY for successfully built sources that haven't been
-        // re-flagged since the build (§7 D2 lost-update race).
-        $built = collect($deployment->metadata['built'] ?? [])->all();
-        app(\App\Domain\References\Services\StalenessResolver::class)->clearBuiltIfUnchanged($built);
-
-        $deployment->update([
-            'status' => 'live',
-            'completed_at' => now(),
-            'metadata' => array_merge($deployment->metadata ?? [], ['current_step' => 'live']),
-        ]);
+        // Promotion writes into the live docroot, which for custom-domain sites
+        // is outside the web pool's open_basedir — run it on the builds worker.
+        // F15 checks (site lock, live generation) run again inside the job.
+        $metadata = $deployment->metadata ?? [];
+        unset($metadata['promote_error']);
+        $deployment->update(['metadata' => array_merge($metadata, ['current_step' => 'promoting'])]);
+        \App\Domain\Publishing\Jobs\PromoteStagedBatchJob::dispatch($deployment);
 
         return response()->json(['data' => [
             'deployment' => $deployment->fresh(),
-            'promoted' => count($built),
-            'failed' => $deployment->metadata['failed'] ?? [],
-        ]]);
+            'queued' => true,
+            'promoted' => count($deployment->metadata['built'] ?? []),
+        ]], 202);
     }
 }

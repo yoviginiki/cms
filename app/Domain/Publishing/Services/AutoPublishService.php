@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Log;
 
 class AutoPublishService
 {
+    /** Stale items a delta publish takes along; beyond this, the Stale pages screen handles them. */
+    private const MAX_RIDE_ALONG = 100;
+
     /**
      * Change types that touch exactly ONE page/post and can be delta-published
      * (build just that entity + its shared archives) instead of rebuilding the
@@ -146,13 +149,31 @@ class AutoPublishService
             $targets['pages'] = [$changeId];
         }
 
+        // Ride along everything already flagged stale — above all the
+        // dependents this very change just flagged (a page listing the edited
+        // post). StaleAutoRepublisher stands down while auto-publish is on, so
+        // without this those dependents stayed stale until a manual rebuild.
+        $flagged = [
+            'pages' => \App\Models\Page::where('site_id', $site->id)->where('needs_republish', true)->where('status', 'published')->limit(self::MAX_RIDE_ALONG + 1)->pluck('id')->all(),
+            'posts' => \App\Models\Post::where('site_id', $site->id)->where('needs_republish', true)->where('status', 'published')->limit(self::MAX_RIDE_ALONG + 1)->pluck('id')->all(),
+            'records' => \App\Models\Record::where('site_id', $site->id)->where('needs_republish', true)->limit(self::MAX_RIDE_ALONG + 1)->pluck('id')->all(),
+        ];
+        if (count($flagged['pages']) + count($flagged['posts']) + count($flagged['records']) <= self::MAX_RIDE_ALONG) {
+            foreach ($flagged as $kind => $ids) {
+                $targets[$kind] = array_values(array_unique([...$targets[$kind], ...$ids]));
+            }
+        } else {
+            Log::info("Auto-publish delta for {$site->name}: more than " . self::MAX_RIDE_ALONG . ' stale items — not riding along; use Stale pages.');
+        }
+        $total = count($targets['pages']) + count($targets['posts']) + count($targets['records']);
+
         // Same gate as every other deployment kind (F15): throws when one is active.
         $this->gate->open($site, 'stale_batch', $user, [
             'targets' => $targets,
             'auto_promote' => true,
             'source' => 'auto-publish-delta',
             'reason' => $changeType,
-            'pages_total' => 1,
+            'pages_total' => $total,
         ], function (Deployment $deployment) {
             if (config('queue.default') !== 'sync') {
                 RepublishStaleJob::dispatch($deployment);

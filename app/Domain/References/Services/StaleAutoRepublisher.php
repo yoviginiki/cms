@@ -19,9 +19,10 @@ use App\Services\ActivityLogService;
  * WITH automatic promotion — the entity save/publish click IS the confirmation.
  * Queued (existing queue driver) so the triggering request returns fast.
  *
- * Skipped when full auto-publish is on (a full rebuild already covers every
- * dependent — no point double-building), and for site-wide staleness (theme/
- * located-menu changes need a full rebuild, not a page batch).
+ * Skipped when auto-publish is on: its delta publish takes every flagged
+ * item along (AutoPublishService::deltaPublish), so a second batch would
+ * double-build. Also skipped for site-wide staleness (theme/located-menu
+ * changes need a full rebuild, not a page batch).
  */
 class StaleAutoRepublisher
 {
