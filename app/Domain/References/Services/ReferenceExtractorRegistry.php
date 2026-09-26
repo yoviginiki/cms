@@ -175,6 +175,11 @@ class ReferenceExtractorRegistry
             'field-value' => $null,
             'pullquote' => $null,
             'readingprogress' => $null,
+            // site chrome: no entity references (branding comes from site settings)
+            'social-links' => $null,
+            'site-identity' => $null,
+            'copyright' => $null,
+            'back-to-top' => $null,
             'row' => $null,
             'runningtext' => $null,
             'scroll_page' => $null,

@@ -29,6 +29,8 @@ Since 2026-09-25 a grid area can be of type **Section**: its content is a **Glob
 3. Back in the grid editor → **Save** the grid.
 4. Other grids (e.g. Single Post) → Footer area → type **section** → pick the same "Site footer".
 
+Blocks made for site chrome (category **Navigation** in the block picker): **Site Logo / Name** (from Settings → Branding, links home), **Social Links** (icons; type an address, email or phone — it is completed for you), **Copyright** (`{year}`, `{site}`, optional "since" year), **Back to Top**, plus the existing **Menu** block for navigation.
+
 Per page (e.g. a landing page): page editor → **Page** tab → **Grid** → under the grid, "Footer на тази страница": inherit, **hide**, or another section. Publishing a section rebuilds every page that uses it (automatic when auto-publish is on). All sections: **Structure → Global Sections**.
 
 ## Quick answer: a footer on a new site

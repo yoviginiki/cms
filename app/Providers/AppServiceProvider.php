@@ -20,6 +20,10 @@ use App\Models\Tag;
 use App\Domain\Blocks\Definitions\ColumnBlockDefinition;
 use App\Domain\Blocks\Definitions\ColumnsBlockDefinition;
 use App\Domain\Blocks\Definitions\DividerBlockDefinition;
+use App\Domain\Blocks\Definitions\SocialLinksBlockDefinition;
+use App\Domain\Blocks\Definitions\SiteIdentityBlockDefinition;
+use App\Domain\Blocks\Definitions\CopyrightBlockDefinition;
+use App\Domain\Blocks\Definitions\BackToTopBlockDefinition;
 use App\Domain\Blocks\Definitions\HeadingBlockDefinition;
 use App\Domain\Blocks\Definitions\HeroBlockDefinition;
 use App\Domain\Blocks\Definitions\ImageBlockDefinition;
@@ -137,6 +141,11 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new ColumnsBlockDefinition());
             $registry->register(new HeadingBlockDefinition());
             $registry->register(new DividerBlockDefinition());
+            // Site chrome blocks (grid areas as blocks, stage 2)
+            $registry->register(new SocialLinksBlockDefinition());
+            $registry->register(new SiteIdentityBlockDefinition());
+            $registry->register(new CopyrightBlockDefinition());
+            $registry->register(new BackToTopBlockDefinition());
             $registry->register(new PullquoteBlockDefinition());
             $registry->register(new ButtonBlockDefinition());
             $registry->register(new RowBlockDefinition());
