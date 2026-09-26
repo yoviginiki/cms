@@ -102,4 +102,27 @@ class SiteChromeBlocksTest extends TestCase
         $this->assertStringContainsString('window.scrollTo', $html);
         $this->assertFalse(Validator::make(['style' => 'rocket'], $this->rules('back-to-top'))->passes());
     }
+
+    public function test_contact_links_pages_emails_phones_and_own_icons(): void
+    {
+        $html = $this->render('social-links', ['links' => [
+            ['network' => 'contact', 'url' => '/kontakti/'],
+            ['network' => 'contact', 'url' => 'hi@acme.test'],
+            ['network' => 'contact', 'url' => '+359 88 111 2233'],
+            ['network' => 'facebook', 'url' => 'https://facebook.com/acme', 'icon' => '/uploads/fb.png'],
+        ]]);
+
+        $this->assertStringContainsString('href="/kontakti/"', $html);
+        $this->assertStringContainsString('href="mailto:hi@acme.test"', $html);
+        $this->assertStringContainsString('href="tel:+359881112233"', $html);
+        $this->assertStringContainsString('<img src="/uploads/fb.png"', $html);
+        $this->assertSame(3, substr_count($html, '<svg'));
+    }
+
+    public function test_links_being_filled_in_validate_and_bad_icons_do_not(): void
+    {
+        $rules = $this->rules('social-links');
+        $this->assertTrue(Validator::make(['links' => [['network' => 'facebook', 'url' => '']]], $rules)->passes());
+        $this->assertFalse(Validator::make(['links' => [['network' => 'facebook', 'url' => 'x', 'icon' => 'javascript:alert(1)']]], $rules)->passes());
+    }
 }

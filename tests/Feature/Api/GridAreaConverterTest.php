@@ -125,4 +125,12 @@ class GridAreaConverterTest extends TestCase
         $this->assertStringContainsString('About us', $before);
         $this->assertSame($before, $navSegment());
     }
+
+    public function test_only_selected_areas_are_converted(): void
+    {
+        app(GridAreaConverter::class)->convert($this->site, dryRun: false, onlyAreas: ['footer']);
+
+        $this->assertSame('section', $this->fullWidth('footer')->fresh()->type);
+        $this->assertSame('menu', $this->fullWidth('nav')->fresh()->type);
+    }
 }

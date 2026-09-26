@@ -13,7 +13,11 @@ class SocialLinksBlockDefinition implements BlockDefinition
         return [
             'links' => ['sometimes', 'array', 'max:20'],
             'links.*.network' => ['required', 'in:' . implode(',', array_keys(\App\Support\Blocks\SocialIcons::NETWORKS))],
-            'links.*.url' => ['required', 'string', 'max:500'],
+            // Empty while being filled in (the editor starts rows blank) — empty
+            // links are simply not published.
+            'links.*.url' => ['sometimes', 'nullable', 'string', 'max:500'],
+            // Own icon (image from Media) instead of the built-in one
+            'links.*.icon' => ['sometimes', 'nullable', 'string', 'max:2048', 'regex:#^(/|https?://)#i'],
             'links.*.label' => ['sometimes', 'nullable', 'string', 'max:80'],
             'style' => ['sometimes', 'in:icon,circle,square,text'],
             'size' => ['sometimes', 'in:sm,md,lg'],

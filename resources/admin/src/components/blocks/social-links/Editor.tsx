@@ -1,12 +1,13 @@
 import React from 'react';
 import { Plus, Trash2, ChevronUp } from 'lucide-react';
 import type { BlockEditorProps } from '@/types/blocks';
+import { AssetField } from '@/components/ui/AssetPicker';
 import { SOCIAL_NETWORKS } from './definition';
 
-type Link = { network: string; url: string; label?: string };
+type Link = { network: string; url: string; label?: string; icon?: string };
 
 const PLACEHOLDER: Record<string, string> = {
-  email: 'name@example.com', phone: '+359 88 123 4567', website: 'example.com', whatsapp: 'https://wa.me/359881234567',
+  contact: 'Email, phone or a page (/kontakti/)', email: 'name@example.com', phone: '+359 88 123 4567', website: 'example.com', whatsapp: 'https://wa.me/359881234567',
 };
 
 export const SocialLinksEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
@@ -34,12 +35,16 @@ export const SocialLinksEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
               placeholder={PLACEHOLDER[l.network] || `https://${l.network}.com/yourpage`} className="input input-bordered input-xs w-full text-[12px]" />
             <input type="text" value={l.label || ''} onChange={(e) => setLink(i, { label: e.target.value })}
               placeholder={`Label (default: ${SOCIAL_NETWORKS[l.network] || 'Link'})`} className="input input-bordered input-xs w-full text-[12px]" />
+            <AssetField label="Own icon (optional — replaces the built-in one)" value={l.icon || ''} onChange={(url) => setLink(i, { icon: url })} accept="image" />
+            {l.icon && (
+              <button type="button" onClick={() => setLink(i, { icon: '' })} className="text-[10px] text-base-content/50 underline">Use the built-in icon again</button>
+            )}
           </div>
         ))}
         <button type="button" onClick={() => setLinks([...links, { network: 'website', url: '' }])} className="btn btn-xs btn-ghost border border-base-300 w-full gap-1">
           <Plus size={12} /> Add link
         </button>
-        <p className="text-[10px] text-base-content/40">Links without a URL are not published.</p>
+        <p className="text-[10px] text-base-content/40">Links without a URL are not published. A page of this site can be linked as /page-slug/.</p>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>

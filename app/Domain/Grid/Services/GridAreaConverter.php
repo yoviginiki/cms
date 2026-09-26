@@ -54,7 +54,7 @@ class GridAreaConverter
     /**
      * @return array<int, array{grid: string, area: string, from: string, action: string, note: string, tree: ?array, position: GridPosition}>
      */
-    public function plan(Site $site): array
+    public function plan(Site $site, ?array $onlyAreas = null): array
     {
         $plan = [];
         $richFooter = !empty($site->settings['rich_footer']);
@@ -70,7 +70,9 @@ class GridAreaConverter
                 };
                 $row = ['grid' => $grid->name, 'area' => $p->area_name, 'from' => $from, 'position' => $p, 'tree' => null, 'action' => 'keep', 'note' => ''];
 
-                if ($p->overrides()->exists()) {
+                if ($onlyAreas && !in_array($p->area_name, $onlyAreas, true)) {
+                    $row['note'] = 'not selected (--areas)';
+                } elseif ($p->overrides()->exists()) {
                     $row['note'] = 'has per-page overrides — convert by hand';
                 } elseif ($p->type === 'menu' && !empty($c['location'])) {
                     $row['action'] = 'convert';
@@ -105,14 +107,14 @@ class GridAreaConverter
      *
      * @return array{plan: array, sections: array<string,string>, parity: array}
      */
-    public function convert(Site $site, bool $dryRun, int $samplePages = 5): array
+    public function convert(Site $site, bool $dryRun, int $samplePages = 5, ?array $onlyAreas = null): array
     {
         $samples = $this->samples($site, $samplePages);
         $before = $this->renderAll($site, $samples);
 
         DB::beginTransaction();
         try {
-            $plan = $this->plan($site);
+            $plan = $this->plan($site, $onlyAreas);
             $sections = [];
             $byHash = [];
             $usedNames = GlobalSection::where('site_id', $site->id)->pluck('name')->all();

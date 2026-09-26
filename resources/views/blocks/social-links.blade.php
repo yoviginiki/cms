@@ -33,6 +33,7 @@
             'href' => $href,
             'label' => trim((string) ($l['label'] ?? '')) ?: (\App\Support\Blocks\SocialIcons::NETWORKS[$network] ?? 'Link'),
             'external' => str_starts_with($href, 'http'),
+            'icon' => preg_match('#^(/|https?://)#i', (string) ($l['icon'] ?? '')) ? (string) $l['icon'] : '',
         ] : null;
     }, is_array($data['links'] ?? null) ? $data['links'] : [])));
 @endphp
@@ -43,7 +44,10 @@
         <a href="{{ $l['href'] }}" @if($l['external']) target="_blank" rel="noopener me" @endif @if(!$showLabels) aria-label="{{ $l['label'] }}" title="{{ $l['label'] }}" @endif
            style="display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;{{ $style === 'text' ? 'min-height:36px;' : $shape }}color:{{ $color !== '' ? e($color) : 'inherit' }};text-decoration:none;transition:opacity .2s;"
            onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1">
-            @if($style !== 'text'){!! \App\Support\Blocks\SocialIcons::svg($l['network'], $iconPx) !!}@endif
+            @if($style !== 'text')
+                @if($l['icon'] !== '')<img src="{{ $l['icon'] }}" alt="" width="{{ $iconPx }}" height="{{ $iconPx }}" style="width:{{ $iconPx }}px;height:{{ $iconPx }}px;object-fit:contain;display:block;">
+                @else{!! \App\Support\Blocks\SocialIcons::svg($l['network'], $iconPx) !!}@endif
+            @endif
             @if($showLabels)<span style="font-size:0.9rem;">{{ $l['label'] }}</span>@endif
         </a>
     </li>

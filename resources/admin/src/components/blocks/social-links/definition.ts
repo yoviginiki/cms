@@ -2,7 +2,7 @@ import type { BlockDefinition } from '@/types/blocks';
 
 export const SOCIAL_NETWORKS: Record<string, string> = {
   facebook: 'Facebook', instagram: 'Instagram', x: 'X (Twitter)', linkedin: 'LinkedIn', youtube: 'YouTube',
-  tiktok: 'TikTok', github: 'GitHub', whatsapp: 'WhatsApp', telegram: 'Telegram', email: 'Email', phone: 'Phone', website: 'Website',
+  tiktok: 'TikTok', github: 'GitHub', whatsapp: 'WhatsApp', telegram: 'Telegram', contact: 'Contact', email: 'Email', phone: 'Phone', website: 'Website',
 };
 
 export const socialLinksDefinition: BlockDefinition = {

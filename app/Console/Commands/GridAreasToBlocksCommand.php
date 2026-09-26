@@ -20,6 +20,7 @@ class GridAreasToBlocksCommand extends Command
         {--dry-run : Simulate and report only — nothing is saved}
         {--rollback : Undo a previous conversion}
         {--pages=5 : Pages compared in the parity report}
+        {--areas= : Only these areas, comma-separated (e.g. footer or nav,footer)}
         {--details : Print the text that differs per page}';
 
     protected $description = 'Convert a site\'s legacy grid areas (menus, widgets) into editable block sections';
@@ -43,7 +44,8 @@ class GridAreasToBlocksCommand extends Command
         $dry = (bool) $this->option('dry-run');
         $this->line(($dry ? '<comment>DRY RUN</comment> — ' : '') . "Converting grid areas of {$site->name} ({$site->slug})");
 
-        $result = $converter->convert($site, $dry, (int) $this->option('pages'));
+        $areas = $this->option('areas') ? array_values(array_filter(array_map('trim', explode(',', (string) $this->option('areas'))))) : null;
+        $result = $converter->convert($site, $dry, (int) $this->option('pages'), $areas);
 
         $this->table(['Grid', 'Area', 'Now', 'Action', 'Note'], array_map(fn ($r) => [
             $r['grid'], $r['area'], $r['from'],

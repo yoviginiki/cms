@@ -3,7 +3,7 @@ import type { BlockComponentProps } from '@/types/blocks';
 import { SOCIAL_NETWORKS } from './definition';
 import { SOCIAL_ICONS } from './icons';
 
-type Link = { network: string; url: string; label?: string };
+type Link = { network: string; url: string; label?: string; icon?: string };
 
 export const SocialLinksPreview: React.FC<BlockComponentProps> = ({ block }) => {
   const d = block.data as { links?: Link[]; style?: string; size?: string; color?: string; showLabels?: boolean; align?: string };
@@ -24,7 +24,9 @@ export const SocialLinksPreview: React.FC<BlockComponentProps> = ({ block }) => 
         return (
           <li key={i} title={l.url ? l.url : 'No URL yet — will not be published'} style={{ opacity: l.url ? 1 : 0.4 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: d.color || 'inherit', ...(style === 'text' ? { minHeight: 36 } : shape) }}>
-              {style !== 'text' && <Icon size={px} strokeWidth={2} aria-hidden />}
+              {style !== 'text' && (l.icon
+                ? <img src={l.icon} alt="" style={{ width: px, height: px, objectFit: 'contain', display: 'block' }} />
+                : <Icon size={px} strokeWidth={2} aria-hidden />)}
               {showLabels && <span style={{ fontSize: '0.9rem' }}>{l.label || SOCIAL_NETWORKS[l.network] || 'Link'}</span>}
             </span>
           </li>
