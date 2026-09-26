@@ -333,9 +333,29 @@ export default function GridEditor() {
 
   const previewPage = previewPages?.find(p => p.id === previewPageId) || null;
   const previewUrl = siteData?.slug && previewPage
-    ? `/sites/${siteData.slug}/${previewPage.slug === 'home' ? '' : previewPage.slug}?_grid=${gridId}&_toolbar=0`
+    ? `/sites/${siteData.slug}/${previewPage.slug === 'home' ? '' : previewPage.slug}?_grid=${gridId}&_toolbar=0&_areas=1`
     : null;
   const DEVICE_WIDTHS: Record<string, string> = { desktop: '100%', tablet: '768px', mobile: '390px' };
+
+  // Clickable areas in the live preview (grid-areas overlay, ?_areas=1):
+  // a click in the iframe selects that area here; selecting an area here
+  // highlights it in the iframe.
+  const previewFrameRef = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== previewFrameRef.current?.contentWindow) return;
+      if (e.data?.type === 'sp-grid-area' && typeof e.data.area === 'string') {
+        setSelectedArea(e.data.area);
+        setRightTab('area-config');
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+  const syncPreviewSelection = useCallback(() => {
+    previewFrameRef.current?.contentWindow?.postMessage({ type: 'sp-grid-select', area: selectedArea }, window.location.origin);
+  }, [selectedArea]);
+  useEffect(() => { if (view === 'preview') syncPreviewSelection(); }, [view, syncPreviewSelection]);
 
   useEffect(() => {
     if (gridData) {
@@ -667,7 +687,7 @@ export default function GridEditor() {
               <button onClick={() => setIframeNonce(n => n + 1)} title="Презареди"
                 className="btn btn-ghost btn-sm btn-square border border-base-300"><RefreshCw size={13} /></button>
               {previewUrl && (
-                <a href={previewUrl.replace('&_toolbar=0', '')} target="_blank" rel="noreferrer" title="Отвори в нов таб"
+                <a href={previewUrl.replace('&_toolbar=0', '').replace('&_areas=1', '')} target="_blank" rel="noreferrer" title="Отвори в нов таб"
                   className="btn btn-ghost btn-sm btn-square border border-base-300"><ExternalLink size={13} /></a>
               )}
 
@@ -683,7 +703,7 @@ export default function GridEditor() {
 
             <div className="flex-1 bg-base-300/30 border border-base-300 rounded-xl overflow-hidden flex justify-center">
               {previewUrl ? (
-                <iframe key={`${previewPageId}-${previewDevice}-${iframeNonce}`} src={previewUrl}
+                <iframe ref={previewFrameRef} onLoad={syncPreviewSelection} key={`${previewPageId}-${previewDevice}-${iframeNonce}`} src={previewUrl}
                   title="Grid preview" className="h-full bg-white transition-all"
                   style={{ width: DEVICE_WIDTHS[previewDevice], border: 'none' }} />
               ) : (
@@ -1300,6 +1320,7 @@ export default function GridEditor() {
             <div className="p-4 text-center text-base-content/30 py-20">
               <LayoutGrid className="h-10 w-10 mx-auto mb-3 opacity-50" />
               <p className="text-sm">Кликни на зона от грида</p>
+              <p className="text-xs mt-1">или върху зона в Live preview</p>
               <p className="text-xs mt-1">или начертай нова зона с мишката</p>
             </div>
           )}

@@ -31,6 +31,8 @@ Since 2026-09-25 a grid area can be of type **Section**: its content is a **Glob
 
 Blocks made for site chrome (category **Navigation** in the block picker): **Site Logo / Name** (from Settings → Branding, links home), **Social Links** (icons; type an address, email or phone — it is completed for you), **Copyright** (`{year}`, `{site}`, optional "since" year), **Back to Top**, plus the existing **Menu** block for navigation.
 
+**Seeing what is where:** in **Grids** → a grid → **Live preview**, every area is outlined on a real page; click an area to select it (its settings open on the right; section areas have **Edit ↗**). In the normal page preview, hovering the shared header or footer shows "Footer · Site footer — Edit ↗". The preview shows the *saved* grid — save to see changes.
+
 Per page (e.g. a landing page): page editor → **Page** tab → **Grid** → under the grid, "Footer на тази страница": inherit, **hide**, or another section. Publishing a section rebuilds every page that uses it (automatic when auto-publish is on). All sections: **Structure → Global Sections**.
 
 ## Quick answer: a footer on a new site

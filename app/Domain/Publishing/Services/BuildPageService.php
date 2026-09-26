@@ -274,7 +274,7 @@ HTML;
             : null;
 
         if ($grid) {
-            $gridResult = $this->gridRenderer->render($grid, $content, $site);
+            $gridResult = $this->gridRenderer->render($grid, $content, $site, markAreas: $this->isPreview);
 
             $html = View::make('publishing.grid-layout', [
                 'headContent' => $headContent,

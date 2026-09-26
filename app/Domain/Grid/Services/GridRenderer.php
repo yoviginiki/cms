@@ -18,9 +18,16 @@ class GridRenderer
      * Render the full grid HTML for a page or post.
      * Returns both the CSS and the grid HTML body.
      */
-    public function render(Grid $grid, Page|Post $content, Site $site): array
+    /**
+     * @param bool $markAreas preview only: tag every area with data-sp-* so the
+     *        admin can outline it and open its section (never in published HTML)
+     */
+    public function render(Grid $grid, Page|Post $content, Site $site, bool $markAreas = false): array
     {
         $grid->load('positions');
+        $sectionNames = $markAreas
+            ? \App\Models\GlobalSection::where('site_id', $site->id)->pluck('name', 'id')
+            : collect();
 
         $css = $this->cssGenerator->generate($grid);
 
@@ -67,7 +74,9 @@ class GridRenderer
                 $tag = 'div';
             }
 
-            $positionsHtml .= "  <{$tag} class=\"pos-{$position->area_name}{$extraClass}\"{$idAttr}>{$posHtml}</{$tag}>\n";
+            $markAttr = $markAreas ? $this->areaMarkers($position, $content, $sectionNames) : '';
+
+            $positionsHtml .= "  <{$tag} class=\"pos-{$position->area_name}{$extraClass}\"{$idAttr}{$markAttr}>{$posHtml}</{$tag}>\n";
         }
 
         // Grid identifier comment for debugging
@@ -86,5 +95,33 @@ class GridRenderer
             'css' => $css,
             'html' => $html,
         ];
+    }
+
+    /** data-sp-* attributes describing an area (and its effective section) for the admin overlay. */
+    private function areaMarkers(\App\Models\GridPosition $position, Page|Post $content, $sectionNames): string
+    {
+        $sectionId = $position->type === 'section' ? ($position->config_json['section_id'] ?? null) : null;
+        $override = $content instanceof Post
+            ? $position->getOverrideForPost($content->id)
+            : $position->getOverrideForPage($content->id);
+        if ($override && !empty($override->content_json['section_id'])) {
+            $sectionId = $override->content_json['section_id'];
+        }
+
+        $attrs = [
+            'data-sp-area' => $position->area_name,
+            'data-sp-position' => $position->id,
+            'data-sp-type' => $position->type,
+            'data-sp-label' => $position->label ?: $position->area_name,
+        ];
+        if ($sectionId) {
+            $attrs['data-sp-section'] = $sectionId;
+            $attrs['data-sp-section-name'] = (string) ($sectionNames[$sectionId] ?? '');
+        }
+        if ($override) {
+            $attrs['data-sp-override'] = !empty($override->content_json['hidden']) ? 'hidden' : 'section';
+        }
+
+        return implode('', array_map(fn ($k, $v) => ' ' . $k . '="' . e($v) . '"', array_keys($attrs), $attrs));
     }
 }

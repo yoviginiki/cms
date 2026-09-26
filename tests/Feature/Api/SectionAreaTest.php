@@ -128,4 +128,31 @@ class SectionAreaTest extends TestCase
             ['type' => 'not-a-block', 'order' => 0, 'data' => []],
         ]], $this->apiHeaders())->assertStatus(422);
     }
+
+    public function test_preview_marks_areas_for_the_overlay_but_published_html_does_not(): void
+    {
+        $page = Page::factory()->create(['site_id' => $this->site->id, 'status' => 'published']);
+        $builder = app(BuildPageService::class);
+
+        $preview = $builder->build($page->fresh(), $this->site->fresh()->theme, $this->site->fresh(), isPreview: true);
+        $this->assertStringContainsString('data-sp-area="footer"', $preview);
+        $this->assertStringContainsString('data-sp-section="' . $this->siteFooter->id . '"', $preview);
+        $this->assertStringContainsString('data-sp-section-name="Site footer"', $preview);
+
+        $this->assertStringNotContainsString('data-sp-area', $this->build($page));
+    }
+
+    public function test_admin_preview_injects_the_area_overlay(): void
+    {
+        $this->site->update(['slug' => 'area-site']);
+        Page::factory()->create(['site_id' => $this->site->id, 'status' => 'published', 'slug' => 'about']);
+
+        $select = $this->actingAsOwner()->get("/sites/area-site/about?_grid={$this->grid->id}&_toolbar=0&_areas=1")->assertOk()->getContent();
+        $this->assertStringContainsString('/grid-areas/overlay.js', $select);
+        $this->assertStringContainsString('"mode":"select"', $select);
+
+        $link = $this->actingAsOwner()->get('/sites/area-site/about')->assertOk()->getContent();
+        $this->assertStringContainsString('"mode":"link"', $link);
+        $this->assertStringContainsString('/admin/sites/area-site/sections/', $link);
+    }
 }

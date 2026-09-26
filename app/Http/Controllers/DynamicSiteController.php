@@ -347,6 +347,16 @@ class DynamicSiteController extends Controller
             $html = str_replace('</body>', $toolbar . '</body>', $html);
         }
 
+        // Grid-area overlay: ?_areas=1 (grid editor iframe) makes areas
+        // selectable; the standard admin preview gets "Edit ↗" on shared
+        // section areas. Not with inline edit (its own overlay owns clicks).
+        $areasMode = request()->query('_areas') === '1'
+            ? 'select'
+            : (request()->query('_toolbar') !== '0' ? 'link' : null);
+        if ($areasMode && !$editMode && $grid) {
+            $html = str_replace('</body>', $this->gridAreaAssets($site, $areasMode) . '</body>', $html);
+        }
+
         // Inline-edit overlay + toolbar — only in edit mode, lazily loaded.
         if ($editMode) {
             $html = str_replace('</body>', $this->inlineEditAssets($content, $site) . '</body>', $html);
@@ -464,6 +474,19 @@ class DynamicSiteController extends Controller
     private function rewriteSiteFilesForPreview(string $html, Site $site): string
     {
         return str_replace('/site-files/', "/api/v1/sites/{$site->id}/files/", $html);
+    }
+
+    /** Config + loader for the grid-area overlay (public/grid-areas/overlay.js). */
+    private function gridAreaAssets(Site $site, string $mode): string
+    {
+        $config = json_encode([
+            'mode' => $mode,
+            'parentOrigin' => rtrim(config('app.url'), '/'),
+            'sectionEditBase' => "/admin/sites/{$site->slug}/sections/",
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+        return '<script>window.__SP_AREAS=' . $config . ';</script>'
+            . '<script src="/grid-areas/overlay.js?v=1" defer></script>';
     }
 
     /**
