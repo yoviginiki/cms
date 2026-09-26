@@ -59,7 +59,14 @@
         if ($menuId && isset($site)) {
             $menu = \App\Models\Menu::where('site_id', $site->id)->where('id', $menuId)->first();
         }
-        if (!$menu && isset($site)) {
+        $location = $data['location'] ?? '';
+        if (!$menu && $location && isset($site)) {
+            // The menu at this location — the page's language first, then untagged
+            $loc = $__locale ?? null;
+            $menu = \App\Models\Menu::where('site_id', $site->id)->where('location', $location)
+                ->when($loc, fn ($q) => $q->orderByRaw('CASE WHEN locale = ? THEN 0 WHEN locale IS NULL THEN 1 ELSE 2 END', [$loc]))
+                ->orderBy('created_at')->first();
+        } elseif (!$menu && isset($site)) {
             $menu = \App\Models\Menu::where('site_id', $site->id)->orderBy('created_at')->first();
         }
         $eagerRelations = ['page:id,title,slug,status', 'post:id,title,slug,status', 'category:id,name,slug'];

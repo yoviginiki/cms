@@ -16,14 +16,21 @@ class SiteService
         private GridPresetSeeder $gridPresetSeeder,
     ) {}
 
-    public function createSite(array $data, Tenant $tenant): Site
+    /**
+     * @param bool $fresh  a genuinely new site (dashboard, wizard, CLI). Clones
+     *        pass false: they inherit the source's settings and rendering.
+     */
+    public function createSite(array $data, Tenant $tenant, bool $fresh = true): Site
     {
         $data['tenant_id'] = $tenant->id;
         $data['slug'] = $data['slug'] ?? $this->generateUniqueSlug($data['name']);
-        // New sites render posts inside the grid like pages (one header/footer
-        // for the whole site). Sites created before 2026-09-25 lack the key and
-        // keep the legacy post rendering — see EffectiveGridResolver::postsUseGrid.
-        $data['settings'] = array_merge(['post_grid' => 'unified'], $data['settings'] ?? []);
+        if ($fresh) {
+            // New sites: posts render inside the grid like pages (post_grid) and
+            // header/footer grid areas are block sections (grid_areas). Older
+            // sites lack both keys and keep the legacy rendering — see
+            // EffectiveGridResolver::postsUseGrid and SiteChromeSeeder.
+            $data['settings'] = array_merge(['post_grid' => 'unified', 'grid_areas' => 'blocks'], $data['settings'] ?? []);
+        }
 
         $site = Site::create($data);
 
@@ -69,8 +76,11 @@ class SiteService
 
         $site->update(['active_theme_id' => $theme->id]);
 
-        // Seed default grid presets for the new site
-        $this->gridPresetSeeder->seed($site);
+        // Seed default grid presets; blocks sites get a ready header + footer
+        $sections = ($site->settings['grid_areas'] ?? null) === 'blocks'
+            ? app(SiteChromeSeeder::class)->createSections($site)
+            : null;
+        $this->gridPresetSeeder->seed($site, $sections);
 
         // Create default category
         Category::create([

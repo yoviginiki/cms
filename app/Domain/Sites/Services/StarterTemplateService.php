@@ -165,6 +165,9 @@ class StarterTemplateService
             }
         }
 
+        // Navigation: a starter site without menus published with none (audit B1)
+        $this->ensureMenus($site, array_column($pageDefinitions, 'slug'));
+
         // Create sample posts for templates that have a blog/posts page
         $postsCreated = 0;
         if (in_array($templateId, ['blog', 'portfolio', 'full'])) {
@@ -182,6 +185,41 @@ class StarterTemplateService
             'pages_skipped' => $skipped,
             'posts_created' => $postsCreated,
         ];
+    }
+
+    /**
+     * Header menu with the template's pages (in template order) and a footer
+     * menu with the secondary ones — only where the site has no menu at that
+     * location yet, so re-applying or a user's own menus are never touched.
+     */
+    private function ensureMenus(Site $site, array $slugs): void
+    {
+        $pages = $site->pages()->whereIn('slug', $slugs)->where('status', 'published')->get()->keyBy('slug');
+        $ordered = collect($slugs)->unique()->map(fn ($slug) => $pages[$slug] ?? null)->filter()->values();
+        if ($ordered->isEmpty()) {
+            return;
+        }
+
+        $made = false;
+        $make = function (string $name, string $location, $items) use ($site, &$made) {
+            if ($items->isEmpty() || \App\Models\Menu::where('site_id', $site->id)->where('location', $location)->exists()) {
+                return;
+            }
+            $menu = \App\Models\Menu::create(['site_id' => $site->id, 'name' => $name, 'slug' => Str::slug($name) . '-' . $location, 'location' => $location]);
+            foreach ($items->values() as $i => $page) {
+                \App\Models\MenuItem::create(['menu_id' => $menu->id, 'label' => $page->title, 'page_id' => $page->id, 'sort_order' => $i, 'target' => '_self']);
+            }
+            $made = true;
+        };
+
+        $make('Main', 'header', $ordered);
+        $secondary = $ordered->filter(fn ($p) => in_array($p->slug, ['about', 'contact'], true));
+        $make('Footer', 'footer', $secondary->isNotEmpty() ? $secondary : $ordered->reject(fn ($p) => $p->slug === 'home')->take(3));
+
+        if ($made) {
+            // Located menus are site-scope references (header/footer on every page)
+            app(\App\Domain\References\Services\ReferenceRecorder::class)->recomputeSiteScope($site);
+        }
     }
 
     /**

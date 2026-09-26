@@ -60,9 +60,15 @@ export const MenuEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
         <>
           <SelectField
             label="Select Menu"
-            value={(data.menuId as string) || ''}
-            onChange={(v) => update('menuId', v)}
+            value={(data.menuId as string) || (data.location ? `loc:${data.location}` : '')}
+            onChange={(v) => onUpdate({
+              ...block.data,
+              menuId: v.startsWith('loc:') ? '' : v,
+              location: v.startsWith('loc:') ? v.slice(4) : null,
+            })}
             options={[
+              { value: 'loc:header', label: 'Header menu (by location)' },
+              { value: 'loc:footer', label: 'Footer menu (by location)' },
               { value: '', label: 'Primary (first menu)' },
               ...((menuList as Array<{ id: string; name: string }>) || []).map(m => ({
                 value: m.id, label: m.name,

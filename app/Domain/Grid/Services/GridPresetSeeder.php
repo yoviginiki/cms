@@ -12,15 +12,22 @@ class GridPresetSeeder
     /**
      * Seed all built-in grid presets for a site.
      */
-    public function seed(Site $site): void
+    /**
+     * @param array{header: string, footer: string}|null $sections  blocks sites:
+     *        header/footer areas point at these global sections (SiteChromeSeeder)
+     */
+    public function seed(Site $site, ?array $sections = null): void
     {
         $presets = $this->getPresets();
+        if ($sections) {
+            $presets = \App\Domain\Sites\Services\SiteChromeSeeder::applyToPresets($presets, $sections);
+        }
 
         foreach ($presets as $preset) {
             $this->createPreset($site, $preset);
         }
 
-        // Set classic-blog as default
+        // Full Width is the site-wide default
         $defaultGrid = Grid::where('site_id', $site->id)->where('slug', 'full-width')->first();
         if ($defaultGrid) {
             GridAssignment::create([

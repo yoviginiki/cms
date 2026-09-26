@@ -13,6 +13,8 @@ class MenuBlockDefinition implements BlockDefinition
             // Source
             'source'          => ['sometimes', 'in:system,custom'],
             'menuId'          => ['sometimes', 'nullable', 'string', 'max:36'],
+            // No menuId: the menu assigned to this location (site chrome sections)
+            'location'        => ['sometimes', 'nullable', 'in:header,footer,sidebar,mobile'],
 
             // Custom inline items
             'customItems'           => ['sometimes', 'array'],

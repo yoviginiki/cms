@@ -88,7 +88,7 @@ class SiteCloneService
                 'name' => $newName,
                 'seo_defaults' => $source->seo_defaults,
                 'settings' => $source->settings,
-            ], $owner->tenant);
+            ], $owner->tenant, fresh: false);
 
             // Export and import
             $exported = $this->export($source);

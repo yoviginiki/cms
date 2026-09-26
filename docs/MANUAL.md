@@ -47,9 +47,11 @@ If you close the dialog instead, the new card may not appear until you reload th
 
 Click **Publish** in the top bar. The build takes a few seconds for a small site. Then open **https://ensodo.eu/{slug}/** in a new tab.
 
-What you will see on a fresh site: the page content, but **no navigation and no footer**. Starter templates do not create menus, and the default grid's header and footer areas are empty. Steps 5 and 6 fix that.
+What you will see on a fresh site (created since 2026-09-26): a header with the site name and a menu of the template's pages, the page content, and a footer with the name, a footer menu, copyright and "Back to top". Header and footer are two block sections — **Site header** and **Site footer** (Structure → Global Sections) — shared by every page and post. Steps 5 and 6 explain how to change them.
 
 ## Step 5 — Add navigation (header menu)
+
+A new site already has a **Main** menu (location header) and a **Footer** menu with its starter pages; edit them here. Sites created before 2026-09-26 need the steps below.
 
 1. Sidebar → **Menus** → **Create**. Two small prompts appear: the menu **name** (e.g. `Main`) and the **location** — type exactly `header`.
 2. Open the menu. Add items: pick pages (they track renames automatically), posts, categories, or type a custom URL. Drag to reorder; drag onto an item to make a submenu.
@@ -58,6 +60,8 @@ What you will see on a fresh site: the page content, but **no navigation and no 
 The location cannot be changed later from the admin, so type it correctly the first time. New pages are **not** added to the menu automatically — come back here whenever you add a page.
 
 ## Step 6 — Add a footer
+
+**New sites:** the footer already exists — Structure → **Global Sections** → **Site footer** → Edit: add your social links (Social Links block), change texts, columns or colors, then **Publish**. The same goes for **Site header**. Older sites: use the steps below.
 
 **Best way (blocks):** Structure → **Grids** → **Full Width** → click the **Footer** area → type **section** → **+ Нова секция** → build the footer with blocks in the editor that opens → **Publish** → save the grid. Use the same section for the other grids' footer areas. The steps below are the older menu-based way.
 
