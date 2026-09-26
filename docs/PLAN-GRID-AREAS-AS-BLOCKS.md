@@ -1,6 +1,6 @@
 # План: Grid зоните стават блокове (визуален header, footer, sidebar)
 
-Статус: **етапи 1–4 готови** (2026-09-26) · етап 5 (конвертор) предстои; `tag-cloud` чака поправката на таговете (audit C3) · свързано: [Header & Footer](/docs/GUIDE-HEADER-FOOTER), [Logic audit](/docs/CMS-LOGIC-AUDIT-2026-09-25)
+Статус: **всички 5 етапа готови** (2026-09-26) · конверторът е наличен, стари сайтове се конвертират ръчно след одобрение; `tag-cloud` чака поправката на таговете (audit C3) · свързано: [Header & Footer](/docs/GUIDE-HEADER-FOOTER), [Logic audit](/docs/CMS-LOGIC-AUDIT-2026-09-25)
 
 ## 1. Проблемът
 

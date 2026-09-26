@@ -15,6 +15,8 @@ class MenuBlockDefinition implements BlockDefinition
             'menuId'          => ['sometimes', 'nullable', 'string', 'max:36'],
             // No menuId: the menu assigned to this location (site chrome sections)
             'location'        => ['sometimes', 'nullable', 'in:header,footer,sidebar,mobile'],
+            // 'site' = render the menu with its Menus-screen design (MenuRenderer)
+            'render'          => ['sometimes', 'in:block,site'],
 
             // Custom inline items
             'customItems'           => ['sometimes', 'array'],

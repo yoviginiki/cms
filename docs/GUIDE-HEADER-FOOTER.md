@@ -47,6 +47,21 @@ The result is: site name, your footer links, footer text, copyright.
 
 The same applies to the header: the Full Width grid's **Header** area is also empty *Fixed*; only the **Navigation** area (type Menu → header menu) shows anything.
 
+## Converting an older site (grid:areas-to-blocks)
+
+Sites created before 2026-09-26 keep their old grid areas (menu / widget types). To make them editable as block sections:
+
+```bash
+php artisan grid:areas-to-blocks {site-slug} --dry-run --details   # report only, nothing saved
+php artisan grid:areas-to-blocks {site-slug}                       # convert
+php artisan grid:areas-to-blocks {site-slug} --rollback            # undo
+```
+
+- **Menu areas** become a section with a Menu block in **Site menu design** mode — byte-for-byte the same output (the site's Menus design, logo, mobile menu), now editable as a section.
+- **Widget areas** become the equivalent blocks (widget headings, including the old default ones like "Recent Posts", become Heading blocks). Social links now show real icons instead of letters.
+- **Left alone:** empty fixed areas, fixed areas with a partial/blocks, static/canvas/query areas, the footer of rich-footer sites, areas with per-page overrides. Tag cloud widgets are dropped until tags work (audit C3).
+- The report renders sample pages before and after and compares their visible text and links. Nothing changes live until the site is published.
+
 ## Which footer wins on standard (non-grid) pages
 
 The publisher picks the first source that produces output (`BuildPageService`, standard layout):

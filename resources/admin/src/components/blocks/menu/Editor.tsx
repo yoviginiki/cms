@@ -76,6 +76,17 @@ export const MenuEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
             ]}
             helperText={menuListError ? 'Failed to load menus. Check your connection.' : undefined}
           />
+          {data.location && (
+            <SelectField
+              label="Design"
+              value={(data.render as string) || 'block'}
+              onChange={(v) => update('render', v)}
+              options={[
+                { value: 'block', label: 'Block design (settings below)' },
+                { value: 'site', label: 'Site menu design (Menus screen: logo, mobile menu, style)' },
+              ]}
+            />
+          )}
           {menuListError && (
             <p className="text-[10px] text-error">Could not load menus. The primary menu will be used as fallback.</p>
           )}

@@ -1,4 +1,10 @@
 @use('App\Support\Blocks\BlockStyle')
+{{-- render=site: the site's own menu design (Menus → style, logo, mobile overlay),
+     byte-for-byte what a grid "menu" area rendered — used when legacy areas are
+     converted to sections so the design does not change. --}}
+@if(($data['render'] ?? 'block') === 'site' && !empty($data['location']) && isset($site))
+{!! app(\App\Domain\Menus\Services\MenuRenderer::class)->renderByLocation($site, $data['location'], $__locale ?? null) !!}
+@else
 @php
     $__bs = $blockStyle ?? [];
     $__ba = $blockAnimation ?? [];
@@ -230,3 +236,4 @@
 @endif
 </div>
 <style>.menu-hamburger-panel.menu-open{display:flex!important;}</style>
+@endif
