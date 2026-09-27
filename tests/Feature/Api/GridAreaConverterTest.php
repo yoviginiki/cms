@@ -89,7 +89,10 @@ class GridAreaConverterTest extends TestCase
         // Widgets → blocks
         $footer = $this->fullWidth('footer')->fresh();
         $types = Block::where('blockable_type', 'global_section')->where('blockable_id', $footer->config_json['section_id'])->orderBy('order')->pluck('type')->all();
-        $this->assertSame(['heading', 'social-links', 'copyright'], $types);
+        $this->assertSame(['social-links', 'copyright'], $types);
+        // The widget title lives inside the block (styled/moved with it)
+        $social = Block::where('blockable_id', $footer->config_json['section_id'])->where('type', 'social-links')->first();
+        $this->assertEquals(['show' => true, 'text' => 'Follow', 'tag' => 'h3', 'position' => 'above'], $social->data['title']);
         $copyright = Block::where('blockable_id', $footer->config_json['section_id'])->where('type', 'copyright')->first();
         $this->assertSame('© {year} Old Shop', $copyright->data['text']);
         $this->assertStringContainsString('tag cloud dropped', collect($result['plan'])->first(fn ($r) => $r['grid'] === 'Full Width' && $r['area'] === 'footer')['note']);

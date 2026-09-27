@@ -81,4 +81,51 @@ final class SocialIcons
 
         return preg_match('#^(https?://|mailto:|tel:)#i', $url) ? $url : null;
     }
+
+    /** [box-shadow for a background shape, drop-shadow filter for a bare icon] — same as SHADOWS in definition.ts */
+    public const SHADOWS = [
+        'sm' => ['0 1px 3px rgba(0,0,0,.18)', 'drop-shadow(0 1px 2px rgba(0,0,0,.25))'],
+        'md' => ['0 4px 10px rgba(0,0,0,.22)', 'drop-shadow(0 3px 5px rgba(0,0,0,.3))'],
+        'lg' => ['0 10px 24px rgba(0,0,0,.28)', 'drop-shadow(0 8px 12px rgba(0,0,0,.35))'],
+    ];
+
+    /**
+     * The block's optional title ("Follow Us"): null when hidden/empty,
+     * otherwise tag, text, position and a ready inline style (values are
+     * validated by SocialLinksBlockDefinition; re-checked here for old data).
+     *
+     * @return array{tag: string, text: string, position: string, gap: int, style: string}|null
+     */
+    public static function title(mixed $t): ?array
+    {
+        if (!is_array($t) || empty($t['show'])) return null;
+        $text = trim((string) ($t['text'] ?? ''));
+        if ($text === '') return null;
+
+        $num = fn ($v, $min, $max) => is_numeric($v) && $v >= $min && $v <= $max ? $v + 0 : null;
+        $css = ['margin:0'];
+        if (($v = $num($t['fontSize'] ?? null, 8, 120)) !== null) $css[] = "font-size:{$v}px";
+        $ff = (string) ($t['fontFamily'] ?? '');
+        if ($ff !== '' && preg_match('/^[A-Za-z0-9 ,\'"()\-]+$/', $ff)) $css[] = 'font-family:' . $ff;
+        if (in_array((string) ($t['fontWeight'] ?? ''), ['300', '400', '500', '600', '700', '800', '900'], true)) $css[] = 'font-weight:' . $t['fontWeight'];
+        if (in_array($t['fontStyle'] ?? '', ['normal', 'italic'], true)) $css[] = 'font-style:' . $t['fontStyle'];
+        if (in_array($t['textTransform'] ?? '', ['none', 'uppercase', 'lowercase', 'capitalize'], true)) $css[] = 'text-transform:' . $t['textTransform'];
+        if (($v = $num($t['letterSpacing'] ?? null, -5, 20)) !== null) $css[] = "letter-spacing:{$v}px";
+        $color = (string) ($t['color'] ?? '');
+        if ($color !== '' && preg_match('/^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,.\/%]+\)|oklch\([\d\s,.\/%]+\))$/', $color)) $css[] = 'color:' . $color;
+        $pad = is_array($t['padding'] ?? null) ? $t['padding'] : [];
+        $p = array_map(fn ($side) => (int) ($num($pad[$side] ?? null, 0, 200) ?? 0), ['top', 'right', 'bottom', 'left']);
+        if (array_sum($p)) $css[] = 'padding:' . implode('px ', $p) . 'px';
+
+        $tag = in_array($t['tag'] ?? '', ['h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'], true) ? $t['tag'] : 'h3';
+        $position = in_array($t['position'] ?? '', ['above', 'below', 'before', 'after'], true) ? $t['position'] : 'above';
+
+        return [
+            'tag' => $tag,
+            'text' => $text,
+            'position' => $position,
+            'gap' => (int) ($num($t['gap'] ?? null, 0, 120) ?? 8),
+            'style' => implode(';', $css) . ';',
+        ];
+    }
 }

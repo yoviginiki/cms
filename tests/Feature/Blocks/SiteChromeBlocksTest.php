@@ -125,4 +125,68 @@ class SiteChromeBlocksTest extends TestCase
         $this->assertTrue(Validator::make(['links' => [['network' => 'facebook', 'url' => '']]], $rules)->passes());
         $this->assertFalse(Validator::make(['links' => [['network' => 'facebook', 'url' => 'x', 'icon' => 'javascript:alert(1)']]], $rules)->passes());
     }
+
+    public function test_exact_icon_size_and_gap_override_the_preset(): void
+    {
+        $html = $this->render('social-links', ['size' => 'sm', 'iconSize' => 48, 'gap' => 24, 'links' => [
+            ['network' => 'facebook', 'url' => 'https://facebook.com/a', 'icon' => '/img/fb.png'],
+        ]]);
+        $this->assertStringContainsString('width="48" height="48"', $html);
+        $this->assertStringContainsString('gap:24px', $html);
+
+        $html = $this->render('social-links', ['size' => 'lg', 'links' => [['network' => 'facebook', 'url' => 'https://facebook.com/a', 'icon' => '/img/fb.png']]]);
+        $this->assertStringContainsString('width="26" height="26"', $html);
+
+        $rules = $this->rules('social-links');
+        $this->assertTrue(Validator::make(['iconSize' => 48, 'gap' => 24], $rules)->passes());
+        $this->assertTrue(Validator::make(['iconSize' => null], $rules)->passes());
+        $this->assertFalse(Validator::make(['iconSize' => 5000], $rules)->passes());
+        $many = array_fill(0, 30, ['network' => 'website', 'url' => 'https://a.bg']);
+        $this->assertTrue(Validator::make(['links' => $many], $rules)->passes());
+    }
+
+    public function test_title_can_be_placed_styled_and_hidden(): void
+    {
+        $links = [['network' => 'facebook', 'url' => 'https://facebook.com/a']];
+        $title = ['show' => true, 'text' => 'Follow Us', 'tag' => 'h4', 'position' => 'below', 'fontSize' => 22,
+            'fontFamily' => 'var(--font-heading)', 'fontWeight' => '700', 'color' => '#ff0000', 'padding' => ['top' => 4, 'bottom' => 10]];
+
+        $html = $this->render('social-links', ['align' => 'center', 'links' => $links, 'title' => $title]);
+        $this->assertMatchesRegularExpression('#</ul>\s*<h4 class="social-links-title" style="text-align:center;margin:0;font-size:22px;font-family:var\(--font-heading\);font-weight:700;color:\#ff0000;padding:4px 0px 10px 0px;">Follow Us</h4>#', $html);
+
+        $html = $this->render('social-links', ['links' => $links, 'title' => ['position' => 'before'] + $title]);
+        $this->assertLessThan(strpos($html, '<ul'), strpos($html, '<h4'));
+        $this->assertStringContainsString('flex-wrap:wrap;align-items:center', $html);
+
+        $this->assertStringNotContainsString('Follow Us', $this->render('social-links', ['links' => $links, 'title' => ['show' => false] + $title]));
+        // No links → nothing, not an orphan title
+        $this->assertStringNotContainsString('Follow Us', $this->render('social-links', ['links' => [], 'title' => $title]));
+
+        $rules = $this->rules('social-links');
+        $this->assertTrue(Validator::make(['title' => $title], $rules)->passes());
+        $this->assertFalse(Validator::make(['title' => ['position' => 'sideways']], $rules)->passes());
+        $this->assertFalse(Validator::make(['title' => ['fontFamily' => 'x;background:url(evil)']], $rules)->passes());
+        $this->assertFalse(Validator::make(['title' => ['tag' => 'script']], $rules)->passes());
+    }
+
+    public function test_icon_background_can_be_turned_off_and_shadow_added(): void
+    {
+        $links = [['network' => 'facebook', 'url' => 'https://facebook.com/a', 'icon' => '/img/fb.png']];
+
+        $html = $this->render('social-links', ['style' => 'circle', 'iconBg' => 'none', 'shadow' => 'md', 'links' => $links]);
+        $this->assertStringContainsString('background:transparent;', $html);
+        $this->assertStringContainsString('filter:drop-shadow(', $html);
+        $this->assertStringNotContainsString('box-shadow', $html);
+
+        $html = $this->render('social-links', ['style' => 'circle', 'iconBg' => '#ffffff', 'shadow' => 'lg', 'links' => $links]);
+        $this->assertStringContainsString('background:#ffffff;box-shadow:0 10px 24px', $html);
+        $this->assertStringNotContainsString('drop-shadow', $html);
+
+        $this->assertStringContainsString('background:var(--color-bg-alt', $this->render('social-links', ['style' => 'circle', 'links' => $links]));
+
+        $rules = $this->rules('social-links');
+        $this->assertTrue(Validator::make(['iconBg' => 'none', 'shadow' => 'sm'], $rules)->passes());
+        $this->assertFalse(Validator::make(['iconBg' => 'red;x:y'], $rules)->passes());
+        $this->assertFalse(Validator::make(['shadow' => 'huge'], $rules)->passes());
+    }
 }

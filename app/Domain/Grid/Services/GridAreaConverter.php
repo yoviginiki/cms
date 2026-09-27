@@ -233,7 +233,8 @@ class GridAreaConverter
                 'custom_html' => [$this->module('html-embed', ['html' => (string) ($w['html'] ?? '')])],
                 'rich_text' => [$this->module('rich-text', ['content' => (string) ($w['content'] ?? '')])],
                 'image' => !empty($w['src']) ? [$this->module('image', array_filter(['url' => $w['src'], 'alt' => $w['alt'] ?? '']))] : [],
-                'social_links' => [$this->module('social-links', ['links' => $this->socialLinks($w['links'] ?? []), 'style' => 'circle', 'size' => 'md'])],
+                'social_links' => [$this->module('social-links', array_filter(['links' => $this->socialLinks($w['links'] ?? []), 'style' => 'circle', 'size' => 'md',
+                    'title' => $title !== '' ? ['show' => true, 'text' => $title, 'tag' => 'h3', 'position' => 'above'] : null]))],
                 'site_info', 'logo' => [$this->module('site-identity', ['show' => 'auto', 'linkHome' => true])],
                 'copyright' => [$this->module('copyright', ['text' => $this->copyrightText((string) ($w['text'] ?? ''))])],
                 'back_to_top' => [$this->module('back-to-top', ['style' => 'link'])],
@@ -245,7 +246,7 @@ class GridAreaConverter
                 continue;
             }
             // Blocks that carry their own heading don't get a second one
-            if ($title !== '' && $blocks && !in_array($type, ['newsletter', 'cta_banner'], true)) {
+            if ($title !== '' && $blocks && !in_array($type, ['newsletter', 'cta_banner', 'social_links'], true)) {
                 $tree[] = $this->module('heading', ['text' => $title, 'level' => 'h3']);
             }
             array_push($tree, ...$blocks);
