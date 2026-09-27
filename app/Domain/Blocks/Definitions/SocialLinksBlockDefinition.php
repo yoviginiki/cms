@@ -35,6 +35,7 @@ class SocialLinksBlockDefinition implements BlockDefinition
             'title.show' => ['sometimes', 'boolean'],
             'title.text' => ['sometimes', 'nullable', 'string', 'max:120'],
             'title.position' => ['sometimes', 'in:above,below,before,after'],
+            'title.align' => ['sometimes', 'nullable', 'in:left,center,right'],
             'title.tag' => ['sometimes', 'in:h2,h3,h4,h5,h6,p,span'],
             'title.fontSize' => ['sometimes', 'nullable', 'integer', 'min:8', 'max:120'],
             'title.fontFamily' => ['sometimes', 'nullable', 'string', 'max:200', 'regex:/^[A-Za-z0-9 ,\'"()\-]+$/'],

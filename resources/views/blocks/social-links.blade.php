@@ -51,7 +51,7 @@
 @php
     $__title = \App\Support\Blocks\SocialIcons::title($data['title'] ?? null);
     $__inline = $__title && in_array($__title['position'], ['before', 'after'], true);
-    $__titleAlign = ['flex-start' => 'left', 'center' => 'center', 'flex-end' => 'right'][$__justify];
+    $__titleAlign = $__title['align'] ?? ['flex-start' => 'left', 'center' => 'center', 'flex-end' => 'right'][$__justify];
 @endphp
 @if($__title && count($links))
 <div class="social-links-wrap" style="display:flex;{{ $__inline ? 'flex-wrap:wrap;align-items:center;justify-content:' . $__justify : 'flex-direction:column;align-items:stretch' }};gap:{{ $__title['gap'] }}px;">

@@ -46,7 +46,7 @@ export const SocialLinksPreview: React.FC<BlockComponentProps> = ({ block }) => 
   const position = t.position || 'above';
   const inline = position === 'before' || position === 'after';
   const Tag = (['h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'].includes(t.tag || '') ? t.tag : 'h3') as keyof React.JSX.IntrinsicElements;
-  const textAlign = ({ 'flex-start': 'left', center: 'center', 'flex-end': 'right' } as Record<string, React.CSSProperties['textAlign']>)[justify];
+  const textAlign = (t.align || ({ 'flex-start': 'left', center: 'center', 'flex-end': 'right' } as Record<string, string>)[justify]) as React.CSSProperties['textAlign'];
   const title = <Tag style={{ ...(inline ? {} : { textAlign }), ...socialTitleStyle(t) }}>{t.text}</Tag>;
   const first = position === 'above' || position === 'before';
   return (

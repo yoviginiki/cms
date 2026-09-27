@@ -14,7 +14,7 @@ export function socialIconPx(d: Record<string, unknown>): number {
 }
 
 export type SocialTitle = {
-  show?: boolean; text?: string; position?: 'above' | 'below' | 'before' | 'after'; tag?: string;
+  show?: boolean; text?: string; align?: 'left' | 'center' | 'right'; position?: 'above' | 'below' | 'before' | 'after'; tag?: string;
   fontSize?: number | null; fontFamily?: string; fontWeight?: string; fontStyle?: string; textTransform?: string;
   letterSpacing?: number | null; color?: string; padding?: { top?: number; right?: number; bottom?: number; left?: number }; gap?: number | null;
 };

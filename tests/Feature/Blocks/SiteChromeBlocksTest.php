@@ -158,6 +158,8 @@ class SiteChromeBlocksTest extends TestCase
         $this->assertLessThan(strpos($html, '<ul'), strpos($html, '<h4'));
         $this->assertStringContainsString('flex-wrap:wrap;align-items:center', $html);
 
+        // Own alignment, independent of the icons
+        $this->assertStringContainsString('style="text-align:right;margin:0;', $this->render('social-links', ['align' => 'center', 'links' => $links, 'title' => ['align' => 'right'] + $title]));
         $this->assertStringNotContainsString('Follow Us', $this->render('social-links', ['links' => $links, 'title' => ['show' => false] + $title]));
         // No links → nothing, not an orphan title
         $this->assertStringNotContainsString('Follow Us', $this->render('social-links', ['links' => [], 'title' => $title]));

@@ -61,38 +61,8 @@ export const SocialLinksEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-[11px] text-base-content/50">Icons / links ({links.length})</label>
-          <button type="button" onClick={addLink} className="btn btn-xs btn-primary gap-1"><Plus size={12} /> Add icon</button>
-        </div>
-        {links.map((l, i) => (
-          <div key={i} className="rounded border border-base-300 p-2 space-y-1.5">
-            <div className="flex gap-1.5">
-              <select value={l.network} onChange={(e) => setLink(i, { network: e.target.value })} className="select select-bordered select-xs flex-1 text-[12px]">
-                {Object.entries(SOCIAL_NETWORKS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-              <button type="button" disabled={i === 0} title="Move up" className="btn btn-ghost btn-xs btn-square"
-                onClick={() => { const n = [...links]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; setLinks(n); }}><ChevronUp size={12} /></button>
-              <button type="button" title="Remove" className="btn btn-ghost btn-xs btn-square text-error" onClick={() => setLinks(links.filter((_, j) => j !== i))}><Trash2 size={12} /></button>
-            </div>
-            <input type="text" value={l.url || ''} onChange={(e) => setLink(i, { url: e.target.value })}
-              placeholder={PLACEHOLDER[l.network] || `https://${l.network}.com/yourpage`} className="input input-bordered input-xs w-full text-[12px]" />
-            <input type="text" value={l.label || ''} onChange={(e) => setLink(i, { label: e.target.value })}
-              placeholder={`Label (default: ${SOCIAL_NETWORKS[l.network] || 'Link'})`} className="input input-bordered input-xs w-full text-[12px]" />
-            <AssetField label="Own icon (optional — replaces the built-in one)" value={l.icon || ''} onChange={(url) => setLink(i, { icon: url })} accept="image" />
-            {l.icon && (
-              <button type="button" onClick={() => setLink(i, { icon: '' })} className="text-[10px] text-base-content/50 underline">Use the built-in icon again</button>
-            )}
-          </div>
-        ))}
-        <button type="button" onClick={addLink} className="btn btn-xs btn-ghost border border-base-300 w-full gap-1">
-          <Plus size={12} /> Add icon
-        </button>
-        <p className="text-[10px] text-base-content/40">Links without a URL are not published. A page of this site can be linked as /page-slug/.</p>
-      </div>
-      <details className="rounded border border-base-300 p-2" open={!!t.show}>
-        <summary className="text-[12px] font-medium cursor-pointer select-none">Title {t.show && t.text ? `— “${t.text}”` : '(off)'}</summary>
+      <details className="rounded border border-primary/40 bg-primary/5 p-2" open>
+        <summary className="text-[12px] font-semibold cursor-pointer select-none">Title {t.show && t.text ? `“${t.text}”` : '(off)'} <span className="font-normal text-base-content/50">— text, position, alignment, font, size, color</span></summary>
         <div className="space-y-2 mt-2">
           <label className="flex items-center gap-2 text-[12px]">
             <input type="checkbox" className="toggle toggle-xs" checked={!!t.show} onChange={(e) => setTitle({ show: e.target.checked, text: t.text || 'Follow Us' })} /> Show title
@@ -113,6 +83,16 @@ export const SocialLinksEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
                   {['h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'].map((x) => <option key={x} value={x}>{x.toUpperCase()}</option>)}
                 </select>
               </div>
+            </div>
+            <div>
+              <label className={lbl}>Title alignment</label>
+              <div className="join w-full">
+                {([['', 'Auto'], ['left', 'Left'], ['center', 'Center'], ['right', 'Right']] as const).map(([v, n]) => (
+                  <button key={v} type="button" onClick={() => setTitle({ align: v || undefined })}
+                    className={`btn btn-xs join-item flex-1 ${(t.align || '') === v ? 'btn-primary' : 'btn-ghost border border-base-300'}`}>{n}</button>
+                ))}
+              </div>
+              <p className="text-[10px] text-base-content/40 mt-0.5">Auto = same as the icons. For “same line” positions the whole row follows the icons alignment below.</p>
             </div>
             <div>
               <label className={lbl}>Font</label>
@@ -175,6 +155,36 @@ export const SocialLinksEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
           </>)}
         </div>
       </details>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] text-base-content/50">Icons / links ({links.length})</label>
+          <button type="button" onClick={addLink} className="btn btn-xs btn-primary gap-1"><Plus size={12} /> Add icon</button>
+        </div>
+        {links.map((l, i) => (
+          <div key={i} className="rounded border border-base-300 p-2 space-y-1.5">
+            <div className="flex gap-1.5">
+              <select value={l.network} onChange={(e) => setLink(i, { network: e.target.value })} className="select select-bordered select-xs flex-1 text-[12px]">
+                {Object.entries(SOCIAL_NETWORKS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <button type="button" disabled={i === 0} title="Move up" className="btn btn-ghost btn-xs btn-square"
+                onClick={() => { const n = [...links]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; setLinks(n); }}><ChevronUp size={12} /></button>
+              <button type="button" title="Remove" className="btn btn-ghost btn-xs btn-square text-error" onClick={() => setLinks(links.filter((_, j) => j !== i))}><Trash2 size={12} /></button>
+            </div>
+            <input type="text" value={l.url || ''} onChange={(e) => setLink(i, { url: e.target.value })}
+              placeholder={PLACEHOLDER[l.network] || `https://${l.network}.com/yourpage`} className="input input-bordered input-xs w-full text-[12px]" />
+            <input type="text" value={l.label || ''} onChange={(e) => setLink(i, { label: e.target.value })}
+              placeholder={`Label (default: ${SOCIAL_NETWORKS[l.network] || 'Link'})`} className="input input-bordered input-xs w-full text-[12px]" />
+            <AssetField label="Own icon (optional — replaces the built-in one)" value={l.icon || ''} onChange={(url) => setLink(i, { icon: url })} accept="image" />
+            {l.icon && (
+              <button type="button" onClick={() => setLink(i, { icon: '' })} className="text-[10px] text-base-content/50 underline">Use the built-in icon again</button>
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={addLink} className="btn btn-xs btn-ghost border border-base-300 w-full gap-1">
+          <Plus size={12} /> Add icon
+        </button>
+        <p className="text-[10px] text-base-content/40">Links without a URL are not published. A page of this site can be linked as /page-slug/.</p>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-[11px] text-base-content/50 mb-1 block">Style</label>
@@ -236,7 +246,7 @@ export const SocialLinksEditor: React.FC<BlockEditorProps> = ({ block, onUpdate 
         <input type="text" value={(d.color as string) || ''} onChange={(e) => update('color', e.target.value)} placeholder="#000000" className="input input-bordered input-sm w-full text-[12px]" />
       </div>
       <div>
-        <label className="text-[11px] text-base-content/50 mb-1 block">Alignment</label>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Icons alignment</label>
         <select value={(d.align as string) || 'left'} onChange={(e) => update('align', e.target.value)} className="select select-bordered select-sm w-full text-[12px]">
           <option value="left">Left</option><option value="center">Center</option><option value="right">Right</option>
         </select>

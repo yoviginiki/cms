@@ -94,7 +94,7 @@ final class SocialIcons
      * otherwise tag, text, position and a ready inline style (values are
      * validated by SocialLinksBlockDefinition; re-checked here for old data).
      *
-     * @return array{tag: string, text: string, position: string, gap: int, style: string}|null
+     * @return array{tag: string, text: string, position: string, gap: int, align: ?string, style: string}|null
      */
     public static function title(mixed $t): ?array
     {
@@ -125,6 +125,7 @@ final class SocialIcons
             'text' => $text,
             'position' => $position,
             'gap' => (int) ($num($t['gap'] ?? null, 0, 120) ?? 8),
+            'align' => in_array($t['align'] ?? '', ['left', 'center', 'right'], true) ? $t['align'] : null,
             'style' => implode(';', $css) . ';',
         ];
     }
