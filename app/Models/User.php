@@ -17,9 +17,26 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'name', 'email', 'password', 'tenant_id', 'role', 'restricted_to_sites',
+        'name', 'email', 'password', 'tenant_id', 'role', 'restricted_to_sites', 'default_editor_mode',
         'last_login_at', 'invitation_token', 'invitation_expires_at', 'invited_by',
     ];
+
+    /** Page builders a user can default to for new content ('simple' is posts-only). */
+    public const EDITOR_MODES = ['simple', 'block', 'canvas'];
+
+    /**
+     * Builder for a new page/post this user creates, or null (system default).
+     * Tolerates the column not being migrated yet.
+     */
+    public function defaultEditorModeFor(string $contentType): ?string
+    {
+        $mode = $this->attributes['default_editor_mode'] ?? null;
+        if (!in_array($mode, self::EDITOR_MODES, true)) {
+            return null;
+        }
+
+        return $mode === 'simple' && $contentType === 'page' ? null : $mode;
+    }
 
     protected $hidden = [
         'password',

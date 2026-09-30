@@ -97,7 +97,10 @@ class PageController extends Controller
     {
         $this->authorize('create', [Page::class, $site]);
 
-        $page = $this->pageService->createPage($request->validated(), $site);
+        $data = $request->validated();
+        // the creator's default page builder (Users → edit), unless one was sent
+        $data['editor_mode'] ??= $request->user()?->defaultEditorModeFor('page') ?? null;
+        $page = $this->pageService->createPage(array_filter($data, fn ($v, $k) => $k !== 'editor_mode' || $v !== null, ARRAY_FILTER_USE_BOTH), $site);
 
         if ($page->status === 'published') {
             $this->autoPublish->triggerIfEnabled($site, $request->user(), 'page_updated', $page->id);

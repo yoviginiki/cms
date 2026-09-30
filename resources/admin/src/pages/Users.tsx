@@ -20,6 +20,7 @@ interface UserData {
   email: string;
   role: string;
   restricted_to_sites: boolean;
+  default_editor_mode?: string | null;
   sites: SiteGrant[];
   status: string;
   invitation_expired?: boolean;
@@ -75,6 +76,7 @@ interface FormState {
   restricted: boolean;
   role: Role;
   sites: Record<string, Role>; // site_id → role
+  editorMode: string; // default page builder for new pages/posts ('' = system default)
 }
 
 function UserDialog({
@@ -104,6 +106,7 @@ function UserDialog({
     restricted: user?.restricted_to_sites ?? true,
     role: ((user && user.role !== 'owner' ? user.role : 'editor') as Role),
     sites: Object.fromEntries((user?.sites ?? []).map((s) => [s.site_id, s.role])),
+    editorMode: user?.default_editor_mode ?? '',
   }));
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -124,7 +127,7 @@ function UserDialog({
       const access = form.restricted
         ? { restricted_to_sites: true, role: 'editor', sites: Object.entries(form.sites).map(([site_id, role]) => ({ site_id, role })) }
         : { restricted_to_sites: false, role: form.role };
-      const body: Record<string, unknown> = { name: form.name, email: form.email, ...(profileOnly ? {} : access) };
+      const body: Record<string, unknown> = { name: form.name, email: form.email, default_editor_mode: form.editorMode || null, ...(profileOnly ? {} : access) };
 
       if (!isNew) {
         if (form.password) body.password = form.password;
@@ -162,6 +165,18 @@ function UserDialog({
             <input type="email" className="input input-sm input-bordered w-full mt-1" value={form.email} onChange={(e) => set('email', e.target.value)} />
           </label>
         </div>
+
+        {/* Default page builder for new content this user creates */}
+        <label className="block mt-4 text-sm" data-testid="user-default-builder">
+          <span className="text-base-content/70">Page builder по подразбиране</span>
+          <select className="select select-sm select-bordered w-full mt-1" value={form.editorMode} onChange={(e) => set('editorMode', e.target.value)}>
+            <option value="">Системен (Block)</option>
+            <option value="block">Block</option>
+            <option value="canvas">Canvas</option>
+            <option value="simple">Simple (само за постове; страниците — Block)</option>
+          </select>
+          <span className="block text-xs text-base-content/40 mt-1">С този редактор се отварят новите страници и постове, които този потребител създава.</span>
+        </label>
 
         {/* Sign-in */}
         {isNew && (

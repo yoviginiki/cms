@@ -59,6 +59,7 @@ class UserController extends Controller
             'email' => ['required', 'email'],
             'name' => ['required', 'string', 'max:255'],
             'role' => ['required', 'in:editor,admin,viewer,author'],
+            'default_editor_mode' => ['sometimes', 'nullable', 'in:' . implode(',', User::EDITOR_MODES)],
             ...$this->accessRules(),
         ]);
 
@@ -88,6 +89,7 @@ class UserController extends Controller
                 'password' => Hash::make(Str::random(32)), // Placeholder until they set their own
                 'role' => $access['role'],
                 'restricted_to_sites' => $access['restricted'],
+                ...$this->editorModeAttr($request),
                 'invitation_token' => InviteController::hashToken($token), // F10: hashed at rest
                 'invitation_expires_at' => $expires,
                 'invited_by' => $request->user()->id,
@@ -127,6 +129,7 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
             'password' => ['required', 'string', 'min:8', 'max:255'],
             'role' => ['required', 'in:editor,admin,viewer,author'],
+            'default_editor_mode' => ['sometimes', 'nullable', 'in:' . implode(',', User::EDITOR_MODES)],
             ...$this->accessRules(),
         ]);
 
@@ -147,6 +150,7 @@ class UserController extends Controller
                 'password' => $request->input('password'), // hashed by the model cast
                 'role' => $access['role'],
                 'restricted_to_sites' => $access['restricted'],
+                ...$this->editorModeAttr($request),
                 'invited_by' => $request->user()->id,
                 'invitation_token' => null,
                 'invitation_expires_at' => null,
@@ -184,6 +188,7 @@ class UserController extends Controller
             'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->where('tenant_id', $user->tenant_id)->ignore($user->id)],
             'password' => ['sometimes', 'nullable', 'string', 'min:8', 'max:255'],
             'role' => ['sometimes', 'required', 'in:editor,admin,viewer,author'],
+            'default_editor_mode' => ['sometimes', 'nullable', 'in:' . implode(',', User::EDITOR_MODES)],
             ...$this->accessRules(),
         ]);
 
@@ -200,6 +205,9 @@ class UserController extends Controller
 
         DB::transaction(function () use ($request, $user, $changesAccess) {
             $user->fill($request->only(['name', 'email']));
+            if ($request->has('default_editor_mode') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'default_editor_mode')) {
+                $user->default_editor_mode = $request->input('default_editor_mode');
+            }
             if ($request->filled('password')) {
                 $user->password = $request->input('password');
             }
@@ -212,7 +220,15 @@ class UserController extends Controller
             $user->save();
         });
 
-        return response()->json(['data' => $user->fresh()->only(['id', 'name', 'email', 'role', 'restricted_to_sites'])]);
+        return response()->json(['data' => $user->fresh()->only(['id', 'name', 'email', 'role', 'restricted_to_sites', 'default_editor_mode'])]);
+    }
+
+    /** default_editor_mode for create/invite — only when sent and the column is migrated. */
+    private function editorModeAttr(Request $request): array
+    {
+        return $request->has('default_editor_mode') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'default_editor_mode')
+            ? ['default_editor_mode' => $request->input('default_editor_mode')]
+            : [];
     }
 
     /** Validation for the optional site-access part of create/invite/update. */

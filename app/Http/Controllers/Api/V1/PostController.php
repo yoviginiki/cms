@@ -84,7 +84,10 @@ class PostController extends Controller
     {
         $this->authorize('create', [Post::class, $site]);
 
-        $post = $this->postService->createPost($request->validated(), $site);
+        $data = $request->validated();
+        // the creator's default page builder (Users → edit), unless one was sent
+        $data['editor_mode'] ??= $request->user()?->defaultEditorModeFor('post') ?? null;
+        $post = $this->postService->createPost(array_filter($data, fn ($v, $k) => $k !== 'editor_mode' || $v !== null, ARRAY_FILTER_USE_BOTH), $site);
 
         if ($post->status === 'published') {
             // Listing pages (category + unfiltered "latest posts") now show stale lists

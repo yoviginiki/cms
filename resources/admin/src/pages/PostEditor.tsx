@@ -73,6 +73,19 @@ export default function PostEditor() {
   const setStoreEditorMode = useEditorStore((s) => s.setEditorMode);
   const updateBlock = useEditorStore((s) => s.updateBlock);
   const hydrated = useEditorStore((s) => s.hydrated);
+  // A new (empty) post opens ready to use: one empty section in the block or
+  // canvas builder instead of an "Add section" step. Once per editor session.
+  const autoSectionDone = useRef(false);
+  useEffect(() => {
+    if (!hydrated || autoSectionDone.current) return;
+    autoSectionDone.current = true;
+    const st = useEditorStore.getState();
+    if (st.editorMode === 'canvas') {
+      if (useCanvasStore.getState().sections.length === 0) useCanvasStore.getState().addSection();
+    } else if (st.editorMode === 'block' && st.blocks.length === 0) {
+      st.addBlock('section');
+    }
+  }, [hydrated]);
   const conflict = useEditorStore((s) => s.conflict);
   const { toast } = useToast();
   // Hidden <input type=file> that the Import button clicks.
@@ -255,9 +268,12 @@ export default function PostEditor() {
       // rejects an empty list): editor_mode is already saved, just reload.
       // 'skipped' = the editor never hydrated — no local edits to lose either.
       const st = useEditorStore.getState();
+      // (an auto-added empty section is not content — see autoSectionDone)
+      const isEmptyTree = (bs: Array<{ children?: unknown[] }>): boolean =>
+        bs.every(b => !b.children?.length || isEmptyTree(b.children as Array<{ children?: unknown[] }>)) && bs.every(b => ['section', 'row', 'column'].includes((b as { type?: string }).type ?? ''));
       const hasContent = st.editorMode === 'canvas'
         ? useCanvasStore.getState().sections.some(sec => sec.elements.length > 0)
-        : st.blocks.length > 0;
+        : !isEmptyTree(st.blocks as Array<{ children?: unknown[] }>);
       if (hasContent) await saveContent({ siteId, type: 'posts', id: postId });
       queryClient.invalidateQueries({ queryKey: ['post', siteId, postId] });
       // If status changed (e.g. published→draft), trigger republish so front page
