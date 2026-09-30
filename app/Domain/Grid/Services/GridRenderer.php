@@ -97,6 +97,38 @@ class GridRenderer
         ];
     }
 
+    /**
+     * Only the grid's chrome — the areas before the main/content area (header,
+     * nav, …) and after it (footer, …) — for pages that are not built through
+     * the grid themselves (category/blog archives), so they share the site's
+     * header and footer. Sidebars and other in-between areas are skipped.
+     *
+     * @return array{header: string, footer: string}
+     */
+    public function renderChrome(Grid $grid, Page|Post $context, Site $site): array
+    {
+        $grid->load('positions');
+        $out = ['header' => '', 'footer' => ''];
+        $afterMain = false;
+        foreach ($grid->positions as $position) {
+            $area = $position->area_name;
+            if (in_array($area, ['main', 'content', 'archive'], true)) {
+                $afterMain = true;
+                continue;
+            }
+            if (!in_array($area, ['header', 'nav', 'footer'], true)) {
+                continue;
+            }
+            $html = $this->positionRenderer->render($position, $context, $site);
+            if (trim($html) === '') {
+                continue;
+            }
+            $out[$afterMain || $area === 'footer' ? 'footer' : 'header'] .= "<div class=\"pos-{$area}\">{$html}</div>\n";
+        }
+
+        return $out;
+    }
+
     /** data-sp-* attributes describing an area (and its effective section) for the admin overlay. */
     private function areaMarkers(\App\Models\GridPosition $position, Page|Post $content, $sectionNames): string
     {

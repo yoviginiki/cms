@@ -19,7 +19,6 @@ class LayoutResolver
     public function resolveForPage(Page $page): Layout
     {
         return $this->resolveForPageFresh($page);
-        return Layout::find($layoutId) ?? $this->systemStandard();
     }
 
     private function resolveForPostFresh(Post $post): Layout
@@ -122,9 +121,8 @@ class LayoutResolver
         }
 
         $layout = new Layout();
-            $layout->forceFill((array) $row);
-            $layout->exists = true;
-            return $layout;
-        });
+        $layout->forceFill((array) $row);
+        $layout->exists = true;
+        return $layout;
     }
 }

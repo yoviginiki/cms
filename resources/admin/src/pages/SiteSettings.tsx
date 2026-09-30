@@ -56,6 +56,7 @@ export default function SiteSettings() {
 
   // Front Page
   const [homepageType, setHomepageType] = useState<'page' | 'grid' | 'blog'>('page');
+  const [postGridUnified, setPostGridUnified] = useState(false);
   const [homepageId, setHomepageId] = useState('');
   const [homepageGridId, setHomepageGridId] = useState('');
   const [blogPageId, setBlogPageId] = useState('');
@@ -160,6 +161,7 @@ export default function SiteSettings() {
       setFooterCopyright((site.settings?.footer_copyright as string) ?? '');
       setSocialLinks((site.settings?.social_links as Record<string, string>) ?? {});
       setHomepageType((site.settings?.homepage_type as 'page' | 'grid' | 'blog') ?? 'page');
+      setPostGridUnified(site.settings?.post_grid === 'unified');
       setHomepageId((site.settings?.homepage_id as string) ?? '');
       setHomepageGridId((site.settings?.homepage_grid_id as string) ?? '');
       setBlogPageId((site.settings?.blog_page_id as string) ?? '');
@@ -250,6 +252,7 @@ export default function SiteSettings() {
       homepage_id: homepageType === 'page' ? (homepageId || null) : null,
       homepage_grid_id: homepageType === 'grid' ? (homepageGridId || null) : null,
       blog_page_id: blogPageId || null,
+      post_grid: postGridUnified ? 'unified' : null,
     },
   });
 
@@ -667,6 +670,20 @@ export default function SiteSettings() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-gray-400">Optional. Select a page to use as your blog index.</p>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100">
+              <label className="flex items-start gap-3 cursor-pointer" data-testid="post-grid-unified">
+                <input type="checkbox" className="mt-1" checked={postGridUnified} onChange={e => setPostGridUnified(e.target.checked)} />
+                <span>
+                  <span className="block text-sm font-medium text-gray-700">Постовете и архивите ползват grid-а (един модел)</span>
+                  <span className="block text-xs text-gray-400 mt-0.5">
+                    Header, меню и footer идват само от grid-а — еднакви за страници, постове и категории.
+                    Менютата не стават footer сами. Изключено = старото поведение (block постовете без template излизат без grid, с footer меню).
+                    След смяна пусни Publish на целия сайт.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="pt-4 border-t border-gray-100">

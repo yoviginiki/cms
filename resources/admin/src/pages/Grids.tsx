@@ -110,6 +110,20 @@ export default function Grids() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['grids', siteId] }),
   });
 
+  // Duplicate under a name the user chooses, then open the copy in the editor
+  const duplicateMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => grids.duplicate(siteId, id, name),
+    onSuccess: (r: any) => {
+      queryClient.invalidateQueries({ queryKey: ['grids', siteId] });
+      const id = r?.data?.data?.id;
+      if (id) navigate(`/sites/${siteId}/grids/${id}/edit`);
+    },
+  });
+  const handleDuplicate = (grid: { id: string; name: string }) => {
+    const name = window.prompt('Име на копието:', `${grid.name} (копие)`);
+    if (name && name.trim()) duplicateMutation.mutate({ id: grid.id, name: name.trim() });
+  };
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => grids.delete(siteId, id),
     onSuccess: () => {
@@ -194,6 +208,11 @@ export default function Grids() {
                 <div className="flex gap-1 shrink-0">
                   {usage?.[grid.id]?.is_default && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">Default</span>}
                   {grid.is_preset && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-accent/15 text-accent">Preset</span>}
+                  <button onClick={e => { e.stopPropagation(); handleDuplicate(grid); }} disabled={duplicateMutation.isPending}
+                    title="Дублирай с ново име" data-testid="grid-duplicate"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-base-content/60 border border-base-300 rounded-md hover:text-primary hover:border-primary/50">
+                    <Copy className="h-3.5 w-3.5" /> Дублирай
+                  </button>
                   {!grid.is_preset && (
                     <button onClick={e => { e.stopPropagation(); setDeleteTarget(grid); }}
                       className="p-1 text-base-content/30 hover:text-error rounded opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4" /></button>

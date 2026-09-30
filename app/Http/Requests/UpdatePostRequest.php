@@ -27,6 +27,7 @@ class UpdatePostRequest extends FormRequest
             'editor_mode' => ['sometimes', 'in:simple,block,magazine,canvas'],
             'experience_mode' => ['sometimes', 'in:standard,cinematic'],
             'layout_id' => ['sometimes', 'nullable', 'uuid'],
+            'grid_id' => ['sometimes', 'nullable', 'uuid', 'exists:grids,id'],
             'published_at' => ['sometimes', 'nullable', 'date'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],
             'seo_meta' => ['sometimes', 'array'],

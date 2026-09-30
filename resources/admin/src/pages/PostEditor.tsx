@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { EditorUndoButtons } from '@/components/editor/EditorUndoButtons';
+import { pickableLayouts } from '@/lib/layoutChoices';
+import { PostGridTemplatePanel } from '@/components/editor/PostGridTemplatePanel';
 import { TranslationsPanel } from '@/components/editor/TranslationsPanel';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -99,6 +102,7 @@ export default function PostEditor() {
   const [publishedAt, setPublishedAt] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [layoutId, setLayoutId] = useState('');
+  const [gridId, setGridId] = useState('');
   // Which post template renders this post: 'default' (site default template),
   // 'none' (Empty — render the builder's own output), or a template UUID.
   const [templateId, setTemplateId] = useState<string>('default');
@@ -194,6 +198,7 @@ export default function PostEditor() {
     setStatus(post.status || 'draft');
     setCategoryId(post.category?.id || post.category_id || '');
     setLayoutId(post.layout_id || '');
+    setGridId(post.grid_id || '');
     setExcerpt(post.excerpt || '');
     setFeaturedImage(post.featured_image || '');
     setVideoUrl(post.video_url || '');
@@ -235,7 +240,7 @@ export default function PostEditor() {
     try {
       // Always save metadata to ensure category, title, etc. persist
       await postsApi.update(siteId, postId, {
-        title, slug, status, category_id: categoryId || null, layout_id: layoutId || null,
+        title, slug, status, category_id: categoryId || null, layout_id: layoutId || null, grid_id: gridId || null,
         excerpt: excerpt || null, featured_image: featuredImage || null,
         video_url: videoUrl || null, thumbnail: thumbnail || null, post_format: postFormat,
         editor_mode: editorMode, author_id: authorId || null,
@@ -246,9 +251,14 @@ export default function PostEditor() {
       setMetaDirty(false);
       // Save blocks through the coordinator (serializes by builder: canvas
       // tree or the block store — Simple mode writes into the block store).
-      // 'skipped' = the editor never hydrated (e.g. a brand-new, empty post):
-      // there are no local edits to lose, and editor_mode is already saved.
-      await saveContent({ siteId, type: 'posts', id: postId });
+      // A brand-new, empty post has nothing to carry over (and the blocks API
+      // rejects an empty list): editor_mode is already saved, just reload.
+      // 'skipped' = the editor never hydrated — no local edits to lose either.
+      const st = useEditorStore.getState();
+      const hasContent = st.editorMode === 'canvas'
+        ? useCanvasStore.getState().sections.some(sec => sec.elements.length > 0)
+        : st.blocks.length > 0;
+      if (hasContent) await saveContent({ siteId, type: 'posts', id: postId });
       queryClient.invalidateQueries({ queryKey: ['post', siteId, postId] });
       // If status changed (e.g. published→draft), trigger republish so front page
       // and static files update (draft posts get removed from public site)
@@ -278,7 +288,7 @@ export default function PostEditor() {
       const pubStatus = 'published';
       const pubDate = fromLocalInputValue(publishedAt) ?? new Date().toISOString();
       await postsApi.update(siteId, postId, {
-        title, slug, status: pubStatus, category_id: categoryId || null, layout_id: layoutId || null,
+        title, slug, status: pubStatus, category_id: categoryId || null, layout_id: layoutId || null, grid_id: gridId || null,
         excerpt: excerpt || null, featured_image: featuredImage || null,
         editor_mode: editorMode, author_id: authorId || null,
         published_at: pubDate, scheduled_at: fromLocalInputValue(scheduledAt),
@@ -449,6 +459,11 @@ export default function PostEditor() {
 
   // one post-settings panel, shared by every editor mode (canvas shows it as a tab)
   const postMetaPanel = (
+    <>
+    <PostGridTemplatePanel siteId={siteId} postId={postId} layoutId={layoutId}
+      gridId={gridId} setGridId={v => { setGridId(v); markMetaDirty(); }}
+      templateId={templateId} setTemplateId={v => { setTemplateId(v); markMetaDirty(); }}
+      postTemplates={postTemplates || []} />
     <PostMetaPanel
       slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
       slugManual={slugManual} setSlugManual={setSlugManual}
@@ -472,6 +487,7 @@ export default function PostEditor() {
       authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
       authors={usersList || []}
     />
+    </>
   );
 
   return (
@@ -516,19 +532,16 @@ export default function PostEditor() {
             </button>
           </div>
 
-          {/* Template — which post template wraps the content ('Empty' = the
-              builder's own output, no template chrome overriding it). */}
-          <span className="text-[11px] font-medium text-base-content/50 select-none">Template:</span>
-          <select
-            value={templateId}
-            onChange={e => { setTemplateId(e.target.value); markMetaDirty(); }}
-            title="Which template renders this post. 'Empty' keeps your builder's own layout."
-            className="select select-bordered select-xs text-[11px] max-w-[9rem]">
-            <option value="default">Default</option>
-            {(postTemplates || []).map((t: any) => (
-              <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>
+          {editorMode === 'block' && <EditorUndoButtons />}
+          {/* Layout — Standard (site grid) / Bare (content only) / Landing.
+              Grid + Template live in the right panel (Post tab). */}
+          <select value={layoutId} onChange={e => { setLayoutId(e.target.value); markMetaDirty(); }}
+            title="Standard = the site grid (menus, areas, footer) · Bare = only this post's content · Landing = landing wrapper"
+            className="select select-bordered select-xs text-[11px] w-32">
+            <option value="">Standard</option>
+            {pickableLayouts(layoutsList, layoutId).map((l) => (
+              <option key={l.id} value={l.id}>{l.name}{l.legacy ? ' (legacy)' : ''}</option>
             ))}
-            <option value="none">Empty (no template)</option>
           </select>
 
           <div className="w-px h-5 bg-base-300/30" />
@@ -708,7 +721,7 @@ export default function PostEditor() {
 // ═══════════════════════════════════════════
 // Post Metadata Panel
 // ═══════════════════════════════════════════
-function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, layoutId, setLayoutId, layouts, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId, seoMeta, site, onSeoPatch, authorId, setAuthorId, authors }: {
+function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status, setStatus, categoryId, setCategoryId, excerpt, setExcerpt, featuredImage, setFeaturedImage, videoUrl, setVideoUrl, thumbnail, setThumbnail, postFormat, setPostFormat, publishedAt, setPublishedAt, scheduledAt, setScheduledAt, categories, versions, siteId, postId, seoMeta, site, onSeoPatch, authorId, setAuthorId, authors }: {
   slug: string; setSlug: (v: string) => void;
   slugManual: boolean; setSlugManual: (v: boolean) => void;
   title: string;
@@ -788,22 +801,6 @@ function PostMetaPanel({ slug, setSlug, slugManual, setSlugManual, title, status
         </div>
       )}
 
-      {/* Layout */}
-      <div>
-        <label className="text-[11px] text-base-content/40 mb-1 block flex items-center gap-1">Layout</label>
-        <select value={layoutId} onChange={e => setLayoutId(e.target.value)}
-          className="select select-bordered select-sm w-full text-[12px]">
-          <option value="">Inherit (Standard)</option>
-          {layouts.map((l: any) => (
-            <option key={l.id} value={l.id}>
-              {l.name} {l.is_system ? '' : '(custom)'}
-            </option>
-          ))}
-        </select>
-        {layoutId && (
-          <button onClick={() => setLayoutId('')} className="text-[10px] text-primary mt-0.5">Reset to inherited</button>
-        )}
-      </div>
 
       {/* Excerpt */}
       <div>

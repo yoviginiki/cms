@@ -222,8 +222,6 @@ export default function Templates() {
                   className="select select-bordered select-sm w-full">
                   <option value="post">Single Post</option>
                   <option value="archive">Category Archive</option>
-                  <option value="header">Global Header</option>
-                  <option value="footer">Global Footer</option>
                   <option value="404">404 Page</option>
                   <option value="search">Search Results</option>
                   <option value="record-single">Record Page</option>

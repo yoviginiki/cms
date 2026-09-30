@@ -60,6 +60,14 @@ class PostController extends Controller
         return PostResource::collection($posts)->response();
     }
 
+    /** Which grid this post publishes with, and why (explicit / category / assignment / default / skipped). */
+    public function resolvedGrid(Site $site, Post $post, EffectiveGridResolver $grids): JsonResponse
+    {
+        $this->authorize('view', $post);
+
+        return response()->json(['data' => $grids->forContent($post, $site)]);
+    }
+
     public function show(Site $site, Post $post): JsonResponse
     {
         $this->authorize('view', $post);

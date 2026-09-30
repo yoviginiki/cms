@@ -96,7 +96,8 @@ class EffectiveGridResolver
         if ($content instanceof Page && $content->raw_html) {
             return 'raw_html';
         }
-        if ($content instanceof Post && !self::postsUseGrid($site) && $this->rendersBuilderVerbatim($content)) {
+        // a grid chosen on the post itself always applies (older sites included)
+        if ($content instanceof Post && !$content->grid_id && !self::postsUseGrid($site) && $this->rendersBuilderVerbatim($content)) {
             return 'post_builder';
         }
         return null;

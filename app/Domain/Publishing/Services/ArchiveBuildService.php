@@ -96,6 +96,20 @@ class ArchiveBuildService
         // the same site rather than a generic listing.
         $bareDesign = ($site->settings['design_fidelity'] ?? null) === 'exact';
 
+        // Unified sites: archives wear the same header/nav/footer as the site's
+        // pages — the chrome areas of the site's default grid. No grid → header
+        // menu only (menus are menus, never an implicit footer).
+        $gridChrome = null;
+        if (!$bareDesign && \App\Domain\Grid\Services\EffectiveGridResolver::postsUseGrid($site)) {
+            $context = new \App\Models\Page(['site_id' => $site->id, 'title' => '', 'slug' => '']);
+            $context->setRelation('site', $site);
+            $context->id = (string) \Illuminate\Support\Str::uuid(); // matches no per-page override
+            $grid = app(\App\Domain\Grid\Services\GridResolver::class)->resolve($context, $site);
+            $gridChrome = $grid
+                ? app(\App\Domain\Grid\Services\GridRenderer::class)->renderChrome($grid, $context, $site)
+                : ['header' => $menuRenderer->renderByLocation($site, 'header', $locale), 'footer' => ''];
+        }
+
         return [
             'site' => $site,
             'baseUrl' => $baseUrl,
@@ -106,14 +120,14 @@ class ArchiveBuildService
             'designTokensCss' => $bareDesign ? '' : $tokenGenerator->generate($site),
             'bareWrapper' => $bareDesign,
             'headScripts' => $bareDesign ? ($site->settings['head_scripts'] ?? '') : '',
-            'navigation' => $bareDesign
+            'navigation' => $gridChrome ? $gridChrome['header'] : ($bareDesign
                 ? ($site->settings['chrome_header_html'] ?? '')
-                : $menuRenderer->renderByLocation($site, 'header', $locale),
-            'footerNavigation' => $bareDesign
+                : $menuRenderer->renderByLocation($site, 'header', $locale)),
+            'footerNavigation' => $gridChrome ? $gridChrome['footer'] : ($bareDesign
                 ? ($site->settings['chrome_footer_html'] ?? '')
                 : (!empty($site->settings['rich_footer'])
                     ? \Illuminate\Support\Facades\View::make('publishing._rich-footer', ['site' => $site])->render()
-                    : $menuRenderer->renderByLocation($site, 'footer', $locale)),
+                    : $menuRenderer->renderByLocation($site, 'footer', $locale))),
             'rssUrl' => "{$baseUrl}/feed.xml",
         ];
     }

@@ -169,7 +169,8 @@ class PositionRenderer
     private function renderMenu(GridPosition $position, Page|Post $content, Site $site): string
     {
         $config = $position->config_json ?? [];
-        $location = $config['location'] ?? 'header';
+        // unset location: a menu placed in the footer area is the footer menu
+        $location = $config['location'] ?? ($position->area_name === 'footer' ? 'footer' : 'header');
         $locale = \App\Domain\Publishing\Services\LocalePaths::contentLocale($content, $site);
 
         return $this->menuRenderer->renderByLocation($site, $location, $locale);
@@ -249,9 +250,11 @@ class PositionRenderer
         // Otherwise render associated blocks
         $posBlocks = $position->positionBlocks()->with('block.children')->orderBy('order')->get();
         $html = '';
+        // resolved lazily like the other area renderers (not injected: circular dependency)
+        $builder = app(\App\Domain\Publishing\Services\BuildPageService::class);
         foreach ($posBlocks as $pb) {
             if ($pb->block) {
-                $html .= $this->buildPageService->renderBlock($pb->block, $site);
+                $html .= $builder->renderBlock($pb->block, $site);
             }
         }
 

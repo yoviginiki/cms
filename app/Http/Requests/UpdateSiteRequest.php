@@ -31,6 +31,7 @@ class UpdateSiteRequest extends FormRequest
             'seo_defaults.verification_bing' => ['sometimes', 'nullable', 'string', 'max:255'],
             'settings' => ['sometimes', 'array'],
             'settings.auto_publish' => ['sometimes', 'boolean'],
+            'settings.post_grid' => ['sometimes', 'nullable', 'in:unified'],
             'settings.language_switcher' => ['sometimes', 'in:floating,none'],
             // Live folder under the shared docroot (ensodo.eu/{folder}).
             // The filesystem is the collision authority: public_path is shared

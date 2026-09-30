@@ -87,6 +87,42 @@ class GridController extends Controller
         return response()->json(['data' => $grid->load('positions')], 201);
     }
 
+    /**
+     * Copy a grid — its tracks/areas/styling and every area (type, config,
+     * styling) — under a new name. Per-page area overrides and assignments
+     * stay with the original; the copy is never a preset.
+     */
+    public function duplicate(Request $request, Site $site, Grid $grid): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $request->validate(['name' => ['required', 'string', 'max:255']]);
+
+        $copy = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $site, $grid) {
+            $base = Str::slug($request->input('name')) ?: 'grid';
+            $slug = $base;
+            for ($i = 2; Grid::where('site_id', $site->id)->where('slug', $slug)->exists(); $i++) {
+                $slug = "{$base}-{$i}";
+            }
+            $copy = $grid->replicate(['id', 'created_at', 'updated_at']);
+            $copy->fill(['name' => $request->input('name'), 'slug' => $slug, 'is_preset' => false, 'site_id' => $site->id]);
+            $copy->save();
+            foreach ($grid->positions()->get() as $position) {
+                $p = $position->replicate(['id', 'created_at', 'updated_at']);
+                $p->grid_id = $copy->id;
+                $p->save();
+                foreach ($position->positionBlocks()->get() as $pb) {
+                    $nb = $pb->replicate(['id', 'created_at', 'updated_at']);
+                    $nb->grid_position_id = $p->id;
+                    $nb->save();
+                }
+            }
+
+            return $copy;
+        });
+
+        return response()->json(['data' => $copy->load('positions')], 201);
+    }
+
     public function update(Request $request, Site $site, Grid $grid): JsonResponse
     {
         $this->authorize('update', $site);

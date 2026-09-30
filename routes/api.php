@@ -148,6 +148,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/pages/{page}/translate', [PageController::class, 'translate']);
         Route::get('sites/{site}/pages/{page}/translations', [PageController::class, 'translations']);
         Route::get('sites/{site}/pages/{page}/resolved-grid', [PageController::class, 'resolvedGrid']);
+        Route::get('sites/{site}/posts/{post}/resolved-grid', [PostController::class, 'resolvedGrid']);
         Route::apiResource('sites.pages', PageController::class);
 
         // Posts
@@ -184,6 +185,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('sites/{site}/grids/default', [\App\Http\Controllers\Api\V1\GridController::class, 'setDefault']);
         Route::apiResource('sites.grids', \App\Http\Controllers\Api\V1\GridController::class);
         Route::put('sites/{site}/grids/{grid}/positions', [\App\Http\Controllers\Api\V1\GridController::class, 'syncPositions']);
+        Route::post('sites/{site}/grids/{grid}/duplicate', [\App\Http\Controllers\Api\V1\GridController::class, 'duplicate']);
         Route::get('sites/{site}/grid-assignments', [\App\Http\Controllers\Api\V1\GridController::class, 'assignments']);
         Route::post('sites/{site}/grid-assignments', [\App\Http\Controllers\Api\V1\GridController::class, 'storeAssignment']);
         Route::put('sites/{site}/grid-assignments/{assignment}', [\App\Http\Controllers\Api\V1\GridController::class, 'updateAssignment']);

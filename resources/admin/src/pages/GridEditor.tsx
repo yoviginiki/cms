@@ -95,19 +95,19 @@ const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     id: 'blog', label: 'Класически блог', desc: 'Header, съдържание + сайдбар, footer',
     colSizes: ['1fr', '340px'], rowSizes: ['auto', 'auto', 'auto'],
     cells: [['header', 'header'], ['content', 'sidebar'], ['footer', 'footer']],
-    types: { header: 'menu', content: 'canvas', sidebar: 'widget', footer: 'menu' },
+    types: { header: 'menu', content: 'canvas', sidebar: 'widget', footer: 'section' },
   },
   {
     id: 'holy-grail', label: 'Holy Grail', desc: 'Header, две странични колони, footer',
     colSizes: ['220px', '1fr', '300px'], rowSizes: ['auto', 'auto', 'auto'],
     cells: [['header', 'header', 'header'], ['left', 'content', 'right'], ['footer', 'footer', 'footer']],
-    types: { header: 'menu', left: 'widget', content: 'canvas', right: 'widget', footer: 'menu' },
+    types: { header: 'menu', left: 'widget', content: 'canvas', right: 'widget', footer: 'section' },
   },
   {
     id: 'landing', label: 'Лендинг секции', desc: 'Hero на цял екран + секции',
     colSizes: ['1fr'], rowSizes: ['100vh', 'auto', 'auto', 'auto'],
     cells: [['hero'], ['features'], ['cta'], ['footer']],
-    types: { hero: 'canvas', features: 'canvas', cta: 'canvas', footer: 'menu' },
+    types: { hero: 'canvas', features: 'canvas', cta: 'canvas', footer: 'section' },
   },
   {
     id: 'magazine', label: 'Списание', desc: 'Featured лента + пост мрежа + сайдбар',
@@ -116,7 +116,7 @@ const LAYOUT_TEMPLATES: LayoutTemplate[] = [
       ['header', 'header', 'header'], ['featured', 'featured', 'featured'],
       ['posts', 'posts', 'sidebar'], ['footer', 'footer', 'footer'],
     ],
-    types: { header: 'menu', featured: 'query', posts: 'query', sidebar: 'widget', footer: 'menu' },
+    types: { header: 'menu', featured: 'query', posts: 'query', sidebar: 'widget', footer: 'section' },
   },
   {
     id: 'single-post', label: 'Единичен пост', desc: 'Тясна колона за четене + related',
@@ -125,7 +125,7 @@ const LAYOUT_TEMPLATES: LayoutTemplate[] = [
       ['header', 'header', 'header'], ['.', 'content', '.'],
       ['related', 'related', 'related'], ['footer', 'footer', 'footer'],
     ],
-    types: { header: 'menu', content: 'canvas', related: 'query', footer: 'menu' },
+    types: { header: 'menu', content: 'canvas', related: 'query', footer: 'section' },
   },
   {
     id: 'empty', label: 'Празен грид', desc: 'Чисто платно 4 × 5',
@@ -213,8 +213,13 @@ function displayRowHeight(s: string): number {
   return 64; // auto & everything else
 }
 
+// Everything the editor can change — undo/redo covers all of it, not only
+// the area structure (area type/config/label, gaps, widths, background …).
 interface Snapshot {
-  cells: string[][]; colSizes: string[]; rowSizes: string[]; positions: Position[];
+  name: string; cells: string[][]; colSizes: string[]; rowSizes: string[]; positions: Position[];
+  gapX: string; gapY: string; containerWidth: string; containerPadding: string; minHeight: string;
+  alignItems: string; justifyItems: string; overflowX: string; layoutMode: string;
+  bgJson: Record<string, string>; fullBleed: boolean; breakpointsJson: Record<string, any>;
 }
 interface AreaInfo {
   name: string; r1: number; c1: number; r2: number; c2: number; count: number; valid: boolean;
@@ -277,33 +282,55 @@ export default function GridEditor() {
 
   const dirty = () => setIsDirty(true);
 
-  const snapshot = useCallback((): Snapshot => ({
-    cells: cells.map(r => [...r]), colSizes: [...colSizes], rowSizes: [...rowSizes],
-    positions: positions.map(p => ({ ...p })),
-  }), [cells, colSizes, rowSizes, positions]);
+  const snapshot = useMemo((): Snapshot => ({
+    name, cells, colSizes, rowSizes, positions, gapX, gapY, containerWidth, containerPadding, minHeight,
+    alignItems, justifyItems, overflowX, layoutMode, bgJson, fullBleed, breakpointsJson,
+  }), [name, cells, colSizes, rowSizes, positions, gapX, gapY, containerWidth, containerPadding, minHeight,
+    alignItems, justifyItems, overflowX, layoutMode, bgJson, fullBleed, breakpointsJson]);
 
-  // Push current state to history before a structural mutation
-  const pushHistory = useCallback(() => {
-    setPast(p => [...p.slice(-49), snapshot()]);
-    setFuture([]);
+  // History is recorded automatically from any state change. Rapid edits
+  // (typing in a field) within HISTORY_COALESCE_MS fold into one step; a
+  // structural action (pushHistory) always starts a new step.
+  const HISTORY_COALESCE_MS = 700;
+  const lastSnapRef = useRef<Snapshot | null>(null);
+  const skipNextRef = useRef(true);      // load / restore: record the state, not a step
+  const lastPushAtRef = useRef(0);
+  useEffect(() => {
+    const prev = lastSnapRef.current;
+    lastSnapRef.current = snapshot;
+    if (skipNextRef.current || !prev) { skipNextRef.current = false; return; }
+    if (JSON.stringify(prev) === JSON.stringify(snapshot)) return;
+    const now = Date.now();
+    if (now - lastPushAtRef.current > HISTORY_COALESCE_MS) {
+      setPast(p => [...p.slice(-99), prev]);
+      setFuture([]);
+    }
+    lastPushAtRef.current = now;
   }, [snapshot]);
 
+  // Kept for the structural actions: forces the next change to be its own step
+  const pushHistory = useCallback(() => { lastPushAtRef.current = 0; }, []);
+
   const restore = (s: Snapshot) => {
-    setCells(s.cells); setColSizes(s.colSizes); setRowSizes(s.rowSizes); setPositions(s.positions);
+    skipNextRef.current = true;
+    setName(s.name); setCells(s.cells); setColSizes(s.colSizes); setRowSizes(s.rowSizes); setPositions(s.positions);
+    setGapX(s.gapX); setGapY(s.gapY); setContainerWidth(s.containerWidth); setContainerPadding(s.containerPadding);
+    setMinHeight(s.minHeight); setAlignItems(s.alignItems); setJustifyItems(s.justifyItems); setOverflowX(s.overflowX);
+    setLayoutMode(s.layoutMode); setBgJson(s.bgJson); setFullBleed(s.fullBleed); setBreakpointsJson(s.breakpointsJson);
     dirty();
   };
   const undo = () => {
     if (!past.length) return;
     const prev = past[past.length - 1];
     setPast(past.slice(0, -1));
-    setFuture(f => [...f, snapshot()]);
+    setFuture(f => [...f, snapshot]);
     restore(prev);
   };
   const redo = () => {
     if (!future.length) return;
     const next = future[future.length - 1];
     setFuture(future.slice(0, -1));
-    setPast(p => [...p, snapshot()]);
+    setPast(p => [...p, snapshot]);
     restore(next);
   };
 
@@ -384,6 +411,7 @@ export default function GridEditor() {
         setRowSizes(Array(5).fill('auto'));
       }
       setPast([]); setFuture([]);
+      skipNextRef.current = true; lastSnapRef.current = null;
     }
   }, [gridData]);
 
@@ -533,7 +561,8 @@ export default function GridEditor() {
         area_name: n,
         label: n.replace(/-/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()),
         type: t.types[n] || 'canvas',
-        config_json: {}, scope: 'page',
+        // a menu area shows the header menu unless told otherwise
+        config_json: t.types[n] === 'menu' ? { location: n === 'footer' ? 'footer' : 'header' } : {}, scope: 'page',
         is_overridable: false, mobile_order: i + 1,
       };
     }));

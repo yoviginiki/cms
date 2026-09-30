@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { EditorUndoButtons } from '@/components/editor/EditorUndoButtons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -152,6 +153,7 @@ export default function TemplateEditor() {
                 Конфликт — презареди
               </button>
             )}
+            <EditorUndoButtons />
             <button onClick={handleSave} disabled={isSaving || !hydrated || (!isDirty && !nameDirty)}
               className="btn btn-primary btn-sm gap-1">
               {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}

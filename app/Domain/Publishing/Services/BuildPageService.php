@@ -353,19 +353,23 @@ HTML;
                     'content' => $content,
                 ])->render();
             } else {
-                // Standard: check for template-based header/footer, fall back to menu
-                $headerHtml = $this->renderGlobalTemplate($site, 'header');
+                // Standard without a grid. Unified sites (the one-model rule: the
+                // grid owns header/nav/footer, menus are only menus, templates
+                // only shape post content) get the header menu and no footer.
+                // Older sites keep the historic template/menu fallbacks.
+                $unified = \App\Domain\Grid\Services\EffectiveGridResolver::postsUseGrid($site);
+                $headerHtml = $unified ? '' : $this->renderGlobalTemplate($site, 'header');
                 // Opt-in rich multi-column footer (settings.rich_footer) beats
                 // the footer template/menu so posts & pages get the same footer
                 // as the archive pages.
                 $footerHtml = !empty($site->settings['rich_footer'])
                     ? View::make('publishing._rich-footer', ['site' => $site])->render()
-                    : $this->renderGlobalTemplate($site, 'footer');
+                    : ($unified ? '' : $this->renderGlobalTemplate($site, 'footer'));
 
                 if (!$headerHtml) {
                     $headerHtml = $this->menuRenderer->renderByLocation($site, 'header', $this->templateContext['__locale'] ?? null) ?: ($themeConfig['navigation_html'] ?? '');
                 }
-                if (!$footerHtml) {
+                if (!$footerHtml && !$unified) {
                     $footerHtml = $this->menuRenderer->renderByLocation($site, 'footer', $this->templateContext['__locale'] ?? null) ?: '';
                 }
 

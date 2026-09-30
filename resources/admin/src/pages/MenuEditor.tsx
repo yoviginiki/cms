@@ -918,11 +918,11 @@ export default function MenuEditor() {
                   <div>
                     <label className="text-[10px] text-gray-500 mb-0.5 block">Background Color</label>
                     <div className="flex gap-1">
-                      <input type="color" value={(menuStyle.bgColor as string) || '#ffffff'}
+                      <input type="color" value={(menuStyle.bgColor as string) || (menuData?.menu?.location === 'footer' ? '#0f172a' : '#ffffff')}
                         onChange={e => { setMenuStyle(s => ({ ...s, bgColor: e.target.value })); setIsDirty(true); }}
                         className="w-7 h-7 rounded cursor-pointer border border-gray-200" />
                       <input value={(menuStyle.bgColor as string) || ''} onChange={e => { setMenuStyle(s => ({ ...s, bgColor: e.target.value })); setIsDirty(true); }}
-                        className="input input-bordered input-xs flex-1 text-[10px]" placeholder="transparent" />
+                        className="input input-bordered input-xs flex-1 text-[10px]" placeholder={menuData?.menu?.location === 'footer' ? 'default: dark (theme)' : 'transparent'} />
                     </div>
                   </div>
 

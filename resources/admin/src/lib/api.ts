@@ -90,6 +90,7 @@ export const blocks = {
 };
 
 export const posts = {
+  resolvedGrid: (siteId: string, postId: string) => api.get(`/sites/${siteId}/posts/${postId}/resolved-grid`),
   translations: (siteId: string, postId: string) => api.get(`/sites/${siteId}/posts/${postId}/translations`),
   translate: (siteId: string, postId: string, locale: string) => api.post(`/sites/${siteId}/posts/${postId}/translate`, { locale }),
   list: (siteId: string, params?: Record<string, unknown>) => api.get(`/sites/${siteId}/posts`, { params }),
@@ -133,6 +134,7 @@ export const grids = {
   delete: (siteId: string, gridId: string) => api.delete(`/sites/${siteId}/grids/${gridId}`),
   syncPositions: (siteId: string, gridId: string, positions: unknown[]) => api.put(`/sites/${siteId}/grids/${gridId}/positions`, { positions }),
   seedPresets: (siteId: string) => api.post(`/sites/${siteId}/grids/seed-presets`),
+  duplicate: (siteId: string, gridId: string, name: string) => api.post(`/sites/${siteId}/grids/${gridId}/duplicate`, { name }),
   usage: (siteId: string) => api.get(`/sites/${siteId}/grids/usage`),
   setDefault: (siteId: string, gridId: string | null) => api.put(`/sites/${siteId}/grids/default`, { grid_id: gridId }),
   assignments: (siteId: string) => api.get(`/sites/${siteId}/grid-assignments`),

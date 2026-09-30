@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { EditorUndoButtons } from '@/components/editor/EditorUndoButtons';
+import { pickableLayouts } from '@/lib/layoutChoices';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save, Loader2, LayoutList, Paintbrush, LayoutTemplate, Eye, Globe, FileText, LayoutGrid, Download, Upload } from 'lucide-react';
@@ -506,6 +508,7 @@ export default function PageEditor() {
 
           <div className="w-px h-5 bg-base-300/30" />
 
+          {editorMode === 'block' && <EditorUndoButtons />}
           {/* Layout picker */}
           <select value={page?.layout_id || ''}
             onChange={async (e) => {
@@ -514,10 +517,11 @@ export default function PageEditor() {
                 window.location.reload();
               } catch {}
             }}
-            className="select select-bordered select-xs text-[11px] w-32">
+            className="select select-bordered select-xs text-[11px] w-32"
+            title="Standard = the site grid (menus, areas, footer) · Bare = only this page's content · Landing = landing wrapper">
             <option value="">Standard</option>
-            {(layoutsList || []).map((l: any) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
+            {pickableLayouts(layoutsList, page?.layout_id).map((l) => (
+              <option key={l.id} value={l.id}>{l.name}{l.legacy ? ' (legacy)' : ''}</option>
             ))}
           </select>
 
@@ -1148,7 +1152,7 @@ function SectionAreaOverrides({ siteId, pageId, areas, onChanged }: {
   );
 }
 
-function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug, metaRef, onDirty }: {
+function PageSettingsPanel({ page, siteId, pageId, publicBase, siteSlug, metaRef, onDirty }: {
   page: any; siteId: string; pageId: string;
   layouts: any[]; publicBase: string; siteSlug: string;
   metaRef?: React.MutableRefObject<Record<string, any> | null>;
@@ -1248,23 +1252,6 @@ function PageSettingsPanel({ page, siteId, pageId, layouts, publicBase, siteSlug
           className="input input-bordered input-sm w-full text-[12px]"
           onBlur={e => saveSetting('scheduled_at', fromLocalInputValue(e.target.value))} />
         <p className="text-[10px] text-gray-400 mt-0.5">Set a date to auto-publish this page.</p>
-      </div>
-
-      {/* Layout */}
-      <div>
-        <label className="text-[11px] text-gray-500 mb-1 block">Layout</label>
-        <select defaultValue={page?.layout_id || ''} className="select select-bordered select-sm w-full text-[12px]"
-          onChange={e => saveSetting('layout_id', e.target.value || null)}>
-          <option value="">Standard (default)</option>
-          {layouts.map((l: any) => (
-            <option key={l.id} value={l.id}>{l.name}{l.is_system ? '' : ' (custom)'}</option>
-          ))}
-        </select>
-        {page?.layout_id && (
-          <button onClick={() => saveSetting('layout_id', null)} className="text-[10px] text-blue-500 mt-0.5">
-            Reset to default
-          </button>
-        )}
       </div>
 
       {/* Grid */}
