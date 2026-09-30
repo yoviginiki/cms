@@ -49,7 +49,7 @@ class CanvasTypographyCss
             // turns that into 16px / line-height 1.75 / its own margins, colours
             // and quote/list chrome; the published site only has the few rules
             // below (BuildPageService critical CSS). Undo the plugin, apply those.
-            . "{$s} .prose{font-size:inherit;line-height:inherit;color:inherit;max-width:var(--prose-max-width,65ch)}\n"
+            . "{$s} .prose{font-size:inherit;line-height:inherit;color:inherit;max-width:none}\n"
             . "{$s} .prose p{margin:0 0 1em}{$s} .prose :is(h2,h3,h4){margin:1.5em 0 .5em}{$s} .prose :is(ul,ol){padding-left:1.5em}\n"
             . "{$s} .prose li{margin:0;padding:0}{$s} .prose li::marker{color:inherit}\n"
             . "{$s} .prose :is(strong,b){color:inherit;font-weight:bolder}{$s} .prose :is(em,i){color:inherit}\n"

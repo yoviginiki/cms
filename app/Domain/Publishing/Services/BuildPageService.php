@@ -911,6 +911,8 @@ HTML;
             . $e . 'audio] .audio-block{height:100%;display:flex;align-items:center}'
             . $e . 'spotify] .spotify-block{height:100%}'
             . $e . 'link] .link-block{height:100%;display:flex;flex-direction:column;justify-content:center}'
+            // a canvas box sets the text width — not the reading-measure cap of .prose (65ch)
+            . '.cv-el .prose{max-width:none}'
             . $e . 'spotify] iframe{height:100%!important}'
             . $e . 'icon]{container-type:size}'
             . $e . 'icon] .icon-block{width:100%!important;height:100%!important;font-size:min(50cqw,50cqh)!important;display:flex!important;align-items:center;justify-content:center}'
