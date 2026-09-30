@@ -493,7 +493,7 @@ button, a, input, select, textarea {
 /* ── Canvas editor: block content fills its element box ─────────────────
    A canvas element is a fixed box the user resizes by its handles. Blocks
    with an intrinsic size (image, video, icon, button, map, before/after,
-   divider, audio) must follow the box — otherwise resizing looks broken.
+   divider, audio, spotify) must follow the box — otherwise resizing looks broken.
    Mirrors the published rules in BuildPageService::canvasFillCss() — keep
    both in sync (published markup differs slightly, hence two copies). */
 .cv-fill > * { width: 100%; height: 100%; box-sizing: border-box; }
@@ -516,4 +516,5 @@ button, a, input, select, textarea {
 .cv-fill[data-cv-type="divider"] > div { padding: 0 !important; display: flex; align-items: center; }
 .cv-fill[data-cv-type="divider"] hr { width: 100%; }
 .cv-fill[data-cv-type="audio"] > div { display: flex; flex-direction: column; justify-content: center; }
+.cv-fill[data-cv-type="spotify"] iframe { height: 100% !important; }
 .cv-fill[data-cv-type="shape"] > div { min-height: 0; }

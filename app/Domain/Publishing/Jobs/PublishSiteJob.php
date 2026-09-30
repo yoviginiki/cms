@@ -770,7 +770,7 @@ class PublishSiteJob implements ShouldQueue
         $htaccess .= "  Header always set X-Frame-Options \"SAMEORIGIN\"\n";
         $htaccess .= "  Header always set Referrer-Policy \"strict-origin-when-cross-origin\"\n";
         $htaccess .= "  Header always set Strict-Transport-Security \"max-age=31536000; includeSubDomains\"\n";
-        $htaccess .= "  Header always set Content-Security-Policy \"default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; connect-src 'self' https:\"\n";
+        $htaccess .= "  Header always set Content-Security-Policy \"default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://open.spotify.com; connect-src 'self' https:\"\n";
         $htaccess .= "</IfModule>\n";
 
         if (!$redirects->isEmpty()) {

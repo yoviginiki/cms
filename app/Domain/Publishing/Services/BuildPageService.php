@@ -43,7 +43,7 @@ class BuildPageService
      * shows an "edit in Page Editor" affordance instead of doing nothing.
      */
     private const INLINE_LOCKED_TYPES = [
-        'html-embed', 'code', 'gallery', 'linear-gallery', 'flipbook', 'audio', 'map', 'beforeafter',
+        'html-embed', 'code', 'gallery', 'linear-gallery', 'flipbook', 'audio', 'spotify', 'map', 'beforeafter',
         'table', 'catalog', 'logostrip', 'socialembed', 'sharebuttons', 'icon',
         'slider_ref', 'global_ref', 'menu',
     ];
@@ -647,7 +647,9 @@ HTML;
             . '.cv-section:not(.cv-fluid) .cv-el{position:static!important;width:100%!important;height:auto!important;'
             . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
             . '.cv-section:not(.cv-fluid) .cv-anim{height:auto!important}'
-            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto}';
+            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto}'
+            // stacked: the box height is gone — Spotify keeps its own player height
+            . '.cv-section:not(.cv-fluid) .cv-el[data-cv-type=spotify] iframe{height:var(--sp-h,352px)!important}';
 
         if ($fit === 'scale') {
             // --cv-vw / --cv-s are set by the script below (viewport width and
@@ -886,6 +888,8 @@ HTML;
             . $e . 'video] .video-block{height:100%;margin:0!important}'
             . $e . 'video] video,' . $e . 'video] iframe{width:100%;height:100%;object-fit:cover;display:block}'
             . $e . 'audio] .audio-block{height:100%;display:flex;align-items:center}'
+            . $e . 'spotify] .spotify-block{height:100%}'
+            . $e . 'spotify] iframe{height:100%!important}'
             . $e . 'icon]{container-type:size}'
             . $e . 'icon] .icon-block{width:100%!important;height:100%!important;font-size:min(50cqw,50cqh)!important;display:flex!important;align-items:center;justify-content:center}'
             . $e . 'icon] svg{width:100%;height:100%}'

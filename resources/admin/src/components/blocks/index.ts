@@ -23,6 +23,7 @@ import './bulletin-section';
 import './event-card';
 import './spacer';
 import './video';
+import './spotify';
 import './html-embed';
 import './tabs';
 import './accordion';

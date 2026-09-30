@@ -17,7 +17,7 @@ class CanvasPaletteBlocksTest extends TestCase
 {
     private const PALETTE = [
         'heading', 'text', 'paragraph', 'pullquote', 'list',
-        'image', 'imagecaption', 'gallery', 'linear-gallery', 'logostrip', 'beforeafter', 'video', 'audio', 'icon',
+        'image', 'imagecaption', 'gallery', 'linear-gallery', 'logostrip', 'beforeafter', 'video', 'audio', 'spotify', 'icon',
         'button', 'divider', 'shape', 'testimonial', 'stats', 'map', 'socialembed', 'html-embed',
     ];
 

@@ -10,7 +10,7 @@
  */
 export const CANVAS_BLOCK_GROUPS: Array<{ title: string; types: string[] }> = [
   { title: 'Text', types: ['heading', 'text', 'paragraph', 'pullquote', 'list'] },
-  { title: 'Media', types: ['image', 'imagecaption', 'gallery', 'linear-gallery', 'logostrip', 'beforeafter', 'video', 'audio', 'icon'] },
+  { title: 'Media', types: ['image', 'imagecaption', 'gallery', 'linear-gallery', 'logostrip', 'beforeafter', 'video', 'audio', 'spotify', 'icon'] },
   { title: 'Elements', types: ['button', 'divider', 'shape', 'testimonial', 'stats', 'map', 'socialembed', 'html-embed'] },
 ];
 
@@ -34,6 +34,7 @@ const SIZES: Record<string, [number, number]> = {
   beforeafter: [480, 320],
   video: [480, 270],
   audio: [320, 64],
+  spotify: [400, 352],
   icon: [64, 64],
   button: [180, 48],
   divider: [320, 12],
