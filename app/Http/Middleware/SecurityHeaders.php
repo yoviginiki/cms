@@ -27,7 +27,8 @@ class SecurityHeaders
         // alone misses it). SAMEORIGIN still blocks cross-origin clickjacking.
         $path = $request->path();
         $isFrameable = str_contains($path, 'studio/frame')
-            || str_contains($path, 'preview'); // /preview, dtp-preview, magazine preview
+            || str_contains($path, 'preview') // /preview, dtp-preview, magazine preview
+            || str_starts_with($path, 'sites/'); // auth-only dynamic site render (grid editor Преглед iframe)
         $response->headers->set('X-Frame-Options', $isFrameable ? 'SAMEORIGIN' : 'DENY');
 
         return $response;
