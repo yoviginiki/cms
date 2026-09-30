@@ -20,7 +20,9 @@ class SyncBlocksRequest extends FormRequest
             'expected_version' => ['sometimes', 'nullable', 'string', 'max:64'],
             'overwrite' => ['sometimes', 'boolean'],
             'create_snapshot' => ['sometimes', 'boolean'],
-            'blocks' => ['required', 'array'],
+            // an empty list is valid content (a new post, or everything removed);
+            // stale overwrites are still caught by expected_version
+            'blocks' => ['present', 'array'],
             'blocks.*.type' => ['required', 'string'],
             'blocks.*.level' => ['sometimes', 'in:section,row,column,module'],
             'blocks.*.data' => ['present', 'array'],
