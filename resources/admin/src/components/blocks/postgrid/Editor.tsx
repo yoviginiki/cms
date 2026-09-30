@@ -137,6 +137,15 @@ export const PostgridEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) 
           {(cats || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Order</label>
+        <select className="select select-bordered select-sm w-full" value={(data as { orderBy?: string }).orderBy || 'latest'} onChange={(e) => update('orderBy', e.target.value)}>
+          <option value="latest">Publish date — newest first</option>
+          <option value="oldest">Publish date — oldest first</option>
+          <option value="title">Title — A → Z</option>
+          <option value="title_desc">Title — Z → A</option>
+        </select>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-[11px] text-base-content/50 mb-1 block">Limit</label>

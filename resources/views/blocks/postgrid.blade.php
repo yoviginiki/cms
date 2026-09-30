@@ -99,7 +99,14 @@
     if ($categoryId) {
         $query->where('category_id', $categoryId);
     }
-    $posts = $query->orderByDesc('published_at')->limit($limit)->get();
+    // order: publish date (newest/oldest) or title (А→Я / Я→А); same keys as latestposts
+    match ($data['orderBy'] ?? 'latest') {
+        'oldest' => $query->orderBy('published_at'),
+        'title' => $query->orderBy('title')->orderByDesc('published_at'),
+        'title_desc' => $query->orderByDesc('title')->orderByDesc('published_at'),
+        default => $query->orderByDesc('published_at'),
+    };
+    $posts = $query->orderBy('id')->limit($limit)->get();
 
     // Card effects
     $__effectsEnabled = BlockEffects::isEnabled($data);

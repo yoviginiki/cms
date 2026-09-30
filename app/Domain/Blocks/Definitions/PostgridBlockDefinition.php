@@ -12,6 +12,7 @@ class PostgridBlockDefinition implements BlockDefinition
         return [
             'categoryId'     => ['sometimes', 'nullable', 'string', 'max:36'],
             'limit'          => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'orderBy'        => ['sometimes', 'in:latest,oldest,title,title_desc'],
             'columns'        => ['sometimes', 'integer', 'min:1', 'max:6'],
             'cardStyle'      => ['sometimes', 'in:vertical,horizontal'],
             'gap'            => ['sometimes', 'integer', 'min:0', 'max:64'],
