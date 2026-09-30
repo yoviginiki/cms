@@ -1,13 +1,15 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
 import { resolveTextShadow } from '@/lib/blockStyles';
+import { publishedTextHtml } from '@/lib/publishedText';
 
 const safeColor = (v: string) => /^(#[0-9a-fA-F]{3,8}|rgba?\([\d\s,./%]+\)|oklch\([\d\s,./%]+\))$/.test(v.trim()) ? v.trim() : '';
 const safeDim = (v: string) => /^-?\d+(\.\d+)?(px|rem|em|%|vh|vw)$/.test(v.trim()) ? v.trim() : '';
 
 export const TextPreview: React.FC<BlockComponentProps> = ({ block, isSelected, onUpdate }) => {
   const data = block.data as Record<string, unknown>;
-  const content = (data.content as string) || '';
+  // shown exactly as published: pasted inline styles are dropped (publish strips them)
+  const content = publishedTextHtml((data.content as string) || '');
 
   // Typography controls — applied to inner content
   const textAlign = (data.textAlign as string) || '';
@@ -59,6 +61,13 @@ export const TextPreview: React.FC<BlockComponentProps> = ({ block, isSelected, 
         onFocus={() => { focusedRef.current = true; }}
         onBlur={() => { focusedRef.current = false; }}
         onInput={e => onUpdate({ content: (e.target as HTMLElement).innerHTML })}
+        onPaste={e => {
+          // paste as clean HTML — the source's fonts/sizes would not survive publish anyway
+          const html = e.clipboardData.getData('text/html');
+          if (!html) return;
+          e.preventDefault();
+          document.execCommand('insertHTML', false, publishedTextHtml(html.replace(/<!--[\s\S]*?-->/g, '')));
+        }}
         onPointerDown={e => e.stopPropagation()}
       />
     );
