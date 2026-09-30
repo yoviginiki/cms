@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { moveRowOrder } from '@/lib/gridRowMove';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -517,6 +518,15 @@ export default function GridEditor() {
   // Grid structure mutations
   const addCol = () => { pushHistory(); setCells(p => p.map(r => [...r, '.'])); setColSizes(p => [...p, '1fr']); dirty(); };
   const rmCol = () => { if (cols <= 1) return; pushHistory(); setCells(p => p.map(r => r.slice(0, -1))); setColSizes(p => p.slice(0, -1)); dirty(); };
+  // Move a row (with any rows its areas span) one step up/down
+  const moveRow = (i: number, dir: -1 | 1) => {
+    const order = moveRowOrder(cells, i, dir);
+    if (!order) return;
+    pushHistory();
+    setCells(order.map(r => [...cells[r]]));
+    setRowSizes(order.map(r => rowSizes[r]));
+    dirty();
+  };
   const addRow = () => { pushHistory(); setCells(p => [...p, Array(cols).fill('.')]); setRowSizes(p => [...p, 'auto']); dirty(); };
   const rmRow = () => { if (rows <= 1) return; pushHistory(); setCells(p => p.slice(0, -1)); setRowSizes(p => p.slice(0, -1)); dirty(); };
 
@@ -815,7 +825,7 @@ export default function GridEditor() {
           </div>
 
           {/* Column size ruler */}
-          <div className="mb-1.5 ml-[63px] mr-[9px]" style={{ ...gridStyle, gridTemplateRows: 'auto' }}>
+          <div className="mb-1.5 ml-[80px] mr-[9px]" style={{ ...gridStyle, gridTemplateRows: 'auto' }}>
             {colSizes.map((s, i) => (
               <input key={i} value={s} onChange={e => { const n = [...colSizes]; n[i] = e.target.value; setColSizes(n); dirty(); }}
                 title="CSS стойност: 1fr, 2fr, 300px, 25%, minmax(200px,1fr), auto"
@@ -827,7 +837,13 @@ export default function GridEditor() {
           <div className="flex">
             <div className="flex flex-col mr-1.5 shrink-0" style={{ gap: '6px', paddingTop: '9px' }}>
               {rowSizes.map((s, i) => (
-                <div key={i} className="flex items-center" style={{ height: rowHeights[i] }}>
+                <div key={i} className="flex items-center gap-0.5 group/row" style={{ height: rowHeights[i] }}>
+                  <div className="flex flex-col opacity-40 group-hover/row:opacity-100 transition-opacity" data-testid="grid-row-move">
+                    <button type="button" onClick={() => moveRow(i, -1)} disabled={i === 0} title="Премести реда нагоре"
+                      className="p-0.5 rounded hover:bg-base-300 disabled:opacity-20"><ArrowUp size={11} /></button>
+                    <button type="button" onClick={() => moveRow(i, 1)} disabled={i === rowSizes.length - 1} title="Премести реда надолу"
+                      className="p-0.5 rounded hover:bg-base-300 disabled:opacity-20"><ArrowDown size={11} /></button>
+                  </div>
                   <input value={s} onChange={e => { const n = [...rowSizes]; n[i] = e.target.value; setRowSizes(n); dirty(); }}
                     title="CSS стойност: auto, 1fr, 100px, 50vh, minmax(80px,auto)"
                     className="text-[10px] font-mono text-base-content/50 bg-base-100 rounded-md px-0.5 py-1 border border-base-300 w-12 text-center focus:outline-none focus:border-primary focus:text-base-content transition-colors" />
