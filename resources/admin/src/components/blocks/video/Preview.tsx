@@ -1,7 +1,7 @@
 import React from 'react';
 import type { BlockComponentProps } from '@/types/blocks';
+import { youTubeEmbedUrl } from '@/lib/youtube';
 
-const ytId = (u: string) => u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/)?.[1];
 const vimeoId = (u: string) => u.match(/vimeo\.com\/(\d+)/)?.[1];
 
 const SHAPE_RADIUS: Record<string, string> = {
@@ -31,14 +31,12 @@ export const VideoPreview: React.FC<BlockComponentProps> = ({ block }) => {
     );
   }
 
-  const yt = ytId(url);
+  const yt = youTubeEmbedUrl(url, false, true);
   const vm = vimeoId(url);
   if (yt || vm) {
-    const src = yt
-      ? `https://www.youtube-nocookie.com/embed/${yt}?mute=1`
-      : `https://player.vimeo.com/video/${vm}?muted=1`;
+    const src = yt ?? `https://player.vimeo.com/video/${vm}?muted=1`;
     return (
-      <div className="w-full h-full min-h-[80px] overflow-hidden" style={{ borderRadius }}>
+      <div className="w-full h-full min-h-[80px] overflow-hidden" style={{ borderRadius, maxWidth: data.size === 'small' ? 320 : undefined }}>
         <iframe src={src} className="w-full h-full pointer-events-none" style={{ minHeight: 80 }}
           title="Video preview" allow="autoplay; encrypted-media" />
       </div>

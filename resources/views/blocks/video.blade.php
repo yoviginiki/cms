@@ -19,7 +19,10 @@
     $muted = !empty($data['muted']);
     $loop = !empty($data['loop']);
     $poster = $data['poster'] ?? '';
-    $isYouTube = preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $url, $ytMatch);
+    $ytSrc = \App\Support\Blocks\YouTubeEmbed::embedUrl($url, $autoplay, $muted);
+    $isYouTube = $ytSrc !== null;
+    // "small": a compact player (max 320px wide) — also on phones
+    $vSmall = ($data['size'] ?? 'full') === 'small';
     $isVimeo = preg_match('/vimeo\.com\/(\d+)/', $url, $vmMatch);
 
     // Hero mode fields
@@ -65,11 +68,12 @@
 </div>
 @else
 {{-- Standard video mode --}}
-<div class="video-block" style="margin-bottom:1.5rem;{{ $shapeStyle ? "overflow:hidden;{$shapeStyle}" : '' }}">
+<div class="video-block{{ $vSmall ? ' video-block--small' : '' }}" style="margin-bottom:1.5rem;{{ $vSmall ? 'max-width:320px;' : '' }}{{ $shapeStyle ? "overflow:hidden;{$shapeStyle}" : '' }}">
     @if($isYouTube)
         <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">
-            <iframe src="https://www.youtube-nocookie.com/embed/{{ $ytMatch[1] }}{{ $autoplay ? '?autoplay=1' : '' }}{{ $muted ? ($autoplay ? '&' : '?') . 'mute=1' : '' }}"
+            <iframe src="{{ $ytSrc }}"
                     style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                     loading="lazy" allowfullscreen title="Video"></iframe>
         </div>
     @elseif($isVimeo)

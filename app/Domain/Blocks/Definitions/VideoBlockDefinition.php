@@ -17,6 +17,7 @@ class VideoBlockDefinition implements BlockDefinition
             'controls' => ['sometimes', 'boolean'],
             'playsinline' => ['sometimes', 'boolean'],
             'preload' => ['sometimes', 'in:none,metadata,auto'],
+            'size' => ['sometimes', 'in:full,small'],
             'poster' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'heroMode' => ['sometimes', 'boolean'],
             'shape' => ['sometimes', 'in:none,capsule,circle,rounded,custom'],

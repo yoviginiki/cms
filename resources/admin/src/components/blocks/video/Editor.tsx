@@ -3,11 +3,12 @@ import type { BlockEditorProps } from '@/types/blocks';
 import { TextField } from '@/components/editor/fields/TextField';
 import { ToggleField } from '@/components/editor/fields/ToggleField';
 import { AssetField } from '@/components/ui/AssetPicker';
+import { parseYouTube } from '@/lib/youtube';
 
 export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => {
   const data = block.data as {
     url: string; autoplay: boolean; muted: boolean; loop: boolean; poster: string;
-    controls?: boolean; playsinline?: boolean; preload?: string;
+    controls?: boolean; playsinline?: boolean; preload?: string; size?: string;
     heroMode: boolean; shape: string; shapeRadius: string; minHeight: string;
     overlay: boolean; overlayColor: string; overlayOpacity: number;
     preTitle: string; title: string; subtitle: string; textColor: string;
@@ -25,8 +26,20 @@ export const VideoEditor: React.FC<BlockEditorProps> = ({ block, onUpdate }) => 
         label="…or Video URL"
         value={data.url || ''}
         onChange={(v) => update('url', v)}
-        placeholder="https://youtube.com/watch?v=... or .mp4 URL"
+        placeholder="YouTube video / playlist link, Vimeo or .mp4"
       />
+      {data.url && /youtu/i.test(data.url) && (
+        <p className={`text-[10px] -mt-1 ${parseYouTube(data.url) ? 'text-base-content/40' : 'text-error'}`}>
+          {(() => { const p = parseYouTube(data.url); return p ? (p.list ? '✓ YouTube playlist' : '✓ YouTube video') : 'Not recognised — in YouTube use Share → Copy link.'; })()}
+        </p>
+      )}
+      <div>
+        <label className="text-[11px] text-base-content/50 mb-1 block">Player size</label>
+        <select className="select select-bordered select-xs w-full text-[11px]" value={data.size || 'full'} onChange={(e) => update('size', e.target.value)}>
+          <option value="full">Full width</option>
+          <option value="small">Small (max 320px, also on phones)</option>
+        </select>
+      </div>
       <div className="grid grid-cols-3 gap-2">
         <ToggleField label="Autoplay" value={!!data.autoplay} onChange={(v) => update('autoplay', v)} />
         <ToggleField label="Muted" value={!!data.muted} onChange={(v) => update('muted', v)} />
