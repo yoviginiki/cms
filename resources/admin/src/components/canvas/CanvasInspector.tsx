@@ -20,6 +20,8 @@ interface Props {
   // Page-level canvas meta (type / design width / phone width) is persisted on
   // the page, not in the block tree — the editor owns that write.
   persistCanvasMeta: (patch: { page_type?: CanvasPageType; width?: number; mobile_width?: number; fit?: CanvasFit }) => void;
+  // Inside the editor's tabbed side panel: fill it instead of being its own column.
+  embedded?: boolean;
 }
 
 function Group({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -63,7 +65,8 @@ function Num({ label, value, onChange, onFocus, min, max, step = 1, suffix }: {
  * Everything writes straight into the canvas store (same undo + collab paths as
  * the toolbar/keyboard).
  */
-export function CanvasInspector({ persistCanvasMeta }: Props) {
+export function CanvasInspector({ persistCanvasMeta, embedded = false }: Props) {
+  const shell = embedded ? 'flex-1 min-h-0' : 'w-72 shrink-0 border-l border-base-200';
   const sections = useCanvasStore(s => s.sections);
   const selectedIds = useCanvasStore(s => s.selectedIds);
   const activeSectionId = useCanvasStore(s => s.activeSectionId);
@@ -87,7 +90,7 @@ export function CanvasInspector({ persistCanvasMeta }: Props) {
   // ── several elements ───────────────────────────────────────────────────────
   if (selectedIds.length > 1) {
     return (
-      <aside className="w-72 shrink-0 border-l border-base-200 bg-base-100 flex flex-col overflow-y-auto" data-testid="canvas-inspector">
+      <aside className={`${shell} bg-base-100 flex flex-col overflow-y-auto`} data-testid="canvas-inspector">
         <div className="flex items-center justify-between p-3 border-b border-base-300/20">
           <h3 className="text-[12px] font-medium text-base-content/80">{selectedIds.length} elements</h3>
           <button className="btn btn-ghost btn-xs btn-square" onClick={clearSelection} aria-label="Deselect"><X size={13} /></button>
@@ -123,7 +126,7 @@ export function CanvasInspector({ persistCanvasMeta }: Props) {
     const hiddenOnPhone = !!el.bp?.mobile?.hidden;
 
     return (
-      <aside className="w-72 shrink-0 border-l border-base-200 bg-base-100 flex flex-col overflow-hidden" data-testid="canvas-inspector">
+      <aside className={`${shell} bg-base-100 flex flex-col overflow-hidden`} data-testid="canvas-inspector">
         <div className="flex items-center justify-between p-3 border-b border-base-300/20">
           <div className="flex items-center gap-2 min-w-0">
             <BlockIcon icon={reg?.definition.icon ?? 'Box'} size={14} className="text-primary/60 shrink-0" />
@@ -244,7 +247,7 @@ export function CanvasInspector({ persistCanvasMeta }: Props) {
 
   // ── nothing selected: page + active section ────────────────────────────────
   return (
-    <aside className="w-72 shrink-0 border-l border-base-200 bg-base-100 flex flex-col overflow-y-auto" data-testid="canvas-inspector">
+    <aside className={`${shell} bg-base-100 flex flex-col overflow-y-auto`} data-testid="canvas-inspector">
       <div className="flex flex-col items-center text-center px-6 pt-6 pb-4 gap-1.5">
         <MousePointerClick size={24} className="text-base-content/15" />
         <p className="text-[12px] text-base-content/50 font-medium">Click a block to edit it</p>

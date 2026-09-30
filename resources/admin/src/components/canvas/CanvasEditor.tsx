@@ -3,7 +3,7 @@ import { Plus, Undo2, Redo2, Magnet, ZoomIn, ZoomOut, Maximize2, Monitor, Smartp
 import { useQuery } from '@tanstack/react-query';
 import { useCanvasStore } from '@/stores/canvasStore';
 import { saveContent } from '@/lib/saveCoordinator';
-import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi } from '@/lib/api';
+import { pages as pagesApi, posts as postsApi, auth, blocks as blocksApi, themeEngine } from '@/lib/api';
 import { colorForId } from '@/lib/collabColor';
 import { CanvasSection } from './CanvasSection';
 import { CanvasInspector } from './CanvasInspector';
@@ -31,9 +31,31 @@ interface Props {
   contentType?: 'pages' | 'posts';
   seoMeta?: Record<string, unknown>;
   onDirty?: () => void;
+  // Content settings (e.g. the post's category / date / status panel), shown as
+  // a second tab next to the design inspector.
+  inspectorExtra?: React.ReactNode;
+  inspectorExtraLabel?: string;
 }
 
-export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, onDirty }: Props) {
+export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, onDirty, inspectorExtra, inspectorExtraLabel = 'Settings' }: Props) {
+  const [sideTab, setSideTab] = useState<'design' | 'extra'>('design');
+  // The site's published typography (fonts, sizes, line-heights), scoped to
+  // .cv-typo — the canvas surface — so text looks exactly as on the live site.
+  const { data: typoCss } = useQuery({
+    queryKey: ['canvas-typography', siteId],
+    queryFn: () => themeEngine.canvasTypography(siteId).then((r: { data?: { data?: { css?: string } } }) => r.data?.data?.css ?? ''),
+    enabled: !!siteId,
+    staleTime: 5 * 60 * 1000,
+  });
+  useEffect(() => {
+    if (!typoCss) return;
+    let el = document.getElementById('cv-typo-css') as HTMLStyleElement | null;
+    if (!el) { el = document.createElement('style'); el.id = 'cv-typo-css'; document.head.appendChild(el); }
+    el.textContent = typoCss;
+  }, [typoCss]);
+  const hasSelection = useCanvasStore(s => s.selectedIds.length > 0);
+  // picking a block on the canvas brings its design controls back into view
+  useEffect(() => { if (hasSelection) setSideTab('design'); }, [hasSelection]);
   const sections = useCanvasStore(s => s.sections);
   const pageType = useCanvasStore(s => s.pageType);
   const width = useCanvasStore(s => s.width);
@@ -269,7 +291,23 @@ export function CanvasEditor({ siteId, pageId, contentType = 'pages', seoMeta, o
       </div>
 
       {/* properties panel (content, layer order, opacity, position, phone, animation) */}
-      <CanvasInspector persistCanvasMeta={persistCanvasMeta} />
+      {inspectorExtra ? (
+        <div className="w-80 shrink-0 border-l border-base-200 bg-base-100 flex flex-col min-h-0" data-testid="canvas-side-panel">
+          <div className="flex border-b border-base-200 text-[11px] font-medium" role="tablist">
+            {([['design', 'Design'], ['extra', inspectorExtraLabel]] as const).map(([key, label]) => (
+              <button key={key} type="button" role="tab" aria-selected={sideTab === key} onClick={() => setSideTab(key)}
+                className={`flex-1 py-2 ${sideTab === key ? 'text-primary border-b-2 border-primary' : 'text-base-content/50 hover:text-base-content/80'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {sideTab === 'design'
+            ? <CanvasInspector persistCanvasMeta={persistCanvasMeta} embedded />
+            : <div className="flex-1 min-h-0 overflow-y-auto">{inspectorExtra}</div>}
+        </div>
+      ) : (
+        <CanvasInspector persistCanvasMeta={persistCanvasMeta} />
+      )}
 
       {/* live preview split-pane */}
       {previewOpen && (

@@ -246,8 +246,9 @@ export default function PostEditor() {
       setMetaDirty(false);
       // Save blocks through the coordinator (serializes by builder: canvas
       // tree or the block store — Simple mode writes into the block store).
-      const r = await saveContent({ siteId, type: 'posts', id: postId });
-      if (r.outcome === 'skipped') throw new Error('Editor not ready (content still loading)');
+      // 'skipped' = the editor never hydrated (e.g. a brand-new, empty post):
+      // there are no local edits to lose, and editor_mode is already saved.
+      await saveContent({ siteId, type: 'posts', id: postId });
       queryClient.invalidateQueries({ queryKey: ['post', siteId, postId] });
       // If status changed (e.g. published→draft), trigger republish so front page
       // and static files update (draft posts get removed from public site)
@@ -446,6 +447,33 @@ export default function PostEditor() {
 
   const adminTheme = localStorage.getItem('admin-theme') || 'cms-admin';
 
+  // one post-settings panel, shared by every editor mode (canvas shows it as a tab)
+  const postMetaPanel = (
+    <PostMetaPanel
+      slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
+      slugManual={slugManual} setSlugManual={setSlugManual}
+      title={title}
+      status={status} setStatus={s => { setStatus(s); markMetaDirty(); }}
+      categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
+      excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
+      featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
+      videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
+      thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
+      postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
+      publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
+      scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
+      layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
+      layouts={layoutsList || []}
+      categories={categoriesList || []}
+      versions={versionsList || []}
+      siteId={siteId} postId={postId}
+      seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
+      onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
+      authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
+      authors={usersList || []}
+    />
+  );
+
   return (
     <div className="flex flex-col h-screen bg-base-200" data-theme={adminTheme}>
       {/* ─── Top toolbar ─── */}
@@ -553,7 +581,8 @@ export default function PostEditor() {
       {/* ─── Editor body ─── */}
       <div className="flex flex-1 overflow-hidden">
         {editorMode === 'canvas' ? (
-          <CanvasEditor siteId={siteId} pageId={postId} contentType="posts" seoMeta={post?.seo_meta} onDirty={() => setDirty(true)} />
+          <CanvasEditor siteId={siteId} pageId={postId} contentType="posts" seoMeta={post?.seo_meta} onDirty={() => setDirty(true)}
+            inspectorExtra={postMetaPanel} inspectorExtraLabel="Post" />
         ) : editorMode === 'simple' ? (
           /* Simple WYSIWYG editor — full screen, classic WordPress-like */
           <div className="flex flex-1 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden snap-x snap-mandatory">
@@ -571,29 +600,7 @@ export default function PostEditor() {
             <div className="w-80 min-w-[320px] bg-base-100 border-l border-base-300/30 flex flex-col shrink-0 snap-start">
               <div className="p-1 border-b border-base-300/20 text-center text-[10px] text-base-content/30 font-medium">Post Settings</div>
               <div className="flex-1 overflow-y-auto">
-                <PostMetaPanel
-                  slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
-                  slugManual={slugManual} setSlugManual={setSlugManual}
-                  title={title}
-                  status={status} setStatus={s => { setStatus(s); markMetaDirty(); }}
-                  categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
-                  excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
-                  featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
-                  videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
-                  thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
-                  postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
-                  publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
-                  scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
-                  layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
-                  layouts={layoutsList || []}
-                  categories={categoriesList || []}
-                  versions={versionsList || []}
-                  siteId={siteId} postId={postId}
-                  seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
-                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
-                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
-                  authors={usersList || []}
-                />
+                {postMetaPanel}
               </div>
             </div>
           </div>
@@ -632,31 +639,7 @@ export default function PostEditor() {
                     <div className="flex-1 overflow-y-auto p-2">
                       {rightTab === 'blocks' && <BlockPicker />}
                       {rightTab === 'settings' && <BlockSettings />}
-                      {rightTab === 'post' && (
-                        <PostMetaPanel
-                          slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
-                          slugManual={slugManual} setSlugManual={setSlugManual}
-                          title={title}
-                          status={status} setStatus={s => { setStatus(s); markMetaDirty(); }}
-                          categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
-                          excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
-                          featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
-                          videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
-                          thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
-                          postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
-                          publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
-                          scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
-                          layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
-                          layouts={layoutsList || []}
-                          categories={categoriesList || []}
-                          versions={versionsList || []}
-                          siteId={siteId} postId={postId}
-                          seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
-                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
-                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
-                  authors={usersList || []}
-                        />
-                      )}
+                      {rightTab === 'post' && postMetaPanel}
                     </div>
                   </div>
                 </div>
@@ -686,31 +669,7 @@ export default function PostEditor() {
                 {rightTab === 'settings' && <BlockSettings />}
                 {rightTab === 'tree' && <StructurePanel />}
                 {rightTab === 'blocks' && <div className="h-full"><BlockPicker /></div>}
-                {rightTab === 'post' && (
-                  <PostMetaPanel
-                    slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
-                    slugManual={slugManual} setSlugManual={setSlugManual}
-                    title={title}
-                    status={status} setStatus={s => { setStatus(s); markMetaDirty(); }}
-                    categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
-                    excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
-                    featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
-                    videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
-                    thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
-                    postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
-                    publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
-                    scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
-                    layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
-                    layouts={layoutsList || []}
-                    categories={categoriesList || []}
-                    versions={versionsList || []}
-                    siteId={siteId} postId={postId}
-                    seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
-                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
-                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
-                  authors={usersList || []}
-                  />
-                )}
+                {rightTab === 'post' && postMetaPanel}
               </div>
             </div>
             </div>{/* close flex container */}
@@ -736,31 +695,7 @@ export default function PostEditor() {
                 {rightTab === 'settings' && <BlockSettings />}
                 {rightTab === 'layers' && <LayersPanel />}
                 {rightTab === 'blocks' && <div className="h-full"><BlockPicker /></div>}
-                {rightTab === 'post' && (
-                  <PostMetaPanel
-                    slug={slug} setSlug={s => { setSlug(s); markMetaDirty(); }}
-                    slugManual={slugManual} setSlugManual={setSlugManual}
-                    title={title}
-                    status={status} setStatus={s => { setStatus(s); markMetaDirty(); }}
-                    categoryId={categoryId} setCategoryId={s => { setCategoryId(s); markMetaDirty(); }}
-                    excerpt={excerpt} setExcerpt={s => { setExcerpt(s); markMetaDirty(); }}
-                    featuredImage={featuredImage} setFeaturedImage={s => { setFeaturedImage(s); markMetaDirty(); }}
-                    videoUrl={videoUrl} setVideoUrl={s => { setVideoUrl(s); markMetaDirty(); }}
-                    thumbnail={thumbnail} setThumbnail={s => { setThumbnail(s); markMetaDirty(); }}
-                    postFormat={postFormat} setPostFormat={s => { setPostFormat(s); markMetaDirty(); }}
-                    publishedAt={publishedAt} setPublishedAt={s => { setPublishedAt(s); markMetaDirty(); }}
-                    scheduledAt={scheduledAt} setScheduledAt={s => { setScheduledAt(s); markMetaDirty(); }}
-                    layoutId={layoutId} setLayoutId={s => { setLayoutId(s); markMetaDirty(); }}
-                    layouts={layoutsList || []}
-                    categories={categoriesList || []}
-                    versions={versionsList || []}
-                    siteId={siteId} postId={postId}
-                    seoMeta={{ ...(post?.seo_meta || {}), ...seoPatch }} site={siteData}
-                  onSeoPatch={patch => { setSeoPatch(p => ({ ...p, ...patch })); setMetaDirty(true); }}
-                  authorId={authorId} setAuthorId={id => { setAuthorId(id); setMetaDirty(true); }}
-                  authors={usersList || []}
-                  />
-                )}
+                {rightTab === 'post' && postMetaPanel}
               </div>
             </div>
           </>

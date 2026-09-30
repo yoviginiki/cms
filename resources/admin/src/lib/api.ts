@@ -233,6 +233,7 @@ export const themeEngine = {
   fork: (siteId: string, themeId: string, name?: string) => api.post(`/sites/${siteId}/theme-engine/themes/${themeId}/fork`, { name }),
   exportTheme: (siteId: string, themeId: string) => api.get(`/sites/${siteId}/theme-engine/themes/${themeId}/export`),
   resolve: (siteId: string, mode?: string) => api.get(`/sites/${siteId}/theme-engine/resolve`, { params: { mode } }),
+  canvasTypography: (siteId: string) => api.get(`/sites/${siteId}/theme-engine/canvas-typography`),
   assign: (siteId: string, themeId: string, mode?: string) => api.post(`/sites/${siteId}/theme-engine/assign`, { theme_id: themeId, mode }),
   saveOverrides: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/theme-engine/overrides`, data),
   importTheme: (siteId: string, data: Record<string, unknown>) => api.post(`/sites/${siteId}/theme-engine/import`, data),

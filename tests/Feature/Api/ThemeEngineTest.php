@@ -138,6 +138,20 @@ class ThemeEngineTest extends TestCase
             ->assertJsonStructure(['data']);
     }
 
+    public function test_canvas_typography_is_the_published_css_scoped_to_the_canvas(): void
+    {
+        $css = $this->actingAsOwner()
+            ->getJson("/api/v1/sites/{$this->site->id}/theme-engine/canvas-typography")
+            ->assertStatus(200)
+            ->json('data.css');
+
+        $this->assertStringContainsString('.cv-typo {', $css);
+        $this->assertStringContainsString('--font-body', $css);
+        $this->assertStringContainsString('.cv-typo{font-family:var(--font-body', $css);
+        $this->assertDoesNotMatchRegularExpression('/(^|[}\s,]):root\s*\{/m', $css, 'vars must not leak onto the admin :root');
+        $this->assertDoesNotMatchRegularExpression('/(^|[}\s,])(html|body)\b/m', $css, 'no page-level html/body rules on the admin');
+    }
+
     public function test_can_resolve_theme(): void
     {
         $this->actingAsOwner()

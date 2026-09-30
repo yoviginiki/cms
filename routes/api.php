@@ -477,6 +477,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('sites/{site}/theme-engine/themes/{theme}/fork', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'fork']);
         Route::get('sites/{site}/theme-engine/themes/{theme}/export', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'export']);
         Route::get('sites/{site}/theme-engine/resolve', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'resolve']);
+        Route::get('sites/{site}/theme-engine/canvas-typography', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'canvasTypography']);
         Route::post('sites/{site}/theme-engine/assign', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'assign']);
         Route::post('sites/{site}/theme-engine/overrides', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'saveOverrides']);
         Route::post('sites/{site}/theme-engine/import', [\App\Http\Controllers\Api\V1\ThemeEngineController::class, 'import']);

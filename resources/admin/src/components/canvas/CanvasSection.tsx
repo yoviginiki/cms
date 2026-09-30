@@ -155,7 +155,7 @@ function CanvasSectionInner({ section, width, zoom, isActive, canMoveUp, canMove
         <div style={{ width: effWidth * zoom, height: displayHeight * zoom, margin: '0 auto' }}>
           <div
             ref={canvasRef}
-            className="cv-canvas relative shadow-sm"
+            className="cv-canvas cv-typo relative shadow-sm"
             data-testid="canvas-drop-target"
             onDragOver={onDragOver}
             onDragEnter={onDragOver}

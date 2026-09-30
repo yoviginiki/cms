@@ -184,6 +184,17 @@ class ThemeEngineController extends Controller
     }
 
     /**
+     * The published typography (fonts, sizes, line-heights) scoped to the canvas
+     * editor surface, so the canvas shows text exactly as the live site does.
+     */
+    public function canvasTypography(Site $site): JsonResponse
+    {
+        return response()->json(['data' => [
+            'css' => app(\App\Domain\Publishing\Services\CanvasTypographyCss::class)->forSite($site),
+        ]]);
+    }
+
+    /**
      * Assign a theme to a site for a given mode.
      */
     public function assign(Request $request, Site $site): JsonResponse
