@@ -2,8 +2,11 @@ import type { BlockComponentProps } from '@/types/blocks';
 import { InlineTextField } from '@/components/editor/fields';
 import { resolveTextShadow, safeDim } from '@/lib/blockStyles';
 
-const sizeClassMap: Record<string, string> = {
-  h1: 'text-4xl', h2: 'text-3xl', h3: 'text-2xl', h4: 'text-xl', h5: 'text-lg', h6: 'text-base',
+// Same defaults as resources/views/blocks/heading.blade.php — theme size tokens
+// (defined on the canvas / published page), with the publish fallbacks.
+const sizeVarMap: Record<string, string> = {
+  h1: 'var(--font-size-3xl,2rem)', h2: 'var(--font-size-2xl,1.5rem)', h3: 'var(--font-size-xl,1.25rem)',
+  h4: 'var(--font-size-lg,1.125rem)', h5: 'var(--font-size-base,1rem)', h6: 'var(--font-size-sm,0.875rem)',
 };
 
 export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate }) => {
@@ -23,8 +26,11 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
   const textShadow = resolveTextShadow(data.textShadow);
 
   const style: React.CSSProperties = {
-    ...(fontSize ? { fontSize } : {}),
-    ...(fontWeight ? { fontWeight } : {}),
+    fontSize: fontSize || sizeVarMap[tag] || sizeVarMap.h2,
+    fontWeight: fontWeight || 'var(--heading-weight,var(--font-weight-bold,700))',
+    fontFamily: 'var(--font-heading,inherit)',
+    lineHeight: 'var(--line-height-heading,var(--line-height-tight,1.25))',
+    margin: '0 0 var(--heading-margin-bottom,0.4em)',
     ...(color ? { color } : {}),
     ...(lineHeight ? { lineHeight } : {}),
     ...(letterSpacing ? { letterSpacing } : {}),
@@ -55,8 +61,6 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
   if (sd(spacing.marginBottom)) style.marginBottom = sd(spacing.marginBottom);
   if (sd(visual.borderRadius)) style.borderRadius = sd(visual.borderRadius);
 
-  // Use Tailwind size class only when no custom fontSize is set
-  const sizeClass = fontSize ? '' : (sizeClassMap[tag] || sizeClassMap.h2);
 
   return (
     <InlineTextField
@@ -64,7 +68,7 @@ export const HeadingPreview: React.FC<BlockComponentProps> = ({ block, onUpdate 
       value={text}
       placeholder="Add heading"
       onChange={(v) => onUpdate({ ...block.data, text: v })}
-      className={`${sizeClass} font-bold block`}
+      className="block"
       style={style}
     />
   );

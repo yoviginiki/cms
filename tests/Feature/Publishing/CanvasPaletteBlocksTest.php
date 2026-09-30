@@ -18,7 +18,7 @@ class CanvasPaletteBlocksTest extends TestCase
     private const PALETTE = [
         'heading', 'text', 'paragraph', 'pullquote', 'list',
         'image', 'imagecaption', 'gallery', 'linear-gallery', 'logostrip', 'beforeafter', 'video', 'audio', 'spotify', 'icon',
-        'button', 'divider', 'shape', 'testimonial', 'stats', 'map', 'socialembed', 'html-embed',
+        'button', 'divider', 'shape', 'testimonial', 'stats', 'map', 'link', 'socialembed', 'html-embed',
     ];
 
     public function test_every_palette_block_publishes_inside_a_canvas_section(): void

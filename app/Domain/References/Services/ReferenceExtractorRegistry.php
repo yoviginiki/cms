@@ -124,6 +124,8 @@ class ReferenceExtractorRegistry
             'pricingcard' => new FieldMapExtractor(urlFields: ['ctaUrl']),
             'pricingtable' => new FieldMapExtractor(urlFields: ['plans.*.ctaUrl']),
             'socialembed' => new FieldMapExtractor(urlFields: ['url']),
+            'link' => new FieldMapExtractor(urlFields: ['linkUrl']),
+            'spotify' => $null,
 
             // ── Rich-content blocks: internal links + inline asset srcs ────
             'text' => new FieldMapExtractor(htmlFields: ['content']),

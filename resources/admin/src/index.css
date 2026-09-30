@@ -517,4 +517,5 @@ button, a, input, select, textarea {
 .cv-fill[data-cv-type="divider"] hr { width: 100%; }
 .cv-fill[data-cv-type="audio"] > div { display: flex; flex-direction: column; justify-content: center; }
 .cv-fill[data-cv-type="spotify"] iframe { height: 100% !important; }
+.cv-fill[data-cv-type="link"] > div { display: flex; flex-direction: column; justify-content: center; }
 .cv-fill[data-cv-type="shape"] > div { min-height: 0; }

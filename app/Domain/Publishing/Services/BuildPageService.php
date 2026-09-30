@@ -44,7 +44,7 @@ class BuildPageService
      */
     private const INLINE_LOCKED_TYPES = [
         'html-embed', 'code', 'gallery', 'linear-gallery', 'flipbook', 'audio', 'spotify', 'map', 'beforeafter',
-        'table', 'catalog', 'logostrip', 'socialembed', 'sharebuttons', 'icon',
+        'table', 'catalog', 'logostrip', 'socialembed', 'link', 'sharebuttons', 'icon',
         'slider_ref', 'global_ref', 'menu',
     ];
 
@@ -885,7 +885,7 @@ HTML;
     private static function canvasFlowSelector(): string
     {
         $sel = [];
-        foreach (['heading', 'text', 'paragraph', 'pullquote', 'list', 'image', 'imagecaption', 'testimonial', 'stats', 'socialembed', 'audio', 'spotify'] as $t) {
+        foreach (['heading', 'text', 'paragraph', 'pullquote', 'list', 'image', 'imagecaption', 'testimonial', 'stats', 'socialembed', 'link', 'audio', 'spotify'] as $t) {
             $sel[] = ".cv-section:not(.cv-fluid) .cv-el[data-cv-type={$t}]>*";
             $sel[] = ".cv-section:not(.cv-fluid) .cv-el[data-cv-type={$t}]>.cv-anim>*";
         }
@@ -906,6 +906,7 @@ HTML;
             . $e . 'video] video,' . $e . 'video] iframe{width:100%;height:100%;object-fit:cover;display:block}'
             . $e . 'audio] .audio-block{height:100%;display:flex;align-items:center}'
             . $e . 'spotify] .spotify-block{height:100%}'
+            . $e . 'link] .link-block{height:100%;display:flex;flex-direction:column;justify-content:center}'
             . $e . 'spotify] iframe{height:100%!important}'
             . $e . 'icon]{container-type:size}'
             . $e . 'icon] .icon-block{width:100%!important;height:100%!important;font-size:min(50cqw,50cqh)!important;display:flex!important;align-items:center;justify-content:center}'

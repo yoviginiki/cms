@@ -24,6 +24,7 @@ import './event-card';
 import './spacer';
 import './video';
 import './spotify';
+import './link';
 import './html-embed';
 import './tabs';
 import './accordion';

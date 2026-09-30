@@ -87,6 +87,7 @@ use App\Domain\Blocks\Definitions\RelatedpostsBlockDefinition;
 use App\Domain\Blocks\Definitions\CategorylistBlockDefinition;
 use App\Domain\Blocks\Definitions\SocialembedBlockDefinition;
 use App\Domain\Blocks\Definitions\SpotifyBlockDefinition;
+use App\Domain\Blocks\Definitions\LinkBlockDefinition;
 use App\Domain\Blocks\Definitions\MapBlockDefinition;
 use App\Domain\Blocks\Definitions\ChartBlockDefinition;
 use App\Domain\Blocks\Definitions\NewsletterBlockDefinition;
@@ -209,6 +210,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new CategorylistBlockDefinition());
             $registry->register(new SocialembedBlockDefinition());
             $registry->register(new SpotifyBlockDefinition());
+            $registry->register(new LinkBlockDefinition());
             $registry->register(new MapBlockDefinition());
             $registry->register(new ChartBlockDefinition());
             $registry->register(new NewsletterBlockDefinition());
