@@ -647,7 +647,12 @@ HTML;
             . '.cv-section:not(.cv-fluid) .cv-el{position:static!important;width:100%!important;height:auto!important;'
             . 'left:auto!important;top:auto!important;transform:none!important;margin:0 0 1.25rem 0}'
             . '.cv-section:not(.cv-fluid) .cv-anim{height:auto!important}'
-            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto}'
+            // block wrappers carry the canvas box size inline (width/height px) —
+            // release the width everywhere (a 600px text box overflows a 390px
+            // phone) and the height for flowing content only; media keeps its box
+            // height, or images with height:100% collapse to nothing
+            . '.cv-section:not(.cv-fluid) .cv-el>*,.cv-section:not(.cv-fluid) .cv-anim>*{height:auto;width:auto!important;max-width:100%}'
+            . self::canvasFlowSelector() . '{height:auto!important}'
             // stacked: the box height is gone — Spotify keeps its own player height
             . '.cv-section:not(.cv-fluid) .cv-el[data-cv-type=spotify] iframe{height:var(--sp-h,352px)!important}';
 
@@ -876,6 +881,18 @@ HTML;
      * natural size — the box IS the design. Keyed by the wrapper's data-cv-type.
      * Mirrors the editor rules in resources/admin/src/index.css (.cv-fill).
      */
+    /** Stacked-layout selector for the wrappers of blocks whose height follows their content. */
+    private static function canvasFlowSelector(): string
+    {
+        $sel = [];
+        foreach (['heading', 'text', 'paragraph', 'pullquote', 'list', 'image', 'imagecaption', 'testimonial', 'stats', 'socialembed', 'audio', 'spotify'] as $t) {
+            $sel[] = ".cv-section:not(.cv-fluid) .cv-el[data-cv-type={$t}]>*";
+            $sel[] = ".cv-section:not(.cv-fluid) .cv-el[data-cv-type={$t}]>.cv-anim>*";
+        }
+
+        return implode(',', $sel);
+    }
+
     public static function canvasFillCss(): string
     {
         $e = '.cv-el[data-cv-type=';
